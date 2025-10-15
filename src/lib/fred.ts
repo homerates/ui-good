@@ -4,6 +4,7 @@ const TEN_YEAR = "DGS10";
 const MORTG_30US = "MORTGAGE30US";
 
 type Obs = { date: string; value: string };
+
 export type FredSnapshot = {
   tenYearYield: number | null;
   mort30Avg: number | null;
@@ -13,22 +14,36 @@ export type FredSnapshot = {
   source: "fred" | "stub";
 };
 
-function toNum(v?: string | null) {
-  if (!v) return null;
+/** Safe numeric coercion from string | number | null | undefined */
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchSeries(series_id: string, apiKey: string, signal: AbortSignal) {
+async function fetchSeries(
+  series_id: string,
+  apiKey: string,
+  signal: AbortSignal
+): Promise<{ value: number | null; date: string | null }> {
   const url = new URL(FRED_BASE);
   url.searchParams.set("series_id", series_id);
   url.searchParams.set("api_key", apiKey);
   url.searchParams.set("file_type", "json");
-  url.searchParams.set("observation_start", new Date(Date.now() - 120 * 86400_000).toISOString().slice(0,10));
+  // pull last ~120 days so we always have a recent point
+  url.searchParams.set(
+    "observation_start",
+    new Date(Date.now() - 120 * 86400_000).toISOString().slice(0, 10)
+  );
+
   const res = await fetch(url.toString(), { signal });
   if (!res.ok) throw new Error(`FRED ${series_id} HTTP ${res.status}`);
-  const json = await res.json() as { observations?: Obs[] };
-  const latest = [...(json.observations ?? [])].reverse().find(o => o.value && o.value !== ".");
+
+  const json = (await res.json()) as { observations?: Obs[] };
+  const latest = [...(json.observations ?? [])]
+    .reverse()
+    .find((o) => o.value && o.value !== ".");
+
   if (!latest) return { value: null, date: null };
   return { value: toNum(latest.value), date: latest.date };
 }
@@ -38,24 +53,45 @@ let _cache: { key: string; at: number; data: FredSnapshot | null } | null = null
 const TTL_MS = 5 * 60 * 1000;
 
 export function getFredCacheInfo() {
-  if (!_cache) return { cached: false, ageMs: null as number|null, asOf: null as string|null, source: null as string|null };
+  if (!_cache) {
+    return {
+      cached: false,
+      ageMs: null as number | null,
+      asOf: null as string | null,
+      source: null as string | null,
+    };
+  }
   return {
     cached: !!_cache.data,
     ageMs: Date.now() - _cache.at,
     asOf: _cache.data?.asOf ?? null,
-    source: _cache.data?.source ?? null
+    source: _cache.data?.source ?? null,
   };
 }
 
 export async function warmFredCache(msTimeout = 1500) {
-  // best-effort, short timeout, ignore errors
-  try { await getFredSnapshot({ timeoutMs: msTimeout }); } catch {}
+  try {
+    await getFredSnapshot({ timeoutMs: msTimeout });
+  } catch {
+    // best-effort; ignore
+  }
 }
 
-export async function getFredSnapshot(opts?: { maxAgeDays?: number; timeoutMs?: number }): Promise<FredSnapshot | null> {
+export async function getFredSnapshot(opts?: {
+  maxAgeDays?: number;
+  timeoutMs?: number;
+}): Promise<FredSnapshot | null> {
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) {
-    return { tenYearYield: null, mort30Avg: null, spread: null, asOf: null, stale: true, source: "stub" };
+    // no key = stubbed snapshot
+    return {
+      tenYearYield: null,
+      mort30Avg: null,
+      spread: null,
+      asOf: null,
+      stale: true,
+      source: "stub",
+    };
   }
 
   const timeoutMs = opts?.timeoutMs ?? 6000;
@@ -77,14 +113,31 @@ export async function getFredSnapshot(opts?: { maxAgeDays?: number; timeoutMs?: 
     ]);
     clearTimeout(t);
 
-    const tenYearYield = toNum(ten.value);
-    const mort30Avg = toNum(mort.value);
-    const spread = tenYearYield != null && mort30Avg != null ? +(mort30Avg - tenYearYield).toFixed(2) : null;
+    // values are already numbers|null from fetchSeries; no double parsing
+    const tenYearYield = ten.value;
+    const mort30Avg = mort.value;
 
-    const asOf = [ten.date, mort.date].filter(Boolean).sort().slice(-1)[0] ?? null;
-    const stale = asOf ? (now - new Date(asOf).getTime()) > maxAgeDays * 86400_000 : true;
+    const spread =
+      tenYearYield != null && mort30Avg != null
+        ? +(mort30Avg - tenYearYield).toFixed(2)
+        : null;
 
-    const out: FredSnapshot = { tenYearYield, mort30Avg, spread, asOf, stale, source: "fred" };
+    const asOf =
+      [ten.date, mort.date].filter(Boolean).sort().slice(-1)[0] ?? null;
+
+    const stale = asOf
+      ? now - new Date(asOf).getTime() > maxAgeDays * 86400_000
+      : true;
+
+    const out: FredSnapshot = {
+      tenYearYield,
+      mort30Avg,
+      spread,
+      asOf,
+      stale,
+      source: "fred",
+    };
+
     _cache = { key: cacheKey, at: now, data: out };
     return out;
   } catch {
