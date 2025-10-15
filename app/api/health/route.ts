@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   const fred = getFredCacheInfo();
 
   let status: "green" | "yellow" | "red" = "green";
-  if (!env.hasOpenAIKey || !env.hasFredKey) status = "yellow"; // missing keys but app can still answer concept/dynamic depending on flags
+  if (!env.hasOpenAIKey || !env.hasFredKey) status = "yellow";
   if (!env.dynamicEnabled && !env.hasFredKey) status = "yellow";
   if (!env.dynamicEnabled && !env.hasOpenAIKey && !env.hasFredKey) status = "red";
 
@@ -38,37 +38,31 @@ export async function GET(req: Request) {
     commit: COMMIT,
     node: process.version,
     uptimeSec: Math.round(process.uptime()),
-    env: {
-      dynamicEnabled: env.dynamicEnabled,
-      hasOpenAIKey: env.hasOpenAIKey,
-      hasFredKey: env.hasFredKey,
-    },
+    env,
     fredCache: {
       cached: fred.cached,
       ageMs: fred.ageMs,
       asOf: fred.asOf,
       source: fred.source,
     },
-    hints: [
-      "Add ?deep=1 to run on-demand connectivity checks (costs a tiny LLM request)."
-    ]
+    hints: ["Add ?deep=1 to run connectivity checks (costs a tiny LLM request)."]
   };
 
   if (!deep) return json(base);
 
-  // ----- Deep checks (on demand ONLY) -----
-  const results: Record<string, any> = {};
-  // 1) Warm FRED quickly (1.5s timeout in warmFredCache)
+  // Deep checks (best-effort)
+  const results: Record<string, unknown> = {};
+
   const fredStart = Date.now();
   try {
     await warmFredCache(1500);
     results.fred = { ok: true, durMs: Date.now() - fredStart };
-  } catch (e: any) {
-    results.fred = { ok: false, error: String(e?.message || e), durMs: Date.now() - fredStart };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    results.fred = { ok: false, error: msg, durMs: Date.now() - fredStart };
     status = "yellow";
   }
 
-  // 2) Tiny LLM ping (low temp, single token response)
   const llmStart = Date.now();
   try {
     const key = process.env.OPENAI_API_KEY;
@@ -89,8 +83,9 @@ export async function GET(req: Request) {
     const txt = await res.text();
     results.llm = { ok: res.ok, status: res.status, body: txt.slice(0, 120), durMs: Date.now() - llmStart };
     if (!res.ok) status = "yellow";
-  } catch (e: any) {
-    results.llm = { ok: false, error: String(e?.message || e).slice(0, 200), durMs: Date.now() - llmStart };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    results.llm = { ok: false, error: msg.slice(0, 200), durMs: Date.now() - llmStart };
     status = "yellow";
   }
 

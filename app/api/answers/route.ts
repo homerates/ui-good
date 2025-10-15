@@ -6,6 +6,7 @@ import { composeMarket, type ComposedAnswer as MarketOut } from "@/lib/composeMa
 import { composeConcept } from "@/lib/composeConcept";
 import { generateDynamicAnswer, generateConceptAnswer } from "@/lib/llm";
 import { normalizeConceptAnswer } from "@/lib/normalize";
+import { AnswerReq } from "@/lib/schema";
 
 type Mode = "borrower" | "public";
 
@@ -17,60 +18,73 @@ function json(data: unknown, status = 200) {
 }
 
 export async function GET() {
-  return json({ ok: true, expects: "POST { question, mode }" });
+  return json({ ok: true, expects: "POST { question, mode, intent?, loanAmount? }" });
 }
 
 export async function POST(req: Request) {
   try {
     const txt = await req.text();
-    let body: any = {};
-    try { body = txt ? JSON.parse(txt) : {}; } catch { body = { __raw: txt }; }
+    let parsed: unknown = {};
+    try {
+      parsed = txt ? JSON.parse(txt) as unknown : {};
+    } catch {
+      parsed = { __raw: txt } as const;
+    }
 
-    const question = String(body?.question ?? "").trim();
-    const mode: Mode = body?.mode === "public" ? "public" : "borrower";
+    const body = AnswerReq.safeParse(parsed);
+    if (!body.success) {
+      return json(
+        { path: "error", usedFRED: false, tldr: ["Bad request"], answer: body.error.flatten() },
+        400
+      );
+    }
+
+    const { question, mode, intent, loanAmount } = body.data;
     const q = question.toLowerCase();
 
     const mentionsConcept = /(fannie|freddie|fha|va|usda|dti|pmi|ltv|amortization|dscr|pre[- ]?approval|underwriting|escrow|points?)/i.test(q);
     const mentionsMarket  = /(rate|rates|10[- ]?year|treasury|spread|today|latest|current|now|pricing|yield)/i.test(q);
 
-    // --- Concept (strict; no live data) ------------------------------------
+    // --- Concept ------------------------------------------------------------
     if (mentionsConcept && !mentionsMarket) {
       try {
-        const base = composeConcept(q, mode); // gives TL;DR + borrowerSummary scaffold
+        const base = composeConcept(q, mode as Mode, intent);
         const llm = process.env.DYNAMIC_ENABLED === "true"
-          ? await generateConceptAnswer(question, mode)
+          ? await generateConceptAnswer(question, mode as Mode)
           : null;
 
         const answer = llm ? normalizeConceptAnswer(llm) : base.answer;
-
         return json({ ...base, answer });
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
         return json({
           path: "error",
           usedFRED: false,
           tldr: ["Concept path failed."],
-          answer: `Concept error: ${String(e?.message || e)}`.slice(0, 300),
+          answer: msg.slice(0, 300),
           borrowerSummary: null,
           confidence: "low"
         }, 200);
       }
     }
 
-    // --- Market (FRED + guidance) ------------------------------------------
+    // --- Market -------------------------------------------------------------
     if (mentionsMarket) {
       const fred = await getFredSnapshot({ maxAgeDays: 7, timeoutMs: 6000 });
-      const out: MarketOut = composeMarket(fred, mode, {
+      const out: MarketOut = composeMarket(fred, mode as Mode, {
         defaultLoan: 500_000,
+        loanAmount,
+        intent,
         recentTenYearChange: null,
         volatility: "med",
       });
       return json(out);
     }
 
-    // --- Dynamic (LLM) ------------------------------------------------------
+    // --- Dynamic ------------------------------------------------------------
     if (process.env.DYNAMIC_ENABLED === "true") {
       try {
-        const answer = await generateDynamicAnswer(question, mode);
+        const answer = await generateDynamicAnswer(question, mode as Mode);
         return json({
           path: "dynamic",
           usedFRED: false,
@@ -86,12 +100,13 @@ export async function POST(req: Request) {
               : null,
           confidence: "med"
         });
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
         return json({
           path: "error",
           usedFRED: false,
           tldr: ["Dynamic path failed."],
-          answer: `Dynamic error: ${String(e?.message || e)}`.slice(0, 300),
+          answer: msg.slice(0, 300),
           borrowerSummary: null,
           confidence: "low"
         }, 200);
@@ -103,16 +118,17 @@ export async function POST(req: Request) {
       path: "error",
       usedFRED: false,
       tldr: ["We didn’t match this to concept or market."],
-      answer: "Rephrase with either a concept (e.g., DTI, PMI, FHA) or a market request (rates vs 10-year).",
+      answer: "Rephrase with a concept (DTI, PMI, FHA) or market (rates vs 10-year).",
       borrowerSummary: null,
       confidence: "low"
     });
-  } catch {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
     return json({
       path: "error",
       usedFRED: false,
       tldr: ["We hit a snag."],
-      answer: "Mortgage rates tend to move with the 10-year; spreads reflect risk and liquidity.",
+      answer: msg || "Mortgage rates tend to move with the 10-year; spreads reflect risk and liquidity.",
       borrowerSummary: null,
       confidence: "low"
     });

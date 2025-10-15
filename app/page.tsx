@@ -15,44 +15,81 @@ type ApiResponse = {
   ok?: boolean;
   expects?: string;
   __raw?: string;
+  status?: number;
 };
 
-async function safeJson(r: Response) {
+async function safeJson(r: Response): Promise<ApiResponse> {
   const txt = await r.text();
-  try { return JSON.parse(txt); } catch { return { __raw: txt, status: r.status }; }
+  try {
+    return JSON.parse(txt) as ApiResponse;
+  } catch {
+    return { path: 'error', usedFRED: false, answer: txt, status: r.status };
+  }
 }
 
-function renderBullets(text?: string) {
+function renderBulletsFromText(text?: string) {
   if (!text) return null;
-  const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
-  const items = lines.map((l) => l.replace(/^[-•]\s*/, ''));
+  const lines = text.split('\n').map((s) => s.trim()).filter(Boolean);
+  const items = lines.map((l) => l.replace(/^[-•]\s*/, '')).filter(Boolean);
+  return <ul style={{ marginTop: 0 }}>{items.map((it, i) => <li key={i}>{it}</li>)}</ul>;
+}
+
+function renderAnswer(text?: string) {
+  if (!text) return <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>(no answer)</pre>;
+  const lines = text.split('\n').map((s) => s.trim());
+  const takeaway = lines[0] || '';
+  const bullets = lines.filter((l) => l.startsWith('• ')).map((l) => l.slice(2));
+  const nexts = lines.filter((l) => l.toLowerCase().startsWith('next:')).map((l) => l.slice(5).trim());
+
   return (
-    <ul style={{ marginTop: 0 }}>
-      {items.map((it, i) => <li key={i}>{it}</li>)}
-    </ul>
+    <div>
+      <div style={{ marginBottom: 8 }}>{takeaway}</div>
+      {bullets.length > 0 && <ul>{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>}
+      {nexts.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          {nexts.map((n, i) => (
+            <div key={i}>
+              <b>Next:</b> {n}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 export default function Home() {
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState<string>('');
   const [mode, setMode] = useState<'borrower' | 'public'>('borrower');
-  const [res, setRes] = useState<ApiResponse | any>(null);
-  const [loading, setLoading] = useState(false);
+  const [intent, setIntent] = useState<'' | 'purchase' | 'refi' | 'investor'>('');
+  const [loanAmount, setLoanAmount] = useState<number | ''>('');
+  const [res, setRes] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function ask() {
-    setLoading(true); setErr(null); setRes(null);
+    setLoading(true);
+    setErr(null);
+    setRes(null);
     try {
+      const body: { question: string; mode: 'borrower' | 'public'; intent?: 'purchase' | 'refi' | 'investor'; loanAmount?: number } = {
+        question: q,
+        mode,
+      };
+      if (intent) body.intent = intent;
+      if (loanAmount && Number(loanAmount) > 0) body.loanAmount = Number(loanAmount);
+
       const r = await fetch('/api/answers', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ question: q, mode })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
       const data = await safeJson(r);
       setRes(data);
       if (!r.ok) setErr(`HTTP ${r.status}`);
-    } catch (e: any) {
-      setErr(e?.message || 'Request failed');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
     } finally {
       setLoading(false);
     }
@@ -61,20 +98,35 @@ export default function Home() {
   const showBorrowerSummary = !!res && res.path === 'market' && res.usedFRED && !!res.borrowerSummary;
 
   return (
-    <main style={{ maxWidth: 880, margin: '40px auto', padding: 24, fontFamily: 'system-ui, Segoe UI, Roboto, sans-serif' }}>
+    <main style={{ maxWidth: 920, margin: '40px auto', padding: 24, fontFamily: 'system-ui, Segoe UI, Roboto, sans-serif' }}>
       <h1 style={{ marginBottom: 12 }}>HomeRates — Local Tester</h1>
 
-      <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '1fr auto auto' }}>
+      <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '1fr 140px 140px 180px auto' }}>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Type your question…"
           style={{ padding: 10, border: '1px solid #ccc', borderRadius: 8 }}
         />
-        <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ padding: 10, borderRadius: 8 }}>
+        <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')} style={{ padding: 10, borderRadius: 8 }}>
           <option value="borrower">Borrower</option>
           <option value="public">Public</option>
         </select>
+        <select value={intent} onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')} style={{ padding: 10, borderRadius: 8 }}>
+          <option value="">intent: auto</option>
+          <option value="purchase">purchase</option>
+          <option value="refi">refi</option>
+          <option value="investor">investor</option>
+        </select>
+        <input
+          type="number"
+          min={50000}
+          step={1000}
+          placeholder="loan amount (optional)"
+          value={loanAmount}
+          onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
+          style={{ padding: 10, border: '1px solid #ccc', borderRadius: 8 }}
+        />
         <button onClick={ask} disabled={loading || !q.trim()} style={{ padding: '10px 16px', borderRadius: 8 }}>
           {loading ? 'Thinking…' : 'Ask'}
         </button>
@@ -85,25 +137,28 @@ export default function Home() {
       {res && (
         <section style={{ marginTop: 16, border: '1px solid #eee', borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-            Path: <b>{String(res.path)}</b> · usedFRED: <b>{String(res.usedFRED)}</b> {res.lockBias ? <>· bias: <b>{res.lockBias}</b></> : null} {res.confidence ? <>· confidence: <b>{res.confidence}</b></> : null}
+            Path: <b>{String(res.path)}</b> · usedFRED: <b>{String(res.usedFRED)}</b> {res.lockBias ? <>· bias: <b>{res.lockBias}</b></> : null}{' '}
+            {res.confidence ? <>· confidence: <b>{res.confidence}</b></> : null}
           </div>
 
           {Array.isArray(res.tldr) && res.tldr.length > 0 && (
             <>
               <h3 style={{ margin: '8px 0' }}>TL;DR</h3>
               <ul style={{ marginTop: 0 }}>
-                {res.tldr.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                {res.tldr.map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
               </ul>
             </>
           )}
 
           <h3 style={{ margin: '8px 0' }}>Answer</h3>
-          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{res.answer ?? '(no answer)'}</pre>
+          {renderAnswer(res.answer)}
 
           {showBorrowerSummary && (
             <>
               <h3 style={{ margin: '16px 0 8px' }}>Borrower Summary</h3>
-              {renderBullets(res.borrowerSummary!)}
+              {renderBulletsFromText(res.borrowerSummary!)}
             </>
           )}
 
@@ -124,7 +179,7 @@ export default function Home() {
             <>
               <h3 style={{ margin: '16px 0 8px' }}>Watch Next</h3>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {res.watchNext.map((w: string, i: number) => (
+                {res.watchNext.map((w, i) => (
                   <span key={i} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 999 }}>
                     {w}
                   </span>
@@ -136,7 +191,7 @@ export default function Home() {
           {'__raw' in (res || {}) && (
             <>
               <h3 style={{ margin: '16px 0 8px' }}>Raw</h3>
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{String(res.__raw)}</pre>
+              <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{String((res as Record<string, unknown>).__raw)}</pre>
             </>
           )}
         </section>
