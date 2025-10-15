@@ -1,5 +1,8 @@
 'use client';
-import { useState } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
+
+type Role = 'user' | 'assistant';
 
 type ApiResponse = {
   path: 'concept' | 'market' | 'dynamic' | 'error';
@@ -12,11 +15,16 @@ type ApiResponse = {
   paymentDelta?: { perQuarterPt: number; loanAmount: number };
   watchNext?: string[];
   confidence?: 'low' | 'med' | 'high';
-  ok?: boolean;
-  expects?: string;
-  __raw?: string;
   status?: number;
 };
+
+type ChatMsg =
+  | { id: string; role: 'user'; content: string }
+  | { id: string; role: 'assistant'; content: string; meta?: ApiResponse };
+
+function uid() {
+  return Math.random().toString(36).slice(2, 10);
+}
 
 async function safeJson(r: Response): Promise<ApiResponse> {
   const txt = await r.text();
@@ -27,54 +35,121 @@ async function safeJson(r: Response): Promise<ApiResponse> {
   }
 }
 
-function renderBulletsFromText(text?: string) {
-  if (!text) return null;
-  const lines = text.split('\n').map((s) => s.trim()).filter(Boolean);
-  const items = lines.map((l) => l.replace(/^[-•]\s*/, '')).filter(Boolean);
-  return <ul style={{ marginTop: 0 }}>{items.map((it, i) => <li key={i}>{it}</li>)}</ul>;
-}
+function AnswerBlock({ meta }: { meta?: ApiResponse }) {
+  if (!meta) return null;
 
-function renderAnswer(text?: string) {
-  if (!text) return <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>(no answer)</pre>;
-  const lines = text.split('\n').map((s) => s.trim());
+  const lines = (meta.answer ?? '').split('\n').map((s) => s.trim());
   const takeaway = lines[0] || '';
   const bullets = lines.filter((l) => l.startsWith('• ')).map((l) => l.slice(2));
   const nexts = lines.filter((l) => l.toLowerCase().startsWith('next:')).map((l) => l.slice(5).trim());
 
   return (
-    <div>
-      <div style={{ marginBottom: 8 }}>{takeaway}</div>
-      {bullets.length > 0 && <ul>{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>}
+    <div style={{ display: 'grid', gap: 10 }}>
+      {/* meta strip */}
+      <div style={{ fontSize: 12, color: '#667', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <span>path: <b>{meta.path}</b></span>
+        <span>· usedFRED: <b>{String(meta.usedFRED)}</b></span>
+        {meta.lockBias && <span>· bias: <b>{meta.lockBias}</b></span>}
+        {meta.confidence && <span>· confidence: <b>{meta.confidence}</b></span>}
+      </div>
+
+      {/* TL;DR */}
+      {meta.tldr && meta.tldr.length > 0 && (
+        <div>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
+          <ul style={{ marginTop: 0 }}>
+            {meta.tldr.map((t, i) => <li key={i}>{t}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Main answer */}
+      {takeaway && <div>{takeaway}</div>}
+      {bullets.length > 0 && <ul style={{ marginTop: 0 }}>{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>}
       {nexts.length > 0 && (
-        <div style={{ marginTop: 8 }}>
-          {nexts.map((n, i) => (
-            <div key={i}>
-              <b>Next:</b> {n}
-            </div>
-          ))}
+        <div style={{ display: 'grid', gap: 4 }}>
+          {nexts.map((n, i) => <div key={i}><b>Next:</b> {n}</div>)}
+        </div>
+      )}
+
+      {/* Borrower summary */}
+      {meta.path === 'market' && meta.usedFRED && meta.borrowerSummary && (
+        <div style={{ background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: 10 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
+          <ul style={{ marginTop: 0 }}>
+            {meta.borrowerSummary.split('\n').map((l, i) => <li key={i}>{l.replace(/^[-•]\s*/, '')}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Payment delta */}
+      {meta.paymentDelta && (
+        <div style={{ fontSize: 13, color: '#334155' }}>
+          Every 0.25% ≈ <b>${meta.paymentDelta.perQuarterPt}/mo</b> on ${meta.paymentDelta.loanAmount.toLocaleString()}.
         </div>
       )}
     </div>
   );
 }
 
-export default function Home() {
-  const [q, setQ] = useState<string>('');
+function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
+  const isUser = role === 'user';
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div
+        aria-hidden
+        style={{
+          width: 28, height: 28, borderRadius: 999,
+          background: isUser ? '#0ea5e9' : '#111827',
+          color: 'white', display: 'grid', placeItems: 'center',
+          fontSize: 14, fontWeight: 700, flex: '0 0 auto'
+        }}>
+        {isUser ? 'U' : 'HR'}
+      </div>
+      <div
+        style={{
+          background: isUser ? '#e0f2fe' : '#f4f4f5',
+          border: '1px solid #e5e7eb',
+          borderRadius: 16,
+          padding: '10px 12px',
+          maxWidth: 760,
+          whiteSpace: 'pre-wrap'
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export default function ChatPage() {
+  const [messages, setMessages] = useState<ChatMsg[]>([
+    { id: uid(), role: 'assistant', content: 'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year). You can also add intent and loan amount.' }
+  ]);
+  const [input, setInput] = useState<string>('');
   const [mode, setMode] = useState<'borrower' | 'public'>('borrower');
   const [intent, setIntent] = useState<'' | 'purchase' | 'refi' | 'investor'>('');
   const [loanAmount, setLoanAmount] = useState<number | ''>('');
-  const [res, setRes] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [err, setErr] = useState<string | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
-  async function ask() {
+  useEffect(() => {
+    scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
+
+  async function send() {
+    const q = input.trim();
+    if (!q || loading) return;
+
+    const userMsg: ChatMsg = { id: uid(), role: 'user', content: q };
+    setMessages((m) => [...m, userMsg]);
+    setInput('');
     setLoading(true);
-    setErr(null);
-    setRes(null);
+
     try {
       const body: { question: string; mode: 'borrower' | 'public'; intent?: 'purchase' | 'refi' | 'investor'; loanAmount?: number } = {
         question: q,
-        mode,
+        mode
       };
       if (intent) body.intent = intent;
       if (loanAmount && Number(loanAmount) > 0) body.loanAmount = Number(loanAmount);
@@ -82,120 +157,93 @@ export default function Home() {
       const r = await fetch('/api/answers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       });
-      const data = await safeJson(r);
-      setRes(data);
-      if (!r.ok) setErr(`HTTP ${r.status}`);
-    } catch (e: unknown) {
+      const meta = await safeJson(r);
+      const botMsg: ChatMsg = {
+        id: uid(),
+        role: 'assistant',
+        content: meta.answer ?? '(no answer)',
+        meta
+      };
+      setMessages((m) => [...m, botMsg]);
+    } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setErr(msg);
+      setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
     } finally {
       setLoading(false);
     }
   }
 
-  const showBorrowerSummary = !!res && res.path === 'market' && res.usedFRED && !!res.borrowerSummary;
+  function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  }
 
   return (
-    <main style={{ maxWidth: 920, margin: '40px auto', padding: 24, fontFamily: 'system-ui, Segoe UI, Roboto, sans-serif' }}>
-      <h1 style={{ marginBottom: 12 }}>HomeRates — Local Tester</h1>
+    <main style={{ height: '100dvh', display: 'grid', gridTemplateRows: 'auto 1fr auto', maxWidth: 980, margin: '0 auto' }}>
+      {/* Header */}
+      <header style={{ padding: '14px 16px', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ fontWeight: 800 }}>HomeRates</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')} style={{ padding: 8, borderRadius: 10 }}>
+            <option value="borrower">Borrower</option>
+            <option value="public">Public</option>
+          </select>
+          <select value={intent} onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')} style={{ padding: 8, borderRadius: 10 }}>
+            <option value="">Intent: auto</option>
+            <option value="purchase">Purchase</option>
+            <option value="refi">Refi</option>
+            <option value="investor">Investor</option>
+          </select>
+          <input
+            type="number"
+            min={50000}
+            step={1000}
+            placeholder="Loan (optional)"
+            value={loanAmount}
+            onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
+            style={{ width: 150, padding: 8, borderRadius: 10, border: '1px solid #ddd' }}
+          />
+        </div>
+      </header>
 
-      <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '1fr 140px 140px 180px auto' }}>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Type your question…"
-          style={{ padding: 10, border: '1px solid #ccc', borderRadius: 8 }}
-        />
-        <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')} style={{ padding: 10, borderRadius: 8 }}>
-          <option value="borrower">Borrower</option>
-          <option value="public">Public</option>
-        </select>
-        <select value={intent} onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')} style={{ padding: 10, borderRadius: 8 }}>
-          <option value="">intent: auto</option>
-          <option value="purchase">purchase</option>
-          <option value="refi">refi</option>
-          <option value="investor">investor</option>
-        </select>
-        <input
-          type="number"
-          min={50000}
-          step={1000}
-          placeholder="loan amount (optional)"
-          value={loanAmount}
-          onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
-          style={{ padding: 10, border: '1px solid #ccc', borderRadius: 8 }}
-        />
-        <button onClick={ask} disabled={loading || !q.trim()} style={{ padding: '10px 16px', borderRadius: 8 }}>
-          {loading ? 'Thinking…' : 'Ask'}
-        </button>
+      {/* Messages */}
+      <div ref={scrollerRef} style={{ overflowY: 'auto', padding: '12px 16px', background: '#fff' }}>
+        <div style={{ display: 'grid', gap: 12 }}>
+          {messages.map((m) => (
+            <div key={m.id}>
+              <Bubble role={m.role}>
+                {m.role === 'assistant' ? <AnswerBlock meta={m.meta} /> : m.content}
+              </Bubble>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ color: '#64748b', fontSize: 13, paddingLeft: 38 }}>…thinking</div>
+          )}
+        </div>
       </div>
 
-      {err && <div style={{ marginTop: 10, color: '#a00' }}>Error: {err}</div>}
-
-      {res && (
-        <section style={{ marginTop: 16, border: '1px solid #eee', borderRadius: 12, padding: 16 }}>
-          <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-            Path: <b>{String(res.path)}</b> · usedFRED: <b>{String(res.usedFRED)}</b> {res.lockBias ? <>· bias: <b>{res.lockBias}</b></> : null}{' '}
-            {res.confidence ? <>· confidence: <b>{res.confidence}</b></> : null}
-          </div>
-
-          {Array.isArray(res.tldr) && res.tldr.length > 0 && (
-            <>
-              <h3 style={{ margin: '8px 0' }}>TL;DR</h3>
-              <ul style={{ marginTop: 0 }}>
-                {res.tldr.map((t, i) => (
-                  <li key={i}>{t}</li>
-                ))}
-              </ul>
-            </>
-          )}
-
-          <h3 style={{ margin: '8px 0' }}>Answer</h3>
-          {renderAnswer(res.answer)}
-
-          {showBorrowerSummary && (
-            <>
-              <h3 style={{ margin: '16px 0 8px' }}>Borrower Summary</h3>
-              {renderBulletsFromText(res.borrowerSummary!)}
-            </>
-          )}
-
-          {res.paymentDelta && (
-            <div style={{ marginTop: 12, fontSize: 14, color: '#333' }}>
-              Every 0.25% ≈ <b>${res.paymentDelta.perQuarterPt}/mo</b> on ${res.paymentDelta.loanAmount.toLocaleString()}.
-            </div>
-          )}
-
-          {res.fred && (
-            <>
-              <h3 style={{ margin: '16px 0 8px' }}>FRED Snapshot</h3>
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{JSON.stringify(res.fred, null, 2)}</pre>
-            </>
-          )}
-
-          {Array.isArray(res.watchNext) && res.watchNext.length > 0 && (
-            <>
-              <h3 style={{ margin: '16px 0 8px' }}>Watch Next</h3>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {res.watchNext.map((w, i) => (
-                  <span key={i} style={{ padding: '4px 8px', border: '1px solid #ddd', borderRadius: 999 }}>
-                    {w}
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-
-          {'__raw' in (res || {}) && (
-            <>
-              <h3 style={{ margin: '16px 0 8px' }}>Raw</h3>
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{String((res as Record<string, unknown>).__raw)}</pre>
-            </>
-          )}
-        </section>
-      )}
+      {/* Composer */}
+      <footer style={{ padding: 12, borderTop: '1px solid #eee', background: '#fafafa' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={onKey}
+            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year…"
+            style={{ padding: 12, borderRadius: 12, border: '1px solid #ddd' }}
+          />
+          <button
+            onClick={send}
+            disabled={loading || !input.trim()}
+            style={{ padding: '12px 16px', borderRadius: 12 }}>
+            Send
+          </button>
+        </div>
+      </footer>
     </main>
   );
 }
