@@ -24,3 +24,7 @@ pnpm-debug.log*
 dist/
 .vscode/
 .vercel/
+
+# local scratch
+app/api/answers/route.backup.ts
+git-vercel-rca.txt
