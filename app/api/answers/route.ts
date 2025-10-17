@@ -1,4 +1,4 @@
-// app/api/answers/route.ts
+﻿// app/api/answers/route.ts
 export const runtime = "nodejs";
 
 import { getFredSnapshot } from "@/lib/fred";
@@ -7,7 +7,7 @@ import { composeConcept } from "@/lib/composeConcept";
 import { generateDynamicAnswer, generateConceptAnswer } from "@/lib/llm";
 import { normalizeConceptAnswer } from "@/lib/normalize";
 import { AnswerReq } from "@/lib/schema";
-import { z } from "zod"; // <-- added
+import { z } from "zod";
 
 type Mode = "borrower" | "public";
 
@@ -23,7 +23,7 @@ function json(data: unknown, status = 200) {
  * - `mode` is now OPTIONAL and defaults to "public" when omitted.
  */
 const AnswerReqLoose = AnswerReq.extend({
-  mode: z.enum(["borrower", "public"]).optional().default("public"), // <-- added
+  mode: z.enum(["borrower", "public"]).optional().default("public"),
 });
 
 export async function GET() {
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       parsed = { __raw: txt } as const;
     }
 
-    // Use the relaxed schema (instead of AnswerReq) so missing `mode` won’t 400
+    // Use the relaxed schema (instead of AnswerReq) so missing `mode` wont 400
     const body = AnswerReqLoose.safeParse(parsed);
     if (!body.success) {
       return json(
@@ -52,13 +52,11 @@ export async function POST(req: Request) {
 
     // Pull fields; ensure `mode` default applies consistently
     const { question, mode: rawMode, intent, loanAmount } = body.data;
-    const mode = (rawMode ?? "public") as Mode; // <-- default applied
+    const mode = (rawMode ?? "public") as Mode;
     const q = question.toLowerCase();
 
     const mentionsConcept =
-      /(fannie|freddie|fha|va|usda|dti|pmi|ltv|amortization|dscr|pre[- ]?approval|underwriting|escrow|points?)/i.test(
-        q
-      );
+      /(fannie|freddie|fha|va|usda|dti|pmi|ltv|amortization|dscr|pre[- ]?approval|underwriting|escrow|points?)/i.test(q);
     const mentionsMarket =
       /(rate|rates|10[- ]?year|treasury|spread|today|latest|current|now|pricing|yield)/i.test(q);
 
@@ -141,7 +139,7 @@ export async function POST(req: Request) {
     return json({
       path: "error",
       usedFRED: false,
-      tldr: ["We didn’t match this to concept or market."],
+      tldr: ["We didnt match this to concept or market."],
       answer: "Rephrase with a concept (DTI, PMI, FHA) or market (rates vs 10-year).",
       borrowerSummary: null,
       confidence: "low",
