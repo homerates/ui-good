@@ -105,10 +105,12 @@ export async function POST(req: Request) {
     };
 
     return NextResponse.json(meta, { status: 200 });
-  } catch (e: any) {
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any
+catch (e: any) {
     return NextResponse.json(
       { path: "error", usedFRED: false, answer: e?.message || "Unexpected error", status: 500 },
       { status: 200 }
     );
   }
 }
+
