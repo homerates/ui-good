@@ -1,160 +1,114 @@
-﻿// app/api/answers/route.ts
-export const runtime = "nodejs";
-
-import { getFredSnapshot } from "@/lib/fred";
-import { composeMarket, type ComposedAnswer as MarketOut } from "@/lib/composeMarket";
-import { composeConcept } from "@/lib/composeConcept";
-import { generateDynamicAnswer, generateConceptAnswer } from "@/lib/llm";
-import { normalizeConceptAnswer } from "@/lib/normalize";
-import { AnswerReq } from "@/lib/schema";
-import { z } from "zod";
+﻿import { NextResponse } from "next/server";
 
 type Mode = "borrower" | "public";
+type Intent = "" | "purchase" | "refi" | "investor";
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+function classifyPath(q: string): "concept" | "market" | "dynamic" {
+  const s = q.toLowerCase();
+  if (/(dti|pmi|fha|points|escrow|llpa|mi|amort|debt|income|ratio)/.test(s)) return "concept";
+  if (/(rate|rates|10[- ]?year|treasury|mortgage|spread|lock|float|market)/.test(s)) return "market";
+  return "dynamic";
 }
 
-/**
- * RELAXED BODY SCHEMA
- * - `mode` is now OPTIONAL and defaults to "public" when omitted.
- */
-const AnswerReqLoose = AnswerReq.extend({
-  mode: z.enum(["borrower", "public"]).optional().default("public"),
-});
-
-export async function GET() {
-  // Updated to reflect that `mode` is not required anymore
-  return json({ ok: true, expects: "POST { question, intent?, loanAmount? }" });
+function monthlyDeltaPerQuarterPoint(loanAmount: number) {
+  // quick linear approximation; good enough for guidance
+  return Math.round((loanAmount * 0.0025) / 12);
 }
 
 export async function POST(req: Request) {
   try {
-    const txt = await req.text();
-    let parsed: unknown = {};
-    try {
-      parsed = txt ? (JSON.parse(txt) as unknown) : {};
-    } catch {
-      parsed = { __raw: txt } as const;
+    const body = await req.json().catch(() => ({}));
+    const question: string = (body.question ?? "").toString();
+    const mode: Mode = body.mode === "public" ? "public" : "borrower";
+    const intent: Intent = (body.intent ?? "") as Intent;
+    const loanAmount: number | undefined =
+      typeof body.loanAmount === "number" && body.loanAmount > 0 ? body.loanAmount : undefined;
+
+    const path = classifyPath(question);
+    const usedFRED = false; // off until we wire live data
+    const lockBias: "Mild Lock" | "Neutral" | "Float Watch" =
+      path === "market" ? "Mild Lock" : "Neutral";
+    const confidence: "low" | "med" | "high" = "med";
+
+    const tldr: string[] = [];
+    const bullets: string[] = [];
+    const nexts: string[] = [];
+    let borrowerSummaryLines: string[] = [];
+
+    if (path === "concept") {
+      tldr.push("Plain-English explainer + quick math", "Next steps tailored to your intent");
+      bullets.push(
+        "Key idea in 15 seconds",
+        "Rule-of-thumb you can actually use",
+        "Caveats lenders care about"
+      );
+      nexts.push("Give me your price range, down payment, and credit band to tailor numbers.");
+      if (intent === "purchase") nexts.push("We can pre-flight DTI with your income + debts.");
+      if (intent === "refi") nexts.push("Well compare current P&I vs new P&I + costs.");
     }
 
-    // Use the relaxed schema (instead of AnswerReq) so missing `mode` wont 400
-    const body = AnswerReqLoose.safeParse(parsed);
-    if (!body.success) {
-      return json(
-        { path: "error", usedFRED: false, tldr: ["Bad request"], answer: body.error.flatten() },
-        400
+    if (path === "market") {
+      tldr.push("Rates track the 10-year over time, but spreads shift with risk/cost.");
+      bullets.push(
+        "Watch the 10-year trend, not just todays print",
+        "Lock when timeline is tight; float only with cushion"
+      );
+      nexts.push("Tell me your lock window (e.g., 1545 days).");
+      if (loanAmount) nexts.push("Ill quantify $/mo impact for 0.25% around today.");
+    }
+
+    let paymentDelta:
+      | { perQuarterPt: number; loanAmount: number }
+      | undefined;
+
+    if (loanAmount) {
+      paymentDelta = {
+        perQuarterPt: monthlyDeltaPerQuarterPoint(loanAmount),
+        loanAmount,
+      };
+      // NOTE: plain string concatenation to avoid backtick parsing issues from shell
+      bullets.push(
+        "Every 0.25%  $" + paymentDelta.perQuarterPt + "/mo on $" + loanAmount.toLocaleString()
       );
     }
 
-    // Pull fields; ensure `mode` default applies consistently
-    const { question, mode: rawMode, intent, loanAmount } = body.data;
-    const mode = (rawMode ?? "public") as Mode;
-    const q = question.toLowerCase();
+    borrowerSummaryLines = [
+      " Loan purpose: " + (intent || "auto-detect"),
+      " Mode: " + mode,
+      loanAmount ? " Target loan: $" + loanAmount.toLocaleString() : " Target loan: (optional)",
+      " Lock stance: " + lockBias,
+    ];
 
-    const mentionsConcept =
-      /(fannie|freddie|fha|va|usda|dti|pmi|ltv|amortization|dscr|pre[- ]?approval|underwriting|escrow|points?)/i.test(q);
-    const mentionsMarket =
-      /(rate|rates|10[- ]?year|treasury|spread|today|latest|current|now|pricing|yield)/i.test(q);
+    const answer =
+      [
+        path === "concept"
+          ? "Quick take: heres the concept in lender terms you can use today."
+          : path === "market"
+          ? "Quick take: rates ride the 10-year; spreads and costs do the dancing."
+          : "Quick take: lets scope the question and pick a lane (concept vs market).",
+        ...bullets.map((b) => " " + b),
+        ...nexts.map((n) => "Next: " + n),
+      ].join("\n");
 
-    // --- Concept ------------------------------------------------------------
-    if (mentionsConcept && !mentionsMarket) {
-      try {
-        const base = composeConcept(q, mode as Mode, intent);
-        const llm =
-          process.env.DYNAMIC_ENABLED === "true"
-            ? await generateConceptAnswer(question, mode as Mode)
-            : null;
+    const meta = {
+      path,
+      usedFRED,
+      tldr,
+      lockBias,
+      answer,
+      borrowerSummary: borrowerSummaryLines.join("\n"),
+      fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
+      paymentDelta,
+      watchNext: [],
+      confidence,
+      status: 200,
+    };
 
-        const answer = llm ? normalizeConceptAnswer(llm) : base.answer;
-        return json({ ...base, answer });
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return json(
-          {
-            path: "error",
-            usedFRED: false,
-            tldr: ["Concept path failed."],
-            answer: msg.slice(0, 300),
-            borrowerSummary: null,
-            confidence: "low",
-          },
-          200
-        );
-      }
-    }
-
-    // --- Market -------------------------------------------------------------
-    if (mentionsMarket) {
-      const fred = await getFredSnapshot({ maxAgeDays: 7, timeoutMs: 6000 });
-      const out: MarketOut = composeMarket(fred, mode as Mode, {
-        defaultLoan: 500_000,
-        loanAmount,
-        intent,
-        recentTenYearChange: null,
-        volatility: "med",
-      });
-      return json(out);
-    }
-
-    // --- Dynamic ------------------------------------------------------------
-    if (process.env.DYNAMIC_ENABLED === "true") {
-      try {
-        const answer = await generateDynamicAnswer(question, mode as Mode);
-        return json({
-          path: "dynamic",
-          usedFRED: false,
-          tldr: [
-            "Contextual explanation tailored to your question.",
-            "No live data included unless asked.",
-            "Actionable next steps where appropriate.",
-          ],
-          answer,
-          borrowerSummary:
-            mode === "borrower"
-              ? "If timing is tight, focus on payment stability and total cost (rate + points). If flexible, get pre-underwritten."
-              : null,
-          confidence: "med",
-        });
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return json(
-          {
-            path: "error",
-            usedFRED: false,
-            tldr: ["Dynamic path failed."],
-            answer: msg.slice(0, 300),
-            borrowerSummary: null,
-            confidence: "low",
-          },
-          200
-        );
-      }
-    }
-
-    // Fallback
-    return json({
-      path: "error",
-      usedFRED: false,
-      tldr: ["We didnt match this to concept or market."],
-      answer: "Rephrase with a concept (DTI, PMI, FHA) or market (rates vs 10-year).",
-      borrowerSummary: null,
-      confidence: "low",
-    });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return json({
-      path: "error",
-      usedFRED: false,
-      tldr: ["We hit a snag."],
-      answer:
-        msg ||
-        "Mortgage rates tend to move with the 10-year; spreads reflect risk and liquidity.",
-      borrowerSummary: null,
-      confidence: "low",
-    });
+    return NextResponse.json(meta, { status: 200 });
+  } catch (e: any) {
+    return NextResponse.json(
+      { path: "error", usedFRED: false, answer: e?.message || "Unexpected error", status: 500 },
+      { status: 200 }
+    );
   }
 }
