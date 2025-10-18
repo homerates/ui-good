@@ -9,7 +9,6 @@ function classifyPath(q: string): "concept" | "market" | "dynamic" {
   if (/(rate|rates|10[- ]?year|treasury|mortgage|spread|lock|float|market)/.test(s)) return "market";
   return "dynamic";
 }
-
 function monthlyDeltaPerQuarterPoint(loanAmount: number) {
   return Math.round((loanAmount * 0.0025) / 12);
 }
@@ -31,9 +30,9 @@ export async function POST(req: Request) {
     if (path === "concept") {
       tldr.push("Plain-English explainer + quick math", "Next steps tailored to your intent");
       bullets.push("Key idea in 15 seconds","Rule-of-thumb you can actually use","Caveats lenders care about");
-      nexts.push("Give me your price range, down payment, and credit band to tailor numbers.");
+      nexts.push("Tell me price range, down payment, and credit band for tailored numbers.");
       if (intent === "purchase") nexts.push("We can pre-flight DTI with your income + debts.");
-      if (intent === "refi") nexts.push("Well compare current P&I vs new P&I + costs.");
+      if (intent === "refi") nexts.push("We’ll compare current P&I vs new P&I + costs.");
     } else if (path === "market") {
       tldr.push("Rates track the 10-year over time; spreads move with risk/cost.");
       nexts.push("Tell me your lock window (e.g., 1545 days).");
@@ -45,7 +44,7 @@ export async function POST(req: Request) {
 
     const answer = [
       path === "concept"
-        ? "Quick take: heres the concept in lender terms you can use today."
+        ? "Quick take: here’s the concept in lender terms you can use today."
         : path === "market"
         ? "Quick take: rates ride the 10-year; spreads and costs do the dancing."
         : "Quick take: lets scope the question and pick a lane (concept vs market).",
