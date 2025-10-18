@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         ? "Quick take: heres the concept in lender terms you can use today."
         : path === "market"
         ? "Quick take: rates ride the 10-year; spreads and costs do the dancing."
-        : "Quick take: let’s scope the question and pick a lane (concept vs market).",
+        : "Quick take: lets scope the question and pick a lane (concept vs market).",
       ...bullets.map((b) => " " + b),
       ...nexts.map((n) => "Next: " + n),
     ].join("\n");
@@ -77,7 +77,6 @@ export async function POST(req: Request) {
   }
 }
 
-// Optional: make GET return allowed methods instead of 404
 export async function GET() {
   return new Response("Method Not Allowed", { status: 405, headers: { "Allow": "POST" } });
 }
