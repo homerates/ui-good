@@ -1,81 +1,57 @@
-﻿import { NextResponse } from "next/server";
-
-type Mode = "borrower" | "public";
-type Intent = "" | "purchase" | "refi" | "investor";
-
-function classifyPath(q: string): "concept" | "market" | "dynamic" {
-  const s = (q || "").toLowerCase();
-  if (/(dti|pmi|fha|points|escrow|llpa|mi|amort|debt|income|ratio)/.test(s)) return "concept";
-  if (/(rate|rates|10[- ]?year|treasury|mortgage|spread|lock|float|market)/.test(s)) return "market";
-  return "dynamic";
-}
-function monthlyDeltaPerQuarterPoint(loanAmount: number) {
-  return Math.round((loanAmount * 0.0025) / 12);
-}
+﻿
+// app/api/answers/route.ts
+import { NextResponse } from "next/server";
+// change this line:
+import { getFredSnapshot } from "../../../src/lib/fred";
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json().catch(() => ({}));
-    const question: string = (body.question ?? "").toString();
-    const mode: Mode = body.mode === "public" ? "public" : "borrower";
-    const intent: Intent = (body.intent ?? "") as Intent;
-    const loanAmount: number | undefined =
-      typeof body.loanAmount === "number" && body.loanAmount > 0 ? body.loanAmount : undefined;
+  let body: any = {};
+  try { body = await req.json(); } catch { body = {}; }
 
-    const path = classifyPath(question);
-    const tldr: string[] = [];
-    const bullets: string[] = [];
-    const nexts: string[] = [];
+  const intent = typeof body.intent === "string" ? body.intent : "market";
 
-    if (path === "concept") {
-      tldr.push("Plain-English explainer + quick math", "Next steps tailored to your intent");
-      bullets.push("Key idea in 15 seconds","Rule-of-thumb you can actually use","Caveats lenders care about");
-      nexts.push("Tell me price range, down payment, and credit band for tailored numbers.");
-      if (intent === "purchase") nexts.push("We can pre-flight DTI with your income + debts.");
-      if (intent === "refi") nexts.push("We’ll compare current P&I vs new P&I + costs.");
-    } else if (path === "market") {
-      tldr.push("Rates track the 10-year over time; spreads move with risk/cost.");
-      nexts.push("Tell me your lock window (e.g., 1545 days).");
-    }
+  if (intent === "market") {
+    // Try to get the live FRED snapshot
+    const snap = await getFredSnapshot({ timeoutMs: 2000, maxAgeDays: 14 }).catch(() => null);
 
-    const paymentDelta = loanAmount
-      ? { perQuarterPt: monthlyDeltaPerQuarterPoint(loanAmount), loanAmount }
-      : undefined;
-
-    const answer = [
-      path === "concept"
-        ? "Quick take: here’s the concept in lender terms you can use today."
-        : path === "market"
-        ? "Quick take: rates ride the 10-year; spreads and costs do the dancing."
-        : "Quick take: lets scope the question and pick a lane (concept vs market).",
-      ...bullets.map((b) => " " + b),
-      ...nexts.map((n) => "Next: " + n),
-    ].join("\n");
+    // If nothing comes back, fill in safe fallback values
+    const hasData = !!(snap && snap.tenYearYield != null && snap.mort30Avg != null && snap.spread != null && snap.asOf);
+    const fred = hasData
+      ? snap!
+      : {
+          tenYearYield: 4.10,
+          mort30Avg: 6.30,
+          spread: 2.20,
+          asOf: new Date().toISOString().slice(0, 10),
+          stale: true,
+          source: "stub" as const,
+        };
 
     return NextResponse.json({
-      path,
-      usedFRED: false,
-      tldr,
-      lockBias: path === "market" ? "Mild Lock" : "Neutral",
-      answer,
-      borrowerSummary: [
-        " Loan purpose: " + (intent || "auto-detect"),
-        " Mode: " + mode,
-        loanAmount ? " Target loan: $" + loanAmount.toLocaleString() : " Target loan: (optional)",
-        " Lock stance: " + (path === "market" ? "Mild Lock" : "Neutral")
-      ].join("\n"),
-      fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
-      paymentDelta,
-      watchNext: [],
+      ok: true,
+      path: "market",
+      usedFRED: hasData && fred.source === "fred",
+      fred: {
+        tenYearYield: fred.tenYearYield,
+        mort30Avg: fred.mort30Avg,
+        spread: fred.spread,
+        asOf: fred.asOf,
+      },
+      lockStance: "Neutral",
+      watchNext: {},
       confidence: "med",
-      status: 200
-    }, { status: 200 });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unexpected error";
-    return NextResponse.json({ path: "error", usedFRED: false, answer: msg, status: 500 }, { status: 200 });
+      status: 200,
+    });
   }
+
+  // Other routes can stay basic for now
+  return NextResponse.json({ ok: true, path: intent });
 }
 
+// Optional: makes GET clearer in browser
 export async function GET() {
-  return new Response("Method Not Allowed", { status: 405, headers: { "Allow": "POST" } });
+  return NextResponse.json(
+    { ok: false, message: "Use POST with JSON to /api/answers" },
+    { status: 405 }
+  );
 }
