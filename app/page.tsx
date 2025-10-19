@@ -208,6 +208,8 @@ export default function Page() {
 
       // --- Friendly display line for market summaries ---
       function displayLine(j: ApiResponse): string {
+        if ((j as any).message) return (j as any).message;
+        if ((j as any).summary) return (j as any).summary;
         if (j.answer) return j.answer;
         if (j.fred && j.fred.tenYearYield && j.fred.mort30Avg && j.fred.spread) {
           const f = j.fred;
