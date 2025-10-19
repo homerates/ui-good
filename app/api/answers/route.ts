@@ -1,8 +1,7 @@
 ﻿import { NextResponse } from "next/server";
-// Your fred helper lives under src/lib/fred.ts
+// Your fred helper is at src/lib/fred.ts from here:
 import { getFredSnapshot } from "../../../src/lib/fred";
 
-/** Minimal request shape (no `any`) */
 type Body = { intent?: string };
 
 function parseBody(input: unknown): Body {
@@ -14,7 +13,6 @@ function parseBody(input: unknown): Body {
 }
 
 export async function POST(req: Request) {
-  // Parse safely to avoid `any`
   let body: Body = {};
   try {
     const raw: unknown = await req.json();
@@ -26,7 +24,6 @@ export async function POST(req: Request) {
   const intent = body.intent ?? "market";
 
   if (intent === "market") {
-    // Try live FRED; fall back if missing/slow
     const snap =
       (await getFredSnapshot({ timeoutMs: 2000, maxAgeDays: 14 }).catch(() => null)) ??
       null;
@@ -66,4 +63,13 @@ export async function POST(req: Request) {
     });
   }
 
-  // Basic pass
+  // simple passthrough for other intents for now
+  return NextResponse.json({ ok: true, path: intent });
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { ok: false, message: "Use POST with JSON to /api/answers" },
+    { status: 405 }
+  );
+}
