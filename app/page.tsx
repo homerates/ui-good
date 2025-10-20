@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -72,7 +72,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
   const lines = (meta.answer ?? '').split('\n').map((s) => s.trim());
   const takeaway = primary || lines[0] || '';
-  const bullets = lines.filter((l) => l.startsWith('• ')).map((l) => l.slice(2));
+  const bullets = lines.filter((l) => l.startsWith('â€¢ ')).map((l) => l.slice(2));
   const nexts = lines
     .filter((l) => l.toLowerCase().startsWith('next:'))
     .map((l) => l.slice(5).trim());
@@ -81,9 +81,9 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     <div style={{ display: 'grid', gap: 10 }}>
       <div className="meta">
         <span>path: <b>{meta.path}</b></span>
-        <span>· usedFRED: <b>{String(meta.usedFRED)}</b></span>
-        {meta.lockBias && <span>· bias: <b>{meta.lockBias}</b></span>}
-        {meta.confidence && <span>· confidence: <b>{meta.confidence}</b></span>}
+        <span>Â· usedFRED: <b>{String(meta.usedFRED)}</b></span>
+        {meta.lockBias && <span>Â· bias: <b>{meta.lockBias}</b></span>}
+        {meta.confidence && <span>Â· confidence: <b>{meta.confidence}</b></span>}
       </div>
 
       {takeaway && <div>{takeaway}</div>}
@@ -116,7 +116,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
           <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
           <ul style={{ marginTop: 0 }}>
             {meta.borrowerSummary.split('\n').map((l, i) => (
-              <li key={i}>{l.replace(/^[-•]\s*/, '')}</li>
+              <li key={i}>{l.replace(/^[-â€¢]\s*/, '')}</li>
             ))}
           </ul>
         </div>
@@ -124,7 +124,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
       {meta.paymentDelta && (
         <div style={{ fontSize: 13 }}>
-          Every 0.25% ≈ <b>${meta.paymentDelta.perQuarterPt}/mo</b> on ${meta.paymentDelta.loanAmount.toLocaleString()}.
+          Every 0.25% â‰ˆ <b>${meta.paymentDelta.perQuarterPt}/mo</b> on ${meta.paymentDelta.loanAmount.toLocaleString()}.
         </div>
       )}
     </div>
@@ -175,7 +175,7 @@ export default function Page() {
     const q = input.trim();
     if (!q || loading) return;
 
-    const title = q.length > 42 ? q.slice(0, 42) + '…' : q;
+    const title = q.length > 42 ? q.slice(0, 42) + 'â€¦' : q;
     setHistory((h) => [{ id: uid(), title }, ...h].slice(0, 12));
     setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
     setInput('');
@@ -220,7 +220,7 @@ export default function Page() {
                 ? meta.fred.spread.toFixed(2)
                 : meta.fred.spread
             }%.`
-          : meta.answer ?? `path: ${meta.path} · usedFRED: ${String(meta.usedFRED)} · confidence: ${meta.confidence ?? '-'}`);
+          : meta.answer ?? `path: ${meta.path} Â· usedFRED: ${String(meta.usedFRED)} Â· confidence: ${meta.confidence ?? '-'}`);
 
       setMessages((m) => [
         ...m,
@@ -250,7 +250,7 @@ export default function Page() {
       <aside className="sidebar">
         <div className="side-top">
           <div className="brand">HomeRates</div>
-          <button className="btn primary" onClick={newChat}>＋ New chat</button>
+          <button className="btn primary" onClick={newChat}>ï¼‹ New chat</button>
         </div>
         <div className="chat-list">
           {history.length === 0 && (
@@ -261,8 +261,8 @@ export default function Page() {
           ))}
         </div>
         <div className="side-bottom">
-          <button className="btn">⚙️ Settings</button>
-          <button className="btn">🔗 Share</button>
+          <button className="btn">âš™ï¸ Settings</button>
+          <button className="btn">ðŸ”— Share</button>
         </div>
       </aside>
 
@@ -314,7 +314,7 @@ export default function Page() {
                   </Bubble>
                 </div>
               ))}
-              {loading && <div className="meta">…thinking</div>}
+              {loading && <div className="meta">â€¦thinking</div>}
             </div>
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function Page() {
           <div className="composer-inner">
             <input
               className="input"
-              placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year…"
+              placeholder="Ask about DTI, PMI, or where rates sit vs the 10-yearâ€¦"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKey}
@@ -341,3 +341,4 @@ export default function Page() {
     </>
   );
 }
+

@@ -1,4 +1,4 @@
-// app/api/version/route.ts
+﻿// app/api/version/route.ts
 export const runtime = 'nodejs';
 
 import { VERSION, COMMIT } from "@/lib/version";
@@ -13,3 +13,4 @@ function json(data: unknown, status = 200) {
 export async function GET() {
   return json({ version: VERSION, commit: COMMIT, node: process.version, time: new Date().toISOString() });
 }
+

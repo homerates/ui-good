@@ -1,4 +1,4 @@
-"use client"; // ensure it's a client component
+﻿"use client"; // ensure it's a client component
 
 import React from "react";
 
@@ -57,3 +57,4 @@ export default function Sparkline({
     </div>
   );
 }
+

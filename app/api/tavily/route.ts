@@ -1,4 +1,4 @@
-// app/api/tavily/route.ts
+﻿// app/api/tavily/route.ts
 export const runtime = 'nodejs';
 
 function json(data: unknown, status = 200) {
@@ -48,3 +48,4 @@ export async function POST(req: Request) {
 export async function GET() {
   return json({ ok: true, expects: 'POST { query }' });
 }
+

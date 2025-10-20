@@ -1,4 +1,4 @@
-// src/lib/composeMarket.ts
+﻿// src/lib/composeMarket.ts
 import type { FredSnapshot } from "@/lib/fred";
 
 export type Mode = "borrower" | "public";
@@ -20,14 +20,14 @@ export type ComposedAnswer = {
 
 export type MarketComposeOptions = {
   defaultLoan?: number;
-  loanAmount?: number;              // ← add
-  intent?: Intent;                  // ← add
+  loanAmount?: number;              // â† add
+  intent?: Intent;                  // â† add
   recentTenYearChange?: number | null;
   volatility?: "low" | "med" | "high";
 };
 
 function fmtPct(n: number | null, digits = 2) {
-  if (n == null || !isFinite(n)) return "—";
+  if (n == null || !isFinite(n)) return "â€”";
   return `${n.toFixed(digits)}%`;
 }
 function monthlyPmtDeltaPerQuarterPoint(loanAmount: number) {
@@ -62,10 +62,10 @@ function intentLines(intent?: Intent, bias?: "Mild Lock" | "Neutral" | "Float Wa
   }
   if (intent === "refi") {
     return b === "Mild Lock"
-      ? ["Refi: lock if breakeven works today; don’t let a good breakeven slip."]
+      ? ["Refi: lock if breakeven works today; donâ€™t let a good breakeven slip."]
       : b === "Float Watch"
       ? ["Refi: float with a trigger; set a target payment/breakeven and lock on hit."]
-      : ["Refi: compare no-cost vs points—optimize time-to-breakeven."];
+      : ["Refi: compare no-cost vs pointsâ€”optimize time-to-breakeven."];
   }
   // investor
   return b === "Mild Lock"
@@ -95,9 +95,9 @@ export function composeMarket(
       lockBias: "Neutral",
       answer: [
         mode === "public" ? "Market view (no live feed):" : "Quick read (no live feed):",
-        "• Mortgage rates tend to move with the 10-year over time.",
-        "• Spreads widen/tighten with risk, liquidity, and servicing costs.",
-        "• If timing is tight, consider partial locks to manage downside."
+        "â€¢ Mortgage rates tend to move with the 10-year over time.",
+        "â€¢ Spreads widen/tighten with risk, liquidity, and servicing costs.",
+        "â€¢ If timing is tight, consider partial locks to manage downside."
       ].join("\n"),
       borrowerSummary:
         mode === "borrower"
@@ -119,21 +119,21 @@ export function composeMarket(
   const bias = pickLockBias(s ?? null, opts?.recentTenYearChange ?? null, opts?.volatility);
 
   const tldr = [
-    `10Y ${fmtPct(t)} · 30Y mtg ${fmtPct(m)} · spread ${s != null ? s.toFixed(2) : "—"} pts`,
+    `10Y ${fmtPct(t)} Â· 30Y mtg ${fmtPct(m)} Â· spread ${s != null ? s.toFixed(2) : "â€”"} pts`,
     bias === "Mild Lock"
-      ? "Bias: Mild Lock — improvement less certain while spreads run wide."
+      ? "Bias: Mild Lock â€” improvement less certain while spreads run wide."
       : bias === "Float Watch"
-      ? "Bias: Float Watch — spreads tight; data-sensitive market."
-      : "Bias: Neutral — data-dependent day-to-day.",
+      ? "Bias: Float Watch â€” spreads tight; data-sensitive market."
+      : "Bias: Neutral â€” data-dependent day-to-day.",
     fred.asOf ? `As of ${fred.asOf}` : "Fresh today"
   ];
 
   const lines: string[] = [];
-  lines.push(mode === "public" ? "Market snapshot:" : "Here’s where things sit today:");
-  if (t != null) lines.push(`• 10-year Treasury: ~${t.toFixed(2)}%`);
-  if (m != null) lines.push(`• 30-year mortgage avg: ~${m.toFixed(2)}%`);
-  if (s != null) lines.push(`• Spread: ~${s.toFixed(2)} pts`);
-  if (fred.asOf) lines.push(`• As of: ${fred.asOf}`);
+  lines.push(mode === "public" ? "Market snapshot:" : "Hereâ€™s where things sit today:");
+  if (t != null) lines.push(`â€¢ 10-year Treasury: ~${t.toFixed(2)}%`);
+  if (m != null) lines.push(`â€¢ 30-year mortgage avg: ~${m.toFixed(2)}%`);
+  if (s != null) lines.push(`â€¢ Spread: ~${s.toFixed(2)} pts`);
+  if (fred.asOf) lines.push(`â€¢ As of: ${fred.asOf}`);
 
   let borrowerSummary: string | null = null;
   if (mode === "borrower") {
@@ -145,7 +145,7 @@ export function composeMarket(
       );
     } else if (bias === "Float Watch") {
       base.push(
-        "If timing allows, float with alerts—tighter spreads can pass through improvements faster.",
+        "If timing allows, float with alertsâ€”tighter spreads can pass through improvements faster.",
         "Have a lock trigger tied to CPI/Jobs in case of a surprise."
       );
     } else {
@@ -171,3 +171,4 @@ export function composeMarket(
     asOf: fred.asOf ?? null
   };
 }
+

@@ -1,4 +1,4 @@
-// src/lib/composeConcept.ts
+﻿// src/lib/composeConcept.ts
 export type Mode = "borrower" | "public";
 export type Intent = "purchase" | "refi" | "investor";
 
@@ -14,7 +14,7 @@ export type ConceptOut = {
 
 function bullets(lines: string[]) {
   const cleaned = lines.map(s => s.trim()).filter(Boolean);
-  return cleaned.length ? "• " + cleaned.join("\n• ") : "";
+  return cleaned.length ? "â€¢ " + cleaned.join("\nâ€¢ ") : "";
 }
 
 function intentBullets(intent?: Intent) {
@@ -34,7 +34,7 @@ function intentBullets(intent?: Intent) {
 export function composeConcept(questionLower: string, mode: Mode, intent?: Intent): ConceptOut {
   if (/\bdti\b|debt[-\s]?to[-\s]?income/i.test(questionLower)) {
     const tldr = [
-      "DTI = monthly debts ÷ gross monthly income.",
+      "DTI = monthly debts Ã· gross monthly income.",
       "Lower DTI = easier approval and better pricing.",
       "Typical conforming cap is ~43% (program-dependent).",
     ];
@@ -56,7 +56,7 @@ export function composeConcept(questionLower: string, mode: Mode, intent?: Inten
         "Takeaway: DTI shows how much payment you can safely carry.",
         "",
         bullets([
-          "DTI = monthly debts ÷ gross income.",
+          "DTI = monthly debts Ã· gross income.",
           "Lower is better for approval and pricing.",
           "Program limits vary; ~43% is common for conforming.",
         ]),
@@ -122,7 +122,7 @@ export function composeConcept(questionLower: string, mode: Mode, intent?: Inten
     usedFRED: false,
     tldr,
     answer: [
-      "Takeaway: here’s the concept in plain English.",
+      "Takeaway: hereâ€™s the concept in plain English.",
       "",
       bullets([
         "Short definition in one sentence.",
@@ -132,7 +132,7 @@ export function composeConcept(questionLower: string, mode: Mode, intent?: Inten
       "",
       bullets([
         "Next: gather docs and run a quick pre-qual to see where you stand.",
-        "Next: compare total cost (rate + points + payment) for 2–3 options.",
+        "Next: compare total cost (rate + points + payment) for 2â€“3 options.",
       ]),
     ].join("\n"),
     borrowerSummary: mode === "borrower" ? bullets([
@@ -144,3 +144,4 @@ export function composeConcept(questionLower: string, mode: Mode, intent?: Inten
     confidence: "med",
   };
 }
+

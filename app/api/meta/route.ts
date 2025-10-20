@@ -1,10 +1,10 @@
-// app/api/meta/route.ts
+﻿// app/api/meta/route.ts
 import { NextResponse } from "next/server";
 // Node runtime so fs/json imports are fine
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Static import — safer than dynamic import for Turbopack
+// Static import â€” safer than dynamic import for Turbopack
 import pkg from "../../../package.json"; // tsconfig: "resolveJsonModule": true
 
 type MetaPayload = {
@@ -36,3 +36,4 @@ export async function GET() {
 }
 
 // push-proof
+

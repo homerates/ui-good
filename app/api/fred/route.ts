@@ -1,4 +1,4 @@
-// app/api/fred/route.ts
+﻿// app/api/fred/route.ts
 export const runtime = 'nodejs';
 
 import { getFredSnapshot, getFredCacheInfo } from "@/lib/fred";
@@ -24,3 +24,4 @@ export async function GET(req: Request) {
 
   return json({ cache, fred });
 }
+

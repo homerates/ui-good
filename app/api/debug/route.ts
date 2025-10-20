@@ -1,4 +1,4 @@
-// app/api/debug/route.ts
+﻿// app/api/debug/route.ts
 export const runtime = 'nodejs';
 
 function json(data: unknown, status = 200) {
@@ -15,3 +15,4 @@ export async function GET() {
     nodeVersion: process.version
   });
 }
+

@@ -1,4 +1,4 @@
-// components/Logo.tsx
+﻿// components/Logo.tsx
 import Image from "next/image";
 
 export default function Logo() {
@@ -9,3 +9,4 @@ export default function Logo() {
     </div>
   );
 }
+

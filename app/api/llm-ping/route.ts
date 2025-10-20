@@ -1,4 +1,4 @@
-// app/api/llm-ping/route.ts
+﻿// app/api/llm-ping/route.ts
 export const runtime = 'nodejs';
 
 function json(data: unknown, status = 200) {
@@ -34,3 +34,4 @@ export async function GET() {
     return json({ ok: false, error: msg }, 200);
   }
 }
+

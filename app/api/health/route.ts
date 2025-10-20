@@ -1,4 +1,4 @@
-// app/api/health/route.ts
+﻿// app/api/health/route.ts
 export const runtime = 'nodejs';
 
 import { getFredCacheInfo, warmFredCache } from "@/lib/fred";
@@ -91,3 +91,4 @@ export async function GET(req: Request) {
 
   return json({ ...base, status, deep: results });
 }
+

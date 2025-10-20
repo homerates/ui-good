@@ -1,4 +1,4 @@
-// src/lib/schema.ts
+﻿// src/lib/schema.ts
 import { z } from "zod";
 
 export const AnswerReq = z.object({
@@ -9,3 +9,4 @@ export const AnswerReq = z.object({
 });
 
 export type AnswerReqT = z.infer<typeof AnswerReq>;
+

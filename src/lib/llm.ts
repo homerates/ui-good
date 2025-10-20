@@ -1,4 +1,4 @@
-// src/lib/llm.ts
+﻿// src/lib/llm.ts
 type Mode = "borrower" | "public";
 
 type LLMOpts = {
@@ -65,7 +65,7 @@ export async function callLLM(
 
   const json = await res.json();
   let out: string =
-    json?.choices?.[0]?.message?.content ?? "I couldn’t generate an answer.";
+    json?.choices?.[0]?.message?.content ?? "I couldnâ€™t generate an answer.";
   if (opts?.forbidLiveData) out = stripLiveBits(out);
   return out;
 }
@@ -92,3 +92,4 @@ export async function generateConceptAnswer(
     { forbidLiveData: true }
   );
 }
+
