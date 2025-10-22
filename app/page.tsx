@@ -1,4 +1,5 @@
 ﻿'use client';
+import Link from "next/link";
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -250,25 +251,46 @@ export default function Page() {
 
   return (
     <>
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="side-top">
-          <div className="brand">HomeRates</div>
-          <button className="btn primary" onClick={newChat}>New chat</button>
-        </div>
-        <div className="chat-list">
-          {history.length === 0 && (
-            <div className="chat-item" style={{ opacity: 0.7 }}>No history yet</div>
-          )}
-          {history.map((h) => (
-            <div key={h.id} className="chat-item" title={h.title}>{h.title}</div>
-          ))}
-        </div>
-        <div className="side-bottom">
-          <button className="btn">Settings</button>
-          <button className="btn">Share</button>
-        </div>
-      </aside>
+  {/* Sidebar */}
+<aside className="sidebar" style={{ position: "relative", zIndex: 1000 }}>
+  <div className="side-top">
+    {/* Clickable mark in the corner */}
+    <div className="brand" style={{ position: "relative", zIndex: 10000 }}>
+      <Link
+        href="/"
+        aria-label="HomeRates.ai home"
+        style={{ display: "inline-flex", alignItems: "center", pointerEvents: "auto" }}
+      >
+        <img
+          src="/assets/homerates-mark.svg"
+          alt="HomeRates.ai"
+          width={28}
+          height={28}
+          style={{ display: "block" }}
+        />
+      </Link>
+    </div>
+
+    <button className="btn primary" onClick={newChat}>New chat</button>
+  </div>
+
+  <div className="chat-list">
+    {history.length === 0 && (
+      <div className="chat-item" style={{ opacity: 0.7 }}>No history yet</div>
+    )}
+    {history.map((h) => (
+      <div key={h.id} className="chat-item" title={h.title}>
+        {h.title}
+      </div>
+    ))}
+  </div>
+
+  <div className="side-bottom">
+    <button className="btn">Settings</button>
+    <button className="btn">Share</button>
+  </div>
+</aside>
+
 
       {/* Main */}
       <section className="main">
