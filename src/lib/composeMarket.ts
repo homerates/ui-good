@@ -1,4 +1,4 @@
-﻿// src/lib/composeMarket.ts
+// src/lib/composeMarket.ts
 import type { FredSnapshot as FredSnap } from "@/lib/fred";
 
 export type FredSnapshot = FredSnap;
