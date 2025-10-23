@@ -12,6 +12,9 @@ export type FredSnapshot = {
   asOf: string | null;
   stale: boolean;
   source: "fred" | "stub";
+  // NEW (optional; safe when null)
+  prevTenYearYield?: number | null;
+  prevMort30Avg?: number | null;
 };
 
 /** Safe numeric coercion from string | number | null | undefined */
@@ -21,11 +24,15 @@ function toNum(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchSeries(
+/** Fetch latest and previous non-missing values for a series (within ~120d window) */
+async function fetchLatestAndPrev(
   series_id: string,
   apiKey: string,
   signal: AbortSignal
-): Promise<{ value: number | null; date: string | null }> {
+): Promise<{
+  curr: { value: number | null; date: string | null };
+  prev: { value: number | null; date: string | null };
+}> {
   const url = new URL(FRED_BASE);
   url.searchParams.set("series_id", series_id);
   url.searchParams.set("api_key", apiKey);
@@ -40,12 +47,23 @@ async function fetchSeries(
   if (!res.ok) throw new Error(`FRED ${series_id} HTTP ${res.status}`);
 
   const json = (await res.json()) as { observations?: Obs[] };
-  const latest = [...(json.observations ?? [])]
-    .reverse()
-    .find((o) => o.value && o.value !== ".");
+  const valid = (json.observations ?? []).filter(
+    (o) => o.value && o.value !== "."
+  );
 
-  if (!latest) return { value: null, date: null };
-  return { value: toNum(latest.value), date: latest.date };
+  const last = valid.at(-1);
+  const secondLast = valid.at(-2);
+
+  return {
+    curr: {
+      value: last ? toNum(last.value) : null,
+      date: last?.date ?? null,
+    },
+    prev: {
+      value: secondLast ? toNum(secondLast.value) : null,
+      date: secondLast?.date ?? null,
+    },
+  };
 }
 
 /* ------- 5-minute in-memory cache (per process) ------- */
@@ -108,22 +126,20 @@ export async function getFredSnapshot(opts?: {
 
   try {
     const [ten, mort] = await Promise.all([
-      fetchSeries(TEN_YEAR, apiKey, ctrl.signal),
-      fetchSeries(MORTG_30US, apiKey, ctrl.signal),
+      fetchLatestAndPrev(TEN_YEAR, apiKey, ctrl.signal),
+      fetchLatestAndPrev(MORTG_30US, apiKey, ctrl.signal),
     ]);
     clearTimeout(t);
 
-    // values are already numbers|null from fetchSeries; no double parsing
-    const tenYearYield = ten.value;
-    const mort30Avg = mort.value;
+    const tenYearYield = ten.curr.value;
+    const mort30Avg = mort.curr.value;
 
     const spread =
       tenYearYield != null && mort30Avg != null
         ? +(mort30Avg - tenYearYield).toFixed(2)
         : null;
 
-    const asOf =
-      [ten.date, mort.date].filter(Boolean).sort().slice(-1)[0] ?? null;
+    const asOf = [ten.curr.date, mort.curr.date].filter(Boolean).sort().slice(-1)[0] ?? null;
 
     const stale = asOf
       ? now - new Date(asOf).getTime() > maxAgeDays * 86400_000
@@ -136,6 +152,9 @@ export async function getFredSnapshot(opts?: {
       asOf,
       stale,
       source: "fred",
+      // NEW: previous values (may be null if not present in window)
+      prevTenYearYield: ten.prev.value ?? null,
+      prevMort30Avg: mort.prev.value ?? null,
     };
 
     _cache = { key: cacheKey, at: now, data: out };
@@ -146,4 +165,3 @@ export async function getFredSnapshot(opts?: {
     return null;
   }
 }
-
