@@ -1,6 +1,10 @@
 ﻿// app/api/answers/route.ts
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
-import { getFredSnapshot } from "../../../src/lib/fred";
+import { getFredSnapshot } from "@/lib/fred";
+import { composeMarket } from "@/lib/composeMarket"; // singular filename
 
 type Mode = "borrower" | "public";
 type Intent = "purchase" | "refi" | "investor";
@@ -68,97 +72,102 @@ function mythFactLines(): string[] {
   ];
 }
 
+// ------------------------ POST ------------------------
 export async function POST(req: Request) {
   let body: Body = {};
   try {
     body = parseBody(await req.json().catch(() => ({})));
   } catch {
-    // ignore malformed JSON; fall back to defaults
+    // ignore malformed JSON
   }
 
-  // Pull snapshot with guardrails
   const snap = await getFredSnapshot({ timeoutMs: 2000, maxAgeDays: 14 }).catch(() => null);
 
-  const has =
-    !!snap &&
-    snap.tenYearYield != null &&
-    snap.mort30Avg != null &&
-    snap.spread != null &&
-    !!snap.asOf;
+  if (snap && snap.tenYearYield != null && snap.mort30Avg != null && snap.spread != null && snap.asOf) {
+    const usedFRED = snap.source === "fred" && !snap.stale;
+    const composed = composeMarket(snap);
 
-  const fred = has
-    ? {
-        tenYearYield: snap!.tenYearYield!,
-        mort30Avg: snap!.mort30Avg!,
-        spread: snap!.spread!,
-        asOf: snap!.asOf!,
-      }
-    : {
-        tenYearYield: null,
-        mort30Avg: null,
-        spread: null,
-        asOf: null,
-      };
+    const bias = biasTextFromSpread(snap.spread);
+    const lockStance = lockSignal(snap.spread);
+
+    const bullets: string[] = [];
+    bullets.push(composed.text);
+    bullets.push(...mythFactLines());
+    bullets.push("Watch next: CPI/PCE prints, jobs reports, and 10-yr Treasury auctions — those move the 10-yr and your rate.");
+
+    let paymentDelta: { perQuarterPt: number; loanAmount: number } | undefined = undefined;
+    if (body.loanAmount) {
+      const perQuarterPt = paymentDeltaPerQuarterPt(body.loanAmount, snap.mort30Avg);
+      paymentDelta = { perQuarterPt, loanAmount: body.loanAmount };
+      bullets.push(
+        `For ~$${body.loanAmount.toLocaleString()}: about +$${perQuarterPt}/mo for each +0.25% change in rate (30-yr fixed).`
+      );
+    }
+
+    const out = {
+      ok: true,
+      path: "market" as const,
+      usedFRED,
+      fred: {
+        tenYearYield: snap.tenYearYield,
+        mort30Avg: snap.mort30Avg,
+        spread: snap.spread,
+        asOf: snap.asOf,
+      },
+      bias,
+      summary: composed.text,
+      message: composed.text,
+      lockStance,
+      lockBias: lockStance,
+      borrowerSummary: bullets.join("\n"),
+      ...(paymentDelta ? { paymentDelta } : {}),
+      watchNext: {},
+      confidence: usedFRED ? ("med" as const) : ("low" as const),
+      status: 200,
+      composerVersion: (composed as any).composerVersion ?? "unknown",
+    };
+
+    return NextResponse.json(out, { status: 200, headers: { "Cache-Control": "no-store" } });
+  }
+
+  // -------- Fallback if no FRED data --------
+  const fred = {
+    tenYearYield: null,
+    mort30Avg: null,
+    spread: null,
+    asOf: null,
+  };
 
   const bias = biasTextFromSpread(fred.spread);
-
-  const summary =
-    fred.asOf && fred.tenYearYield != null && fred.mort30Avg != null && fred.spread != null
-      ? `As of ${fred.asOf}: 10Y ${fred.tenYearYield.toFixed(2)}%, 30Y ${fred.mort30Avg.toFixed(
-          2
-        )}%, spread ${fred.spread.toFixed(2)}%. Bias: ${bias}.`
-      : "Market snapshot unavailable — using safe defaults.";
-
-  // Borrower-facing block
+  const summary = "Market snapshot unavailable — using safe defaults.";
   const lockStance = lockSignal(fred.spread);
   const bullets: string[] = [];
   bullets.push(...mythFactLines());
-
-  if (fred.asOf) {
-    bullets.push(
-      `Today (${fred.asOf}): 10Y ${fred.tenYearYield?.toFixed(2) ?? "—"}% · 30-yr ${fred.mort30Avg?.toFixed(2) ?? "—"}% · spread ${fred.spread?.toFixed(2) ?? "—"}%.`
-    );
-  }
-
   bullets.push("Watch next: CPI/PCE prints, jobs reports, and 10-yr Treasury auctions — those move the 10-yr and your rate.");
 
-  let paymentDelta: { perQuarterPt: number; loanAmount: number } | undefined = undefined;
-  if (body.loanAmount && fred.mort30Avg != null) {
-    const perQuarterPt = paymentDeltaPerQuarterPt(body.loanAmount, fred.mort30Avg);
-    paymentDelta = { perQuarterPt, loanAmount: body.loanAmount };
-    bullets.push(
-      `For ~$${body.loanAmount.toLocaleString()}: about +$${perQuarterPt}/mo for each +0.25% change in rate (30-yr fixed).`
-    );
-  }
-
-  // Response (keep existing keys; add new ones; include alias lockBias for UI)
   const out = {
     ok: true,
     path: "market" as const,
-    usedFRED: has,
-
+    usedFRED: false,
     fred,
     bias,
     summary,
     message: summary,
-
     lockStance,
-    lockBias: lockStance, // alias for UI that expects lockBias
+    lockBias: lockStance,
     borrowerSummary: bullets.join("\n"),
-    ...(paymentDelta ? { paymentDelta } : {}),
-
-    watchNext: {}, // keep shape you already return
-    confidence: has ? ("med" as const) : ("low" as const),
+    watchNext: {},
+    confidence: "low" as const,
     status: 200,
   };
 
-  return NextResponse.json(out, { status: 200 });
+  return NextResponse.json(out, { status: 200, headers: { "Cache-Control": "no-store" } });
 }
 
+// ------------------------ GET ------------------------
 export async function GET() {
   return NextResponse.json(
     { ok: false, message: "Use POST with JSON to /api/answers" },
     { status: 405 }
   );
 }
-
