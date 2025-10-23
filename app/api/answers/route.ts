@@ -39,7 +39,7 @@ function pmt30(L: number, annualRatePct: number): number {
   const n = 360;
   if (r <= 0) return L / n;
   const x = Math.pow(1 + r, n);
-  return L * (r * x) / (x - 1);
+  return (L * (r * x)) / (x - 1);
 }
 
 function paymentDeltaPerQuarterPt(loanAmount: number, baseRatePct: number | null): number {
@@ -68,7 +68,7 @@ function mythFactLines(): string[] {
     "Myth: When the Fed cuts the fed funds rate, 30-yr mortgage rates drop right away.",
     "Fact: 30-yr mortgage rates track the 10-year Treasury (inflation & growth expectations), not the overnight fed funds rate.",
     "Fact: Mortgage rates often move before the Fed — and can rise on a Fed cut if long-term inflation risk or term premium jumps.",
-    "Keep it simple: watch the 10-year yield and the mortgage/10-year spread — that’s your compass."
+    "Keep it simple: watch the 10-year yield and the mortgage/10-year spread — that’s your compass.",
   ];
 }
 
@@ -93,7 +93,9 @@ export async function POST(req: Request) {
     const bullets: string[] = [];
     bullets.push(composed.text);
     bullets.push(...mythFactLines());
-    bullets.push("Watch next: CPI/PCE prints, jobs reports, and 10-yr Treasury auctions — those move the 10-yr and your rate.");
+    bullets.push(
+      "Watch next: CPI/PCE prints, jobs reports, and 10-yr Treasury auctions — those move the 10-yr and your rate."
+    );
 
     let paymentDelta: { perQuarterPt: number; loanAmount: number } | undefined = undefined;
     if (body.loanAmount) {
@@ -124,7 +126,7 @@ export async function POST(req: Request) {
       watchNext: {},
       confidence: usedFRED ? ("med" as const) : ("low" as const),
       status: 200,
-      composerVersion: (composed as any).composerVersion ?? "unknown",
+      // no composerVersion field here (keeps ESLint happy)
     };
 
     return NextResponse.json(out, { status: 200, headers: { "Cache-Control": "no-store" } });
@@ -143,7 +145,9 @@ export async function POST(req: Request) {
   const lockStance = lockSignal(fred.spread);
   const bullets: string[] = [];
   bullets.push(...mythFactLines());
-  bullets.push("Watch next: CPI/PCE prints, jobs reports, and 10-yr Treasury auctions — those move the 10-yr and your rate.");
+  bullets.push(
+    "Watch next: CPI/PCE prints, jobs reports, and 10-yr Treasury auctions — those move the 10-yr and your rate."
+  );
 
   const out = {
     ok: true,
@@ -166,8 +170,5 @@ export async function POST(req: Request) {
 
 // ------------------------ GET ------------------------
 export async function GET() {
-  return NextResponse.json(
-    { ok: false, message: "Use POST with JSON to /api/answers" },
-    { status: 405 }
-  );
+  return NextResponse.json({ ok: false, message: "Use POST with JSON to /api/answers" }, { status: 405 });
 }
