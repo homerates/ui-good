@@ -1,92 +1,167 @@
 // src/lib/fred.ts
+const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
+const TEN_YEAR = "DGS10";
+const MORTG_30US = "MORTGAGE30US";
+
+type Obs = { date: string; value: string };
+
 export type FredSnapshot = {
-  asOf: string;
   tenYearYield: number | null;
   mort30Avg: number | null;
   spread: number | null;
-  source: "fred" | "internal" | "mock";
-  stale?: boolean;
+  asOf: string | null;
+  stale: boolean;
+  source: "fred" | "stub";
+  // NEW (optional; safe when null)
+  prevTenYearYield?: number | null;
+  prevMort30Avg?: number | null;
 };
 
-function baseUrl() {
-  // Prefer explicit public URL in prod; fall back to Vercel URL; else localhost
-  const pub = process.env.NEXT_PUBLIC_SITE_URL;
-  const vercel = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
-  return pub || vercel || "http://localhost:3000";
+/** Safe numeric coercion from string | number | null | undefined */
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
-/**
- * Try internal API first (/api/fred). If missing, hit FRED directly (needs FRED_API_KEY).
- * If both fail, return a safe mock so the app still renders.
- */
-export async function getFredSnapshot(): Promise<FredSnapshot> {
-  // 1) Internal API (your known-good endpoint)
-  try {
-    const res = await fetch(`${baseUrl()}/api/fred`, { cache: "no-store" });
-    if (res.ok) {
-      const json = await res.json().catch(() => ({} as any));
-      // Expect either { fred: {...} } or the fields at root
-      const src = (json.fred ?? json) as Partial<FredSnapshot>;
-      const asOf = String(src.asOf ?? "");
-      const ten = src.tenYearYield ?? null;
-      const m30 = src.mort30Avg ?? null;
-      const spr =
-        src.spread ?? (ten != null && m30 != null ? Number(m30) - Number(ten) : null);
+/** Fetch latest and previous non-missing values for a series (within ~120d window) */
+async function fetchLatestAndPrev(
+  series_id: string,
+  apiKey: string,
+  signal: AbortSignal
+): Promise<{
+  curr: { value: number | null; date: string | null };
+  prev: { value: number | null; date: string | null };
+}> {
+  const url = new URL(FRED_BASE);
+  url.searchParams.set("series_id", series_id);
+  url.searchParams.set("api_key", apiKey);
+  url.searchParams.set("file_type", "json");
+  // pull last ~120 days so we always have a recent point
+  url.searchParams.set(
+    "observation_start",
+    new Date(Date.now() - 120 * 86400_000).toISOString().slice(0, 10)
+  );
 
-      return {
-        asOf,
-        tenYearYield: ten as number | null,
-        mort30Avg: m30 as number | null,
-        spread: spr as number | null,
-        source: "internal",
-        stale: Boolean((json as any)?.cache?.stale ?? src.stale),
-      };
-    }
-  } catch {
-    // fall through
-  }
+  const res = await fetch(url.toString(), { signal });
+  if (!res.ok) throw new Error(`FRED ${series_id} HTTP ${res.status}`);
 
-  // 2) Direct FRED (last resort)
-  try {
-    const key = process.env.FRED_API_KEY;
-    if (key) {
-      const last = async (seriesId: string) => {
-        const url =
-          `https://api.stlouisfed.org/fred/series/observations` +
-          `?series_id=${seriesId}&api_key=${key}&file_type=json&sort_order=desc&limit=10`;
-        const r = await fetch(url, { cache: "no-store" });
-        if (!r.ok) return { value: null as number | null, date: "" };
-        const j = await r.json();
-        const obs = (j?.observations ?? []).find((o: any) => o?.value && o.value !== ".");
-        return {
-          value: obs ? Number(obs.value) : null,
-          date: obs?.date ?? "",
-        };
-      };
-      const [ten, m30] = await Promise.all([last("DGS10"), last("MORTGAGE30US")]);
-      const spr =
-        ten.value != null && m30.value != null ? m30.value - ten.value : null;
-      return {
-        asOf: m30.date || ten.date || new Date().toISOString().slice(0, 10),
-        tenYearYield: ten.value,
-        mort30Avg: m30.value,
-        spread: spr,
-        source: "fred",
-        stale: false,
-      };
-    }
-  } catch {
-    // fall through
-  }
+  const json = (await res.json()) as { observations?: Obs[] };
+  const valid = (json.observations ?? []).filter(
+    (o) => o.value && o.value !== "."
+  );
 
-  // 3) Safe mock (never block render)
-  const asOf = new Date().toISOString().slice(0, 10);
+  const last = valid.at(-1);
+  const secondLast = valid.at(-2);
+
   return {
-    asOf,
-    tenYearYield: null,
-    mort30Avg: null,
-    spread: null,
-    source: "mock",
-    stale: true,
+    curr: {
+      value: last ? toNum(last.value) : null,
+      date: last?.date ?? null,
+    },
+    prev: {
+      value: secondLast ? toNum(secondLast.value) : null,
+      date: secondLast?.date ?? null,
+    },
   };
+}
+
+/* ------- 5-minute in-memory cache (per process) ------- */
+let _cache: { key: string; at: number; data: FredSnapshot | null } | null = null;
+const TTL_MS = 5 * 60 * 1000;
+
+export function getFredCacheInfo() {
+  if (!_cache) {
+    return {
+      cached: false,
+      ageMs: null as number | null,
+      asOf: null as string | null,
+      source: null as string | null,
+    };
+  }
+  return {
+    cached: !!_cache.data,
+    ageMs: Date.now() - _cache.at,
+    asOf: _cache.data?.asOf ?? null,
+    source: _cache.data?.source ?? null,
+  };
+}
+
+export async function warmFredCache(msTimeout = 1500) {
+  try {
+    await getFredSnapshot({ timeoutMs: msTimeout });
+  } catch {
+    // best-effort; ignore
+  }
+}
+
+export async function getFredSnapshot(opts?: {
+  maxAgeDays?: number;
+  timeoutMs?: number;
+}): Promise<FredSnapshot | null> {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) {
+    // no key = stubbed snapshot
+    return {
+      tenYearYield: null,
+      mort30Avg: null,
+      spread: null,
+      asOf: null,
+      stale: true,
+      source: "stub",
+    };
+  }
+
+  const timeoutMs = opts?.timeoutMs ?? 6000;
+  const maxAgeDays = opts?.maxAgeDays ?? 7;
+  const now = Date.now();
+  const cacheKey = `${apiKey}:${maxAgeDays}`;
+
+  if (_cache && _cache.key === cacheKey && now - _cache.at < TTL_MS) {
+    return _cache.data;
+  }
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+
+  try {
+    const [ten, mort] = await Promise.all([
+      fetchLatestAndPrev(TEN_YEAR, apiKey, ctrl.signal),
+      fetchLatestAndPrev(MORTG_30US, apiKey, ctrl.signal),
+    ]);
+    clearTimeout(t);
+
+    const tenYearYield = ten.curr.value;
+    const mort30Avg = mort.curr.value;
+
+    const spread =
+      tenYearYield != null && mort30Avg != null
+        ? +(mort30Avg - tenYearYield).toFixed(2)
+        : null;
+
+    const asOf = [ten.curr.date, mort.curr.date].filter(Boolean).sort().slice(-1)[0] ?? null;
+
+    const stale = asOf
+      ? now - new Date(asOf).getTime() > maxAgeDays * 86400_000
+      : true;
+
+    const out: FredSnapshot = {
+      tenYearYield,
+      mort30Avg,
+      spread,
+      asOf,
+      stale,
+      source: "fred",
+      // NEW: previous values (may be null if not present in window)
+      prevTenYearYield: ten.prev.value ?? null,
+      prevMort30Avg: mort.prev.value ?? null,
+    };
+
+    _cache = { key: cacheKey, at: now, data: out };
+    return out;
+  } catch {
+    clearTimeout(t);
+    _cache = { key: cacheKey, at: now, data: null };
+    return null;
+  }
 }
