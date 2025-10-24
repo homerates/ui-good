@@ -42,7 +42,7 @@ const templates: TemplateFn[] = [
     `${tenD ? `10Y ${tenD}. ` : ""}${mortD ? `30Y ${mortD}. ` : ""}` +
     `\nTake: ${
       tone === "constructive"
-        ? "Slight tailwind; lenders could inch better if spreads hold."
+        ? "Slight tailwind; lend could inch better if spreads hold."
         : tone === "cautious"
         ? "Bias higher; protect locks on rate-sensitive files."
         : "Sideways bias; pricing tracks data and auctions."
