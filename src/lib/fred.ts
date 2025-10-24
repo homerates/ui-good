@@ -1,4 +1,4 @@
-﻿// src/lib/fred.ts
+// src/lib/fred.ts
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 const TEN_YEAR = "DGS10";
 const MORTG_30US = "MORTGAGE30US";
