@@ -41,3 +41,9 @@ _local_trash/
 _local_trash/
 
 .vercel
+
+.backup_live_edits/
+
+
+.vercel/
+
