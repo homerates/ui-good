@@ -16,7 +16,6 @@ function noStore(json: unknown, status = 200) {
 
 async function handle(intent: string) {
   if (intent !== "market") {
-    // Non-market intents return a simple dynamic placeholder (keeps path stable for UI)
     return noStore({
       ok: true,
       route: "answers",
@@ -45,16 +44,16 @@ async function handle(intent: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({} as Record<string, unknown>));
-  const intent =
-    typeof (body as any)?.intent === "string" && (body as any).intent.trim()
-      ? (body as any).intent
-      : "market";
+  type Body = { intent?: string };
+  const body = (await req.json().catch(() => ({} as Body))) as Body;
+  const raw = (body.intent ?? "").trim();
+  const intent = raw.length > 0 ? raw : "market";
   return handle(intent);
 }
 
 // Browser-friendly GET with optional ?intent=... (defaults to "market")
 export async function GET(req: NextRequest) {
-  const intent = req.nextUrl.searchParams.get("intent") || "market";
+  const raw = (req.nextUrl.searchParams.get("intent") ?? "").trim();
+  const intent = raw.length > 0 ? raw : "market";
   return handle(intent);
 }
