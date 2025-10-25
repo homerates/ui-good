@@ -1,4 +1,5 @@
-﻿export const runtime = "nodejs";
+﻿// app/api/answers/route.ts
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -15,8 +16,15 @@ function noStore(json: unknown, status = 200) {
 
 async function handle(intent: string) {
   if (intent !== "market") {
-    // include a path for consistency even on non-market
-    return noStore({ ok: true, route: "answers", intent, path: "dynamic", tag: "v1-stable" });
+    // Non-market intents return a simple dynamic placeholder (keeps path stable for UI)
+    return noStore({
+      ok: true,
+      route: "answers",
+      intent,
+      path: "dynamic",
+      tag: "v1-stable",
+      generatedAt: new Date().toISOString(),
+    });
   }
 
   const generatedAt = new Date().toISOString();
@@ -28,7 +36,7 @@ async function handle(intent: string) {
     ok: true,
     route: "answers",
     intent,
-    path: "market",              // ← add this so your meta shows “path: market”
+    path: "market",
     tag: "v1-stable",
     generatedAt,
     usedFRED,
@@ -38,11 +46,15 @@ async function handle(intent: string) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
-  const intent = typeof body?.intent === "string" ? body.intent : "market";
+  const intent =
+    typeof (body as any)?.intent === "string" && (body as any).intent.trim()
+      ? (body as any).intent
+      : "market";
   return handle(intent);
 }
 
-// Browser-friendly GET mirrors POST {intent:"market"}
-export async function GET() {
-  return handle("market");
+// Browser-friendly GET with optional ?intent=... (defaults to "market")
+export async function GET(req: NextRequest) {
+  const intent = req.nextUrl.searchParams.get("intent") || "market";
+  return handle(intent);
 }
