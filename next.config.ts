@@ -2,9 +2,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: { ignoreDuringBuilds: true },
-  // optional: only if TS errors block deploys
-  // typescript: { ignoreBuildErrors: true },
+  // No experimental flags needed right now
 };
 
 export default nextConfig;
