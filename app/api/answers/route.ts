@@ -15,7 +15,8 @@ function noStore(json: unknown, status = 200) {
 
 async function handle(intent: string) {
   if (intent !== "market") {
-    return noStore({ ok: true, route: "answers", intent, tag: "v1-stable" });
+    // include a path for consistency even on non-market
+    return noStore({ ok: true, route: "answers", intent, path: "dynamic", tag: "v1-stable" });
   }
 
   const generatedAt = new Date().toISOString();
@@ -27,6 +28,7 @@ async function handle(intent: string) {
     ok: true,
     route: "answers",
     intent,
+    path: "market",              // ← add this so your meta shows “path: market”
     tag: "v1-stable",
     generatedAt,
     usedFRED,
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
   return handle(intent);
 }
 
-// Browser-friendly: GET behaves like POST {intent:"market"}
+// Browser-friendly GET mirrors POST {intent:"market"}
 export async function GET() {
   return handle("market");
 }
