@@ -1,51 +1,88 @@
 ﻿// app/api/tavily/route.ts
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
   });
 }
 
-type TavilySearchResult = {
-  query: string;
-  results?: Array<{ title: string; url: string; content?: string }>;
+type TavilyWire = {
+  answer?: string;
+  results?: Array<{ title?: string; url?: string; content?: string }>;
 };
 
 export async function POST(req: Request) {
   const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) return json({ ok: false, error: 'Missing TAVILY_API_KEY' }, 200);
+  if (!apiKey) return json({ ok: false, error: "Missing TAVILY_API_KEY" }, 200);
 
-  let query = '';
+  // Parse body safely
+  let query = "";
   try {
     const bodyTxt = await req.text();
-    const body = bodyTxt ? (JSON.parse(bodyTxt) as unknown) : {};
-    if (typeof body === 'object' && body && 'query' in body) {
-      const q = (body as Record<string, unknown>).query;
-      if (typeof q === 'string') query = q.trim();
+    if (bodyTxt) {
+      const body = JSON.parse(bodyTxt) as unknown;
+      if (typeof body === "object" && body && "query" in body) {
+        const q = (body as Record<string, unknown>).query;
+        if (typeof q === "string") query = q.trim();
+      }
     }
   } catch {
-    /* ignore */
+    /* ignore bad JSON */
   }
+  if (!query) return json({ ok: false, error: "Missing query" }, 400);
 
-  if (!query) return json({ ok: false, error: 'Missing query' }, 400);
+  // Tavily expects api_key in the JSON body; include_answer must be true for a concise paragraph
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const res = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
-      body: JSON.stringify({ query, include_answer: false, max_results: 3 }),
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        include_answer: true,
+        include_images: false,
+        max_results: 5,
+        search_depth: "basic",
+      }),
+      signal: controller.signal,
+      cache: "no-store",
     });
-    const data = (await res.json()) as TavilySearchResult;
-    return json({ ok: res.ok, data }, 200);
+
+    clearTimeout(t);
+
+    const wire = (await res.json().catch(() => ({}))) as TavilyWire;
+
+    const results = (wire.results ?? [])
+      .filter((r) => r?.title && r?.url)
+      .map((r) => ({
+        title: r.title as string,
+        url: r.url as string,
+        content: r.content,
+      }));
+
+    return json(
+      {
+        ok: res.ok,
+        answer: wire.answer ?? null,
+        results,
+      },
+      200
+    );
   } catch (e: unknown) {
+    clearTimeout(t);
     const msg = e instanceof Error ? e.message : String(e);
     return json({ ok: false, error: msg }, 200);
   }
 }
 
 export async function GET() {
-  return json({ ok: true, expects: 'POST { query }' });
+  return json({ ok: true, expects: "POST { query }" }, 200);
 }
-
