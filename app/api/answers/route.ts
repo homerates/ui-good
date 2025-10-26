@@ -23,31 +23,33 @@ function bulletsFrom(text: string): string[] {
   return sents.slice(0, 3).map((s) => s.replace(/^[-•]\s*/, "").trim());
 }
 
-async function askTavily(req: NextRequest, query: string): Promise<TavilyMini> {
-  // Call our internal /api/tavily so the API key stays server-side
+async function askTavily(req: NextRequest, query: string, opts?: { depth?: "basic"|"advanced"; max?: number }): Promise<TavilyMini> {
   const url = new URL("/api/tavily", req.url);
   const res = await fetch(url.toString(), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({
+      query,
+      searchDepth: opts?.depth ?? "basic",
+      maxResults: opts?.max ?? 5,
+    }),
     cache: "no-store",
   });
   const data = (await res.json().catch(() => ({}))) as Partial<TavilyMini>;
   return {
-    ok: Boolean(data?.ok),
+    ok: Boolean((data as any)?.ok),
     answer: typeof data?.answer === "string" ? data!.answer : null,
-    results: Array.isArray(data?.results) ? (data!.results as TavilyMini["results"]) : [],
+    results: Array.isArray((data as any)?.results) ? ((data as any).results as TavilyMini["results"]) : [],
   };
 }
 
 async function handle(req: NextRequest, intentParam?: string) {
-  type Body = { question?: string; intent?: string; mode?: "borrower" | "public"; loanAmount?: number };
+  type Body = { question?: string; intent?: string; mode?: "borrower"|"public"; loanAmount?: number };
 
   const generatedAt = new Date().toISOString();
   const path = "web";
   const tag = "tavily-v1";
 
-  // Parse inputs
   let body: Body = {};
   if (req.method === "POST") {
     body = (await req.json().catch(() => ({} as Body))) as Body;
@@ -57,59 +59,60 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   if (!question) {
     return noStore({
-      ok: true,
-      route: "answers",
-      intent,
-      path,
-      tag,
-      generatedAt,
-      usedFRED: false,
-      usedTavily: Boolean(process.env.TAVILY_API_KEY),
-      message: "Ask a specific question (e.g., “Are mortgage rates trending up this week?” or “Explain PMI for 5% down”).",
-      tldr: [
-        "We’ll pull fresh, sourced info from the web.",
-        "Add details like loan type, down payment, or timeline.",
-      ],
-      answer: "",
-      sources: [],
+      ok: true, route: "answers", intent, path, tag, generatedAt,
+      usedFRED: false, usedTavily: Boolean(process.env.TAVILY_API_KEY),
+      message: "Ask something specific (e.g., “Explain PMI for 5% down” or “Are rates trending up this week?”).",
+      tldr: ["We’ll pull fresh, sourced info from the web.", "Add loan type, down payment, or timeline for sharper answers."],
+      answer: "", sources: [],
     });
   }
 
-  // Query Tavily
-  const tav = await askTavily(req, question);
+  // First pass (basic)
+  let tav = await askTavily(req, question, { depth: "basic", max: 5 });
+
+  // Retry with deeper search if no direct answer
+  if (!tav.answer && tav.results.length < 2) {
+    tav = await askTavily(req, question, { depth: "advanced", max: 8 });
+  }
+
   const usedTavily = tav.ok && (tav.answer || tav.results.length > 0);
 
-  const fallbackText =
+  // If still nothing useful, give a helpful nudge
+  if (!tav.answer && tav.results.length === 0) {
+    const msg = `I couldn’t find a clear answer for “${question}.” Try specifying program (Conventional/FHA/VA), down %, or timeframe.`;
+    return noStore({
+      ok: true, route: "answers", intent, path, tag, generatedAt,
+      usedFRED: false, usedTavily: false,
+      message: msg,
+      tldr: [
+        "Name the product (Conventional/FHA/VA/USDA)",
+        "Add down % and credit tier if you know them",
+        "Add state or county if it matters (limits, MI rules)",
+      ],
+      answer: "",
+    });
+  }
+
+  // Build message from Tavily answer or best snippet
+  const baseText =
+    tav.answer?.trim() ||
     tav.results.find((r) => r.content)?.content?.trim() ||
     `Here’s what we found for “${question}”.`;
 
-  const message = (tav.answer ?? fallbackText).split(/\n+/)[0].slice(0, 600);
-  const tldr = bulletsFrom(tav.answer ?? fallbackText);
+  const message = baseText.split(/\n+/)[0].slice(0, 600);
+  const tldr = bulletsFrom(baseText);
 
-  // Render sources as "- " lines so your UI treats them as bullets
   const sources = tav.results.slice(0, 5).map((s) => `- ${s.title} — ${s.url}`);
   const answerLines = [message, sources.length ? "Sources:" : "", ...sources].filter(Boolean);
 
   return noStore({
-    ok: true,
-    route: "answers",
-    intent,
-    path,
-    tag,
-    generatedAt,
-    usedFRED: false,
-    usedTavily,
+    ok: true, route: "answers", intent, path, tag, generatedAt,
+    usedFRED: false, usedTavily,
     message,
     tldr,
     answer: answerLines.join("\n"),
   });
 }
 
-export async function POST(req: NextRequest) {
-  return handle(req);
-}
-
-export async function GET(req: NextRequest) {
-  const intent = (req.nextUrl.searchParams.get("intent") ?? "").trim();
-  return handle(req, intent);
-}
+export async function POST(req: NextRequest) { return handle(req); }
+export async function GET(req: NextRequest)  { return handle(req, (req.nextUrl.searchParams.get("intent") ?? "").trim()); }
