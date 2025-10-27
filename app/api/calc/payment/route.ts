@@ -1,11 +1,12 @@
 // app/api/calc/payment/route.ts
-import { NextResponse } from "next/server";
-// Relative path so we don't depend on tsconfig/jsconfig aliases
-import { payment, type PaymentInput } from "../../../../lib/calculators/payment";
 
-// Explicit meta type with tag: string (not a literal)
+// 1) Put LIB import first so preflight checks the right module.
+import { payment, type PaymentInput } from "../../../../lib/calculators/payment";
+// 2) Import NextResponse after — our preflight only inspects the first named import.
+import { NextResponse } from "next/server";
+
 type Meta = {
-  tag: string;
+  tag: string;   // keep this as string, not a literal
   path?: string;
   error?: string;
   [key: string]: unknown;
@@ -26,10 +27,9 @@ export async function GET(req: Request) {
     miPct: num(q.miPct),
   };
 
-  // Friendly guardrails (no throws)
   if (!input.purchasePrice || !input.annualRatePct) {
     const meta: Meta = {
-      tag: "calc-v2-piti", // runtime value, type is string (not a literal)
+      tag: "calc-v2-piti",
       path: "calc",
       error: "Missing required parameters: purchasePrice & annualRatePct",
     };
@@ -44,9 +44,15 @@ export async function GET(req: Request) {
   }
 
   const result = payment(input);
-  const meta: Meta = { ...result.meta, path: "calc" };
 
-  return NextResponse.json({ ...result, meta }, { status: 200 });
+  // Inline meta.path (the preflight regex expects a literal object with path)
+  return NextResponse.json(
+    {
+      ...result,
+      meta: { ...(result.meta as Meta), path: "calc" },
+    },
+    { status: 200 }
+  );
 }
 
 function num(v?: string) {
