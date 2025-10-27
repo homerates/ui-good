@@ -1,12 +1,14 @@
 // app/api/calc/payment/route.ts
 
-// 1) Put LIB import first so preflight checks the right module.
-import { payment, type PaymentInput } from "../../../../lib/calculators/payment";
-// 2) Import NextResponse after — our preflight only inspects the first named import.
+// Import VALUES from lib (functions/classes/etc.)
+import { payment } from "../../../../lib/calculators/payment";
+// Import TYPES separately so our preflight doesn't treat them like values
+import type { PaymentInput } from "../../../../lib/calculators/payment";
+
 import { NextResponse } from "next/server";
 
 type Meta = {
-  tag: string;   // keep this as string, not a literal
+  tag: string;
   path?: string;
   error?: string;
   [key: string]: unknown;
@@ -45,7 +47,6 @@ export async function GET(req: Request) {
 
   const result = payment(input);
 
-  // Inline meta.path (the preflight regex expects a literal object with path)
   return NextResponse.json(
     {
       ...result,
