@@ -1,16 +1,12 @@
 ﻿// app/api/version/route.ts
-export const runtime = 'nodejs';
-
-import { VERSION, COMMIT } from "@/lib/version";
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-  });
-}
+import { NextResponse } from "next/server";
 
 export async function GET() {
-  return json({ version: VERSION, commit: COMMIT, node: process.version, time: new Date().toISOString() });
+  const payload = {
+    meta: { path: "version", tag: "version-v2" },
+    version: process.env.APP_VERSION || "0.0.0",
+    commit: process.env.VERCEL_GIT_COMMIT_SHA || "local",
+    builtAt: process.env.VERCEL_BUILD_TIME || new Date().toISOString()
+  };
+  return NextResponse.json(payload, { status: 200 });
 }
-
