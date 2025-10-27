@@ -1,100 +1,48 @@
-// lib/calculators/payment.ts
+import { NextResponse } from "next/server";
+import { payment, type PaymentInput } from "../../../../lib/calculators/payment";
 
-export type PaymentInput = {
-  // Either supply loanAmount, or purchasePrice + downPercent to derive it
-  loanAmount?: number;
-  purchasePrice?: number;
-  downPercent?: number;    // 20 -> 20%
-  annualRatePct?: number;  // 6.5 -> 6.5
-  termYears?: number;      // 30
+type LoosePaymentInput = Partial<PaymentInput>;
 
-  // Optional add-ons for PITI
-  taxesPct?: number;       // annual property tax as % of price (1.2 => 1.2%)
-  insPerYear?: number;     // homeowner's insurance per year (USD)
-  hoaPerMonth?: number;    // HOA dues per month (USD)
-  miPct?: number;          // annual MI % of loan (0.6 => 0.6%)
-};
-
-export type CalcAnswer = {
-  loanAmount: number;        // always finite
-  monthlyPI: number;         // always finite
-  sensitivities: Array<{ rate: number; pi: number }>;
-
-  // PITI breakdown (all finite, zero if not applicable)
-  monthlyTax: number;
-  monthlyIns: number;
-  monthlyHOA: number;
-  monthlyMI: number;
-  monthlyTotalPITI: number;
-};
-
-function isPos(n: unknown): n is number {
-  return typeof n === "number" && isFinite(n) && n > 0;
+function toNum(v: string | null): number | undefined {
+  if (v == null) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
 }
 
-export function payment(input: PaymentInput): CalcAnswer {
-  // 1) Loan principal
-  const principal = isPos(input.loanAmount)
-    ? input.loanAmount!
-    : (isPos(input.purchasePrice) && typeof input.downPercent === "number")
-      ? input.purchasePrice! * (1 - (input.downPercent! / 100))
-      : 0;
-
-  // 2) Rate & term
-  const annual = isPos(input.annualRatePct) ? (input.annualRatePct! / 100) : 0;
-  const nper   = isPos(input.termYears)     ? (input.termYears! * 12)      : 0;
-
-  // 3) PI math or safe zero
-  let monthlyPI = 0;
-  if (principal > 0 && annual > 0 && nper > 0) {
-    const r   = annual / 12;
-    const pow = Math.pow(1 + r, nper);
-    monthlyPI = principal * (r * pow) / (pow - 1);
-  }
-
-  // 4) Add-ons (Taxes / Insurance / HOA / MI)
-  // Taxes: base on purchasePrice if provided, else loanAmount
-  const taxBase = isPos(input.purchasePrice) ? input.purchasePrice! : principal;
-
-  const monthlyTax = (typeof input.taxesPct === "number" && isFinite(input.taxesPct) && taxBase > 0)
-    ? (taxBase * (input.taxesPct / 100)) / 12
-    : 0;
-
-  const monthlyIns = (typeof input.insPerYear === "number" && isFinite(input.insPerYear) && input.insPerYear! > 0)
-    ? input.insPerYear! / 12
-    : 0;
-
-  const monthlyHOA = (typeof input.hoaPerMonth === "number" && isFinite(input.hoaPerMonth) && input.hoaPerMonth! > 0)
-    ? input.hoaPerMonth!
-    : 0;
-
-  const monthlyMI = (typeof input.miPct === "number" && isFinite(input.miPct) && principal > 0)
-    ? (principal * (input.miPct / 100)) / 12
-    : 0;
-
-  const monthlyTotalPITI = monthlyPI + monthlyTax + monthlyIns + monthlyHOA + monthlyMI;
-
-  // 5) Sensitivities (±0.25%)
-  const piAt = (annualRate: number) => {
-    if (!(principal > 0 && nper > 0 && annualRate > 0)) return 0;
-    const rr = annualRate / 12;
-    const pw = Math.pow(1 + rr, nper);
-    return principal * (rr * pw) / (pw - 1);
-  };
-
-  const base = annual || 0.065;
-
+function buildInputFromSearch(sp: URLSearchParams): LoosePaymentInput {
   return {
-    loanAmount: Math.round(principal),
-    monthlyPI: Math.round(monthlyPI * 100) / 100,
-    sensitivities: [
-      { rate: base - 0.0025, pi: Math.round(piAt(base - 0.0025) * 100) / 100 },
-      { rate: base + 0.0025, pi: Math.round(piAt(base + 0.0025) * 100) / 100 },
-    ],
-    monthlyTax: Math.round(monthlyTax * 100) / 100,
-    monthlyIns: Math.round(monthlyIns * 100) / 100,
-    monthlyHOA: Math.round(monthlyHOA * 100) / 100,
-    monthlyMI:  Math.round(monthlyMI  * 100) / 100,
-    monthlyTotalPITI: Math.round(monthlyTotalPITI * 100) / 100,
+    purchasePrice: toNum(sp.get("purchasePrice")),
+    downPercent:   toNum(sp.get("downPercent")),
+    annualRatePct: toNum(sp.get("annualRatePct")),
+    termYears:     toNum(sp.get("termYears")),
+    loanAmount:    toNum(sp.get("loanAmount")),
+    // optional PITI inputs
+    taxesPct:      toNum(sp.get("taxesPct")),
+    insPerYear:    toNum(sp.get("insPerYear")),
+    hoaPerMonth:   toNum(sp.get("hoaPerMonth")),
+    miPct:         toNum(sp.get("miPct")),
   };
+}
+
+// WIDEN tag to string so we can change versions freely
+type CalcPayload = {
+  meta: { path: "calc"; tag: string; usedFRED: false; at: string };
+  tldr: string;
+  answer: ReturnType<typeof payment>;
+};
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const loose = buildInputFromSearch(searchParams);
+
+  // One cast; the lib function guards missing values and never returns NaN
+  const result = payment(loose as PaymentInput);
+
+  const payload: CalcPayload = {
+    meta: { path: "calc", tag: "calc-v2-piti", usedFRED: false, at: new Date().toISOString() },
+    tldr: "Principal & Interest with ±0.25% rate sensitivity.",
+    answer: result,
+  };
+
+  return NextResponse.json(payload);
 }
