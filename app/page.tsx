@@ -102,23 +102,6 @@ type ApiResponse = {
   generatedAt?: string;
 };
 
-type AnswersResponse = {
-  ok: boolean;
-  route: "answers";
-  intent: string;
-  tag: string;
-  usedFRED?: boolean;
-  generatedAt?: string;
-  market?: {
-    type: "market";
-    asOf?: string;
-    tenYearYield?: number | null;
-    mort30Avg?: number | null;
-    spread?: number | null;
-    tone?: string;
-    text?: string;
-  } | { type: "market"; error: string };
-};
 
 type ChatMsg =
   | { id: string; role: 'user'; content: string }
@@ -151,10 +134,14 @@ const fmtISOshort = (iso?: string) => {
 function AnswerBlock({ meta }: { meta?: ApiResponse }) {
   if (!meta) return null;
 
-  // Defensive header fields (works whether values are top-level or nested)
-  const headerPath = (meta as any).path ?? (meta as any).meta?.path ?? '—';
-  const headerUsedFRED = (meta as any).usedFRED ?? (meta as any).meta?.usedFRED ?? false;
-  const headerAt = (meta as any).generatedAt ?? (meta as any).meta?.at ?? undefined;
+ // Defensive header fields without using 'any'
+type NestedMeta = { meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string } };
+const m = meta as ApiResponse & NestedMeta;
+
+const headerPath: ApiResponse['path'] | '—' = m.path ?? m.meta?.path ?? '—';
+const headerUsedFRED: boolean = (typeof m.usedFRED === 'boolean' ? m.usedFRED : (m.meta?.usedFRED ?? false));
+const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
+
 
   // ---- CALC RENDERING ----
   if (headerPath === 'calc' && meta.answer && typeof meta.answer === 'object') {
