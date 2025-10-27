@@ -16,8 +16,7 @@ function buildInputFromSearch(sp: URLSearchParams): LoosePaymentInput {
     annualRatePct: toNum(sp.get("annualRatePct")),
     termYears:     toNum(sp.get("termYears")),
     loanAmount:    toNum(sp.get("loanAmount")),
-
-    // NEW optional inputs
+    // optional PITI inputs
     taxesPct:      toNum(sp.get("taxesPct")),
     insPerYear:    toNum(sp.get("insPerYear")),
     hoaPerMonth:   toNum(sp.get("hoaPerMonth")),
@@ -25,8 +24,9 @@ function buildInputFromSearch(sp: URLSearchParams): LoosePaymentInput {
   };
 }
 
+// WIDEN tag to string so version bumps never fail builds
 type CalcPayload = {
-  meta: { path: "calc"; tag: "calc-v1"; usedFRED: false; at: string };
+  meta: { path: "calc"; tag: string; usedFRED: false; at: string };
   tldr: string;
   answer: ReturnType<typeof payment>;
 };
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const loose = buildInputFromSearch(searchParams);
 
-  // One cast; the lib guards missing values
+  // Lib guards bad inputs; no NaN returns
   const result = payment(loose as PaymentInput);
 
   const payload: CalcPayload = {
