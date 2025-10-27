@@ -3,18 +3,29 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prepush": "node tools/preflight.mjs && tsc --noEmit && eslint . --max-warnings=0 && next build",
+    "prepush": "node tools/preflight.mjs && npx tsc --noEmit && npx eslint . --max-warnings=0 && next build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "build": "next build",
-    "prepare": "npx simple-git-hooks"
+    "prepare": "node -e \"const fs=require('fs'); const isCI=process.env.CI||process.env.VERCEL; if(isCI) process.exit(0); try{fs.statSync('.git');}catch(e){process.exit(0);}\" && npx simple-git-hooks"
   },
   "simple-git-hooks": {
     "pre-push": "npm run prepush"
   },
+  "dependencies": {
+    "next": "15.5.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
   "devDependencies": {
-    "@types/node": "^24.9.1",
     "simple-git-hooks": "^2.13.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.6.3",
+    "@types/node": "^22.7.5",
+    "eslint": "^9.13.0",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0"
+  },
+  "engines": {
+    "node": ">=18.18"
   }
 }
