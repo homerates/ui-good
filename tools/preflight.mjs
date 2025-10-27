@@ -28,7 +28,7 @@ const fail = (tag, m) => { console.error(`❌ ${tag}: ${m}`); process.exitCode =
   else ok("Alias check: OK");
 })();
 
-// 2) NAMED_EXPORT_DRIFT — only check the lib import
+// 2) NAMED_EXPORT_DRIFT — only check the lib import; support `export type`
 (() => {
   const routePath = path.join(ROOT, "app", "api", "calc", "payment", "route.ts");
   const libPath = path.join(ROOT, "lib", "calculators", "payment.ts");
@@ -36,7 +36,7 @@ const fail = (tag, m) => { console.error(`❌ ${tag}: ${m}`); process.exitCode =
   const lib = read(libPath);
   if (!route || !lib) return ok("Named export drift: skipped (files not found)");
 
-  // find the named import that points to the calculators/payment file
+  // find the named import pointing to calculators/payment
   const importRegex = /import\s*{\s*([^}]+)\s*}\s*from\s*["']([^"']+)["']/g;
   let m, names = null;
   while ((m = importRegex.exec(route))) {
@@ -51,10 +51,17 @@ const fail = (tag, m) => { console.error(`❌ ${tag}: ${m}`); process.exitCode =
   }
   if (!names) return ok("Named export drift: no lib import detected");
 
-  const missing = names.filter(n =>
-    !(new RegExp(`export\\s+(?:function|const|class)\\s+${n}\\b`).test(lib) ||
-      new RegExp(`export\\s*{[^}]*\\b${n}\\b[^}]*}`).test(lib))
-  );
+  const missing = names.filter(n => {
+    const patterns = [
+      new RegExp(`export\\s+function\\s+${n}\\b`),
+      new RegExp(`export\\s+const\\s+${n}\\b`),
+      new RegExp(`export\\s+class\\s+${n}\\b`),
+      new RegExp(`export\\s+type\\s+${n}\\b`), // <-- support types
+      new RegExp(`export\\s*{[^}]*\\b${n}\\b[^}]*}`)
+    ];
+    return !patterns.some(rx => rx.test(lib));
+  });
+
   if (missing.length) fail("[NAMED_EXPORT_DRIFT]", `Route imports missing from lib: ${missing.join(", ")}`);
   else ok("Named export drift: OK");
 })();
@@ -68,14 +75,22 @@ const fail = (tag, m) => { console.error(`❌ ${tag}: ${m}`); process.exitCode =
   } else ok("ESLint flat config: OK");
 })();
 
-// 4) ROUTE_TAG_MISMATCH — ensure tag is typed as string, not literal
+// 4) ROUTE_TAG_MISMATCH — flag only if the literal appears inside a type/interface block
 (() => {
   const routePath = path.join(ROOT, "app", "api", "calc", "payment", "route.ts");
   const t = read(routePath);
   if (!t) return ok("Route tag type: skipped");
-  // look for `type ... tag: "something"`
-  const typedLiteral = /tag\s*:\s*"(?:[^"]+)"/.test(t) && /type\s+\w+/.test(t);
-  if (typedLiteral) fail("[ROUTE_TAG_MISMATCH]", "meta.tag appears typed as a literal. Use `tag: string` in the type.");
+
+  // Collect type/interface blocks
+  const blocks = [];
+  const typeRx = /type\s+\w+\s*=\s*{([\s\S]*?)}/g;
+  const ifaceRx = /interface\s+\w+\s*{([\s\S]*?)}/g;
+  let m;
+  while ((m = typeRx.exec(t))) blocks.push(m[1]);
+  while ((m = ifaceRx.exec(t))) blocks.push(m[1]);
+
+  const bad = blocks.some(b => /tag\s*:\s*"(?:[^"]+)"/.test(b));
+  if (bad) fail("[ROUTE_TAG_MISMATCH]", "meta.tag appears typed as a literal within a type/interface. Use `tag: string`.");
   else ok("Route tag type: OK");
 })();
 
