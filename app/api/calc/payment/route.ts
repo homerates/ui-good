@@ -1,14 +1,7 @@
-// app/api/calc/payment/route.ts
 import { NextResponse } from "next/server";
 import { payment, type PaymentInput } from "../../../../lib/calculators/payment";
 
-type LoosePaymentInput = {
-  loanAmount?: number;
-  purchasePrice?: number;
-  downPercent?: number;
-  annualRatePct?: number;
-  termYears?: number;
-};
+type LoosePaymentInput = Partial<PaymentInput>;
 
 function toNum(v: string | null): number | undefined {
   if (v == null) return undefined;
@@ -23,6 +16,12 @@ function buildInputFromSearch(sp: URLSearchParams): LoosePaymentInput {
     annualRatePct: toNum(sp.get("annualRatePct")),
     termYears:     toNum(sp.get("termYears")),
     loanAmount:    toNum(sp.get("loanAmount")),
+
+    // NEW optional inputs
+    taxesPct:      toNum(sp.get("taxesPct")),
+    insPerYear:    toNum(sp.get("insPerYear")),
+    hoaPerMonth:   toNum(sp.get("hoaPerMonth")),
+    miPct:         toNum(sp.get("miPct")),
   };
 }
 
@@ -36,11 +35,11 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const loose = buildInputFromSearch(searchParams);
 
-  // Cast once; the lib now guards against bad/missing values.
-  const result = payment(loose as unknown as PaymentInput);
+  // One cast; the lib guards missing values
+  const result = payment(loose as PaymentInput);
 
   const payload: CalcPayload = {
-    meta: { path: "calc", tag: "calc-v1", usedFRED: false, at: new Date().toISOString() },
+    meta: { path: "calc", tag: "calc-v2-piti", usedFRED: false, at: new Date().toISOString() },
     tldr: "Principal & Interest with ±0.25% rate sensitivity.",
     answer: result,
   };
