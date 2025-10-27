@@ -4,18 +4,89 @@ import { useEffect, useRef, useState } from 'react';
 
 type Role = 'user' | 'assistant';
 
-/** API response (extended to include generatedAt for freshness) */
+/* =========================
+   Calc helpers (UI)
+   ========================= */
+function isPaymentQuery(q: string) {
+  // payment / payments / monthly payment / p&i / principal & interest
+  const s = q.toLowerCase();
+  if (/\bpay(ment|mnt|ments|mnts)?\b/.test(s)) return true;
+  if (/\bmonthly\s*payment(s)?\b/.test(s)) return true;
+  if (/\bp\s*&\s*i\b/.test(s)) return true;
+  if (/\bprincipal\s*&?\s*interest\b/.test(s)) return true;
+
+  // pattern: has 'loan' + some % + some years
+  const hasLoan = /\bloan\b/.test(s);
+  const hasRate = /\b\d+(\.\d+)?\s*%/.test(s);
+  const hasYears = /\b\d+\s*(years?|yrs?|yr|y|yeards?)\b/.test(s);
+  if (hasLoan && hasRate && hasYears) return true;
+
+  return false;
+}
+
+// parses: "$500k with 20% down at 6.5% for 30 years"
+function parsePaymentQuery(q: string) {
+  const clean = q.replace(/,/g, "");
+
+  // $500k / 500k / $500000
+  const priceMatch = clean.match(/\$?\s*([\d.]+)\s*k?/i);
+  const kBump = /k\b/i.test(clean) ? 1000 : 1;
+  const purchasePrice = priceMatch ? Number(priceMatch[1]) * kBump : undefined;
+
+  // 1) Down % (capture explicitly)
+  const downMatch = clean.match(/(\d+(\.\d+)?)\s*%\s*down/i);
+  const downPct = downMatch ? Number(downMatch[1]) : undefined;
+
+  // 2) Remove "X% down" before searching for the rate
+  const withoutDown = downMatch ? clean.replace(downMatch[0], "") : clean;
+
+  // 3) Rate % (prefer “rate … %” or “at … %”, else first remaining %)
+  let ratePct: number | undefined;
+  const nearRate = withoutDown.match(/(?:rate|at)\s*:?[\s]*([0-9]+(\.[0-9]+)?)\s*%/i);
+  if (nearRate) {
+    ratePct = Number(nearRate[1]);
+  } else {
+    const anyPct = withoutDown.match(/([0-9]+(\.[0-9]+)?)\s*%/i);
+    ratePct = anyPct ? Number(anyPct[1]) : undefined;
+  }
+
+  // 4) Term years (tolerate “yrs/yr/y/yeards”)
+  const yearsMatch = clean.toLowerCase().match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
+  const termYears = yearsMatch ? Number(yearsMatch[1]) : undefined;
+
+  return { purchasePrice, downPercent: downPct, annualRatePct: ratePct, termYears };
+}
+
+function buildCalcUrl(
+  base: string,
+  p: { purchasePrice?: number; downPercent?: number; annualRatePct?: number; termYears?: number }
+) {
+  const sp = new URLSearchParams();
+  if (p.purchasePrice != null) sp.set("purchasePrice", String(p.purchasePrice));
+  if (p.downPercent   != null) sp.set("downPercent",   String(p.downPercent));
+  if (p.annualRatePct != null) sp.set("annualRatePct", String(p.annualRatePct));
+  if (p.termYears     != null) sp.set("termYears",     String(p.termYears));
+  return `${base}?${sp.toString()}`;
+}
+
+/* =========================
+   Types
+   ========================= */
+type CalcAnswer = {
+  loanAmount: number;
+  monthlyPI: number;
+  sensitivities: Array<{ rate: number; pi: number }>;
+};
+
 type ApiResponse = {
-  path: 'concept' | 'market' | 'dynamic' | 'error';
+  path: 'concept' | 'market' | 'dynamic' | 'error' | 'calc';
   usedFRED: boolean;
 
-  // Friendly lines from API
   message?: string;
   summary?: string;
 
-  tldr?: string[];
-  lockBias?: 'Mild Lock' | 'Neutral' | 'Float Watch';
-  answer?: string;
+  tldr?: string[] | string;          // calc returns a single string here
+  answer?: string | CalcAnswer;      // calc returns an object
   borrowerSummary?: string | null;
   fred?: {
     tenYearYield: number | null;
@@ -23,16 +94,14 @@ type ApiResponse = {
     spread: number | null;
     asOf?: string | null;
   };
+  lockBias?: 'Mild Lock' | 'Neutral' | 'Float Watch';
   paymentDelta?: { perQuarterPt: number; loanAmount: number };
   watchNext?: string[];
   confidence?: 'low' | 'med' | 'high';
   status?: number;
-
-  /** NEW: when the server composed this answer */
   generatedAt?: string;
 };
 
-/** Optional: narrow type for /api/answers responses */
 type AnswersResponse = {
   ok: boolean;
   route: "answers";
@@ -55,6 +124,9 @@ type ChatMsg =
   | { id: string; role: 'user'; content: string }
   | { id: string; role: 'assistant'; content: string; meta?: ApiResponse };
 
+/* =========================
+   Utils
+   ========================= */
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -73,12 +145,56 @@ const fmtISOshort = (iso?: string) => {
   return iso.replace('T', ' ').replace('Z', 'Z');
 };
 
+/* =========================
+   Rendering
+   ========================= */
 function AnswerBlock({ meta }: { meta?: ApiResponse }) {
   if (!meta) return null;
 
-  // Prefer friendly line; else construct from FRED; else fallback to raw answer
+  // Defensive header fields (works whether values are top-level or nested)
+  const headerPath = (meta as any).path ?? (meta as any).meta?.path ?? '—';
+  const headerUsedFRED = (meta as any).usedFRED ?? (meta as any).meta?.usedFRED ?? false;
+  const headerAt = (meta as any).generatedAt ?? (meta as any).meta?.at ?? undefined;
+
+  // ---- CALC RENDERING ----
+  if (headerPath === 'calc' && meta.answer && typeof meta.answer === 'object') {
+    const a = meta.answer as CalcAnswer;
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div className="meta">
+          <span>path: <b>{String(headerPath)}</b></span>
+          <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
+          {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+        </div>
+
+        <div>
+          <div><b>Loan amount:</b> ${Number(a.loanAmount).toLocaleString()}</div>
+          <div><b>Monthly P&I:</b> ${Number(a.monthlyPI).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+        </div>
+
+        {Array.isArray(a.sensitivities) && a.sensitivities.length > 0 && (
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>±0.25% Sensitivity</div>
+            <ul style={{ marginTop: 0 }}>
+              {a.sensitivities.map((s, i) => (
+                <li key={i}>
+                  Rate: {(Number(s.rate) * 100).toFixed(2)}% → P&I ${Number(s.pi).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {typeof meta.tldr === 'string' && <div style={{ fontStyle: 'italic' }}>{meta.tldr}</div>}
+      </div>
+    );
+  }
+  // ---- END CALC RENDERING ----
+
+  // --- existing non-calc rendering (unchanged) ---
   const primary =
-    meta.message ?? meta.summary ??
+    meta.message ??
+    meta.summary ??
     (meta.fred &&
      meta.fred.tenYearYield != null &&
      meta.fred.mort30Avg != null &&
@@ -96,9 +212,9 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
             ? meta.fred.spread.toFixed(2)
             : meta.fred.spread
         }%.`
-      : meta.answer ?? '');
+      : typeof meta.answer === 'string' ? meta.answer : '');
 
-  const lines = (meta.answer ?? '').split('\n').map((s) => s.trim());
+  const lines = (typeof meta.answer === 'string' ? meta.answer : '').split('\n').map((s) => s.trim());
   const takeaway = primary || lines[0] || '';
   const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
   const nexts = lines
@@ -108,23 +224,21 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <div className="meta">
-        <span>path: <b>{meta.path}</b></span>
-        <span> | usedFRED: <b>{String(meta.usedFRED)}</b></span>
-        {meta.lockBias && <span> | bias: <b>{meta.lockBias}</b></span>}
-        {meta.confidence && <span> | confidence: <b>{meta.confidence}</b></span>}
-        {meta.generatedAt && <span> | at: <b>{fmtISOshort(meta.generatedAt)}</b></span>}
+        <span>path: <b>{String(headerPath)}</b></span>
+        <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
+        {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
       </div>
 
       {takeaway && <div>{takeaway}</div>}
 
-      {meta.tldr?.length ? (
+      {Array.isArray(meta.tldr) && meta.tldr.length > 0 && (
         <div>
           <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
           <ul style={{ marginTop: 0 }}>
             {meta.tldr.map((t, i) => <li key={i}>{t}</li>)}
           </ul>
         </div>
-      ) : null}
+      )}
 
       {bullets.length > 0 && (
         <ul style={{ marginTop: 0 }}>
@@ -140,7 +254,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         </div>
       )}
 
-      {meta.path === 'market' && meta.usedFRED && meta.borrowerSummary && (
+      {headerPath === 'market' && headerUsedFRED && meta.borrowerSummary && (
         <div className="panel">
           <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
           <ul style={{ marginTop: 0 }}>
@@ -170,6 +284,9 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
   );
 }
 
+/* =========================
+   Page
+   ========================= */
 export default function Page() {
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
@@ -206,6 +323,36 @@ export default function Page() {
     setLoading(true);
 
     try {
+      // ---- calc short-circuit ----
+      if (isPaymentQuery(q)) {
+        const parsed = parsePaymentQuery(q); // { purchasePrice, downPercent, annualRatePct, termYears }
+        const url = buildCalcUrl("/api/calc/payment", parsed);
+
+        const r = await fetch(url, { method: "GET" });
+        const raw = await r.json(); // { meta:{...}, tldr, answer }
+
+        // FLATTEN so renderer always has top-level fields
+        const meta: ApiResponse = {
+          path: (raw?.meta?.path ?? raw?.path ?? 'calc') as ApiResponse['path'],
+          usedFRED: (raw?.meta?.usedFRED ?? raw?.usedFRED ?? false) as boolean,
+          tldr: (raw?.tldr ?? raw?.summary ?? raw?.message),
+          answer: (raw?.answer ?? raw),
+          generatedAt: (raw?.meta?.at ?? raw?.generatedAt)
+        };
+
+        // Friendly line
+        let friendly = "Calculated principal & interest payment.";
+        if (meta.path === "calc" && meta.answer && typeof meta.answer === "object") {
+          const a = meta.answer as CalcAnswer;
+          friendly = `Monthly P&I: $${Number(a.monthlyPI).toLocaleString(undefined, { maximumFractionDigits: 2 })} on $${Number(a.loanAmount).toLocaleString()}`;
+        }
+
+        setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+        return; // don’t fall through to /api/answers
+      }
+      // ---- end calc short-circuit ----
+
+      // /api/answers flow
       const body: {
         question: string;
         mode: 'borrower' | 'public';
@@ -243,10 +390,9 @@ export default function Page() {
                  ? meta.fred.spread.toFixed(2)
                  : meta.fred.spread
              }%.`
-           : meta.answer ??
-             `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${
-               meta.confidence ?? '-'
-             }`);
+           : typeof meta.answer === 'string'
+             ? meta.answer
+             : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
 
       setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
     } catch (e) {

@@ -1,60 +1,50 @@
-﻿"use client";
+﻿'use client';
 
-import { useState } from "react";
+import { useEffect, useState } from 'react';
 
-type ApiOut = {
-  ok?: boolean;
-  path?: string;
-  usedFRED?: boolean;
-  summary?: string;
-  message?: string;
-  fred?: { tenYearYield?: number; mort30Avg?: number; spread?: number; asOf?: string };
-  confidence?: string;
-  status?: number;
-};
+type Json = unknown;
 
-export default function Probe() {
-  const [out, setOut] = useState<ApiOut | null>(null);
-  const [text, setText] = useState<string>("");
+export default function ProbePage() {
+  const [answers, setAnswers] = useState<Json>(null);
+  const [fred, setFred] = useState<Json>(null);
+  const [when, setWhen] = useState<string>("");
 
-  async function run() {
-    setOut(null);
-    setText("â€¦");
-    const r = await fetch("/api/answers", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ intent: "market" }),
-    });
-    const j: ApiOut = await r.json();
-    setOut(j);
-    const line =
-      j.message ??
-      j.summary ??
-      (j.fred
-        ? `As of ${j.fred.asOf}: 10Y ${j.fred.tenYearYield?.toFixed(2)}%, 30Y ${j.fred.mort30Avg?.toFixed(2)}%, spread ${j.fred.spread?.toFixed(2)}%.`
-        : `path: ${j.path} Â· usedFRED: ${j.usedFRED} Â· confidence: ${j.confidence}`);
-    setText(line);
-  }
+  useEffect(() => {
+    setWhen(new Date().toISOString());
+    // GET mirrors POST in your current answers route
+    fetch('/api/answers', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(setAnswers)
+      .catch(e => setAnswers({ error: String(e) }));
+
+    fetch('/api/fred', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(setFred)
+      .catch(e => setFred({ error: String(e) }));
+  }, []);
 
   return (
-    <main className="mx-auto max-w-2xl p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">Market Probe</h1>
-      <button
-        onClick={run}
-        className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
-      >
-        Get Market Summary
-      </button>
+    <main style={{ padding: 20, display: 'grid', gap: 16 }}>
+      <h1>Probe</h1>
+      <div style={{ fontSize: 12, opacity: 0.8 }}>loadedAt: {when}</div>
 
-      <div className="rounded border p-4">
-        <div className="font-mono text-sm whitespace-pre-wrap">{text || "â€”"}</div>
-      </div>
+      <section style={{ border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>
+          /api/answers (GET, no-store)
+        </div>
+        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          {JSON.stringify(answers, null, 2)}
+        </pre>
+      </section>
 
-      <details className="rounded border p-4">
-        <summary className="cursor-pointer">Raw JSON</summary>
-        <pre className="mt-2 overflow-auto text-sm">{JSON.stringify(out, null, 2)}</pre>
-      </details>
+      <section style={{ border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>
+          /api/fred (GET, no-store)
+        </div>
+        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          {JSON.stringify(fred, null, 2)}
+        </pre>
+      </section>
     </main>
   );
 }
-
