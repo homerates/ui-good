@@ -1,7 +1,7 @@
+// app/api/calc/payment/route.ts
 import { NextResponse } from "next/server";
 import { payment, type PaymentInput } from "../../../../lib/calculators/payment";
 
-// Build a loose shape from query params (optionals)
 type LoosePaymentInput = {
   loanAmount?: number;
   purchasePrice?: number;
@@ -34,10 +34,9 @@ type CalcPayload = {
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
+  const loose = buildInputFromSearch(searchParams);
 
-  const loose: LoosePaymentInput = buildInputFromSearch(searchParams);
-
-  // Cast once to the lib's input type (avoids `any`, keeps ESLint happy)
+  // Cast once; the lib now guards against bad/missing values.
   const result = payment(loose as unknown as PaymentInput);
 
   const payload: CalcPayload = {

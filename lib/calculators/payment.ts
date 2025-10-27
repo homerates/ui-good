@@ -1,41 +1,72 @@
 // lib/calculators/payment.ts
+
 export type PaymentInput = {
-  purchasePrice?: number;   // e.g. 500000 (used with downPercent)
-  downPercent?: number;     // decimal, e.g. 0.20
-  loanAmount?: number;      // overrides purchasePrice/downPercent if provided
-  annualRate: number;       // decimal, e.g. 0.065 for 6.5%
-  termYears: number;        // e.g. 30
+  loanAmount?: number;       // direct loan amount (overrides purchase/down if present)
+  purchasePrice?: number;    // if provided with downPercent, derives loanAmount
+  downPercent?: number;      // 20 -> 20%
+  annualRatePct?: number;    // 6.5 -> 6.5%
+  termYears?: number;        // 30
 };
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
+type CalcAnswer = {
+  loanAmount: number;        // always a finite number
+  monthlyPI: number;         // always a finite number
+  sensitivities: Array<{ rate: number; pi: number }>;
+};
 
-function calcPI(loan: number, annualRate: number, years: number) {
-  const m = annualRate / 12;
-  const n = years * 12;
-  if (m === 0) return loan / n;
-  return loan * (m * Math.pow(1 + m, n)) / (Math.pow(1 + m, n) - 1);
-}
+export function payment(input: PaymentInput): CalcAnswer {
+  // Normalize / derive principal
+  const derivedLoan =
+    typeof input.loanAmount === "number" && isFinite(input.loanAmount) && input.loanAmount > 0
+      ? input.loanAmount
+      : (typeof input.purchasePrice === "number" &&
+         typeof input.downPercent === "number" &&
+         isFinite(input.purchasePrice) &&
+         isFinite(input.downPercent))
+        ? input.purchasePrice * (1 - input.downPercent / 100)
+        : 0;
 
-export function payment(input: PaymentInput) {
-  const { purchasePrice, downPercent, loanAmount, annualRate, termYears } = input;
+  // Normalize rate and nper
+  const annual = typeof input.annualRatePct === "number" && isFinite(input.annualRatePct)
+    ? input.annualRatePct / 100
+    : 0;
+  const nper = typeof input.termYears === "number" && isFinite(input.termYears)
+    ? input.termYears * 12
+    : 0;
 
-  const loan = typeof loanAmount === "number"
-    ? loanAmount
-    : round2((purchasePrice ?? 0) * (1 - (downPercent ?? 0)));
+  // If missing pieces, return zeros (never NaN)
+  if (!(derivedLoan > 0) || !(annual > 0) || !(nper > 0)) {
+    const base = annual || 0.065; // harmless placeholder for sensitivity labels
+    return {
+      loanAmount: Math.max(0, Math.round(derivedLoan)),
+      monthlyPI: 0,
+      sensitivities: [
+        { rate: base - 0.0025, pi: 0 },
+        { rate: base + 0.0025, pi: 0 },
+      ],
+    };
+  }
 
-  const pi = calcPI(loan, annualRate, termYears);
-  const step = 0.0025; // ±0.25%
+  // Standard fixed-rate mortgage formula
+  const r = annual / 12;
+  const pow = Math.pow(1 + r, nper);
+  const pi = derivedLoan * (r * pow) / (pow - 1);
+
+  const piAt = (annualRate: number) => {
+    const rr = annualRate / 12;
+    const pw = Math.pow(1 + rr, nper);
+    return derivedLoan * (rr * pw) / (pw - 1);
+  };
+
+  const base = annual;
+  const monthlyPI = Math.round(pi * 100) / 100;
 
   return {
-    meta: { path: "calc", tag: "calc-v1", usedFRED: false, at: new Date().toISOString() },
-    tldr: "Principal & Interest with ±0.25% rate sensitivity.",
-    answer: {
-      loanAmount: round2(loan),
-      monthlyPI: round2(pi),
-      sensitivities: [-1, 1].map(mult => {
-        const r = annualRate + mult * step;
-        return { rate: r, pi: round2(calcPI(loan, r, termYears)) };
-      })
-    }
+    loanAmount: Math.round(derivedLoan),
+    monthlyPI,
+    sensitivities: [
+      { rate: base - 0.0025, pi: Math.round(piAt(base - 0.0025) * 100) / 100 },
+      { rate: base + 0.0025, pi: Math.round(piAt(base + 0.0025) * 100) / 100 },
+    ],
   };
 }
