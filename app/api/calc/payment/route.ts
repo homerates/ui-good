@@ -1,48 +1,62 @@
+// app/api/calc/payment/route.ts
+
+// Import VALUES from lib (functions/classes/etc.)
+import { payment } from "../../../../lib/calculators/payment";
+// Import TYPES separately so our preflight doesn't treat them like values
+import type { PaymentInput } from "../../../../lib/calculators/payment";
+
 import { NextResponse } from "next/server";
-import { payment, type PaymentInput } from "../../../../lib/calculators/payment";
 
-type LoosePaymentInput = Partial<PaymentInput>;
-
-function toNum(v: string | null): number | undefined {
-  if (v == null) return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-function buildInputFromSearch(sp: URLSearchParams): LoosePaymentInput {
-  return {
-    purchasePrice: toNum(sp.get("purchasePrice")),
-    downPercent:   toNum(sp.get("downPercent")),
-    annualRatePct: toNum(sp.get("annualRatePct")),
-    termYears:     toNum(sp.get("termYears")),
-    loanAmount:    toNum(sp.get("loanAmount")),
-    // optional PITI inputs
-    taxesPct:      toNum(sp.get("taxesPct")),
-    insPerYear:    toNum(sp.get("insPerYear")),
-    hoaPerMonth:   toNum(sp.get("hoaPerMonth")),
-    miPct:         toNum(sp.get("miPct")),
-  };
-}
-
-// WIDEN tag to string so version bumps never fail builds
-type CalcPayload = {
-  meta: { path: "calc"; tag: string; usedFRED: false; at: string };
-  tldr: string;
-  answer: ReturnType<typeof payment>;
+type Meta = {
+  tag: string;
+  path?: string;
+  error?: string;
+  [key: string]: unknown;
 };
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const loose = buildInputFromSearch(searchParams);
+  const q = Object.fromEntries(searchParams.entries()) as Record<string, string>;
 
-  // Lib guards bad inputs; no NaN returns
-  const result = payment(loose as PaymentInput);
-
-  const payload: CalcPayload = {
-    meta: { path: "calc", tag: "calc-v2-piti", usedFRED: false, at: new Date().toISOString() },
-    tldr: "Principal & Interest with ±0.25% rate sensitivity.",
-    answer: result,
+  const input: PaymentInput = {
+    purchasePrice: num(q.purchasePrice),
+    downPercent: num(q.downPercent),
+    annualRatePct: num(q.annualRatePct),
+    termYears: num(q.termYears) || 30,
+    taxesPct: num(q.taxesPct),
+    insPerYear: num(q.insPerYear),
+    hoaPerMonth: num(q.hoaPerMonth),
+    miPct: num(q.miPct),
   };
 
-  return NextResponse.json(payload);
+  if (!input.purchasePrice || !input.annualRatePct) {
+    const meta: Meta = {
+      tag: "calc-v2-piti",
+      path: "calc",
+      error: "Missing required parameters: purchasePrice & annualRatePct",
+    };
+    return NextResponse.json(
+      {
+        meta,
+        required: ["purchasePrice", "annualRatePct"],
+        received: input,
+      },
+      { status: 200 }
+    );
+  }
+
+  const result = payment(input);
+
+  return NextResponse.json(
+    {
+      ...result,
+      meta: { ...(result.meta as Meta), path: "calc" },
+    },
+    { status: 200 }
+  );
+}
+
+function num(v?: string) {
+  const n = v ? Number(v) : 0;
+  return Number.isFinite(n) ? n : 0;
 }
