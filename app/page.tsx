@@ -20,49 +20,90 @@ function isPaymentQuery(q: string) {
   const hasYears = /\b\d+\s*(years?|yrs?|yr|y|yeards?)\b/.test(s);
   if (hasLoan && hasRate && hasYears) return true;
 
+  // generic “$400k at 6.5% for 30 years”
+  if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+at\s+\d+(\.\d+)?\s*%\s+for\s+\d+/.test(s)) return true;
+
   return false;
 }
 
+/* =========================
+   Robust parsing helpers
+   ========================= */
+function isFiniteNum(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n);
+}
+
+/** Parse $400k, 400k, $1.2m, 1200000 → number of dollars (rounded) */
+function parseMoney(raw: string | undefined | null): number | undefined {
+  if (!raw) return undefined;
+  const s = String(raw).trim().toLowerCase().replace(/,/g, "");
+  // capture number + optional k/m suffix that is directly attached to the number
+  const m = s.match(/^\$?\s*([\d]+(?:\.[\d]+)?)\s*([km])?\b/);
+  if (!m) return undefined;
+  let n = parseFloat(m[1]);
+  const unit = m[2];
+  if (unit === 'k') n *= 1_000;
+  if (unit === 'm') n *= 1_000_000;
+  if (!Number.isFinite(n)) return undefined;
+  return Math.round(n);
+}
+
+/** Parse 6.5 or 6.5% → 6.5 */
+function parsePercent(raw: string | undefined | null): number | undefined {
+  if (!raw) return undefined;
+  const m = String(raw).match(/(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : undefined;
+}
+
 // parses: "$500k with 20% down at 6.5% for 30 years"
-// also supports: "500k loan at 6.5% for 30 years"
+// also supports: "$400k loan at 6.5% for 15 years", "loan amount: 400,000 @ 6.25% 30yr"
 function parsePaymentQuery(q: string) {
   const clean = q.replace(/,/g, "").toLowerCase();
 
-  // $500k / 500k / $500000
-  const numMatch = clean.match(/\$?\s*([\d.]+)\s*k?/i);
-  const kBump = /k\b/i.test(clean) ? 1000 : 1;
-  const firstNumber = numMatch ? Number(numMatch[1]) * kBump : undefined;
+  // Try to find an explicit money token that’s close to “loan” or “purchase/price”
+  // First money token in the string (with k/m support)
+  const moneyToken = clean.match(/\$?\s*\d+(?:\.\d+)?\s*[km]?\b/);
+  const firstNumber = moneyToken ? parseMoney(moneyToken[0]) : undefined;
 
-  // "loan" phrasing => treat number as loanAmount
-  const mentionsLoan = /\bloan\b/.test(clean);
-  const loanAmount = mentionsLoan && typeof firstNumber === "number" ? firstNumber : undefined;
+  // Heuristics: if mention includes "loan"/"loan amount", treat number as loanAmount
+  const mentionsLoan = /\bloan(?:\s*amount)?\b/.test(clean);
+  let loanAmount: number | undefined;
+  let purchasePrice: number | undefined;
 
-  // purchase price if not a "loan amount" phrase
-  const purchasePrice = !mentionsLoan ? firstNumber : undefined;
+  if (mentionsLoan && isFiniteNum(firstNumber)) {
+    loanAmount = firstNumber;
+  } else if (isFiniteNum(firstNumber)) {
+    // If user wrote “purchase”, “price”, “home”, “house”, assume purchase price
+    const mentionsPrice =
+      /\b(purchase|price|home|house|pp|purchase\s*price)\b/.test(clean);
+    purchasePrice = firstNumber;
+    // If they explicitly said “loan” later, prefer loanAmount
+    if (!mentionsPrice && /\bloan\b/.test(clean)) {
+      loanAmount = firstNumber;
+      purchasePrice = undefined;
+    }
+  }
 
-  // down %
-  const downMatch = clean.match(/(\d+(\.\d+)?)\s*%\s*down/i);
-  const downPercent = downMatch ? Number(downMatch[1]) : undefined;
+  // down % (e.g., 20% down)
+  const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down\b/);
+  const downPercent = downMatch ? parsePercent(downMatch[1]) : undefined;
 
-  // strip the "% down" phrase before hunting for rate
-  const withoutDown = downMatch ? clean.replace(downMatch[0], "") : clean;
-
-  // rate %
+  // rate % (prefer “rate” or “at”, else any percent)
   let annualRatePct: number | undefined;
-  const nearRate = withoutDown.match(/(?:rate|at)\s*:?[\s]*([0-9]+(\.[0-9]+)?)\s*%/i);
-  if (nearRate) {
-    annualRatePct = Number(nearRate[1]);
+  const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
+  if (rateNear) {
+    annualRatePct = parsePercent(rateNear[1]);
   } else {
-    const anyPct = withoutDown.match(/([0-9]+(\.[0-9]+)?)\s*%/i);
-    annualRatePct = anyPct ? Number(anyPct[1]) : undefined;
+    const anyPct = clean.match(/([0-9]+(?:\.[0-9]+)?)\s*%/i);
+    annualRatePct = anyPct ? parsePercent(anyPct[1]) : undefined;
   }
 
   // term years (yrs/yr/y/yeards)
   const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
-  let termYears = yearsMatch ? Number(yearsMatch[1]) : undefined;
+  let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
 
   // Default to 30y if user gave amount + rate but no term
-  if (!termYears && (loanAmount || purchasePrice) && annualRatePct) {
+  if (!termYears && (loanAmount || purchasePrice) && isFiniteNum(annualRatePct)) {
     termYears = 30;
   }
 
@@ -80,12 +121,13 @@ function buildCalcUrl(
   }
 ) {
   const sp = new URLSearchParams();
-  if (p.loanAmount    != null) sp.set("loanAmount",    String(p.loanAmount));
-  if (p.purchasePrice != null) sp.set("purchasePrice", String(p.purchasePrice));
-  if (p.downPercent   != null) sp.set("downPercent",   String(p.downPercent));
-  if (p.annualRatePct != null) sp.set("annualRatePct", String(p.annualRatePct));
-  if (p.termYears     != null) sp.set("termYears",     String(p.termYears));
-  return `${base}?${sp.toString()}`;
+  if (isFiniteNum(p.loanAmount))    sp.set("loanAmount",    String(p.loanAmount));
+  if (isFiniteNum(p.purchasePrice)) sp.set("purchasePrice", String(p.purchasePrice));
+  if (isFiniteNum(p.downPercent))   sp.set("downPercent",   String(p.downPercent));
+  if (isFiniteNum(p.annualRatePct)) sp.set("annualRatePct", String(p.annualRatePct));
+  if (isFiniteNum(p.termYears))     sp.set("termYears",     String(p.termYears));
+  const qs = sp.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
 /* =========================
@@ -385,9 +427,32 @@ export default function Page() {
       // ---- calc short-circuit ----
       if (isPaymentQuery(q)) {
         const parsed = parsePaymentQuery(q); // { loanAmount?, purchasePrice?, downPercent?, annualRatePct?, termYears? }
-        const url = buildCalcUrl("/api/calc/payment", parsed);
 
-        const r = await fetch(url, { method: "GET" });
+        // Guard: do not call calc with zeros/empties
+        const okByLoan =
+          isFiniteNum(parsed.loanAmount) &&
+          isFiniteNum(parsed.annualRatePct);
+
+        const okByPP =
+          isFiniteNum(parsed.purchasePrice) &&
+          isFiniteNum(parsed.downPercent) &&
+          isFiniteNum(parsed.annualRatePct);
+
+        if (!okByLoan && !okByPP) {
+          setMessages((m) => [
+            ...m,
+            {
+              id: uid(),
+              role: "assistant",
+              content:
+                "I need at least a loan amount + rate (e.g., “$400k loan at 6.5% for 30 years”), or purchase price + down % + rate (e.g., “$500k with 20% down at 6.25% for 30 years”).",
+            },
+          ]);
+          return;
+        }
+
+        const url = buildCalcUrl("/api/calc/payment", parsed);
+        const r = await fetch(url, { method: "GET", headers: { "cache-control": "no-store" } });
         const raw: unknown = await r.json().catch(() => ({}));
 
         const meta = normalizeCalcResponse(raw, r.status);

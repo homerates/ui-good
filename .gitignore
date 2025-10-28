@@ -47,3 +47,5 @@ _local_trash/
 
 .vercel/
 
+
+tsconfig.tsbuildinfo
