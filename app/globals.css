@@ -250,3 +250,11 @@ button:focus {
 .footer-meta:hover {
   opacity: 1;
 }
+/* ========== UI hotfix: footer placement & sizing (append-only) ========== */
+.footer-meta {
+  grid-column: 1 / -1;    /* span both grid columns of .app */
+  position: static;       /* avoid odd sticky behavior in grid */
+  font-size: 12px;        /* ensure small, not oversized */
+  line-height: 1.4;
+  padding: 10px 16px;
+}
