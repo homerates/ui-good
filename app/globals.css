@@ -928,6 +928,59 @@ html[data-sb="rail"] .sidebar [data-sb-item] {
     background: color-mix(in oklab, var(--fg), var(--bg) 85%);
   }
 }
+/* === CSS pass #9b: sidebar contrast + depth (append-only) === */
+
+/* Background tone slightly darker than body */
+.sidebar {
+  background: color-mix(in oklab, var(--bg), black 6%);
+  box-shadow: inset -1px 0 0 color-mix(in oklab, var(--border), transparent 20%);
+}
+
+/* Primary “New chat” pops more */
+.sidebar .btn.primary {
+  background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 88%);
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 65%);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+.sidebar .btn.primary:hover {
+  background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 78%);
+}
+
+/* Regular buttons — lighter base, visible edge */
+.sidebar .btn:not(.primary) {
+  background: color-mix(in oklab, var(--bg), var(--fg) 4%);
+  border: 1px solid color-mix(in oklab, var(--border), transparent 40%);
+}
+.sidebar .btn:not(.primary):hover {
+  background: color-mix(in oklab, var(--fg), var(--bg) 90%);
+}
+
+/* Chat list section divider effect */
+.sidebar .chat-list {
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in oklab, var(--border), transparent 35%);
+}
+
+/* Empty history text muted but readable */
+.sidebar .chat-item {
+  color: color-mix(in oklab, var(--fg), transparent 25%);
+}
+.sidebar .chat-item:hover {
+  background: color-mix(in oklab, var(--fg), var(--bg) 92%);
+}
+
+/* Dark-mode tweak for same depth */
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    background: color-mix(in oklab, var(--bg), white 2%);
+    box-shadow: inset -1px 0 0 color-mix(in oklab, var(--border), transparent 40%);
+  }
+  .sidebar .btn.primary {
+    background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), black 70%);
+  }
+}
 
 
 
