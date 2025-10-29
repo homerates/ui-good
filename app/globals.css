@@ -1316,3 +1316,50 @@ aside.sidebar .chat-item.empty {
     background: color-mix(in oklab, var(--fg), var(--bg) 85%);
   }
 }
+/* === CSS pass #10b: force non-primary pills to match (append-only) === */
+
+/* Base (non-primary buttons + chat rows) */
+aside.sidebar .btn:not(.primary),
+aside.sidebar .chat-item {
+  background-color: color-mix(in oklab, var(--bg), var(--fg) 4%) !important;
+  border: 1px solid color-mix(in oklab, var(--border), transparent 25%) !important;
+  color: var(--fg) !important;
+  border-radius: 12px !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  align-items: center !important;
+  text-align: left !important;
+  box-shadow: none !important;          /* defeat any Tailwind ring/shadow */
+}
+
+/* Hover (non-primary) */
+aside.sidebar .btn:not(.primary):hover,
+aside.sidebar .chat-item:hover {
+  background-color: color-mix(in oklab, var(--fg), var(--bg) 90%) !important;
+  border-color: color-mix(in oklab, var(--border), transparent 15%) !important;
+}
+
+/* Focus (keyboard) */
+aside.sidebar .btn:not(.primary):focus-visible,
+aside.sidebar .chat-item:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--bubble-user-bg, #3b82f6), white 10%) !important;
+  outline-offset: 2px !important;
+}
+
+/* Active/selected chat (future list) */
+aside.sidebar .chat-item.is-active,
+aside.sidebar .chat-item[aria-current="page"] {
+  background-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 85%) !important;
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 75%) !important;
+  font-weight: 600 !important;
+}
+
+/* Dark mode parity for non-primary */
+@media (prefers-color-scheme: dark) {
+  aside.sidebar .btn:not(.primary):hover,
+  aside.sidebar .chat-item:hover {
+    background-color: color-mix(in oklab, var(--fg), var(--bg) 85%) !important;
+  }
+}
