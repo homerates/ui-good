@@ -981,6 +981,84 @@ html[data-sb="rail"] .sidebar [data-sb-item] {
     background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), black 70%);
   }
 }
+/* === CSS pass #9c: sidebar pills (high-specificity, append-only) === */
+
+/* Layout stays two-column */
+:root .app { display:grid; grid-template-columns: 264px 1fr; min-height:100dvh; }
+@media (max-width:768px){ :root .app { grid-template-columns: 1fr; } }
+
+/* Sidebar surface */
+:root .sidebar{
+  background: color-mix(in oklab, var(--bg), black 6%);
+  border-right: 1px solid color-mix(in oklab, var(--border), transparent 20%);
+  padding: 12px !important;
+}
+
+/* Pills: buttons and chat rows */
+:root .sidebar .btn,
+:root .sidebar .chat-item{
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;  /* label | meta (optional) */
+  align-items: center !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 12px !important;
+  border: 1px solid transparent !important;
+  background: color-mix(in oklab, var(--bg), var(--fg) 4%) !important;
+  color: var(--fg) !important;
+  text-align: left !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: background .18s ease, border-color .18s ease, color .18s ease !important;
+  font-size: 13.5px !important;
+  line-height: 1 !important;
+}
+
+/* Primary “New chat” */
+:root .sidebar .btn.primary{
+  height: 40px !important;
+  border-radius: 14px !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 82%) !important;
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 60%) !important;
+}
+
+/* Hover states */
+:root .sidebar .btn:hover,
+:root .sidebar .chat-item:hover{
+  background: color-mix(in oklab, var(--fg), var(--bg) 90%) !important;
+  border-color: color-mix(in oklab, var(--border), transparent 25%) !important;
+}
+
+/* Active/selected chat (supports helper class or aria) */
+:root .sidebar .chat-item.is-active,
+:root .sidebar .chat-item[aria-current="page"]{
+  background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 85%) !important;
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 75%) !important;
+  font-weight: 600 !important;
+}
+
+/* Empty “No history yet” look */
+:root .sidebar .chat-item:empty,
+:root .sidebar .chat-item[data-empty]{
+  color: color-mix(in oklab, var(--fg), transparent 45%) !important;
+  background: color-mix(in oklab, var(--fg), var(--bg) 96%) !important;
+  border: 1px dashed color-mix(in oklab, var(--border), transparent 20%) !important;
+}
+
+/* Dark mode depth */
+@media (prefers-color-scheme: dark){
+  :root .sidebar{
+    background: color-mix(in oklab, var(--bg), white 2%);
+    border-right: 1px solid color-mix(in oklab, var(--border), transparent 40%);
+  }
+  :root .sidebar .btn:hover,
+  :root .sidebar .chat-item:hover{
+    background: color-mix(in oklab, var(--fg), var(--bg) 85%) !important;
+  }
+}
 
 
 
