@@ -589,6 +589,70 @@ html[data-sb="rail"] .sidebar [data-sb-item] {
   .sidebar .sb-primary:hover {
     background: color-mix(in oklab, var(--bubble-user-bg), black 72%);
   }
+}/* === TEMP DEBUG: highlight what we think is the sidebar === */
+.app > aside,
+.app > nav,
+.app [data-sidebar],
+.app .left-rail,
+.app .sidenav,
+.app .sidebar {
+  outline: 3px dashed hotpink !important;
+  outline-offset: -2px;
 }
+/* === Incremental pass #8b: sidebar binding + debug outline (append-only) === */
+
+/* TEMP DEBUG — helps identify which element is actually the sidebar */
+.app > aside,
+.app > nav,
+.app [data-sidebar],
+.app .left-rail,
+.app .sidenav,
+.app .sidebar {
+  outline: 3px dashed hotpink !important;
+  outline-offset: -2px;
+}
+
+/* Bridge rules — apply sidebar styling to whatever node matches above */
+:where(
+  .app > aside,
+  .app > nav,
+  .app [data-sidebar],
+  .app .left-rail,
+  .app .sidenav,
+  .app .sidebar
+) {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100dvh;
+  overflow: hidden auto;
+  background: var(--sb-bg, color-mix(in oklab, var(--bg), black 4%));
+  border-right: 1px solid var(--sb-border, var(--border));
+  padding: 8px;
+}
+
+/* Ensure layout grid is established even if markup never had .content */
+.app {
+  display: grid;
+  grid-template-columns: var(--sb-width, 264px) 1fr;
+  min-height: 100dvh;
+}
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+}
+
+/* Make the element following sidebar behave as main content */
+:where(
+  .app > aside,
+  .app > nav,
+  .app [data-sidebar],
+  .app .left-rail,
+  .app .sidenav,
+  .app .sidebar
+) + * {
+  min-width: 0;
+  overflow: hidden;
+}
+
 
 /* Mobile drawer tidiness from pass #7 stays intact */
