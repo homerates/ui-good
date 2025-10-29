@@ -298,3 +298,103 @@ button:focus {
   }
   .messages { gap: 14px; }
 }
+/* === Incremental pass #6: dark-mode polish (append-only) === */
+
+/* Base tokens: keep light mode as-is, only define fallbacks */
+:root {
+  /* if these already exist, we’re just confirming defaults */
+  --bg:        #ffffff;
+  --fg:        #0f172a;  /* slate-900 */
+  --muted:     #64748b;  /* slate-500 */
+  --border:    #e2e8f0;  /* slate-200 */
+
+  /* chat bubbles */
+  --bubble-assistant-bg: #f8fafc; /* slate-50 */
+  --bubble-assistant-fg: #0f172a;
+  --bubble-user-bg:      #2563eb; /* blue-600 */
+  --bubble-user-fg:      #ffffff;
+
+  /* footer */
+  --footer-bg: #ffffff;
+  --footer-fg: #475569;  /* slate-600 */
+  --footer-border: #e2e8f0;
+}
+
+/* Auto dark mode: prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #0b1020; /* near-slate-950, deeper than default for contrast */
+    --fg:        #e5e7eb; /* slate-200 */
+    --muted:     #94a3b8; /* slate-400 */
+    --border:    #1f2937; /* slate-800 */
+
+    /* bubbles: keep >4.5:1 contrast */
+    --bubble-assistant-bg: #10172a; /* slate-900-ish */
+    --bubble-assistant-fg: #e5e7eb;
+    --bubble-user-bg:      #3b82f6; /* blue-500 (reads better on dark) */
+    --bubble-user-fg:      #0b1020; /* dark text inside bright bubble for 7+:1 */
+
+    /* footer */
+    --footer-bg: #0b1020;
+    --footer-fg: #a8b1c6; /* slate-300/400 */
+    --footer-border: #1f2937;
+  }
+}
+
+/* Class-based dark mode (if you toggle .dark on <html> or <body>) */
+.dark {
+  --bg:        #0b1020;
+  --fg:        #e5e7eb;
+  --muted:     #94a3b8;
+  --border:    #1f2937;
+
+  --bubble-assistant-bg: #10172a;
+  --bubble-assistant-fg: #e5e7eb;
+  --bubble-user-bg:      #3b82f6;
+  --bubble-user-fg:      #0b1020;
+
+  --footer-bg: #0b1020;
+  --footer-fg: #a8b1c6;
+  --footer-border: #1f2937;
+}
+
+/* Wire tokens into existing surfaces without changing markup */
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.chat-row.assistant,
+.bubble.assistant,
+[data-role="assistant"] {
+  background: var(--bubble-assistant-bg);
+  color: var(--bubble-assistant-fg);
+  border-color: var(--border);
+}
+
+.chat-row.user,
+.bubble.user,
+[data-role="user"] {
+  background: var(--bubble-user-bg);
+  color: var(--bubble-user-fg);
+  border-color: transparent; /* user bubble usually no border */
+}
+
+/* Footer (server-rendered) */
+.site-footer,
+[data-footer] {
+  background: var(--footer-bg);
+  color: var(--footer-fg);
+  border-top: 1px solid var(--footer-border);
+}
+
+/* Subtle focus rings for a11y on dark */
+:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--bubble-user-bg), white 10%);
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion for any existing transitions */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
