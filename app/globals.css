@@ -1132,3 +1132,101 @@ aside.sidebar .chat-list {
     background: color-mix(in oklab, var(--fg), var(--bg) 85%);
   }
 }
+/* === Sidebar drawer wiring (append-only) === */
+
+/* Hamburger: only show on mobile; keep it out of flow */
+.sb-hamburger {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1100;
+  display: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--bg), var(--fg) 4%);
+  border: 1px solid color-mix(in oklab, var(--border), transparent 25%);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+@media (max-width: 768px) {
+  .sb-hamburger { display: inline-block; }
+}
+
+/* Base grid stays as-is */
+.app { display: grid; grid-template-columns: var(--sb-width, 264px) 1fr; min-height: 100dvh; }
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+}
+
+/* Mobile drawer behavior: slide-in left when #sb-toggle is checked */
+@media (max-width: 768px) {
+  /* drawer closed by default */
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(86vw, var(--sb-width, 264px));
+    max-width: 92vw;
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms cubic-bezier(.2,.8,.2,1);
+    box-shadow: none;
+  }
+
+  /* backdrop via pseudo element on body */
+  .app::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms cubic-bezier(.2,.8,.2,1);
+  }
+
+  /* when checked, open drawer + enable backdrop */
+  #sb-toggle:checked ~ .sidebar {
+    transform: translateX(0);
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  }
+  #sb-toggle:checked ~ .content { pointer-events: none; }
+  #sb-toggle:checked ~ .content * { pointer-events: none; }
+
+  #sb-toggle:checked ~ .sidebar ~ .content::before,
+  #sb-toggle:checked ~ .content::before { /* ensure stacking if needed */ }
+
+  #sb-toggle:checked ~ .sidebar ~ .content,
+  #sb-toggle:checked ~ .content { /* keeps layout steady */ }
+
+  #sb-toggle:checked ~ .sidebar,
+  #sb-toggle:checked ~ .content,
+  #sb-toggle:checked ~ .sidebar ~ .content { /* noop hooks for specificity */ }
+
+  /* backdrop visible when open */
+  #sb-toggle:checked ~ .content::before { content: ""; }
+  #sb-toggle:checked ~ .app::after {} /* noop for safety */
+  #sb-toggle:checked ~ .sidebar,
+  #sb-toggle:checked ~ .content { /* already handled above */ }
+
+  /* Simpler: just toggle body backdrop via sibling combinator */
+  #sb-toggle:checked ~ .sidebar ~ .content + * {}
+  #sb-toggle:checked ~ .sidebar ~ .content {}
+  #sb-toggle:checked ~ .sidebar {}
+  #sb-toggle:checked ~ .content {}
+  #sb-toggle:checked ~ .app::after {} /* (kept for clarity) */
+
+  /* Practical backdrop without extra nodes: attach to body.app */
+  #sb-toggle:checked ~ .content { position: relative; }
+  #sb-toggle:checked ~ .content::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.35);
+    pointer-events: auto;
+  }
+}
+
+/* Optional: click backdrop to close (pointer-events on ::after catch the click)
+   You can add a tiny script later, but for now use the hamburger again to close. */
+
+/* Keep the pill styling you already shipped */
