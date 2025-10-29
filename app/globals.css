@@ -793,7 +793,15 @@ html[data-sb="rail"] .sidebar [data-sb-item] {
     :is(a, button, [role="button"], .row):hover {
     background: color-mix(in oklab, var(--fg), var(--bg) 85%);
   }
+}/* === TEMP PASS: first-column probe (high-specificity + !important) === */
+:root .app > *:first-child { outline: 3px dashed fuchsia !important; }
+:root .app > *:first-child a,
+:root .app > *:first-child button,
+:root .app > *:first-child [role="button"] {
+  background: #fff7ed !important;       /* peach */
+  outline: 2px solid #fb923c !important; /* orange */
 }
+
 
 
 /* Mobile drawer tidiness from pass #7 stays intact */
