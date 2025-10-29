@@ -1065,3 +1065,76 @@ aside.sidebar .btn {
   background: #ffe4e6 !important;   /* light pink */
   border-radius: 16px !important;
 }
+/* === Sidebar pills: scoped + safe (final) === */
+
+/* Surface (don’t touch layout) */
+aside.sidebar {
+  background: color-mix(in oklab, var(--bg), black 6%);
+  border-right: 1px solid color-mix(in oklab, var(--border), transparent 25%);
+  padding: 12px;
+}
+
+/* Buttons + chat rows share the pill look */
+aside.sidebar .btn,
+aside.sidebar .chat-item {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--border), transparent 25%);
+  background: color-mix(in oklab, var(--bg), var(--fg) 4%);
+  color: var(--fg);
+  text-align: left;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+
+/* Primary “New chat” pops a bit more */
+aside.sidebar .btn.primary {
+  height: 40px;
+  border-radius: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 82%);
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 60%);
+}
+
+/* Hover states */
+aside.sidebar .btn:hover,
+aside.sidebar .chat-item:hover {
+  background: color-mix(in oklab, var(--fg), var(--bg) 90%);
+  border-color: color-mix(in oklab, var(--border), transparent 15%);
+}
+
+/* Active chat support (add .is-active or aria-current="page" when you have history) */
+aside.sidebar .chat-item.is-active,
+aside.sidebar .chat-item[aria-current="page"] {
+  background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 85%);
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 75%);
+  font-weight: 600;
+}
+
+/* “No history yet” muted card */
+aside.sidebar .chat-item:empty,
+aside.sidebar .chat-item[data-empty],
+aside.sidebar .chat-item.empty {
+  color: color-mix(in oklab, var(--fg), transparent 45%);
+  background: color-mix(in oklab, var(--fg), var(--bg) 96%);
+  border: 1px dashed color-mix(in oklab, var(--border), transparent 20%);
+}
+
+/* Gentle separation above the list (optional) */
+aside.sidebar .chat-list {
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in oklab, var(--border), transparent 35%);
+}
+
+/* Dark mode depth tweaks */
+@media (prefers-color-scheme: dark) {
+  aside.sidebar {
+    background: color-mix(in oklab, var(--bg), white 3%);
+    border-right-color: color-mix(in oklab, var(--border), transparent 45%);
+  }
+  aside.sidebar .btn:hover,
+  aside.sidebar .chat-item:hover {
+    background: color-mix(in oklab, var(--fg), var(--bg) 85%);
+  }
+}
