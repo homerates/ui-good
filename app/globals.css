@@ -1059,12 +1059,6 @@ html[data-sb="rail"] .sidebar [data-sb-item] {
     background: color-mix(in oklab, var(--fg), var(--bg) 85%) !important;
   }
 }
-/* === TEMP PROBE: should visibly change the sidebar buttons === */
-aside.sidebar .btn {
-  outline: 2px solid magenta !important;
-  background: #ffe4e6 !important;   /* light pink */
-  border-radius: 16px !important;
-}
 /* === Sidebar pills: scoped + safe (final) === */
 
 /* Surface (don’t touch layout) */
