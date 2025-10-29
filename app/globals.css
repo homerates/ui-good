@@ -801,6 +801,133 @@ html[data-sb="rail"] .sidebar [data-sb-item] {
   background: #fff7ed !important;       /* peach */
   outline: 2px solid #fb923c !important; /* orange */
 }
+/* === CSS pass #9: sidebar — exact selectors for your DOM (append-only) === */
+:root{
+  --sb-width: 264px;
+  --sb-row-h: 38px;
+  --sb-radius: 12px;
+  --sb-pad-x: 12px;
+  --sb-gap: 8px;
+  --sb-hover: color-mix(in oklab, var(--fg), var(--bg) 92%);
+  --sb-active: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 85%);
+  --sb-section-fg: color-mix(in oklab, var(--fg), transparent 45%);
+}
+
+/* Ensure two-column layout when sidebar is present */
+.app{ display:grid; grid-template-columns: var(--sb-width) 1fr; min-height:100dvh; }
+@media (max-width:768px){ .app{ grid-template-columns:1fr; } }
+
+/* Sidebar base */
+.sidebar{
+  /* keep your inline z-index/position as-is */
+  background: var(--sb-bg, color-mix(in oklab, var(--bg), black 4%));
+  border-right: 1px solid var(--sb-border, var(--border));
+  padding: 12px;
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+}
+
+/* Top/bottom groups */
+.sidebar .side-top,
+.sidebar .side-bottom{
+  display:flex;
+  flex-direction:column;
+  gap: var(--sb-gap);
+}
+
+/* Brand row keeps breathing room */
+.sidebar .brand{ padding: 2px var(--sb-pad-x) 6px; }
+
+/* Primary button (New chat) — pill like ChatGPT */
+.sidebar .btn{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  align-items:center;
+  height: var(--sb-row-h);
+  padding: 0 12px;
+  border-radius: var(--sb-radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--fg);
+  text-align:left;
+  cursor:pointer;
+  user-select:none;
+  transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.sidebar .btn.primary{
+  height: 40px;
+  border-radius: 14px;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 92%);
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 80%);
+}
+.sidebar .btn:hover{
+  background: var(--sb-hover);
+  border-color: color-mix(in oklab, var(--border), transparent 25%);
+}
+.sidebar .btn.primary:hover{
+  background: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 88%);
+}
+.sidebar .btn:focus-visible{
+  outline:2px solid color-mix(in oklab, var(--bubble-user-bg, #3b82f6), white 10%);
+  outline-offset:2px;
+}
+
+/* Chats section */
+.sidebar .chat-list{
+  display:grid;
+  gap: 6px;
+  padding: 0 var(--sb-pad-x);
+}
+.sidebar .chat-item{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  align-items:center;
+  height: var(--sb-row-h);
+  padding: 0 10px;
+  border-radius: var(--sb-radius);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+.sidebar .chat-item:hover{
+  background: var(--sb-hover);
+  border-color: color-mix(in oklab, var(--border), transparent 25%);
+}
+.sidebar .chat-item.is-active,
+.sidebar .chat-item[aria-current="page"]{
+  background: var(--sb-active);
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 75%);
+  font-weight: 600;
+}
+
+/* Muted empty state like “No history yet” */
+.sidebar .chat-item:empty,
+.sidebar .chat-item[data-empty],
+.sidebar .chat-item:is(.empty){
+  color: color-mix(in oklab, var(--fg), transparent 55%);
+  background: color-mix(in oklab, var(--fg), var(--bg) 96%);
+  border: 1px dashed color-mix(in oklab, var(--border), transparent 15%);
+}
+
+/* Divider helper if you add <hr> between groups */
+.sidebar hr{
+  height:1px; border:0; margin:8px var(--sb-pad-x);
+  background: color-mix(in oklab, var(--border), transparent 20%);
+}
+
+/* Dark-mode polish for the sidebar */
+@media (prefers-color-scheme: dark){
+  .sidebar{
+    background: var(--sb-bg, color-mix(in oklab, var(--bg), white 3%));
+  }
+  .sidebar .btn:hover,
+  .sidebar .chat-item:hover{
+    background: color-mix(in oklab, var(--fg), var(--bg) 85%);
+  }
+}
 
 
 
