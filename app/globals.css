@@ -258,3 +258,43 @@ button:focus {
   line-height: 1.4;
   padding: 10px 16px;
 }
+/* ========== UI pass 5: mobile polish (append-only) ========== */
+
+/* 1) Safe-area aware footer & composer for iOS/Android */
+@supports (padding: max(0px)) {
+  .composer,
+  .footer-meta {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+.footer-meta {
+  position: sticky;
+  bottom: 0;
+}
+
+/* 2) Comfortable tap targets & type scale on small screens */
+@media (max-width: 480px) {
+  body { font-size: 15.5px; }               /* +3% readability bump */
+  .btn, button, .input, select {
+    min-height: 44px;                        /* thumb-friendly */
+  }
+  .header-inner,
+  .center,
+  .composer-inner {
+    padding-left: 12px;
+    padding-right: 12px;                     /* tighter gutters */
+  }
+}
+
+/* 3) Message layout: avatars + bubbles fit small widths cleanly */
+@media (max-width: 480px) {
+  .avatar { width: 26px; height: 26px; font-size: 11px; }
+  .bubble { gap: 10px; }
+  .balloon {
+    border-radius: 16px;
+    padding: 10px 12px;
+    max-width: calc(100% - 70px);            /* protects edges next to avatar */
+    word-break: break-word;                  /* long tokens won’t overflow */
+  }
+  .messages { gap: 14px; }
+}
