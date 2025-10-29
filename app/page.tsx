@@ -37,7 +37,6 @@ function isFiniteNum(n: unknown): n is number {
 function parseMoney(raw: string | undefined | null): number | undefined {
   if (!raw) return undefined;
   const s = String(raw).trim().toLowerCase().replace(/,/g, "");
-  // capture number + optional k/m suffix that is directly attached to the number
   const m = s.match(/^\$?\s*([\d]+(?:\.[\d]+)?)\s*([km])?\b/);
   if (!m) return undefined;
   let n = parseFloat(m[1]);
@@ -60,7 +59,6 @@ function parsePercent(raw: string | undefined | null): number | undefined {
 function parsePaymentQuery(q: string) {
   const clean = q.replace(/,/g, "").toLowerCase();
 
-  // ---- helpers (reuse parseMoney/parsePercent) ----
   const moneyRe = /\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g;
   const toMoney = (s: string | undefined) => (s ? parseMoney(s) : undefined);
 
@@ -71,8 +69,7 @@ function parsePaymentQuery(q: string) {
     value: toMoney(m[0]),
   }));
 
-  // ---- loan amount detection (strong patterns first) ----
-  // e.g., "loan of 500k", "loan amount: 400000", "loan amount 1.2m"
+  // explicit loan phrases
   const loanExplicit = clean.match(
     /\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/
   );
@@ -251,7 +248,6 @@ function normalizeCalcResponse(raw: unknown, status: number): ApiResponse {
 function AnswerBlock({ meta }: { meta?: ApiResponse }) {
   if (!meta) return null;
 
-  // Defensive header fields without using 'any'
   type NestedMeta = { meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string } };
   const m = meta as ApiResponse & NestedMeta;
 
@@ -466,7 +462,14 @@ export default function Page() {
           return;
         }
 
-        const url = buildCalcUrl("/api/calc/payment", parsed);
+        // Shim: if API ignores raw loanAmount, convert to PP + 0% down
+        const patched = { ...parsed };
+        if (isFiniteNum(patched.loanAmount) && !isFiniteNum(patched.purchasePrice)) {
+          patched.purchasePrice = patched.loanAmount;
+          if (!isFiniteNum(patched.downPercent)) patched.downPercent = 0;
+        }
+
+        const url = buildCalcUrl("/api/calc/payment", patched);
         const r = await fetch(url, { method: "GET", headers: { "cache-control": "no-store" } });
         const raw: unknown = await r.json().catch(() => ({}));
 
