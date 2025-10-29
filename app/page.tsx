@@ -56,39 +56,54 @@ function parsePercent(raw: string | undefined | null): number | undefined {
 }
 
 // parses: "$500k with 20% down at 6.5% for 30 years"
-// also supports: "$400k loan at 6.5% for 15 years", "loan amount: 400,000 @ 6.25% 30yr"
+// also supports: "$400k loan at 6.5% for 15 years", "15 year loan of 500k at 6%"
 function parsePaymentQuery(q: string) {
   const clean = q.replace(/,/g, "").toLowerCase();
 
-  // Try to find an explicit money token that’s close to “loan” or “purchase/price”
-  // First money token in the string (with k/m support)
-  const moneyToken = clean.match(/\$?\s*\d+(?:\.\d+)?\s*[km]?\b/);
-  const firstNumber = moneyToken ? parseMoney(moneyToken[0]) : undefined;
+  // ---- helpers (reuse parseMoney/parsePercent) ----
+  const moneyRe = /\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g;
+  const toMoney = (s: string | undefined) => (s ? parseMoney(s) : undefined);
 
-  // Heuristics: if mention includes "loan"/"loan amount", treat number as loanAmount
-  const mentionsLoan = /\bloan(?:\s*amount)?\b/.test(clean);
+  // collect all money tokens with indices
+  const tokens = Array.from(clean.matchAll(moneyRe)).map((m) => ({
+    text: m[0],
+    index: m.index ?? 0,
+    value: toMoney(m[0]),
+  }));
+
+  // ---- loan amount detection (strong patterns first) ----
+  // e.g., "loan of 500k", "loan amount: 400000", "loan amount 1.2m"
+  const loanExplicit = clean.match(
+    /\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/
+  );
+
   let loanAmount: number | undefined;
-  let purchasePrice: number | undefined;
+  if (loanExplicit) {
+    loanAmount = toMoney(loanExplicit[1]);
+  } else if (/\bloan\b/.test(clean) && tokens.length > 0) {
+    // prefer the first money token that appears AFTER the word "loan"
+    const loanIdx = clean.indexOf("loan");
+    const afterLoan = tokens.find((t) => t.index > loanIdx && typeof t.value === "number");
+    loanAmount = afterLoan?.value ?? tokens.find((t) => typeof t.value === "number")?.value;
+  }
 
-  if (mentionsLoan && isFiniteNum(firstNumber)) {
-    loanAmount = firstNumber;
-  } else if (isFiniteNum(firstNumber)) {
-    // If user wrote “purchase”, “price”, “home”, “house”, assume purchase price
-    const mentionsPrice =
-      /\b(purchase|price|home|house|pp|purchase\s*price)\b/.test(clean);
-    purchasePrice = firstNumber;
-    // If they explicitly said “loan” later, prefer loanAmount
-    if (!mentionsPrice && /\bloan\b/.test(clean)) {
-      loanAmount = firstNumber;
-      purchasePrice = undefined;
+  // purchase price fallback if no explicit loan picked up
+  let purchasePrice: number | undefined;
+  if (!loanAmount && tokens.length > 0) {
+    const hintsPrice = /\b(purchase|purchase\s*price|price|home|house|pp)\b/.test(clean);
+    if (hintsPrice) {
+      purchasePrice = tokens[0].value;
+    } else if (!/\bloan\b/.test(clean)) {
+      // if no "loan" keyword at all, assume amount is PP
+      purchasePrice = tokens[0].value;
     }
   }
 
-  // down % (e.g., 20% down)
+  // down % (e.g., "20% down")
   const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down\b/);
   const downPercent = downMatch ? parsePercent(downMatch[1]) : undefined;
 
-  // rate % (prefer “rate” or “at”, else any percent)
+  // rate % (prefer near "rate"/"at"/"@")
   let annualRatePct: number | undefined;
   const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
   if (rateNear) {
@@ -103,7 +118,7 @@ function parsePaymentQuery(q: string) {
   let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
 
   // Default to 30y if user gave amount + rate but no term
-  if (!termYears && (loanAmount || purchasePrice) && isFiniteNum(annualRatePct)) {
+  if (!termYears && (loanAmount || purchasePrice) && typeof annualRatePct === "number") {
     termYears = 30;
   }
 
