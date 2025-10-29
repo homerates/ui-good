@@ -398,3 +398,197 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+/* === Incremental pass #8: sidebar visual parity (append-only) === */
+/* Tokens (reuse your existing vars) */
+:root {
+  --sb-width:      264px;            /* full width */
+  --sb-rail:       56px;             /* collapsed rail */
+  --sb-row-h:      36px;             /* item height */
+  --sb-radius:     8px;              /* pill radius */
+  --sb-gap:        6px;              /* row gap */
+  --sb-pad-x:      10px;             /* horizontal padding */
+  --sb-pad-y:      8px;              /* vertical padding */
+  --sb-icon:       18px;             /* icon size */
+  --sb-section-fg: color-mix(in oklab, var(--fg), transparent 45%);
+  --sb-hover:      color-mix(in oklab, var(--fg), var(--bg) 92%);
+  --sb-active:     color-mix(in oklab, var(--bubble-user-bg), var(--bg) 85%);
+}
+
+/* Sidebar container baseline */
+.sidebar {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--sb-bg, color-mix(in oklab, var(--bg), black 4%));
+}
+
+/* Header (logo + collapse button area) */
+.sidebar .sb-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px var(--sb-pad-x);
+  min-height: 40px;
+  border-radius: var(--sb-radius);
+}
+
+/* Section label (e.g., "Projects", "Chats") */
+.sidebar .sb-section-label,
+.sidebar [data-section-label] {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--sb-section-fg);
+  padding: 4px var(--sb-pad-x);
+  text-transform: none;             /* ChatGPT uses normal case, semi-muted */
+}
+
+/* List container spacing */
+.sidebar .sb-list,
+.sidebar [data-sb-list] {
+  display: grid;
+  gap: var(--sb-gap);
+  padding: 0 var(--sb-pad-x);
+}
+
+/* Row item: icon + label pill */
+.sidebar .sb-item,
+.sidebar [data-sb-item] {
+  display: grid;
+  grid-template-columns: var(--sb-icon) 1fr auto; /* icon | label | meta */
+  align-items: center;
+  gap: 10px;
+  height: var(--sb-row-h);
+  padding: 0 8px;
+  border-radius: var(--sb-radius);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+
+/* Icon */
+.sidebar .sb-item .icon,
+.sidebar [data-sb-item] .icon {
+  inline-size: var(--sb-icon);
+  block-size: var(--sb-icon);
+  display: grid; place-items: center;
+  color: color-mix(in oklab, var(--fg), transparent 30%);
+}
+
+/* Label text */
+.sidebar .sb-item .label,
+.sidebar [data-sb-item] .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  line-height: 1;
+}
+
+/* Meta (e.g., badge, chevron) */
+.sidebar .sb-item .meta,
+.sidebar [data-sb-item] .meta {
+  display: grid; place-items: center;
+  color: color-mix(in oklab, var(--fg), transparent 45%);
+  font-size: 12px;
+}
+
+/* Hover: soft fill like ChatGPT */
+.sidebar .sb-item:hover,
+.sidebar [data-sb-item]:hover {
+  background: var(--sb-hover);
+  border-color: color-mix(in oklab, var(--border), transparent 25%);
+}
+
+/* Active/selected row: subtle pill with stronger text */
+.sidebar .sb-item.is-active,
+.sidebar [data-sb-item].is-active,
+.sidebar .sb-item[aria-current="page"],
+.sidebar [data-sb-item][aria-current="page"] {
+  background: var(--sb-active);
+  color: var(--fg);
+  border-color: color-mix(in oklab, var(--bubble-user-bg), transparent 75%);
+  font-weight: 600;
+}
+
+/* “New chat” top button styling parity */
+.sidebar .sb-primary,
+.sidebar [data-sb-primary] {
+  margin: 4px var(--sb-pad-x) 2px;
+  height: 40px;
+  display: grid;
+  grid-template-columns: var(--sb-icon) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--bubble-user-bg), var(--bg) 92%);
+  color: var(--fg);
+  border: 1px solid color-mix(in oklab, var(--bubble-user-bg), transparent 80%);
+}
+.sidebar .sb-primary:hover,
+.sidebar [data-sb-primary]:hover {
+  background: color-mix(in oklab, var(--bubble-user-bg), var(--bg) 88%);
+}
+
+/* Divider spacing */
+.sidebar .sb-divider,
+.sidebar [data-sb-divider] {
+  margin: 6px var(--sb-pad-x);
+  border-top: 1px solid color-mix(in oklab, var(--border), transparent 20%);
+}
+
+/* “See more” inline row style */
+.sidebar .sb-see-more,
+.sidebar [data-sb-see-more] {
+  color: color-mix(in oklab, var(--fg), transparent 35%);
+  height: var(--sb-row-h);
+  display: grid;
+  grid-template-columns: var(--sb-icon) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  border-radius: var(--sb-radius);
+}
+.sidebar .sb-see-more:hover,
+.sidebar [data-sb-see-more]:hover {
+  background: var(--sb-hover);
+}
+
+/* Chats list: slightly denser spacing like ChatGPT */
+.sidebar [data-section="chats"] .sb-list,
+.sidebar .sb-list.chats {
+  gap: 4px;
+}
+
+/* Rail mode visual rules from pass #7 (labels hide in rail) */
+html[data-sb="rail"] .sidebar .label,
+html[data-sb="rail"] .sidebar [data-label] { display: none; }
+html[data-sb="rail"] .sidebar .sb-item,
+html[data-sb="rail"] .sidebar [data-sb-item] {
+  grid-template-columns: 1fr;        /* icon centered in pill */
+  justify-items: center;
+  padding-inline: 0;
+}
+
+/* Dark-mode polish for sidebar specifically */
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    background: var(--sb-bg, color-mix(in oklab, var(--bg), white 3%));
+  }
+  .sidebar .sb-item .icon { color: color-mix(in oklab, var(--fg), transparent 55%); }
+  .sidebar .sb-item:hover { background: color-mix(in oklab, var(--fg), var(--bg) 85%); }
+  .sidebar .sb-primary {
+    background: color-mix(in oklab, var(--bubble-user-bg), black 80%);
+    border-color: color-mix(in oklab, var(--bubble-user-bg), transparent 70%);
+  }
+  .sidebar .sb-primary:hover {
+    background: color-mix(in oklab, var(--bubble-user-bg), black 72%);
+  }
+}
+
+/* Mobile drawer tidiness from pass #7 stays intact */
