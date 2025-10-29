@@ -653,6 +653,147 @@ html[data-sb="rail"] .sidebar [data-sb-item] {
   min-width: 0;
   overflow: hidden;
 }
+/* === Incremental pass #8c: generic sidebar rows (append-only) === */
+
+/* 0) Kill the temp debug outline from 8b */
+.app > aside,
+.app > nav,
+.app [data-sidebar],
+.app .left-rail,
+.app .sidenav,
+.app .sidebar {
+  outline: none !important;
+  outline-offset: 0;
+}
+
+/* 1) Alias: treat your actual sidebar node(s) as .sidebar */
+:root {
+  --sb-width: 264px;
+  --sb-row-h: 38px;
+  --sb-radius: 12px;
+  --sb-gap: 8px;
+  --sb-pad-x: 10px;
+  --sb-section-fg: color-mix(in oklab, var(--fg), transparent 45%);
+  --sb-hover: color-mix(in oklab, var(--fg), var(--bg) 92%);
+  --sb-active: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), var(--bg) 85%);
+}
+
+/* Layout grid stays intact */
+.app {
+  display: grid;
+  grid-template-columns: var(--sb-width) 1fr;
+  min-height: 100dvh;
+}
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+}
+
+/* 2) Sidebar base visuals */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar) {
+  background: var(--sb-bg, color-mix(in oklab, var(--bg), black 4%));
+  border-right: 1px solid var(--sb-border, var(--border));
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 3) Section labels like “Projects”, “Chats” */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(h2, h3, [data-section-label]) {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--sb-section-fg);
+  margin: 8px var(--sb-pad-x) 2px;
+}
+
+/* 4) Generic list containers */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(nav, ul, .list, [data-sb-list]) {
+  display: grid;
+  gap: 6px;
+  padding: 0 var(--sb-pad-x);
+  margin: 0;
+  list-style: none;
+}
+
+/* 5) Row pills: target anchors & buttons (no class needed) */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(a, button, [role="button"], .row) {
+  display: grid;
+  grid-template-columns: 1fr auto; /* label | meta (if any) */
+  align-items: center;
+  height: var(--sb-row-h);
+  padding: 0 10px;
+  border-radius: var(--sb-radius);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+
+/* 6) Label text inside row */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(a, button, [role="button"], .row) :is(.label, span, strong) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  line-height: 1;
+}
+
+/* 7) Hover + focus */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(a, button, [role="button"], .row):hover {
+  background: var(--sb-hover);
+  border-color: color-mix(in oklab, var(--border), transparent 25%);
+}
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(a, button, [role="button"], .row):focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--bubble-user-bg, #3b82f6), white 10%);
+  outline-offset: 2px;
+}
+
+/* 8) Active row (supports either aria-current or a helper class) */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(a[aria-current="page"], button[aria-current="page"], .row.is-active) {
+  background: var(--sb-active);
+  border-color: color-mix(in oklab, var(--bubble-user-bg, #3b82f6), transparent 75%);
+  font-weight: 600;
+}
+
+/* 9) Muted “empty” state pill like “No history yet” */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(.empty, [data-empty]) {
+  color: color-mix(in oklab, var(--fg), transparent 55%);
+  background: color-mix(in oklab, var(--fg), var(--bg) 96%);
+  border: 1px dashed color-mix(in oklab, var(--border), transparent 15%);
+}
+
+/* 10) Divider */
+:where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+  :is(hr, .sb-divider, [data-sb-divider]) {
+  height: 1px;
+  border: 0;
+  margin: 8px var(--sb-pad-x);
+  background: color-mix(in oklab, var(--border), transparent 20%);
+}
+
+/* 11) Dark mode tweaks for the sidebar */
+@media (prefers-color-scheme: dark) {
+  :where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar) {
+    background: var(--sb-bg, color-mix(in oklab, var(--bg), white 3%));
+  }
+  :where(.app > aside, .app > nav, .app [data-sidebar], .app .left-rail, .app .sidenav, .app .sidebar)
+    :is(a, button, [role="button"], .row):hover {
+    background: color-mix(in oklab, var(--fg), var(--bg) 85%);
+  }
+}
 
 
 /* Mobile drawer tidiness from pass #7 stays intact */
