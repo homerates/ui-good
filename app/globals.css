@@ -151,3 +151,33 @@ button:focus {
 .balloon {
   box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04);
 }
+/* smoother flow between messages */
+.messages {
+  gap: 16px; /* was 12px */
+  padding-bottom: 40px; /* leaves air above composer */
+}
+/* soften sidebar divide and make hover feel tactile */
+.sidebar {
+  border-right: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+.chat-item:hover {
+  background: color-mix(in oklab, var(--accent) 6%, var(--panel));
+  transform: translateY(-1px);
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+/* floating composer feel */
+.composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.04);
+  border-top: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+}
+.input {
+  border-radius: 20px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input:focus {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+}
