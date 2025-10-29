@@ -23,6 +23,9 @@ function isPaymentQuery(q: string) {
   // generic “$400k at 6.5% for 30 years”
   if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+at\s+\d+(\.\d+)?\s*%\s+for\s+\d+/.test(s)) return true;
 
+  // generic “$400k @ 6.5% for 30y”
+  if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+@\s+\d+(\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s)) return true;
+
   return false;
 }
 
@@ -37,6 +40,7 @@ function isFiniteNum(n: unknown): n is number {
 function parseMoney(raw: string | undefined | null): number | undefined {
   if (!raw) return undefined;
   const s = String(raw).trim().toLowerCase().replace(/,/g, "");
+  // capture number + optional k/m suffix that is directly attached to the number
   const m = s.match(/^\$?\s*([\d]+(?:\.[\d]+)?)\s*([km])?\b/);
   if (!m) return undefined;
   let n = parseFloat(m[1]);
@@ -55,21 +59,31 @@ function parsePercent(raw: string | undefined | null): number | undefined {
 }
 
 // parses: "$500k with 20% down at 6.5% for 30 years"
-// also supports: "$400k loan at 6.5% for 15 years", "15 year loan of 500k at 6%"
+// also supports: "$400k loan at 6.5% for 15 years", "15 year loan of 500k at 6%", "$1.2m loan ..."
 function parsePaymentQuery(q: string) {
   const clean = q.replace(/,/g, "").toLowerCase();
 
+  // money tokens ($, k, m). Track context so we don't pick up percent rates as amounts.
   const moneyRe = /\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g;
   const toMoney = (s: string | undefined) => (s ? parseMoney(s) : undefined);
 
-  // collect all money tokens with indices
-  const tokens = Array.from(clean.matchAll(moneyRe)).map((m) => ({
-    text: m[0],
-    index: m.index ?? 0,
-    value: toMoney(m[0]),
-  }));
+  const tokens = Array.from(clean.matchAll(moneyRe)).map((m) => {
+    const start = m.index ?? 0;
+    const text = m[0];
+    const end = start + text.length;
+    const next = clean.slice(end, end + 3); // tiny lookahead for %
+    return {
+      text,
+      index: start,
+      end,
+      value: toMoney(text),
+      followedByPercent: /^\s*%/.test(next),
+      hasCurrency: /\$/.test(text),
+      hasSuffix: /[km]\b/.test(text),
+    };
+  });
 
-  // explicit loan phrases
+  // explicit "loan amount: 400k" style
   const loanExplicit = clean.match(
     /\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/
   );
@@ -78,21 +92,35 @@ function parsePaymentQuery(q: string) {
   if (loanExplicit) {
     loanAmount = toMoney(loanExplicit[1]);
   } else if (/\bloan\b/.test(clean) && tokens.length > 0) {
-    // prefer the first money token that appears AFTER the word "loan"
+    // prefer the first money-like token AFTER "loan" that is NOT a % and looks like money ($ or k/m)
     const loanIdx = clean.indexOf("loan");
-    const afterLoan = tokens.find((t) => t.index > loanIdx && typeof t.value === "number");
-    loanAmount = afterLoan?.value ?? tokens.find((t) => typeof t.value === "number")?.value;
+    const afterLoanMoney = tokens.find(
+      (t) => t.index > loanIdx && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)
+    );
+    loanAmount =
+      afterLoanMoney?.value ??
+      // fallback: first non-% token after "loan"
+      tokens.find((t) => t.index > loanIdx && !t.followedByPercent)?.value ??
+      // last fallback: first token overall that isn't a %
+      tokens.find((t) => !t.followedByPercent)?.value;
   }
 
-  // purchase price fallback if no explicit loan picked up
+  // purchase price if no explicit loan picked up
   let purchasePrice: number | undefined;
   if (!loanAmount && tokens.length > 0) {
     const hintsPrice = /\b(purchase|purchase\s*price|price|home|house|pp)\b/.test(clean);
     if (hintsPrice) {
-      purchasePrice = tokens[0].value;
+      // prefer a non-% money token that looks like money; else first non-%
+      purchasePrice =
+        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
+        tokens.find((t) => !t.followedByPercent)?.value ??
+        tokens[0].value;
     } else if (!/\bloan\b/.test(clean)) {
-      // if no "loan" keyword at all, assume amount is PP
-      purchasePrice = tokens[0].value;
+      // if no "loan" keyword at all, assume amount is PP (but avoid rates)
+      purchasePrice =
+        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
+        tokens.find((t) => !t.followedByPercent)?.value ??
+        tokens[0].value;
     }
   }
 
