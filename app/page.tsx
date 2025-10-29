@@ -1,6 +1,6 @@
 ﻿'use client';
-import Link from "next/link";
 import { useEffect, useRef, useState } from 'react';
+import Sidebar from './components/Sidebar';
 
 type Role = 'user' | 'assistant';
 
@@ -577,9 +577,15 @@ export default function Page() {
 
   return (
     <>
-      {/* Sidebar */}
-      <aside className="sidebar" style={{ position: "relative", zIndex: 1000 }}>
-        <div className="side-top">
+  {/* Sidebar */}
+  <Sidebar history={history} onNewChat={newChat} />
+
+  {/* Main */}
+  <section className="main">
+    {/* header / scroll / composer — unchanged */}
+  </section>
+</>
+
           {/* Clickable mark in the corner */}
           <div className="brand" style={{ position: "relative", zIndex: 10000 }}>
             <Link
