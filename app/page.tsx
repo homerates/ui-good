@@ -488,18 +488,53 @@ export default function Page() {
   }, [messages]);
 
   // Hotkeys
+  // SAFE HOTKEYS: ignore when typing and require Cmd/Ctrl
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+
+      // 1) Don’t trigger shortcuts while user is typing in inputs/textarea/contentEditable
+      if (
+        target &&
+        (
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          (target as HTMLElement).isContentEditable
+        )
+      ) {
+        return;
+      }
+
       const k = e.key.toLowerCase();
       const meta = e.ctrlKey || e.metaKey;
-      if (meta && k === 'k') { e.preventDefault(); setShowSearch(true); }
-      else if (!meta && !e.shiftKey && !e.altKey && k === 'n') { newChat(); }
-      else if (!meta && !e.shiftKey && !e.altKey && k === 'l') { setShowLibrary(true); }
-      else if (!meta && !e.shiftKey && !e.altKey && k === 'p') { setShowProject(true); }
+
+      // 2) Require Cmd/Ctrl for ALL shortcuts to avoid clashes with normal typing
+      if (meta && k === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+        return;
+      }
+      if (meta && k === 'n') {
+        e.preventDefault();
+        newChat();
+        return;
+      }
+      if (meta && k === 'l') {
+        e.preventDefault();
+        setShowLibrary(true);
+        return;
+      }
+      if (meta && k === 'p') {
+        e.preventDefault();
+        setShowProject(true);
+        return;
+      }
     };
+
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
 
   // History select (Library/Sidebar)
   function onSelectHistory(id: string) {
