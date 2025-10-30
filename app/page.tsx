@@ -1,4 +1,5 @@
 ﻿'use client';
+
 import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 
@@ -281,28 +282,14 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     return (
       <div style={{ display: 'grid', gap: 10 }}>
         <div className="meta">
-          <span>
-            path: <b>{String(headerPath)}</b>
-          </span>
-          <span>
-            {' '}
-            | usedFRED: <b>{String(headerUsedFRED)}</b>
-          </span>
-          {headerAt && (
-            <span>
-              {' '}
-              | at: <b>{fmtISOshort(headerAt)}</b>
-            </span>
-          )}
+          <span>path: <b>{String(headerPath)}</b></span>
+          <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
+          {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
         </div>
 
         <div>
-          <div>
-            <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
-          </div>
-          <div>
-            <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
-          </div>
+          <div><b>Loan amount:</b> ${fmtMoney(a.loanAmount)}</div>
+          <div><b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}</div>
         </div>
 
         {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
@@ -313,9 +300,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
               <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
               <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
               <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-              <li>
-                <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
-              </li>
+              <li><b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b></li>
             </ul>
           </div>
         )}
@@ -345,43 +330,24 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
       m.fred.tenYearYield != null &&
       m.fred.mort30Avg != null &&
       m.fred.spread != null
-      ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${typeof m.fred.tenYearYield === 'number'
-        ? m.fred.tenYearYield.toFixed(2)
-        : m.fred.tenYearYield
-      }%, 30Y ${typeof m.fred.mort30Avg === 'number'
-        ? m.fred.mort30Avg.toFixed(2)
-        : m.fred.mort30Avg
-      }%, spread ${typeof m.fred.spread === 'number' ? m.fred.spread.toFixed(2) : m.fred.spread
-      }%.`
+      ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${typeof m.fred.tenYearYield === 'number' ? m.fred.tenYearYield.toFixed(2) : m.fred.tenYearYield
+      }%, 30Y ${typeof m.fred.mort30Avg === 'number' ? m.fred.mort30Avg.toFixed(2) : m.fred.mort30Avg
+      }%, spread ${typeof m.fred.spread === 'number' ? m.fred.spread.toFixed(2) : m.fred.spread}%.`
       : typeof m.answer === 'string'
         ? m.answer
         : '');
 
-  const lines = (typeof m.answer === 'string' ? m.answer : '')
-    .split('\n')
-    .map((s) => s.trim());
+  const lines = (typeof m.answer === 'string' ? m.answer : '').split('\n').map((s) => s.trim());
   const takeaway = primary || lines[0] || '';
   const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
-  const nexts = lines
-    .filter((l) => l.toLowerCase().startsWith('next:'))
-    .map((l) => l.slice(5).trim());
+  const nexts = lines.filter((l) => l.toLowerCase().startsWith('next:')).map((l) => l.slice(5).trim());
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <div className="meta">
-        <span>
-          path: <b>{String(headerPath)}</b>
-        </span>
-        <span>
-          {' '}
-          | usedFRED: <b>{String(headerUsedFRED)}</b>
-        </span>
-        {headerAt && (
-          <span>
-            {' '}
-            | at: <b>{fmtISOshort(headerAt)}</b>
-          </span>
-        )}
+        <span>path: <b>{String(headerPath)}</b></span>
+        <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
+        {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
       </div>
 
       {takeaway && <div>{takeaway}</div>}
@@ -390,28 +356,20 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         <div>
           <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
           <ul style={{ marginTop: 0 }}>
-            {m.tldr.map((t, i) => (
-              <li key={i}>{t}</li>
-            ))}
+            {m.tldr.map((t, i) => <li key={i}>{t}</li>)}
           </ul>
         </div>
       )}
 
       {bullets.length > 0 && (
         <ul style={{ marginTop: 0 }}>
-          {bullets.map((b, i) => (
-            <li key={i}>{b}</li>
-          ))}
+          {bullets.map((b, i) => <li key={i}>{b}</li>)}
         </ul>
       )}
 
       {nexts.length > 0 && (
         <div style={{ display: 'grid', gap: 4 }}>
-          {nexts.map((n, i) => (
-            <div key={i}>
-              <b>Next:</b> {n}
-            </div>
-          ))}
+          {nexts.map((n, i) => (<div key={i}><b>Next:</b> {n}</div>))}
         </div>
       )}
 
@@ -428,8 +386,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
       {m.paymentDelta && (
         <div style={{ fontSize: 13 }}>
-          Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
-          {m.paymentDelta.loanAmount.toLocaleString()}.
+          Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on ${m.paymentDelta.loanAmount.toLocaleString()}.
         </div>
       )}
     </div>
@@ -466,11 +423,20 @@ export default function Page() {
   const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Thread model (Library) + overlays
+  // Thread model (messages per chat) + active thread id
   const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // LOAD from localStorage on mount
+  // Overlays
+  const [showSearch, setShowSearch] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showProject, setShowProject] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [projectName, setProjectName] = useState('');
+
+  // Restore on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -491,20 +457,7 @@ export default function Page() {
     }
   }, []);
 
-  const [showSearch, setShowSearch] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showProject, setShowProject] = useState(false);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [projectName, setProjectName] = useState('');
-
-  // Auto-scroll as messages append
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
-
-  // SAVE to localStorage on changes
+  // Persist model
   useEffect(() => {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
@@ -513,16 +466,14 @@ export default function Page() {
     }
   }, [threads, history, activeId]);
 
-  // SNAPSHOT current thread whenever messages change
+  // Snapshot messages into active thread + bump history.updatedAt
   useEffect(() => {
     if (!activeId) return;
 
-    // persist the current messages under the active thread id
-    setThreads((prev) => ({ ...prev, [activeId]: messages }));
+    setThreads(prev => ({ ...prev, [activeId]: messages }));
 
-    // bump updatedAt on the active history item and keep most-recent first
-    setHistory((prev) => {
-      const idx = prev.findIndex((h) => h.id === activeId);
+    setHistory(prev => {
+      const idx = prev.findIndex(h => h.id === activeId);
       if (idx === -1) return prev;
       const copy = [...prev];
       copy[idx] = { ...copy[idx], updatedAt: Date.now() };
@@ -531,6 +482,25 @@ export default function Page() {
     });
   }, [messages, activeId]);
 
+  // Auto-scroll
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
+
+  // Hotkeys
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      const meta = e.ctrlKey || e.metaKey;
+      if (meta && k === 'k') { e.preventDefault(); setShowSearch(true); }
+      else if (!meta && !e.shiftKey && !e.altKey && k === 'n') { newChat(); }
+      else if (!meta && !e.shiftKey && !e.altKey && k === 'l') { setShowLibrary(true); }
+      else if (!meta && !e.shiftKey && !e.altKey && k === 'p') { setShowProject(true); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // History select (Library/Sidebar)
   function onSelectHistory(id: string) {
     setActiveId(id);
@@ -538,46 +508,24 @@ export default function Page() {
     if (Array.isArray(thread) && thread.length) {
       setMessages(thread);
     } else {
-      setMessages([
-        {
-          id: uid(),
-          role: 'assistant',
-          content: 'Restored chat (no snapshot found). Start typing to continue.',
-        },
-      ]);
+      setMessages([{ id: uid(), role: 'assistant', content: 'Restored chat (no snapshot found). Start typing to continue.' }]);
     }
     setShowLibrary(false);
   }
 
   function newChat() {
-    function onSelectHistory(id: string) {
-      setActiveId(id);
-      const thread = threads[id];
-      if (Array.isArray(thread) && thread.length) {
-        setMessages(thread);
-      } else {
-        setMessages([
-          { id: uid(), role: 'assistant', content: 'Restored chat (no snapshot found). Start typing to continue.' },
-        ]);
-      }
-      setShowLibrary(false);
-    }
-
     const id = uid();
     setActiveId(id);
-    setMessages([
-      { id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' },
-    ]);
-    setHistory((h) => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
+    setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
+    setHistory(h => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
   }
 
-  // Overlays: actions
+  // Share
   function serializeThread(msgs: ChatMsg[]) {
     return msgs
       .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
       .join('\n');
   }
-
   function onShare() {
     const text = serializeThread(messages);
     if (navigator.clipboard?.writeText) {
@@ -586,27 +534,16 @@ export default function Page() {
       const blob = new Blob([text], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'conversation.txt';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      a.href = url; a.download = 'conversation.txt';
+      document.body.appendChild(a); a.click();
+      a.remove(); URL.revokeObjectURL(url);
     }
   }
-  function onSettings() {
-    setShowSettings(true);
-  }
-  function onSearch() {
-    setShowSearch(true);
-  }
-  function onLibrary() {
-    setShowLibrary(true);
-  }
-  function onNewProject() {
-    setShowProject(true);
-  }
 
+  function onSettings() { setShowSettings(true); }
+  function onSearch() { setShowSearch(true); }
+  function onLibrary() { setShowLibrary(true); }
+  function onNewProject() { setShowProject(true); }
   function closeAllOverlays() {
     setShowSearch(false);
     setShowLibrary(false);
@@ -614,42 +551,21 @@ export default function Page() {
     setShowProject(false);
   }
 
-  // Hotkeys (Cmd/Ctrl+K, N, L, P)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const k = e.key.toLowerCase();
-      const meta = e.ctrlKey || e.metaKey;
-      if (meta && k === 'k') {
-        e.preventDefault();
-        setShowSearch(true);
-      } else if (!meta && !e.shiftKey && !e.altKey && k === 'n') {
-        newChat();
-      } else if (!meta && !e.shiftKey && !e.altKey && k === 'l') {
-        setShowLibrary(true);
-      } else if (!meta && !e.shiftKey && !e.altKey && k === 'p') {
-        setShowProject(true);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   async function send() {
     const q = input.trim();
     if (!q || loading) return;
 
     const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
-    // Ensure we have a thread id and title it on first user msg
+    // Ensure a thread id and title
     let tid = activeId;
     if (!tid) {
       tid = uid();
       setActiveId(tid);
-      setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
+      setHistory(h => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
     } else {
-      // Update existing "New chat"/Untitled to the first user line
-      setHistory((h) => {
-        const i = h.findIndex((x) => x.id === tid);
+      setHistory(h => {
+        const i = h.findIndex(x => x.id === tid);
         if (i >= 0) {
           const copy = [...h];
           if (copy[i].title === 'New chat' || copy[i].title.startsWith('Untitled')) {
@@ -661,7 +577,7 @@ export default function Page() {
       });
     }
 
-    setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
+    setMessages(m => [...m, { id: uid(), role: 'user', content: q }]);
     setInput('');
     setLoading(true);
 
@@ -670,14 +586,13 @@ export default function Page() {
         const parsed = parsePaymentQuery(q);
 
         const okByLoan = isFiniteNum(parsed.loanAmount) && isFiniteNum(parsed.annualRatePct);
-
         const okByPP =
           isFiniteNum(parsed.purchasePrice) &&
           isFiniteNum(parsed.downPercent) &&
           isFiniteNum(parsed.annualRatePct);
 
         if (!okByLoan && !okByPP) {
-          setMessages((m) => [
+          setMessages(m => [
             ...m,
             {
               id: uid(),
@@ -710,7 +625,7 @@ export default function Page() {
           friendly = `Calc service returned ${r.status}. Showing raw data.`;
         }
 
-        setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+        setMessages(m => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
         return;
       }
 
@@ -738,23 +653,17 @@ export default function Page() {
           meta.fred.tenYearYield != null &&
           meta.fred.mort30Avg != null &&
           meta.fred.spread != null
-          ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${typeof meta.fred.tenYearYield === 'number'
-            ? meta.fred.tenYearYield.toFixed(2)
-            : meta.fred.tenYearYield
-          }%, 30Y ${typeof meta.fred.mort30Avg === 'number'
-            ? meta.fred.mort30Avg.toFixed(2)
-            : meta.fred.mort30Avg
-          }%, spread ${typeof meta.fred.spread === 'number' ? meta.fred.spread.toFixed(2) : meta.fred.spread
-          }%.`
+          ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${typeof meta.fred.tenYearYield === 'number' ? meta.fred.tenYearYield.toFixed(2) : meta.fred.tenYearYield
+          }%, 30Y ${typeof meta.fred.mort30Avg === 'number' ? meta.fred.mort30Avg.toFixed(2) : meta.fred.mort30Avg
+          }%, spread ${typeof meta.fred.spread === 'number' ? meta.fred.spread.toFixed(2) : meta.fred.spread}%.`
           : typeof meta.answer === 'string'
             ? meta.answer
-            : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'
-            }`);
+            : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
 
-      setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+      setMessages(m => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
+      setMessages(m => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
     } finally {
       setLoading(false);
     }
@@ -773,11 +682,11 @@ export default function Page() {
       <Sidebar
         history={history}
         onNewChat={newChat}
-        onSettings={onSettings}
+        onSettings={() => setShowSettings(true)}
         onShare={onShare}
-        onSearch={onSearch}
-        onLibrary={onLibrary}
-        onNewProject={onNewProject}
+        onSearch={() => setShowSearch(true)}
+        onLibrary={() => setShowLibrary(true)}
+        onNewProject={() => setShowProject(true)}
         activeId={activeId}
         onSelectHistory={onSelectHistory}
       />
@@ -921,9 +830,7 @@ export default function Page() {
                       {history
                         .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
                         .slice(0, 20)
-                        .map((h) => (
-                          <li key={h.id}>{h.title}</li>
-                        ))}
+                        .map((h) => <li key={h.id}>{h.title}</li>)}
                     </ul>
                   </div>
                 </div>
@@ -970,13 +877,7 @@ export default function Page() {
                     className="btn"
                     onClick={() => {
                       setHistory([]);
-                      setMessages([
-                        {
-                          id: uid(),
-                          role: 'assistant',
-                          content: 'New chat. What do you want to figure out?',
-                        },
-                      ]);
+                      setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
                       closeAllOverlays();
                     }}
                   >
@@ -993,14 +894,8 @@ export default function Page() {
                     const name = projectName.trim() || 'Untitled Project';
                     const id = uid();
                     setActiveId(id);
-                    setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
-                    setMessages([
-                      {
-                        id: uid(),
-                        role: 'assistant',
-                        content: `New Project “${name}” started. What’s the goal?`,
-                      },
-                    ]);
+                    setHistory(h => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                    setMessages([{ id: uid(), role: 'assistant', content: `New Project “${name}” started. What’s the goal?` }]);
                     setProjectName('');
                     closeAllOverlays();
                   }}
@@ -1014,12 +909,8 @@ export default function Page() {
                     autoFocus
                   />
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn primary" type="submit">
-                      Create
-                    </button>
-                    <button className="btn" type="button" onClick={closeAllOverlays}>
-                      Cancel
-                    </button>
+                    <button className="btn primary" type="submit">Create</button>
+                    <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
                   </div>
                 </form>
               )}
