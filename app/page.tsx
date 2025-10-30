@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 
+const LS_KEY = 'hr.chat.v1';
+
 type Role = 'user' | 'assistant';
 
 /* =========================
@@ -243,8 +245,8 @@ function normalizeCalcResponse(raw: unknown, status: number): ApiResponse {
     typeof r.meta?.usedFRED === 'boolean'
       ? (r.meta!.usedFRED as boolean)
       : typeof r.usedFRED === 'boolean'
-      ? (r.usedFRED as boolean)
-      : false;
+        ? (r.usedFRED as boolean)
+        : false;
 
   const generatedAt = r.meta?.at ?? r.generatedAt;
   const tldr = (r.tldr ?? r.summary ?? r.message) as string | string[] | undefined;
@@ -279,14 +281,28 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     return (
       <div style={{ display: 'grid', gap: 10 }}>
         <div className="meta">
-          <span>path: <b>{String(headerPath)}</b></span>
-          <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-          {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+          <span>
+            path: <b>{String(headerPath)}</b>
+          </span>
+          <span>
+            {' '}
+            | usedFRED: <b>{String(headerUsedFRED)}</b>
+          </span>
+          {headerAt && (
+            <span>
+              {' '}
+              | at: <b>{fmtISOshort(headerAt)}</b>
+            </span>
+          )}
         </div>
 
         <div>
-          <div><b>Loan amount:</b> ${fmtMoney(a.loanAmount)}</div>
-          <div><b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}</div>
+          <div>
+            <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
+          </div>
+          <div>
+            <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
+          </div>
         </div>
 
         {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
@@ -297,7 +313,9 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
               <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
               <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
               <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-              <li><b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b></li>
+              <li>
+                <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
+              </li>
             </ul>
           </div>
         )}
@@ -324,27 +342,24 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     m.message ??
     m.summary ??
     (m.fred &&
-    m.fred.tenYearYield != null &&
-    m.fred.mort30Avg != null &&
-    m.fred.spread != null
-      ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${
-          typeof m.fred.tenYearYield === 'number'
-            ? m.fred.tenYearYield.toFixed(2)
-            : m.fred.tenYearYield
-        }%, 30Y ${
-          typeof m.fred.mort30Avg === 'number'
-            ? m.fred.mort30Avg.toFixed(2)
-            : m.fred.mort30Avg
-        }%, spread ${
-          typeof m.fred.spread === 'number'
-            ? m.fred.spread.toFixed(2)
-            : m.fred.spread
-        }%.`
+      m.fred.tenYearYield != null &&
+      m.fred.mort30Avg != null &&
+      m.fred.spread != null
+      ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${typeof m.fred.tenYearYield === 'number'
+        ? m.fred.tenYearYield.toFixed(2)
+        : m.fred.tenYearYield
+      }%, 30Y ${typeof m.fred.mort30Avg === 'number'
+        ? m.fred.mort30Avg.toFixed(2)
+        : m.fred.mort30Avg
+      }%, spread ${typeof m.fred.spread === 'number' ? m.fred.spread.toFixed(2) : m.fred.spread
+      }%.`
       : typeof m.answer === 'string'
-      ? m.answer
-      : '');
+        ? m.answer
+        : '');
 
-  const lines = (typeof m.answer === 'string' ? m.answer : '').split('\n').map((s) => s.trim());
+  const lines = (typeof m.answer === 'string' ? m.answer : '')
+    .split('\n')
+    .map((s) => s.trim());
   const takeaway = primary || lines[0] || '';
   const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
   const nexts = lines
@@ -354,9 +369,19 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <div className="meta">
-        <span>path: <b>{String(headerPath)}</b></span>
-        <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-        {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+        <span>
+          path: <b>{String(headerPath)}</b>
+        </span>
+        <span>
+          {' '}
+          | usedFRED: <b>{String(headerUsedFRED)}</b>
+        </span>
+        {headerAt && (
+          <span>
+            {' '}
+            | at: <b>{fmtISOshort(headerAt)}</b>
+          </span>
+        )}
       </div>
 
       {takeaway && <div>{takeaway}</div>}
@@ -365,21 +390,27 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         <div>
           <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
           <ul style={{ marginTop: 0 }}>
-            {m.tldr.map((t, i) => <li key={i}>{t}</li>)}
+            {m.tldr.map((t, i) => (
+              <li key={i}>{t}</li>
+            ))}
           </ul>
         </div>
       )}
 
       {bullets.length > 0 && (
         <ul style={{ marginTop: 0 }}>
-          {bullets.map((b, i) => <li key={i}>{b}</li>)}
+          {bullets.map((b, i) => (
+            <li key={i}>{b}</li>
+          ))}
         </ul>
       )}
 
       {nexts.length > 0 && (
         <div style={{ display: 'grid', gap: 4 }}>
           {nexts.map((n, i) => (
-            <div key={i}><b>Next:</b> {n}</div>
+            <div key={i}>
+              <b>Next:</b> {n}
+            </div>
           ))}
         </div>
       )}
@@ -397,7 +428,8 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
       {m.paymentDelta && (
         <div style={{ fontSize: 13 }}>
-          Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on ${m.paymentDelta.loanAmount.toLocaleString()}.
+          Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
+          {m.paymentDelta.loanAmount.toLocaleString()}.
         </div>
       )}
     </div>
@@ -431,12 +463,33 @@ export default function Page() {
   const [intent, setIntent] = useState<'' | 'purchase' | 'refi' | 'investor'>('');
   const [loanAmount, setLoanAmount] = useState<number | ''>('');
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<{ id: string; title: string }[]>([]);
+  const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Thread model (Library) + overlays
   const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // LOAD from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw) as {
+        threads?: Record<string, ChatMsg[]>;
+        history?: { id: string; title: string; updatedAt?: number }[];
+        activeId?: string | null;
+      };
+      if (data.threads) setThreads(data.threads);
+      if (Array.isArray(data.history)) setHistory(data.history);
+      if (data.activeId && data.threads?.[data.activeId]) {
+        setActiveId(data.activeId);
+        setMessages(data.threads[data.activeId] || []);
+      }
+    } catch (e) {
+      console.warn('hr.chat load failed', e);
+    }
+  }, []);
 
   const [showSearch, setShowSearch] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
@@ -446,50 +499,100 @@ export default function Page() {
   const [searchQuery, setSearchQuery] = useState('');
   const [projectName, setProjectName] = useState('');
 
+  // Auto-scroll as messages append
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  // snapshot current thread whenever messages change
+  // SAVE to localStorage on changes
   useEffect(() => {
-    if (activeId) {
-      setThreads(prev => ({ ...prev, [activeId]: messages }));
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
+    } catch (e) {
+      console.warn('hr.chat save failed', e);
     }
+  }, [threads, history, activeId]);
+
+  // SNAPSHOT current thread whenever messages change
+  useEffect(() => {
+    if (!activeId) return;
+
+    // persist the current messages under the active thread id
+    setThreads((prev) => ({ ...prev, [activeId]: messages }));
+
+    // bump updatedAt on the active history item and keep most-recent first
+    setHistory((prev) => {
+      const idx = prev.findIndex((h) => h.id === activeId);
+      if (idx === -1) return prev;
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], updatedAt: Date.now() };
+      copy.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+      return copy;
+    });
   }, [messages, activeId]);
+
+  // History select (Library/Sidebar)
+  function onSelectHistory(id: string) {
+    setActiveId(id);
+    const thread = threads[id];
+    if (Array.isArray(thread) && thread.length) {
+      setMessages(thread);
+    } else {
+      setMessages([
+        {
+          id: uid(),
+          role: 'assistant',
+          content: 'Restored chat (no snapshot found). Start typing to continue.',
+        },
+      ]);
+    }
+    setShowLibrary(false);
+  }
 
   function newChat() {
     const id = uid();
     setActiveId(id);
-    setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
-    setHistory(h => [{ id, title: 'New chat' }, ...h].slice(0, 20));
+    setMessages([
+      { id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' },
+    ]);
+    setHistory((h) => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
   }
 
   // Overlays: actions
   function serializeThread(msgs: ChatMsg[]) {
-    return msgs.map((m) =>
-      `${m.role === 'user' ? 'You' : 'HomeRates'}: ${
-        typeof m.content === 'string' ? m.content : ''
-      }`
-    ).join('\n');
+    return msgs
+      .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
+      .join('\n');
   }
 
   function onShare() {
     const text = serializeThread(messages);
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {});
+      navigator.clipboard.writeText(text).catch(() => { });
     } else {
       const blob = new Blob([text], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'conversation.txt';
-      document.body.appendChild(a); a.click();
-      a.remove(); URL.revokeObjectURL(url);
+      a.href = url;
+      a.download = 'conversation.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     }
   }
-  function onSettings() { setShowSettings(true); }
-  function onSearch()   { setShowSearch(true); }
-  function onLibrary()  { setShowLibrary(true); }
-  function onNewProject() { setShowProject(true); }
+  function onSettings() {
+    setShowSettings(true);
+  }
+  function onSearch() {
+    setShowSearch(true);
+  }
+  function onLibrary() {
+    setShowLibrary(true);
+  }
+  function onNewProject() {
+    setShowProject(true);
+  }
 
   function closeAllOverlays() {
     setShowSearch(false);
@@ -497,6 +600,26 @@ export default function Page() {
     setShowSettings(false);
     setShowProject(false);
   }
+
+  // Hotkeys (Cmd/Ctrl+K, N, L, P)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      const meta = e.ctrlKey || e.metaKey;
+      if (meta && k === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      } else if (!meta && !e.shiftKey && !e.altKey && k === 'n') {
+        newChat();
+      } else if (!meta && !e.shiftKey && !e.altKey && k === 'l') {
+        setShowLibrary(true);
+      } else if (!meta && !e.shiftKey && !e.altKey && k === 'p') {
+        setShowProject(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   async function send() {
     const q = input.trim();
@@ -509,19 +632,19 @@ export default function Page() {
     if (!tid) {
       tid = uid();
       setActiveId(tid);
-      setHistory(h => [{ id: tid!, title }, ...h].slice(0, 20));
+      setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
     } else {
       // Update existing "New chat"/Untitled to the first user line
-      setHistory(h => {
-        const i = h.findIndex(x => x.id === tid);
+      setHistory((h) => {
+        const i = h.findIndex((x) => x.id === tid);
         if (i >= 0) {
           const copy = [...h];
           if (copy[i].title === 'New chat' || copy[i].title.startsWith('Untitled')) {
-            copy[i] = { ...copy[i], title };
+            copy[i] = { ...copy[i], title, updatedAt: Date.now() };
           }
           return copy;
         }
-        return [{ id: tid!, title }, ...h].slice(0, 20);
+        return [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20);
       });
     }
 
@@ -533,8 +656,7 @@ export default function Page() {
       if (isPaymentQuery(q)) {
         const parsed = parsePaymentQuery(q);
 
-        const okByLoan =
-          isFiniteNum(parsed.loanAmount) && isFiniteNum(parsed.annualRatePct);
+        const okByLoan = isFiniteNum(parsed.loanAmount) && isFiniteNum(parsed.annualRatePct);
 
         const okByPP =
           isFiniteNum(parsed.purchasePrice) &&
@@ -600,25 +722,21 @@ export default function Page() {
         meta.message ??
         meta.summary ??
         (meta.fred &&
-        meta.fred.tenYearYield != null &&
-        meta.fred.mort30Avg != null &&
-        meta.fred.spread != null
-          ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${
-              typeof meta.fred.tenYearYield === 'number'
-                ? meta.fred.tenYearYield.toFixed(2)
-                : meta.fred.tenYearYield
-            }%, 30Y ${
-              typeof meta.fred.mort30Avg === 'number'
-                ? meta.fred.mort30Avg.toFixed(2)
-                : meta.fred.mort30Avg
-            }%, spread ${
-              typeof meta.fred.spread === 'number'
-                ? meta.fred.spread.toFixed(2)
-                : meta.fred.spread
-            }%.`
+          meta.fred.tenYearYield != null &&
+          meta.fred.mort30Avg != null &&
+          meta.fred.spread != null
+          ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${typeof meta.fred.tenYearYield === 'number'
+            ? meta.fred.tenYearYield.toFixed(2)
+            : meta.fred.tenYearYield
+          }%, 30Y ${typeof meta.fred.mort30Avg === 'number'
+            ? meta.fred.mort30Avg.toFixed(2)
+            : meta.fred.mort30Avg
+          }%, spread ${typeof meta.fred.spread === 'number' ? meta.fred.spread.toFixed(2) : meta.fred.spread
+          }%.`
           : typeof meta.answer === 'string'
-          ? meta.answer
-          : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
+            ? meta.answer
+            : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'
+            }`);
 
       setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
     } catch (e) {
@@ -647,6 +765,8 @@ export default function Page() {
         onSearch={onSearch}
         onLibrary={onLibrary}
         onNewProject={onNewProject}
+        activeId={activeId}
+        onSelectHistory={onSelectHistory}
       />
 
       {/* Main */}
@@ -655,18 +775,13 @@ export default function Page() {
           <div className="header-inner">
             <div style={{ fontWeight: 700 }}>Chat</div>
             <div className="controls">
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}
-              >
+              <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}>
                 <option value="borrower">Borrower</option>
                 <option value="public">Public</option>
               </select>
               <select
                 value={intent}
-                onChange={(e) =>
-                  setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')
-                }
+                onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')}
               >
                 <option value="">Intent: auto</option>
                 <option value="purchase">Purchase</option>
@@ -679,9 +794,7 @@ export default function Page() {
                 step={1000}
                 placeholder="Loan (optional)"
                 value={loanAmount}
-                onChange={(e) =>
-                  setLoanAmount(e.target.value ? Number(e.target.value) : '')
-                }
+                onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
               />
             </div>
           </div>
@@ -693,9 +806,7 @@ export default function Page() {
               {messages.map((m) => (
                 <div key={m.id}>
                   <Bubble role={m.role}>
-                    {m.role === 'assistant'
-                      ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content)
-                      : m.content}
+                    {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
                   </Bubble>
                 </div>
               ))}
@@ -713,11 +824,7 @@ export default function Page() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKey}
             />
-            <button
-              className="btn"
-              onClick={send}
-              disabled={loading || !input.trim()}
-            >
+            <button className="btn" onClick={send} disabled={loading || !input.trim()}>
               Send
             </button>
           </div>
@@ -738,7 +845,7 @@ export default function Page() {
               background: 'rgba(0,0,0,0.35)',
               display: 'grid',
               placeItems: 'center',
-              zIndex: 5000
+              zIndex: 5000,
             }}
           >
             <div
@@ -752,7 +859,7 @@ export default function Page() {
                 background: 'var(--card)',
                 boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
                 display: 'grid',
-                gap: 12
+                gap: 12,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -762,7 +869,9 @@ export default function Page() {
                   {showSettings && 'Settings'}
                   {showProject && 'New Project'}
                 </div>
-                <button className="btn" onClick={closeAllOverlays} aria-label="Close">Close</button>
+                <button className="btn" onClick={closeAllOverlays} aria-label="Close">
+                  Close
+                </button>
               </div>
 
               {/* SEARCH */}
@@ -779,7 +888,11 @@ export default function Page() {
                     <div style={{ fontWeight: 600 }}>Matches in current thread</div>
                     <ul style={{ marginTop: 0 }}>
                       {messages
-                        .filter(m => typeof m.content === 'string' && m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .filter(
+                          (m) =>
+                            typeof m.content === 'string' &&
+                            m.content.toLowerCase().includes(searchQuery.toLowerCase())
+                        )
                         .slice(0, 12)
                         .map((m, i) => (
                           <li key={m.id + i}>
@@ -793,9 +906,11 @@ export default function Page() {
                     <div style={{ fontWeight: 600 }}>Matches in history titles</div>
                     <ul style={{ marginTop: 0 }}>
                       {history
-                        .filter(h => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
                         .slice(0, 20)
-                        .map(h => <li key={h.id}>{h.title}</li>)}
+                        .map((h) => (
+                          <li key={h.id}>{h.title}</li>
+                        ))}
                     </ul>
                   </div>
                 </div>
@@ -804,29 +919,20 @@ export default function Page() {
               {/* LIBRARY */}
               {showLibrary && (
                 <div style={{ display: 'grid', gap: 10 }}>
-                  <div style={{ color: 'var(--text-weak)' }}>
-                    Your recent chats:
-                  </div>
+                  <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
                   <div className="chat-list" role="list">
                     {history.length === 0 && (
-                      <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">No history yet</div>
+                      <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
+                        No history yet
+                      </div>
                     )}
-                    {history.map(h => (
+                    {history.map((h) => (
                       <button
                         key={h.id}
                         className="chat-item"
                         role="listitem"
                         title={h.title}
-                        onClick={() => {
-                          setActiveId(h.id);
-                          const thread = threads[h.id];
-                          if (Array.isArray(thread) && thread.length) {
-                            setMessages(thread);
-                          } else {
-                            setMessages([{ id: uid(), role: 'assistant', content: 'Restored chat (no snapshot found). Start typing to continue.' }]);
-                          }
-                          setShowLibrary(false);
-                        }}
+                        onClick={() => onSelectHistory(h.id)}
                         style={{ textAlign: 'left' }}
                       >
                         {h.title}
@@ -851,7 +957,13 @@ export default function Page() {
                     className="btn"
                     onClick={() => {
                       setHistory([]);
-                      setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
+                      setMessages([
+                        {
+                          id: uid(),
+                          role: 'assistant',
+                          content: 'New chat. What do you want to figure out?',
+                        },
+                      ]);
                       closeAllOverlays();
                     }}
                   >
@@ -868,8 +980,14 @@ export default function Page() {
                     const name = projectName.trim() || 'Untitled Project';
                     const id = uid();
                     setActiveId(id);
-                    setHistory(h => [{ id, title: `📁 ${name}` }, ...h].slice(0, 20));
-                    setMessages([{ id: uid(), role: 'assistant', content: `New Project “${name}” started. What’s the goal?` }]);
+                    setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                    setMessages([
+                      {
+                        id: uid(),
+                        role: 'assistant',
+                        content: `New Project “${name}” started. What’s the goal?`,
+                      },
+                    ]);
                     setProjectName('');
                     closeAllOverlays();
                   }}
@@ -883,8 +1001,12 @@ export default function Page() {
                     autoFocus
                   />
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn primary" type="submit">Create</button>
-                    <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                    <button className="btn primary" type="submit">
+                      Create
+                    </button>
+                    <button className="btn" type="button" onClick={closeAllOverlays}>
+                      Cancel
+                    </button>
                   </div>
                 </form>
               )}
