@@ -1,3 +1,4 @@
+// START Sidebar.tsx (REPLACE ALL)
 'use client';
 
 import Link from "next/link";
@@ -11,13 +12,15 @@ export type SidebarProps = {
   onSettings?: () => void;
   onShare?: () => void;
 
-  // Optional quick actions (wired from page)
+  // Optional future wires
   onSearch?: () => void;
   onLibrary?: () => void;
   onNewProject?: () => void;
 
-  // NEW: active chat + selection handler
-  activeId?: string | null;
+  // Drawer control + selection
+  isOpen?: boolean;                 // default true
+  onToggle?: () => void;            // called when hamburger is clicked (mobile)
+  activeId?: string | null;         // highlight the active chat
   onSelectHistory?: (id: string) => void;
 };
 
@@ -29,10 +32,12 @@ export default function Sidebar({
   onSearch,
   onLibrary,
   onNewProject,
+  isOpen = true,
+  onToggle,
   activeId,
   onSelectHistory,
 }: SidebarProps) {
-  // Single click gateway for toolbar buttons
+  // One click gateway for toolbar buttons
   const onClick = React.useCallback((e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!el) return;
@@ -44,6 +49,15 @@ export default function Sidebar({
     if (act === 'settings') return onSettings?.();
     if (act === 'share') return onShare?.();
   }, [onNewChat, onSearch, onLibrary, onNewProject, onSettings, onShare]);
+
+  // Mobile detection (for slide-in/out)
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Cmd/Ctrl + N for New chat
   React.useEffect(() => {
@@ -90,90 +104,135 @@ export default function Sidebar({
         <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7a3.3 3.3 0 000-1.39l7.02-4.11A3 3 0 0018 7.91 3.09 3.09 0 1021.09 5 3.09 3.09 0 0018 7.91c-.24 0-.47-.03-.69-.09L10.3 11.93c.05.23.08.46.08.7s-.03.47-.08.69l7.01 4.12c.22-.06.45-.09.69-.09a3.09 3.09 0 103.09-3.09 3.1 3.1 0 00-3.09 3.09z" fill="currentColor" />
       </svg>
     ),
+    Menu: () => (
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z" fill="currentColor" />
+      </svg>
+    ),
   };
 
+  // Slide behavior (inline style so we don't rely on CSS being present)
+  const slideStyle: React.CSSProperties = isMobile
+    ? { transform: isOpen ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 200ms ease' }
+    : {};
+
   return (
-    <aside className="sidebar" style={{ position: "relative", zIndex: 1000 }} onClick={onClick}>
-      {/* Brand + primary */}
-      <div className="side-top">
-        <div className="brand" style={{ position: "relative", zIndex: 10000 }}>
-          <Link
-            href="/"
-            aria-label="HomeRates.ai home"
-            style={{ display: "inline-flex", alignItems: "center", pointerEvents: "auto", gap: 8 }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/homerates-mark.svg" alt="HomeRates.ai" width={28} height={28} style={{ display: "block" }} />
-            <span style={{ fontWeight: 700 }}>HomeRates.ai</span>
-          </Link>
+    <>
+      {/* Optional overlay when sidebar is open on mobile (tap to close) */}
+      {isMobile && isOpen && (
+        <div
+          onClick={onToggle}
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.3)',
+            zIndex: 999,
+          }}
+        />
+      )}
+
+      <aside
+        className="sidebar"
+        style={{ position: "relative", zIndex: 1000, ...slideStyle }}
+        onClick={onClick}
+        data-open={isOpen ? 'true' : 'false'}
+      >
+        {/* Brand + primary */}
+        <div className="side-top">
+          <div className="brand" style={{ position: "relative", zIndex: 10000, display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Mobile hamburger */}
+            {isMobile && (
+              <button
+                type="button"
+                className="btn"
+                aria-label="Toggle sidebar"
+                onClick={onToggle}
+                style={{ padding: '6px 8px' }}
+              >
+                <Icon.Menu />
+              </button>
+            )}
+
+            <Link
+              href="/"
+              aria-label="HomeRates.ai home"
+              style={{ display: "inline-flex", alignItems: "center", pointerEvents: "auto", gap: 8 }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/homerates-mark.svg" alt="HomeRates.ai" width={28} height={28} style={{ display: "block" }} />
+              <span style={{ fontWeight: 700 }}>HomeRates.ai</span>
+            </Link>
+          </div>
+
+          <button className="btn primary" type="button" data-action="new-chat" aria-label="New chat">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon.Plus /> New chat
+            </span>
+          </button>
         </div>
 
-        <button className="btn primary" type="button" data-action="new-chat" aria-label="New chat">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Icon.Plus /> New chat
-          </span>
-        </button>
-      </div>
+        {/* ChatGPT-like quick actions */}
+        <nav className="side-actions" style={{ padding: "0 12px", display: "grid", gap: 6, marginTop: 4 }}>
+          <button className="btn" type="button" data-action="search" aria-label="Search">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon.Search /> Search
+            </span>
+          </button>
+          <button className="btn" type="button" data-action="library" aria-label="Library">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon.Book /> Library
+            </span>
+          </button>
+          <button className="btn" type="button" data-action="new-project" aria-label="New Project">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon.Folder /> New Project +
+            </span>
+          </button>
+        </nav>
 
-      {/* ChatGPT-like quick actions */}
-      <nav className="side-actions" style={{ padding: "0 12px", display: "grid", gap: 6, marginTop: 4 }}>
-        <button className="btn" type="button" data-action="search" aria-label="Search">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Icon.Search /> Search
-          </span>
-        </button>
-        <button className="btn" type="button" data-action="library" aria-label="Library">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Icon.Book /> Library
-          </span>
-        </button>
-        <button className="btn" type="button" data-action="new-project" aria-label="New Project">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Icon.Folder /> New Project +
-          </span>
-        </button>
-      </nav>
+        {/* History list */}
+        <div className="chat-list" role="list" style={{ marginTop: 8 }}>
+          {history.length === 0 && (
+            <div className="chat-item" style={{ opacity: 0.7 }} role="listitem" aria-disabled="true">
+              No history yet
+            </div>
+          )}
 
-      {/* History list */}
-      <div className="chat-list" role="list" style={{ marginTop: 8 }}>
-        {history.length === 0 && (
-          <div className="chat-item" style={{ opacity: 0.7 }} role="listitem" aria-disabled="true">
-            No history yet
-          </div>
-        )}
+          {history.map((h) => {
+            const isActive = !!activeId && h.id === activeId;
+            return (
+              <button
+                key={h.id}
+                type="button"
+                className={`chat-item${isActive ? ' is-active' : ''}`}
+                role="listitem"
+                title={h.title}
+                onClick={() => onSelectHistory?.(h.id)}
+                style={{ textAlign: 'left' }}
+                aria-current={isActive ? 'true' : undefined}
+              >
+                {h.title}
+              </button>
+            );
+          })}
+        </div>
 
-        {history.map((h) => {
-          const isActive = activeId && h.id === activeId;
-          return (
-            <button
-              key={h.id}
-              type="button"
-              className={`chat-item${isActive ? ' is-active' : ''}`}
-              role="listitem"
-              title={h.title}
-              onClick={() => onSelectHistory?.(h.id)}
-              style={{ textAlign: 'left' }}
-              aria-current={isActive ? 'true' : undefined}
-            >
-              {h.title}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Secondary actions */}
-      <div className="side-bottom">
-        <button className="btn" type="button" data-action="settings" aria-label="Settings">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Icon.Cog /> Settings
-          </span>
-        </button>
-        <button className="btn" type="button" data-action="share" aria-label="Share">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Icon.Share /> Share
-          </span>
-        </button>
-      </div>
-    </aside>
+        {/* Secondary actions */}
+        <div className="side-bottom">
+          <button className="btn" type="button" data-action="settings" aria-label="Settings">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon.Cog /> Settings
+            </span>
+          </button>
+          <button className="btn" type="button" data-action="share" aria-label="Share">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon.Share /> Share
+            </span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
+// END Sidebar.tsx (REPLACE ALL)
