@@ -434,12 +434,68 @@ export default function Page() {
   const [history, setHistory] = useState<{ id: string; title: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Thread model (Library) + overlays
+  const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const [showSearch, setShowSearch] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showProject, setShowProject] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [projectName, setProjectName] = useState('');
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
+  // snapshot current thread whenever messages change
+  useEffect(() => {
+    if (activeId) {
+      setThreads(prev => ({ ...prev, [activeId]: messages }));
+    }
+  }, [messages, activeId]);
+
   function newChat() {
+    const id = uid();
+    setActiveId(id);
     setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
+    setHistory(h => [{ id, title: 'New chat' }, ...h].slice(0, 20));
+  }
+
+  // Overlays: actions
+  function serializeThread(msgs: ChatMsg[]) {
+    return msgs.map((m) =>
+      `${m.role === 'user' ? 'You' : 'HomeRates'}: ${
+        typeof m.content === 'string' ? m.content : ''
+      }`
+    ).join('\n');
+  }
+
+  function onShare() {
+    const text = serializeThread(messages);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    } else {
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'conversation.txt';
+      document.body.appendChild(a); a.click();
+      a.remove(); URL.revokeObjectURL(url);
+    }
+  }
+  function onSettings() { setShowSettings(true); }
+  function onSearch()   { setShowSearch(true); }
+  function onLibrary()  { setShowLibrary(true); }
+  function onNewProject() { setShowProject(true); }
+
+  function closeAllOverlays() {
+    setShowSearch(false);
+    setShowLibrary(false);
+    setShowSettings(false);
+    setShowProject(false);
   }
 
   async function send() {
@@ -447,7 +503,28 @@ export default function Page() {
     if (!q || loading) return;
 
     const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
-    setHistory((h) => [{ id: uid(), title }, ...h].slice(0, 12));
+
+    // Ensure we have a thread id and title it on first user msg
+    let tid = activeId;
+    if (!tid) {
+      tid = uid();
+      setActiveId(tid);
+      setHistory(h => [{ id: tid!, title }, ...h].slice(0, 20));
+    } else {
+      // Update existing "New chat"/Untitled to the first user line
+      setHistory(h => {
+        const i = h.findIndex(x => x.id === tid);
+        if (i >= 0) {
+          const copy = [...h];
+          if (copy[i].title === 'New chat' || copy[i].title.startsWith('Untitled')) {
+            copy[i] = { ...copy[i], title };
+          }
+          return copy;
+        }
+        return [{ id: tid!, title }, ...h].slice(0, 20);
+      });
+    }
+
     setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
     setInput('');
     setLoading(true);
@@ -562,7 +639,15 @@ export default function Page() {
   return (
     <>
       {/* Sidebar */}
-      <Sidebar history={history} onNewChat={newChat} />
+      <Sidebar
+        history={history}
+        onNewChat={newChat}
+        onSettings={onSettings}
+        onShare={onShare}
+        onSearch={onSearch}
+        onLibrary={onLibrary}
+        onNewProject={onNewProject}
+      />
 
       {/* Main */}
       <section className="main">
@@ -608,7 +693,9 @@ export default function Page() {
               {messages.map((m) => (
                 <div key={m.id}>
                   <Bubble role={m.role}>
-                    {m.role === 'assistant' ? <AnswerBlock meta={m.meta} /> : m.content}
+                    {m.role === 'assistant'
+                      ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content)
+                      : m.content}
                   </Bubble>
                 </div>
               ))}
@@ -635,6 +722,175 @@ export default function Page() {
             </button>
           </div>
         </div>
+
+        {/* ------- Overlays (Search/Library/Settings/New Project) ------- */}
+        {(showSearch || showLibrary || showSettings || showProject) && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeAllOverlays();
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              zIndex: 5000
+            }}
+          >
+            <div
+              className="panel"
+              style={{
+                width: 'min(680px, 92vw)',
+                maxHeight: '80vh',
+                overflow: 'auto',
+                padding: 16,
+                borderRadius: 12,
+                background: 'var(--card)',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                display: 'grid',
+                gap: 12
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 700 }}>
+                  {showSearch && 'Search'}
+                  {showLibrary && 'Library'}
+                  {showSettings && 'Settings'}
+                  {showProject && 'New Project'}
+                </div>
+                <button className="btn" onClick={closeAllOverlays} aria-label="Close">Close</button>
+              </div>
+
+              {/* SEARCH */}
+              {showSearch && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <input
+                    className="input"
+                    placeholder="Search your current thread and history…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontWeight: 600 }}>Matches in current thread</div>
+                    <ul style={{ marginTop: 0 }}>
+                      {messages
+                        .filter(m => typeof m.content === 'string' && m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .slice(0, 12)
+                        .map((m, i) => (
+                          <li key={m.id + i}>
+                            <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
+                            <span>{(m.content as string).slice(0, 200)}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                  <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontWeight: 600 }}>Matches in history titles</div>
+                    <ul style={{ marginTop: 0 }}>
+                      {history
+                        .filter(h => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .slice(0, 20)
+                        .map(h => <li key={h.id}>{h.title}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* LIBRARY */}
+              {showLibrary && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ color: 'var(--text-weak)' }}>
+                    Your recent chats:
+                  </div>
+                  <div className="chat-list" role="list">
+                    {history.length === 0 && (
+                      <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">No history yet</div>
+                    )}
+                    {history.map(h => (
+                      <button
+                        key={h.id}
+                        className="chat-item"
+                        role="listitem"
+                        title={h.title}
+                        onClick={() => {
+                          setActiveId(h.id);
+                          const thread = threads[h.id];
+                          if (Array.isArray(thread) && thread.length) {
+                            setMessages(thread);
+                          } else {
+                            setMessages([{ id: uid(), role: 'assistant', content: 'Restored chat (no snapshot found). Start typing to continue.' }]);
+                          }
+                          setShowLibrary(false);
+                        }}
+                        style={{ textAlign: 'left' }}
+                      >
+                        {h.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SETTINGS */}
+              {showSettings && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" onChange={() => { /* next pass */ }} />
+                    Compact bubbles (coming soon)
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" onChange={() => { /* next pass */ }} />
+                    Prefer dark mode (coming soon)
+                  </label>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setHistory([]);
+                      setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
+                      closeAllOverlays();
+                    }}
+                  >
+                    Clear history & reset chat
+                  </button>
+                </div>
+              )}
+
+              {/* NEW PROJECT */}
+              {showProject && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const name = projectName.trim() || 'Untitled Project';
+                    const id = uid();
+                    setActiveId(id);
+                    setHistory(h => [{ id, title: `📁 ${name}` }, ...h].slice(0, 20));
+                    setMessages([{ id: uid(), role: 'assistant', content: `New Project “${name}” started. What’s the goal?` }]);
+                    setProjectName('');
+                    closeAllOverlays();
+                  }}
+                  style={{ display: 'grid', gap: 10 }}
+                >
+                  <input
+                    className="input"
+                    placeholder="Project name"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn primary" type="submit">Create</button>
+                    <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
       </section>
     </>
   );
