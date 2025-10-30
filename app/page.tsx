@@ -550,6 +550,19 @@ export default function Page() {
   }
 
   function newChat() {
+    function onSelectHistory(id: string) {
+      setActiveId(id);
+      const thread = threads[id];
+      if (Array.isArray(thread) && thread.length) {
+        setMessages(thread);
+      } else {
+        setMessages([
+          { id: uid(), role: 'assistant', content: 'Restored chat (no snapshot found). Start typing to continue.' },
+        ]);
+      }
+      setShowLibrary(false);
+    }
+
     const id = uid();
     setActiveId(id);
     setMessages([
