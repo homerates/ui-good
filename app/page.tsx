@@ -422,6 +422,8 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const toggleSidebar = () => setSidebarOpen(o => !o);
 
   // Thread model (messages per chat) + active thread id
   const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
@@ -717,21 +719,34 @@ export default function Page() {
       <Sidebar
         history={history}
         onNewChat={newChat}
-        onSettings={() => setShowSettings(true)}
+        onSettings={onSettings}
         onShare={onShare}
-        onSearch={() => setShowSearch(true)}
-        onLibrary={() => setShowLibrary(true)}
-        onNewProject={() => setShowProject(true)}
+        onSearch={onSearch}
+        onLibrary={onLibrary}
+        onNewProject={onNewProject}
         activeId={activeId}
         onSelectHistory={onSelectHistory}
+        isOpen={sidebarOpen}
+        onToggle={toggleSidebar}
       />
+
 
       {/* Main */}
       <section className="main">
         <div className="header">
           <div className="header-inner">
+            <button
+              className="btn"
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Toggle sidebar"
+              style={{ marginRight: 8 }}
+            >
+              Menu
+            </button>
             <div style={{ fontWeight: 700 }}>Chat</div>
             <div className="controls">
+
               <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}>
                 <option value="borrower">Borrower</option>
                 <option value="public">Public</option>
