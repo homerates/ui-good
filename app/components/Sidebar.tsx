@@ -30,10 +30,10 @@ export type SidebarProps = {
   activeId?: string | null;
   onSelectHistory?: (id: string) => void;
 
-  // NEW: per-item actions
+  // NEW: kebab actions
   onHistoryAction?: (action: 'rename' | 'move' | 'archive' | 'delete', id: string) => void;
-
 };
+
 
 export default function Sidebar({
   history,
@@ -47,7 +47,9 @@ export default function Sidebar({
   onToggle,
   activeId,
   onSelectHistory,
+  onHistoryAction, // <— add this
 }: SidebarProps) {
+
   // One click gateway for toolbar buttons
   const onClick = React.useCallback((e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');

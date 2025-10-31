@@ -551,6 +551,48 @@ export default function Page() {
   }
 
   function newChat() {
+    // Handle kebab actions from Sidebar (rename/move/archive/delete)
+    function handleHistoryAction(
+      action: 'rename' | 'move' | 'archive' | 'delete',
+      id: string
+    ) {
+      if (action === 'rename') {
+        const current = history.find(h => h.id === id)?.title ?? '';
+        const name = prompt('Rename chat:', current);
+        if (name && name.trim()) {
+          setHistory(h =>
+            h.map(x => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x))
+          );
+        }
+        return;
+      }
+
+      if (action === 'move') {
+        alert('Move to project… (coming soon)');
+        return;
+      }
+
+      if (action === 'archive') {
+        alert('Archive… (coming soon)');
+        return;
+      }
+
+      if (action === 'delete') {
+        if (confirm('Delete this chat? This cannot be undone.')) {
+          setHistory(h => h.filter(x => x.id !== id));
+          setThreads(t => {
+            const copy = { ...t };
+            delete copy[id];
+            return copy;
+          });
+          if (activeId === id) {
+            setActiveId(null);
+            setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
+          }
+        }
+      }
+    }
+
     const id = uid();
     setActiveId(id);
     setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
@@ -728,7 +770,9 @@ export default function Page() {
         onSelectHistory={onSelectHistory}
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
+        onHistoryAction={handleHistoryAction}
       />
+
 
 
       {/* Main */}
