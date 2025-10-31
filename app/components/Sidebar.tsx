@@ -60,8 +60,10 @@ export default function Sidebar({
     if (act === 'library') return onLibrary?.();
     if (act === 'new-project') return onNewProject?.();
     if (act === 'settings') return onSettings?.();
+    if (act === 'login') { window.location.href = '/login'; return; }
     if (act === 'share') return onShare?.();
   }, [onNewChat, onSearch, onLibrary, onNewProject, onSettings, onShare]);
+
 
   // Mobile detection (for slide-in/out)
   const [isMobile, setIsMobile] = React.useState(false);
@@ -199,11 +201,12 @@ export default function Sidebar({
 
         {/* ChatGPT-like quick actions */}
         <nav className="side-actions" style={{ padding: "0 12px", display: "grid", gap: 6, marginTop: 4 }}>
-          <a className="btn" href="/login" aria-label="Login" style={{ textDecoration: 'none' }}>
+          <button className="btn" type="button" data-action="login" aria-label="Login">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Icon.Share /> Login
             </span>
-          </a>
+          </button>
+
 
           <button className="btn" type="button" data-action="library" aria-label="Library">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
