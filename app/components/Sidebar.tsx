@@ -4,7 +4,14 @@
 import Link from "next/link";
 import * as React from "react";
 
-export type SidebarHistoryItem = { id: string; title: string; updatedAt?: number };
+export type SidebarHistoryItem = {
+  id: string;
+  title: string;
+  updatedAt?: number;
+  project?: string;
+  archived?: boolean;
+};
+
 
 export type SidebarProps = {
   history: SidebarHistoryItem[];
@@ -17,11 +24,15 @@ export type SidebarProps = {
   onLibrary?: () => void;
   onNewProject?: () => void;
 
-  // Drawer control + selection
-  isOpen?: boolean;                 // default true
-  onToggle?: () => void;            // called when hamburger is clicked (mobile)
-  activeId?: string | null;         // highlight the active chat
+  // NEW: open/close + selection
+  isOpen?: boolean;
+  onToggle?: () => void;
+  activeId?: string | null;
   onSelectHistory?: (id: string) => void;
+
+  // NEW: per-item actions
+  onHistoryAction?: (action: 'rename' | 'move' | 'archive' | 'delete', id: string) => void;
+
 };
 
 export default function Sidebar({
@@ -52,6 +63,18 @@ export default function Sidebar({
 
   // Mobile detection (for slide-in/out)
   const [isMobile, setIsMobile] = React.useState(false);
+  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
+  const closeMenu = () => setOpenMenuId(null);
+  React.useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.('.history-kebab, .history-menu')) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('click', onDoc);
+    return () => document.removeEventListener('click', onDoc);
+  }, []);
+
   React.useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
     check();
@@ -199,23 +222,99 @@ export default function Sidebar({
             </div>
           )}
 
-          {history.map((h) => {
-            const isActive = !!activeId && h.id === activeId;
-            return (
-              <button
-                key={h.id}
-                type="button"
-                className={`chat-item${isActive ? ' is-active' : ''}`}
-                role="listitem"
-                title={h.title}
-                onClick={() => onSelectHistory?.(h.id)}
-                style={{ textAlign: 'left' }}
-                aria-current={isActive ? 'true' : undefined}
-              >
-                {h.title}
-              </button>
-            );
-          })}
+          {history
+            .filter(h => !h.archived) // hide archived from main list
+            .map((h) => {
+              const isActive = activeId && h.id === activeId;
+              return (
+                <div key={h.id} className={`chat-item-row${isActive ? ' is-active' : ''}`} role="listitem" title={h.title} style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                  <button
+                    type="button"
+                    className={`chat-item${isActive ? ' is-active' : ''}`}
+                    onClick={() => onSelectHistory?.(h.id)}
+                    style={{ textAlign: 'left', flex: 1 }}
+                    aria-current={isActive ? 'true' : undefined}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {h.project && (
+                        <span
+                          className="chip"
+                          style={{
+                            fontSize: 11,
+                            padding: '2px 6px',
+                            borderRadius: 999,
+                            background: 'var(--surface-2, #f2f2f2)',
+                            color: 'var(--text-weak, #555)'
+                          }}
+                        >
+                          📁 {h.project}
+                        </span>
+                      )}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {h.title}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* ⋯ kebab */}
+                  <button
+                    type="button"
+                    className="history-kebab"
+                    aria-label="More"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenuId(prev => (prev === h.id ? null : h.id));
+                    }}
+                    style={{
+                      marginLeft: 6,
+                      padding: '4px 6px',
+                      borderRadius: 6,
+                      border: '1px solid var(--border, #ddd)',
+                      background: 'var(--card, #fff)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ⋯
+                  </button>
+
+                  {/* dropdown */}
+                  {openMenuId === h.id && (
+                    <div
+                      className="history-menu"
+                      role="menu"
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        transform: 'translateY(28px)',
+                        zIndex: 10000,
+                        background: 'var(--card, #fff)',
+                        border: '1px solid var(--border, #ddd)',
+                        borderRadius: 8,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                        minWidth: 180,
+                        padding: 6,
+                        display: 'grid',
+                        gap: 4
+                      }}
+                    >
+                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('rename', h.id); setOpenMenuId(null); }}>
+                        Rename
+                      </button>
+                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('move', h.id); setOpenMenuId(null); }}>
+                        Move to project…
+                      </button>
+                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('archive', h.id); setOpenMenuId(null); }}>
+                        Archive
+                      </button>
+                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('delete', h.id); setOpenMenuId(null); }}>
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
         </div>
 
         {/* Secondary actions */}
