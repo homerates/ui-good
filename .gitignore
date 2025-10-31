@@ -49,3 +49,5 @@ _local_trash/
 
 
 tsconfig.tsbuildinfo
+
+/generated/prisma

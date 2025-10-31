@@ -199,11 +199,12 @@ export default function Sidebar({
 
         {/* ChatGPT-like quick actions */}
         <nav className="side-actions" style={{ padding: "0 12px", display: "grid", gap: 6, marginTop: 4 }}>
-          <button className="btn" type="button" data-action="search" aria-label="Search">
+          <a className="btn" href="/login" aria-label="Login" style={{ textDecoration: 'none' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Icon.Search /> Search
+              <Icon.Share /> Login
             </span>
-          </button>
+          </a>
+
           <button className="btn" type="button" data-action="library" aria-label="Library">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Icon.Book /> Library
