@@ -13,7 +13,6 @@ export type SidebarHistoryItem = {
   archived?: boolean;
 };
 
-
 export type SidebarProps = {
   history: SidebarHistoryItem[];
   onNewChat: () => void;
@@ -35,20 +34,8 @@ export type SidebarProps = {
   onHistoryAction?: (action: 'rename' | 'move' | 'archive' | 'delete', id: string) => void;
 };
 
-
 export default function Sidebar({
-  const router = typeof window !== 'undefined' ? require('next/navigation').useRouter() : null;
-
-  function openSearch() {
-    // Try the event most overlays listen for. If your app uses a setter/handler, swap it in.
-    window.dispatchEvent(new CustomEvent('open-search'));
-    // Alternatives if your app uses them:
-    // handleAction?.('search');
-    // setOverlay?.('search');
-    // searchStore?.open?.();
-  }
-
-history,
+  history,
   onNewChat,
   onSettings,
   onShare,
@@ -59,10 +46,11 @@ history,
   onToggle,
   activeId,
   onSelectHistory,
-  onHistoryAction, // <— add this
+  onHistoryAction,
 }: SidebarProps) {
   const router = useRouter();
-  // One click gateway for toolbar buttons
+
+  // One click gateway for toolbar buttons (event delegation)
   const onClick = React.useCallback((e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!el) return;
@@ -72,15 +60,15 @@ history,
     if (act === 'library') return onLibrary?.();
     if (act === 'new-project') return onNewProject?.();
     if (act === 'settings') return onSettings?.();
-    if (act === 'login') { window.location.href = '/login'; return; }
+    if (act === 'login') { router.push('/login'); return; }
     if (act === 'share') return onShare?.();
-  }, [onNewChat, onSearch, onLibrary, onNewProject, onSettings, onShare]);
-
+  }, [onNewChat, onSearch, onLibrary, onNewProject, onSettings, onShare, router]);
 
   // Mobile detection (for slide-in/out)
   const [isMobile, setIsMobile] = React.useState(false);
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   const closeMenu = () => setOpenMenuId(null);
+
   React.useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (!(e.target as HTMLElement)?.closest?.('.history-kebab, .history-menu')) {
@@ -213,24 +201,16 @@ history,
 
         {/* ChatGPT-like quick actions */}
         <nav className="side-actions" style={{ padding: "0 12px", display: "grid", gap: 6, marginTop: 4 }}>
-          /* === SEARCH (restored) === */
+          {/* === SEARCH (restored) === */}
           <button
             data-action="search"
             aria-label="Search"
-            onClick={() => {
-              // If you have a central handler, prefer this:
-              // handleAction?.('search');
-
-              // Fallback: emit the overlay event your app listens for:
-              window.dispatchEvent(new CustomEvent('open-search'));
-            }}
+            onClick={onSearch}
             className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100"
           >
-            {/* keep your Search icon here */}
+            <Icon.Search />
             <span className="text-sm font-medium">Search</span>
           </button>
-
-
 
           <button className="btn" type="button" data-action="library" aria-label="Library">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -255,9 +235,15 @@ history,
           {history
             .filter(h => !h.archived) // hide archived from main list
             .map((h) => {
-              const isActive = activeId && h.id === activeId;
+              const isActive = !!activeId && h.id === activeId;
               return (
-                <div key={h.id} className={`chat-item-row${isActive ? ' is-active' : ''}`} role="listitem" title={h.title} style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                <div
+                  key={h.id}
+                  className={`chat-item-row${isActive ? ' is-active' : ''}`}
+                  role="listitem"
+                  title={h.title}
+                  style={{ display: 'flex', alignItems: 'center', position: 'relative' }}
+                >
                   <button
                     type="button"
                     className={`chat-item${isActive ? ' is-active' : ''}`}
@@ -327,16 +313,16 @@ history,
                         gap: 4
                       }}
                     >
-                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('rename', h.id); setOpenMenuId(null); }}>
+                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('rename', h.id); closeMenu(); }}>
                         Rename
                       </button>
-                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('move', h.id); setOpenMenuId(null); }}>
+                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('move', h.id); closeMenu(); }}>
                         Move to project…
                       </button>
-                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('archive', h.id); setOpenMenuId(null); }}>
+                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('archive', h.id); closeMenu(); }}>
                         Archive
                       </button>
-                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('delete', h.id); setOpenMenuId(null); }}>
+                      <button className="btn" type="button" onClick={() => { onHistoryAction?.('delete', h.id); closeMenu(); }}>
                         Delete
                       </button>
                     </div>
@@ -344,7 +330,6 @@ history,
                 </div>
               );
             })}
-
         </div>
 
         {/* Secondary actions */}
@@ -354,17 +339,16 @@ history,
               <Icon.Cog /> Settings
             </span>
           </button>
-          /* === LOGIN (new, replaces bottom Share) === */
+
+          {/* === LOGIN (replaces bottom Share) === */}
           <Link
             href="/login"
             data-action="login"
             aria-label="Login"
             className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100"
           >
-            {/* login icon */}
             <span className="text-sm font-medium">Login</span>
           </Link>
-
         </div>
       </aside>
     </>
