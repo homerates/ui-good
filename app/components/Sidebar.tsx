@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 export type SidebarHistoryItem = {
   id: string;
@@ -36,7 +37,18 @@ export type SidebarProps = {
 
 
 export default function Sidebar({
-  history,
+  const router = typeof window !== 'undefined' ? require('next/navigation').useRouter() : null;
+
+  function openSearch() {
+    // Try the event most overlays listen for. If your app uses a setter/handler, swap it in.
+    window.dispatchEvent(new CustomEvent('open-search'));
+    // Alternatives if your app uses them:
+    // handleAction?.('search');
+    // setOverlay?.('search');
+    // searchStore?.open?.();
+  }
+
+history,
   onNewChat,
   onSettings,
   onShare,
@@ -49,7 +61,7 @@ export default function Sidebar({
   onSelectHistory,
   onHistoryAction, // <— add this
 }: SidebarProps) {
-
+  const router = useRouter();
   // One click gateway for toolbar buttons
   const onClick = React.useCallback((e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
@@ -201,11 +213,23 @@ export default function Sidebar({
 
         {/* ChatGPT-like quick actions */}
         <nav className="side-actions" style={{ padding: "0 12px", display: "grid", gap: 6, marginTop: 4 }}>
-          <button className="btn" type="button" data-action="login" aria-label="Login">
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Icon.Share /> Login
-            </span>
+          /* === SEARCH (restored) === */
+          <button
+            data-action="search"
+            aria-label="Search"
+            onClick={() => {
+              // If you have a central handler, prefer this:
+              // handleAction?.('search');
+
+              // Fallback: emit the overlay event your app listens for:
+              window.dispatchEvent(new CustomEvent('open-search'));
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100"
+          >
+            {/* keep your Search icon here */}
+            <span className="text-sm font-medium">Search</span>
           </button>
+
 
 
           <button className="btn" type="button" data-action="library" aria-label="Library">
@@ -330,11 +354,17 @@ export default function Sidebar({
               <Icon.Cog /> Settings
             </span>
           </button>
-          <button className="btn" type="button" data-action="share" aria-label="Share">
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Icon.Share /> Share
-            </span>
-          </button>
+          /* === LOGIN (new, replaces bottom Share) === */
+          <Link
+            href="/login"
+            data-action="login"
+            aria-label="Login"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100"
+          >
+            {/* login icon */}
+            <span className="text-sm font-medium">Login</span>
+          </Link>
+
         </div>
       </aside>
     </>
