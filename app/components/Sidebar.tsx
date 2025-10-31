@@ -136,6 +136,12 @@ export default function Sidebar({
         <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z" fill="currentColor" />
       </svg>
     ),
+    Login: () => (
+      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M10 3h8a1 1 0 011 1v16a1 1 0 01-1 1h-8v-2h7V5h-7V3zM5.59 7.41L7 6l5 5-5 5-1.41-1.41L8.17 12 5.59 9.41z" fill="currentColor" />
+      </svg>
+    ),
+
   };
 
   // Slide behavior (inline style so we don't rely on CSS being present)
@@ -206,7 +212,7 @@ export default function Sidebar({
             data-action="search"
             aria-label="Search"
             onClick={onSearch}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100"
+            className="btn"
           >
             <Icon.Search />
             <span className="text-sm font-medium">Search</span>
@@ -345,10 +351,13 @@ export default function Sidebar({
             href="/login"
             data-action="login"
             aria-label="Login"
-            className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100"
+            className="btn"
           >
-            <span className="text-sm font-medium">Login</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon.Login /> Login
+            </span>
           </Link>
+
         </div>
       </aside>
     </>
