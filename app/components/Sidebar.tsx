@@ -354,7 +354,7 @@ export default function Sidebar({
             className="btn"
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Icon.LayoutDashboard /> Dashboard
+              <Icon.Login /> Dashboard
             </span>
           </Link>
 
