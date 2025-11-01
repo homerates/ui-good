@@ -1,12 +1,5 @@
-
-# local trash
-_local_trash/
-
-
-# local trash
-_local_trash/
-
-
-# local trash
-_local_trash/
-
+node_modules
+.next
+out
+build
+dist
