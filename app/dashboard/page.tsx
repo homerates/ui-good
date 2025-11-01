@@ -2,12 +2,12 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import UserGreeting from "./UserGreeting";
+
 export default async function DashboardPage() {
-    // Require auth on server
-    const { userId } = auth();
+    // NOTE: await auth() — fixes TS2339 (Promise<...>)
+    const { userId } = await auth();
     if (!userId) redirect("/login");
 
-    // Optional: load user profile (firstName, email, etc.)
     const user = await currentUser();
 
     return (
@@ -15,12 +15,14 @@ export default async function DashboardPage() {
             <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
                 Dashboard
             </h1>
+
+            {/* Optional live greeting just under the H1 */}
             <UserGreeting />
+
             <p style={{ color: "#4b5563", marginBottom: 16 }}>
                 {user?.firstName ? `Welcome, ${user.firstName}.` : "Welcome."}
             </p>
 
-            {/* You can place cards, charts, usage counters, etc. here */}
             <section
                 style={{
                     display: "grid",
