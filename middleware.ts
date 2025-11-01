@@ -1,21 +1,45 @@
 // middleware.ts
-import { NextResponse } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// 🚫 Do NOT run middleware on API routes or Next assets.
-// This fully bypasses SSO/redirects/etc for /api/*.
+/**
+ * Public routes (no auth required).
+ * Add any additional public paths here (docs, blog, marketing, etc.)
+ */
+const isPublic = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/health",
+  "/api/public(.*)",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/_next(.*)",        // Next.js internals
+  "/static(.*)",       // if you use /public/static
+  "/images(.*)",       // if you expose images directly
+]);
+
+/**
+ * Webhooks should never be gated behind auth.
+ * Example: Stripe, Clerk webhooks, etc.
+ */
+const isWebhook = createRouteMatcher([
+  "/api/webhooks(.*)",
+]);
+
+export default clerkMiddleware((auth, req) => {
+  // Always allow webhooks and explicitly public routes
+  if (isWebhook(req) || isPublic(req)) return;
+
+  // Everything else requires auth
+  auth().protect();
+});
+
+/**
+ * Matcher:
+ * - Run on all routes except next internals and files with extensions
+ * - This keeps static assets and prebuilt chunks out of middleware
+ */
 export const config = {
-  matcher: [
-    // everything EXCEPT:
-    // - /api/*
-    // - /_next/*
-    // - /assets/*
-    // - /favicon.ico
-    "/((?!api/|_next/|assets/|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next|.*\\..*).*)"],
 };
-
-export default function middleware() {
-  // Keep your existing logic here if you had any (auth, redirects, etc).
-  // It will run for pages, not for /api/*.
-  return NextResponse.next();
-}
