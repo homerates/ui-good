@@ -17,7 +17,6 @@
     "@prisma/client": "^6.18.0",
     "bcrypt": "^6.0.0",
     "next": "15.5.5",
-    "next-auth": "^4.24.13",
     "prisma": "^6.18.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
