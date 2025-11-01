@@ -348,13 +348,13 @@ export default function Sidebar({
 
           {/* === LOGIN (replaces bottom Share) === */}
           <Link
-            href="/login"
-            data-action="login"
-            aria-label="Login"
+            href="/dashboard"
+            data-action="dashboard"
+            aria-label="Dashboard"
             className="btn"
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Icon.Login /> Login
+              <Icon.LayoutDashboard /> Dashboard
             </span>
           </Link>
 
