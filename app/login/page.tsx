@@ -17,15 +17,17 @@ export default function LoginPage() {
     }, [router]);
 
     return (
+        // Backdrop (glass blur, click-outside to close)
         <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="login-title"
-            // Backdrop (same vibe as search)
             style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'rgba(0,0,0,0.35)',
+                background: 'rgba(255,255,255,0.06)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
                 display: 'grid',
                 placeItems: 'center',
                 padding: '24px',
@@ -33,27 +35,36 @@ export default function LoginPage() {
             }}
             onClick={(e) => {
                 // click outside card closes
-                if ((e.target as HTMLElement).getAttribute('data-closable') === 'backdrop') {
-                    router.back();
-                }
+                if (e.currentTarget === e.target) router.back();
             }}
-            data-closable="backdrop"
         >
-            {/* Centered card */}
+            {/* Centered card (frosted/white core) */}
             <div
                 style={{
                     width: '100%',
                     maxWidth: 520,
                     borderRadius: 16,
-                    border: '1px solid var(--border, #e5e7eb)',
-                    background: 'var(--card, #fff)',
-                    boxShadow: '0 12px 36px rgba(0,0,0,0.18)',
+                    background: 'rgba(255,255,255,0.85)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid var(--border, #e5e7eb)' }}>
-                    <h1 id="login-title" className="text-lg font-semibold">Login</h1>
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '16px 18px',
+                        borderBottom: '1px solid rgba(0,0,0,0.06)',
+                    }}
+                >
+                    <h1 id="login-title" className="text-lg font-semibold">
+                        Login
+                    </h1>
                     <button
                         onClick={() => router.back()}
                         aria-label="Close"
@@ -70,8 +81,7 @@ export default function LoginPage() {
                     style={{ padding: 18 }}
                     onSubmit={(e) => {
                         e.preventDefault();
-                        // TODO: wire to your auth flow (NextAuth signIn, or custom /api/auth/login)
-                        // await signIn('credentials', { email, password, redirect: true, callbackUrl: '/' });
+                        // TODO: hook to your auth (NextAuth signIn or custom /api/auth/login)
                     }}
                 >
                     <label className="block">
@@ -94,10 +104,21 @@ export default function LoginPage() {
                         />
                     </label>
 
-                    <button type="submit" className="w-full btn">Sign in</button>
+                    <button type="submit" className="w-full btn">
+                        Sign in
+                    </button>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                        <Link href="/" className="underline text-sm">Home</Link>
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginTop: 8,
+                        }}
+                    >
+                        <Link href="/" className="underline text-sm">
+                            Home
+                        </Link>
                         <button
                             type="button"
                             onClick={() => router.back()}
