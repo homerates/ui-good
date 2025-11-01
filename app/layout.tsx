@@ -1,5 +1,6 @@
 ﻿// app/layout.tsx
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata = {
   title: "HomeRates",
@@ -7,11 +8,11 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // 7-char SHA if present, else fallback
+  // short SHA if available
   const shortSha =
     process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "v3";
 
-  // render a simple local timestamp on the server
+  // server-rendered timestamp
   const ts = new Date().toLocaleString("en-US", {
     year: "numeric",
     month: "2-digit",
@@ -21,15 +22,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   });
 
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="app">
-        {children}
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body className="app">
+          {children}
 
-        {/* Footer bar */}
-        <div className="footer-meta">
-          HomeRates.Ai — Powered by OpenAI • {ts} • Version {shortSha}
-        </div>
-      </body>
-    </html>
+          {/* Footer bar */}
+          <div className="footer-meta">
+            HomeRates.Ai — Powered by OpenAI • {ts} • Version {shortSha}
+          </div>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
