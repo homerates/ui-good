@@ -1,146 +1,37 @@
-'use client';
+import NextAuth, { type NextAuthOptions } from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+// import { prisma } from "@/lib/prisma";
+// import { compare } from "bcryptjs"; // <-- remove for now
 
-import Link from 'next/link';
-import { signIn } from 'next-auth/react';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+export const authOptions: NextAuthOptions = {
+    providers: [
+        Credentials({
+            name: "Credentials",
+            credentials: {
+                email: { label: "Email", type: "email" },
+                password: { label: "Password", type: "password" },
+            },
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials.password) return null;
 
-export default function LoginPage() {
-    const router = useRouter();
+                // --- TEMP DEV STUB (no DB yet) ---
+                // Replace with Prisma + bcrypt compare() later
+                if (credentials.password === "test123") {
+                    return {
+                        id: "dev-user",
+                        name: "Dev User",
+                        email: credentials.email as string,
+                    };
+                }
+                return null;
+            },
+        }),
+    ],
+    session: { strategy: "jwt" as const }, // <- ensure literal type
+    pages: {
+        signIn: "/login",
+    },
+};
 
-    // Close on ESC
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') router.back();
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [router]);
-
-    return (
-        // Backdrop (glass blur, click-outside to close)
-        <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="login-title"
-            style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(255,255,255,0.06)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                display: 'grid',
-                placeItems: 'center',
-                padding: '24px',
-                zIndex: 10000,
-            }}
-            onClick={(e) => {
-                // click outside card closes
-                if (e.currentTarget === e.target) router.back();
-            }}
-        >
-            {/* Centered card (frosted/white core) */}
-            <div
-                style={{
-                    width: '100%',
-                    maxWidth: 520,
-                    borderRadius: 16,
-                    background: 'rgba(255,255,255,0.85)',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '16px 18px',
-                        borderBottom: '1px solid rgba(0,0,0,0.06)',
-                    }}
-                >
-                    <h1 id="login-title" className="text-lg font-semibold">
-                        Login
-                    </h1>
-                    <button
-                        onClick={() => router.back()}
-                        aria-label="Close"
-                        className="btn"
-                        style={{ padding: '6px 10px' }}
-                    >
-                        Esc
-                    </button>
-                </div>
-
-                {/* Body */}
-                <form
-                    className="space-y-4"
-                    style={{ padding: 18 }}
-                    onSubmit={async (e) => {
-                        e.preventDefault();
-                        const form = e.currentTarget as HTMLFormElement;
-                        const data = new FormData(form);
-                        const email = String(data.get('email') || '');
-                        const password = String(data.get('password') || '');
-                        await signIn('credentials', {
-                            email,
-                            password,
-                            redirect: true,
-                            callbackUrl: '/',
-                        });
-                    }}
-                >
-                    <label className="block">
-                        <span className="text-sm">Email</span>
-                        <input
-                            name="email"
-                            type="email"
-                            required
-                            className="mt-1 w-full rounded-xl border px-3 py-2"
-                            placeholder="you@example.com"
-                        />
-                    </label>
-
-                    <label className="block">
-                        <span className="text-sm">Password</span>
-                        <input
-                            name="password"
-                            type="password"
-                            required
-                            className="mt-1 w-full rounded-xl border px-3 py-2"
-                            placeholder="••••••••"
-                        />
-                    </label>
-
-                    <button type="submit" className="w-full btn">
-                        Sign in
-                    </button>
-
-                    <div
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginTop: 8,
-                        }}
-                    >
-                        <Link href="/" className="underline text-sm">
-                            Home
-                        </Link>
-                        <button
-                            type="button"
-                            onClick={() => router.back()}
-                            className="text-sm underline"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };

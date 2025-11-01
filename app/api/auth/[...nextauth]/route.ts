@@ -1,10 +1,9 @@
-// app/api/auth/[...nextauth]/route.ts
-import NextAuth from "next-auth";
+import NextAuth, { type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 // import { prisma } from "@/lib/prisma";
-import { compare } from "bcryptjs";
+// import { compare } from "bcryptjs"; // <- removed for now
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
     providers: [
         Credentials({
             name: "Credentials",
@@ -15,22 +14,22 @@ export const authOptions = {
             async authorize(credentials) {
                 if (!credentials?.email || !credentials.password) return null;
 
-                // --- REAL DB (uncomment when Prisma is wired) ---
-                // const user = await prisma.user.findUnique({ where: { email: credentials.email }});
-                // if (!user) return null;
-                // const ok = await compare(credentials.password, user.password);
-                // if (!ok) return null;
-                // return { id: user.id, name: user.name ?? "", email: user.email };
-
-                // --- TEMP DEV STUB (no DB yet) ---
+                // TEMP DEV STUB: accept any email with password "test123"
                 if (credentials.password === "test123") {
-                    return { id: "dev-user", name: "Dev User", email: credentials.email };
+                    return {
+                        id: "dev-user",
+                        name: "Dev User",
+                        email: String(credentials.email),
+                    };
                 }
                 return null;
             },
         }),
     ],
-    session: { strategy: "jwt" },
+    session: { strategy: "jwt" as const }, // literal type fixes TS error
+    pages: {
+        signIn: "/login",
+    },
 };
 
 const handler = NextAuth(authOptions);
