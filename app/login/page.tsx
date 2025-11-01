@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { signIn } from 'next-auth/react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -79,14 +80,24 @@ export default function LoginPage() {
                 <form
                     className="space-y-4"
                     style={{ padding: 18 }}
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                         e.preventDefault();
-                        // TODO: hook to your auth (NextAuth signIn or custom /api/auth/login)
+                        const form = e.currentTarget as HTMLFormElement;
+                        const data = new FormData(form);
+                        const email = String(data.get('email') || '');
+                        const password = String(data.get('password') || '');
+                        await signIn('credentials', {
+                            email,
+                            password,
+                            redirect: true,
+                            callbackUrl: '/',
+                        });
                     }}
                 >
                     <label className="block">
                         <span className="text-sm">Email</span>
                         <input
+                            name="email"
                             type="email"
                             required
                             className="mt-1 w-full rounded-xl border px-3 py-2"
@@ -97,6 +108,7 @@ export default function LoginPage() {
                     <label className="block">
                         <span className="text-sm">Password</span>
                         <input
+                            name="password"
                             type="password"
                             required
                             className="mt-1 w-full rounded-xl border px-3 py-2"
