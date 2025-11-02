@@ -1,774 +1,168 @@
 ﻿'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Sidebar from './components/Sidebar';
+import * as React from 'react';
+import Sidebar, {
+  type SidebarHistoryItem,
+} from './components/Sidebar';
+import Link from 'next/link';
 
-const LS_KEY = 'hr.chat.v1';
+type ChatMsg = { role: 'user' | 'assistant' | 'system'; content: string };
 
-type Role = 'user' | 'assistant';
-
-/* =========================
-   Calc helpers (UI)
-   ========================= */
-function isPaymentQuery(q: string) {
-  const s = q.toLowerCase();
-  if (/\bpay(ment|mnt|ments|mnts)?\b/.test(s)) return true;
-  if (/\bmonthly\s*payment(s)?\b/.test(s)) return true;
-  if (/\bp\s*&\s*i\b/.test(s)) return true;
-  if (/\bprincipal\s*&?\s*interest\b/.test(s)) return true;
-
-  // pattern: has 'loan' + some % + some years
-  const hasLoan = /\bloan\b/.test(s);
-  const hasRate = /\b\d+(\.\d+)?\s*%/.test(s);
-  const hasYears = /\b\d+\s*(years?|yrs?|yr|y|yeards?)\b/.test(s);
-  if (hasLoan && hasRate && hasYears) return true;
-
-  // generic “$400k at 6.5% for 30 years”
-  if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+at\s+\d+(\.\d+)?\s*%\s+for\s+\d+/.test(s)) return true;
-
-  // generic “$400k @ 6.5% for 30y”
-  if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+@\s+\d+(\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s)) return true;
-
-  return false;
-}
-
-/* =========================
-   Robust parsing helpers
-   ========================= */
-function isFiniteNum(n: unknown): n is number {
-  return typeof n === 'number' && Number.isFinite(n);
-}
-
-/** Parse $400k, 400k, $1.2m, 1200000 → number of dollars (rounded) */
-function parseMoney(raw: string | undefined | null): number | undefined {
-  if (!raw) return undefined;
-  const s = String(raw).trim().toLowerCase().replace(/,/g, '');
-  const m = s.match(/^\$?\s*([\d]+(?:\.[\d]+)?)\s*([km])?\b/);
-  if (!m) return undefined;
-  let n = parseFloat(m[1]);
-  const unit = m[2];
-  if (unit === 'k') n *= 1_000;
-  if (unit === 'm') n *= 1_000_000;
-  if (!Number.isFinite(n)) return undefined;
-  return Math.round(n);
-}
-
-/** Parse 6.5 or 6.5% → 6.5 */
-function parsePercent(raw: string | undefined | null): number | undefined {
-  if (!raw) return undefined;
-  const m = String(raw).match(/(\d+(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : undefined;
-}
-
-// parses: "$500k with 20% down at 6.5% for 30 years"
-function parsePaymentQuery(q: string) {
-  const clean = q.replace(/,/g, '').toLowerCase();
-
-  const moneyRe = /\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g;
-  const toMoney = (s: string | undefined) => (s ? parseMoney(s) : undefined);
-
-  const tokens = Array.from(clean.matchAll(moneyRe)).map((m) => {
-    const start = m.index ?? 0;
-    const text = m[0];
-    const end = start + text.length;
-    const next = clean.slice(end, end + 3);
-    return {
-      text,
-      index: start,
-      end,
-      value: toMoney(text),
-      followedByPercent: /^\s*%/.test(next),
-      hasCurrency: /\$/.test(text),
-      hasSuffix: /[km]\b/.test(text),
-    };
-  });
-
-  const loanExplicit = clean.match(
-    /\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/
-  );
-
-  let loanAmount: number | undefined;
-  if (loanExplicit) {
-    loanAmount = toMoney(loanExplicit[1]);
-  } else if (/\bloan\b/.test(clean) && tokens.length > 0) {
-    const loanIdx = clean.indexOf('loan');
-    const afterLoanMoney = tokens.find(
-      (t) => t.index > loanIdx && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)
-    );
-    loanAmount =
-      afterLoanMoney?.value ??
-      tokens.find((t) => t.index > loanIdx && !t.followedByPercent)?.value ??
-      tokens.find((t) => !t.followedByPercent)?.value;
-  }
-
-  let purchasePrice: number | undefined;
-  if (!loanAmount && tokens.length > 0) {
-    const hintsPrice = /\b(purchase|purchase\s*price|price|home|house|pp)\b/.test(clean);
-    if (hintsPrice) {
-      purchasePrice =
-        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
-        tokens.find((t) => !t.followedByPercent)?.value ??
-        tokens[0].value;
-    } else if (!/\bloan\b/.test(clean)) {
-      purchasePrice =
-        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
-        tokens.find((t) => !t.followedByPercent)?.value ??
-        tokens[0].value;
-    }
-  }
-
-  const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down\b/);
-  const downPercent = downMatch ? parsePercent(downMatch[1]) : undefined;
-
-  let annualRatePct: number | undefined;
-  const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
-  if (rateNear) {
-    annualRatePct = parsePercent(rateNear[1]);
-  } else {
-    const anyPct = clean.match(/([0-9]+(?:\.\d+)?)+\s*%/i);
-    annualRatePct = anyPct ? parsePercent(anyPct[1]) : undefined;
-  }
-
-  const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
-  let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
-
-  if (!termYears && (loanAmount || purchasePrice) && typeof annualRatePct === 'number') {
-    termYears = 30;
-  }
-
-  return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears };
-}
-
-function buildCalcUrl(
-  base: string,
-  p: {
-    loanAmount?: number;
-    purchasePrice?: number;
-    downPercent?: number;
-    annualRatePct?: number;
-    termYears?: number;
-  }
-) {
-  const sp = new URLSearchParams();
-  if (isFiniteNum(p.loanAmount)) sp.set('loanAmount', String(p.loanAmount));
-  if (isFiniteNum(p.purchasePrice)) sp.set('purchasePrice', String(p.purchasePrice));
-  if (isFiniteNum(p.downPercent)) sp.set('downPercent', String(p.downPercent));
-  if (isFiniteNum(p.annualRatePct)) sp.set('annualRatePct', String(p.annualRatePct));
-  if (isFiniteNum(p.termYears)) sp.set('termYears', String(p.termYears));
-  const qs = sp.toString();
-  return qs ? `${base}?${qs}` : base;
-}
-
-/* =========================
-   Types
-   ========================= */
-type CalcAnswer = {
-  loanAmount: number;
-  monthlyPI: number;
-  sensitivities: Array<{ rate: number; pi: number }>;
-  monthlyTax?: number;
-  monthlyIns?: number;
-  monthlyHOA?: number;
-  monthlyMI?: number;
-  monthlyTotalPITI?: number;
-};
-
-type ApiResponse = {
-  path: 'concept' | 'market' | 'dynamic' | 'error' | 'calc';
-  usedFRED: boolean;
-  message?: string;
-  summary?: string;
-  tldr?: string[] | string;
-  answer?: string | CalcAnswer;
-  borrowerSummary?: string | null;
-  fred?: {
-    tenYearYield: number | null;
-    mort30Avg: number | null;
-    spread: number | null;
-    asOf?: string | null;
-  };
-  lockBias?: 'Mild Lock' | 'Neutral' | 'Float Watch';
-  paymentDelta?: { perQuarterPt: number; loanAmount: number };
-  watchNext?: string[];
-  confidence?: 'low' | 'med' | 'high';
-  status?: number;
-  generatedAt?: string;
-};
-
-type ChatMsg =
-  | { id: string; role: 'user'; content: string }
-  | { id: string; role: 'assistant'; content: string; meta?: ApiResponse };
-
-/* =========================
-   Utils
-   ========================= */
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-async function safeJson(r: Response): Promise<ApiResponse> {
-  const txt = await r.text();
-  try {
-    return JSON.parse(txt) as ApiResponse;
-  } catch {
-    return { path: 'error', usedFRED: false, answer: txt, status: r.status } as any;
-  }
-}
-
-const fmtISOshort = (iso?: string) => {
-  if (!iso) return 'n/a';
-  return iso.replace('T', ' ').replace('Z', 'Z');
-};
-
-const fmtMoney = (n: unknown) => {
-  const v = typeof n === 'number' && isFinite(n) ? n : 0;
-  return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
-};
-
-// Normalize calc API response
-type CalcApiMeta = { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
-type CalcApiRaw = {
-  meta?: CalcApiMeta;
-  tldr?: string | string[];
-  summary?: string;
-  message?: string;
-  answer?: unknown;
-  path?: ApiResponse['path'];
-  usedFRED?: boolean;
-  generatedAt?: string;
-};
-
-function normalizeCalcResponse(raw: unknown, status: number): ApiResponse {
-  const r = (typeof raw === 'object' && raw !== null ? (raw as CalcApiRaw) : {}) as CalcApiRaw;
-
-  const path: ApiResponse['path'] = (r.meta?.path ?? r.path ?? 'calc') as ApiResponse['path'];
-  const usedFRED: boolean =
-    typeof r.meta?.usedFRED === 'boolean'
-      ? (r.meta!.usedFRED as boolean)
-      : typeof r.usedFRED === 'boolean'
-        ? (r.usedFRED as boolean)
-        : false;
-
-  const generatedAt = r.meta?.at ?? r.generatedAt;
-  const tldr = (r.tldr ?? r.summary ?? r.message) as string | string[] | undefined;
-  const answer = (r as { answer?: unknown }).answer ?? r;
-
-  return {
-    path,
-    usedFRED,
-    tldr,
-    answer: answer as string | CalcAnswer,
-    generatedAt,
-    status,
-  };
-}
-
-/* =========================
-   Rendering
-   ========================= */
-function AnswerBlock({ meta }: { meta?: ApiResponse }) {
-  if (!meta) return null;
-
-  type NestedMeta = { meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string } };
-  const m = meta as ApiResponse & NestedMeta;
-
-  const headerPath: ApiResponse['path'] | '—' = m.path ?? m.meta?.path ?? '—';
-  const headerUsedFRED: boolean =
-    typeof m.usedFRED === 'boolean' ? m.usedFRED : (m.meta?.usedFRED ?? false);
-  const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
-
-  if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
-    const a = m.answer as CalcAnswer;
-    return (
-      <div style={{ display: 'grid', gap: 10 }}>
-        <div className="meta">
-          <span>path: <b>{String(headerPath)}</b></span>
-          <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-          {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
-        </div>
-
-        <div>
-          <div><b>Loan amount:</b> ${fmtMoney(a.loanAmount)}</div>
-          <div><b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}</div>
-        </div>
-
-        {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
-          <div className="panel">
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>PITI breakdown</div>
-            <ul style={{ marginTop: 0 }}>
-              <li>Taxes: ${fmtMoney(a.monthlyTax)}</li>
-              <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
-              <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
-              <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-              <li><b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b></li>
-            </ul>
-          </div>
-        )}
-
-        {Array.isArray(a.sensitivities) && a.sensitivities.length > 0 && (
-          <div>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>±0.25% Sensitivity</div>
-            <ul style={{ marginTop: 0 }}>
-              {a.sensitivities.map((s, i) => (
-                <li key={i}>
-                  Rate: {(Number(s.rate) * 100).toFixed(2)}% → P&I ${fmtMoney(s.pi)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {typeof m.tldr === 'string' && <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>}
-      </div>
-    );
-  }
-
-  const primary =
-    m.message ??
-    m.summary ??
-    (m.fred &&
-      m.fred.tenYearYield != null &&
-      m.fred.mort30Avg != null &&
-      m.fred.spread != null
-      ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${typeof m.fred.tenYearYield === 'number' ? m.fred.tenYearYield.toFixed(2) : m.fred.tenYearYield
-      }%, 30Y ${typeof m.fred.mort30Avg === 'number' ? m.fred.mort30Avg.toFixed(2) : m.fred.mort30Avg
-      }%, spread ${typeof m.fred.spread === 'number' ? m.fred.spread.toFixed(2) : m.fred.spread}%.`
-      : typeof m.answer === 'string'
-        ? m.answer
-        : '');
-
-  const lines = (typeof m.answer === 'string' ? m.answer : '').split('\n').map((s) => s.trim());
-  const takeaway = primary || lines[0] || '';
-  const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
-  const nexts = lines.filter((l) => l.toLowerCase().startsWith('next:')).map((l) => l.slice(5).trim());
-
-  return (
-    <div style={{ display: 'grid', gap: 10 }}>
-      <div className="meta">
-        <span>path: <b>{String(headerPath)}</b></span>
-        <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-        {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
-      </div>
-
-      {takeaway && <div>{takeaway}</div>}
-
-      {Array.isArray(m.tldr) && m.tldr.length > 0 && (
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
-          <ul style={{ marginTop: 0 }}>
-            {m.tldr.map((t, i) => <li key={i}>{t}</li>)}
-          </ul>
-        </div>
-      )}
-
-      {bullets.length > 0 && (
-        <ul style={{ marginTop: 0 }}>
-          {bullets.map((b, i) => <li key={i}>{b}</li>)}
-        </ul>
-      )}
-
-      {nexts.length > 0 && (
-        <div style={{ display: 'grid', gap: 4 }}>
-          {nexts.map((n, i) => (<div key={i}><b>Next:</b> {n}</div>))}
-        </div>
-      )}
-
-      {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
-        <div className="panel">
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
-          <ul style={{ marginTop: 0 }}>
-            {m.borrowerSummary.split('\n').map((l, i) => (
-              <li key={i}>{l.replace(/^\s*[-|*]\s*/, '')}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {m.paymentDelta && (
-        <div style={{ fontSize: 13 }}>
-          Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on ${m.paymentDelta.loanAmount.toLocaleString()}.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
-  const isUser = role === 'user';
-  return (
-    <div className="bubble">
-      <div className={`avatar ${isUser ? 'user' : 'bot'}`}>{isUser ? 'U' : 'HR'}</div>
-      <div className={`balloon ${isUser ? 'user' : 'bot'}`}>{children}</div>
-    </div>
-  );
-}
-
-/* =========================
-   Page
-   ========================= */
 export default function Page() {
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    {
-      id: uid(),
-      role: 'assistant',
-      content:
-        'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year). Add intent + loan for buyer math.',
-    },
+  // === Sidebar state & handlers =================================================
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const toggleSidebar = () => setSidebarOpen((v) => !v);
+
+  const [history, setHistory] = React.useState<SidebarHistoryItem[]>([
+    // seed example rows so layout doesn’t look empty; safe to remove
+    { id: 'test-1', title: 'test 1', updatedAt: Date.now() - 86400000 },
+    { id: 'test-2', title: 'test 2', updatedAt: Date.now() - 3600000 },
   ]);
-  const [input, setInput] = useState('');
-  const [mode, setMode] = useState<'borrower' | 'public'>('borrower');
-  const [intent, setIntent] = useState<'' | 'purchase' | 'refi' | 'investor'>('');
-  const [loanAmount, setLoanAmount] = useState<number | ''>('');
-  const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const toggleSidebar = () => setSidebarOpen((o) => !o);
+  const [activeId, setActiveId] = React.useState<string | null>(
+    history.length ? history[0].id : null,
+  );
 
-  // Thread model (messages per chat) + active thread id
-  const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  // Overlays
-  const [showSearch, setShowSearch] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showProject, setShowProject] = useState(false);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [projectName, setProjectName] = useState('');
-
-  // Restore on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw) as {
-        threads?: Record<string, ChatMsg[]>;
-        history?: { id: string; title: string; updatedAt?: number }[];
-        activeId?: string | null;
-      };
-      if (data.threads) setThreads(data.threads);
-      if (Array.isArray(data.history)) setHistory(data.history);
-      if (data.activeId && data.threads?.[data.activeId]) {
-        setActiveId(data.activeId);
-        setMessages(data.threads[data.activeId] || []);
-      }
-    } catch (e) {
-      console.warn('hr.chat load failed', e);
-    }
-  }, []);
-
-  // Persist model
-  useEffect(() => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
-    } catch (e) {
-      console.warn('hr.chat save failed', e);
-    }
-  }, [threads, history, activeId]);
-
-  // Snapshot messages into active thread + bump history.updatedAt
-  useEffect(() => {
-    if (!activeId) return;
-
-    setThreads((prev) => ({ ...prev, [activeId]: messages }));
-
-    setHistory((prev) => {
-      const idx = prev.findIndex((h) => h.id === activeId);
-      if (idx === -1) return prev;
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], updatedAt: Date.now() };
-      copy.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
-      return copy;
-    });
-  }, [messages, activeId]);
-
-  // Auto-scroll
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
-
-  // SAFE HOTKEYS: ignore when typing and require Cmd/Ctrl
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          (target as HTMLElement).isContentEditable)
-      ) {
-        return;
-      }
-      const k = e.key.toLowerCase();
-      const meta = e.ctrlKey || e.metaKey;
-
-      if (meta && k === 'k') {
-        e.preventDefault();
-        setShowSearch(true);
-        return;
-      }
-      if (meta && k === 'n') {
-        e.preventDefault();
-        newChat();
-        return;
-      }
-      if (meta && k === 'l') {
-        e.preventDefault();
-        setShowLibrary(true);
-        return;
-      }
-      if (meta && k === 'p') {
-        e.preventDefault();
-        setShowProject(true);
-        return;
-      }
+  const newChat = () => {
+    const id = `c_${Date.now()}`;
+    const item: SidebarHistoryItem = {
+      id,
+      title: 'New chat',
+      updatedAt: Date.now(),
     };
+    setHistory((h) => [item, ...h]);
+    setActiveId(id);
+    setMessages([]);
+    setInput('');
+  };
+  const onSettings = () => {
+    // stub: wire later
+  };
+  const onSearch = () => {
+    // stub: wire later
+  };
+  const onLibrary = () => {
+    // stub: wire later
+  };
+  const onNewProject = () => {
+    // stub: wire later
+  };
+  const onSelectHistory = (id: string) => {
+    setActiveId(id);
+    // In a real app, load that chat’s messages here
+    setMessages([]);
+  };
+  const handleHistoryAction = (
+    action: 'rename' | 'move' | 'archive' | 'delete',
+    id: string,
+  ) => {
+    if (action === 'delete') {
+      setHistory((h) => h.filter((x) => x.id !== id));
+      if (activeId === id) setActiveId(null);
+      return;
+    }
+    if (action === 'archive') {
+      setHistory((h) =>
+        h.map((x) => (x.id === id ? { ...x, archived: true } : x)),
+      );
+      return;
+    }
+    if (action === 'rename') {
+      setHistory((h) =>
+        h.map((x) => (x.id === id ? { ...x, title: `${x.title} (renamed)` } : x)),
+      );
+      return;
+    }
+    // move: no-op placeholder
+  };
 
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+  // === Chat state & API =========================================================
+  const [messages, setMessages] = React.useState<ChatMsg[]>([]);
+  const [input, setInput] = React.useState('');
+  const [sending, setSending] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Version banner (confirms API liveness)
+  const [version, setVersion] = React.useState<{
+    version?: string;
+    commit?: string;
+    builtAt?: string;
+    meta?: { path?: string; tag?: string };
+  }>({});
+
+  React.useEffect(() => {
+    // Non-blocking: confirm /api/version works in prod
+    (async () => {
+      try {
+        const res = await fetch('/api/version', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setVersion(data);
+        }
+      } catch {
+        // ignore; footer just won’t show build info
+      }
+    })();
   }, []);
 
-  // History select (Library/Sidebar)
-  function onSelectHistory(id: string) {
-    setActiveId(id);
-    const thread = threads[id];
-    if (Array.isArray(thread) && thread.length) {
-      setMessages(thread);
-    } else {
-      setMessages([
+  async function sendChat() {
+    if (!input.trim()) return;
+    setSending(true);
+    setError(null);
+    const next: ChatMsg[] = [...messages, { role: 'user', content: input.trim() }];
+    setMessages(next);
+    setInput('');
+
+    try {
+      // Basic OpenAI-style payload; adjust if your /api/chat expects a different shape
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: next }),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`Chat API ${res.status} ${res.statusText} ${txt}`);
+      }
+
+      const data = await res.json().catch(() => ({} as any));
+      // Expect either { content: string } or OpenAI-like { choices: [{ message: { content } }] }
+      const content =
+        data?.content ??
+        data?.choices?.[0]?.message?.content ??
+        'No content returned.';
+
+      setMessages((m) => [...m, { role: 'assistant', content }]);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to reach /api/chat.');
+      // keep UX moving; append a soft failure message
+      setMessages((m) => [
+        ...m,
         {
-          id: uid(),
           role: 'assistant',
-          content: 'Restored chat (no snapshot found). Start typing to continue.',
+          content:
+            'I hit a snag talking to `/api/chat`. Version endpoint is working; please check the chat handler or keys.',
         },
       ]);
-    }
-    setShowLibrary(false);
-  }
-
-  function newChat() {
-    const id = uid();
-    setActiveId(id);
-    setMessages([
-      { id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' },
-    ]);
-    setHistory((h) => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
-  }
-
-  // === kebab menu actions from Sidebar (rename/move/archive/delete) ===
-  function handleHistoryAction(
-    action: 'rename' | 'move' | 'archive' | 'delete',
-    id: string
-  ) {
-    if (action === 'rename') {
-      const current = history.find((h) => h.id === id)?.title ?? '';
-      const name = prompt('Rename chat:', current);
-      if (name && name.trim()) {
-        setHistory((h) =>
-          h.map((x) => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x))
-        );
-      }
-      return;
-    }
-
-    if (action === 'move') {
-      alert('Move to project… (coming soon)');
-      return;
-    }
-
-    if (action === 'archive') {
-      alert('Archive… (coming soon)');
-      return;
-    }
-
-    if (action === 'delete') {
-      if (confirm('Delete this chat? This cannot be undone.')) {
-        setHistory((h) => h.filter((x) => x.id !== id));
-        setThreads((t) => {
-          const copy = { ...t };
-          delete copy[id];
-          return copy;
-        });
-        if (activeId === id) {
-          setActiveId(null);
-          setMessages([
-            {
-              id: uid(),
-              role: 'assistant',
-              content: 'New chat. What do you want to figure out?',
-            },
-          ]);
-        }
-      }
-      return;
-    }
-  }
-
-  async function send() {
-    const q = input.trim();
-    if (!q || loading) return;
-
-    const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
-
-    // Ensure a thread id and title
-    let tid = activeId;
-    if (!tid) {
-      tid = uid();
-      setActiveId(tid);
-      setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
-    } else {
-      setHistory((h) => {
-        const i = h.findIndex((x) => x.id === tid);
-        if (i >= 0) {
-          const copy = [...h];
-          if (copy[i].title === 'New chat' || copy[i].title.startsWith('Untitled')) {
-            copy[i] = { ...copy[i], title, updatedAt: Date.now() };
-          }
-          return copy;
-        }
-        return [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20);
-      });
-    }
-
-    setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
-    setInput('');
-    setLoading(true);
-
-    try {
-      if (isPaymentQuery(q)) {
-        const parsed = parsePaymentQuery(q);
-
-        const okByLoan = isFiniteNum(parsed.loanAmount) && isFiniteNum(parsed.annualRatePct);
-        const okByPP =
-          isFiniteNum(parsed.purchasePrice) &&
-          isFiniteNum(parsed.downPercent) &&
-          isFiniteNum(parsed.annualRatePct);
-
-        if (!okByLoan && !okByPP) {
-          setMessages((m) => [
-            ...m,
-            {
-              id: uid(),
-              role: 'assistant',
-              content:
-                'I need at least a loan amount + rate (e.g., “$400k loan at 6.5% for 30 years”), or purchase price + down % + rate (e.g., “$500k with 20% down at 6.25% for 30 years”).',
-            },
-          ]);
-          setLoading(false);
-          return;
-        }
-
-        const patched = { ...parsed };
-        if (isFiniteNum(patched.loanAmount) && !isFiniteNum(patched.purchasePrice)) {
-          patched.purchasePrice = patched.loanAmount;
-          if (!isFiniteNum(patched.downPercent)) patched.downPercent = 0;
-        }
-
-        const url = buildCalcUrl('/api/calc/payment', patched);
-        const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
-        const raw: unknown = await r.json().catch(() => ({}));
-
-        const meta = normalizeCalcResponse(raw, r.status);
-
-        let friendly = 'Calculated principal & interest payment.';
-        if (meta.path === 'calc' && meta.answer && typeof meta.answer === 'object') {
-          const a = meta.answer as CalcAnswer;
-          friendly = `Monthly P&I: $${fmtMoney(a.monthlyPI)} on $${fmtMoney(a.loanAmount)}`;
-        }
-        if (!r.ok) {
-          friendly = `Calc service returned ${r.status}. Showing raw data.`;
-        }
-
-        setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
-        setLoading(false);
-        return;
-      }
-
-      const body: {
-        question: string;
-        mode: 'borrower' | 'public';
-        intent?: 'purchase' | 'refi' | 'investor';
-        loanAmount?: number;
-      } = { question: q, mode };
-      if (intent) body.intent = intent;
-      if (loanAmount && Number(loanAmount) > 0) body.loanAmount = Number(loanAmount);
-
-      const r = await fetch('/api/answers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const meta = await safeJson(r);
-
-      const friendly =
-        meta.message ??
-        meta.summary ??
-        (meta.fred &&
-          meta.fred.tenYearYield != null &&
-          meta.fred.mort30Avg != null &&
-          meta.fred.spread != null
-          ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${typeof meta.fred.tenYearYield === 'number' ? meta.fred.tenYearYield.toFixed(2) : meta.fred.tenYearYield
-          }%, 30Y ${typeof meta.fred.mort30Avg === 'number' ? meta.fred.mort30Avg.toFixed(2) : meta.fred.mort30Avg
-          }%, spread ${typeof meta.fred.spread === 'number' ? meta.fred.spread.toFixed(2) : meta.fred.spread}%.`
-          : typeof meta.answer === 'string'
-            ? meta.answer
-            : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
-
-      setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
     } finally {
-      setLoading(false);
+      setSending(false);
     }
   }
 
-  function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
+  // Enter-to-send
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      send();
+      sendChat();
     }
-  }
+  };
 
-  function onShare() {
-    const text = messages
-      .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
-      .join('\n');
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => { });
-    } else {
-      const blob = new Blob([text], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'conversation.txt';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-  }
-
-  function onSettings() { setShowSettings(true); }
-  function onSearch() { setShowSearch(true); }
-  function onLibrary() { setShowLibrary(true); }
-  function onNewProject() { setShowProject(true); }
-  function closeAllOverlays() {
-    setShowSearch(false);
-    setShowLibrary(false);
-    setShowSettings(false);
-    setShowProject(false);
-  }
-
+  // === Layout ==================================================================
   return (
     <>
-      {/* Layout wrapper: grid with fixed sidebar on md+ */}
+      {/* App grid (fixed sidebar on md+, main scrolls) */}
       <div className="min-h-[100dvh] overflow-x-hidden">
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] min-h-[100dvh]">
-
           {/* Sidebar */}
           <Sidebar
             history={history}
@@ -797,212 +191,152 @@ export default function Page() {
                 >
                   Menu
                 </button>
-
-                {/* Keep a simple, stable title */}
                 <div style={{ fontWeight: 700 }}>Chat</div>
-
-                {/* Controls removed (borrower/public/intent/loan amount) */}
+                {/* Right-side header space left intentionally minimal */}
                 <div className="controls" />
               </div>
             </div>
 
-
-            <div className="composer">
-              <div className="composer-inner">
+            {/* Chat composer */}
+            <div className="p-4 md:p-6">
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  gap: 12,
+                  alignItems: 'center',
+                  maxWidth: 900,
+                  margin: '0 auto',
+                  paddingTop: 8,
+                }}
+              >
                 <input
-                  className="input"
-                  placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | ..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={onKey}
+                  onKeyDown={onKeyDown}
+                  placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | …"
+                  className="rounded-full px-5 py-3 border outline-none"
+                  aria-label="Ask a question"
                 />
-                <button className="btn" onClick={send} disabled={loading || !input.trim()}>
-                  Send
+                <button
+                  onClick={sendChat}
+                  disabled={sending}
+                  className="btn rounded-full px-4 py-3"
+                  aria-label="Send"
+                >
+                  {sending ? 'Sending…' : 'Send'}
                 </button>
+              </div>
+
+              {/* Error line (if any) */}
+              {error && (
+                <div
+                  className="mt-3 text-sm"
+                  style={{
+                    color: '#b00020',
+                    maxWidth: 900,
+                    margin: '0 auto',
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              {/* Messages */}
+              <div
+                className="mt-6"
+                style={{
+                  maxWidth: 900,
+                  margin: '0 auto',
+                  display: 'grid',
+                  gap: 12,
+                }}
+              >
+                {messages.length === 0 ? (
+                  <div
+                    style={{
+                      opacity: 0.7,
+                      fontSize: 14,
+                      textAlign: 'center',
+                      padding: '24px 0',
+                    }}
+                  >
+                    Ask a question to get started.
+                  </div>
+                ) : (
+                  messages.map((m, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 10,
+                        background:
+                          m.role === 'user' ? '#ffffff' : 'white',
+                        border: '1px solid #e6e8eb',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: '#6b7280',
+                          marginBottom: 6,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.3,
+                        }}
+                      >
+                        {m.role}
+                      </div>
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
-            {/* ------- Overlays (Search/Library/Settings/New Project) ------- */}
-            {(showSearch || showLibrary || showSettings || showProject) && (
+            {/* Footer (version banner) */}
+            <footer
+              className="border-t"
+              style={{
+                padding: '12px 16px',
+                marginTop: 12,
+                background: '#f6f8fb',
+              }}
+            >
               <div
-                role="dialog"
-                aria-modal="true"
-                aria-label="Overlay"
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) closeAllOverlays();
-                }}
                 style={{
-                  position: 'fixed',
-                  inset: 0,
-                  background: 'rgba(0,0,0,0.35)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  zIndex: 5000,
+                  maxWidth: 900,
+                  margin: '0 auto',
+                  fontSize: 13,
+                  textAlign: 'center',
+                  color: '#6b7280',
                 }}
               >
-                <div
-                  className="panel"
-                  style={{
-                    width: 'min(680px, 92vw)',
-                    maxHeight: '80vh',
-                    overflow: 'auto',
-                    padding: 16,
-                    borderRadius: 12,
-                    background: 'var(--card)',
-                    boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
-                    display: 'grid',
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontWeight: 700 }}>
-                      {showSearch && 'Search'}
-                      {showLibrary && 'Library'}
-                      {showSettings && 'Settings'}
-                      {showProject && 'New Project'}
-                    </div>
-                    <button className="btn" onClick={closeAllOverlays} aria-label="Close">
-                      Close
-                    </button>
-                  </div>
-
-                  {/* SEARCH */}
-                  {showSearch && (
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      <input
-                        className="input"
-                        placeholder="Search your current thread and history…"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        autoFocus
-                      />
-                      <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                        <div style={{ fontWeight: 600 }}>Matches in current thread</div>
-                        <ul style={{ marginTop: 0 }}>
-                          {messages
-                            .filter(
-                              (m) =>
-                                typeof m.content === 'string' &&
-                                m.content.toLowerCase().includes(searchQuery.toLowerCase())
-                            )
-                            .slice(0, 12)
-                            .map((m, i) => (
-                              <li key={m.id + i}>
-                                <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
-                                <span>{(m.content as string).slice(0, 200)}</span>
-                              </li>
-                            ))}
-                        </ul>
-                      </div>
-                      <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                        <div style={{ fontWeight: 600 }}>Matches in history titles</div>
-                        <ul style={{ marginTop: 0 }}>
-                          {history
-                            .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                            .slice(0, 20)
-                            .map((h) => <li key={h.id}>{h.title}</li>)}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* LIBRARY */}
-                  {showLibrary && (
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
-                      <div className="chat-list" role="list">
-                        {history.length === 0 && (
-                          <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
-                            No history yet
-                          </div>
-                        )}
-                        {history.map((h) => (
-                          <button
-                            key={h.id}
-                            className="chat-item"
-                            role="listitem"
-                            title={h.title}
-                            onClick={() => onSelectHistory(h.id)}
-                            style={{ textAlign: 'left' }}
-                          >
-                            {h.title}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SETTINGS */}
-                  {showSettings && (
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input type="checkbox" onChange={() => { /* next pass */ }} />
-                        Compact bubbles (coming soon)
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input type="checkbox" onChange={() => { /* next pass */ }} />
-                        Prefer dark mode (coming soon)
-                      </label>
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setHistory([]);
-                          setMessages([
-                            {
-                              id: uid(),
-                              role: 'assistant',
-                              content: 'New chat. What do you want to figure out?',
-                            },
-                          ]);
-                          closeAllOverlays();
-                        }}
-                      >
-                        Clear history & reset chat
-                      </button>
-                    </div>
-                  )}
-
-                  {/* NEW PROJECT */}
-                  {showProject && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const name = projectName.trim() || 'Untitled Project';
-                        const id = uid();
-                        setActiveId(id);
-                        setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
-                        setMessages([
-                          {
-                            id: uid(),
-                            role: 'assistant',
-                            content: `New Project “${name}” started. What’s the goal?`,
-                          },
-                        ]);
-                        setProjectName('');
-                        closeAllOverlays();
-                      }}
-                      style={{ display: 'grid', gap: 10 }}
+                HomeRates.Ai — Powered by OpenAI
+                {version?.builtAt ? (
+                  <>
+                    {' '}
+                    • {new Date(version.builtAt).toLocaleString()}
+                  </>
+                ) : null}
+                {version?.commit ? (
+                  <>
+                    {' '}
+                    • Version{' '}
+                    <Link
+                      href="#"
+                      onClick={(e) => e.preventDefault()}
+                      title={version.commit}
                     >
-                      <input
-                        className="input"
-                        placeholder="Project name"
-                        value={projectName}
-                        onChange={(e) => setProjectName(e.target.value)}
-                        autoFocus
-                      />
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn primary" type="submit">Create</button>
-                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                      </div>
-                    </form>
-                  )}
-                </div>
+                      {String(version.commit).slice(0, 7)}
+                    </Link>
+                  </>
+                ) : null}
               </div>
-            )}
+            </footer>
           </section>
         </div>
       </div>
-
     </>
   );
 }
