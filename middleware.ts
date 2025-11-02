@@ -9,13 +9,9 @@ const isPublic = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
-  // --- public APIs used by UI ---
-  "/api/health",
-  "/api/version",
-  "/api/calc(.*)",
-  "/api/search(.*)",
-  "/api/chat(.*)",
-  // ------------------------------
+  // --- make ALL API routes public ---
+  "/api(.*)",
+  // ----------------------------------
   "/_next(.*)",
   "/favicon.ico",
   "/robots.txt",
@@ -23,6 +19,7 @@ const isPublic = createRouteMatcher([
   "/images(.*)",
   "/static(.*)",
 ]);
+
 
 
 /**
