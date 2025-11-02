@@ -2,7 +2,7 @@
 'use client';
 
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
@@ -142,7 +142,6 @@ export default function Sidebar({
         <path d="M10 3h8a1 1 0 011 1v16a1 1 0 01-1 1h-8v-2h7V5h-7V3zM5.59 7.41L7 6l5 5-5 5-1.41-1.41L8.17 12 5.59 9.41z" fill="currentColor" />
       </svg>
     ),
-
   };
 
   // Slide behavior (inline style so we don't rely on CSS being present)
@@ -157,16 +156,14 @@ export default function Sidebar({
         <div
           onClick={onToggle}
           aria-hidden="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.3)',
-            zIndex: 999,
-          }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 999 }}
         />
       )}
 
-      <div className="sticky top-0 h-[100dvh] md:h-screen flex flex-col border-r bg-white" role="complementary" aria-label="Sidebar"
+      <div
+        className="sticky top-0 h-[100dvh] md:h-screen flex flex-col border-r bg-white"
+        role="complementary"
+        aria-label="Sidebar"
         style={{ position: "relative", zIndex: 1000, ...slideStyle }}
         onClick={onClick}
         data-open={isOpen ? 'true' : 'false'}
@@ -208,12 +205,7 @@ export default function Sidebar({
         {/* ChatGPT-like quick actions */}
         <nav className="side-actions" style={{ padding: "0 12px", display: "grid", gap: 6, marginTop: 4 }}>
           {/* === SEARCH (restored) === */}
-          <button
-            data-action="search"
-            aria-label="Search"
-            onClick={onSearch}
-            className="btn"
-          >
+          <button data-action="search" aria-label="Search" onClick={onSearch} className="btn">
             <Icon.Search />
             <span className="text-sm font-medium">Search</span>
           </button>
@@ -239,7 +231,7 @@ export default function Sidebar({
           )}
 
           {history
-            .filter(h => !h.archived) // hide archived from main list
+            .filter(h => !h.archived)
             .map((h) => {
               const isActive = !!activeId && h.id === activeId;
               return (
@@ -338,64 +330,38 @@ export default function Sidebar({
             })}
         </div>
 
-        {/* Secondary actions */}
-        <div className="side-bottom">
+        {/* Spacer so bottom block stays anchored */}
+        <div style={{ flex: 1 }} />
+
+        {/* Bottom-pinned: Settings + Auth controls */}
+        <div className="mt-auto border-t p-3">
           <button className="btn" type="button" data-action="settings" aria-label="Settings">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Icon.Cog /> Settings
             </span>
           </button>
 
-          {/* === LOGIN (replaces bottom Share) === */}
-          <Link
-            href="/profile"
-            data-action="profile"
-            aria-label="profile"
-            className="btn"
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Icon.Login /> profile
-            </span>
-          </Link>
-
-        </div>
-        {/* your existing sidebar links here */}
-
-        <div className="mt-4">
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="block w-full rounded-md px-3 py-2 border">
-                Login
-              </button>
-            </SignInButton>
-          </SignedOut>
-
-          <SignedIn>
-            <Link href="/profile" className="block w-full rounded-md px-3 py-2 border">
-              profile
-            </Link>
-          </SignedIn>
-        </div>
-      </aside >
-      <div className="mt-auto border-t p-3">
-        <SignedOut>
-          <SignInButton mode="modal">
-            <button className="w-full rounded-md px-3 py-2 border">Login</button>
-          </SignInButton>
-        </SignedOut>
-
-        <SignedIn>
-          {/* Avatar w/ initials + menu (doesn't navigate away) */}
-          <UserButton
-            appearance={{ elements: { avatarBox: { width: "40px", height: "40px" } } }}
-          />
-          {/* Optional: link to profile page */}
           <div className="mt-2">
-            <Link href="/profile" className="block w-full rounded-md px-3 py-2 border">
-              Profile
-            </Link>
-          </div>
-        </SignedIn>
-      </div>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="w-full rounded-md px-3 py-2 border">Login</button>
+              </SignInButton>
+            </SignedOut>
 
+            <SignedIn>
+              {/* Avatar w/ initials + menu (doesn't navigate away) */}
+              <UserButton appearance={{ elements: { avatarBox: { width: "40px", height: "40px" } } }} />
+              {/* Optional: link to profile page */}
+              <div className="mt-2">
+                <Link href="/profile" className="block w-full rounded-md px-3 py-2 border">
+                  Profile
+                </Link>
+              </div>
+            </SignedIn>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
 // END Sidebar.tsx (REPLACE ALL)
