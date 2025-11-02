@@ -770,7 +770,6 @@ export default function Page() {
         history={history}
         onNewChat={newChat}
         onSettings={onSettings}
-        onShare={onShare}
         onSearch={onSearch}
         onLibrary={onLibrary}
         onNewProject={onNewProject}
