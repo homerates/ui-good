@@ -51,6 +51,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const router = useRouter();
   const { user } = useUser();
+
   // One click gateway for toolbar buttons (event delegation)
   const onClick = React.useCallback((e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
@@ -161,7 +162,7 @@ export default function Sidebar({
       )}
 
       <div
-        className="sticky top-0 h-[100dvh] md:h-screen flex flex-col border-r bg-white"
+        className="sticky top-0 h-[100dvh] flex flex-col border-r bg-white overflow-y-auto"
         role="complementary"
         aria-label="Sidebar"
         style={{ position: "relative", zIndex: 1000, ...slideStyle }}
@@ -334,14 +335,14 @@ export default function Sidebar({
         <div style={{ flex: 1 }} />
 
         {/* Bottom-pinned: Settings + Auth controls */}
-        <div className="mt-auto border-t p-3">
-          <button className="btn" type="button" data-action="settings" aria-label="Settings">
+        <div className="sticky bottom-0 border-t bg-white p-3">
+          <button className="btn w-full text-left" type="button" data-action="settings" aria-label="Settings">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Icon.Cog /> Settings
             </span>
           </button>
 
-          <div className="mt-auto sticky bottom-0 border-t bg-white p-3">
+          <div className="mt-2">
             <SignedOut>
               <SignInButton mode="modal">
                 <button className="w-full rounded-md px-3 py-2 border">Login</button>
@@ -363,15 +364,8 @@ export default function Sidebar({
               </div>
             </SignedIn>
           </div>
-
-          <Link href="/profile" className="block w-full rounded-md px-3 py-2 border">
-            Profile
-          </Link>
         </div>
-      </SignedIn>
-    </div >
-        </div >
-      </div >
+      </div>
     </>
   );
 }
