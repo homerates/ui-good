@@ -1,53 +1,8 @@
-# dependencies
-node_modules/
-.pnp/
-.pnp.js
-
-# next
-.next/
-out/
-.next/cache/
-
-# env
-.env.local
-.env*.local
-
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-*.log
-
-# misc
+# docs/temp
+docs/*.tmp
+docs/*.bak
+docs/*~
+*.swp
+*.swo
 .DS_Store
-dist/
-.vscode/
-.vercel/
-
-# local scratch
-app/api/answers/route.backup.ts
-git-vercel-rca.txt
-
-# local trash
-_local_trash/
-
-
-# local trash
-_local_trash/
-
-
-# local trash
-_local_trash/
-
-.vercel
-
-.backup_live_edits/
-
-
-.vercel/
-
-
-tsconfig.tsbuildinfo
-
-/generated/prisma
+Thumbs.db
