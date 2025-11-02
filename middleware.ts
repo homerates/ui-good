@@ -1,7 +1,7 @@
-// middleware.ts
+// middleware.ts (REPLACE ALL)
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-/** Public routes */
+/** Public routes (no auth) */
 const isPublic = createRouteMatcher([
   "/",
   "/sign-in(.*)",
@@ -18,10 +18,7 @@ const isPublic = createRouteMatcher([
 const isWebhook = createRouteMatcher(["/api/webhooks(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Allow webhooks & explicit public pages
   if (isWebhook(req) || isPublic(req)) return;
-
-  // Everything else requires auth
   await auth.protect();
 });
 
