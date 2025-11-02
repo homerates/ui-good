@@ -27,19 +27,11 @@ const isWebhook = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
-export default clerkMiddleware((auth, req) => {
+export default clerkMiddleware(async (auth, req) => {
   // Always allow webhooks and explicitly public routes
   if (isWebhook(req) || isPublic(req)) return;
 
-  // Everything else requires auth
-  auth().protect();
+  // Everything else requires auth (Clerk v5)
+  await auth.protect();
 });
 
-/**
- * Matcher:
- * - Run on all routes except next internals and files with extensions
- * - This keeps static assets and prebuilt chunks out of middleware
- */
-export const config = {
-  matcher: ["/((?!_next|.*\\..*).*)"],
-};
