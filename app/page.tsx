@@ -765,237 +765,244 @@ export default function Page() {
 
   return (
     <>
-      {/* Sidebar */}
-      <Sidebar
-        history={history}
-        onNewChat={newChat}
-        onSettings={onSettings}
-        onSearch={onSearch}
-        onLibrary={onLibrary}
-        onNewProject={onNewProject}
-        activeId={activeId}
-        onSelectHistory={onSelectHistory}
-        isOpen={sidebarOpen}
-        onToggle={toggleSidebar}
-        onHistoryAction={handleHistoryAction}
-      />
+      {/* Layout wrapper: grid with fixed sidebar on md+ */}
+      <div className="min-h-[100dvh] overflow-x-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] min-h-[100dvh]">
 
-      {/* Main */}
-      <section className="main">
-        <div className="header">
-          <div className="header-inner">
-            <button
-              className="btn"
-              type="button"
-              onClick={toggleSidebar}
-              aria-label="Toggle sidebar"
-              style={{ marginRight: 8 }}
-            >
-              Menu
-            </button>
+          {/* Sidebar */}
+          <Sidebar
+            history={history}
+            onNewChat={newChat}
+            onSettings={onSettings}
+            onSearch={onSearch}
+            onLibrary={onLibrary}
+            onNewProject={onNewProject}
+            activeId={activeId}
+            onSelectHistory={onSelectHistory}
+            isOpen={sidebarOpen}
+            onToggle={toggleSidebar}
+            onHistoryAction={handleHistoryAction}
+          />
 
-            {/* Keep a simple, stable title */}
-            <div style={{ fontWeight: 700 }}>Chat</div>
+          {/* Main */}
+          <section className="main h-[100dvh] overflow-y-auto bg-[#fafbfc]">
+            <div className="header">
+              <div className="header-inner">
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={toggleSidebar}
+                  aria-label="Toggle sidebar"
+                  style={{ marginRight: 8 }}
+                >
+                  Menu
+                </button>
 
-            {/* Controls removed (borrower/public/intent/loan amount) */}
-            <div className="controls" />
-          </div>
-        </div>
+                {/* Keep a simple, stable title */}
+                <div style={{ fontWeight: 700 }}>Chat</div>
+
+                {/* Controls removed (borrower/public/intent/loan amount) */}
+                <div className="controls" />
+              </div>
+            </div>
 
 
-        <div className="composer">
-          <div className="composer-inner">
-            <input
-              className="input"
-              placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | ..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKey}
-            />
-            <button className="btn" onClick={send} disabled={loading || !input.trim()}>
-              Send
-            </button>
-          </div>
-        </div>
-
-        {/* ------- Overlays (Search/Library/Settings/New Project) ------- */}
-        {(showSearch || showLibrary || showSettings || showProject) && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Overlay"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) closeAllOverlays();
-            }}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.35)',
-              display: 'grid',
-              placeItems: 'center',
-              zIndex: 5000,
-            }}
-          >
-            <div
-              className="panel"
-              style={{
-                width: 'min(680px, 92vw)',
-                maxHeight: '80vh',
-                overflow: 'auto',
-                padding: 16,
-                borderRadius: 12,
-                background: 'var(--card)',
-                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
-                display: 'grid',
-                gap: 12,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontWeight: 700 }}>
-                  {showSearch && 'Search'}
-                  {showLibrary && 'Library'}
-                  {showSettings && 'Settings'}
-                  {showProject && 'New Project'}
-                </div>
-                <button className="btn" onClick={closeAllOverlays} aria-label="Close">
-                  Close
+            <div className="composer">
+              <div className="composer-inner">
+                <input
+                  className="input"
+                  placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | ..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={onKey}
+                />
+                <button className="btn" onClick={send} disabled={loading || !input.trim()}>
+                  Send
                 </button>
               </div>
-
-              {/* SEARCH */}
-              {showSearch && (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <input
-                    className="input"
-                    placeholder="Search your current thread and history…"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontWeight: 600 }}>Matches in current thread</div>
-                    <ul style={{ marginTop: 0 }}>
-                      {messages
-                        .filter(
-                          (m) =>
-                            typeof m.content === 'string' &&
-                            m.content.toLowerCase().includes(searchQuery.toLowerCase())
-                        )
-                        .slice(0, 12)
-                        .map((m, i) => (
-                          <li key={m.id + i}>
-                            <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
-                            <span>{(m.content as string).slice(0, 200)}</span>
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                  <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontWeight: 600 }}>Matches in history titles</div>
-                    <ul style={{ marginTop: 0 }}>
-                      {history
-                        .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                        .slice(0, 20)
-                        .map((h) => <li key={h.id}>{h.title}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* LIBRARY */}
-              {showLibrary && (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
-                  <div className="chat-list" role="list">
-                    {history.length === 0 && (
-                      <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
-                        No history yet
-                      </div>
-                    )}
-                    {history.map((h) => (
-                      <button
-                        key={h.id}
-                        className="chat-item"
-                        role="listitem"
-                        title={h.title}
-                        onClick={() => onSelectHistory(h.id)}
-                        style={{ textAlign: 'left' }}
-                      >
-                        {h.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* SETTINGS */}
-              {showSettings && (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input type="checkbox" onChange={() => { /* next pass */ }} />
-                    Compact bubbles (coming soon)
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input type="checkbox" onChange={() => { /* next pass */ }} />
-                    Prefer dark mode (coming soon)
-                  </label>
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      setHistory([]);
-                      setMessages([
-                        {
-                          id: uid(),
-                          role: 'assistant',
-                          content: 'New chat. What do you want to figure out?',
-                        },
-                      ]);
-                      closeAllOverlays();
-                    }}
-                  >
-                    Clear history & reset chat
-                  </button>
-                </div>
-              )}
-
-              {/* NEW PROJECT */}
-              {showProject && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const name = projectName.trim() || 'Untitled Project';
-                    const id = uid();
-                    setActiveId(id);
-                    setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
-                    setMessages([
-                      {
-                        id: uid(),
-                        role: 'assistant',
-                        content: `New Project “${name}” started. What’s the goal?`,
-                      },
-                    ]);
-                    setProjectName('');
-                    closeAllOverlays();
-                  }}
-                  style={{ display: 'grid', gap: 10 }}
-                >
-                  <input
-                    className="input"
-                    placeholder="Project name"
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    autoFocus
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn primary" type="submit">Create</button>
-                    <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                  </div>
-                </form>
-              )}
             </div>
-          </div>
-        )}
-      </section>
+
+            {/* ------- Overlays (Search/Library/Settings/New Project) ------- */}
+            {(showSearch || showLibrary || showSettings || showProject) && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Overlay"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) closeAllOverlays();
+                }}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.35)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  zIndex: 5000,
+                }}
+              >
+                <div
+                  className="panel"
+                  style={{
+                    width: 'min(680px, 92vw)',
+                    maxHeight: '80vh',
+                    overflow: 'auto',
+                    padding: 16,
+                    borderRadius: 12,
+                    background: 'var(--card)',
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                    display: 'grid',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 700 }}>
+                      {showSearch && 'Search'}
+                      {showLibrary && 'Library'}
+                      {showSettings && 'Settings'}
+                      {showProject && 'New Project'}
+                    </div>
+                    <button className="btn" onClick={closeAllOverlays} aria-label="Close">
+                      Close
+                    </button>
+                  </div>
+
+                  {/* SEARCH */}
+                  {showSearch && (
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      <input
+                        className="input"
+                        placeholder="Search your current thread and history…"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                        <div style={{ fontWeight: 600 }}>Matches in current thread</div>
+                        <ul style={{ marginTop: 0 }}>
+                          {messages
+                            .filter(
+                              (m) =>
+                                typeof m.content === 'string' &&
+                                m.content.toLowerCase().includes(searchQuery.toLowerCase())
+                            )
+                            .slice(0, 12)
+                            .map((m, i) => (
+                              <li key={m.id + i}>
+                                <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
+                                <span>{(m.content as string).slice(0, 200)}</span>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                      <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                        <div style={{ fontWeight: 600 }}>Matches in history titles</div>
+                        <ul style={{ marginTop: 0 }}>
+                          {history
+                            .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                            .slice(0, 20)
+                            .map((h) => <li key={h.id}>{h.title}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* LIBRARY */}
+                  {showLibrary && (
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
+                      <div className="chat-list" role="list">
+                        {history.length === 0 && (
+                          <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
+                            No history yet
+                          </div>
+                        )}
+                        {history.map((h) => (
+                          <button
+                            key={h.id}
+                            className="chat-item"
+                            role="listitem"
+                            title={h.title}
+                            onClick={() => onSelectHistory(h.id)}
+                            style={{ textAlign: 'left' }}
+                          >
+                            {h.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SETTINGS */}
+                  {showSettings && (
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="checkbox" onChange={() => { /* next pass */ }} />
+                        Compact bubbles (coming soon)
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="checkbox" onChange={() => { /* next pass */ }} />
+                        Prefer dark mode (coming soon)
+                      </label>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setHistory([]);
+                          setMessages([
+                            {
+                              id: uid(),
+                              role: 'assistant',
+                              content: 'New chat. What do you want to figure out?',
+                            },
+                          ]);
+                          closeAllOverlays();
+                        }}
+                      >
+                        Clear history & reset chat
+                      </button>
+                    </div>
+                  )}
+
+                  {/* NEW PROJECT */}
+                  {showProject && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const name = projectName.trim() || 'Untitled Project';
+                        const id = uid();
+                        setActiveId(id);
+                        setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                        setMessages([
+                          {
+                            id: uid(),
+                            role: 'assistant',
+                            content: `New Project “${name}” started. What’s the goal?`,
+                          },
+                        ]);
+                        setProjectName('');
+                        closeAllOverlays();
+                      }}
+                      style={{ display: 'grid', gap: 10 }}
+                    >
+                      <input
+                        className="input"
+                        placeholder="Project name"
+                        value={projectName}
+                        onChange={(e) => setProjectName(e.target.value)}
+                        autoFocus
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn primary" type="submit">Create</button>
+                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+
     </>
   );
 }
