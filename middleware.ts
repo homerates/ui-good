@@ -9,15 +9,21 @@ const isPublic = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  // --- public APIs used by UI ---
   "/api/health",
-  "/api/public(.*)",
+  "/api/version",
+  "/api/calc(.*)",
+  "/api/search(.*)",
+  "/api/chat(.*)",
+  // ------------------------------
+  "/_next(.*)",
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
-  "/_next(.*)",        // Next.js internals
-  "/static(.*)",       // if you use /public/static
-  "/images(.*)",       // if you expose images directly
+  "/images(.*)",
+  "/static(.*)",
 ]);
+
 
 /**
  * Webhooks should never be gated behind auth.
