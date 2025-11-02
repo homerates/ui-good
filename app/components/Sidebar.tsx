@@ -2,7 +2,7 @@
 'use client';
 
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/nextjs";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
@@ -50,7 +50,7 @@ export default function Sidebar({
   onHistoryAction,
 }: SidebarProps) {
   const router = useRouter();
-
+  const { user } = useUser();
   // One click gateway for toolbar buttons (event delegation)
   const onClick = React.useCallback((e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
@@ -341,7 +341,7 @@ export default function Sidebar({
             </span>
           </button>
 
-          <div className="mt-2">
+          <div className="mt-auto sticky bottom-0 border-t bg-white p-3">
             <SignedOut>
               <SignInButton mode="modal">
                 <button className="w-full rounded-md px-3 py-2 border">Login</button>
@@ -349,9 +349,13 @@ export default function Sidebar({
             </SignedOut>
 
             <SignedIn>
-              {/* Avatar w/ initials + menu (doesn't navigate away) */}
-              <UserButton appearance={{ elements: { avatarBox: { width: "40px", height: "40px" } } }} />
-              {/* Optional: link to profile page */}
+              <div className="flex items-center gap-3">
+                <UserButton appearance={{ elements: { avatarBox: { width: "40px", height: "40px" } } }} />
+                <div className="text-sm">
+                  <div className="font-medium">{user?.fullName ?? user?.firstName ?? "Signed in"}</div>
+                  <div className="text-gray-500">{user?.primaryEmailAddress?.emailAddress}</div>
+                </div>
+              </div>
               <div className="mt-2">
                 <Link href="/profile" className="block w-full rounded-md px-3 py-2 border">
                   Profile
@@ -359,8 +363,15 @@ export default function Sidebar({
               </div>
             </SignedIn>
           </div>
+
+          <Link href="/profile" className="block w-full rounded-md px-3 py-2 border">
+            Profile
+          </Link>
         </div>
-      </div>
+      </SignedIn>
+    </div >
+        </div >
+      </div >
     </>
   );
 }
