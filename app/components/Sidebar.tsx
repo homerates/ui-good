@@ -166,8 +166,7 @@ export default function Sidebar({
         />
       )}
 
-      <aside
-        className="sticky top-0 h-[100dvh] md:h-screen flex flex-col border-r bg-white">
+      <div className="sticky top-0 h-[100dvh] md:h-screen flex flex-col border-r bg-white" role="complementary" aria-label="Sidebar"
         style={{ position: "relative", zIndex: 1000, ...slideStyle }}
         onClick={onClick}
         data-open={isOpen ? 'true' : 'false'}
@@ -377,7 +376,7 @@ export default function Sidebar({
             </Link>
           </SignedIn>
         </div>
-      </aside>
+      </aside >
       <div className="mt-auto border-t p-3">
         <SignedOut>
           <SignInButton mode="modal">
@@ -398,9 +397,5 @@ export default function Sidebar({
           </div>
         </SignedIn>
       </div>
-    </aside >
 
-    </>
-  );
-}
 // END Sidebar.tsx (REPLACE ALL)
