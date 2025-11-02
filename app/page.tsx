@@ -794,47 +794,15 @@ export default function Page() {
             >
               Menu
             </button>
+
+            {/* Keep a simple, stable title */}
             <div style={{ fontWeight: 700 }}>Chat</div>
-            <div className="controls">
-              <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}>
-                <option value="borrower">Borrower</option>
-                <option value="public">Public</option>
-              </select>
-              <select
-                value={intent}
-                onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')}
-              >
-                <option value="">Intent: auto</option>
-                <option value="purchase">Purchase</option>
-                <option value="refi">Refi</option>
-                <option value="investor">Investor</option>
-              </select>
-              <input
-                type="number"
-                min={50000}
-                step={1000}
-                placeholder="Loan (optional)"
-                value={loanAmount}
-                onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
-              />
-            </div>
+
+            {/* Controls removed (borrower/public/intent/loan amount) */}
+            <div className="controls" />
           </div>
         </div>
 
-        <div ref={scrollRef} className="scroll">
-          <div className="center">
-            <div className="messages">
-              {messages.map((m) => (
-                <div key={m.id}>
-                  <Bubble role={m.role}>
-                    {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
-                  </Bubble>
-                </div>
-              ))}
-              {loading && <div className="meta">...thinking</div>}
-            </div>
-          </div>
-        </div>
 
         <div className="composer">
           <div className="composer-inner">
