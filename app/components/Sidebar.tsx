@@ -167,7 +167,7 @@ export default function Sidebar({
       )}
 
       <aside
-        className="sidebar"
+        className="sticky top-0 h-[100dvh] md:h-screen flex flex-col border-r bg-white">
         style={{ position: "relative", zIndex: 1000, ...slideStyle }}
         onClick={onClick}
         data-open={isOpen ? 'true' : 'false'}
@@ -378,6 +378,27 @@ export default function Sidebar({
           </SignedIn>
         </div>
       </aside>
+      <div className="mt-auto border-t p-3">
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="w-full rounded-md px-3 py-2 border">Login</button>
+          </SignInButton>
+        </SignedOut>
+
+        <SignedIn>
+          {/* Avatar w/ initials + menu (doesn't navigate away) */}
+          <UserButton
+            appearance={{ elements: { avatarBox: { width: "40px", height: "40px" } } }}
+          />
+          {/* Optional: link to profile page */}
+          <div className="mt-2">
+            <Link href="/profile" className="block w-full rounded-md px-3 py-2 border">
+              Profile
+            </Link>
+          </div>
+        </SignedIn>
+      </div>
+    </aside >
 
     </>
   );
