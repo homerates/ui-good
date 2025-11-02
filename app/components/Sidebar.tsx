@@ -349,13 +349,13 @@ export default function Sidebar({
 
           {/* === LOGIN (replaces bottom Share) === */}
           <Link
-            href="/dashboard"
-            data-action="dashboard"
-            aria-label="Dashboard"
+            href="/profile"
+            data-action="profile"
+            aria-label="profile"
             className="btn"
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Icon.Login /> Dashboard
+              <Icon.Login /> profile
             </span>
           </Link>
 
@@ -372,8 +372,8 @@ export default function Sidebar({
           </SignedOut>
 
           <SignedIn>
-            <Link href="/dashboard" className="block w-full rounded-md px-3 py-2 border">
-              Dashboard
+            <Link href="/profile" className="block w-full rounded-md px-3 py-2 border">
+              profile
             </Link>
           </SignedIn>
         </div>
