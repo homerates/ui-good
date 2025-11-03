@@ -1,20 +1,30 @@
-/* ===== Base reset (minimal) ===== */
+/* app/globals.css */
 :root {
-  --bg: #ffffff;
-  --fg: #111111;
-  --muted: #777777;
-  --border: #e6e6e7;
-  --accent: #4f46e5;
-
-  --bubble-user: #f4f4f5;
-  --bubble-assistant: #ffffff;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.06);
+  --bg: #fff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --panel: #f8fafc;
+  --border: #e5e7eb;
+  --brand: #111827;
+  --brand-weak: #334155;
+  --accent: #0ea5e9;
+  --bubble-user: #e0f2fe;
+  --bubble-assistant: #f4f4f5;
 }
 
-* {
-  box-sizing: border-box;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f17;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --panel: #0f172a;
+    --border: #1f2937;
+    --brand: #e5e7eb;
+    --brand-weak: #cbd5e1;
+    --accent: #38bdf8;
+    --bubble-user: #0b2b3a;
+    --bubble-assistant: #111827;
+  }
 }
 
 html,
@@ -22,31 +32,321 @@ body {
   height: 100%;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
+  margin: 0;
   background: var(--bg);
-  color: var(--fg);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  color: var(--text);
+  font: 16px/1.45 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* ===== Chat bubbles ===== */
-.scroll .rounded-2xl {
-  border-radius: 18px;
+/* —— App frame on <body> —— */
+.app {
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  /* <- ensure the main column can shrink */
+  min-width: 0;
+  /* avoid overflow */
 }
 
-.scroll .bg-zinc-100 {
+/* Sidebar */
+.sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 0;
+}
+
+.side-top {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.brand {
+  font-weight: 800;
+  color: var(--brand);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.chat-list {
+  overflow: auto;
+  padding: 8px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.chat-item {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--brand-weak);
+  cursor: pointer;
+}
+
+.chat-item:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.side-bottom {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 8px;
+}
+
+/* Main column */
+.main {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  /* critical for grids */
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.header-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.controls {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+select,
+input[type="number"],
+input[type="text"] {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Chat area */
+.scroll {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.center {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 12px 16px;
+}
+
+.messages {
+  display: grid;
+  gap: 12px;
+}
+
+/* Bubbles */
+.bubble {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.avatar.user {
+  background: var(--accent);
+}
+
+.avatar.bot {
+  background: var(--brand);
+}
+
+.balloon {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px 12px;
+  max-width: 760px;
+  white-space: pre-wrap;
+}
+
+.balloon.user {
   background: var(--bubble-user);
 }
 
-.scroll .bg-white {
+.balloon.bot {
   background: var(--bubble-assistant);
 }
 
-.scroll .shadow-sm {
-  box-shadow: var(--shadow-sm);
+/* Meta + panels */
+.meta {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* ===== Sticky composer (visible change) ===== */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+/* Composer */
+.composer {
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.composer-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.input {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Collapse sidebar on narrow screens */
+@media (max-width: 920px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+}
+
+/* ========== UI skin pass 1 (ADD-ONLY; no overrides to existing rules) ========== */
+
+/* 1) Code & Pre: clear, readable blocks (light + dark) */
+pre,
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+pre {
+  background: #0a0a0a;
+  color: #e5e7eb;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  overflow: auto;
+}
+
+code:not(pre code) {
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.15rem 0.35rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  code:not(pre code) {
+    background: #0f172a;
+    color: #e5e7eb;
+    border-color: #1f2937;
+  }
+}
+
+/* 2) Focus states: inputs/buttons more visible without harsh colors */
+select:focus,
+input[type="number"]:focus,
+input[type="text"]:focus,
+textarea:focus,
+button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+}
+
+/* 3) Subtle elevation for bubbles (keeps your colors as-is) */
+.balloon {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 4px 12px rgba(0, 0, 0, .04);
+}
+
+/* smoother flow between messages */
+.messages {
+  gap: 16px;
+  /* was 12px */
+  padding-bottom: 40px;
+  /* leaves air above composer */
+}
+
+/* soften sidebar divide and make hover feel tactile */
+.sidebar {
+  border-right: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+.chat-item:hover {
+  background: color-mix(in oklab, var(--accent) 6%, var(--panel));
+  transform: translateY(-1px);
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+/* floating composer feel */
 .composer {
   position: sticky;
   bottom: 0;
@@ -55,68 +355,490 @@ body {
   border-top: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
 }
 
-/* ===== Header polish (visible change) ===== */
-header[class*="border-b"] {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+.input {
+  border-radius: 20px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* ===== Focus rings ===== */
+.input:focus {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+/* ========== UI pass 3: avatars + spacing (append-only) ========== */
+
+/* 1) Avatar polish: size, ring, legible initials */
+.avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+  border: 0;
+  /* keep backgrounds from your vars */
+}
+
+@media (max-width: 920px) {
+  .avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}
+
+/* soft rings that match your brand/accent without changing fills */
+.avatar.user {
+  box-shadow:
+    inset 0 0 0 2px color-mix(in oklab, var(--accent) 65%, transparent),
+    0 1px 2px rgba(0, 0, 0, .06);
+}
+
+.avatar.bot {
+  box-shadow:
+    inset 0 0 0 2px color-mix(in oklab, var(--brand) 60%, transparent),
+    0 1px 2px rgba(0, 0, 0, .06);
+}
+
+/* 2) Bubble geometry & rhythm: a touch more air, stable max widths */
+.bubble {
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.balloon {
+  border-radius: 18px;
+  /* slightly softer than 16px */
+  padding: 12px 14px;
+  /* more comfortable read */
+  line-height: 1.6;
+  max-width: 760px;
+  /* keep your previous cap */
+}
+
+@media (min-width: 1200px) {
+  .balloon {
+    max-width: 820px;
+  }
+
+  /* breathe on larger screens */
+}
+
+@media (max-width: 480px) {
+  .balloon {
+    max-width: calc(100% - 64px);
+  }
+
+  /* protect against edge collisions */
+}
+
+/* 3) Gentle grouping: de-emphasize repeated avatars for same speaker */
+.bubble.user+.bubble.user .avatar,
+.bubble.bot+.bubble.bot .avatar {
+  visibility: hidden;
+  /* preserves layout width; reduces noise */
+}
+
+.bubble.user+.bubble.user,
+.bubble.bot+.bubble.bot {
+  margin-top: -4px;
+  /* tucks consecutive messages closer */
+}
+
+/* ========== UI pass 4: footer/meta info (append-only) ========== */
+
+/* footer strip pinned below composer */
+.footer-meta {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+/* fade in subtly when scrolling to bottom */
+.footer-meta {
+  opacity: 0.85;
+  transition: opacity 0.3s ease;
+}
+
+.footer-meta:hover {
+  opacity: 1;
+}
+
+/* ========== UI hotfix: footer placement & sizing (append-only) ========== */
+.footer-meta {
+  grid-column: 1 / -1;
+  /* span both grid columns of .app */
+  position: static;
+  /* avoid odd sticky behavior in grid */
+  font-size: 12px;
+  /* ensure small, not oversized */
+  line-height: 1.4;
+  padding: 10px 16px;
+}
+
+/* ========== UI pass 5: mobile polish (append-only) ========== */
+
+/* 1) Safe-area aware footer & composer for iOS/Android */
+@supports (padding: max(0px)) {
+
+  .composer,
+  .footer-meta {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+
+.footer-meta {
+  position: sticky;
+  bottom: 0;
+}
+
+/* 2) Comfortable tap targets & type scale on small screens */
+@media (max-width: 480px) {
+  body {
+    font-size: 15.5px;
+  }
+
+  /* +3% readability bump */
+  .btn,
+  button,
+  .input,
+  select {
+    min-height: 44px;
+    /* thumb-friendly */
+  }
+
+  .header-inner,
+  .center,
+  .composer-inner {
+    padding-left: 12px;
+    padding-right: 12px;
+    /* tighter gutters */
+  }
+}
+
+/* 3) Message layout: avatars + bubbles fit small widths cleanly */
+@media (max-width: 480px) {
+  .avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+
+  .bubble {
+    gap: 10px;
+  }
+
+  .balloon {
+    border-radius: 16px;
+    padding: 10px 12px;
+    max-width: calc(100% - 70px);
+    /* protects edges next to avatar */
+    word-break: break-word;
+    /* long tokens won’t overflow */
+  }
+
+  .messages {
+    gap: 14px;
+  }
+}
+
+/* === Incremental pass #6: dark-mode polish (append-only) === */
+
+/* Base tokens: keep light mode as-is, only define fallbacks */
+:root {
+  /* if these already exist, we’re just confirming defaults */
+  --bg: #ffffff;
+  --fg: #0f172a;
+  /* slate-900 */
+  --muted: #64748b;
+  /* slate-500 */
+  --border: #e2e8f0;
+  /* slate-200 */
+
+  /* chat bubbles */
+  --bubble-assistant-bg: #f8fafc;
+  /* slate-50 */
+  --bubble-assistant-fg: #0f172a;
+  --bubble-user-bg: #2563eb;
+  /* blue-600 */
+  --bubble-user-fg: #ffffff;
+
+  /* footer */
+  --footer-bg: #ffffff;
+  --footer-fg: #475569;
+  /* slate-600 */
+  --footer-border: #e2e8f0;
+}
+
+/* Auto dark mode: prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1020;
+    /* near-slate-950, deeper than default for contrast */
+    --fg: #e5e7eb;
+    /* slate-200 */
+    --muted: #94a3b8;
+    /* slate-400 */
+    --border: #1f2937;
+    /* slate-800 */
+
+    /* bubbles: keep >4.5:1 contrast */
+    --bubble-assistant-bg: #10172a;
+    /* slate-900-ish */
+    --bubble-assistant-fg: #e5e7eb;
+    --bubble-user-bg: #3b82f6;
+    /* blue-500 (reads better on dark) */
+    --bubble-user-fg: #0b1020;
+    /* dark text inside bright bubble for 7+:1 */
+
+    /* footer */
+    --footer-bg: #0b1020;
+    --footer-fg: #a8b1c6;
+    /* slate-300/400 */
+    --footer-border: #1f2937;
+  }
+}
+
+/* Class-based dark mode (if you toggle .dark on <html> or <body>) */
+.dark {
+  --bg: #0b1020;
+  --fg: #e5e7eb;
+  --muted: #94a3b8;
+  --border: #1f2937;
+
+  --bubble-assistant-bg: #10172a;
+  --bubble-assistant-fg: #e5e7eb;
+  --bubble-user-bg: #3b82f6;
+  --bubble-user-fg: #0b1020;
+
+  --footer-bg: #0b1020;
+  --footer-fg: #a8b1c6;
+  --footer-border: #1f2937;
+}
+
+/* Wire tokens into existing surfaces without changing markup */
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.chat-row.assistant,
+.bubble.assistant,
+[data-role="assistant"] {
+  background: var(--bubble-assistant-bg);
+  color: var(--bubble-assistant-fg);
+  border-color: var(--border);
+}
+
+.chat-row.user,
+.bubble.user,
+[data-role="user"] {
+  background: var(--bubble-user-bg);
+  color: var(--bubble-user-fg);
+  border-color: transparent;
+  /* user bubble usually no border */
+}
+
+/* Footer (server-rendered) */
+.site-footer,
+[data-footer] {
+  background: var(--footer-bg);
+  color: var(--footer-fg);
+  border-top: 1px solid var(--footer-border);
+}
+
+/* Subtle focus rings for a11y on dark */
 :focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline: 2px solid color-mix(in oklab, var(--bubble-user-bg), white 10%);
   outline-offset: 2px;
 }
 
-/* ===== Avatars (if any) ===== */
-.avatar.user {
-  box-shadow:
-    inset 0 0 0 1.5px color-mix(in oklab, var(--accent) 60%, transparent),
-    0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-/* ===== Mobile spacing & safe areas ===== */
-@media (max-width: 480px) {
-  .scroll .max-w-3xl {
-    padding-left: max(1rem, env(safe-area-inset-left));
-    padding-right: max(1rem, env(safe-area-inset-right));
-  }
-
-  .composer {
-    padding-left: max(1rem, env(safe-area-inset-left));
-    padding-right: max(1rem, env(safe-area-inset-right));
+/* Respect reduced motion for any existing transitions */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
   }
 }
 
-/* ===== Dark mode tokens (keep your existing colors intact) ===== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b0b0c;
-    --fg: #e9e9ea;
-    --muted: #9a9aa0;
-    --border: #2a2a2f;
+/* === Incremental pass #8: sidebar visual parity (append-only) === */
+/* Tokens (reuse your existing vars) */
+:root {
+  --sb-width: 264px;
+  /* full width */
+  --sb-rail: 56px;
+  /* collapsed rail */
+  --sb-row-h: 36px;
+  /* item height */
+  --sb-radius: 8px;
+  /* pill radius */
+  --sb-gap: 6px;
+  /* row gap */
+  --sb-pad-x: 10px;
+  /* horizontal padding */
+  --sb-pad-y: 8px;
+  /* vertical padding */
+  --sb-icon: 18px;
+  /* icon size */
+  --sb-section-fg: color-mix(in oklab, var(--fg), transparent 45%);
+  --sb-hover: color-mix(in oklab, var(--fg), var(--bg) 92%);
+  --sb-active: color-mix(in oklab, var(--bubble-user-bg), var(--bg) 85%);
+}
 
-    --bubble-user: #161618;
-    --bubble-assistant: #101012;
+/* Sidebar container baseline */
+.sidebar {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--sb-bg, color-mix(in oklab, var(--bg), black 4%));
+}
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-    --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.55);
-  }
+/* Header (logo + collapse button area) */
+.sidebar .sb-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px var(--sb-pad-x);
+  min-height: 40px;
+  border-radius: var(--sb-radius);
+}
 
-  .scroll .bg-white {
-    background: var(--bubble-assistant);
-  }
+/* Section label (e.g., "Projects", "Chats") */
+.sidebar .sb-section-label,
+.sidebar [data-section-label] {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--sb-section-fg);
+  padding: 4px var(--sb-pad-x);
+  text-transform: none;
+  /* ChatGPT uses normal case, semi-muted */
+}
 
-  .scroll .bg-zinc-100 {
-    background: var(--bubble-user);
-  }
+/* List container spacing */
+.sidebar .sb-list,
+.sidebar [data-sb-list] {
+  display: grid;
+  gap: var(--sb-gap);
+  padding: 0 var(--sb-pad-x);
+}
 
-  .composer {
-    background: color-mix(in oklab, var(--bg) 95%, transparent);
-    border-top: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.35);
-  }
+/* Row item: icon + label pill */
+.sidebar .sb-item,
+.sidebar [data-sb-item] {
+  display: grid;
+  grid-template-columns: var(--sb-icon) 1fr auto;
+  /* icon | label | meta */
+  align-items: center;
+  gap: 10px;
+  height: var(--sb-row-h);
+  padding: 0 8px;
+  border-radius: var(--sb-radius);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
 
-  header[class*="border-b"] {
-    background: color-mix(in oklab, var(--bg) 95%, transparent);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
+/* Icon */
+.sidebar .sb-item .icon,
+.sidebar [data-sb-item] .icon {
+  inline-size: var(--sb-icon);
+  block-size: var(--sb-icon);
+  display: grid;
+  place-items: center;
+  color: color-mix(in oklab, var(--fg), transparent 30%);
+}
+
+/* Label text */
+.sidebar .sb-item .label,
+.sidebar [data-sb-item] .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  line-height: 1;
+}
+
+/* Meta (e.g., badge, chevron) */
+.sidebar .sb-item .meta,
+.sidebar [data-sb-item] .meta {
+  display: grid;
+  place-items: center;
+  color: color-mix(in oklab, var(--fg), transparent 45%);
+  font-size: 12px;
+}
+
+/* Hover: soft fill like ChatGPT */
+.sidebar .sb-item:hover,
+.sidebar [data-sb-item]:hover {
+  background: var(--sb-hover);
+  border-color: color-mix(in oklab, var(--border), transparent 25%);
+}
+
+/* Active/selected row: subtle pill with stronger text */
+.sidebar .sb-item.is-active,
+.sidebar [data-sb-item].is-active,
+.sidebar .sb-item[aria-current="page"],
+.sidebar [data-sb-item][aria-current="page"] {
+  background: var(--sb-active);
+  color: var(--fg);
+  border-color: color-mix(in oklab, var(--bubble-user-bg), transparent 75%);
+  font-weight: 600;
+}
+
+/* “New chat” top button styling parity */
+.sidebar .sb-primary,
+.sidebar [data-sb-primary] {
+  margin: 4px var(--sb-pad-x) 2px;
+  height: 40px;
+  display: grid;
+  grid-template-columns: var(--sb-icon) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--bubble-user-bg), var(--bg) 92%);
+  color: var(--fg);
+  border: 1px solid color-mix(in oklab, var(--bubble-user-bg), transparent 80%);
+}
+
+.sidebar .sb-primary:hover,
+.sidebar [data-sb-primary]:hover {
+  background: color-mix(in oklab, var(--bubble-user-bg), var(--bg) 88%);
+}
+
+/* Divider spacing */
+.sidebar .sb-divider,
+.sidebar [data-sb-divider] {
+  margin: 6px var(--sb-pad-x);
+  border-top: 1px solid color-mix(in oklab, var(--border), transparent 20%);
+}
+
+/* “See more” inline row style */
+.sidebar .sb-see-more,
+.sidebar [data-sb-see-more] {
+  color: color-mix(in oklab, var(--fg), transparent 35%);
+  height: var(--sb-row-h);
+  display: grid;
+  grid-template-columns: var(--sb-icon) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  border-radius: var(--sb-radius);
+}
+
+.sidebar .sb-see-more:hover,
+.sidebar [data-sb-see-more]:hover {
+  background: var(--sb-hover);
+}
+
+/* Chats list: slightly denser spacing like ChatGPT */
+.sidebar [data-section="chats"] .sb-list,
+.sidebar .sb-list.chats {
+  gap: 4px;
 }
