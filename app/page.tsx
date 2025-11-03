@@ -28,25 +28,16 @@ function isPaymentQuery(q: string) {
 
   // generic “$400k @ 6.5% for 30y”
   if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+@\s+\d+(\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s)) return true;
+
+  // “$3,800/mo”, “3800 month”, etc.
   if (/\$?\s*\d[\d.,]*\s*(?:\/?\s*)?(?:mo|month)\b/.test(s)) return true;
+
   return false;
 }
 
 /* =========================
    Robust parsing helpers
    ========================= */
-
-// Try to reverse-engineer what was parsed, mainly for debugging or trace logs
-function debugParsedPayment(input: string) {
-  const parsed = parsePaymentQuery(input);
-  const out: Record<string, unknown> = {};
-  if (parsed.loanAmount) out.loanAmount = parsed.loanAmount;
-  if (parsed.purchasePrice) out.purchasePrice = parsed.purchasePrice;
-  if (parsed.downPercent) out.downPercent = parsed.downPercent;
-  if (parsed.annualRatePct) out.annualRatePct = parsed.annualRatePct;
-  if (parsed.termYears) out.termYears = parsed.termYears;
-  return out;
-}
 function isFiniteNum(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n);
 }
@@ -72,14 +63,6 @@ function parsePercent(raw: string | undefined | null): number | undefined {
   return m ? parseFloat(m[1]) : undefined;
 }
 
-// parses: "$500k with 20% down at 6.5% for 30 years"
-/** Parse 6.5 or 6.5% → 6.5 */
-function parsePercent(raw: string | undefined | null): number | undefined {
-  if (!raw) return undefined;
-  const m = String(raw).match(/(\d+(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : undefined;
-}
-
 /** Solve loan amount from monthly P&I, annual rate %, and term (years) */
 function solveLoanAmountFromPI(monthlyPI: number, annualRatePct: number, termYears: number): number | undefined {
   const r = (annualRatePct / 100) / 12;
@@ -89,75 +72,91 @@ function solveLoanAmountFromPI(monthlyPI: number, annualRatePct: number, termYea
   if (!Number.isFinite(denom) || denom <= 0) return undefined;
   return Math.round(monthlyPI / denom);
 }
-const start = m.index ?? 0;
-const text = m[0];
-const end = start + text.length;
-const next = clean.slice(end, end + 3);
-return {
-  text,
-  index: start,
-  end,
-  value: toMoney(text),
-  followedByPercent: /^\s*%/.test(next),
-  hasCurrency: /\$/.test(text),
-  hasSuffix: /[km]\b/.test(text),
-};
+
+// parses: "$500k with 20% down at 6.5% for 30 years", etc.
+function parsePaymentQuery(q: string) {
+  const clean = q.replace(/,/g, '').toLowerCase();
+
+  const moneyRe = /\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g;
+  const toMoney = (s: string | undefined) => (s ? parseMoney(s) : undefined);
+
+  const tokens = Array.from(clean.matchAll(moneyRe)).map((m) => {
+    const start = m.index ?? 0;
+    const text = m[0];
+    const end = start + text.length;
+    const next = clean.slice(end, end + 3);
+    return {
+      text,
+      index: start,
+      end,
+      value: toMoney(text),
+      followedByPercent: /^\s*%/.test(next),
+      hasCurrency: /\$/.test(text),
+      hasSuffix: /[km]\b/.test(text),
+    };
   });
 
-const loanExplicit = clean.match(
-  /\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/
-);
-
-let loanAmount: number | undefined;
-if (loanExplicit) {
-  loanAmount = toMoney(loanExplicit[1]);
-} else if (/\bloan\b/.test(clean) && tokens.length > 0) {
-  const loanIdx = clean.indexOf('loan');
-  const afterLoanMoney = tokens.find(
-    (t) => t.index > loanIdx && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)
-  );
-  loanAmount =
-    afterLoanMoney?.value ??
-    tokens.find((t) => t.index > loanIdx && !t.followedByPercent)?.value ??
-    tokens.find((t) => !t.followedByPercent)?.value;
-}
-
-let purchasePrice: number | undefined;
-if (!loanAmount && tokens.length > 0) {
-  const hintsPrice = /\b(purchase|purchase\s*price|price|home|house|pp)\b/.test(clean);
-  if (hintsPrice) {
-    purchasePrice =
-      tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
-      tokens.find((t) => !t.followedByPercent)?.value ??
-      tokens[0].value;
-  } else if (!/\bloan\b/.test(clean)) {
-    purchasePrice =
-      tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
-      tokens.find((t) => !t.followedByPercent)?.value ??
-      tokens[0].value;
+  // Capture a monthly payment if the user mentions payment/P&I/month
+  let paymentMonthly: number | undefined;
+  if (/\b(payment|p\s*&\s*i|monthly\s*payment|month|mo)\b/.test(clean)) {
+    const payTok = tokens.find((t) => !t.followedByPercent);
+    paymentMonthly = payTok?.value;
   }
-}
 
-const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down\b/);
-const downPercent = downMatch ? parsePercent(downMatch[1]) : undefined;
+  const loanExplicit = clean.match(
+    /\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/
+  );
 
-let annualRatePct: number | undefined;
-const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
-if (rateNear) {
-  annualRatePct = parsePercent(rateNear[1]);
-} else {
-  const anyPct = clean.match(/([0-9]+(?:\.\d+)?)+\s*%/i);
-  annualRatePct = anyPct ? parsePercent(anyPct[1]) : undefined;
-}
+  let loanAmount: number | undefined;
+  if (loanExplicit) {
+    loanAmount = toMoney(loanExplicit[1]);
+  } else if (/\bloan\b/.test(clean) && tokens.length > 0) {
+    const loanIdx = clean.indexOf('loan');
+    const afterLoanMoney = tokens.find(
+      (t) => t.index > loanIdx && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)
+    );
+    loanAmount =
+      afterLoanMoney?.value ??
+      tokens.find((t) => t.index > loanIdx && !t.followedByPercent)?.value ??
+      tokens.find((t) => !t.followedByPercent)?.value;
+  }
 
-const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
-let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
+  let purchasePrice: number | undefined;
+  if (!loanAmount && tokens.length > 0) {
+    const hintsPrice = /\b(purchase|purchase\s*price|price|home|house|pp)\b/.test(clean);
+    if (hintsPrice) {
+      purchasePrice =
+        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
+        tokens.find((t) => !t.followedByPercent)?.value ??
+        tokens[0].value;
+    } else if (!/\bloan\b/.test(clean)) {
+      purchasePrice =
+        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
+        tokens.find((t) => !t.followedByPercent)?.value ??
+        tokens[0].value;
+    }
+  }
 
-if (!termYears && (loanAmount || purchasePrice) && typeof annualRatePct === 'number') {
-  termYears = 30;
-}
+  const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down\b/);
+  const downPercent = downMatch ? parsePercent(downMatch[1]) : undefined;
 
-return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears };
+  let annualRatePct: number | undefined;
+  const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
+  if (rateNear) {
+    annualRatePct = parsePercent(rateNear[1]);
+  } else {
+    const anyPct = clean.match(/([0-9]+(?:\.\d+)?)+\s*%/i);
+    annualRatePct = anyPct ? parsePercent(anyPct[1]) : undefined;
+  }
+
+  const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
+  let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
+
+  if (!termYears && (loanAmount || purchasePrice) && typeof annualRatePct === 'number') {
+    termYears = 30;
+  }
+
+  return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears, paymentMonthly };
 }
 
 function buildCalcUrl(
@@ -246,21 +245,9 @@ const fmtMoney = (n: unknown) => {
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 };
 
-// Given target monthly P&I, rate% (annual), and term years -> approximate principal
-function solveLoanAmountFromPI(targetMonthlyPI: number, annualRatePct: number, termYears: number) {
-  const i = (annualRatePct / 100) / 12;   // monthly rate
-  const n = termYears * 12;
-  if (i <= 0) return targetMonthlyPI * n; // fallback if 0%
-  // M = P * [i(1+i)^n]/[(1+i)^n - 1]  =>  P = M * [(1+i)^n - 1]/[i(1+i)^n]
-  const pow = Math.pow(1 + i, n);
-  const factor = (pow - 1) / (i * pow);
-  return targetMonthlyPI * factor;
-}
-
-// Normalize calc API response
-
-
-// Normalize calc API response
+/* =========================
+   Normalize calc API response
+   ========================= */
 type CalcApiMeta = { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
 type CalcApiRaw = {
   meta?: CalcApiMeta;
@@ -697,7 +684,6 @@ export default function Page() {
           isFiniteNum(parsed.purchasePrice) &&
           isFiniteNum(parsed.downPercent) &&
           isFiniteNum(parsed.annualRatePct);
-
 
         if (!okByLoan && !okByPP) {
           setMessages((m) => [
