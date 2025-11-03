@@ -30,7 +30,7 @@ function saveThreads(threads: Thread[]) {
 }
 
 /* =========================
-   Calc helpers (parsing + URL)
+   Calc helpers
    ========================= */
 function isFiniteNum(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n);
@@ -47,7 +47,7 @@ function parseCalcIntent(q: string) {
   const termMatch = s.match(/(\d+)\s*(?:yr|year|years|y)\b/);
   const termYears = termMatch ? parseInt(termMatch[1], 10) : undefined;
 
-  // amounts like $500k, 500,000, 400k loan
+  // money like 500k, $500,000
   const moneyK = s.match(/(\d+(?:\.\d+)?)\s*k\b/);
   const moneyPlain = s.match(/\$?\s*([\d,]+)\b/);
 
@@ -162,6 +162,16 @@ export default function Page() {
     el.scrollTop = el.scrollHeight;
   });
 
+  function handleNewChat() {
+    const id = `t_${Date.now()}`;
+    const now = Date.now();
+    setThreads(prev => {
+      const next: Thread = { id, messages: [], updatedAt: now };
+      return [next, ...prev];
+    });
+    setActiveId(id);
+  }
+
   async function handleSend() {
     const q = input.trim();
     if (!q) return;
@@ -225,18 +235,26 @@ export default function Page() {
     });
   }
 
+  // Sidebar adapter: map threads -> history items
+  const sidebarHistory = threads.map(t => {
+    const first = t.messages.find(m => m.role === 'user')?.content ?? 'New chat';
+    const title = first.length > 48 ? first.slice(0, 45) + '…' : first;
+    return { id: t.id, title, updatedAt: t.updatedAt };
+  });
+
   const messages = threads.find((t) => t.id === activeId)?.messages ?? [];
 
   return (
     <div className="flex h-[100dvh]">
       {/* Left rail */}
       <aside className="hidden md:block w-64 border-r bg-white">
-        <Sidebar />
+        {/* Casts relax type expectations in case Sidebar's prop shape differs slightly */}
+        <Sidebar history={sidebarHistory as any} onNewChat={handleNewChat as any} />
       </aside>
 
       {/* Main column */}
       <section className="main flex-1 h-[100dvh] overflow-y-auto flex flex-col">
-        {/* Header (visibly different: pinned, subtle shadow) */}
+        {/* Header */}
         <header className="sticky top-0 z-10 px-4 py-3 bg-white/90 backdrop-blur border-b shadow-[0_1px_0_0_rgba(0,0,0,0.02)] flex items-center justify-between">
           <div className="font-medium">HomeRates.Ai — Chat & Calculators</div>
           <button
@@ -271,7 +289,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Composer (sticky, visible) */}
+        {/* Composer */}
         <div className="composer px-4 py-3 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-t sticky bottom-0">
           <div className="max-w-3xl mx-auto flex gap-2">
             <textarea
@@ -324,11 +342,9 @@ export default function Page() {
 }
 
 /* =========================
-   TL;DR formatter for API result
+   TL;DR formatter
    ========================= */
 function formatPaymentTLDR(data: any) {
-  // Expected payload:
-  // { monthlyPI, monthlyTax, monthlyIns, monthlyHOA, monthlyMI, monthlyTotalPITI, sensitivity: { up025, down025 } }
   const pi = fmt(data?.monthlyPI);
   const piti = fmt(data?.monthlyTotalPITI);
   const up = fmt(data?.sensitivity?.up025);
