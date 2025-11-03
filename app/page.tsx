@@ -28,13 +28,25 @@ function isPaymentQuery(q: string) {
 
   // generic “$400k @ 6.5% for 30y”
   if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+@\s+\d+(\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s)) return true;
-
+  if (/\$?\s*\d[\d.,]*\s*(?:\/?\s*)?(?:mo|month)\b/.test(s)) return true;
   return false;
 }
 
 /* =========================
    Robust parsing helpers
    ========================= */
+
+// Try to reverse-engineer what was parsed, mainly for debugging or trace logs
+function debugParsedPayment(input: string) {
+  const parsed = parsePaymentQuery(input);
+  const out: Record<string, unknown> = {};
+  if (parsed.loanAmount) out.loanAmount = parsed.loanAmount;
+  if (parsed.purchasePrice) out.purchasePrice = parsed.purchasePrice;
+  if (parsed.downPercent) out.downPercent = parsed.downPercent;
+  if (parsed.annualRatePct) out.annualRatePct = parsed.annualRatePct;
+  if (parsed.termYears) out.termYears = parsed.termYears;
+  return out;
+}
 function isFiniteNum(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n);
 }
@@ -224,6 +236,20 @@ const fmtMoney = (n: unknown) => {
   const v = typeof n === 'number' && isFinite(n) ? n : 0;
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 };
+
+// Given target monthly P&I, rate% (annual), and term years -> approximate principal
+function solveLoanAmountFromPI(targetMonthlyPI: number, annualRatePct: number, termYears: number) {
+  const i = (annualRatePct / 100) / 12;   // monthly rate
+  const n = termYears * 12;
+  if (i <= 0) return targetMonthlyPI * n; // fallback if 0%
+  // M = P * [i(1+i)^n]/[(1+i)^n - 1]  =>  P = M * [(1+i)^n - 1]/[i(1+i)^n]
+  const pow = Math.pow(1 + i, n);
+  const factor = (pow - 1) / (i * pow);
+  return targetMonthlyPI * factor;
+}
+
+// Normalize calc API response
+
 
 // Normalize calc API response
 type CalcApiMeta = { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
