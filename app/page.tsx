@@ -170,6 +170,7 @@ function parsePaymentQuery(q: string) {
   let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
   if (!termYears && (loanAmount || purchasePrice) && typeof annualRatePct === 'number') {
     termYears = 30; // default 30y when enough context exists
+    // note: keeping it explicit avoids surprise defaults elsewhere
   }
 
   // If monthly payment present and we have rate + term, infer loan amount
@@ -269,9 +270,7 @@ const fmtMoney = (n: unknown) => {
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 };
 
-/* =========================
-   Normalize calc API response
-   ========================= */
+// Normalize calc API response
 type CalcApiMeta = { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
 type CalcApiRaw = {
   meta?: CalcApiMeta;
@@ -514,19 +513,22 @@ export default function Page() {
     }
   }, [threads, history, activeId]);
 
-  // Snapshot messages into active thread + bump history.updatedAt
+  // Snapshot messages into active thread + bump history.updatedAt (guarded + stable)
   useEffect(() => {
     if (!activeId) return;
 
-    setThreads((prev) => ({ ...prev, [activeId]: messages }));
+    setThreads((prev) => {
+      const base = prev && typeof prev === 'object' ? prev : {};
+      return { ...base, [activeId]: messages };
+    });
 
     setHistory((prev) => {
-      const idx = prev.findIndex((h) => h.id === activeId);
-      if (idx === -1) return prev;
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], updatedAt: Date.now() };
-      copy.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
-      return copy;
+      const arr = Array.isArray(prev) ? [...prev] : [];
+      const idx = arr.findIndex((h) => h?.id === activeId);
+      if (idx === -1) return arr;
+      arr[idx] = { ...arr[idx], updatedAt: Date.now() };
+      arr.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+      return arr;
     });
   }, [messages, activeId]);
 
@@ -665,6 +667,7 @@ export default function Page() {
       setActiveId(tid);
       setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
     } else {
+      // SAFER HISTORY UPDATER (avoids TDZ / minifier traps)
       setHistory((prev) => {
         const next = Array.isArray(prev) ? [...prev] : [];
         const idx = next.findIndex((x) => x?.id === tid);
@@ -686,430 +689,430 @@ export default function Page() {
         next.unshift({ id: tid!, title, updatedAt: Date.now() });
         return next.slice(0, 20);
       });
+    }
 
+    setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
+    setInput('');
+    setLoading(true);
 
-      setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
-      setInput('');
-      setLoading(true);
+    try {
+      if (isPaymentQuery(q)) {
+        const parsed = parsePaymentQuery(q);
 
-      try {
-        if (isPaymentQuery(q)) {
-          const parsed = parsePaymentQuery(q);
+        // If user provided a monthly payment + rate + term, infer loan amount
+        if (
+          !isFiniteNum(parsed.loanAmount) &&
+          isFiniteNum(parsed.paymentMonthly) &&
+          isFiniteNum(parsed.annualRatePct) &&
+          isFiniteNum(parsed.termYears)
+        ) {
+          const inferred = solveLoanAmountFromPI(
+            parsed.paymentMonthly as number,
+            parsed.annualRatePct!,
+            parsed.termYears!
+          );
+          if (isFiniteNum(inferred)) parsed.loanAmount = inferred;
+        }
 
-          // If user provided a monthly payment + rate + term, infer loan amount (belt & suspenders)
-          if (
-            !isFiniteNum(parsed.loanAmount) &&
-            isFiniteNum(parsed.paymentMonthly) &&
-            isFiniteNum(parsed.annualRatePct) &&
-            isFiniteNum(parsed.termYears)
-          ) {
-            const inferred = solveLoanAmountFromPI(
-              parsed.paymentMonthly as number,
-              parsed.annualRatePct!,
-              parsed.termYears!
-            );
-            if (isFiniteNum(inferred)) parsed.loanAmount = inferred;
-          }
+        const okByLoan = isFiniteNum(parsed.loanAmount) && isFiniteNum(parsed.annualRatePct);
+        const okByPP =
+          isFiniteNum(parsed.purchasePrice) &&
+          isFiniteNum(parsed.downPercent) &&
+          isFiniteNum(parsed.annualRatePct);
 
-          const okByLoan = isFiniteNum(parsed.loanAmount) && isFiniteNum(parsed.annualRatePct);
-          const okByPP =
-            isFiniteNum(parsed.purchasePrice) &&
-            isFiniteNum(parsed.downPercent) &&
-            isFiniteNum(parsed.annualRatePct);
-
-          if (!okByLoan && !okByPP) {
-            setMessages((m) => [
-              ...m,
-              {
-                id: uid(),
-                role: 'assistant',
-                content:
-                  'I need at least a loan amount + rate (e.g., “$400k loan at 6.5% for 30 years”), or purchase price + down % + rate (e.g., “$500k with 20% down at 6.25% for 30 years”).',
-              },
-            ]);
-            setLoading(false);
-            return;
-          }
-
-          const patched = { ...parsed };
-          if (isFiniteNum(patched.loanAmount) && !isFiniteNum(patched.purchasePrice)) {
-            patched.purchasePrice = patched.loanAmount;
-            if (!isFiniteNum(patched.downPercent)) patched.downPercent = 0;
-          }
-
-          const url = buildCalcUrl('/api/calc/payment', patched);
-          const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
-          const raw: unknown = await r.json().catch(() => ({}));
-
-          const meta = normalizeCalcResponse(raw, r.status);
-
-          let friendly = 'Calculated principal & interest payment.';
-          if (meta.path === 'calc' && meta.answer && typeof meta.answer === 'object') {
-            const a = meta.answer as CalcAnswer;
-            friendly = `Monthly P&I: $${fmtMoney(a.monthlyPI)} on $${fmtMoney(a.loanAmount)}`;
-          }
-          if (!r.ok) {
-            friendly = `Calc service returned ${r.status}. Showing raw data.`;
-          }
-
-          setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+        if (!okByLoan && !okByPP) {
+          setMessages((m) => [
+            ...m,
+            {
+              id: uid(),
+              role: 'assistant',
+              content:
+                'I need at least a loan amount + rate (e.g., “$400k loan at 6.5% for 30 years”), or purchase price + down % + rate (e.g., “$500k with 20% down at 6.25% for 30 years”).',
+            },
+          ]);
           setLoading(false);
           return;
         }
 
-        const body: {
-          question: string;
-          mode: 'borrower' | 'public';
-          intent?: 'purchase' | 'refi' | 'investor';
-          loanAmount?: number;
-        } = { question: q, mode };
-        if (intent) body.intent = intent;
-        if (loanAmount && Number(loanAmount) > 0) body.loanAmount = Number(loanAmount);
+        const patched = { ...parsed };
+        if (isFiniteNum(patched.loanAmount) && !isFiniteNum(patched.purchasePrice)) {
+          patched.purchasePrice = patched.loanAmount;
+          if (!isFiniteNum(patched.downPercent)) patched.downPercent = 0;
+        }
 
-        const r = await fetch('/api/answers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
+        const url = buildCalcUrl('/api/calc/payment', patched);
+        const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
+        const raw: unknown = await r.json().catch(() => ({}));
 
-        const meta = await safeJson(r);
+        const meta = normalizeCalcResponse(raw, r.status);
 
-        const friendly =
-          meta.message ??
-          meta.summary ??
-          (meta.fred &&
-            meta.fred.tenYearYield != null &&
-            meta.fred.mort30Avg != null &&
-            meta.fred.spread != null
-            ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${typeof meta.fred.tenYearYield === 'number' ? meta.fred.tenYearYield.toFixed(2) : meta.fred.tenYearYield
-            }%, 30Y ${typeof meta.fred.mort30Avg === 'number' ? meta.fred.mort30Avg.toFixed(2) : meta.fred.mort30Avg
-            }%, spread ${typeof meta.fred.spread === 'number' ? meta.fred.spread.toFixed(2) : meta.fred.spread}%.`
-            : typeof meta.answer === 'string'
-              ? meta.answer
-              : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
+        let friendly = 'Calculated principal & interest payment.';
+        if (meta.path === 'calc' && meta.answer && typeof meta.answer === 'object') {
+          const a = meta.answer as CalcAnswer;
+          friendly = `Monthly P&I: $${fmtMoney(a.monthlyPI)} on $${fmtMoney(a.loanAmount)}`;
+        }
+        if (!r.ok) {
+          friendly = `Calc service returned ${r.status}. Showing raw data.`;
+        }
 
         setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
-      } finally {
         setLoading(false);
+        return;
       }
+
+      const body: {
+        question: string;
+        mode: 'borrower' | 'public';
+        intent?: 'purchase' | 'refi' | 'investor';
+        loanAmount?: number;
+      } = { question: q, mode };
+      if (intent) body.intent = intent;
+      if (loanAmount && Number(loanAmount) > 0) body.loanAmount = Number(loanAmount);
+
+      const r = await fetch('/api/answers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const meta = await safeJson(r);
+
+      const friendly =
+        meta.message ??
+        meta.summary ??
+        (meta.fred &&
+          meta.fred.tenYearYield != null &&
+          meta.fred.mort30Avg != null &&
+          meta.fred.spread != null
+          ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${typeof meta.fred.tenYearYield === 'number' ? meta.fred.tenYearYield.toFixed(2) : meta.fred.tenYearYield
+          }%, 30Y ${typeof meta.fred.mort30Avg === 'number' ? meta.fred.mort30Avg.toFixed(2) : meta.fred.mort30Avg
+          }%, spread ${typeof meta.fred.spread === 'number' ? meta.fred.spread.toFixed(2) : meta.fred.spread}%.`
+          : typeof meta.answer === 'string'
+            ? meta.answer
+            : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
+
+      setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        send();
-      }
+  function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
     }
+  }
 
-    function onShare() {
-      const text = messages
-        .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
-        .join('\n');
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text).catch(() => { });
-      } else {
-        const blob = new Blob([text], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'conversation.txt';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }
+  function onShare() {
+    const text = messages
+      .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
+      .join('\n');
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => { });
+    } else {
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'conversation.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     }
+  }
 
-    function onSettings() { setShowSettings(true); }
-    function onSearch() { setShowSearch(true); }
-    function onLibrary() { setShowLibrary(true); }
-    function onNewProject() { setShowProject(true); }
-    function closeAllOverlays() {
-      setShowSearch(false);
-      setShowLibrary(false);
-      setShowSettings(false);
-      setShowProject(false);
-    }
+  function onSettings() { setShowSettings(true); }
+  function onSearch() { setShowSearch(true); }
+  function onLibrary() { setShowLibrary(true); }
+  function onNewProject() { setShowProject(true); }
+  function closeAllOverlays() {
+    setShowSearch(false);
+    setShowLibrary(false);
+    setShowSettings(false);
+    setShowProject(false);
+  }
 
-    return (
-      <>
-        {/* Sidebar */}
-        <Sidebar
-          history={history}
-          onNewChat={newChat}
-          onSettings={onSettings}
-          onShare={onShare}
-          onSearch={onSearch}
-          onLibrary={onLibrary}
-          onNewProject={onNewProject}
-          activeId={activeId}
-          onSelectHistory={onSelectHistory}
-          isOpen={sidebarOpen}
-          onToggle={toggleSidebar}
-          onHistoryAction={handleHistoryAction}
-        />
+  return (
+    <>
+      {/* Sidebar */}
+      <Sidebar
+        history={history}
+        onNewChat={newChat}
+        onSettings={onSettings}
+        onShare={onShare}
+        onSearch={onSearch}
+        onLibrary={onLibrary}
+        onNewProject={onNewProject}
+        activeId={activeId}
+        onSelectHistory={onSelectHistory}
+        isOpen={sidebarOpen}
+        onToggle={toggleSidebar}
+        onHistoryAction={handleHistoryAction}
+      />
 
-        {/* Main */}
-        <section
-          className="main"
-          style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}
-        >
-          <div className="header">
-            <div className="header-inner">
-              <button
-                className="btn"
-                type="button"
-                onClick={toggleSidebar}
-                aria-label="Toggle sidebar"
-                style={{ marginRight: 8 }}
+      {/* Main */}
+      <section
+        className="main"
+        style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="header">
+          <div className="header-inner">
+            <button
+              className="btn"
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Toggle sidebar"
+              style={{ marginRight: 8 }}
+            >
+              Menu
+            </button>
+            <div style={{ fontWeight: 700 }}>Chat</div>
+            <div className="controls">
+              <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}>
+                <option value="borrower">Borrower</option>
+                <option value="public">Public</option>
+              </select>
+              <select
+                value={intent}
+                onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')}
               >
-                Menu
-              </button>
-              <div style={{ fontWeight: 700 }}>Chat</div>
-              <div className="controls">
-                <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}>
-                  <option value="borrower">Borrower</option>
-                  <option value="public">Public</option>
-                </select>
-                <select
-                  value={intent}
-                  onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')}
-                >
-                  <option value="">Intent: auto</option>
-                  <option value="purchase">Purchase</option>
-                  <option value="refi">Refi</option>
-                  <option value="investor">Investor</option>
-                </select>
-                <input
-                  type="number"
-                  min={50000}
-                  step={1000}
-                  placeholder="Loan (optional)"
-                  value={loanAmount}
-                  onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div
-            ref={scrollRef}
-            className="scroll"
-            style={{ flex: 1, overflowY: 'auto' }}
-          >
-            <div className="center">
-              <div className="messages">
-                {messages.map((m) => (
-                  <div key={m.id}>
-                    <Bubble role={m.role}>
-                      {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
-                    </Bubble>
-                  </div>
-                ))}
-                {loading && <div className="meta">...thinking</div>}
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="composer"
-            style={{ position: 'sticky', bottom: 0, zIndex: 5 }}
-          >
-            <div className="composer-inner">
+                <option value="">Intent: auto</option>
+                <option value="purchase">Purchase</option>
+                <option value="refi">Refi</option>
+                <option value="investor">Investor</option>
+              </select>
               <input
-                className="input"
-                placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | ..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={onKey}
+                type="number"
+                min={50000}
+                step={1000}
+                placeholder="Loan (optional)"
+                value={loanAmount}
+                onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
               />
-              <button className="btn" onClick={send} disabled={loading || !input.trim()}>
-                Send
-              </button>
             </div>
           </div>
+        </div>
 
-          {/* ------- Overlays (Search/Library/Settings/New Project) ------- */}
-          {(showSearch || showLibrary || showSettings || showProject) && (
+        <div
+          ref={scrollRef}
+          className="scroll"
+          style={{ flex: 1, overflowY: 'auto' }}
+        >
+          <div className="center">
+            <div className="messages">
+              {messages.map((m) => (
+                <div key={m.id}>
+                  <Bubble role={m.role}>
+                    {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
+                  </Bubble>
+                </div>
+              ))}
+              {loading && <div className="meta">...thinking</div>}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="composer"
+          style={{ position: 'sticky', bottom: 0, zIndex: 5 }}
+        >
+          <div className="composer-inner">
+            <input
+              className="input"
+              placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | ..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKey}
+            />
+            <button className="btn" onClick={send} disabled={loading || !input.trim()}>
+              Send
+            </button>
+          </div>
+        </div>
+
+        {/* ------- Overlays (Search/Library/Settings/New Project) ------- */}
+        {(showSearch || showLibrary || showSettings || showProject) && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeAllOverlays();
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              zIndex: 5000,
+            }}
+          >
             <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Overlay"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) closeAllOverlays();
-              }}
+              className="panel"
               style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(0,0,0,0.35)',
+                width: 'min(680px, 92vw)',
+                maxHeight: '80vh',
+                overflow: 'auto',
+                padding: 16,
+                borderRadius: 12,
+                background: 'var(--card)',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
                 display: 'grid',
-                placeItems: 'center',
-                zIndex: 5000,
+                gap: 12,
               }}
             >
-              <div
-                className="panel"
-                style={{
-                  width: 'min(680px, 92vw)',
-                  maxHeight: '80vh',
-                  overflow: 'auto',
-                  padding: 16,
-                  borderRadius: 12,
-                  background: 'var(--card)',
-                  boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
-                  display: 'grid',
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 700 }}>
-                    {showSearch && 'Search'}
-                    {showLibrary && 'Library'}
-                    {showSettings && 'Settings'}
-                    {showProject && 'New Project'}
-                  </div>
-                  <button className="btn" onClick={closeAllOverlays} aria-label="Close">
-                    Close
-                  </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 700 }}>
+                  {showSearch && 'Search'}
+                  {showLibrary && 'Library'}
+                  {showSettings && 'Settings'}
+                  {showProject && 'New Project'}
                 </div>
+                <button className="btn" onClick={closeAllOverlays} aria-label="Close">
+                  Close
+                </button>
+              </div>
 
-                {/* SEARCH */}
-                {showSearch && (
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    <input
-                      className="input"
-                      placeholder="Search your current thread and history…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      autoFocus
-                    />
-                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                      <div style={{ fontWeight: 600 }}>Matches in current thread</div>
-                      <ul style={{ marginTop: 0 }}>
-                        {messages
-                          .filter(
-                            (m) =>
-                              typeof m.content === 'string' &&
-                              m.content.toLowerCase().includes(searchQuery.toLowerCase())
-                          )
-                          .slice(0, 12)
-                          .map((m, i) => (
-                            <li key={m.id + i}>
-                              <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
-                              <span>{(m.content as string).slice(0, 200)}</span>
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
-                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                      <div style={{ fontWeight: 600 }}>Matches in history titles</div>
-                      <ul style={{ marginTop: 0 }}>
-                        {history
-                          .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                          .slice(0, 20)
-                          .map((h) => <li key={h.id}>{h.title}</li>)}
-                      </ul>
-                    </div>
+              {/* SEARCH */}
+              {showSearch && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <input
+                    className="input"
+                    placeholder="Search your current thread and history…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontWeight: 600 }}>Matches in current thread</div>
+                    <ul style={{ marginTop: 0 }}>
+                      {messages
+                        .filter(
+                          (m) =>
+                            typeof m.content === 'string' &&
+                            m.content.toLowerCase().includes(searchQuery.toLowerCase())
+                        )
+                        .slice(0, 12)
+                        .map((m, i) => (
+                          <li key={m.id + i}>
+                            <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
+                            <span>{(m.content as string).slice(0, 200)}</span>
+                          </li>
+                        ))}
+                    </ul>
                   </div>
-                )}
-
-                {/* LIBRARY */}
-                {showLibrary && (
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
-                    <div className="chat-list" role="list">
-                      {history.length === 0 && (
-                        <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
-                          No history yet
-                        </div>
-                      )}
-                      {history.map((h) => (
-                        <button
-                          key={h.id}
-                          className="chat-item"
-                          role="listitem"
-                          title={h.title}
-                          onClick={() => onSelectHistory(h.id)}
-                          style={{ textAlign: 'left' }}
-                        >
-                          {h.title}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontWeight: 600 }}>Matches in history titles</div>
+                    <ul style={{ marginTop: 0 }}>
+                      {history
+                        .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .slice(0, 20)
+                        .map((h) => <li key={h.id}>{h.title}</li>)}
+                    </ul>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* SETTINGS */}
-                {showSettings && (
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input type="checkbox" onChange={() => { /* next pass */ }} />
-                      Compact bubbles (coming soon)
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input type="checkbox" onChange={() => { /* next pass */ }} />
-                      Prefer dark mode (coming soon)
-                    </label>
-                    <button
-                      className="btn"
-                      onClick={() => {
-                        setHistory([]);
-                        setMessages([
-                          {
-                            id: uid(),
-                            role: 'assistant',
-                            content: 'New chat. What do you want to figure out?',
-                          },
-                        ]);
-                        closeAllOverlays();
-                      }}
-                    >
-                      Clear history & reset chat
-                    </button>
+              {/* LIBRARY */}
+              {showLibrary && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
+                  <div className="chat-list" role="list">
+                    {history.length === 0 && (
+                      <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
+                        No history yet
+                      </div>
+                    )}
+                    {history.map((h) => (
+                      <button
+                        key={h.id}
+                        className="chat-item"
+                        role="listitem"
+                        title={h.title}
+                        onClick={() => onSelectHistory(h.id)}
+                        style={{ textAlign: 'left' }}
+                      >
+                        {h.title}
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* NEW PROJECT */}
-                {showProject && (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const name = projectName.trim() || 'Untitled Project';
-                      const id = uid();
-                      setActiveId(id);
-                      setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+              {/* SETTINGS */}
+              {showSettings && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" onChange={() => { /* next pass */ }} />
+                    Compact bubbles (coming soon)
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" onChange={() => { /* next pass */ }} />
+                    Prefer dark mode (coming soon)
+                  </label>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setHistory([]);
                       setMessages([
                         {
                           id: uid(),
                           role: 'assistant',
-                          content: `New Project “${name}” started. What’s the goal?`,
+                          content: 'New chat. What do you want to figure out?',
                         },
                       ]);
-                      setProjectName('');
                       closeAllOverlays();
                     }}
-                    style={{ display: 'grid', gap: 10 }}
                   >
-                    <input
-                      className="input"
-                      placeholder="Project name"
-                      value={projectName}
-                      onChange={(e) => setProjectName(e.target.value)}
-                      autoFocus
-                    />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn primary" type="submit">Create</button>
-                      <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                    </div>
-                  </form>
-                )}
-              </div>
+                    Clear history & reset chat
+                  </button>
+                </div>
+              )}
+
+              {/* NEW PROJECT */}
+              {showProject && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const name = projectName.trim() || 'Untitled Project';
+                    const id = uid();
+                    setActiveId(id);
+                    setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                    setMessages([
+                      {
+                        id: uid(),
+                        role: 'assistant',
+                        content: `New Project “${name}” started. What’s the goal?`,
+                      },
+                    ]);
+                    setProjectName('');
+                    closeAllOverlays();
+                  }}
+                  style={{ display: 'grid', gap: 10 }}
+                >
+                  <input
+                    className="input"
+                    placeholder="Project name"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn primary" type="submit">Create</button>
+                    <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                  </div>
+                </form>
+              )}
             </div>
-          )}
-        </section>
-      </>
-    );
-  }
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
