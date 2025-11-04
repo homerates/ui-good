@@ -1,6 +1,9 @@
 ﻿'use client';
-import Link from "next/link";
+
 import { useEffect, useRef, useState } from 'react';
+import Sidebar from './components/Sidebar';
+
+const LS_KEY = 'hr.chat.v1';
 
 type Role = 'user' | 'assistant';
 
@@ -20,53 +23,164 @@ function isPaymentQuery(q: string) {
   const hasYears = /\b\d+\s*(years?|yrs?|yr|y|yeards?)\b/.test(s);
   if (hasLoan && hasRate && hasYears) return true;
 
+  // generic “$400k at 6.5% for 30 years”
+  if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+at\s+\d+(\.\d+)?\s*%\s+for\s+\d+/.test(s)) return true;
+
+  // generic “$400k @ 6.5% for 30y”
+  if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+@\s+\d+(\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s))
+    return true;
+
+  // reverse: “payment is $3,800”, “$3800/mo”, “$2,528.27 per month”
+  if (/\$?\s*\d[\d.,]*\s*(?:\/?\s*)?(?:mo|month)\b/.test(s)) return true;
+  if (/\bpayment\s*(?:is|=|:)?\s*\$?\s*\d[\d.,]*/.test(s)) return true;
+
   return false;
 }
 
-// parses: "$500k with 20% down at 6.5% for 30 years"
-// also supports: "500k loan at 6.5% for 30 years"
+/* =========================
+   Robust parsing helpers
+   ========================= */
+function isFiniteNum(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n);
+}
+
+/** Parse $400k, 400k, $1.2m, 1200000 → number of dollars (rounded) */
+function parseMoney(raw: string | undefined | null): number | undefined {
+  if (!raw) return undefined;
+  const s = String(raw).trim().toLowerCase().replace(/,/g, '');
+  const m = s.match(/^\$?\s*([\d]+(?:\.[\d]+)?)\s*([km])?\b/);
+  if (!m) return undefined;
+  let n = parseFloat(m[1]);
+  const unit = m[2];
+  if (unit === 'k') n *= 1_000;
+  if (unit === 'm') n *= 1_000_000;
+  if (!Number.isFinite(n)) return undefined;
+  return Math.round(n);
+}
+
+/** Parse 6.5 or 6.5% → 6.5 */
+function parsePercent(raw: string | undefined | null): number | undefined {
+  if (!raw) return undefined;
+  const m = String(raw).match(/(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : undefined;
+}
+
+/** Solve loan amount from monthly P&I, annual rate %, and term (years) */
+function solveLoanAmountFromPI(
+  monthlyPI: number,
+  annualRatePct: number,
+  termYears: number
+): number | undefined {
+  const r = (annualRatePct / 100) / 12;
+  const n = termYears * 12;
+  if (!(r > 0) || !(n > 0)) return undefined;
+  const denom = r / (1 - Math.pow(1 + r, -n));
+  if (!Number.isFinite(denom) || denom <= 0) return undefined;
+  return Math.round(monthlyPI / denom);
+}
+
+/**
+ * Parse flexible phrasing:
+ * - "$500k with 20% down at 6.5% for 30 years"
+ * - "loan 400k at 6.5% for 30y"
+ * - "payment is $3,800 at 6.5% for 30 years" (reverse: infer loan amount)
+ * - "$3800/mo @ 6.5% 30y"
+ */
 function parsePaymentQuery(q: string) {
-  const clean = q.replace(/,/g, "").toLowerCase();
+  const clean = q.replace(/,/g, '').toLowerCase();
 
-  // $500k / 500k / $500000
-  const numMatch = clean.match(/\$?\s*([\d.]+)\s*k?/i);
-  const kBump = /k\b/i.test(clean) ? 1000 : 1;
-  const firstNumber = numMatch ? Number(numMatch[1]) * kBump : undefined;
+  // Detect an explicit monthly payment for reverse calc
+  let paymentMonthly: number | undefined;
+  const pay1 = clean.match(/\bpayment\s*(?:is|=|:)?\s*(\$?\s*\d+(?:\.\d+)?)\b/);
+  const pay2 = clean.match(/(\$?\s*\d+(?:\.\d+)?)\s*(?:\/?\s*)?(?:mo|month)\b/);
+  if (pay1?.[1]) paymentMonthly = parseMoney(pay1[1]);
+  else if (pay2?.[1]) paymentMonthly = parseMoney(pay2[1]);
 
-  // "loan" phrasing => treat number as loanAmount
-  const mentionsLoan = /\bloan\b/.test(clean);
-  const loanAmount = mentionsLoan && typeof firstNumber === "number" ? firstNumber : undefined;
+  // Collect money-like tokens (amounts)
+  const moneyRe = /\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g;
+  const toMoney = (s: string | undefined) => (s ? parseMoney(s) : undefined);
+  const tokens = Array.from(clean.matchAll(moneyRe)).map((m) => {
+    const start = m.index ?? 0;
+    const text = m[0];
+    const end = start + text.length;
+    const next = clean.slice(end, end + 3);
+    return {
+      text,
+      index: start,
+      end,
+      value: toMoney(text),
+      followedByPercent: /^\s*%/.test(next),
+      hasCurrency: /\$/.test(text),
+      hasSuffix: /[km]\b/.test(text),
+    };
+  });
 
-  // purchase price if not a "loan amount" phrase
-  const purchasePrice = !mentionsLoan ? firstNumber : undefined;
+  // Try to grab "loan amount: $X"
+  const loanExplicit = clean.match(
+    /\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/
+  );
+
+  let loanAmount: number | undefined;
+  if (loanExplicit) {
+    loanAmount = toMoney(loanExplicit[1]);
+  } else if (/\bloan\b/.test(clean) && tokens.length > 0) {
+    const loanIdx = clean.indexOf('loan');
+    const afterLoanMoney = tokens.find(
+      (t) => t.index > loanIdx && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)
+    );
+    loanAmount =
+      afterLoanMoney?.value ??
+      tokens.find((t) => t.index > loanIdx && !t.followedByPercent)?.value ??
+      tokens.find((t) => !t.followedByPercent)?.value;
+  }
+
+  // Try to infer purchase price (if no explicit loan)
+  let purchasePrice: number | undefined;
+  if (!loanAmount && tokens.length > 0) {
+    const hintsPrice = /\b(purchase|purchase\s*price|price|home|house|pp)\b/.test(clean);
+    if (hintsPrice) {
+      purchasePrice =
+        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
+        tokens.find((t) => !t.followedByPercent)?.value ??
+        tokens[0].value;
+    } else if (!/\bloan\b/.test(clean)) {
+      purchasePrice =
+        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
+        tokens.find((t) => !t.followedByPercent)?.value ??
+        tokens[0].value;
+    }
+  }
 
   // down %
-  const downMatch = clean.match(/(\d+(\.\d+)?)\s*%\s*down/i);
-  const downPercent = downMatch ? Number(downMatch[1]) : undefined;
-
-  // strip the "% down" phrase before hunting for rate
-  const withoutDown = downMatch ? clean.replace(downMatch[0], "") : clean;
+  const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down\b/);
+  const downPercent = downMatch ? parsePercent(downMatch[1]) : undefined;
 
   // rate %
   let annualRatePct: number | undefined;
-  const nearRate = withoutDown.match(/(?:rate|at)\s*:?[\s]*([0-9]+(\.[0-9]+)?)\s*%/i);
-  if (nearRate) {
-    annualRatePct = Number(nearRate[1]);
+  const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
+  if (rateNear) {
+    annualRatePct = parsePercent(rateNear[1]);
   } else {
-    const anyPct = withoutDown.match(/([0-9]+(\.[0-9]+)?)\s*%/i);
-    annualRatePct = anyPct ? Number(anyPct[1]) : undefined;
+    const anyPct = clean.match(/([0-9]+(?:\.\d+)?)+\s*%/i);
+    annualRatePct = anyPct ? parsePercent(anyPct[1]) : undefined;
   }
 
-  // term years (yrs/yr/y/yeards)
+  // term years
   const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
-  let termYears = yearsMatch ? Number(yearsMatch[1]) : undefined;
-
-  // Default to 30y if user gave amount + rate but no term
-  if (!termYears && (loanAmount || purchasePrice) && annualRatePct) {
-    termYears = 30;
+  let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
+  if (!termYears && (loanAmount || purchasePrice) && typeof annualRatePct === 'number') {
+    termYears = 30; // default 30y when enough context exists
   }
 
-  return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears };
+  // If monthly payment present and we have rate + term, infer loan amount
+  if (!isFiniteNum(loanAmount) && isFiniteNum(paymentMonthly) && isFiniteNum(annualRatePct) && isFiniteNum(termYears)) {
+    const inferred = solveLoanAmountFromPI(paymentMonthly!, annualRatePct!, termYears!);
+    if (isFiniteNum(inferred)) {
+      loanAmount = inferred;
+    }
+  }
+
+  return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears, paymentMonthly };
 }
 
 function buildCalcUrl(
@@ -80,12 +194,13 @@ function buildCalcUrl(
   }
 ) {
   const sp = new URLSearchParams();
-  if (p.loanAmount    != null) sp.set("loanAmount",    String(p.loanAmount));
-  if (p.purchasePrice != null) sp.set("purchasePrice", String(p.purchasePrice));
-  if (p.downPercent   != null) sp.set("downPercent",   String(p.downPercent));
-  if (p.annualRatePct != null) sp.set("annualRatePct", String(p.annualRatePct));
-  if (p.termYears     != null) sp.set("termYears",     String(p.termYears));
-  return `${base}?${sp.toString()}`;
+  if (isFiniteNum(p.loanAmount)) sp.set('loanAmount', String(p.loanAmount));
+  if (isFiniteNum(p.purchasePrice)) sp.set('purchasePrice', String(p.purchasePrice));
+  if (isFiniteNum(p.downPercent)) sp.set('downPercent', String(p.downPercent));
+  if (isFiniteNum(p.annualRatePct)) sp.set('annualRatePct', String(p.annualRatePct));
+  if (isFiniteNum(p.termYears)) sp.set('termYears', String(p.termYears));
+  const qs = sp.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
 /* =========================
@@ -95,7 +210,6 @@ type CalcAnswer = {
   loanAmount: number;
   monthlyPI: number;
   sensitivities: Array<{ rate: number; pi: number }>;
-  // Optional PITI fields if backend supplies them
   monthlyTax?: number;
   monthlyIns?: number;
   monthlyHOA?: number;
@@ -106,12 +220,10 @@ type CalcAnswer = {
 type ApiResponse = {
   path: 'concept' | 'market' | 'dynamic' | 'error' | 'calc';
   usedFRED: boolean;
-
   message?: string;
   summary?: string;
-
-  tldr?: string[] | string;          // calc returns a single string here
-  answer?: string | CalcAnswer;      // calc returns an object
+  tldr?: string[] | string;
+  answer?: string | CalcAnswer;
   borrowerSummary?: string | null;
   fred?: {
     tenYearYield: number | null;
@@ -143,7 +255,7 @@ async function safeJson(r: Response): Promise<ApiResponse> {
   try {
     return JSON.parse(txt) as ApiResponse;
   } catch {
-    return { path: 'error', usedFRED: false, answer: txt, status: r.status };
+    return { path: 'error', usedFRED: false, answer: txt, status: r.status } as any;
   }
 }
 
@@ -157,25 +269,32 @@ const fmtMoney = (n: unknown) => {
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 };
 
-// Normalize calc API response without using `any`
+// Normalize calc API response
 type CalcApiMeta = { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
-type CalcApiRaw = { meta?: CalcApiMeta; tldr?: string | string[]; summary?: string; message?: string; answer?: unknown; path?: ApiResponse['path']; usedFRED?: boolean; generatedAt?: string };
+type CalcApiRaw = {
+  meta?: CalcApiMeta;
+  tldr?: string | string[];
+  summary?: string;
+  message?: string;
+  answer?: unknown;
+  path?: ApiResponse['path'];
+  usedFRED?: boolean;
+  generatedAt?: string;
+};
 
 function normalizeCalcResponse(raw: unknown, status: number): ApiResponse {
-  const r = (typeof raw === 'object' && raw !== null ? raw as CalcApiRaw : {}) as CalcApiRaw;
+  const r = (typeof raw === 'object' && raw !== null ? (raw as CalcApiRaw) : {}) as CalcApiRaw;
 
-  const path: ApiResponse['path'] =
-    (r.meta?.path ?? r.path ?? 'calc') as ApiResponse['path'];
-
-  const usedFRED: boolean = typeof r.meta?.usedFRED === 'boolean'
-    ? r.meta!.usedFRED!
-    : (typeof r.usedFRED === 'boolean' ? r.usedFRED : false);
+  const path: ApiResponse['path'] = (r.meta?.path ?? r.path ?? 'calc') as ApiResponse['path'];
+  const usedFRED: boolean =
+    typeof r.meta?.usedFRED === 'boolean'
+      ? (r.meta!.usedFRED as boolean)
+      : typeof r.usedFRED === 'boolean'
+        ? (r.usedFRED as boolean)
+        : false;
 
   const generatedAt = r.meta?.at ?? r.generatedAt;
-
   const tldr = (r.tldr ?? r.summary ?? r.message) as string | string[] | undefined;
-
-  // If the backend returns answer in the top-level shape
   const answer = (r as { answer?: unknown }).answer ?? r;
 
   return {
@@ -194,15 +313,14 @@ function normalizeCalcResponse(raw: unknown, status: number): ApiResponse {
 function AnswerBlock({ meta }: { meta?: ApiResponse }) {
   if (!meta) return null;
 
-  // Defensive header fields without using 'any'
   type NestedMeta = { meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string } };
   const m = meta as ApiResponse & NestedMeta;
 
   const headerPath: ApiResponse['path'] | '—' = m.path ?? m.meta?.path ?? '—';
-  const headerUsedFRED: boolean = (typeof m.usedFRED === 'boolean' ? m.usedFRED : (m.meta?.usedFRED ?? false));
+  const headerUsedFRED: boolean =
+    typeof m.usedFRED === 'boolean' ? m.usedFRED : (m.meta?.usedFRED ?? false);
   const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
 
-  // ---- CALC RENDERING ----
   if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
     const a = m.answer as CalcAnswer;
     return (
@@ -248,37 +366,25 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
       </div>
     );
   }
-  // ---- END CALC RENDERING ----
 
-  // --- existing non-calc rendering (unchanged) ---
   const primary =
     m.message ??
     m.summary ??
     (m.fred &&
-     m.fred.tenYearYield != null &&
-     m.fred.mort30Avg != null &&
-     m.fred.spread != null
-      ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${
-          typeof m.fred.tenYearYield === 'number'
-            ? m.fred.tenYearYield.toFixed(2)
-            : m.fred.tenYearYield
-        }%, 30Y ${
-          typeof m.fred.mort30Avg === 'number'
-            ? m.fred.mort30Avg.toFixed(2)
-            : m.fred.mort30Avg
-        }%, spread ${
-          typeof m.fred.spread === 'number'
-            ? m.fred.spread.toFixed(2)
-            : m.fred.spread
-        }%.`
-      : typeof m.answer === 'string' ? m.answer : '');
+      m.fred.tenYearYield != null &&
+      m.fred.mort30Avg != null &&
+      m.fred.spread != null
+      ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${typeof m.fred.tenYearYield === 'number' ? m.fred.tenYearYield.toFixed(2) : m.fred.tenYearYield
+      }%, 30Y ${typeof m.fred.mort30Avg === 'number' ? m.fred.mort30Avg.toFixed(2) : m.fred.mort30Avg
+      }%, spread ${typeof m.fred.spread === 'number' ? m.fred.spread.toFixed(2) : m.fred.spread}%.`
+      : typeof m.answer === 'string'
+        ? m.answer
+        : '');
 
   const lines = (typeof m.answer === 'string' ? m.answer : '').split('\n').map((s) => s.trim());
   const takeaway = primary || lines[0] || '';
   const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
-  const nexts = lines
-    .filter((l) => l.toLowerCase().startsWith('next:'))
-    .map((l) => l.slice(5).trim());
+  const nexts = lines.filter((l) => l.toLowerCase().startsWith('next:')).map((l) => l.slice(5).trim());
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
@@ -307,13 +413,11 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
       {nexts.length > 0 && (
         <div style={{ display: 'grid', gap: 4 }}>
-          {nexts.map((n, i) => (
-            <div key={i}><b>Next:</b> {n}</div>
-          ))}
+          {nexts.map((n, i) => (<div key={i}><b>Next:</b> {n}</div>))}
         </div>
       )}
 
-      {headerPath === 'market' && headerUsedFRED && m.borrowerSummary && (
+      {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
         <div className="panel">
           <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
           <ul style={{ marginTop: 0 }}>
@@ -360,15 +464,190 @@ export default function Page() {
   const [intent, setIntent] = useState<'' | 'purchase' | 'refi' | 'investor'>('');
   const [loanAmount, setLoanAmount] = useState<number | ''>('');
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<{ id: string; title: string }[]>([]);
+  const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const toggleSidebar = () => setSidebarOpen((o) => !o);
 
+  // Thread model (messages per chat) + active thread id
+  const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Overlays
+  const [showSearch, setShowSearch] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showProject, setShowProject] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [projectName, setProjectName] = useState('');
+
+  // Restore on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw) as {
+        threads?: Record<string, ChatMsg[]>;
+        history?: { id: string; title: string; updatedAt?: number }[];
+        activeId?: string | null;
+      };
+      if (data.threads) setThreads(data.threads);
+      if (Array.isArray(data.history)) setHistory(data.history);
+      if (data.activeId && data.threads?.[data.activeId]) {
+        setActiveId(data.activeId);
+        setMessages(data.threads[data.activeId] || []);
+      }
+    } catch (e) {
+      console.warn('hr.chat load failed', e);
+    }
+  }, []);
+
+  // Persist model
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
+    } catch (e) {
+      console.warn('hr.chat save failed', e);
+    }
+  }, [threads, history, activeId]);
+
+  // Snapshot messages into active thread + bump history.updatedAt
+  useEffect(() => {
+    if (!activeId) return;
+
+    setThreads((prev) => ({ ...prev, [activeId]: messages }));
+
+    setHistory((prev) => {
+      const idx = prev.findIndex((h) => h.id === activeId);
+      if (idx === -1) return prev;
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], updatedAt: Date.now() };
+      copy.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+      return copy;
+    });
+  }, [messages, activeId]);
+
+  // Auto-scroll
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
+  // SAFE HOTKEYS: ignore when typing and require Cmd/Ctrl
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          (target as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+      const k = e.key.toLowerCase();
+      const meta = e.ctrlKey || e.metaKey;
+
+      if (meta && k === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+        return;
+      }
+      if (meta && k === 'n') {
+        e.preventDefault();
+        newChat();
+        return;
+      }
+      if (meta && k === 'l') {
+        e.preventDefault();
+        setShowLibrary(true);
+        return;
+      }
+      if (meta && k === 'p') {
+        e.preventDefault();
+        setShowProject(true);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // History select (Library/Sidebar)
+  function onSelectHistory(id: string) {
+    setActiveId(id);
+    const thread = threads[id];
+    if (Array.isArray(thread) && thread.length) {
+      setMessages(thread);
+    } else {
+      setMessages([
+        {
+          id: uid(),
+          role: 'assistant',
+          content: 'Restored chat (no snapshot found). Start typing to continue.',
+        },
+      ]);
+    }
+    setShowLibrary(false);
+  }
+
   function newChat() {
-    setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
+    const id = uid();
+    setActiveId(id);
+    setMessages([
+      { id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' },
+    ]);
+    setHistory((h) => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
+  }
+
+  // === kebab menu actions from Sidebar (rename/move/archive/delete) ===
+  function handleHistoryAction(
+    action: 'rename' | 'move' | 'archive' | 'delete',
+    id: string
+  ) {
+    if (action === 'rename') {
+      const current = history.find((h) => h.id === id)?.title ?? '';
+      const name = prompt('Rename chat:', current);
+      if (name && name.trim()) {
+        setHistory((h) =>
+          h.map((x) => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x))
+        );
+      }
+      return;
+    }
+
+    if (action === 'move') {
+      alert('Move to project… (coming soon)');
+      return;
+    }
+
+    if (action === 'archive') {
+      alert('Archive… (coming soon)');
+      return;
+    }
+
+    if (action === 'delete') {
+      if (confirm('Delete this chat? This cannot be undone.')) {
+        setHistory((h) => h.filter((x) => x.id !== id));
+        setThreads((t) => {
+          const copy = { ...t };
+          delete copy[id];
+          return copy;
+        });
+        if (activeId === id) {
+          setActiveId(null);
+          setMessages([
+            {
+              id: uid(),
+              role: 'assistant',
+              content: 'New chat. What do you want to figure out?',
+            },
+          ]);
+        }
+      }
+      return;
+    }
   }
 
   async function send() {
@@ -376,24 +655,84 @@ export default function Page() {
     if (!q || loading) return;
 
     const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
-    setHistory((h) => [{ id: uid(), title }, ...h].slice(0, 12));
+
+    // Ensure a thread id and title
+    let tid = activeId;
+    if (!tid) {
+      tid = uid();
+      setActiveId(tid);
+      setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
+    } else {
+      setHistory((h) => {
+        const i = h.findIndex((x) => x.id === tid);
+        if (i >= 0) {
+          const copy = [...h];
+          if (copy[i].title === 'New chat' || copy[i].title.startsWith('Untitled')) {
+            copy[i] = { ...copy[i], title, updatedAt: Date.now() };
+          }
+          return copy;
+        }
+        return [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20);
+      });
+    }
+
     setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
     setInput('');
     setLoading(true);
 
     try {
-      // ---- calc short-circuit ----
       if (isPaymentQuery(q)) {
-        const parsed = parsePaymentQuery(q); // { loanAmount?, purchasePrice?, downPercent?, annualRatePct?, termYears? }
-        const url = buildCalcUrl("/api/calc/payment", parsed);
+        const parsed = parsePaymentQuery(q);
 
-        const r = await fetch(url, { method: "GET" });
+        // If user provided a monthly payment + rate + term, infer loan amount
+        if (
+          !isFiniteNum(parsed.loanAmount) &&
+          isFiniteNum(parsed.paymentMonthly) &&
+          isFiniteNum(parsed.annualRatePct) &&
+          isFiniteNum(parsed.termYears)
+        ) {
+          const inferred = solveLoanAmountFromPI(
+            parsed.paymentMonthly as number,
+            parsed.annualRatePct!,
+            parsed.termYears!
+          );
+          if (isFiniteNum(inferred)) parsed.loanAmount = inferred;
+        }
+
+        const okByLoan = isFiniteNum(parsed.loanAmount) && isFiniteNum(parsed.annualRatePct);
+        const okByPP =
+          isFiniteNum(parsed.purchasePrice) &&
+          isFiniteNum(parsed.downPercent) &&
+          isFiniteNum(parsed.annualRatePct);
+
+        if (!okByLoan && !okByPP) {
+          setMessages((m) => [
+            ...m,
+            {
+              id: uid(),
+              role: 'assistant',
+              content:
+                'I need at least a loan amount + rate (e.g., “$400k loan at 6.5% for 30 years”), or purchase price + down % + rate (e.g., “$500k with 20% down at 6.25% for 30 years”).',
+            },
+          ]);
+          setLoading(false);
+          return;
+        }
+
+        const patched = { ...parsed };
+        if (isFiniteNum(patched.loanAmount) && !isFiniteNum(patched.purchasePrice)) {
+          patched.purchasePrice = patched.loanAmount;
+          if (!isFiniteNum(patched.downPercent)) patched.downPercent = 0;
+        }
+
+        const url = buildCalcUrl('/api/calc/payment', patched);
+        const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
         const raw: unknown = await r.json().catch(() => ({}));
 
         const meta = normalizeCalcResponse(raw, r.status);
 
-        let friendly = "Calculated principal & interest payment.";
-        if (meta.path === "calc" && meta.answer && typeof meta.answer === "object") {
+        let friendly = 'Calculated principal & interest payment.';
+        if (meta.path === 'calc' && meta.answer && typeof meta.answer === 'object') {
           const a = meta.answer as CalcAnswer;
           friendly = `Monthly P&I: $${fmtMoney(a.monthlyPI)} on $${fmtMoney(a.loanAmount)}`;
         }
@@ -401,12 +740,11 @@ export default function Page() {
           friendly = `Calc service returned ${r.status}. Showing raw data.`;
         }
 
-        setMessages((m) => [...m, { id: uid(), role: "assistant", content: friendly, meta }]);
-        return; // don’t fall through to /api/answers
+        setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+        setLoading(false);
+        return;
       }
-      // ---- end calc short-circuit ----
 
-      // /api/answers flow (unchanged)
       const body: {
         question: string;
         mode: 'borrower' | 'public';
@@ -428,25 +766,15 @@ export default function Page() {
         meta.message ??
         meta.summary ??
         (meta.fred &&
-         meta.fred.tenYearYield != null &&
-         meta.fred.mort30Avg != null &&
-         meta.fred.spread != null
-           ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${
-               typeof meta.fred.tenYearYield === 'number'
-                 ? meta.fred.tenYearYield.toFixed(2)
-                 : meta.fred.tenYearYield
-             }%, 30Y ${
-               typeof meta.fred.mort30Avg === 'number'
-                 ? meta.fred.mort30Avg.toFixed(2)
-                 : meta.fred.mort30Avg
-             }%, spread ${
-               typeof meta.fred.spread === 'number'
-                 ? meta.fred.spread.toFixed(2)
-                 : meta.fred.spread
-             }%.`
-           : typeof meta.answer === 'string'
-             ? meta.answer
-             : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
+          meta.fred.tenYearYield != null &&
+          meta.fred.mort30Avg != null &&
+          meta.fred.spread != null
+          ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${typeof meta.fred.tenYearYield === 'number' ? meta.fred.tenYearYield.toFixed(2) : meta.fred.tenYearYield
+          }%, 30Y ${typeof meta.fred.mort30Avg === 'number' ? meta.fred.mort30Avg.toFixed(2) : meta.fred.mort30Avg
+          }%, spread ${typeof meta.fred.spread === 'number' ? meta.fred.spread.toFixed(2) : meta.fred.spread}%.`
+          : typeof meta.answer === 'string'
+            ? meta.answer
+            : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
 
       setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
     } catch (e) {
@@ -464,67 +792,79 @@ export default function Page() {
     }
   }
 
+  function onShare() {
+    const text = messages
+      .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
+      .join('\n');
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => { });
+    } else {
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'conversation.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function onSettings() { setShowSettings(true); }
+  function onSearch() { setShowSearch(true); }
+  function onLibrary() { setShowLibrary(true); }
+  function onNewProject() { setShowProject(true); }
+  function closeAllOverlays() {
+    setShowSearch(false);
+    setShowLibrary(false);
+    setShowSettings(false);
+    setShowProject(false);
+  }
+
   return (
     <>
       {/* Sidebar */}
-      <aside className="sidebar" style={{ position: "relative", zIndex: 1000 }}>
-        <div className="side-top">
-          {/* Clickable mark in the corner */}
-          <div className="brand" style={{ position: "relative", zIndex: 10000 }}>
-            <Link
-              href="/"
-              aria-label="HomeRates.ai home"
-              style={{ display: "inline-flex", alignItems: "center", pointerEvents: "auto" }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/assets/homerates-mark.svg"
-                alt="HomeRates.ai"
-                width={28}
-                height={28}
-                style={{ display: "block" }}
-              />
-            </Link>
-          </div>
-
-          <button className="btn primary" onClick={newChat}>New chat</button>
-        </div>
-
-        <div className="chat-list">
-          {history.length === 0 && (
-            <div className="chat-item" style={{ opacity: 0.7 }}>No history yet</div>
-          )}
-          {history.map((h) => (
-            <div key={h.id} className="chat-item" title={h.title}>
-              {h.title}
-            </div>
-          ))}
-        </div>
-
-        <div className="side-bottom">
-          <button className="btn">Settings</button>
-          <button className="btn">Share</button>
-        </div>
-      </aside>
+      <Sidebar
+        history={history}
+        onNewChat={newChat}
+        onSettings={onSettings}
+        onShare={onShare}
+        onSearch={onSearch}
+        onLibrary={onLibrary}
+        onNewProject={onNewProject}
+        activeId={activeId}
+        onSelectHistory={onSelectHistory}
+        isOpen={sidebarOpen}
+        onToggle={toggleSidebar}
+        onHistoryAction={handleHistoryAction}
+      />
 
       {/* Main */}
-      <section className="main">
+      <section
+        className="main"
+        style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}
+      >
         <div className="header">
           <div className="header-inner">
+            <button
+              className="btn"
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Toggle sidebar"
+              style={{ marginRight: 8 }}
+            >
+              Menu
+            </button>
             <div style={{ fontWeight: 700 }}>Chat</div>
             <div className="controls">
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}
-              >
+              <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}>
                 <option value="borrower">Borrower</option>
                 <option value="public">Public</option>
               </select>
               <select
                 value={intent}
-                onChange={(e) =>
-                  setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')
-                }
+                onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')}
               >
                 <option value="">Intent: auto</option>
                 <option value="purchase">Purchase</option>
@@ -537,21 +877,23 @@ export default function Page() {
                 step={1000}
                 placeholder="Loan (optional)"
                 value={loanAmount}
-                onChange={(e) =>
-                  setLoanAmount(e.target.value ? Number(e.target.value) : '')
-                }
+                onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
               />
             </div>
           </div>
         </div>
 
-        <div ref={scrollRef} className="scroll">
+        <div
+          ref={scrollRef}
+          className="scroll"
+          style={{ flex: 1, overflowY: 'auto' }}
+        >
           <div className="center">
             <div className="messages">
               {messages.map((m) => (
                 <div key={m.id}>
                   <Bubble role={m.role}>
-                    {m.role === 'assistant' ? <AnswerBlock meta={m.meta} /> : m.content}
+                    {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
                   </Bubble>
                 </div>
               ))}
@@ -560,7 +902,10 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="composer">
+        <div
+          className="composer"
+          style={{ position: 'sticky', bottom: 0, zIndex: 5 }}
+        >
           <div className="composer-inner">
             <input
               className="input"
@@ -569,15 +914,189 @@ export default function Page() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKey}
             />
-            <button
-              className="btn"
-              onClick={send}
-              disabled={loading || !input.trim()}
-            >
+            <button className="btn" onClick={send} disabled={loading || !input.trim()}>
               Send
             </button>
           </div>
         </div>
+
+        {/* ------- Overlays (Search/Library/Settings/New Project) ------- */}
+        {(showSearch || showLibrary || showSettings || showProject) && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeAllOverlays();
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              zIndex: 5000,
+            }}
+          >
+            <div
+              className="panel"
+              style={{
+                width: 'min(680px, 92vw)',
+                maxHeight: '80vh',
+                overflow: 'auto',
+                padding: 16,
+                borderRadius: 12,
+                background: 'var(--card)',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                display: 'grid',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 700 }}>
+                  {showSearch && 'Search'}
+                  {showLibrary && 'Library'}
+                  {showSettings && 'Settings'}
+                  {showProject && 'New Project'}
+                </div>
+                <button className="btn" onClick={closeAllOverlays} aria-label="Close">
+                  Close
+                </button>
+              </div>
+
+              {/* SEARCH */}
+              {showSearch && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <input
+                    className="input"
+                    placeholder="Search your current thread and history…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontWeight: 600 }}>Matches in current thread</div>
+                    <ul style={{ marginTop: 0 }}>
+                      {messages
+                        .filter(
+                          (m) =>
+                            typeof m.content === 'string' &&
+                            m.content.toLowerCase().includes(searchQuery.toLowerCase())
+                        )
+                        .slice(0, 12)
+                        .map((m, i) => (
+                          <li key={m.id + i}>
+                            <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
+                            <span>{(m.content as string).slice(0, 200)}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                  <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontWeight: 600 }}>Matches in history titles</div>
+                    <ul style={{ marginTop: 0 }}>
+                      {history
+                        .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .slice(0, 20)
+                        .map((h) => <li key={h.id}>{h.title}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* LIBRARY */}
+              {showLibrary && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
+                  <div className="chat-list" role="list">
+                    {history.length === 0 && (
+                      <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
+                        No history yet
+                      </div>
+                    )}
+                    {history.map((h) => (
+                      <button
+                        key={h.id}
+                        className="chat-item"
+                        role="listitem"
+                        title={h.title}
+                        onClick={() => onSelectHistory(h.id)}
+                        style={{ textAlign: 'left' }}
+                      >
+                        {h.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SETTINGS */}
+              {showSettings && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" onChange={() => { /* next pass */ }} />
+                    Compact bubbles (coming soon)
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" onChange={() => { /* next pass */ }} />
+                    Prefer dark mode (coming soon)
+                  </label>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setHistory([]);
+                      setMessages([
+                        {
+                          id: uid(),
+                          role: 'assistant',
+                          content: 'New chat. What do you want to figure out?',
+                        },
+                      ]);
+                      closeAllOverlays();
+                    }}
+                  >
+                    Clear history & reset chat
+                  </button>
+                </div>
+              )}
+
+              {/* NEW PROJECT */}
+              {showProject && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const name = projectName.trim() || 'Untitled Project';
+                    const id = uid();
+                    setActiveId(id);
+                    setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                    setMessages([
+                      {
+                        id: uid(),
+                        role: 'assistant',
+                        content: `New Project “${name}” started. What’s the goal?`,
+                      },
+                    ]);
+                    setProjectName('');
+                    closeAllOverlays();
+                  }}
+                  style={{ display: 'grid', gap: 10 }}
+                >
+                  <input
+                    className="input"
+                    placeholder="Project name"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn primary" type="submit">Create</button>
+                    <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
       </section>
     </>
   );
