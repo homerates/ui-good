@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prepush": "echo prepush ok"
   },
   "dependencies": {
     "next": "15.5.5",
