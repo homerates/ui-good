@@ -47,3 +47,11 @@ _local_trash/
 
 .vercel/
 
+.env
+.env.local
+.env.*.local
+*.env
+.env
+.env.local
+.env.*.local
+*.env
