@@ -165,12 +165,18 @@ function parsePaymentQuery(q: string) {
     annualRatePct = anyPct ? parsePercent(anyPct[1]) : undefined;
   }
 
-  // term years
+  // term years OR months → years
+  let termYears: number | undefined;
   const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
-  let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
+  const monthsMatch = clean.match(/(\d+)\s*(months?|mos?)/i);
+  if (yearsMatch) {
+    termYears = parseInt(yearsMatch[1], 10);
+  } else if (monthsMatch) {
+    const mos = parseInt(monthsMatch[1], 10);
+    if (Number.isFinite(mos) && mos > 0) termYears = mos / 12;
+  }
   if (!termYears && (loanAmount || purchasePrice) && typeof annualRatePct === 'number') {
     termYears = 30; // default 30y when enough context exists
-    // note: keeping it explicit avoids surprise defaults elsewhere
   }
 
   // If monthly payment present and we have rate + term, infer loan amount
@@ -183,6 +189,7 @@ function parsePaymentQuery(q: string) {
 
   return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears, paymentMonthly };
 }
+
 
 function buildCalcUrl(
   base: string,
@@ -740,8 +747,12 @@ export default function Page() {
           if (!isFiniteNum(patched.downPercent)) patched.downPercent = 0;
         }
 
-        const url = buildCalcUrl('/api/calc/payment', patched);
+        let url = buildCalcUrl('/api/calc/payment', patched);
+        // pass the raw question so the server can parse things like "180 months"
+        url += (url.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(q);
+
         const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
+
         const raw: unknown = await r.json().catch(() => ({}));
 
         const meta = normalizeCalcResponse(raw, r.status);
