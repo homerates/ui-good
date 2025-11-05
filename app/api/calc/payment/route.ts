@@ -378,6 +378,22 @@ export async function GET(req: Request) {
       at: new Date().toISOString(),
     },
     tldr: "Principal & Interest with ±0.25% rate sensitivity.",
+
+    // ===== NEW: legacy top-level mirrors for the UI =====
+    loanAmount: loanAmount!,                      // mirror of answer.loanAmount
+    monthlyPI: Number(pi.toFixed(2)),             // mirror of answer.monthlyPI
+    monthlyTax: Number(monthlyTax.toFixed(2)),    // mirror of answer.monthlyTax
+    monthlyIns: Number(monthlyIns.toFixed(2)),    // mirror of answer.monthlyIns
+    monthlyHOA: Number(monthlyHOA.toFixed(2)),    // mirror of answer.monthlyHOA
+    monthlyMI: Number(monthlyMI.toFixed(2)),      // mirror of answer.monthlyMI
+    monthlyTotalPITI,                             // mirror of answer.monthlyTotalPITI
+    sensitivities: [
+      { rate: (annualRatePct! - 0.25) / 100, pi: Number(minus025.toFixed(2)) },
+      { rate: (annualRatePct! + 0.25) / 100, pi: Number(plus025.toFixed(2)) },
+    ],
+    // ===== END legacy mirrors =====
+
+    // canonical shape the API will keep evolving
     answer: {
       loanAmount: loanAmount!,
       monthlyPI: Number(pi.toFixed(2)),
@@ -400,4 +416,5 @@ export async function GET(req: Request) {
   };
 
   return NextResponse.json(payload, { status: 200 });
+
 }
