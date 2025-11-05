@@ -1,10 +1,33 @@
+/* === COPY START: app/api/calc/payment/route.ts === */
 import { NextResponse } from "next/server";
 
-/* ------------------------ shared helpers ------------------------ */
-
+/* ------------------------ tiny utils ------------------------ */
 const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(n, lo), hi);
 const isFiniteNum = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
 
+/** tolerate $, commas, %, spaces, and bare "k" */
+function toNum(v: string | null): number | undefined {
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  const m = s.match(/^([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)(?:\s*[kK])?$/);
+  if (m) {
+    const hasK = /[kK]\s*$/.test(s);
+    const base = Number(m[1].replace(/,/g, ""));
+    if (!Number.isFinite(base)) return undefined;
+    return hasK ? base * 1_000 : base;
+  }
+  const n = Number(s.replace(/[\s,$%]/g, ""));
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function monthlyPI(loanAmount: number, annualRatePct: number, termYears: number): number {
+  const n = Math.round(termYears * 12);
+  if (annualRatePct <= 0) return loanAmount / n;
+  const i = (annualRatePct / 100) / 12;
+  return loanAmount * (i / (1 - Math.pow(1 + i, -n)));
+}
+
+/* --------------------------- types --------------------------- */
 type Core = { loanAmount?: number; annualRatePct?: number; termYears?: number };
 type Extras = {
   purchasePrice?: number;
@@ -24,29 +47,7 @@ type EngineResult = {
   reason: string;
 };
 
-function monthlyPI(loanAmount: number, annualRatePct: number, termYears: number): number {
-  const n = Math.round(termYears * 12);
-  if (annualRatePct <= 0) return loanAmount / n;
-  const i = (annualRatePct / 100) / 12;
-  return loanAmount * (i / (1 - Math.pow(1 + i, -n)));
-}
-
-/** tolerate $, commas, %, spaces, and bare "k" */
-function toNum(v: string | null): number | undefined {
-  if (v == null) return undefined;
-  const s = String(v).trim();
-  const m = s.match(/^([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)(?:\s*[kK])?$/);
-  if (m) {
-    const hasK = /[kK]\s*$/.test(s);
-    const base = Number(m[1].replace(/,/g, ""));
-    if (!Number.isFinite(base)) return undefined;
-    return hasK ? base * 1_000 : base;
-  }
-  const n = Number(s.replace(/[\s,$%]/g, ""));
-  return Number.isFinite(n) ? n : undefined;
-}
-
-/* --------------------------- NLP bits --------------------------- */
+/* ---------------- NLP helpers (safer %) ---------------------- */
 
 type MoneyMention = { value: number; start: number; end: number; raw: string };
 
@@ -63,25 +64,48 @@ function extractAllMoney(text: string): MoneyMention[] {
   return out;
 }
 
-function extractRatePct(text: string): number | undefined {
-  const percentToken = /([0-9]+(?:\.[0-9]+)?)\s*%/g;
-  const hits: { v: number; idx: number }[] = [];
+/** Label each % as likely rate or not (down/LTV/tax/etc.) */
+function extractRatePctSmart(text: string): number | undefined {
+  const t = text;
+  const pct = /([0-9]+(?:\.[0-9]+)?)\s*%/g;
+  const window = 32;
+
+  const kwRate = /(rate|interest|apr)/i;
+  const kwDown = /\b(down(\s*payment)?|ltv|loan\s*to\s*value)\b/i;
+  const kwTax = /\b(property\s*tax|tax(es)?)\b/i;
+  const hits: { v: number; idx: number; score: number }[] = [];
+
   let m: RegExpExecArray | null;
-  while ((m = percentToken.exec(text)) !== null) hits.push({ v: Number(m[1]), idx: m.index });
-  if (!hits.length) {
-    const w = text.match(/([0-9]+(?:\.[0-9]+)?)\s*(percent|pct)\b/i);
-    return w ? Number(w[1]) : undefined;
+  while ((m = pct.exec(t)) !== null) {
+    const v = Number(m[1]);
+    const idx = m.index;
+    const slice = t.slice(Math.max(0, idx - window), Math.min(t.length, idx + window));
+
+    // Score: lower is better match for "rate"
+    let score = 2;
+    if (kwDown.test(slice)) score = 10;     // clearly not a rate (down/LTV)
+    else if (kwTax.test(slice)) score = 9;  // tax %
+    else if (kwRate.test(slice)) score = 0; // explicit rate cue nearby
+    hits.push({ v, idx, score });
   }
-  const kw = /(rate|interest|apr)/i;
-  const window = 30;
-  hits.sort((a, b) => {
-    const aSlice = text.slice(Math.max(0, a.idx - window), Math.min(text.length, a.idx + window));
-    const bSlice = text.slice(Math.max(0, b.idx - window), Math.min(text.length, b.idx + window));
-    const aScore = kw.test(aSlice) ? 0 : 1;
-    const bScore = kw.test(bSlice) ? 0 : 1;
-    return aScore - bScore || a.idx - b.idx;
-  });
-  return hits[0]?.v;
+
+  if (!hits.length) {
+    // fallback to words like "percent/pct" but still try to avoid "down"
+    const w = t.match(/([0-9]+(?:\.[0-9]+)?)\s*(percent|pct)\b/i);
+    if (w) {
+      const idx = w.index ?? 0;
+      const slice = t.slice(Math.max(0, idx - window), Math.min(t.length, idx + window));
+      if (kwDown.test(slice)) return undefined; // don't misread down% as rate
+      return Number(w[1]);
+    }
+    return undefined;
+  }
+
+  hits.sort((a, b) => a.score - b.score || a.idx - b.idx);
+  const best = hits[0];
+  // discard if the best candidate was flagged obviously non-rate
+  if (best.score >= 9) return undefined;
+  return best.v;
 }
 
 function extractTaxesPct(text: string): number | undefined {
@@ -100,10 +124,11 @@ function extractTaxesPct(text: string): number | undefined {
 }
 
 function extractTermYears(text: string): number | undefined {
-  const y = text.match(/\b([0-9]{1,2})\s*(years?|yrs?|y)\b/i);
+  const y = text.match(/\b([0-9]{1,2})\s*(years?|yrs?|yr|y)\b/i);
   if (y) return Number(y[1]);
   const m = text.match(/\b([0-9]{2,3})\s*(months?|mos?)\b/i);
   if (m) return Number(m[1]) / 12;
+  // light heuristic: if “term/years” keyword exists, capture nearby number
   const bare = text.match(/\b([0-9]{1,2})\b/);
   if (bare && /\b(term|years?|yrs?)\b/i.test(text)) return Number(bare[1]);
   return undefined;
@@ -145,7 +170,7 @@ function classifyMoney(text: string, monies: MoneyMention[]) {
       };
       return { ...m, ctx, tags };
     })
-    .sort((a, b) => b.value - a.value); // largest first
+    .sort((a, b) => b.value - a.value);
 
   for (const c of candidates) {
     if (c.tags.isIns) {
@@ -153,26 +178,18 @@ function classifyMoney(text: string, monies: MoneyMention[]) {
       else insuranceMonthly = c.value;
       continue;
     }
-    if (c.tags.isHOA) {
-      hoaPerMonth = c.value;
-      continue;
-    }
-    if (!purchasePrice && c.tags.isPriceish && c.value >= 30_000) {
-      purchasePrice = c.value;
-      continue;
-    }
+    if (c.tags.isHOA) { hoaPerMonth = c.value; continue; }
+    if (!purchasePrice && c.tags.isPriceish && c.value >= 30_000) { purchasePrice = c.value; continue; }
     if (c.tags.isDown) continue;
     if (!loanAmount && c.value >= 30_000) {
       loanAmount = c.value;
       if (c.tags.isLoanish) break;
     }
   }
-
   if (!loanAmount) {
     const big = candidates.find(c => c.value >= 30_000 && !c.tags.isDown && !c.tags.isIns && !c.tags.isHOA);
     if (big) loanAmount = big.value;
   }
-
   return { loanAmount, purchasePrice, insuranceMonthly, insuranceAnnual, hoaPerMonth };
 }
 
@@ -186,7 +203,7 @@ function engineV2(q: string, sp: URLSearchParams): EngineResult {
   parsed.termYears = toNum(sp.get("termYears")) ?? undefined;
 
   if (qTrim) {
-    parsed.annualRatePct ??= extractRatePct(qTrim);
+    parsed.annualRatePct ??= extractRatePctSmart(qTrim);
     parsed.termYears ??= extractTermYears(qTrim);
     parsed.taxesPct = toNum(sp.get("taxesPct")) ?? extractTaxesPct(qTrim) ?? undefined;
 
@@ -199,6 +216,10 @@ function engineV2(q: string, sp: URLSearchParams): EngineResult {
       parsed.insPerYear = toNum(sp.get("insPerYear")) ?? cls.insuranceAnnual ?? undefined;
       parsed.hoaPerMonth = toNum(sp.get("hoaPerMonth")) ?? cls.hoaPerMonth ?? undefined;
     }
+
+    // explicit down% in text
+    const down = qTrim.match(/([0-9]+(?:\.[0-9]+)?)\s*%\s*(down(\s*payment)?)/i);
+    if (down) parsed.downPercent = Number(down[1]);
   }
 
   let conf = 0;
@@ -209,8 +230,8 @@ function engineV2(q: string, sp: URLSearchParams): EngineResult {
   const goodLoan = isFiniteNum(parsed.loanAmount) && parsed.loanAmount! >= 30_000;
   const goodRate = isFiniteNum(parsed.annualRatePct) && parsed.annualRatePct! >= 0 && parsed.annualRatePct! <= 25;
   const goodTerm = isFiniteNum(parsed.termYears) && parsed.termYears! >= 5 && parsed.termYears! <= 40;
-  if (goodLoan && goodRate && goodTerm) conf += 0.1;
-  if (isFiniteNum(parsed.loanAmount) && parsed.loanAmount! < 5_000) conf -= 0.3;
+  if (goodLoan && goodRate && goodTerm) conf += 0.10;
+  if (isFiniteNum(parsed.loanAmount) && parsed.loanAmount! < 5_000) conf -= 0.30;
 
   return { name: "v2_context", parsed, confidence: clamp(conf, 0, 1), reason: "context-aware classification" };
 }
@@ -222,8 +243,14 @@ function engineV1(q: string): EngineResult {
   if (qTrim) {
     const monies = extractAllMoney(qTrim).sort((a, b) => b.value - a.value);
     parsed.loanAmount = monies.find(m => m.value >= 30_000)?.value ?? monies[0]?.value;
-    parsed.annualRatePct = extractRatePct(qTrim);
+
+    // SAFER: avoid misreading down% as rate
+    parsed.annualRatePct = extractRatePctSmart(qTrim);
     parsed.termYears = extractTermYears(qTrim);
+
+    // explicit down% text
+    const down = qTrim.match(/([0-9]+(?:\.[0-9]+)?)\s*%\s*(down(\s*payment)?)/i);
+    if (down) parsed.downPercent = Number(down[1]);
   }
 
   let conf = 0;
@@ -263,6 +290,7 @@ function engineNumeric(sp: URLSearchParams): EngineResult {
   if (isFiniteNum(parsed.loanAmount)) conf += 0.45;
   if (isFiniteNum(parsed.annualRatePct)) conf += 0.30;
   if (isFiniteNum(parsed.termYears)) conf += 0.25;
+
   const goodLoan = isFiniteNum(parsed.loanAmount) && parsed.loanAmount! >= 30_000;
   const goodRate = isFiniteNum(parsed.annualRatePct) && parsed.annualRatePct! >= 0 && parsed.annualRatePct! <= 25;
   const goodTerm = isFiniteNum(parsed.termYears) && parsed.termYears! >= 5 && parsed.termYears! <= 40;
@@ -272,7 +300,6 @@ function engineNumeric(sp: URLSearchParams): EngineResult {
 }
 
 /* --------------------------- validator -------------------------- */
-
 function validateCore(p: Parsed) {
   const problems: string[] = [];
   const okLoan = isFiniteNum(p.loanAmount) && p.loanAmount! >= 1_000 && p.loanAmount! <= 50_000_000;
@@ -334,7 +361,22 @@ export async function GET(req: Request) {
     }
   }
 
+  // If we still don't have all core inputs, check if user provided only price + down%
   if (!picked) {
+    const pp = toNum(searchParams.get("purchasePrice"));
+    const dp = toNum(searchParams.get("downPercent"));
+    if (isFiniteNum(pp) && isFiniteNum(dp)) {
+      return NextResponse.json(
+        {
+          error: "NEED_RATE_TERM",
+          message: "Add a rate and term, e.g. “at 6.25% for 30 years”.",
+          inputEcho: { q, purchasePrice: pp, downPercent: dp },
+          meta: { path: "calc", tag: "calc-router-need-rate-term", usedFRED: false as const, at: new Date().toISOString() },
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: "Could not confidently parse inputs. Try adding $, %, and years.",
@@ -348,6 +390,7 @@ export async function GET(req: Request) {
 
   let { loanAmount, annualRatePct, termYears, taxesPct, purchasePrice, insuranceMonthly, insPerYear, hoaPerMonth, miPct, downPercent } = picked.parsed;
 
+  // sanity + derive
   loanAmount = clamp(loanAmount!, 1_000, 50_000_000);
   annualRatePct = clamp(annualRatePct!, 0, 25);
   termYears = clamp(termYears!, 5, 40);
@@ -358,6 +401,7 @@ export async function GET(req: Request) {
     if (derived > 0) loanAmount = derived;
   }
 
+  // compute
   const pi = monthlyPI(loanAmount!, annualRatePct!, termYears!);
   const minus025 = monthlyPI(loanAmount!, Math.max(annualRatePct! - 0.25, 0), termYears!);
   const plus025 = monthlyPI(loanAmount!, annualRatePct! + 0.25, termYears!);
@@ -369,6 +413,7 @@ export async function GET(req: Request) {
 
   const monthlyTotalPITI = Number((pi + monthlyTax + monthlyIns + monthlyHOA + monthlyMI).toFixed(2));
 
+  // response with legacy mirrors (for existing UI)
   const payload = {
     meta: {
       path: "calc",
@@ -379,21 +424,20 @@ export async function GET(req: Request) {
     },
     tldr: "Principal & Interest with ±0.25% rate sensitivity.",
 
-    // ===== NEW: legacy top-level mirrors for the UI =====
-    loanAmount: loanAmount!,                      // mirror of answer.loanAmount
-    monthlyPI: Number(pi.toFixed(2)),             // mirror of answer.monthlyPI
-    monthlyTax: Number(monthlyTax.toFixed(2)),    // mirror of answer.monthlyTax
-    monthlyIns: Number(monthlyIns.toFixed(2)),    // mirror of answer.monthlyIns
-    monthlyHOA: Number(monthlyHOA.toFixed(2)),    // mirror of answer.monthlyHOA
-    monthlyMI: Number(monthlyMI.toFixed(2)),      // mirror of answer.monthlyMI
-    monthlyTotalPITI,                             // mirror of answer.monthlyTotalPITI
+    // legacy mirrors
+    loanAmount: loanAmount!,
+    monthlyPI: Number(pi.toFixed(2)),
+    monthlyTax: Number(monthlyTax.toFixed(2)),
+    monthlyIns: Number(monthlyIns.toFixed(2)),
+    monthlyHOA: Number(monthlyHOA.toFixed(2)),
+    monthlyMI: Number(monthlyMI.toFixed(2)),
+    monthlyTotalPITI,
     sensitivities: [
       { rate: (annualRatePct! - 0.25) / 100, pi: Number(minus025.toFixed(2)) },
       { rate: (annualRatePct! + 0.25) / 100, pi: Number(plus025.toFixed(2)) },
     ],
-    // ===== END legacy mirrors =====
 
-    // canonical shape the API will keep evolving
+    // canonical shape
     answer: {
       loanAmount: loanAmount!,
       monthlyPI: Number(pi.toFixed(2)),
@@ -407,14 +451,10 @@ export async function GET(req: Request) {
       monthlyMI: Number(monthlyMI.toFixed(2)),
       monthlyTotalPITI,
     },
-    inputEcho: {
-      q,
-      engine: picked.engine,
-      parsed: picked.parsed,
-    },
+    inputEcho: { q, engine: picked.engine, parsed: picked.parsed },
     fallbackChain: chain,
   };
 
   return NextResponse.json(payload, { status: 200 });
-
 }
+/* === COPY END: app/api/calc/payment/route.ts === */
