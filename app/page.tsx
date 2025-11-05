@@ -96,9 +96,13 @@ function parsePaymentQuery(q: string) {
   if (pay1?.[1]) paymentMonthly = parseMoney(pay1[1]);
   else if (pay2?.[1]) paymentMonthly = parseMoney(pay2[1]);
 
-  // Collect money-like tokens (amounts)
+  // Context flags
+  const hintsLoan = /\b(loan|principal|mortgage|balance)\b/.test(clean);
+  const hintsPrice = /\b(purchase|purchase\s*price|price|home|house|pp|value)\b/.test(clean);
+  const hintsPaymentOn = /\bpayment\s+on\b/.test(clean);
+
+  // Collect money-like tokens
   const moneyRe = /\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g;
-  const toMoney = (s: string | undefined) => (s ? parseMoney(s) : undefined);
   const tokens = Array.from(clean.matchAll(moneyRe)).map((m) => {
     const start = m.index ?? 0;
     const text = m[0];
@@ -108,51 +112,59 @@ function parsePaymentQuery(q: string) {
       text,
       index: start,
       end,
-      value: toMoney(text),
+      value: parseMoney(text),
       followedByPercent: /^\s*%/.test(next),
       hasCurrency: /\$/.test(text),
       hasSuffix: /[km]\b/.test(text),
     };
   });
 
-  // Try to grab "loan amount: $X"
+  // Try to grab explicit "loan amount"
   const loanExplicit = clean.match(
     /\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/
   );
 
   let loanAmount: number | undefined;
   if (loanExplicit) {
-    loanAmount = toMoney(loanExplicit[1]);
-  } else if (/\bloan\b/.test(clean) && tokens.length > 0) {
-    const loanIdx = clean.indexOf('loan');
-    const afterLoanMoney = tokens.find(
-      (t) => t.index > loanIdx && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)
-    );
-    loanAmount =
-      afterLoanMoney?.value ??
-      tokens.find((t) => t.index > loanIdx && !t.followedByPercent)?.value ??
-      tokens.find((t) => !t.followedByPercent)?.value;
+    loanAmount = parseMoney(loanExplicit[1]);
   }
 
-  // Try to infer purchase price (if no explicit loan)
-  let purchasePrice: number | undefined;
-  if (!loanAmount && tokens.length > 0) {
-    const hintsPrice = /\b(purchase|purchase\s*price|price|home|house|pp)\b/.test(clean);
-    if (hintsPrice) {
-      purchasePrice =
-        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
-        tokens.find((t) => !t.followedByPercent)?.value ??
-        tokens[0].value;
-    } else if (!/\bloan\b/.test(clean)) {
-      purchasePrice =
-        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix))?.value ??
-        tokens.find((t) => !t.followedByPercent)?.value ??
-        tokens[0].value;
+  // If still missing, infer from context:
+  //  - If the user said "payment on $X ..." treat $X as loan
+  //  - If exactly one money appears and there are no "price" hints, treat it as loan
+  //  - If "loan" keyword exists, prefer the first non-% money after it
+  if (!isFiniteNum(loanAmount)) {
+    if (hintsPaymentOn && tokens.length >= 1) {
+      // ex: "payment on $620k at 6.25% for 30y"
+      const t = tokens.find((t) => !t.followedByPercent);
+      if (isFiniteNum(t?.value)) loanAmount = t!.value!;
+    } else if (hintsLoan && tokens.length >= 1) {
+      const loanIdx = clean.indexOf('loan');
+      const afterLoanMoney =
+        tokens.find((t) => t.index > loanIdx && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)) ??
+        tokens.find((t) => t.index > loanIdx && !t.followedByPercent);
+      if (isFiniteNum(afterLoanMoney?.value)) loanAmount = afterLoanMoney!.value!;
+    } else if (tokens.length === 1 && !hintsPrice) {
+      // single money with no purchase/price hints → treat as loan
+      const only = tokens[0];
+      if (!only.followedByPercent && isFiniteNum(only.value)) loanAmount = only.value!;
     }
   }
 
-  // down %
-  const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down\b/);
+  // If we still don't have a loan, consider purchase price as a fallback (only when "price" hints exist)
+  let purchasePrice: number | undefined;
+  if (!isFiniteNum(loanAmount) && tokens.length > 0) {
+    if (hintsPrice) {
+      const firstNonPct =
+        tokens.find((t) => !t.followedByPercent && (t.hasCurrency || t.hasSuffix)) ??
+        tokens.find((t) => !t.followedByPercent) ??
+        tokens[0];
+      if (isFiniteNum(firstNonPct?.value)) purchasePrice = firstNonPct!.value!;
+    }
+  }
+
+  // down % (explicit)
+  const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down(\s*payment)?\b/);
   const downPercent = downMatch ? parsePercent(downMatch[1]) : undefined;
 
   // rate %
@@ -161,34 +173,29 @@ function parsePaymentQuery(q: string) {
   if (rateNear) {
     annualRatePct = parsePercent(rateNear[1]);
   } else {
-    const anyPct = clean.match(/([0-9]+(?:\.\d+)?)+\s*%/i);
-    annualRatePct = anyPct ? parsePercent(anyPct[1]) : undefined;
+    // avoid misreading "20% down" as rate
+    const anyPct = clean.match(/([0-9]+(?:\.[0-9]+)?)\s*%/i);
+    if (anyPct && !/\b(down(\s*payment)?|ltv|loan\s*to\s*value)\b/i.test(clean)) {
+      annualRatePct = parsePercent(anyPct[1]);
+    }
   }
 
-  // term years OR months → years
-  let termYears: number | undefined;
+  // term years
   const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
-  const monthsMatch = clean.match(/(\d+)\s*(months?|mos?)/i);
-  if (yearsMatch) {
-    termYears = parseInt(yearsMatch[1], 10);
-  } else if (monthsMatch) {
-    const mos = parseInt(monthsMatch[1], 10);
-    if (Number.isFinite(mos) && mos > 0) termYears = mos / 12;
-  }
-  if (!termYears && (loanAmount || purchasePrice) && typeof annualRatePct === 'number') {
-    termYears = 30; // default 30y when enough context exists
+  let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
+  if (!termYears && (isFiniteNum(loanAmount) || isFiniteNum(purchasePrice)) && typeof annualRatePct === 'number') {
+    termYears = 30; // reasonable default when context exists
   }
 
-  // If monthly payment present and we have rate + term, infer loan amount
+  // Reverse: If a monthly payment is present and we have rate + term, infer loan amount
   if (!isFiniteNum(loanAmount) && isFiniteNum(paymentMonthly) && isFiniteNum(annualRatePct) && isFiniteNum(termYears)) {
     const inferred = solveLoanAmountFromPI(paymentMonthly!, annualRatePct!, termYears!);
-    if (isFiniteNum(inferred)) {
-      loanAmount = inferred;
-    }
+    if (isFiniteNum(inferred)) loanAmount = inferred;
   }
 
   return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears, paymentMonthly };
 }
+
 
 
 function buildCalcUrl(
