@@ -1,29 +1,14 @@
 import { NextResponse } from "next/server";
 import { parseCalcQuery } from "../field-aware-parser";
 import { payment, type PaymentInput } from "../../../../lib/calculators/payment";
-import { parseCalcQuery } from "../field-aware-parser";
 
 type LoosePaymentInput = Partial<PaymentInput>;
 
+// small helper kept for legacy numeric query params
 function toNum(v: string | null): number | undefined {
   if (v == null) return undefined;
-  const n = Number(v);
+  const n = Number(String(v).replace(/[\$,]/g, ""));
   return Number.isFinite(n) ? n : undefined;
-}
-
-function buildInputFromSearch(sp: URLSearchParams): LoosePaymentInput {
-  return {
-    purchasePrice: toNum(sp.get("purchasePrice")),
-    downPercent: toNum(sp.get("downPercent")),
-    annualRatePct: toNum(sp.get("annualRatePct")),
-    termYears: toNum(sp.get("termYears")),
-    loanAmount: toNum(sp.get("loanAmount")),
-    // optional PITI inputs
-    taxesPct: toNum(sp.get("taxesPct")),
-    insPerYear: toNum(sp.get("insPerYear")),
-    hoaPerMonth: toNum(sp.get("hoaPerMonth")),
-    miPct: toNum(sp.get("miPct")),
-  };
 }
 
 // WIDEN tag to string so version bumps never fail builds
@@ -38,7 +23,6 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") || searchParams.get("query") || "";
 
-  const toNum = (v: string | null) => (v ? Number(String(v).replace(/[\$,]/g, "")) : undefined);
   const months = toNum(searchParams.get("months"));
   const fallbackTermYears =
     toNum(searchParams.get("termYears")) ??
@@ -49,10 +33,11 @@ export async function GET(req: Request) {
   let annualRatePct: number | undefined;
   let termYears: number | undefined;
   let taxesPct: number | undefined;
-  let insuranceMonthly: number | undefined;
+  let insuranceMonthly: number | undefined; // user input as monthly $
   let hoaMonthly: number | undefined;
 
   if (q) {
+    // Natural-language path
     const parsed = parseCalcQuery(q);
     loanAmount = parsed.loanAmount;
     annualRatePct = parsed.annualRatePct;
@@ -62,6 +47,7 @@ export async function GET(req: Request) {
     hoaMonthly = parsed.hoaMonthly;
     console.log("Parsed (GET):", parsed);
   } else {
+    // Legacy querystring path (keeps old links working)
     loanAmount =
       toNum(searchParams.get("loanAmount")) ??
       toNum(searchParams.get("amount")) ??
@@ -70,11 +56,18 @@ export async function GET(req: Request) {
       toNum(searchParams.get("annualRatePct")) ??
       toNum(searchParams.get("rate"));
     termYears = fallbackTermYears;
+
+    // Optional legacy extras
     taxesPct = toNum(searchParams.get("taxesPct"));
-    insuranceMonthly = toNum(searchParams.get("insuranceMonthly"));
-    hoaMonthly = toNum(searchParams.get("hoaMonthly"));
+    // Support both annual and monthly insurance params if present
+    const insPerYear = toNum(searchParams.get("insPerYear"));
+    const insPerMonth = toNum(searchParams.get("insPerMonth")) ?? toNum(searchParams.get("insuranceMonthly"));
+    insuranceMonthly = insPerMonth ?? (insPerYear != null ? insPerYear / 12 : undefined);
+
+    hoaMonthly = toNum(searchParams.get("hoaPerMonth")) ?? toNum(searchParams.get("hoaMonthly"));
   }
 
+  // Minimal sanity guards (prevents the "$30 loan" bug)
   if (!loanAmount || loanAmount < 10000) {
     return NextResponse.json({ error: "Missing or invalid loanAmount" }, { status: 400 });
   }
@@ -85,21 +78,19 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing or invalid termYears" }, { status: 400 });
   }
 
-  const loose = {
+  // Map to your calculator’s expected input keys
+  const loose: LoosePaymentInput = {
     loanAmount,
     annualRatePct,
     termYears,
-    taxesPct,
-    insuranceMonthly,
-    hoaMonthly,
+    taxesPct,                              // %
+    insPerYear: insuranceMonthly ? insuranceMonthly * 12 : undefined, // convert monthly -> annual
+    hoaPerMonth: hoaMonthly,               // $
   };
-
-  const result = payment(loose as PaymentInput);
-  // === NEW PARSER END ===
-
 
   // Lib guards bad inputs; no NaN returns
   const result = payment(loose as PaymentInput);
+  // === NEW PARSER END ===
 
   const payload: CalcPayload = {
     meta: { path: "calc", tag: "calc-v2-piti", usedFRED: false, at: new Date().toISOString() },
