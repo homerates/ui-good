@@ -154,7 +154,8 @@ export async function GET(req: Request) {
 
     // Calc
     const monthlyPI = computeMonthlyPI(loanAmount!, ratePct!, termMonths);
-    const monthlyTax = (loanAmount! * taxRateDec) / 12; // switch to assessed value base if you prefer
+    const baseForTax = price ?? loanAmount!;
+    const monthlyTax = (baseForTax * taxRateDec) / 12;
     const monthlyPITI = monthlyPI + monthlyTax + monthlyIns + monthlyHOA;
 
     // Extras for UI
