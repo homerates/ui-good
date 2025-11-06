@@ -1,5 +1,5 @@
-/* app/api/calc/payments/route.ts
-   Smart adapter: keeps your current /api/calc/payments endpoint
+/* app/api/calc/payment/route.ts
+   Smart adapter: keeps your current /api/calc/payment endpoint
    but computes real PITI via /api/piti and /api/knowledge.
 */
 import { NextResponse } from "next/server";
@@ -97,7 +97,7 @@ export async function GET(req: Request) {
   // Back-compatible + richer output
   const response = {
     status: "ok",
-    path: "calc/payments",
+    path: "calc/payment",
     usedFRED: false,
     at: now,
     inputs: {
