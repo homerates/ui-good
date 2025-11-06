@@ -8,7 +8,7 @@ import {
     countyFromZip,
 } from "../../../lib/knowledge";
 
-/** ---------- helpers ---------- */
+/* ---------- helpers ---------- */
 function cleanNum(s: string | null | undefined): number | null {
     if (!s) return null;
     const t = String(s).trim();
@@ -18,7 +18,7 @@ function cleanNum(s: string | null | undefined): number | null {
 }
 
 // Accepts "6.25", "6.25%", "6.25%25", "0.0625"
-function parsePercent(val: string | null): number | null {
+function parsePercent(val: string | null | undefined): number | null {
     if (val == null) return null;
     let raw = String(val).trim();
     if (!raw) return null;
@@ -35,11 +35,11 @@ function parsePercent(val: string | null): number | null {
     return n <= 1 ? n * 100 : n; // 0.0625 -> 6.25
 }
 
-function parseRatePct(val: string | null): number | null {
+function parseRatePct(val: string | null | undefined): number | null {
     return parsePercent(val);
 }
 
-function parseTerm(val: string | null): { months: number } | null {
+function parseTerm(val: string | null | undefined): { months: number } | null {
     if (val == null) return null;
     const n = cleanNum(val);
     if (n == null || n <= 0) return null;
@@ -47,9 +47,8 @@ function parseTerm(val: string | null): { months: number } | null {
     return { months };
 }
 
-function parseTax(val: string | null): number | null {
+function parseTax(val: string | null | undefined): number | null {
     if (val == null) return null;
-    // Accept "1.2", "1.2%", "1.2%25", "0.012"
     const pct = parsePercent(val);
     if (pct != null) return pct / 100;
     const dec = cleanNum(val);
@@ -67,8 +66,8 @@ function computeMonthlyPI(loanAmount: number, annualRatePct: number, months: num
     return (L * r * f) / (f - 1);
 }
 
-/** ---------- route ---------- */
-export const dynamic = "force-static";
+/* ---------- route ---------- */
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
     const url = new URL(req.url);
@@ -129,7 +128,7 @@ export async function GET(req: Request) {
                 got: { loan: loanAmount, rate: ratePct, termMonths },
                 rawParams
             },
-            { status: 400 }
+            { status: 400, headers: { "Cache-Control": "no-store" } }
         );
     }
 
@@ -155,7 +154,7 @@ export async function GET(req: Request) {
 
     // Calc
     const monthlyPI = computeMonthlyPI(loanAmount!, ratePct!, termMonths);
-    const monthlyTax = (loanAmount! * taxRateDec) / 12; // swap to assessed value base if you prefer
+    const monthlyTax = (loanAmount! * taxRateDec) / 12; // switch to assessed value base if you prefer
     const monthlyPITI = monthlyPI + monthlyTax + monthlyIns + monthlyHOA;
 
     // Extras for UI
@@ -183,6 +182,9 @@ export async function GET(req: Request) {
                 acronyms: glossary
             }
         },
-        { status: 200 }
+        {
+            status: 200,
+            headers: { "Cache-Control": "no-store" }
+        }
     );
 }
