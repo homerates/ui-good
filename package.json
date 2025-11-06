@@ -10,6 +10,7 @@
     "bootstrap:knowledge": "node scripts/bootstrap-knowledge.mjs",
     "kb": "node scripts/knowledge-cli.mjs",
     "build": "next build",
+    "start": "next start",
     "prepare": "node -e \"const fs=require('fs'); const isCI=process.env.CI||process.env.VERCEL; if(isCI) process.exit(0); try{fs.statSync('.git');}catch(e){process.exit(0);}\" && npx simple-git-hooks"
   },
   "simple-git-hooks": {
