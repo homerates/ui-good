@@ -32,28 +32,62 @@ function kmToNumber(num: string, unit?: string) {
 function parseQuestion(qRaw: string): Parsed | null {
     const q = qRaw.trim();
 
-    const priceMatch =
-        q.match(/\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\s*(?:home|purchase|price)\b/i) ||
-        q.match(/\bprice\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
-    const price = priceMatch ? kmToNumber(priceMatch[1], priceMatch[2]) : null;
+    // normalize spacing for some patterns
+    const qq = q.replace(/\u00A0/g, ' ');
 
-    const loanMatch =
-        q.match(/\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\s*(?:loan)\b/i) ||
-        q.match(/\bloan\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
-    const loan = loanMatch ? kmToNumber(loanMatch[1], loanMatch[2]) : null;
+    // $750k home / $1.25m purchase / price $650,000 / $650,000 house
+    const priceRe =
+        /\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\s*(?:home|house|condo|property|purchase|price)?\b/i;
+    // $480k loan / loan $480,000
+    const loanRe =
+        /\b(?:loan)\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b|\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\s*loan\b/i;
+    // 10% down / 10 percent down / 10% dp
+    const downRe = /(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:down|dp)\b/i;
+    // at 6.375% / 6.375% fixed / rate 6.375 / at 6.375
+    const rateRe = /(?:rate\s*)?(\d+(?:\.\d+)?)\s*(?:%|percent)?\s*(?:fixed|arm)?\b/i;
+    // 30 years / 30yr / 30-year / 30y
+    const termRe = /\b(\d+)\s*(?:years?|yrs?|yr|y|year|-year)\b/i;
+    // zip 91301 / in 91301 / 91301
+    const zipRe = /\b(?:zip\s*)?(\d{5})\b/i;
 
-    const downMatch = q.match(/(\d+(?:\.\d+)?)\s*%\s*(?:down|dp)\b/i);
-    const downPercent = downMatch ? Number(downMatch[1]) : null;
+    // helper: K/M to number
+    const kmToNumber = (num: string, unit?: string) => {
+        const base = Number(num.replace(/,/g, ""));
+        if (!Number.isFinite(base)) return null;
+        const u = (unit || "").toLowerCase();
+        return base * (u === "m" ? 1_000_000 : u === "k" ? 1_000 : 1);
+    };
 
-    const rateMatch = q.match(/(\d+(?:\.\d+)?)\s*%.*?(?:rate|fixed|arm)/i);
-    const rate = rateMatch ? Number(rateMatch[1]) : null;
+    // price
+    let price: number | null = null;
+    const pm = qq.match(priceRe);
+    if (pm) price = kmToNumber(pm[1] || pm[3], (pm[2] || pm[4]) as string | undefined);
 
-    const termMatch = q.match(/(\d+)\s*(?:years?|yrs?)\b/i);
-    const termYears = termMatch ? Number(termMatch[1]) : null;
+    // loan
+    let loan: number | null = null;
+    const lm = qq.match(loanRe);
+    if (lm) {
+        // pattern has two possible capture pairs: (1,2) OR (3,4)
+        const n = lm[1] || lm[3];
+        const u = (lm[2] || lm[4]) as string | undefined;
+        loan = n ? kmToNumber(n, u) : null;
+    }
 
-    // Prefer CA zip first; then any US 5-digit zip
-    const zipMatch = q.match(/\b(9\d{4})\b/) || q.match(/\b(\d{5})\b/);
-    const zip = zipMatch ? zipMatch[1] : undefined;
+    // down
+    const dm = qq.match(downRe);
+    const downPercent = dm ? Number(dm[1]) : null;
+
+    // rate (prefer a match that’s near words like "rate"/"fixed/arm", but allow "at 6.5")
+    const rm = qq.match(rateRe);
+    const rate = rm ? Number(rm[1]) : null;
+
+    // term
+    const tm = qq.match(termRe);
+    const termYears = tm ? Number(tm[1]) : null;
+
+    // zip
+    const zm = qq.match(zipRe);
+    const zip = zm ? zm[1] : undefined;
 
     const hasSignals =
         !!rate && (!!loan || (!!price && downPercent != null) || !!termYears || !!zip);
@@ -62,6 +96,7 @@ function parseQuestion(qRaw: string): Parsed | null {
 
     return { price: price ?? undefined, downPercent, loan, rate, termYears, zip };
 }
+
 
 /* ---------- Main handler ---------- */
 async function handle(req: NextRequest, urlOverride?: URL) {
