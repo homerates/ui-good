@@ -1,191 +1,121 @@
-// app/api/piti/route.ts
+/* app/api/piti/route.ts */
 import { NextResponse } from "next/server";
-import {
-    taxRateForZip,
-    loanLimitsForZip,
-    productById,
-    listAcronyms,
-    countyFromZip,
-} from "../../../lib/knowledge";
 
-/* ---------- helpers ---------- */
-function cleanNum(s: string | null | undefined): number | null {
-    if (!s) return null;
-    const t = String(s).trim();
-    if (!t) return null;
-    const n = Number(t.replace(/[\s,$_%]/g, ""));
-    return Number.isFinite(n) ? n : null;
-}
-
-// Accepts "6.25", "6.25%", "6.25%25", "0.0625"
-function parsePercent(val: string | null | undefined): number | null {
-    if (val == null) return null;
-    let raw = String(val).trim();
-    if (!raw) return null;
-
-    // Normalize trailing percent encodings
-    if (/%25$/.test(raw)) raw = raw.replace(/%25$/, "%");
-    if (raw.endsWith("%")) {
-        const n = Number(raw.slice(0, -1).replace(/[, ]/g, ""));
-        return Number.isFinite(n) ? n : null;
-    }
-
-    const n = Number(raw.replace(/[, ]/g, ""));
-    if (!Number.isFinite(n)) return null;
-    return n <= 1 ? n * 100 : n; // 0.0625 -> 6.25
-}
-
-function parseRatePct(val: string | null | undefined): number | null {
-    return parsePercent(val);
-}
-
-function parseTerm(val: string | null | undefined): { months: number } | null {
-    if (val == null) return null;
-    const n = cleanNum(val);
-    if (n == null || n <= 0) return null;
-    const months = n >= 100 ? n : Math.round(n * 12); // >=100 -> months, else years
-    return { months };
-}
-
-function parseTax(val: string | null | undefined): number | null {
-    if (val == null) return null;
-    const pct = parsePercent(val);
-    if (pct != null) return pct / 100;
-    const dec = cleanNum(val);
-    return dec == null ? null : dec;
-}
-
-// Standard amortization
-function computeMonthlyPI(loanAmount: number, annualRatePct: number, months: number) {
-    const L = loanAmount;
-    const r = (annualRatePct / 100) / 12;
-    const n = Math.round(months);
-    if (n <= 0) return 0;
-    if (r === 0) return L / n;
-    const f = Math.pow(1 + r, n);
-    return (L * r * f) / (f - 1);
-}
-
-/* ---------- route ---------- */
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+type PitiInputs = {
+    loan: number;
+    ratePct: number;
+    termMonths: number;
+    zip?: string;
+    price?: number;
+    taxBase?: "loan" | "price";
+    ins?: number;
+    hoa?: number;
+    miPctAnnual?: number; // e.g., 0.48 = 0.48%/yr
+};
+
+function n(v: string | null, f = 0) {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : f;
+}
+
+function monthlyPI(loan: number, ratePct: number, months: number) {
+    if (loan <= 0 || months <= 0) return 0;
+    const r = (ratePct / 100) / 12;
+    if (r === 0) return loan / months;
+    const pow = Math.pow(1 + r, months);
+    return loan * (r * pow) / (pow - 1);
+}
+
+async function getTax(origin: string, zip?: string) {
+    // safe default
+    let rate = 0.012;
+    let source = "fallback:default";
+    if (!zip) return { rate, source };
+
+    try {
+        const url = new URL("/api/knowledge", origin);
+        url.searchParams.set("zip", zip);
+        const res = await fetch(url.toString(), { cache: "no-store" });
+        if (res.ok) {
+            const j = await res.json();
+            const r = Number(j?.taxes?.rate);
+            if (Number.isFinite(r) && r > 0) {
+                rate = r;
+                source = j?.taxes?.source || "knowledge:zipLookup";
+            }
+        }
+    } catch {
+        // keep defaults
+    }
+    return { rate, source };
+}
+
+function sens(loan: number, base: number, months: number) {
+    return {
+        up025: monthlyPI(loan, base + 0.25, months),
+        down025: monthlyPI(loan, base - 0.25, months),
+    };
+}
+
+function r2(v: number) {
+    return Math.round((v + Number.EPSILON) * 100) / 100;
+}
 
 export async function GET(req: Request) {
     const url = new URL(req.url);
+    const origin = `${url.protocol}//${url.host}`;
 
-    // Inputs (accept multiple names)
-    const zip = url.searchParams.get("zip") ?? "";
-    const loanStr = url.searchParams.get("loan");
-    const priceStr = url.searchParams.get("price");
-    const downStr = url.searchParams.get("down");       // absolute number
-    const downPctStr = url.searchParams.get("downPct"); // percent or decimal
-    const rateStr = url.searchParams.get("rate");
-    const termStr = url.searchParams.get("term");       // years or months
-    const taxOverrideStr = url.searchParams.get("tax"); // percent or decimal
-    const insStr = url.searchParams.get("ins");
-    const hoaStr = url.searchParams.get("hoa");
+    // inputs (accept years or months, prefer months)
+    const loan = n(url.searchParams.get("loan"));
+    const ratePct = n(url.searchParams.get("rate")) || n(url.searchParams.get("ratePct"));
+    const termYears = n(url.searchParams.get("term"));
+    const termMonths = n(url.searchParams.get("termMonths")) || (termYears * 12);
+    const zip = url.searchParams.get("zip") || undefined;
+    const price = n(url.searchParams.get("price")) || undefined;
+    const taxBaseQ = (url.searchParams.get("taxBase") as PitiInputs["taxBase"]) || "loan";
+    const ins = n(url.searchParams.get("ins"));
+    const hoa = n(url.searchParams.get("hoa"));
+    const miPctAnnual = n(url.searchParams.get("miPctAnnual"));
 
-    const monthlyIns = cleanNum(insStr) ?? 0;
-    const monthlyHOA = cleanNum(hoaStr) ?? 0;
-
-    // Determine loan amount
-    let loanAmount = cleanNum(loanStr) ?? null;
-    const price = cleanNum(priceStr) ?? null;
-
-    if (loanAmount == null && price != null) {
-        const downAbs = cleanNum(downStr);
-        const dpPct = parsePercent(downPctStr); // e.g., "20" -> 20%
-        if (downAbs != null) {
-            loanAmount = Math.max(0, price - downAbs);
-        } else if (dpPct != null) {
-            loanAmount = Math.max(0, price * (1 - dpPct / 100));
-        } else {
-            loanAmount = price; // default if no down provided
-        }
-    }
-
-    const ratePct = parseRatePct(rateStr);
-    const termParsed = parseTerm(termStr ?? "30");
-    const termMonths = termParsed?.months ?? 360;
-
-    // Validate required bits
     const missing: string[] = [];
-    if (loanAmount == null || loanAmount <= 0) missing.push("loan (or price/down)");
-    if (ratePct == null || ratePct <= 0) missing.push("rate");
-    if (termMonths <= 0) missing.push("term (>0)");
-
+    if (!loan) missing.push("loan");
+    if (!ratePct) missing.push("rate");
+    if (!termMonths) missing.push("term or termMonths");
     if (missing.length) {
-        // Echo raw params to help debug what actually arrived
-        const rawParams = Object.fromEntries(url.searchParams.entries());
-        return NextResponse.json(
-            {
-                error: "Missing or invalid inputs.",
-                required: ["loan OR (price + down/downPct)", "rate", "term"],
-                hint: [
-                    "/api/piti?loan=620000&rate=6.25&term=30&zip=90011&ins=125&hoa=125",
-                    "/api/piti?price=775000&downPct=20&rate=6.25&term=360&zip=90011",
-                    "/api/piti?price=775000&down=155000&rate=6.25&term=30&zip=90011&tax=1.2"
-                ],
-                got: { loan: loanAmount, rate: ratePct, termMonths },
-                rawParams
-            },
-            { status: 400, headers: { "Cache-Control": "no-store" } }
-        );
+        return NextResponse.json({ error: `Missing: ${missing.join(", ")}` }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
-    // Tax via override or ZIP
-    let taxRateDec = 0;
-    let taxSource: "override" | "zipLookup" | "default" = "default";
-    const taxOverride = parseTax(taxOverrideStr);
+    const { rate: taxRate, source: taxSource } = await getTax(origin, zip);
 
-    if (taxOverride != null) {
-        taxRateDec = taxOverride;
-        taxSource = "override";
-    } else if (zip) {
-        const zr = taxRateForZip(zip);
-        if (typeof zr === "number") {
-            taxRateDec = zr;
-            taxSource = "zipLookup";
-        }
-    }
+    const taxBase = (taxBaseQ === "price" && price) ? "price" : "loan";
+    const baseForTax = taxBase === "price" ? (price as number) : loan;
 
-    // Lookups
-    const limits = zip ? (loanLimitsForZip(zip) ?? null) : null;
-    const county = zip ? (countyFromZip(zip) ?? null) : null;
+    const pi = monthlyPI(loan, ratePct, termMonths);
+    const monthlyTax = baseForTax > 0 ? (baseForTax * taxRate) / 12 : 0;
+    const monthlyIns = ins || 0;
+    const monthlyHOA = hoa || 0;
+    const monthlyMI = miPctAnnual ? (loan * (miPctAnnual / 100)) / 12 : 0;
 
-    // Calc
-    const monthlyPI = computeMonthlyPI(loanAmount!, ratePct!, termMonths);
-    const baseForTax = price ?? loanAmount!;
-    const monthlyTax = (baseForTax * taxRateDec) / 12;
-    const monthlyPITI = monthlyPI + monthlyTax + monthlyIns + monthlyHOA;
+    const total = pi + monthlyTax + monthlyIns + monthlyHOA + monthlyMI;
+    const s = sens(loan, ratePct, termMonths);
 
-    // Extras for UI
-    const dscrGuide = productById("DSCR") ?? null;
-    const glossary = listAcronyms();
-
-    return NextResponse.json(
-        {
-            status: "ok",
-            inputs: {
-                zip, county, loanAmount, ratePct, termMonths, monthlyIns, monthlyHOA
-            },
-            lookups: {
-                taxRate: taxRateDec,
-                taxSource,
-                loanLimits: limits
-            },
-            breakdown: {
-                monthlyPI: Number(monthlyPI.toFixed(2)),
-                monthlyTax: Number(monthlyTax.toFixed(2)),
-                monthlyPITI: Number(monthlyPITI.toFixed(2))
-            },
-            context: {
-                dscrGuide,
-                acronyms: glossary
-            }
+    const payload = {
+        inputs: { loan, ratePct, termMonths, zip: zip || null, price: price ?? null, taxBase, miPctAnnual: miPctAnnual || 0, ins: monthlyIns, hoa: monthlyHOA },
+        tax: { annualRate: taxRate, source: taxSource, baseUsed: taxBase },
+        breakdown: {
+            monthlyPI: r2(pi),
+            monthlyTax: r2(monthlyTax),
+            monthlyIns: r2(monthlyIns),
+            monthlyHOA: r2(monthlyHOA),
+            monthlyMI: r2(monthlyMI),
+            monthlyTotalPITI: r2(total),
         },
-        {
-            status: 200,
-            headers: { "Cache-Control": "no-store" }
-        }
-    );
+        sensitivity: { up025: r2(s.up025), down025: r2(s.down025) },
+        answer: `Estimated monthly payment is $${r2(total).toLocaleString()} including principal & interest, taxes, insurance${monthlyHOA ? ", and HOA" : ""}.`,
+    };
+
+    return NextResponse.json(payload, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }
