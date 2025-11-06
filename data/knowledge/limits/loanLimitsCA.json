@@ -1,0 +1,25 @@
+{
+  "conformingLoanLimits": [
+    {
+      "county": "Los Angeles",
+      "oneUnit": 1150000,
+      "twoUnit": 1473000,
+      "threeUnit": 1780000,
+      "fourUnit": 2215000
+    },
+    {
+      "county": "Orange",
+      "oneUnit": 1150000,
+      "twoUnit": 1473000,
+      "threeUnit": 1780000,
+      "fourUnit": 2215000
+    },
+    {
+      "county": "San Diego",
+      "oneUnit": 1050000,
+      "twoUnit": 1345000,
+      "threeUnit": 1625000,
+      "fourUnit": 2015000
+    }
+  ]
+}

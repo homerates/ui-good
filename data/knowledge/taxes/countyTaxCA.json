@@ -1,0 +1,21 @@
+{
+  "countyTaxRates": [
+    {
+      "county": "Los Angeles",
+      "rate": 0.012
+    },
+    {
+      "county": "Orange",
+      "rate": 0.011
+    },
+    {
+      "county": "San Diego",
+      "rate": 0.0115
+    }
+  ],
+  "zipToCounty": {
+    "90011": "Los Angeles",
+    "92101": "San Diego",
+    "92688": "Orange"
+  }
+}
