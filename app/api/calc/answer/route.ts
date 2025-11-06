@@ -64,9 +64,9 @@ function parseQuestion(qRaw: string): Parsed | null {
 }
 
 /* ---------- Main handler ---------- */
-async function handle(req: NextRequest) {
+async function handle(req: NextRequest, urlOverride?: URL) {
     const now = new Date().toISOString();
-    const url = new URL(req.url);
+    const url = urlOverride ?? new URL(req.url);
     const origin = `${url.protocol}//${url.host}`;
     const question = (url.searchParams.get("q") || "").trim();
 
@@ -151,11 +151,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     // Also accept POST { q: "..." }
     const url = new URL(req.url);
-    let q = "";
     try {
         const body = (await req.json()) as { q?: string };
-        q = (body.q || "").trim();
-    } catch { }
-    if (q) url.searchParams.set("q", q);
-    return handle(new NextRequest(url.toString(), req));
+        const q = (body?.q || "").trim();
+        if (q) url.searchParams.set("q", q);
+    } catch {
+        // no body / invalid JSON — ignore and fall through
+    }
+    return handle(req, url); // pass URL override; do NOT construct NextRequest
 }
