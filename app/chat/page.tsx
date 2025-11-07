@@ -198,83 +198,112 @@ export default function ChatPage() {
         ]);
 
         try {
-            if (looksLikeCalcIntent(text)) {
-                // NATURAL LANGUAGE → calc/answer
-                const calc = await fetchCalcFromText(text);
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        id: crypto.randomUUID(),
-                        role: 'assistant',
-                        content: <CalcView data={calc} />,
-                    },
-                ]);
-            } else {
-                // General Q&A → answers (sourced)
-                const resp = await fetchAnswer(text).catch(() => null);
+            // --- Try CALC first (robust, no heuristics) ---
+            let calcJson: any = null;
+            try {
+                const calcResp = await fetch('/api/calc/answer', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ q: text }),
+                    cache: 'no-store',
+                });
+                // only treat as calc if engine responded OK and has some usable numbers
+                if (calcResp.ok) {
+                    calcJson = await calcResp.json();
+                    const b = calcJson?.breakdown ?? {};
+                    const hasPI = Number(b?.monthlyPI ?? 0) > 0;
+                    const hasAnyMoney =
+                        hasPI ||
+                        Number(b?.monthlyTax ?? 0) > 0 ||
+                        Number(b?.monthlyIns ?? 0) > 0 ||
+                        Number(b?.monthlyHOA ?? 0) > 0;
+                    const inputs = calcJson?.inputs ?? {};
+                    const inferredLoan =
+                        Number(inputs?.loan ?? 0) ||
+                        (inputs?.price && inputs?.downPercent != null
+                            ? Math.round(Number(inputs.price) * (1 - Number(inputs.downPercent) / 100))
+                            : 0);
 
-                const block =
-                    (resp?.answerMarkdown as string) ||
-                    (resp?.answer as string) ||
-                    (resp?.message as string) ||
-                    '…';
-
-                const follow =
-                    resp?.followUp || resp?.follow_up || resp?.cta || '';
-
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        id: crypto.randomUUID(),
-                        role: 'assistant',
-                        content: (
-                            <div className="space-y-2">
-                                <pre className="whitespace-pre-wrap font-sans text-[15px] leading-6">
-                                    {block}
-                                </pre>
-                                {Array.isArray(resp?.sources) && resp.sources.length > 0 ? (
-                                    <div className="text-sm opacity-80">
-                                        <div className="font-semibold">Sources</div>
-                                        <ul className="list-disc ml-5">
-                                            {resp.sources.map((s: any, i: number) => (
-                                                <li key={i}>
-                                                    <a
-                                                        className="underline"
-                                                        href={s.url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        {s.title}
-                                                    </a>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ) : null}
-                                {follow ? (
-                                    <div className="text-sm text-gray-700 pt-1">
-                                        <span className="font-medium">Follow-up:</span> {follow}
-                                    </div>
-                                ) : null}
-                            </div>
-                        ),
-                    },
-                ]);
+                    if (hasAnyMoney || inferredLoan > 0) {
+                        // Render calc and short-circuit
+                        setMessages((prev) => [
+                            ...prev,
+                            {
+                                id: crypto.randomUUID(),
+                                role: 'assistant',
+                                content: <CalcView data={calcJson} />,
+                            },
+                        ]);
+                        setInput('');
+                        setBusy(false);
+                        return;
+                    }
+                }
+            } catch {
+                // swallow calc attempt errors; we'll fall back to answers
             }
-        } catch (err: any) {
+
+            // --- Fallback: sourced web answer ---
+            const resp = await fetch('/api/answers', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ question: text }),
+                cache: 'no-store',
+            });
+            const a = await resp.json().catch(() => null);
+
+            const block =
+                (a?.answerMarkdown as string) ||
+                (a?.answer as string) ||
+                (a?.message as string) ||
+                '…';
+
+            const follow = a?.followUp || a?.follow_up || a?.cta || '';
+
             setMessages((prev) => [
                 ...prev,
                 {
                     id: crypto.randomUUID(),
                     role: 'assistant',
-                    content: `Error: ${err?.message || 'failed'}`,
+                    content: (
+                        <div className="space-y-2">
+                            <pre className="whitespace-pre-wrap font-sans text-[15px] leading-6">
+                                {block}
+                            </pre>
+                            {Array.isArray(a?.sources) && a.sources.length > 0 ? (
+                                <div className="text-sm opacity-80">
+                                    <div className="font-semibold">Sources</div>
+                                    <ul className="list-disc ml-5">
+                                        {a.sources.map((s: any, i: number) => (
+                                            <li key={i}>
+                                                <a className="underline" href={s.url} target="_blank" rel="noreferrer">
+                                                    {s.title}
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ) : null}
+                            {follow ? (
+                                <div className="text-sm text-gray-700 pt-1">
+                                    <span className="font-medium">Follow-up:</span> {follow}
+                                </div>
+                            ) : null}
+                        </div>
+                    ),
                 },
+            ]);
+        } catch (err: any) {
+            setMessages((prev) => [
+                ...prev,
+                { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${err?.message || 'failed'}` },
             ]);
         } finally {
             setInput('');
             setBusy(false);
         }
     }
+
 
     return (
         <main className="max-w-3xl mx-auto p-4">
