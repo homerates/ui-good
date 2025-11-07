@@ -45,18 +45,14 @@ function looksLikeCalcIntent(s: string) {
    Calc API call (natural language → calc/answer)
    ========================================================= */
 async function fetchCalcFromText(raw: string) {
-    const resp = await fetch(`/api/calc/answer?q=${encodeURIComponent(text)}`, { cache: 'no-store' });
-
+    const resp = await fetch(`/api/calc/answer?q=${encodeURIComponent(raw)}`, { cache: 'no-store' });
     if (!resp.ok) {
-        // Let the caller decide to fall back to answers
-        return null;
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error || `calc error ${resp.status}`);
     }
-    try {
-        return await resp.json();
-    } catch {
-        return null;
-    }
+    return resp.json();
 }
+
 
 /* =========================================================
    Web/NLP API call (answers with sources + follow-up)
