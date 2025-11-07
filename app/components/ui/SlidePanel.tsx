@@ -1,51 +1,63 @@
 'use client';
 
-import React from 'react';
+import * as React from 'react';
 
 type SlidePanelProps = {
     open: boolean;
+    title?: string;
     onClose: () => void;
-    title?: React.ReactNode;
-    widthClassName?: string; // e.g., "w-[480px]"
-    children?: React.ReactNode;
+    children: React.ReactNode;
+    footer?: React.ReactNode;
+    widthClass?: string; // optional override (e.g., 'max-w-lg')
 };
 
+/**
+ * Minimal, framework-free slide-over panel.
+ * No external deps. No alias paths.
+ */
 export default function SlidePanel({
     open,
-    onClose,
     title,
-    widthClassName = 'w-[520px]',
+    onClose,
     children,
+    footer,
+    widthClass = 'max-w-md',
 }: SlidePanelProps) {
-    if (!open) return null;
-
     return (
-        <div className="fixed inset-0 z-[100]">
+        <div
+            aria-hidden={!open}
+            className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`}
+        >
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/40"
+                className={`absolute inset-0 bg-black/40 transition-opacity ${open ? 'opacity-100' : 'opacity-0'
+                    }`}
                 onClick={onClose}
-                aria-hidden
             />
-            {/* Panel (left slide-in) */}
-            <div className="absolute inset-y-0 left-0 flex">
-                <div
-                    className={`h-full ${widthClassName} bg-white shadow-2xl border-r rounded-r-2xl flex flex-col`}
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b">
-                        <div className="text-base font-semibold">{title || 'Panel'}</div>
-                        <button
-                            onClick={onClose}
-                            className="px-2 py-1 rounded-md border text-sm hover:bg-gray-50"
-                        >
-                            Close
-                        </button>
-                    </div>
 
-                    {/* Body */}
-                    <div className="min-h-0 flex-1 overflow-auto p-4">{children}</div>
+            {/* Panel */}
+            <div
+                className={`absolute inset-y-0 right-0 w-full ${widthClass} bg-white shadow-xl transform transition-transform ${open ? 'translate-x-0' : 'translate-x-full'
+                    }`}
+            >
+                <div className="flex items-center justify-between border-b px-4 py-3">
+                    <h2 className="text-lg font-semibold">{title || 'Panel'}</h2>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
+                    >
+                        Close
+                    </button>
                 </div>
+
+                <div className="p-4 overflow-y-auto h-[calc(100vh-8rem)]">
+                    {children}
+                </div>
+
+                {footer ? (
+                    <div className="border-t px-4 py-3 bg-gray-50">{footer}</div>
+                ) : null}
             </div>
         </div>
     );

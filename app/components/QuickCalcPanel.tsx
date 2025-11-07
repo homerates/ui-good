@@ -1,417 +1,223 @@
 'use client';
 
-import React from 'react';
-import SlidePanel from '@/app/components/ui/SlidePanel';
-
-type Result = {
-    path?: string;
-    at?: string;
-    inputs?: {
-        loanAmount?: number | null;
-        ratePct?: number | null;
-        termMonths?: number | null;
-    };
-    breakdown?: {
-        monthlyPI?: number;
-        monthlyTax?: number;
-        monthlyIns?: number;
-        monthlyHOA?: number;
-        monthlyMI?: number;
-        monthlyTotalPITI?: number;
-    };
-    sensitivity?: { up025?: number; down025?: number } | any[];
-    answer?: string;
-    error?: string;
-};
-
-function n2(v: unknown, d = 0) {
-    const num = Number(v);
-    return Number.isFinite(num) ? num : d;
-}
+import * as React from 'react';
+import SlidePanel from './ui/SlidePanel';
 
 export type QuickCalcSeed = {
-    loan?: number;
-    price?: number;
-    downPercent?: number;
-    rate?: number;
-    termYears?: number;
-    zip?: string;
-    ins?: number;
-    hoa?: number;
-    // optional UX-only fields (future use in pricing rules)
-    occupancy?: 'primary' | 'second' | 'investment';
-    creditTier?: '760+' | '740-759' | '720-739' | '700-719' | '660-699' | '<660';
-    purpose?: 'purchase' | 'rate-term' | 'cash-out';
+    purchasePrice?: number | null;
+    downPercent?: number | null;
+    loanAmount?: number | null;
+    ratePct?: number | null;
+    termYears?: number | null;
+    zip?: string | null;
+    hoa?: number | null;
+    ins?: number | null;
+    miPctAnnual?: number | null;
+    taxBase?: 'price' | 'loan' | null;
+    occupancy?: 'primary' | 'second' | 'investment' | null; // placeholder for later use
+    creditScore?: number | null; // placeholder for later use
 };
 
-export default function QuickCalcPanel(props: {
+type QuickCalcPanelProps = {
     open: boolean;
     onClose: () => void;
     seed?: QuickCalcSeed;
-}) {
-    const { open, onClose, seed } = props;
+    onResult?: (json: any) => void;
+};
 
-    // Mode: loan OR price
-    const [mode, setMode] = React.useState<'loan' | 'price'>(
-        seed?.price ? 'price' : 'loan'
-    );
+/**
+ * A small, safe input panel that hits /api/calc/payment with
+ * search params, no alias paths, no external libs.
+ */
+export default function QuickCalcPanel({
+    open,
+    onClose,
+    seed,
+    onResult,
+}: QuickCalcPanelProps) {
+    const [purchasePrice, setPurchasePrice] = React.useState<string>('');
+    const [downPercent, setDownPercent] = React.useState<string>('');
+    const [loanAmount, setLoanAmount] = React.useState<string>('');
+    const [ratePct, setRatePct] = React.useState<string>('');
+    const [termYears, setTermYears] = React.useState<string>('30');
+    const [zip, setZip] = React.useState<string>('');
+    const [hoa, setHoa] = React.useState<string>('0');
+    const [ins, setIns] = React.useState<string>('100');
 
-    // Inputs
-    const [loanAmount, setLoanAmount] = React.useState<string>(
-        seed?.loan != null ? String(seed.loan) : '400000'
-    );
-    const [purchasePrice, setPurchasePrice] = React.useState<string>(
-        seed?.price != null ? String(seed.price) : '750000'
-    );
-    const [downPercent, setDownPercent] = React.useState<string>(
-        seed?.downPercent != null ? String(seed.downPercent) : '20'
-    );
-
-    const [ratePct, setRatePct] = React.useState<string>(
-        seed?.rate != null ? String(seed.rate) : '6.25'
-    );
-    const [termYears, setTermYears] = React.useState<string>(
-        seed?.termYears != null ? String(seed.termYears) : '30'
-    );
-    const [zip, setZip] = React.useState<string>(seed?.zip ?? '91301');
-
-    const [monthlyIns, setMonthlyIns] = React.useState<string>(
-        seed?.ins != null ? String(seed.ins) : '100'
-    );
-    const [monthlyHOA, setMonthlyHOA] = React.useState<string>(
-        seed?.hoa != null ? String(seed.hoa) : '0'
-    );
-
-    // Extra UX-only fields we can pass through (not required by /api/calc/payment yet)
-    const [occupancy, setOccupancy] = React.useState<QuickCalcSeed['occupancy']>(
-        seed?.occupancy ?? 'primary'
-    );
-    const [creditTier, setCreditTier] = React.useState<QuickCalcSeed['creditTier']>(
-        seed?.creditTier ?? '740-759'
-    );
-    const [purpose, setPurpose] = React.useState<QuickCalcSeed['purpose']>(
-        seed?.purpose ?? 'purchase'
-    );
-
-    const [busy, setBusy] = React.useState(false);
-    const [error, setError] = React.useState<string>('');
-    const [result, setResult] = React.useState<Result | null>(null);
-
+    // initialize from seed
     React.useEffect(() => {
-        if (!open) {
-            setResult(null);
-            setError('');
+        if (!open) return;
+        if (seed?.purchasePrice != null) setPurchasePrice(String(seed.purchasePrice));
+        if (seed?.downPercent != null) setDownPercent(String(seed.downPercent));
+        if (seed?.loanAmount != null) setLoanAmount(String(seed.loanAmount));
+        if (seed?.ratePct != null) setRatePct(String(seed.ratePct));
+        if (seed?.termYears != null) setTermYears(String(seed.termYears));
+        if (seed?.zip != null) setZip(String(seed.zip));
+        if (seed?.hoa != null) setHoa(String(seed.hoa));
+        if (seed?.ins != null) setIns(String(seed.ins));
+    }, [open, seed]);
+
+    async function handleRun() {
+        const q = new URLSearchParams();
+
+        // Either loanAmount or price+downPercent must exist for /api/calc/payment
+        if (loanAmount.trim()) q.set('loan', loanAmount.trim());
+        if (purchasePrice.trim()) q.set('price', purchasePrice.trim());
+        if (downPercent.trim()) q.set('downPercent', downPercent.trim());
+
+        if (ratePct.trim()) {
+            q.set('rate', ratePct.trim());    // supported by your engine
+            q.set('ratePct', ratePct.trim()); // also accepted
         }
-    }, [open]);
 
-    const derivedLoan =
-        mode === 'loan'
-            ? n2(loanAmount, 0)
-            : Math.max(0, Math.round(n2(purchasePrice, 0) * (1 - n2(downPercent, 0) / 100)));
+        q.set('termYears', termYears.trim() || '30');
+        q.set('termMonths', String((Number(termYears) || 30) * 12));
 
-    const canCompute =
-        n2(ratePct, NaN) > 0 &&
-        n2(termYears, NaN) > 0 &&
-        (mode === 'loan'
-            ? n2(loanAmount, NaN) > 0
-            : n2(purchasePrice, NaN) > 0 && n2(downPercent, NaN) >= 0 && n2(downPercent, NaN) < 100);
+        if (zip.trim()) q.set('zip', zip.trim());
 
-    async function handleCompute(e?: React.FormEvent) {
-        if (e?.preventDefault) e.preventDefault();
-        if (busy || !canCompute) return;
+        // defaults for consistency with your engine
+        q.set('ins', ins.trim() || '100');
+        q.set('monthlyIns', ins.trim() || '100');
+        q.set('hoa', hoa.trim() || '0');
+        q.set('monthlyHOA', hoa.trim() || '0');
 
-        setBusy(true);
-        setError('');
-        setResult(null);
+        // tax base is optional; engine can infer by ZIP+price
+        // if (seed?.taxBase) q.set('taxBase', seed.taxBase);
 
-        try {
-            const qs = new URLSearchParams();
-
-            if (mode === 'loan') {
-                qs.set('loan', String(n2(loanAmount, 0)));
-            } else {
-                qs.set('price', String(n2(purchasePrice, 0)));
-                qs.set('downPercent', String(n2(downPercent, 0)));
-                qs.set('loan', String(derivedLoan));
-            }
-
-            qs.set('rate', String(n2(ratePct, 0)));
-            qs.set('ratePct', String(n2(ratePct, 0)));
-            qs.set('term', String(n2(termYears, 30)));
-            qs.set('termYears', String(n2(termYears, 30)));
-            qs.set('termMonths', String(n2(termYears, 30) * 12));
-            if (zip.trim()) qs.set('zip', zip.trim());
-
-            // Carry extras for future engine features / analytics:
-            qs.set('ins', String(n2(monthlyIns, 0)));
-            qs.set('monthlyIns', String(n2(monthlyIns, 0)));
-            qs.set('hoa', String(n2(monthlyHOA, 0)));
-            qs.set('monthlyHOA', String(n2(monthlyHOA, 0)));
-            qs.set('occupancy', String(occupancy));
-            qs.set('creditTier', String(creditTier));
-            qs.set('purpose', String(purpose));
-
-            const resp = await fetch(`/api/calc/payment?${qs.toString()}`, { cache: 'no-store' });
-            const j = (await resp.json()) as Result;
-
-            if (!resp.ok) throw new Error(j?.error || `calc error ${resp.status}`);
-            setResult(j);
-        } catch (err: any) {
-            setError(err?.message || 'Something went wrong.');
-        } finally {
-            setBusy(false);
+        const url = `/api/calc/payment?${q.toString()}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`calc/payment ${res.status}: ${text.slice(0, 200)}`);
         }
+        const json = await res.json();
+        onResult?.(json);
+        onClose();
     }
-
-    const b = result?.breakdown || {};
-    const pi = n2(b.monthlyPI, 0);
-    const tax = n2(b.monthlyTax, 0);
-    const ins = n2(b.monthlyIns, 0);
-    const hoa = n2(b.monthlyHOA, 0);
-    const mi = n2(b.monthlyMI, 0);
-    const piti = n2(b.monthlyTotalPITI, pi + tax + ins + hoa + mi);
 
     return (
         <SlidePanel
             open={open}
-            onClose={busy ? () => { } : onClose}
-            title="Quick Payment Calculator"
-            widthClassName="w-[560px]"
+            onClose={onClose}
+            title="Quick Calculator"
+            widthClass="max-w-lg"
+            footer={
+                <div className="flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-md border px-3 py-2 text-sm hover:bg-gray-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleRun}
+                        className="rounded-md border bg-black text-white px-3 py-2 text-sm hover:opacity-90"
+                    >
+                        Calculate
+                    </button>
+                </div>
+            }
         >
-            {/* Mode */}
-            <div className="flex gap-2">
-                <button
-                    type="button"
-                    onClick={() => setMode('loan')}
-                    className={`px-3 py-2 rounded-xl border ${mode === 'loan' ? 'bg-black text-white' : 'bg-white'}`}
-                >
-                    Enter Loan Amount
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setMode('price')}
-                    className={`px-3 py-2 rounded-xl border ${mode === 'price' ? 'bg-black text-white' : 'bg-white'}`}
-                >
-                    Enter Price + Down %
-                </button>
-            </div>
-
-            {/* Inputs */}
-            <form onSubmit={handleCompute} className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                {mode === 'loan' ? (
-                    <label className="block">
-                        <div className="text-sm text-gray-700">Loan Amount</div>
+            <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                        <div className="mb-1 font-medium">Loan Amount</div>
                         <input
                             value={loanAmount}
                             onChange={(e) => setLoanAmount(e.target.value)}
-                            className="w-full border rounded-xl px-3 py-2"
-                            inputMode="numeric"
                             placeholder="e.g., 400000"
+                            className="w-full rounded-md border px-3 py-2"
+                            inputMode="numeric"
                         />
                     </label>
-                ) : (
-                    <>
-                        <label className="block">
-                            <div className="text-sm text-gray-700">Purchase Price</div>
-                            <input
-                                value={purchasePrice}
-                                onChange={(e) => setPurchasePrice(e.target.value)}
-                                className="w-full border rounded-xl px-3 py-2"
-                                inputMode="numeric"
-                                placeholder="e.g., 750000"
-                            />
-                        </label>
-                        <label className="block">
-                            <div className="text-sm text-gray-700">Down Payment (%)</div>
-                            <input
-                                value={downPercent}
-                                onChange={(e) => setDownPercent(e.target.value)}
-                                className="w-full border rounded-xl px-3 py-2"
-                                inputMode="decimal"
-                                placeholder="e.g., 10"
-                            />
-                        </label>
-                        <div className="block">
-                            <div className="text-sm text-gray-700">Derived Loan</div>
-                            <div className="border rounded-xl px-3 py-2 bg-gray-50">
-                                ${derivedLoan.toLocaleString()}
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                <label className="block">
-                    <div className="text-sm text-gray-700">Rate (%)</div>
-                    <input
-                        value={ratePct}
-                        onChange={(e) => setRatePct(e.target.value)}
-                        className="w-full border rounded-xl px-3 py-2"
-                        inputMode="decimal"
-                        placeholder="e.g., 6.25"
-                    />
-                </label>
-
-                <label className="block">
-                    <div className="text-sm text-gray-700">Term (years)</div>
-                    <input
-                        value={termYears}
-                        onChange={(e) => setTermYears(e.target.value)}
-                        className="w-full border rounded-xl px-3 py-2"
-                        inputMode="numeric"
-                        placeholder="30"
-                    />
-                </label>
-
-                <label className="block">
-                    <div className="text-sm text-gray-700">ZIP (for taxes)</div>
-                    <input
-                        value={zip}
-                        onChange={(e) => setZip(e.target.value)}
-                        className="w-full border rounded-xl px-3 py-2"
-                        inputMode="numeric"
-                        placeholder="91301"
-                    />
-                </label>
-
-                <label className="block">
-                    <div className="text-sm text-gray-700">Monthly Insurance ($)</div>
-                    <input
-                        value={monthlyIns}
-                        onChange={(e) => setMonthlyIns(e.target.value)}
-                        className="w-full border rounded-xl px-3 py-2"
-                        inputMode="numeric"
-                        placeholder="100"
-                    />
-                </label>
-
-                <label className="block">
-                    <div className="text-sm text-gray-700">Monthly HOA ($)</div>
-                    <input
-                        value={monthlyHOA}
-                        onChange={(e) => setMonthlyHOA(e.target.value)}
-                        className="w-full border rounded-xl px-3 py-2"
-                        inputMode="numeric"
-                        placeholder="0"
-                    />
-                </label>
-
-                {/* Extra selectors (future-ready for pricing rules, DSCR, Jumbo, etc.) */}
-                <label className="block">
-                    <div className="text-sm text-gray-700">Occupancy</div>
-                    <select
-                        value={occupancy}
-                        onChange={(e) => setOccupancy(e.target.value as any)}
-                        className="w-full border rounded-xl px-3 py-2 bg-white"
-                    >
-                        <option value="primary">Primary</option>
-                        <option value="second">Second Home</option>
-                        <option value="investment">Investment</option>
-                    </select>
-                </label>
-
-                <label className="block">
-                    <div className="text-sm text-gray-700">Credit Tier</div>
-                    <select
-                        value={creditTier}
-                        onChange={(e) => setCreditTier(e.target.value as any)}
-                        className="w-full border rounded-xl px-3 py-2 bg-white"
-                    >
-                        <option value="760+">760+</option>
-                        <option value="740-759">740–759</option>
-                        <option value="720-739">720–739</option>
-                        <option value="700-719">700–719</option>
-                        <option value="660-699">660–699</option>
-                        <option value="<660">{'<660'}</option>
-                    </select>
-                </label>
-
-                <label className="block">
-                    <div className="text-sm text-gray-700">Purpose</div>
-                    <select
-                        value={purpose}
-                        onChange={(e) => setPurpose(e.target.value as any)}
-                        className="w-full border rounded-xl px-3 py-2 bg-white"
-                    >
-                        <option value="purchase">Purchase</option>
-                        <option value="rate-term">Rate/Term Refi</option>
-                        <option value="cash-out">Cash-Out Refi</option>
-                    </select>
-                </label>
-
-                <div className="md:col-span-3">
-                    <button
-                        type="submit"
-                        disabled={!canCompute || busy}
-                        className="px-4 py-2 rounded-xl border bg-black text-white disabled:opacity-50"
-                    >
-                        {busy ? 'Computing…' : 'Compute Payment'}
-                    </button>
-                    {!canCompute ? (
-                        <div className="text-xs text-gray-500 mt-2">
-                            Enter {mode === 'loan' ? 'Loan, Rate, Term' : 'Price, Down %, Rate, Term'} to compute.
-                        </div>
-                    ) : null}
+                    <label className="text-sm">
+                        <div className="mb-1 font-medium">Rate %</div>
+                        <input
+                            value={ratePct}
+                            onChange={(e) => setRatePct(e.target.value)}
+                            placeholder="e.g., 6.5"
+                            className="w-full rounded-md border px-3 py-2"
+                            inputMode="decimal"
+                        />
+                    </label>
                 </div>
-            </form>
 
-            {/* Result */}
-            <div className="mt-5">
-                {error ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-800">
-                        {error}
-                    </div>
-                ) : null}
+                <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                        <div className="mb-1 font-medium">Purchase Price</div>
+                        <input
+                            value={purchasePrice}
+                            onChange={(e) => setPurchasePrice(e.target.value)}
+                            placeholder="e.g., 750000"
+                            className="w-full rounded-md border px-3 py-2"
+                            inputMode="numeric"
+                        />
+                    </label>
+                    <label className="text-sm">
+                        <div className="mb-1 font-medium">Down %</div>
+                        <input
+                            value={downPercent}
+                            onChange={(e) => setDownPercent(e.target.value)}
+                            placeholder="e.g., 10"
+                            className="w-full rounded-md border px-3 py-2"
+                            inputMode="decimal"
+                        />
+                    </label>
+                </div>
 
-                {result ? (
-                    <div className="rounded-xl border p-4 space-y-2">
-                        <div className="text-sm text-gray-500">
-                            path: {result.path || 'calc/payment'}
-                            {result.at ? ` • at: ${result.at}` : ''}
-                        </div>
-                        <div className="text-lg font-semibold">
-                            Loan amount: $
-                            {n2(result?.inputs?.loanAmount, derivedLoan).toLocaleString()}
-                        </div>
-                        <div className="text-lg font-semibold">
-                            Monthly P&amp;I: ${n2(result?.breakdown?.monthlyPI, 0).toLocaleString()}
-                        </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                        <div className="mb-1 font-medium">Term (Years)</div>
+                        <input
+                            value={termYears}
+                            onChange={(e) => setTermYears(e.target.value)}
+                            placeholder="30"
+                            className="w-full rounded-md border px-3 py-2"
+                            inputMode="numeric"
+                        />
+                    </label>
+                    <label className="text-sm">
+                        <div className="mb-1 font-medium">ZIP (for taxes)</div>
+                        <input
+                            value={zip}
+                            onChange={(e) => setZip(e.target.value)}
+                            placeholder="91301"
+                            className="w-full rounded-md border px-3 py-2"
+                            inputMode="numeric"
+                            maxLength={5}
+                        />
+                    </label>
+                </div>
 
-                        <div className="pt-2 font-medium">PITI breakdown</div>
-                        <div>Tax: ${n2(result?.breakdown?.monthlyTax, 0).toLocaleString()}</div>
-                        <div>Insurance: ${n2(result?.breakdown?.monthlyIns, 0).toLocaleString()}</div>
-                        <div>HOA: ${n2(result?.breakdown?.monthlyHOA, 0).toLocaleString()}</div>
-                        {n2(result?.breakdown?.monthlyMI, 0) > 0 ? (
-                            <div>MI: ${n2(result?.breakdown?.monthlyMI, 0).toLocaleString()}</div>
-                        ) : null}
-                        <div className="font-semibold">
-                            Total PITI: ${n2(result?.breakdown?.monthlyTotalPITI, piti).toLocaleString()}
-                        </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                        <div className="mb-1 font-medium">Insurance ($/mo)</div>
+                        <input
+                            value={ins}
+                            onChange={(e) => setIns(e.target.value)}
+                            placeholder="100"
+                            className="w-full rounded-md border px-3 py-2"
+                            inputMode="numeric"
+                        />
+                    </label>
+                    <label className="text-sm">
+                        <div className="mb-1 font-medium">HOA ($/mo)</div>
+                        <input
+                            value={hoa}
+                            onChange={(e) => setHoa(e.target.value)}
+                            placeholder="0"
+                            className="w-full rounded-md border px-3 py-2"
+                            inputMode="numeric"
+                        />
+                    </label>
+                </div>
 
-                        {result?.sensitivity && !Array.isArray(result.sensitivity) ? (
-                            <div className="pt-2 text-sm opacity-80">
-                                <div className="font-medium">±0.25% Sensitivity</div>
-                                {'up025' in (result.sensitivity as any) ? (
-                                    <div>
-                                        Rate +0.25% → P&amp;I $
-                                        {n2((result.sensitivity as any).up025).toLocaleString()}
-                                    </div>
-                                ) : null}
-                                {'down025' in (result.sensitivity as any) ? (
-                                    <div>
-                                        Rate −0.25% → P&amp;I $
-                                        {n2((result.sensitivity as any).down025).toLocaleString()}
-                                    </div>
-                                ) : null}
-                            </div>
-                        ) : null}
-
-                        <div className="pt-2 text-sm text-gray-600">
-                            {result?.answer || 'Estimated payment shown above.'}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-sm text-gray-500">Results will appear here after you compute.</div>
-                )}
+                <p className="text-xs text-gray-600">
+                    Tip: If you enter a loan amount, price/down% are optional. If you don’t enter a loan amount,
+                    make sure to include price and down%.
+                </p>
             </div>
         </SlidePanel>
     );
