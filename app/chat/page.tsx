@@ -18,11 +18,29 @@ type Msg = { id: string; role: MsgRole; content: React.ReactNode };
    ========================================================= */
 function looksLikeCalcIntent(s: string) {
     const t = s.toLowerCase();
-    const hasMoney = /\$?\s*\d{2,3}(?:,\d{3})*(?:\s*[kK])?/.test(t); // $400k / 620,000
-    const hasRate = /(\d+(?:\.\d+)?)\s*%/.test(t) || /\b(rate|interest|apr)\b/.test(t);
-    const hasTerm = /\b(yrs?|years?|y|months?|mos?)\b/.test(t) || /\b(30|15|360|180)\b/.test(t);
-    return hasMoney && hasRate && hasTerm;
+
+    // money like $500k, 620,000, 1.25m
+    const hasMoney = /\$?\s*\d[\d,]*(?:\.\d+)?\s*(k|m)?/.test(t);
+
+    // explicit percent OR "at 6.25" style
+    const hasRate =
+        /(\d+(?:\.\d+)?)\s*%/.test(t) ||
+        /\b(rate|interest|apr)\b/.test(t) ||
+        /\bat\s*\d+(?:\.\d+)?\b/.test(t);
+
+    // 30/15/360/180 OR "for 30 years" / "30 yr"
+    const hasTerm =
+        /\b(30|15|360|180)\b/.test(t) ||
+        /\b\d+\s*(yrs?|years?|yr|y|months?|mos?)\b/.test(t) ||
+        /\bfor\s+\d+\s*(yrs?|years?|yr|y|months?|mos?)\b/.test(t);
+
+    // hard override: if it mentions down/loan + years + a dollar, treat as calc
+    const strongSignals =
+        /\$/.test(t) && hasTerm && (/\bdown\b/.test(t) || /\bloan\b/.test(t));
+
+    return (hasMoney && hasRate && hasTerm) || strongSignals;
 }
+
 
 /* =========================================================
    Calc API call (natural language → calc/answer)

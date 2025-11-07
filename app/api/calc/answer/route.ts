@@ -1,3 +1,4 @@
+// app/api/calc/answer/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,8 @@ type Parsed = {
     price?: number;
     downPercent?: number | null;
     loan?: number | null;
-    rate?: number | null;
-    termYears?: number | null;
+    rate?: number | null;      // percent as number, e.g., 6.375
+    termYears?: number | null; // 30, 15, etc.
     zip?: string | undefined;
 };
 
@@ -30,17 +31,12 @@ function km(num: string, unit?: string | null) {
 function parseQuestion(qRaw: string): Parsed | null {
     const qq = qRaw.trim().replace(/\u00A0/g, " ");
 
-    // LOOSENED: bare $750k allowed (keyword optional)
+    // Allow bare $750k / 750k price / etc.
     const priceRe = /\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?(?:\s*(?:home|house|condo|property|purchase|price))?\b/i;
-    // loan number
     const loanRe = /\bloan\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b|\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\s*loan\b/i;
-    // down %
     const downRe = /(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:down|dp)?\b/i;
-    // rate %
     const rateRe = /(?:rate\s*)?(\d+(?:\.\d+)?)\s*(?:%|percent)?\s*(?:fixed|arm)?\b/i;
-    // term
     const termRe = /\b(\d+)\s*(?:years?|yrs?|yr|y|year|-year)\b/i;
-    // zip
     const zipRe = /\b(?:zip\s*)?(\d{5})\b/i;
 
     let price: number | null = null;
@@ -55,9 +51,7 @@ function parseQuestion(qRaw: string): Parsed | null {
     const tm = qq.match(termRe); const termYears = tm ? Number(tm[1]) : null;
     const zm = qq.match(zipRe); const zip = zm ? zm[1] : undefined;
 
-    // Core gate: allow loan OR price; other fields are optional
     if (!loan && !price) return null;
-
     return { price: price ?? undefined, downPercent, loan, rate, termYears, zip };
 }
 
@@ -90,18 +84,40 @@ async function handle(req: NextRequest, urlOverride?: URL) {
         });
     }
 
-    const term = parsed.termYears ?? 30;
+    const termYears = parsed.termYears ?? 30;
 
-    const params = new URLSearchParams();
-    if (parsed.loan != null) params.set("loan", String(parsed.loan));
-    if (parsed.price != null) params.set("price", String(parsed.price));
-    if (parsed.downPercent != null) params.set("downPercent", String(parsed.downPercent));
-    if (parsed.rate != null) params.set("rate", String(parsed.rate));
-    params.set("term", String(term));
-    if (parsed.zip) params.set("zip", parsed.zip);
-    params.set("ins", "100"); // basic default
+    // Build params targeting BOTH naming conventions.
+    const q = new URLSearchParams();
 
-    const calcURL = new URL(`/api/calc/payment?${params.toString()}`, origin);
+    // Core amount
+    if (parsed.loan != null) q.set("loan", String(parsed.loan));
+    if (parsed.price != null) q.set("price", String(parsed.price));
+    if (parsed.downPercent != null) q.set("downPercent", String(parsed.downPercent));
+
+    // Rate (percent)
+    if (parsed.rate != null) {
+        q.set("rate", String(parsed.rate));        // newer style
+        q.set("ratePct", String(parsed.rate));     // engine style
+    }
+
+    // Term
+    q.set("term", String(termYears));            // newer style (years)
+    q.set("termMonths", String(termYears * 12)); // engine style (months)
+
+    // ZIP for tax lookup
+    if (parsed.zip) q.set("zip", parsed.zip);
+
+    // Soft defaults for recurring fields (map to both styles)
+    // Insurance
+    q.set("ins", "100");           // newer
+    q.set("monthlyIns", "100");    // engine
+    // HOA (default 0)
+    q.set("hoa", "0");
+    q.set("monthlyHOA", "0");
+    // Let engine decide tax via ZIP, but nudge sensible defaults:
+    // q.set("taxBase", "price");  // uncomment if your engine needs it
+
+    const calcURL = new URL(`/api/calc/payment?${q.toString()}`, origin);
     const resp = await fetch(calcURL, { cache: "no-store" });
 
     if (!resp.ok) {
