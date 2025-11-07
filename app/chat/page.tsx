@@ -43,16 +43,22 @@ function looksLikeCalcIntent(s: string) {
 
 /* =========================================================
    Calc API call (natural language → calc/answer)
+   - IMPORTANT: if API returns ok:false, we THROW so UI falls back to Q&A
    ========================================================= */
 async function fetchCalcFromText(raw: string) {
     const resp = await fetch(`/api/calc/answer?q=${encodeURIComponent(raw)}`, { cache: 'no-store' });
+    // If the endpoint itself fails, bubble up
     if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
+        const err = await resp.json().catch(() => ({} as any));
         throw new Error(err?.error || `calc error ${resp.status}`);
     }
-    return resp.json();
+    const j = await resp.json();
+    if (j && j.ok === false) {
+        // Force fallback to /api/answers — do NOT render calc error text in the chat
+        throw new Error('not_calc');
+    }
+    return j;
 }
-
 
 /* =========================================================
    Web/NLP API call (answers with sources + follow-up)
@@ -199,7 +205,6 @@ export default function ChatPage() {
 
         try {
             // --- Try CALC first (probe backend, not regex) ---
-            let renderedCalc = false;
             try {
                 const calcJson = await fetchCalcFromText(text);
                 if (calcJson && calcJson.breakdown) {
@@ -232,16 +237,13 @@ export default function ChatPage() {
                                 content: <CalcView data={calcJson} />,
                             },
                         ]);
-                        renderedCalc = true;
+                        setInput('');
+                        setBusy(false);
+                        return;
                     }
                 }
             } catch {
                 // swallow calc attempt; we will fall back to answers
-            }
-            if (renderedCalc) {
-                setInput('');
-                setBusy(false);
-                return;
             }
 
             // --- Fallback: sourced web answer ---
