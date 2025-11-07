@@ -45,12 +45,8 @@ function looksLikeCalcIntent(s: string) {
    Calc API call (natural language → calc/answer)
    ========================================================= */
 async function fetchCalcFromText(raw: string) {
-    const resp = await fetch('/api/calc/answer', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ q: raw }),
-        cache: 'no-store',
-    });
+    const resp = await fetch(`/api/calc/answer?q=${encodeURIComponent(text)}`, { cache: 'no-store' });
+
     if (!resp.ok) {
         // Let the caller decide to fall back to answers
         return null;
