@@ -25,13 +25,20 @@ export async function GET(req: Request) {
 
   let loan = loanQ;
   if (loan == null && price != null && downPct != null) loan = r2(price * (1 - downPct / 100));
+  // NEW: if we still have no loan but we do have a large price and no downPct, assume user meant loan = price
+  if (loan == null && price != null && (downPct == null || downPct < 0)) {
+    loan = price;
+  }
 
   const missing: string[] = [];
   if (loan == null) missing.push("loan (or price + downPercent)");
   if (rate == null) missing.push("rate");
   if (termM == null) missing.push("term or termMonths");
   if (missing.length) {
-    return NextResponse.json({ error: `Missing required parameter(s): ${missing.join(", ")}` }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { error: `Missing required parameter(s): ${missing.join(", ")}` },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
   }
 
   // Knowledge (for label only; PITI will compute its own tax again)
@@ -62,18 +69,39 @@ export async function GET(req: Request) {
   if (miPct != null) pitiURL.searchParams.set("miPctAnnual", String(miPct));
 
   const pitiRes = await fetch(pitiURL.toString(), { cache: "no-store" });
-  if (!pitiRes.ok) return NextResponse.json({ error: `PITI error: ${await pitiRes.text()}` }, { status: 502, headers: { "Cache-Control": "no-store" } });
+  if (!pitiRes.ok) {
+    return NextResponse.json(
+      { error: `PITI error: ${await pitiRes.text()}` },
+      { status: 502, headers: { "Cache-Control": "no-store" } }
+    );
+  }
   const piti = await pitiRes.json();
 
   const b = piti?.breakdown ?? {};
-  const total = Number.isFinite(b.monthlyTotalPITI) ? b.monthlyTotalPITI : r2((b.monthlyPI ?? 0) + (b.monthlyTax ?? 0) + (b.monthlyIns ?? ins ?? 0) + (b.monthlyHOA ?? hoa ?? 0) + (b.monthlyMI ?? 0));
+  const total = Number.isFinite(b.monthlyTotalPITI)
+    ? b.monthlyTotalPITI
+    : r2(
+      (b.monthlyPI ?? 0) +
+      (b.monthlyTax ?? 0) +
+      (b.monthlyIns ?? ins ?? 0) +
+      (b.monthlyHOA ?? hoa ?? 0) +
+      (b.monthlyMI ?? 0)
+    );
 
   const response = {
     status: "ok",
     path: "calc/payment",
     usedFRED: false,
     at: now,
-    inputs: { zip: zip ?? null, county: county ?? undefined, loanAmount: loan, ratePct: rate, termMonths: termM, monthlyIns: ins ?? 0, monthlyHOA: hoa ?? 0 },
+    inputs: {
+      zip: zip ?? null,
+      county: county ?? undefined,
+      loanAmount: loan,
+      ratePct: rate,
+      termMonths: termM,
+      monthlyIns: ins ?? 0,
+      monthlyHOA: hoa ?? 0
+    },
     lookups: { taxRate, taxSource, loanLimits: loanLimits ?? undefined },
     breakdown: {
       monthlyPI: b.monthlyPI ?? 0,
@@ -81,11 +109,16 @@ export async function GET(req: Request) {
       monthlyIns: b.monthlyIns ?? (ins ?? 0),
       monthlyHOA: b.monthlyHOA ?? (hoa ?? 0),
       monthlyMI: b.monthlyMI ?? 0,
-      monthlyTotalPITI: total,
+      monthlyTotalPITI: total
     },
     sensitivity: piti?.sensitivity ?? undefined,
-    answer: piti?.answer ?? `Estimated monthly payment is $${r2(total).toLocaleString()} including principal & interest, taxes, insurance${((b.monthlyHOA ?? hoa ?? 0) > 0) ? ", and HOA" : ""}.`,
+    answer:
+      piti?.answer ??
+      `Estimated monthly payment is $${r2(total).toLocaleString()} including principal & interest, taxes, insurance${((b.monthlyHOA ?? hoa ?? 0) > 0) ? ", and HOA" : ""
+      }.`
   };
 
-  return NextResponse.json(response, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
+  return NextResponse.json(response, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
+  });
 }
