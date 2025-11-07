@@ -140,6 +140,7 @@ async function handle(req: NextRequest, urlOverride?: URL) {
     return noStore({
         ok: true, route: "calc/answer", at: now,
         inputs: j?.inputs, lookups: j?.lookups, breakdown: j?.breakdown,
+        sensitivity: j?.sensitivity,
         answer: j?.answer ?? `Estimated monthly payment (see itemization):\n${nice}`,
         lineItem: nice,
     });

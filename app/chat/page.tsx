@@ -14,7 +14,7 @@ type MsgRole = 'user' | 'assistant';
 type Msg = { id: string; role: MsgRole; content: React.ReactNode };
 
 /* =========================================================
-   Intent: Does the text look like a mortgage calc?
+   (Optional) Intent hint — not used for routing anymore
    ========================================================= */
 function looksLikeCalcIntent(s: string) {
     const t = s.toLowerCase();
@@ -41,7 +41,6 @@ function looksLikeCalcIntent(s: string) {
     return (hasMoney && hasRate && hasTerm) || strongSignals;
 }
 
-
 /* =========================================================
    Calc API call (natural language → calc/answer)
    ========================================================= */
@@ -53,10 +52,14 @@ async function fetchCalcFromText(raw: string) {
         cache: 'no-store',
     });
     if (!resp.ok) {
-        const err = await resp.json().catch(() => ({} as any));
-        throw new Error(err?.message || err?.error || `calc error ${resp.status}`);
+        // Let the caller decide to fall back to answers
+        return null;
     }
-    return resp.json();
+    try {
+        return await resp.json();
+    } catch {
+        return null;
+    }
 }
 
 /* =========================================================
@@ -74,15 +77,16 @@ async function fetchAnswer(raw: string) {
 }
 
 /* =========================================================
-   Defensive Calc View (supports both legacy & new shapes)
+   Defensive Calc View (matches engine JSON you posted)
    ========================================================= */
 function CalcView({ data }: { data: any }) {
-    // anchors: CalcView reads from breakdown
+    // anchors: read from inputs + breakdown
     const inputs = data?.inputs ?? {};
     const b = data?.breakdown ?? {};
 
-    // derive loan if only price/down% provided
+    // loanAmount is authoritative; fall back to loan or derive from price/down%
     const loanAmount: number = Number(
+        inputs.loanAmount ??
         inputs.loan ??
         (inputs.price && inputs.downPercent != null
             ? Math.round(Number(inputs.price) * (1 - Number(inputs.downPercent) / 100))
@@ -99,16 +103,13 @@ function CalcView({ data }: { data: any }) {
         monthlyPI + monthlyTax + monthlyIns + monthlyHOA + monthlyMI,
     );
 
-    // optional sensitivity array: [{ rate, pi }, ...]
-    const sens = Array.isArray((data as any)?.sensitivity)
-        ? (data as any).sensitivity
-        : null;
-    const n = (v: unknown) => Number(v ?? 0);
+    // sensitivity can be an object { up025, down025 } in your engine
+    const s = (data as any)?.sensitivity;
+    const hasObjectSensitivity =
+        s && typeof s === 'object' && ('up025' in s || 'down025' in s);
 
-    const metaPath =
-        data?.meta?.path || data?.route || 'calc';
-    const metaAt =
-        data?.meta?.at || data?.at || '';
+    const metaPath = data?.meta?.path || data?.route || 'calc';
+    const metaAt = data?.meta?.at || data?.at || '';
 
     return (
         <div className="rounded-xl border p-4 mt-3 space-y-2">
@@ -134,16 +135,23 @@ function CalcView({ data }: { data: any }) {
             </div>
 
             <div className="pt-2 font-medium">±0.25% Sensitivity</div>
-            {Array.isArray(sens) && sens.length >= 2 ? (
+            {hasObjectSensitivity ? (
                 <div className="mt-1 text-sm opacity-80">
-                    <div>
-                        Rate: {((n(sens[0].rate)) * 100).toFixed(2)}% → P&amp;I $
-                        {n(sens[0].pi).toLocaleString()}
-                    </div>
-                    <div>
-                        Rate: {((n(sens[1].rate)) * 100).toFixed(2)}% → P&amp;I $
-                        {n(sens[1].pi).toLocaleString()}
-                    </div>
+                    {'up025' in s ? (
+                        <div>
+                            Rate +0.25% → P&amp;I ${Number(s.up025 ?? 0).toLocaleString()}
+                        </div>
+                    ) : null}
+                    {'down025' in s ? (
+                        <div>
+                            Rate −0.25% → P&amp;I ${Number(s.down025 ?? 0).toLocaleString()}
+                        </div>
+                    ) : null}
+                </div>
+            ) : Array.isArray(s) && s.length >= 2 ? (
+                <div className="mt-1 text-sm opacity-80">
+                    <div>Rate → P&amp;I ${Number(s[0]?.pi ?? 0).toLocaleString()}</div>
+                    <div>Rate → P&amp;I ${Number(s[1]?.pi ?? 0).toLocaleString()}</div>
                 </div>
             ) : (
                 <div className="text-gray-500">No sensitivity data</div>
@@ -198,34 +206,32 @@ export default function ChatPage() {
         ]);
 
         try {
-            // --- Try CALC first (robust, no heuristics) ---
-            let calcJson: any = null;
+            // --- Try CALC first (probe backend, not regex) ---
+            let renderedCalc = false;
             try {
-                const calcResp = await fetch('/api/calc/answer', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ q: text }),
-                    cache: 'no-store',
-                });
-                // only treat as calc if engine responded OK and has some usable numbers
-                if (calcResp.ok) {
-                    calcJson = await calcResp.json();
-                    const b = calcJson?.breakdown ?? {};
-                    const hasPI = Number(b?.monthlyPI ?? 0) > 0;
+                const calcJson = await fetchCalcFromText(text);
+                if (calcJson && calcJson.breakdown) {
+                    const b = calcJson.breakdown;
+                    const hasPI = Number(b.monthlyPI ?? 0) > 0;
                     const hasAnyMoney =
                         hasPI ||
-                        Number(b?.monthlyTax ?? 0) > 0 ||
-                        Number(b?.monthlyIns ?? 0) > 0 ||
-                        Number(b?.monthlyHOA ?? 0) > 0;
-                    const inputs = calcJson?.inputs ?? {};
+                        Number(b.monthlyTax ?? 0) > 0 ||
+                        Number(b.monthlyIns ?? 0) > 0 ||
+                        Number(b.monthlyHOA ?? 0) > 0 ||
+                        Number(b.monthlyMI ?? 0) > 0 ||
+                        Number(b.monthlyTotalPITI ?? 0) > 0;
+
+                    // Also accept if engine echoed inputs that imply a real calc
+                    const inputs = calcJson.inputs ?? {};
                     const inferredLoan =
-                        Number(inputs?.loan ?? 0) ||
-                        (inputs?.price && inputs?.downPercent != null
-                            ? Math.round(Number(inputs.price) * (1 - Number(inputs.downPercent) / 100))
+                        Number(inputs.loanAmount ?? inputs.loan ?? 0) ||
+                        (inputs.price && inputs.downPercent != null
+                            ? Math.round(
+                                Number(inputs.price) * (1 - Number(inputs.downPercent) / 100),
+                            )
                             : 0);
 
                     if (hasAnyMoney || inferredLoan > 0) {
-                        // Render calc and short-circuit
                         setMessages((prev) => [
                             ...prev,
                             {
@@ -234,23 +240,20 @@ export default function ChatPage() {
                                 content: <CalcView data={calcJson} />,
                             },
                         ]);
-                        setInput('');
-                        setBusy(false);
-                        return;
+                        renderedCalc = true;
                     }
                 }
             } catch {
-                // swallow calc attempt errors; we'll fall back to answers
+                // swallow calc attempt; we will fall back to answers
+            }
+            if (renderedCalc) {
+                setInput('');
+                setBusy(false);
+                return;
             }
 
             // --- Fallback: sourced web answer ---
-            const resp = await fetch('/api/answers', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ question: text }),
-                cache: 'no-store',
-            });
-            const a = await resp.json().catch(() => null);
+            const a = await fetchAnswer(text).catch(() => null);
 
             const block =
                 (a?.answerMarkdown as string) ||
@@ -276,7 +279,12 @@ export default function ChatPage() {
                                     <ul className="list-disc ml-5">
                                         {a.sources.map((s: any, i: number) => (
                                             <li key={i}>
-                                                <a className="underline" href={s.url} target="_blank" rel="noreferrer">
+                                                <a
+                                                    className="underline"
+                                                    href={s.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
                                                     {s.title}
                                                 </a>
                                             </li>
@@ -296,14 +304,17 @@ export default function ChatPage() {
         } catch (err: any) {
             setMessages((prev) => [
                 ...prev,
-                { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${err?.message || 'failed'}` },
+                {
+                    id: crypto.randomUUID(),
+                    role: 'assistant',
+                    content: `Error: ${err?.message || 'failed'}`,
+                },
             ]);
         } finally {
             setInput('');
             setBusy(false);
         }
     }
-
 
     return (
         <main className="max-w-3xl mx-auto p-4">
