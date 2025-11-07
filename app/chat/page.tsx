@@ -18,22 +18,40 @@ type Msg = { id: string; role: MsgRole; content: React.ReactNode };
    ========================================================= */
 function looksLikeCalcIntent(s: string) {
     const t = s.toLowerCase();
-    const hasMoney = /\$?\s*\d{2,3}(?:,\d{3})*(?:\s*[kK])?/.test(t);    // $400k / 620,000
+    const hasMoney = /\$?\s*\d{2,3}(?:,\d{3})*(?:\s*[kK])?/.test(t); // $400k / 620,000
     const hasRate = /(\d+(?:\.\d+)?)\s*%/.test(t) || /\b(rate|interest|apr)\b/.test(t);
     const hasTerm = /\b(yrs?|years?|y|months?|mos?)\b/.test(t) || /\b(30|15|360|180)\b/.test(t);
     return hasMoney && hasRate && hasTerm;
 }
 
 /* =========================================================
-   Calc API call (natural language)
+   Calc API call (natural language → calc/answer)
    ========================================================= */
 async function fetchCalcFromText(raw: string) {
-    const qs = new URLSearchParams({ q: raw });
-    const resp = await fetch(`/api/calc/payment?${qs.toString()}`, { cache: 'no-store' });
+    const resp = await fetch('/api/calc/answer', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ q: raw }),
+        cache: 'no-store',
+    });
     if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err?.error || `calc error ${resp.status}`);
+        const err = await resp.json().catch(() => ({} as any));
+        throw new Error(err?.message || err?.error || `calc error ${resp.status}`);
     }
+    return resp.json();
+}
+
+/* =========================================================
+   Web/NLP API call (answers with sources + follow-up)
+   ========================================================= */
+async function fetchAnswer(raw: string) {
+    const resp = await fetch('/api/answers', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ question: raw }),
+        cache: 'no-store',
+    });
+    if (!resp.ok) throw new Error(`answers error ${resp.status}`);
     return resp.json();
 }
 
@@ -41,46 +59,81 @@ async function fetchCalcFromText(raw: string) {
    Defensive Calc View (supports both legacy & new shapes)
    ========================================================= */
 function CalcView({ data }: { data: any }) {
-    const a = data?.answer ?? data ?? {};
-    const n = (x: any) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
+    // anchors: CalcView reads from breakdown
+    const inputs = data?.inputs ?? {};
+    const b = data?.breakdown ?? {};
 
-    const loanAmount = n(a.loanAmount);
-    const monthlyPI = n(a.monthlyPI);
-    const monthlyTax = n(a.monthlyTax);
-    const monthlyIns = n(a.monthlyIns);
-    const monthlyHOA = n(a.monthlyHOA);
-    const monthlyMI = n(a.monthlyMI);
-    const monthlyTotalPITI = n(a.monthlyTotalPITI);
-    const sens = Array.isArray(a.sensitivities) ? a.sensitivities : (data?.sensitivities || []);
+    // derive loan if only price/down% provided
+    const loanAmount: number = Number(
+        inputs.loan ??
+        (inputs.price && inputs.downPercent != null
+            ? Math.round(Number(inputs.price) * (1 - Number(inputs.downPercent) / 100))
+            : 0),
+    );
+
+    const monthlyPI = Number(b.monthlyPI ?? 0);
+    const monthlyTax = Number(b.monthlyTax ?? 0);
+    const monthlyIns = Number(b.monthlyIns ?? 0);
+    const monthlyHOA = Number(b.monthlyHOA ?? 0);
+    const monthlyMI = Number(b.monthlyMI ?? 0);
+    const monthlyTotalPITI = Number(
+        b.monthlyTotalPITI ??
+        monthlyPI + monthlyTax + monthlyIns + monthlyHOA + monthlyMI,
+    );
+
+    // optional sensitivity array: [{ rate, pi }, ...]
+    const sens = Array.isArray((data as any)?.sensitivity)
+        ? (data as any).sensitivity
+        : null;
+    const n = (v: unknown) => Number(v ?? 0);
+
+    const metaPath =
+        data?.meta?.path || data?.route || 'calc';
+    const metaAt =
+        data?.meta?.at || data?.at || '';
 
     return (
         <div className="rounded-xl border p-4 mt-3 space-y-2">
             <div className="text-sm text-gray-500">
-                HR • path: {data?.meta?.path || 'calc'} • engine: {data?.meta?.engineUsed || 'n/a'}
-                {data?.meta?.at ? <> • at: {data.meta.at}</> : null}
+                HR • path: {String(metaPath)}
+                {metaAt ? <> • at: {String(metaAt)}</> : null}
             </div>
 
-            <div className="text-lg font-semibold">Loan amount: ${loanAmount.toLocaleString()}</div>
-            <div className="text-lg font-semibold">Monthly P&amp;I: ${monthlyPI.toLocaleString()}</div>
+            <div className="text-lg font-semibold">
+                Loan amount: ${loanAmount.toLocaleString()}
+            </div>
+            <div className="text-lg font-semibold">
+                Monthly P&amp;I: ${monthlyPI.toLocaleString()}
+            </div>
 
             <div className="pt-2 font-medium">PITI breakdown</div>
             <div>Taxes: ${monthlyTax.toLocaleString()}</div>
             <div>Insurance: ${monthlyIns.toLocaleString()}</div>
             <div>HOA: ${monthlyHOA.toLocaleString()}</div>
             <div>MI: ${monthlyMI.toLocaleString()}</div>
-            <div className="font-semibold">Total PITI: ${monthlyTotalPITI.toLocaleString()}</div>
+            <div className="font-semibold">
+                Total PITI: ${monthlyTotalPITI.toLocaleString()}
+            </div>
 
             <div className="pt-2 font-medium">±0.25% Sensitivity</div>
-            {sens?.length === 2 ? (
-                <>
-                    <div>Rate: {((n(sens[0].rate)) * 100).toFixed(2)}% → P&amp;I ${n(sens[0].pi).toLocaleString()}</div>
-                    <div>Rate: {((n(sens[1].rate)) * 100).toFixed(2)}% → P&amp;I ${n(sens[1].pi).toLocaleString()}</div>
-                </>
+            {Array.isArray(sens) && sens.length >= 2 ? (
+                <div className="mt-1 text-sm opacity-80">
+                    <div>
+                        Rate: {((n(sens[0].rate)) * 100).toFixed(2)}% → P&amp;I $
+                        {n(sens[0].pi).toLocaleString()}
+                    </div>
+                    <div>
+                        Rate: {((n(sens[1].rate)) * 100).toFixed(2)}% → P&amp;I $
+                        {n(sens[1].pi).toLocaleString()}
+                    </div>
+                </div>
             ) : (
                 <div className="text-gray-500">No sensitivity data</div>
             )}
 
-            <div className="pt-2 text-sm text-gray-600">{data?.tldr || 'Principal & Interest with ±0.25% rate sensitivity.'}</div>
+            <div className="pt-2 text-sm text-gray-600">
+                {data?.tldr || 'Principal & Interest with ±0.25% rate sensitivity.'}
+            </div>
         </div>
     );
 }
@@ -128,29 +181,76 @@ export default function ChatPage() {
 
         try {
             if (looksLikeCalcIntent(text)) {
+                // NATURAL LANGUAGE → calc/answer
                 const calc = await fetchCalcFromText(text);
                 setMessages((prev) => [
                     ...prev,
-                    { id: crypto.randomUUID(), role: 'assistant', content: <CalcView data={calc} /> },
+                    {
+                        id: crypto.randomUUID(),
+                        role: 'assistant',
+                        content: <CalcView data={calc} />,
+                    },
                 ]);
             } else {
-                // Keep your existing web/NLP path here if you want general Q&A:
-                const resp = await fetch('/api/web', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ q: text }),
-                }).then((r) => r.json()).catch(() => null);
+                // General Q&A → answers (sourced)
+                const resp = await fetchAnswer(text).catch(() => null);
 
-                const answer = resp?.answer || '…';
+                const block =
+                    (resp?.answerMarkdown as string) ||
+                    (resp?.answer as string) ||
+                    (resp?.message as string) ||
+                    '…';
+
+                const follow =
+                    resp?.followUp || resp?.follow_up || resp?.cta || '';
+
                 setMessages((prev) => [
                     ...prev,
-                    { id: crypto.randomUUID(), role: 'assistant', content: String(answer) },
+                    {
+                        id: crypto.randomUUID(),
+                        role: 'assistant',
+                        content: (
+                            <div className="space-y-2">
+                                <pre className="whitespace-pre-wrap font-sans text-[15px] leading-6">
+                                    {block}
+                                </pre>
+                                {Array.isArray(resp?.sources) && resp.sources.length > 0 ? (
+                                    <div className="text-sm opacity-80">
+                                        <div className="font-semibold">Sources</div>
+                                        <ul className="list-disc ml-5">
+                                            {resp.sources.map((s: any, i: number) => (
+                                                <li key={i}>
+                                                    <a
+                                                        className="underline"
+                                                        href={s.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        {s.title}
+                                                    </a>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ) : null}
+                                {follow ? (
+                                    <div className="text-sm text-gray-700 pt-1">
+                                        <span className="font-medium">Follow-up:</span> {follow}
+                                    </div>
+                                ) : null}
+                            </div>
+                        ),
+                    },
                 ]);
             }
         } catch (err: any) {
             setMessages((prev) => [
                 ...prev,
-                { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${err?.message || 'failed'}` },
+                {
+                    id: crypto.randomUUID(),
+                    role: 'assistant',
+                    content: `Error: ${err?.message || 'failed'}`,
+                },
             ]);
         } finally {
             setInput('');
@@ -161,17 +261,23 @@ export default function ChatPage() {
     return (
         <main className="max-w-3xl mx-auto p-4">
             <h1 className="text-2xl font-semibold">HomeRates.ai — Chat</h1>
-            <p className="text-sm text-gray-600">This chat routes mortgage math to the calc API and leaves your main app alone.</p>
+            <p className="text-sm text-gray-600">
+                This chat routes mortgage math to the calc API and uses sourced answers for everything else.
+            </p>
 
             <div className="mt-4 space-y-4">
                 {messages.map((m) => (
                     <div
                         key={m.id}
-                        className={m.role === 'user'
-                            ? 'rounded-xl border p-3 bg-white'
-                            : 'rounded-xl border p-3 bg-gray-50'}
+                        className={
+                            m.role === 'user'
+                                ? 'rounded-xl border p-3 bg-white'
+                                : 'rounded-xl border p-3 bg-gray-50'
+                        }
                     >
-                        <div className="text-xs uppercase tracking-wider text-gray-500">{m.role}</div>
+                        <div className="text-xs uppercase tracking-wider text-gray-500">
+                            {m.role}
+                        </div>
                         <div className="mt-1">{m.content}</div>
                     </div>
                 ))}
@@ -196,7 +302,7 @@ export default function ChatPage() {
             </form>
 
             <div className="mt-6 text-xs text-gray-500">
-                Tip: Taxes need a purchase price, e.g. “On a $750k home with 20% down at 6% for 30 years, taxes 1.2%, $1200 insurance, HOA $150”.
+                Tip: Taxes need a purchase price. Try “$750k in 91301 with 20% down at 6% for 30 years”.
             </div>
         </main>
     );
