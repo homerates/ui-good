@@ -13,16 +13,16 @@ export type Inputs = {
 };
 
 type Tok =
-    | { k: "KW_PRICE" | "KW_LOAN" | "KW_DOWN" | "KW_RATE" | "KW_INS" | "KW_HOA" | "AT" | "PERCENT" | "YRS" | "MOS" }
+    | { k: "KW_PRICE" | "KW_LOAN" | "KW_DOWN" | "KW_RATE" | "KW_INS" | "KW_HOA" | "AT" | "PERCENT_SYM" | "PERCENT_WORD" | "YRS" | "MOS" }
     | { k: "NUM"; v: number; raw: string }          // 1, 1.25, 900k, 1.2m -> v expanded
-    | { k: "ZIP"; v: string }                       // 5-digit ZIP
+    | { k: "ZIP"; v: string }                       // 5-digit ZIP (or ZIP+4 collapsed to 5)
     | { k: "PUNCT"; v: string }
     | { k: "TEXT"; v: string };
 
 const NUM_RE = /(?:(?:\$)?\d[\d,]*\.?\d*)(?:[km])?/i;
-const ZIP_RE = /\b\d{5}(?:-\d{4})?\b/;
+const ZIP_RE = /^\d{5}(?:-\d{4})?/; // anchored in lexer slice
 const KW_RE =
-    /\b(price|loan|down|rate|ins(?:urance)?|hoa|at|@|yrs?|years?|y|mos?|months?)\b/i;
+    /^(price|loan|down|rate|ins(?:urance)?|hoa|at|@|yrs?|years?|y|mos?|months?|percent|pct)\b/i;
 
 function expandMoney(raw: string): number | undefined {
     if (!raw) return undefined;
@@ -51,18 +51,18 @@ function lex(input: string): Tok[] {
     while (i < s.length) {
         const tail = s.slice(i);
 
-        // ZIP
+        // ZIP (must be at current position)
         const mZip = tail.match(ZIP_RE);
-        if (mZip && mZip.index === 0) {
+        if (mZip) {
             const z = mZip[0].slice(0, 5);
             out.push({ k: "ZIP", v: z });
             i += mZip[0].length;
             continue;
         }
 
-        // Keywords / markers
+        // Keywords / markers (anchored)
         const mKw = tail.match(KW_RE);
-        if (mKw && mKw.index === 0) {
+        if (mKw) {
             const kw = mKw[1].toLowerCase();
             switch (kw) {
                 case "price": out.push({ k: "KW_PRICE" }); break;
@@ -83,20 +83,22 @@ function lex(input: string): Tok[] {
                 case "mos":
                 case "month":
                 case "months": out.push({ k: "MOS" }); break;
+                case "percent":
+                case "pct": out.push({ k: "PERCENT_WORD" }); break;
                 default: out.push({ k: "TEXT", v: kw });
             }
             i += mKw[0].length;
             continue;
         }
 
-        // Percent sign
+        // Percent symbol
         if (tail[0] === "%") {
-            out.push({ k: "PERCENT" });
+            out.push({ k: "PERCENT_SYM" });
             i += 1;
             continue;
         }
 
-        // Number / money-like
+        // Number / money-like (anchored by slice start)
         const mNum = tail.match(NUM_RE);
         if (mNum && mNum.index === 0) {
             const raw = mNum[0];
@@ -134,7 +136,7 @@ function nearestLeftNumber(tokens: Tok[], untilIdx: number, range: [number, numb
         const next = tokens[i + 1];
         if (next && (next.k === "YRS" || next.k === "MOS")) continue;
 
-        // Exclude if forms a 5-digit ZIP (we already tokenize ZIPs, but be safe)
+        // Exclude 5-digit ZIP-looking numbers (safety; ZIPs are tokenized but belt+suspenders)
         if (String(Math.trunc((t as any).v)).length === 5 && (t as any).v >= 10000 && (t as any).v <= 99999) continue;
 
         if (t.v >= lo && t.v <= hi && i > bestIdx) {
@@ -151,7 +153,7 @@ export function parseQuery_toInputs(q: string): Inputs {
     const inputs: Inputs = {};
     let lastNumIdx = -1;
 
-    // Helper: peek numeric after a given position
+    // Helper: peek numeric after a given position, skipping filler
     const numAfter = (idx: number): { v: number; j: number } | undefined => {
         for (let j = idx + 1; j < tokens.length; j++) {
             const t = tokens[j];
@@ -192,22 +194,32 @@ export function parseQuery_toInputs(q: string): Inputs {
         if (t.k === "NUM") lastNumIdx = i;
     }
 
-    // Down percent: “down 20%” or “20% down”
+    // Down percent: “down 20%” or “down 20 percent” OR “20% down” / “20 percent down”
     for (let i = 0; i < tokens.length; i++) {
         const t = tokens[i];
+
         if (t.k === "KW_DOWN") {
             const n = numAfter(i);
             if (n) {
-                // Look for a following percent sign
-                const next = tokens[n.j + 1];
-                if (next && next.k === "PERCENT") inputs.downPercent = toPercentExplicit("" + (n.v))!;
+                const after = tokens[n.j + 1];
+                if (after && (after.k === "PERCENT_SYM" || after.k === "PERCENT_WORD")) {
+                    const v = n.v;
+                    inputs.downPercent = v > 100 ? v / 100 : v;
+                }
             }
         }
+
         if (t.k === "NUM") {
             const next = tokens[i + 1];
             const next2 = tokens[i + 2];
-            if (next && next.k === "PERCENT" && next2 && next2.k === "KW_DOWN") {
-                inputs.downPercent = toPercentExplicit("" + (t as any).v)!;
+            if (
+                next &&
+                (next.k === "PERCENT_SYM" || next.k === "PERCENT_WORD") &&
+                next2 &&
+                next2.k === "KW_DOWN"
+            ) {
+                const v = (t as any).v;
+                inputs.downPercent = v > 100 ? v / 100 : v;
             }
         }
     }
@@ -232,10 +244,10 @@ export function parseQuery_toInputs(q: string): Inputs {
     for (let i = 0; i < tokens.length; i++) {
         const t = tokens[i];
 
-        // % directly after number
+        // % or percent directly after number
         if (t.k === "NUM") {
             const nxt = tokens[i + 1];
-            if (nxt && nxt.k === "PERCENT") {
+            if (nxt && (nxt.k === "PERCENT_SYM" || nxt.k === "PERCENT_WORD")) {
                 const v = (t as any).v;
                 inputs.ratePct = v > 100 ? v / 100 : v;
             }
@@ -279,10 +291,9 @@ export function parseQuery_toInputs(q: string): Inputs {
         }
     }
 
-    // If we still don’t have rate but we have term:
-    // choose the nearest decimal/percent-like number (0.1–25) before the term marker.
+    // If we still don’t have rate but we have term, pick nearest decimal 0.1–25 before the term marker.
     if (inputs.ratePct == null && inputs.termMonths) {
-        // find index of the first time-unit token we used
+        // find index of first NUM + (YRS|MOS)
         let termIdx = tokens.length;
         for (let i = 0; i < tokens.length - 1; i++) {
             const a = tokens[i], b = tokens[i + 1];
@@ -298,18 +309,16 @@ export function parseQuery_toInputs(q: string): Inputs {
         for (let i = 0; i < tokens.length; i++) {
             const t = tokens[i];
             if (t.k !== "NUM") continue;
-            // ignore if next is time unit
             const nxt = tokens[i + 1];
-            if (nxt && (nxt.k === "YRS" || nxt.k === "MOS")) continue;
-            // ignore if it visually looks like a ZIP (safety)
-            if (String(Math.trunc((t as any).v)).length === 5) continue;
+            if (nxt && (nxt.k === "YRS" || nxt.k === "MOS")) continue; // ignore term numbers
+            if (String(Math.trunc((t as any).v)).length === 5) continue; // ignore ZIP-looking
             const v = (t as any).v;
             if (v >= 0.1 && v <= 25) candidates.push(v);
         }
         if (candidates.length === 1) inputs.ratePct = candidates[0];
     }
 
-    // Default ins/hoa if still absent (UI uses these)
+    // Defaults for UI
     if (inputs.monthlyIns == null) inputs.monthlyIns = 100;
     if (inputs.monthlyHOA == null) inputs.monthlyHOA = 0;
 
