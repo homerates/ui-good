@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BUILD_TAG = "calc-v2.5.5-parser-guard-2025-11-08";
+const BUILD_TAG = "calc-v2.5.6-parser-guard-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -57,7 +57,7 @@ function toNumber(raw?: string | null): number | undefined {
     return isFinite(n) ? n * mult : undefined;
 }
 
-// Only for explicit percent-ish inputs: allow 625 -> 6.25
+// For explicit percent-ish inputs: allow 625 -> 6.25
 function toPercentExplicit(raw?: string | null): number | undefined {
     if (!raw) return undefined;
     const s = raw.trim().toLowerCase().replace(/%/g, "");
@@ -81,7 +81,7 @@ function toTermMonths(raw?: string | null): number | undefined {
 function parseQuery(q: string): Inputs {
     let s = q.replace(/\s+/g, " ").trim().toLowerCase();
 
-    // explicit price/loan
+    // explicit price/loan (also accepts "price900k", "loan480k")
     const priceMatch =
         s.match(/\bprice\s*\$?([0-9\.,]+[mk]?)/) ||
         s.match(/\bprice\s*([0-9\.,mk\$]+)/);
@@ -90,7 +90,7 @@ function parseQuery(q: string): Inputs {
         s.match(/\bloan\s*\$?([0-9\.,]+[mk]?)/) ||
         s.match(/\bloan\s*([0-9\.,mk\$]+)/);
 
-    // down% spans
+    // down% spans: “down 20%” OR “20% down”
     const downSpanA = s.match(/down\s*[0-9\.]+\s*%/);
     const downSpanB = s.match(/[0-9\.]+\s*%\s*down/);
     const downMatch = s.match(/down\s*([0-9\.]+)\s*%/) || s.match(/([0-9\.]+)\s*%\s*down/);
@@ -119,7 +119,8 @@ function parseQuery(q: string): Inputs {
         inputs.loanAmount = inputs.price * (1 - inputs.downPercent / 100);
     }
 
-    // ===== Term detection =====
+    // ===== Term detection (glued/tolerant) =====
+    // 30y / 30yr / 30yrs / 30 years / 360mo / 360 months
     let termMonths: number | undefined;
     const termToken =
         s.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
@@ -209,39 +210,33 @@ function parseQuery(q: string): Inputs {
     }
 
     // 3) Last-ditch: still no rate?
-    // Collect valid numeric candidates (0.1–25), excluding ZIPs, k/m amounts, and time-unit neighbors.
+    // Build a candidate list (0.1–25) anywhere, excluding k/m, 5-digit ZIPs, and numbers that touch time units.
     if (ratePct == null) {
         const tokens = [...sForRate.matchAll(/\b([0-9]+(?:\.[0-9]+)?)\b/g)]
             .map(m => ({ val: Number(m[1]), idx: m.index!, text: m[1] }))
             .filter(tok => {
                 if (!isFinite(tok.val)) return false;
-                // exclude k/m suffix
                 const end = tok.idx + String(tok.text).length;
                 const nextChar = sForRate.slice(end, end + 1);
-                if (nextChar === "k" || nextChar === "m") return false;
-                // exclude 5-digit ZIPs
+                if (nextChar === "k" || nextChar === "m") return false;      // price suffix
                 const prevFour = sForRate.slice(Math.max(0, tok.idx - 4), tok.idx) + tok.text;
-                if (/^\d{5}$/.test(prevFour)) return false;
-                // exclude time-unit neighbors
+                if (/^\d{5}$/.test(prevFour)) return false;                   // ZIP
                 const tail = sForRate.slice(end);
-                if (/^\s*(?:y|yr|yrs|year|years|mo|months)\b/.test(tail)) return false;
+                if (/^\s*(?:y|yr|yrs|year|years|mo|months)\b/.test(tail)) return false; // time unit
                 return tok.val >= 0.1 && tok.val <= 25;
             });
 
         if (tokens.length) {
-            if (
-                // If we already have price+down%+term, prefer uniqueness: a single candidate is almost surely the rate.
-                (typeof inputs.price === "number" && typeof inputs.downPercent === "number" && typeof inputs.termMonths === "number")
-                && tokens.length === 1
-            ) {
+            const hasPxDnTm = (typeof inputs.price === "number" && typeof inputs.downPercent === "number" && typeof inputs.termMonths === "number");
+            if (hasPxDnTm && tokens.length === 1) {
+                // Deterministic: with price+down+term present, a single candidate is the rate.
                 ratePct = tokens[0].val;
             } else {
-                // Otherwise stick with right-most candidate (works well in free text).
+                // Otherwise, prefer the right-most candidate.
                 ratePct = tokens.sort((a, b) => b.idx - a.idx)[0].val;
             }
         }
     }
-
 
     if (typeof ratePct === "number") inputs.ratePct = ratePct;
 
