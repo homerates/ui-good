@@ -3,6 +3,13 @@
 
 import * as React from 'react';
 
+/* ===== Formatting helper ===== */
+const money = (n: number) =>
+    Number(n ?? 0).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
 /* =========================
    Types & small utils
 ========================= */
@@ -20,6 +27,9 @@ function coerceMessages(v: unknown): Msg[] {
     return [];
 }
 
+/* =========================
+   API calls
+========================= */
 async function fetchCalcFromText(raw: string) {
     const resp = await fetch(`/api/calc/answer?q=${encodeURIComponent(raw)}`, { cache: 'no-store' });
     if (!resp.ok) {
@@ -67,7 +77,7 @@ function CalcView({ data }: { data: any }) {
         inputs.loan ??
         (inputs.price && inputs.downPercent != null
             ? Math.round(Number(inputs.price) * (1 - Number(inputs.downPercent) / 100))
-            : 0)
+            : 0),
     );
 
     const monthlyPI = Number(b.monthlyPI ?? 0);
@@ -76,12 +86,11 @@ function CalcView({ data }: { data: any }) {
     const monthlyHOA = Number(b.monthlyHOA ?? 0);
     const monthlyMI = Number(b.monthlyMI ?? 0);
     const monthlyTotalPITI = Number(
-        b.monthlyTotalPITI ??
-        monthlyPI + monthlyTax + monthlyIns + monthlyHOA + monthlyMI
+        b.monthlyTotalPITI ?? monthlyPI + monthlyTax + monthlyIns + monthlyHOA + monthlyMI,
     );
 
     const s = (data as any)?.sensitivity;
-    const metaPath = data?.meta?.path || data?.route || 'calc';
+    const metaPath = data?.meta?.path || data?.route || 'calc/answer';
     const metaAt = data?.meta?.at || data?.at || '';
 
     return (
@@ -91,36 +100,39 @@ function CalcView({ data }: { data: any }) {
                 {metaAt ? <> • at: {String(metaAt)}</> : null}
             </div>
 
-            <div className="text-lg font-semibold">
-                Loan amount: ${loanAmount.toLocaleString()}
-            </div>
-            <div className="text-lg font-semibold">
-                Monthly P&amp;I: ${monthlyPI.toLocaleString()}
-            </div>
+            <div className="text-lg font-semibold">Loan amount: ${money(loanAmount)}</div>
+            <div className="text-lg font-semibold">Monthly P&I: ${money(monthlyPI)}</div>
 
             <div className="pt-2 font-medium">PITI breakdown</div>
-            <div>Taxes: ${monthlyTax.toLocaleString()}</div>
-            <div>Insurance: ${monthlyIns.toLocaleString()}</div>
-            <div>HOA: ${monthlyHOA.toLocaleString()}</div>
-            <div>MI: ${monthlyMI.toLocaleString()}</div>
-            <div className="font-semibold">
-                Total PITI: ${monthlyTotalPITI.toLocaleString()}
-            </div>
+            <div>Taxes: ${money(monthlyTax)}</div>
+            <div>Insurance: ${money(monthlyIns)}</div>
+            <div>HOA: ${money(monthlyHOA)}</div>
+            <div>MI: ${money(monthlyMI)}</div>
+            <div className="font-semibold">Total PITI: ${money(monthlyTotalPITI)}</div>
+
+            {data?.lookups?.taxSource ? (
+                <div className="text-xs text-gray-500">
+                    Tax source: {String(data.lookups.taxSource)}
+                    {typeof data?.lookups?.taxRate === 'number'
+                        ? ` • ${(Number(data.lookups.taxRate) * 100).toFixed(2)}%`
+                        : null}
+                </div>
+            ) : null}
 
             <div className="pt-2 font-medium">±0.25% Sensitivity</div>
             {s && typeof s === 'object' && ('up025' in s || 'down025' in s) ? (
                 <div className="mt-1 text-sm opacity-80">
                     {'up025' in s ? (
-                        <div>Rate +0.25% → P&amp;I ${Number(s.up025 ?? 0).toLocaleString()}</div>
+                        <div>Rate +0.25% → P&I ${money(Number(s.up025 ?? 0))}</div>
                     ) : null}
                     {'down025' in s ? (
-                        <div>Rate −0.25% → P&amp;I ${Number(s.down025 ?? 0).toLocaleString()}</div>
+                        <div>Rate −0.25% → P&I ${money(Number(s.down025 ?? 0))}</div>
                     ) : null}
                 </div>
             ) : Array.isArray(s) && s.length >= 2 ? (
                 <div className="mt-1 text-sm opacity-80">
-                    <div>P&amp;I ${Number(s[0]?.pi ?? 0).toLocaleString()}</div>
-                    <div>P&amp;I ${Number(s[1]?.pi ?? 0).toLocaleString()}</div>
+                    <div>P&I ${money(Number(s[0]?.pi ?? 0))}</div>
+                    <div>P&I ${money(Number(s[1]?.pi ?? 0))}</div>
                 </div>
             ) : (
                 <div className="text-gray-500">No sensitivity data</div>
@@ -129,12 +141,17 @@ function CalcView({ data }: { data: any }) {
             <div className="pt-2 text-sm text-gray-600">
                 {data?.tldr || 'Principal & Interest with ±0.25% rate sensitivity.'}
             </div>
+            <div className="pt-2 text-sm">
+                <span className="font-medium">Follow-up:</span>{' '}
+                Want me to refine taxes with a purchase price + ZIP, or compare points vs a bigger down
+                payment?
+            </div>
         </div>
     );
 }
 
 /* =========================
-   Error Boundary (stop hard crashes)
+   Error Boundary (guard UI)
 ========================= */
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err?: any }> {
     constructor(props: any) {
@@ -144,15 +161,11 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
     static getDerivedStateFromError(err: any) {
         return { err };
     }
-    componentDidCatch() {
-        // no-op; could log
-    }
     render() {
         if (this.state.err) {
             return (
                 <div className="rounded-xl border p-4 bg-amber-50 text-amber-900">
-                    Something went wrong while rendering this chat. Try clearing cached chat
-                    data and retrying.
+                    Something went wrong while rendering this chat. Try clearing cached chat data and retrying.
                 </div>
             );
         }
@@ -161,7 +174,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 }
 
 /* =========================
-   Page (defer storage to effect, gate by mounted)
+   Page
 ========================= */
 export default function ChatPage() {
     const [mounted, setMounted] = React.useState(false);
@@ -170,12 +183,12 @@ export default function ChatPage() {
     const [busy, setBusy] = React.useState(false);
     const inputRef = React.useRef<HTMLInputElement>(null);
 
-    // Mount gate to avoid hydration flicker
+    // Gate SSR/hydration
     React.useEffect(() => {
         setMounted(true);
     }, []);
 
-    // Load storage AFTER mount (prevents SSR/hydration timing issues)
+    // Load storage after mount
     React.useEffect(() => {
         if (!mounted) return;
         try {
@@ -184,7 +197,6 @@ export default function ChatPage() {
                 const parsed = JSON.parse(raw);
                 const msgs = coerceMessages(parsed);
                 setMessages(msgs);
-                // normalize if old/bad
                 if (!Array.isArray(parsed)) {
                     window.localStorage.setItem(LS_KEY, JSON.stringify(msgs));
                 }
@@ -194,11 +206,14 @@ export default function ChatPage() {
         }
     }, [mounted]);
 
-    // Persist safely
+    // Persist
     React.useEffect(() => {
         if (!mounted) return;
         try {
-            window.localStorage.setItem(LS_KEY, JSON.stringify(Array.isArray(messages) ? messages : []));
+            window.localStorage.setItem(
+                LS_KEY,
+                JSON.stringify(Array.isArray(messages) ? messages : []),
+            );
         } catch { }
     }, [mounted, messages]);
 
@@ -215,7 +230,7 @@ export default function ChatPage() {
         setMessages((prev) => [...prev, { id: makeId(), role: 'user', content: text }]);
 
         try {
-            // 1) Try calc
+            // 1) Try calc first
             let renderedCalc = false;
             try {
                 const calcJson = await fetchCalcFromText(text);
@@ -290,7 +305,12 @@ export default function ChatPage() {
                                     <ul className="list-disc ml-5">
                                         {(a as any).sources.map((s: any, i: number) => (
                                             <li key={i}>
-                                                <a className="underline" href={s.url} target="_blank" rel="noreferrer">
+                                                <a
+                                                    className="underline"
+                                                    href={s.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
                                                     {s.title}
                                                 </a>
                                             </li>
@@ -310,7 +330,11 @@ export default function ChatPage() {
         } catch (err: any) {
             setMessages((prev) => [
                 ...prev,
-                { id: makeId(), role: 'assistant', content: `Error: ${String(err?.message || err || 'failed')}` },
+                {
+                    id: makeId(),
+                    role: 'assistant',
+                    content: `Error: ${String(err?.message || err || 'failed')}`,
+                },
             ]);
         } finally {
             setInput('');
@@ -319,7 +343,7 @@ export default function ChatPage() {
     }
 
     if (!mounted) {
-        // Optional: tiny skeleton prevents flash + work on server
+        // tiny skeleton to avoid flash
         return (
             <main className="max-w-3xl mx-auto p-4">
                 <div className="animate-pulse h-5 w-48 bg-gray-200 rounded" />
@@ -336,14 +360,19 @@ export default function ChatPage() {
             <main className="max-w-3xl mx-auto p-4">
                 <h1 className="text-2xl font-semibold">HomeRates.ai — Chat</h1>
                 <p className="text-sm text-gray-600">
-                    This chat routes mortgage math to the calc API and uses sourced answers for everything else.
+                    This chat routes mortgage math to the calc API and uses sourced answers for everything
+                    else.
                 </p>
 
                 <div className="mt-4 space-y-4">
                     {messages.map((m) => (
                         <div
                             key={m.id}
-                            className={m.role === 'user' ? 'rounded-xl border p-3 bg-white' : 'rounded-xl border p-3 bg-gray-50'}
+                            className={
+                                m.role === 'user'
+                                    ? 'rounded-xl border p-3 bg-white'
+                                    : 'rounded-xl border p-3 bg-gray-50'
+                            }
                         >
                             <div className="text-xs uppercase tracking-wider text-gray-500">{m.role}</div>
                             <div className="mt-1">{m.content}</div>
@@ -370,7 +399,8 @@ export default function ChatPage() {
                 </form>
 
                 <div className="mt-6 text-xs text-gray-500">
-                    Tip: For taxes, include a price + ZIP. Example: “$750k in 91301 with 20% down at 6% for 30 years”.
+                    Tip: For taxes, include a price + ZIP. Example: “$750k in 91301 with 20% down at 6% for
+                    30 years”.
                 </div>
             </main>
         </ErrorBoundary>
