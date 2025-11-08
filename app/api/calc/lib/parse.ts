@@ -135,6 +135,9 @@ function nearestLeftNumber(tokens: Tok[], untilIdx: number, range: [number, numb
         // Exclude if number touches time-units to the right
         const next = tokens[i + 1];
         if (next && (next.k === "YRS" || next.k === "MOS")) continue;
+        // Exclude if this number is clearly a percent token (down-payment etc.)
+        if (next && (next.k === "PERCENT_SYM" || next.k === "PERCENT_WORD")) continue;
+
 
         // Exclude 5-digit ZIP-looking numbers (safety; ZIPs are tokenized but belt+suspenders)
         if (String(Math.trunc((t as any).v)).length === 5 && (t as any).v >= 10000 && (t as any).v <= 99999) continue;
@@ -305,17 +308,31 @@ export function parseQuery_toInputs(q: string): Inputs {
 
     // Last-ditch: if we have price+down+term and exactly one candidate 0.1–25 anywhere, take it as rate
     if (inputs.ratePct == null && inputs.price != null && inputs.downPercent != null && inputs.termMonths != null) {
-        const candidates: number[] = [];
+        type Cand = { v: number; i: number; raw?: string };
+        const candidates: Cand[] = [];
         for (let i = 0; i < tokens.length; i++) {
             const t = tokens[i];
             if (t.k !== "NUM") continue;
             const nxt = tokens[i + 1];
-            if (nxt && (nxt.k === "YRS" || nxt.k === "MOS")) continue; // ignore term numbers
-            if (String(Math.trunc((t as any).v)).length === 5) continue; // ignore ZIP-looking
+            // ignore term numbers and percent-marked numbers (down%)
+            if (nxt && (nxt.k === "YRS" || nxt.k === "MOS" || nxt.k === "PERCENT_SYM" || nxt.k === "PERCENT_WORD")) continue;
+            // ignore ZIP-looking integers
+            if (String(Math.trunc((t as any).v)).length === 5) continue;
             const v = (t as any).v;
-            if (v >= 0.1 && v <= 25) candidates.push(v);
+            if (v >= 0.1 && v <= 25) candidates.push({ v, i, raw: (t as any).raw });
         }
-        if (candidates.length === 1) inputs.ratePct = candidates[0];
+
+        if (candidates.length === 1) {
+            inputs.ratePct = candidates[0].v;
+        } else if (candidates.length > 1) {
+            // Prefer decimals or <=15%, then right-most
+            const decimals = candidates.filter(c => (c.raw ?? "").includes("."));
+            const within15 = candidates.filter(c => c.v <= 15);
+            const pool = (decimals.length ? decimals : within15.length ? within15 : candidates);
+            pool.sort((a, b) => b.i - a.i);
+            inputs.ratePct = pool[0].v;
+        }
+
     }
 
     // Defaults for UI
