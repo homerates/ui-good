@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BUILD_TAG = "calc-v2.4-parser-guard-2025-11-08";
+const BUILD_TAG = "calc-v2.5-parser-guard-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -57,13 +57,14 @@ function toNumber(raw?: string | null): number | undefined {
     return isFinite(n) ? n * mult : undefined;
 }
 
-function toPercent(raw?: string | null): number | undefined {
+// For inputs that explicitly carry a % (or "rate 6.25"), allow 625 -> 6.25.
+function toPercentExplicit(raw?: string | null): number | undefined {
     if (!raw) return undefined;
     const s = raw.trim().toLowerCase().replace(/%/g, "");
     if (!s) return undefined;
     const n = Number(s);
     if (!isFinite(n)) return undefined;
-    return n > 100 ? n / 100 : n; // 625 -> 6.25
+    return n > 100 ? n / 100 : n;
 }
 
 function toTermMonths(raw?: string | null): number | undefined {
@@ -110,7 +111,7 @@ function parseQuery(q: string): Inputs {
     if (typeof loan === "number") inputs.loanAmount = loan;
 
     // down%
-    const downP = toPercent(downMatch?.[1]);
+    const downP = toPercentExplicit(downMatch?.[1]);
     if (typeof downP === "number") inputs.downPercent = downP;
 
     // derive loan from price+down%
@@ -118,16 +119,16 @@ function parseQuery(q: string): Inputs {
         inputs.loanAmount = inputs.price * (1 - inputs.downPercent / 100);
     }
 
-    // ===== Term detection (tolerant) =====
+    // ===== Term detection (fixed months test; tolerant glued forms) =====
     // 30y / 30yr / 30yrs / 30 years / 360mo / 360 months
     let termMonths: number | undefined;
     const termToken =
         s.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
         s.match(/\b(\d{1,3})(?:y|yr|yrs)\b/) ||
         s.match(/\b(\d{2,3})\s*(?:mo|months)\b/);
+
     if (termToken?.[0]) {
-        // months form?
-        if (/\bmo|months\b/.test(termToken[0])) {
+        if (/(?:^|\b)(?:mo|months)\b/.test(termToken[0])) {
             const m = termToken[1] ? Number(termToken[1]) : undefined;
             termMonths = typeof m === "number" && isFinite(m) ? m : undefined;
         } else {
@@ -141,20 +142,18 @@ function parseQuery(q: string): Inputs {
     if (typeof termMonths === "number") inputs.termMonths = termMonths;
 
     // ===== Rate detection =====
-
     // Build a clean string for rate parsing by removing the exact down% span(s) by index
     let sForRate = s;
     const spans: Array<{ start: number; end: number }> = [];
     if (downSpanA) spans.push({ start: downSpanA.index!, end: downSpanA.index! + downSpanA[0].length });
     if (downSpanB) spans.push({ start: downSpanB.index!, end: downSpanB.index! + downSpanB[0].length });
     if (spans.length) {
-        // remove from end to start to preserve indices
         spans.sort((a, b) => b.start - a.start).forEach(sp => {
             sForRate = sForRate.slice(0, sp.start) + " " + sForRate.slice(sp.end);
         });
     }
 
-    // Try explicit forms first
+    // 1) Explicit forms (normalize 625 -> 6.25 OK here)
     let ratePct: number | undefined;
     let m =
         sForRate.match(/\brate\s*([0-9]+(?:\.[0-9]+)?%?)/) ||
@@ -162,24 +161,48 @@ function parseQuery(q: string): Inputs {
         sForRate.match(/\bat\s*([0-9]+(?:\.[0-9]+)?%)/) ||
         sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%/);
     if (m?.[1]) {
-        ratePct = toPercent(m[1]);
+        ratePct = toPercentExplicit(m[1]);
     }
 
-    // If still no rate and we have a term, choose the **closest valid decimal before the term token**
+    // 2) If still no rate and we have a term, choose the **closest valid decimal before the term token**.
+    //    IMPORTANT: for bare numbers, DO NOT scale by 100. Only accept in 0.1–25 range.
     if (ratePct == null && inputs.termMonths) {
         const termPos = termToken?.index ?? sForRate.length;
-        const all = [...sForRate.matchAll(/\b([0-9]+(?:\.[0-9]+)?)\b/g)]
-            .map(mm => ({ text: mm[1], idx: mm.index! }))
-            // exclude money tokens (followed by k/m) and obvious prices ($/comma form is already filtered but guard anyway)
-            .filter(t => !/[km]\b/.test(sForRate.slice(t.idx, t.idx + t.text.length + 1)))
-            .map(t => ({ val: toPercent(t.text), idx: t.idx }))
-            .filter(t => typeof t.val === "number") as Array<{ val: number; idx: number }>;
 
-        // only candidates that occur before the term token
-        const beforeTerm = all.filter(t => t.idx < termPos).filter(t => t.val >= 0.1 && t.val <= 25);
+        // collect number tokens with their exact indices and whether a trailing % exists
+        const numRegex = /\b([0-9]+(?:\.[0-9]+)?)\b/g;
+        const candidates: Array<{ val: number; idx: number; hasPct: boolean }> = [];
+        let mm: RegExpExecArray | null;
+        while ((mm = numRegex.exec(sForRate)) !== null) {
+            const idx = mm.index!;
+            const text = mm[1];
+            // Ignore amounts like 900k/1.2m (price-ish)
+            const nextChar = sForRate.slice(idx + text.length, idx + text.length + 1);
+            if (nextChar === "k" || nextChar === "m") continue;
+
+            // Ignore numbers that live inside previously removed down% spans (already stripped, but guard)
+            // (No-op here due to index-strip; kept for clarity)
+
+            // See if a % immediately follows (allow spaces)
+            const tail = sForRate.slice(idx + text.length);
+            const pctAfter = /^\s*%/.test(tail);
+
+            // Convert: if percent form -> allow 625 -> 6.25
+            const rawNum = Number(text);
+            if (!isFinite(rawNum)) continue;
+            const val = pctAfter ? (rawNum > 100 ? rawNum / 100 : rawNum) : rawNum;
+
+            candidates.push({ val, idx, hasPct: pctAfter });
+        }
+
+        // only those before the term token and within sane bounds
+        const beforeTerm = candidates
+            .filter(c => c.idx < termPos)
+            .filter(c => c.val >= 0.1 && c.val <= 25);
+
         if (beforeTerm.length) {
-            // prefer 1–15%, then the one **closest** to the term position (right-most)
-            const pref = beforeTerm.filter(t => t.val >= 1 && t.val <= 15);
+            // prefer 1–15%, then the right-most (closest to term)
+            const pref = beforeTerm.filter(c => c.val >= 1 && c.val <= 15);
             const pick = (pref.length ? pref : beforeTerm).sort((a, b) => b.idx - a.idx)[0];
             ratePct = pick.val;
         }
@@ -190,102 +213,7 @@ function parseQuery(q: string): Inputs {
     // ===== Bare loan detection =====
     // Treat a leading/bare amount as LOAN when followed by '@ 6.x' or 'at 6.x'
     if (inputs.loanAmount == null && inputs.price == null) {
-        const bareLoan = s.match(/(?:^|\s)\$?([0-9][\d,\.]*[mk]?)(?=\s*(?:@|at)\s*[0-9])/);
-        const n = toNumber(bareLoan?.[1]);
-        if (typeof n === "number") inputs.loanAmount = n;
-    }
-
-    // ZIP
-    if (zipMatch?.[1]) inputs.zip = zipMatch[1];
-
-    // monthly ins/hoa
-    const monthlyIns = toNumber(insMatch?.[1]);
-    const monthlyHOA = toNumber(hoaMatch?.[1]);
-    if (typeof monthlyIns === "number") inputs.monthlyIns = monthlyIns;
-    if (typeof monthlyHOA === "number") inputs.monthlyHOA = monthlyHOA;
-
-    return inputs;
-}
-
-/* ---------- finance ---------- */
-
-function monthlyPI(loanAmount: number, ratePct: number, termMonths: number) {
-    const r = clamp(ratePct, 0.1, 25) / 100 / 12;
-    const n = Math.max(12, termMonths);
-    return loanAmount * (r / (1 - Math.pow(1 + r, -n)));
-}
-
-function estimateMonthlyTaxes(base: number, zip?: string) {
-    const annualRate = 0.012; // fallback 1.20%
-    const amt = (base * annualRate) / 12;
-    return {
-        amount: amt,
-        source: "fallback:default • " + (annualRate * 100).toFixed(2) + "%" + (zip ? " • ZIP " + zip : "")
-    };
-}
-
-/* ---------- handler ---------- */
-
-export async function GET(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const q = (searchParams.get("q") || "").trim();
-
-    if (!q) {
-        return noStore(
-            { ok: false, build: BUILD_TAG, inputs: {}, msg: "Missing q. Example: 'Price $900k, 20% down, 6.25%, 30 years, ZIP 92688'." } as Answer,
-            400
+        const bareLoan = s.match(
+            /(?:^|\b)\$?([0-9][\d,\.]*[mk]?)(?=\s*(?:@|at)\s*[0-9])/i
         );
-    }
 
-    const inputs = parseQuery(q);
-
-    const hasLoan = typeof inputs.loanAmount === "number";
-    const hasPriceCombo = typeof inputs.price === "number" && typeof inputs.downPercent === "number";
-    const hasRate = typeof inputs.ratePct === "number";
-    const hasTerm = typeof inputs.termMonths === "number";
-
-    if (!((hasLoan || hasPriceCombo) && hasRate && hasTerm)) {
-        const hint =
-            "Need loan+rate+term OR price+down%+rate+term. Try: 'Loan $400k at 6.5% for 30 years' or 'Price $900k, 20% down, 6.25%, 30 years, ZIP 92688'.";
-        return noStore({ ok: false, build: BUILD_TAG, inputs, msg: hint } as Answer, 400);
-    }
-
-    const loanAmount = hasLoan
-        ? (inputs.loanAmount as number)
-        : (inputs.price as number) * (1 - (inputs.downPercent as number) / 100);
-
-    const ratePct = inputs.ratePct as number;
-    const termMonths = inputs.termMonths as number;
-
-    const monthlyIns = typeof inputs.monthlyIns === "number" ? inputs.monthlyIns : 100;
-    const monthlyHOA = typeof inputs.monthlyHOA === "number" ? inputs.monthlyHOA : 0;
-
-    const taxBase = inputs.price != null ? inputs.price : loanAmount;
-    const taxEst = estimateMonthlyTaxes(taxBase, inputs.zip);
-
-    const pi = monthlyPI(loanAmount, ratePct, termMonths);
-
-    const breakdown: Breakdown = {
-        monthlyPI: pi,
-        monthlyTaxes: taxEst.amount,
-        monthlyIns,
-        monthlyHOA,
-        monthlyMI: 0,
-        monthlyTotalPITI: pi + taxEst.amount + monthlyIns + monthlyHOA
-    };
-
-    const body: Answer = {
-        ok: true,
-        build: BUILD_TAG,
-        inputs: {
-            ...inputs,
-            loanAmount,
-            ratePct: Number(ratePct.toFixed(4)),
-            termMonths
-        },
-        breakdown,
-        taxSource: taxEst.source
-    };
-
-    return noStore(body, 200);
-}
