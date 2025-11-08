@@ -1,47 +1,28 @@
-// ==== REPLACE ENTIRE FILE: app/chat/page.tsx (BEGIN) ====
+// ==== REPLACE ENTIRE FILE: app/chat/page.tsx ====
 'use client';
 
 import * as React from 'react';
 
-/* =========================================================
-   Local storage & ID helpers (browser-safe)
-========================================================= */
-const LS_KEY = 'hr.chat.v1';
-const makeId = () =>
-    `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
+/* =========================
+   Types & small utils
+========================= */
 type MsgRole = 'user' | 'assistant';
 type Msg = { id: string; role: MsgRole; content: React.ReactNode };
 
-/* =========================================================
-   Safe JSON persistence (no crash if storage blocked)
-========================================================= */
-function loadMsgs(): Msg[] {
-    try {
-        if (typeof window === 'undefined') return [];
-        const raw = window.localStorage.getItem(LS_KEY);
-        return raw ? (JSON.parse(raw) as Msg[]) : [];
-    } catch {
-        return [];
+const LS_KEY = 'hr.chat.v1';
+const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+function coerceMessages(v: unknown): Msg[] {
+    if (Array.isArray(v)) return v as Msg[];
+    if (v && typeof v === 'object' && Array.isArray((v as any).messages)) {
+        return (v as any).messages as Msg[];
     }
-}
-function saveMsgs(msgs: Msg[]) {
-    try {
-        if (typeof window === 'undefined') return;
-        window.localStorage.setItem(LS_KEY, JSON.stringify(msgs));
-    } catch {
-        // ignore
-    }
+    return [];
 }
 
-/* =========================================================
-   API clients (fully guarded)
-========================================================= */
 async function fetchCalcFromText(raw: string) {
-    const url = `/api/calc/answer?q=${encodeURIComponent(raw)}`;
-    const resp = await fetch(url, { cache: 'no-store' });
+    const resp = await fetch(`/api/calc/answer?q=${encodeURIComponent(raw)}`, { cache: 'no-store' });
     if (!resp.ok) {
-        // Try to pull structured error; otherwise text
         let detail = '';
         try {
             const j = await resp.json();
@@ -74,9 +55,9 @@ async function fetchAnswer(raw: string) {
     return resp.json();
 }
 
-/* =========================================================
-   Calc result view (handles both old/new shapes)
-========================================================= */
+/* =========================
+   Calc view (robust to shapes)
+========================= */
 function CalcView({ data }: { data: any }) {
     const inputs = data?.inputs ?? {};
     const b = data?.breakdown ?? {};
@@ -152,33 +133,89 @@ function CalcView({ data }: { data: any }) {
     );
 }
 
-/* =========================================================
-   Page
-========================================================= */
+/* =========================
+   Error Boundary (stop hard crashes)
+========================= */
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err?: any }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { err: undefined };
+    }
+    static getDerivedStateFromError(err: any) {
+        return { err };
+    }
+    componentDidCatch() {
+        // no-op; could log
+    }
+    render() {
+        if (this.state.err) {
+            return (
+                <div className="rounded-xl border p-4 bg-amber-50 text-amber-900">
+                    Something went wrong while rendering this chat. Try clearing cached chat
+                    data and retrying.
+                </div>
+            );
+        }
+        return this.props.children as any;
+    }
+}
+
+/* =========================
+   Page (defer storage to effect, gate by mounted)
+========================= */
 export default function ChatPage() {
+    const [mounted, setMounted] = React.useState(false);
+    const [messages, setMessages] = React.useState<Msg[]>([]);
     const [input, setInput] = React.useState('');
     const [busy, setBusy] = React.useState(false);
-    const [messages, setMessages] = React.useState<Msg[]>(() => loadMsgs());
     const inputRef = React.useRef<HTMLInputElement>(null);
 
+    // Mount gate to avoid hydration flicker
     React.useEffect(() => {
-        saveMsgs(messages);
-    }, [messages]);
+        setMounted(true);
+    }, []);
+
+    // Load storage AFTER mount (prevents SSR/hydration timing issues)
+    React.useEffect(() => {
+        if (!mounted) return;
+        try {
+            const raw = window.localStorage.getItem(LS_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                const msgs = coerceMessages(parsed);
+                setMessages(msgs);
+                // normalize if old/bad
+                if (!Array.isArray(parsed)) {
+                    window.localStorage.setItem(LS_KEY, JSON.stringify(msgs));
+                }
+            }
+        } catch {
+            setMessages([]);
+        }
+    }, [mounted]);
+
+    // Persist safely
+    React.useEffect(() => {
+        if (!mounted) return;
+        try {
+            window.localStorage.setItem(LS_KEY, JSON.stringify(Array.isArray(messages) ? messages : []));
+        } catch { }
+    }, [mounted, messages]);
 
     React.useEffect(() => {
-        inputRef.current?.focus();
-    }, []);
+        if (mounted) inputRef.current?.focus();
+    }, [mounted]);
 
     async function handleSend(e?: React.FormEvent) {
         if (e?.preventDefault) e.preventDefault();
         const text = input.trim();
-        if (!text || busy) return;
+        if (!mounted || !text || busy) return;
 
         setBusy(true);
         setMessages((prev) => [...prev, { id: makeId(), role: 'user', content: text }]);
 
         try {
-            // 1) Probe calc first — we accept result only if it has money fields (> 0)
+            // 1) Try calc
             let renderedCalc = false;
             try {
                 const calcJson = await fetchCalcFromText(text);
@@ -195,9 +232,7 @@ export default function ChatPage() {
                 const impliedLoan =
                     Number(inputs.loanAmount ?? inputs.loan ?? 0) ||
                     (inputs.price && inputs.downPercent != null
-                        ? Math.round(
-                            Number(inputs.price) * (1 - Number(inputs.downPercent) / 100)
-                        )
+                        ? Math.round(Number(inputs.price) * (1 - Number(inputs.downPercent) / 100))
                         : 0);
 
                 if (hasMoney || impliedLoan > 0) {
@@ -208,7 +243,6 @@ export default function ChatPage() {
                     renderedCalc = true;
                 }
             } catch (calcErr: any) {
-                // Swallow and fall through to sourced answer
                 setMessages((prev) => [
                     ...prev,
                     {
@@ -216,7 +250,7 @@ export default function ChatPage() {
                         role: 'assistant',
                         content: (
                             <div className="rounded-md border p-3 bg-amber-50 text-amber-900">
-                                Calc parser couldn’t run: {String(calcErr?.message || 'unknown')}
+                                Calc couldn’t run: {String(calcErr?.message || 'unknown')}
                             </div>
                         ),
                     },
@@ -229,21 +263,16 @@ export default function ChatPage() {
                 return;
             }
 
-            // 2) Fall back to sourced answer
+            // 2) Fallback: sourced answer
             const a = await fetchAnswer(text).catch((e) => ({ error: String(e) }));
-
             const block =
                 (a as any)?.answerMarkdown ||
                 (a as any)?.answer ||
                 (a as any)?.message ||
                 (a as any)?.error ||
                 '…';
-
             const follow =
-                (a as any)?.followUp ||
-                (a as any)?.follow_up ||
-                (a as any)?.cta ||
-                '';
+                (a as any)?.followUp || (a as any)?.follow_up || (a as any)?.cta || '';
 
             setMessages((prev) => [
                 ...prev,
@@ -281,11 +310,7 @@ export default function ChatPage() {
         } catch (err: any) {
             setMessages((prev) => [
                 ...prev,
-                {
-                    id: makeId(),
-                    role: 'assistant',
-                    content: `Error: ${String(err?.message || err || 'failed')}`,
-                },
+                { id: makeId(), role: 'assistant', content: `Error: ${String(err?.message || err || 'failed')}` },
             ]);
         } finally {
             setInput('');
@@ -293,51 +318,62 @@ export default function ChatPage() {
         }
     }
 
+    if (!mounted) {
+        // Optional: tiny skeleton prevents flash + work on server
+        return (
+            <main className="max-w-3xl mx-auto p-4">
+                <div className="animate-pulse h-5 w-48 bg-gray-200 rounded" />
+                <div className="mt-4 space-y-3">
+                    <div className="h-16 bg-gray-100 rounded" />
+                    <div className="h-16 bg-gray-100 rounded" />
+                </div>
+            </main>
+        );
+    }
+
     return (
-        <main className="max-w-3xl mx-auto p-4">
-            <h1 className="text-2xl font-semibold">HomeRates.ai — Chat</h1>
-            <p className="text-sm text-gray-600">
-                This chat routes mortgage math to the calc API and uses sourced answers for everything else.
-            </p>
+        <ErrorBoundary>
+            <main className="max-w-3xl mx-auto p-4">
+                <h1 className="text-2xl font-semibold">HomeRates.ai — Chat</h1>
+                <p className="text-sm text-gray-600">
+                    This chat routes mortgage math to the calc API and uses sourced answers for everything else.
+                </p>
 
-            <div className="mt-4 space-y-4">
-                {messages.map((m) => (
-                    <div
-                        key={m.id}
-                        className={
-                            m.role === 'user'
-                                ? 'rounded-xl border p-3 bg-white'
-                                : 'rounded-xl border p-3 bg-gray-50'
-                        }
+                <div className="mt-4 space-y-4">
+                    {messages.map((m) => (
+                        <div
+                            key={m.id}
+                            className={m.role === 'user' ? 'rounded-xl border p-3 bg-white' : 'rounded-xl border p-3 bg-gray-50'}
+                        >
+                            <div className="text-xs uppercase tracking-wider text-gray-500">{m.role}</div>
+                            <div className="mt-1">{m.content}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <form onSubmit={handleSend} className="mt-4 flex gap-2">
+                    <input
+                        ref={inputRef}
+                        className="flex-1 border rounded-xl px-3 py-2"
+                        placeholder="Ask: $400k loan at 6.5% for 30 years (ZIP optional)…"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        disabled={busy}
+                    />
+                    <button
+                        type="submit"
+                        className="px-4 py-2 rounded-xl border bg-black text-white disabled:opacity-50"
+                        disabled={busy}
                     >
-                        <div className="text-xs uppercase tracking-wider text-gray-500">{m.role}</div>
-                        <div className="mt-1">{m.content}</div>
-                    </div>
-                ))}
-            </div>
+                        Send
+                    </button>
+                </form>
 
-            <form onSubmit={handleSend} className="mt-4 flex gap-2">
-                <input
-                    ref={inputRef}
-                    className="flex-1 border rounded-xl px-3 py-2"
-                    placeholder="Ask: $400k loan at 6.5% for 30 years (ZIP optional)…"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    disabled={busy}
-                />
-                <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl border bg-black text-white disabled:opacity-50"
-                    disabled={busy}
-                >
-                    Send
-                </button>
-            </form>
-
-            <div className="mt-6 text-xs text-gray-500">
-                Tip: For taxes, include a price + ZIP. Example: “$750k in 91301 with 20% down at 6% for 30 years”.
-            </div>
-        </main>
+                <div className="mt-6 text-xs text-gray-500">
+                    Tip: For taxes, include a price + ZIP. Example: “$750k in 91301 with 20% down at 6% for 30 years”.
+                </div>
+            </main>
+        </ErrorBoundary>
     );
 }
-// ==== REPLACE ENTIRE FILE: app/chat/page.tsx (END) ====
+// ==== REPLACE ENTIRE FILE ====
