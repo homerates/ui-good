@@ -2,12 +2,11 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// bump each push to confirm what's live
-const BUILD_TAG = "calc-v2.3.1-parser-guard-2025-11-08";
+const BUILD_TAG = "calc-v2.4-parser-guard-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
 
-/* ---------- tiny helpers ---------- */
+/* ---------- helpers ---------- */
 
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });
@@ -64,8 +63,7 @@ function toPercent(raw?: string | null): number | undefined {
     if (!s) return undefined;
     const n = Number(s);
     if (!isFinite(n)) return undefined;
-    // guard: 625 => 6.25
-    return n > 100 ? n / 100 : n;
+    return n > 100 ? n / 100 : n; // 625 -> 6.25
 }
 
 function toTermMonths(raw?: string | null): number | undefined {
@@ -77,21 +75,12 @@ function toTermMonths(raw?: string | null): number | undefined {
     return years * 12;
 }
 
-// fallback if we saw the word "year/yr/..." but didn’t match a tight pattern
-function findBareYearsTerm(source: string): number | undefined {
-    const bare = source.match(/\b(\d{2,3})\b(?=.*\b(year|yr|y|years)\b)/);
-    if (!bare) return undefined;
-    const yrs = Number(bare[1]);
-    if (!isFinite(yrs) || yrs <= 0) return undefined;
-    return yrs * 12;
-}
-
 /* ---------- parsing ---------- */
 
 function parseQuery(q: string): Inputs {
     let s = q.replace(/\s+/g, " ").trim().toLowerCase();
 
-    // explicit price/loan
+    // explicit price/loan (also accepts "price900k", "loan480k")
     const priceMatch =
         s.match(/\bprice\s*\$?([0-9\.,]+[mk]?)/) ||
         s.match(/\bprice\s*([0-9\.,mk\$]+)/);
@@ -100,10 +89,12 @@ function parseQuery(q: string): Inputs {
         s.match(/\bloan\s*\$?([0-9\.,]+[mk]?)/) ||
         s.match(/\bloan\s*([0-9\.,mk\$]+)/);
 
-    // down%: “down 20%” or “20% down”
+    // down% spans: “down 20%” OR “20% down”
+    const downSpanA = s.match(/down\s*[0-9\.]+\s*%/);
+    const downSpanB = s.match(/[0-9\.]+\s*%\s*down/);
     const downMatch = s.match(/down\s*([0-9\.]+)\s*%/) || s.match(/([0-9\.]+)\s*%\s*down/);
 
-    // ins/hoa
+    // ins/hoa tokens
     const insMatch = s.match(/\bins(?:urance)?\s*\$?\s*([0-9\.,]+)/) || s.match(/\$?\s*([0-9\.,]+)\s*(?:ins|insurance)\b/);
     const hoaMatch = s.match(/\bhoa\s*\$?\s*([0-9\.,]+)/) || s.match(/\$?\s*([0-9\.,]+)\s*hoa\b/);
 
@@ -128,53 +119,76 @@ function parseQuery(q: string): Inputs {
     }
 
     // ===== Term detection (tolerant) =====
-    // forms: 30y / 30yr / 30 yrs / 30 years / 360 months
-    const termMatch =
+    // 30y / 30yr / 30yrs / 30 years / 360mo / 360 months
+    let termMonths: number | undefined;
+    const termToken =
         s.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
         s.match(/\b(\d{1,3})(?:y|yr|yrs)\b/) ||
-        s.match(/\b(\d{1,3})\s*(?:mo|months)\b/);
-
-    let termMonths: number | undefined =
-        toTermMonths(termMatch?.[0]) ?? findBareYearsTerm(s);
-
+        s.match(/\b(\d{2,3})\s*(?:mo|months)\b/);
+    if (termToken?.[0]) {
+        // months form?
+        if (/\bmo|months\b/.test(termToken[0])) {
+            const m = termToken[1] ? Number(termToken[1]) : undefined;
+            termMonths = typeof m === "number" && isFinite(m) ? m : undefined;
+        } else {
+            termMonths = toTermMonths(termToken[0]);
+        }
+    }
+    if (termMonths == null) {
+        const bareYears = s.match(/\b(\d{2,3})\b(?=.*\b(year|yr|y|years)\b)/);
+        if (bareYears) termMonths = Number(bareYears[1]) * 12;
+    }
     if (typeof termMonths === "number") inputs.termMonths = termMonths;
 
     // ===== Rate detection =====
-    // Remove matched down% so it doesn't pollute rate parsing
+
+    // Build a clean string for rate parsing by removing the exact down% span(s) by index
     let sForRate = s;
-    if (downMatch && downMatch[0]) sForRate = sForRate.replace(downMatch[0], " ");
-
-    // Try explicit first
-    let rateMatch =
-        sForRate.match(/\brate\s*([0-9\.]+%?)/) ||
-        sForRate.match(/[@]\s*([0-9\.]+%)/) ||
-        sForRate.match(/\bat\s*([0-9\.]+%)/) ||
-        sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%/);
-
-    // If no rate and we *do* have a recognized term, accept a bare decimal before the term token
-    if (!rateMatch && inputs.termMonths) {
-        rateMatch = sForRate.match(
-            /\b([0-9]+(?:\.[0-9]+)?)\b(?=[^\w]{0,12}\b\d{1,3}\s*(?:y|yr|yrs|year|years|mo|months)\b)/
-        );
+    const spans: Array<{ start: number; end: number }> = [];
+    if (downSpanA) spans.push({ start: downSpanA.index!, end: downSpanA.index! + downSpanA[0].length });
+    if (downSpanB) spans.push({ start: downSpanB.index!, end: downSpanB.index! + downSpanB[0].length });
+    if (spans.length) {
+        // remove from end to start to preserve indices
+        spans.sort((a, b) => b.start - a.start).forEach(sp => {
+            sForRate = sForRate.slice(0, sp.start) + " " + sForRate.slice(sp.end);
+        });
     }
 
-    if (rateMatch) {
-        const rp = toPercent(rateMatch[1]);
-        if (typeof rp === "number") inputs.ratePct = rp;
-    } else {
-        // Fallback: any decimal in sane range
-        const allNums = sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\b/g) || [];
-        for (const cand of allNums) {
-            const val = toPercent(cand);
-            if (typeof val === "number" && val >= 0.1 && val <= 25) {
-                inputs.ratePct = val;
-                break;
-            }
+    // Try explicit forms first
+    let ratePct: number | undefined;
+    let m =
+        sForRate.match(/\brate\s*([0-9]+(?:\.[0-9]+)?%?)/) ||
+        sForRate.match(/[@]\s*([0-9]+(?:\.[0-9]+)?%)/) ||
+        sForRate.match(/\bat\s*([0-9]+(?:\.[0-9]+)?%)/) ||
+        sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%/);
+    if (m?.[1]) {
+        ratePct = toPercent(m[1]);
+    }
+
+    // If still no rate and we have a term, choose the **closest valid decimal before the term token**
+    if (ratePct == null && inputs.termMonths) {
+        const termPos = termToken?.index ?? sForRate.length;
+        const all = [...sForRate.matchAll(/\b([0-9]+(?:\.[0-9]+)?)\b/g)]
+            .map(mm => ({ text: mm[1], idx: mm.index! }))
+            // exclude money tokens (followed by k/m) and obvious prices ($/comma form is already filtered but guard anyway)
+            .filter(t => !/[km]\b/.test(sForRate.slice(t.idx, t.idx + t.text.length + 1)))
+            .map(t => ({ val: toPercent(t.text), idx: t.idx }))
+            .filter(t => typeof t.val === "number") as Array<{ val: number; idx: number }>;
+
+        // only candidates that occur before the term token
+        const beforeTerm = all.filter(t => t.idx < termPos).filter(t => t.val >= 0.1 && t.val <= 25);
+        if (beforeTerm.length) {
+            // prefer 1–15%, then the one **closest** to the term position (right-most)
+            const pref = beforeTerm.filter(t => t.val >= 1 && t.val <= 15);
+            const pick = (pref.length ? pref : beforeTerm).sort((a, b) => b.idx - a.idx)[0];
+            ratePct = pick.val;
         }
     }
 
+    if (typeof ratePct === "number") inputs.ratePct = ratePct;
+
     // ===== Bare loan detection =====
-    // Accept a leading/bare amount as LOAN when followed by '@ 6.x' or 'at 6.x'
+    // Treat a leading/bare amount as LOAN when followed by '@ 6.x' or 'at 6.x'
     if (inputs.loanAmount == null && inputs.price == null) {
         const bareLoan = s.match(/(?:^|\s)\$?([0-9][\d,\.]*[mk]?)(?=\s*(?:@|at)\s*[0-9])/);
         const n = toNumber(bareLoan?.[1]);
