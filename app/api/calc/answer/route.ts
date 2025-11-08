@@ -166,13 +166,17 @@ function parseQuery(q: string): Inputs {
             });
     }
 
-    // 1) Explicit forms (normalize 625 -> 6.25 OK here)
+    // 1) Explicit forms (normalize 625 -> 6.25 OK here; tolerant for "@" or "%")
     let ratePct: number | undefined;
     let m =
-        sForRate.match(/\brate\s*([0-9]+(?:\.[0-9]+)?%?)/) ||
-        sForRate.match(/[@]\s*([0-9]+(?:\.[0-9]+)?%)/) ||
-        sForRate.match(/\bat\s*([0-9]+(?:\.[0-9]+)?%)/) ||
-        sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%/);
+        sForRate.match(/\brate\s*([0-9]+(?:\.[0-9]+)?)/) ||
+        sForRate.match(/[@]\s*([0-9]+(?:\.[0-9]+)?)/) ||
+        sForRate.match(/\bat\s*([0-9]+(?:\.[0-9]+)?)/) ||
+        sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%?/);
+    if (m?.[1]) {
+        ratePct = toPercentExplicit(m[1]);
+    }
+
     if (m?.[1]) {
         ratePct = toPercentExplicit(m[1]);
     }
