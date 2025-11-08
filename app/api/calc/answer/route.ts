@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BUILD_TAG = "calc-v3.0.0-tokenizer-rules-2025-11-08";
+const BUILD_TAG = "calc-v4.0.0-grammar-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
 import { parseQuery_toInputs, type Inputs } from "../lib/parse";
@@ -25,6 +25,7 @@ type Breakdown = {
     monthlyMI: number;
     monthlyTotalPITI: number;
 };
+
 type Answer = {
     ok: boolean;
     build: string;
@@ -49,7 +50,11 @@ function estimateMonthlyTaxes(base: number, zip?: string) {
     const amt = (base * annualRate) / 12;
     return {
         amount: amt,
-        source: "fallback:default • " + (annualRate * 100).toFixed(2) + "%" + (zip ? " • ZIP " + zip : "")
+        source:
+            "fallback:default • " +
+            (annualRate * 100).toFixed(2) +
+            "%" +
+            (zip ? " • ZIP " + zip : ""),
     };
 }
 
@@ -61,7 +66,12 @@ export async function GET(req: NextRequest) {
 
     if (!q) {
         return noStore(
-            { ok: false, build: BUILD_TAG, inputs: {}, msg: "Missing q. Example: 'Price $900k, 20% down, 6.25%, 30 years, ZIP 92688'." } as Answer,
+            {
+                ok: false,
+                build: BUILD_TAG,
+                inputs: {},
+                msg: "Missing q. Example: 'Price $900k, 20% down, 6.25%, 30 years, ZIP 92688'.",
+            } as Answer,
             400
         );
     }
@@ -69,14 +79,19 @@ export async function GET(req: NextRequest) {
     const inputs = parseQuery_toInputs(q);
 
     const hasLoan = typeof inputs.loanAmount === "number";
-    const hasPriceCombo = typeof inputs.price === "number" && typeof inputs.downPercent === "number";
+    const hasPriceCombo =
+        typeof inputs.price === "number" &&
+        typeof inputs.downPercent === "number";
     const hasRate = typeof inputs.ratePct === "number";
     const hasTerm = typeof inputs.termMonths === "number";
 
     if (!((hasLoan || hasPriceCombo) && hasRate && hasTerm)) {
         const hint =
             "Need loan+rate+term OR price+down%+rate+term. Try: 'Loan $400k at 6.5% for 30 years' or 'Price $900k, 20% down, 6.25%, 30 years, ZIP 92688'.";
-        return noStore({ ok: false, build: BUILD_TAG, inputs, msg: hint } as Answer, 400);
+        return noStore(
+            { ok: false, build: BUILD_TAG, inputs, msg: hint } as Answer,
+            400
+        );
     }
 
     const loanAmount = hasLoan
@@ -86,8 +101,10 @@ export async function GET(req: NextRequest) {
     const ratePct = inputs.ratePct as number;
     const termMonths = inputs.termMonths as number;
 
-    const monthlyIns = typeof inputs.monthlyIns === "number" ? inputs.monthlyIns : 100;
-    const monthlyHOA = typeof inputs.monthlyHOA === "number" ? inputs.monthlyHOA : 0;
+    const monthlyIns =
+        typeof inputs.monthlyIns === "number" ? inputs.monthlyIns : 100;
+    const monthlyHOA =
+        typeof inputs.monthlyHOA === "number" ? inputs.monthlyHOA : 0;
 
     const taxBase = inputs.price != null ? inputs.price : loanAmount;
     const taxEst = estimateMonthlyTaxes(taxBase, inputs.zip);
@@ -100,7 +117,7 @@ export async function GET(req: NextRequest) {
         monthlyIns,
         monthlyHOA,
         monthlyMI: 0,
-        monthlyTotalPITI: pi + taxEst.amount + monthlyIns + monthlyHOA
+        monthlyTotalPITI: pi + taxEst.amount + monthlyIns + monthlyHOA,
     };
 
     const body: Answer = {
@@ -110,10 +127,10 @@ export async function GET(req: NextRequest) {
             ...inputs,
             loanAmount,
             ratePct: Number(ratePct.toFixed(4)),
-            termMonths
+            termMonths,
         },
         breakdown,
-        taxSource: taxEst.source
+        taxSource: taxEst.source,
     };
 
     return noStore(body, 200);
