@@ -26,6 +26,10 @@ const PercentWord = createToken({ name: "PercentWord", pattern: /\b(percent|pct)
 const YearsWord = createToken({ name: "YearsWord", pattern: /\b(y|yr|yrs|year|years)\b/i });
 const MonthsWord = createToken({ name: "MonthsWord", pattern: /\b(mo|mos|month|months)\b/i });
 
+// NEW: attached terms like "30yr", "30y", "360mo"
+const YearsAttached = createToken({ name: "YearsAttached", pattern: /\b\d+(?:\.\d+)?(?:y|yr|yrs|year|years)\b/i });
+const MonthsAttached = createToken({ name: "MonthsAttached", pattern: /\b\d+(?:\.\d+)?(?:mo|mos|month|months)\b/i });
+
 const KW_PRICE = createToken({ name: "KW_PRICE", pattern: /\bprice\b/i });
 const KW_LOAN = createToken({ name: "KW_LOAN", pattern: /\bloan\b/i });
 const KW_DOWN = createToken({ name: "KW_DOWN", pattern: /\bdown\b/i });
@@ -44,7 +48,7 @@ const Sep = createToken({ name: "Sep", pattern: /[,:;\-\(\)\/]/ });
 const allTokens = [
     WhiteSpace,
     Dollar, At, PercentSym, PercentWord,
-    YearsWord, MonthsWord,
+    YearsWord, MonthsWord, YearsAttached, MonthsAttached,
     KW_PRICE, KW_LOAN, KW_DOWN, KW_RATE, KW_INS, KW_HOA,
     ZIP, NumWord, Sep
 ];
@@ -76,12 +80,22 @@ function nextNumTok(tokens: IToken[], idx: number): IToken | undefined {
     return undefined;
 }
 function firstTermIndex(tokens: IToken[]): number | undefined {
+    // Prefer the position of the *number* token, even if attached form exists.
     for (let k = 0; k < tokens.length - 1; k++) {
         if (tokens[k].tokenType === NumWord && (tokens[k + 1].tokenType === YearsWord || tokens[k + 1].tokenType === MonthsWord)) {
             return k;
         }
     }
+    // If only attached forms exist, use their position.
+    for (let k = 0; k < tokens.length; k++) {
+        if (tokens[k].tokenType === YearsAttached || tokens[k].tokenType === MonthsAttached) return k;
+    }
     return undefined;
+}
+function parseAttachedNumber(img: string): number {
+    // "30yr", "360mo" -> 30 or 360
+    const m = img.match(/^(\d[\d,]*\.?\d*)/i);
+    return m ? expandMoney(m[1]) : NaN;
 }
 
 /* =======================
@@ -113,6 +127,17 @@ export function parseQuery_toInputs(q: string): Inputs {
         }
         if (t.tokenType === ZIP) {
             res.zip = (t.image || "").slice(0, 5);
+        }
+    }
+
+    // NEW: reverse order extras — "125 ins", "125 hoa"
+    for (let i = 0; i < tokens.length - 1; i++) {
+        const a = tokens[i], b = tokens[i + 1];
+        if (a.tokenType === NumWord && b.tokenType === KW_INS && res.monthlyIns == null) {
+            res.monthlyIns = Math.max(0, Math.round(expandMoney(a.image)));
+        }
+        if (a.tokenType === NumWord && b.tokenType === KW_HOA && res.monthlyHOA == null) {
+            res.monthlyHOA = Math.max(0, Math.round(expandMoney(a.image)));
         }
     }
 
@@ -161,7 +186,7 @@ export function parseQuery_toInputs(q: string): Inputs {
         }
     }
 
-    // Pass 5: term “NUM years” or “NUM months”
+    // Pass 5: term “NUM years/months” OR attached “30yr/360mo”
     for (let i = 0; i < tokens.length - 1; i++) {
         const a = tokens[i], b = tokens[i + 1];
         if (a.tokenType === NumWord && b.tokenType === YearsWord) {
@@ -170,6 +195,17 @@ export function parseQuery_toInputs(q: string): Inputs {
         }
         if (a.tokenType === NumWord && b.tokenType === MonthsWord) {
             const mos = expandMoney(a.image);
+            if (isFinite(mos) && mos > 0) res.termMonths = Math.round(mos);
+        }
+    }
+    for (let i = 0; i < tokens.length; i++) {
+        const t = tokens[i];
+        if (t.tokenType === YearsAttached) {
+            const years = parseAttachedNumber(t.image);
+            if (isFinite(years) && years > 0) res.termMonths = Math.round(years * 12);
+        }
+        if (t.tokenType === MonthsAttached) {
+            const mos = parseAttachedNumber(t.image);
             if (isFinite(mos) && mos > 0) res.termMonths = Math.round(mos);
         }
     }
