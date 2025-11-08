@@ -1,10 +1,9 @@
-// ==== REPLACE ENTIRE FILE: app/chat/page.tsx ====
 'use client';
 
 import * as React from 'react';
 
 /* ===== Formatting helper ===== */
-const money = (n: number) =>
+const money = (n: number | undefined | null) =>
     Number(n ?? 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -16,394 +15,293 @@ const money = (n: number) =>
 type MsgRole = 'user' | 'assistant';
 type Msg = { id: string; role: MsgRole; content: React.ReactNode };
 
+type Inputs = {
+    price?: number;
+    downPercent?: number;
+    loanAmount?: number;
+    ratePct?: number;
+    termMonths?: number;
+    zip?: string;
+    monthlyIns?: number;
+    monthlyHOA?: number;
+};
+
+type Breakdown = {
+    monthlyPI?: number;
+    monthlyTaxes?: number;
+    monthlyIns?: number;
+    monthlyHOA?: number;
+    monthlyMI?: number;
+    monthlyTotalPITI?: number;
+    sensitivity?: {
+        piUp?: number;
+        piDown?: number;
+    } | Array<{ label: string; value: number }>;
+};
+
+type CalcResponse = {
+    ok: boolean;
+    build?: string;
+    inputs?: Inputs;
+    breakdown?: Breakdown;
+    taxSource?: string;
+    msg?: string;
+};
+
 const LS_KEY = 'hr.chat.v1';
 const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+/** Coerce any previously stored blob into our message array. */
 function coerceMessages(v: unknown): Msg[] {
-    if (Array.isArray(v)) return v as Msg[];
-    if (v && typeof v === 'object' && Array.isArray((v as any).messages)) {
-        return (v as any).messages as Msg[];
-    }
+    try {
+        if (Array.isArray(v)) return v as Msg[];
+        if (v && typeof v === 'object') {
+            const maybe = (v as any).messages;
+            if (Array.isArray(maybe)) return maybe as Msg[];
+        }
+    } catch { }
     return [];
 }
 
-/* =========================
-   API calls
-========================= */
-async function fetchCalcFromText(raw: string) {
-    const resp = await fetch(`/api/calc/answer?q=${encodeURIComponent(raw)}`, { cache: 'no-store' });
-    if (!resp.ok) {
-        let detail = '';
-        try {
-            const j = await resp.json();
-            detail = j?.message || j?.error || '';
-        } catch {
-            detail = await resp.text().catch(() => '');
-        }
-        throw new Error(`calc/answer ${resp.status}${detail ? ` — ${detail}` : ''}`);
+/* ============ Error Boundary ============ */
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; err?: any }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false };
     }
-    return resp.json();
+    static getDerivedStateFromError(err: any) {
+        return { hasError: true, err };
+    }
+    componentDidCatch(err: any) {
+        console.error('Chat page crashed:', err);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-4 border rounded-lg bg-red-50 text-red-800">
+                    <div className="font-semibold mb-1">Something went wrong</div>
+                    <div className="text-sm opacity-80 mb-3">The chat UI hit an error. You can recover below without a full reload.</div>
+                    <button
+                        className="px-3 py-2 rounded bg-red-600 text-white"
+                        onClick={() => this.setState({ hasError: false, err: undefined })}
+                    >
+                        Recover
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
 }
 
-async function fetchAnswer(raw: string) {
-    const resp = await fetch('/api/answers', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question: raw }),
-        cache: 'no-store',
-    });
-    if (!resp.ok) {
-        let detail = '';
+/* ============ Main Component ============ */
+export default function ChatPage() {
+    const [mounted, setMounted] = React.useState(false);
+    const [messages, setMessages] = React.useState<Msg[]>([]);
+    const [input, setInput] = React.useState('');
+    const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+    // mount gate to avoid hydration flicker
+    React.useEffect(() => {
+        setMounted(true);
         try {
-            const j = await resp.json();
-            detail = j?.message || j?.error || '';
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                const msgs = coerceMessages(parsed);
+                if (msgs.length) setMessages(msgs);
+            }
         } catch {
-            detail = await resp.text().catch(() => '');
+            // ignore corrupt LS
         }
-        throw new Error(`answers ${resp.status}${detail ? ` — ${detail}` : ''}`);
-    }
-    return resp.json();
-}
+    }, []);
 
-/* =========================
-   Calc view (robust to shapes)
-========================= */
-function CalcView({ data }: { data: any }) {
-    const inputs = data?.inputs ?? {};
-    const b = data?.breakdown ?? {};
+    // persist messages
+    React.useEffect(() => {
+        if (!mounted) return;
+        try {
+            localStorage.setItem(LS_KEY, JSON.stringify({ messages }));
+        } catch {
+            // ignore quota/corruption
+        }
+    }, [messages, mounted]);
 
-    const loanAmount = Number(
-        inputs.loanAmount ??
-        inputs.loan ??
-        (inputs.price && inputs.downPercent != null
-            ? Math.round(Number(inputs.price) * (1 - Number(inputs.downPercent) / 100))
-            : 0),
-    );
+    const send = React.useCallback(async () => {
+        const q = input.trim();
+        if (!q) return;
+        const userMsg: Msg = { id: makeId(), role: 'user', content: q };
+        setMessages((m) => [...m, userMsg]);
+        setInput('');
 
-    const monthlyPI = Number(b.monthlyPI ?? 0);
-    const monthlyTax = Number(b.monthlyTax ?? 0);
-    const monthlyIns = Number(b.monthlyIns ?? 0);
-    const monthlyHOA = Number(b.monthlyHOA ?? 0);
-    const monthlyMI = Number(b.monthlyMI ?? 0);
-    const monthlyTotalPITI = Number(
-        b.monthlyTotalPITI ?? monthlyPI + monthlyTax + monthlyIns + monthlyHOA + monthlyMI,
-    );
+        try {
+            const url = `/api/calc/answer?q=${encodeURIComponent(q)}`;
+            const res = await fetch(url, { cache: 'no-store' });
+            const json = (await res.json()) as CalcResponse;
 
-    const s = (data as any)?.sensitivity;
-    const metaPath = data?.meta?.path || data?.route || 'calc/answer';
-    const metaAt = data?.meta?.at || data?.at || '';
+            // Build assistant block from API response, rendering directly from inputs + breakdown
+            const card = renderCalc(json);
+            const aiMsg: Msg = { id: makeId(), role: 'assistant', content: card };
+            setMessages((m) => [...m, aiMsg]);
+        } catch (err: any) {
+            console.error('calc call failed', err);
+            const aiMsg: Msg = {
+                id: makeId(),
+                role: 'assistant',
+                content: (
+                    <div className="p-3 border rounded bg-yellow-50 text-yellow-900">
+                        <div className="font-semibold">Couldn’t reach the calculator</div>
+                        <div className="text-sm opacity-80">Check your connection and try again.</div>
+                    </div>
+                ),
+            };
+            setMessages((m) => [...m, aiMsg]);
+        } finally {
+            inputRef.current?.focus();
+        }
+    }, [input]);
+
+    const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            void send();
+        }
+    };
+
+    if (!mounted) return null;
 
     return (
-        <div className="rounded-xl border p-4 mt-3 space-y-2">
-            <div className="text-sm text-gray-500">
-                HR • path: {String(metaPath)}
-                {metaAt ? <> • at: {String(metaAt)}</> : null}
-            </div>
+        <ErrorBoundary>
+            <div className="mx-auto max-w-3xl p-4 space-y-4">
+                <h1 className="text-2xl font-semibold">Chat</h1>
 
-            <div className="text-lg font-semibold">Loan amount: ${money(loanAmount)}</div>
-            <div className="text-lg font-semibold">Monthly P&I: ${money(monthlyPI)}</div>
-
-            <div className="pt-2 font-medium">PITI breakdown</div>
-            <div>Taxes: ${money(monthlyTax)}</div>
-            <div>Insurance: ${money(monthlyIns)}</div>
-            <div>HOA: ${money(monthlyHOA)}</div>
-            <div>MI: ${money(monthlyMI)}</div>
-            <div className="font-semibold">Total PITI: ${money(monthlyTotalPITI)}</div>
-
-            {data?.lookups?.taxSource ? (
-                <div className="text-xs text-gray-500">
-                    Tax source: {String(data.lookups.taxSource)}
-                    {typeof data?.lookups?.taxRate === 'number'
-                        ? ` • ${(Number(data.lookups.taxRate) * 100).toFixed(2)}%`
-                        : null}
+                <div className="flex gap-2">
+                    <input
+                        ref={inputRef}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={onKey}
+                        className="flex-1 px-3 py-2 border rounded"
+                        placeholder="Try: price 900k down 20 percent 6.25 30 years zip 92688"
+                    />
+                    <button onClick={() => void send()} className="px-4 py-2 bg-black text-white rounded">
+                        Send
+                    </button>
                 </div>
+
+                <div className="space-y-3">
+                    {messages.map((m) => (
+                        <div key={m.id} className="flex flex-col gap-1">
+                            <div className="text-xs uppercase tracking-wide opacity-60">
+                                {m.role === 'user' ? 'user' : 'assistant'}
+                            </div>
+                            <div className={m.role === 'user' ? 'p-3 border rounded' : ''}>{m.content}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <footer className="pt-6 text-xs opacity-70">
+                    HomeRates.Ai — Powered by OpenAI • {new Date().toLocaleString()}
+                </footer>
+            </div>
+        </ErrorBoundary>
+    );
+}
+
+/* ============ Renderers ============ */
+
+function renderCalc(resp: CalcResponse) {
+    const metaLine = (
+        <div className="text-xs opacity-70">
+            HR • path: <span className="font-mono">calc/answer</span>
+            {resp.build ? <span> • build: {resp.build}</span> : null}
+        </div>
+    );
+
+    if (!resp || resp.ok !== true || !resp.inputs || !resp.breakdown) {
+        // Friendly guidance on 400s
+        return (
+            <div className="p-3 border rounded">
+                {metaLine}
+                <div className="mt-2 font-semibold">Couldn’t compute that one.</div>
+                <div className="text-sm opacity-80">
+                    {resp?.msg ||
+                        "Need loan+rate+term OR price+down%+rate+term. Example: 'Loan $400k at 6.5% for 30 years' or 'Price $900k, 20% down, 6.25%, 30 years, ZIP 92688'."}
+                </div>
+            </div>
+        );
+    }
+
+    const { inputs, breakdown, taxSource } = resp;
+
+    // pull numbers directly (FIX: taxes now read from monthlyTaxes)
+    const loan = inputs.loanAmount ?? 0;
+    const pi = breakdown.monthlyPI ?? 0;
+    const taxes = breakdown.monthlyTaxes ?? 0; // <-- this is the fix
+    const ins = breakdown.monthlyIns ?? inputs.monthlyIns ?? 0;
+    const hoa = breakdown.monthlyHOA ?? inputs.monthlyHOA ?? 0;
+    const mi = breakdown.monthlyMI ?? 0;
+    const piti = breakdown.monthlyTotalPITI ?? pi + taxes + ins + hoa + mi;
+
+    const sensNode = renderSensitivity(breakdown.sensitivity);
+
+    return (
+        <div className="p-3 border rounded">
+            {metaLine}
+
+            <div className="mt-2 font-semibold">Loan amount: ${money(loan)}</div>
+            <div>Monthly P&amp;I: ${money(pi)}</div>
+
+            <div className="mt-3 font-semibold">PITI breakdown</div>
+            <ul className="ml-5 list-disc text-sm">
+                <li>Taxes: ${money(taxes)}</li>
+                <li>Insurance: ${money(ins)}</li>
+                <li>HOA: ${money(hoa)}</li>
+                <li>MI: ${money(mi)}</li>
+                <li className="font-medium">Total PITI: ${money(piti)}</li>
+            </ul>
+
+            {taxSource ? (
+                <div className="text-xs opacity-70 mt-1">Tax source: {taxSource}</div>
             ) : null}
 
-            <div className="pt-2 font-medium">±0.25% Sensitivity</div>
-            {s && typeof s === 'object' && ('up025' in s || 'down025' in s) ? (
-                <div className="mt-1 text-sm opacity-80">
-                    {'up025' in s ? (
-                        <div>Rate +0.25% → P&I ${money(Number(s.up025 ?? 0))}</div>
-                    ) : null}
-                    {'down025' in s ? (
-                        <div>Rate −0.25% → P&I ${money(Number(s.down025 ?? 0))}</div>
-                    ) : null}
-                </div>
-            ) : Array.isArray(s) && s.length >= 2 ? (
-                <div className="mt-1 text-sm opacity-80">
-                    <div>P&I ${money(Number(s[0]?.pi ?? 0))}</div>
-                    <div>P&I ${money(Number(s[1]?.pi ?? 0))}</div>
-                </div>
-            ) : (
-                <div className="text-gray-500">No sensitivity data</div>
-            )}
+            <div className="mt-3 font-semibold">±0.25% Sensitivity</div>
+            {sensNode}
 
-            <div className="pt-2 text-sm text-gray-600">
-                {data?.tldr || 'Principal & Interest with ±0.25% rate sensitivity.'}
+            <div className="mt-3 text-sm opacity-80">
+                Principal &amp; Interest with ±0.25% rate sensitivity.
             </div>
-            <div className="pt-2 text-sm">
-                <span className="font-medium">Follow-up:</span>{' '}
-                Want me to refine taxes with a purchase price + ZIP, or compare points vs a bigger down
-                payment?
+            <div className="mt-3 text-sm opacity-80">
+                Follow-up: Want me to refine taxes with a purchase price + ZIP, or compare points vs a bigger down payment?
             </div>
         </div>
     );
 }
 
-/* =========================
-   Error Boundary (guard UI)
-========================= */
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err?: any }> {
-    constructor(props: any) {
-        super(props);
-        this.state = { err: undefined };
+function renderSensitivity(s:
+    | Breakdown['sensitivity']
+    | undefined
+) {
+    if (!s) {
+        return <div className="text-sm opacity-60">No sensitivity data</div>;
     }
-    static getDerivedStateFromError(err: any) {
-        return { err };
-    }
-    render() {
-        if (this.state.err) {
-            return (
-                <div className="rounded-xl border p-4 bg-amber-50 text-amber-900">
-                    Something went wrong while rendering this chat. Try clearing cached chat data and retrying.
-                </div>
-            );
-        }
-        return this.props.children as any;
-    }
-}
-
-/* =========================
-   Page
-========================= */
-export default function ChatPage() {
-    const [mounted, setMounted] = React.useState(false);
-    const [messages, setMessages] = React.useState<Msg[]>([]);
-    const [input, setInput] = React.useState('');
-    const [busy, setBusy] = React.useState(false);
-    const inputRef = React.useRef<HTMLInputElement>(null);
-
-    // Gate SSR/hydration
-    React.useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    // Load storage after mount
-    React.useEffect(() => {
-        if (!mounted) return;
-        try {
-            const raw = window.localStorage.getItem(LS_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                const msgs = coerceMessages(parsed);
-                setMessages(msgs);
-                if (!Array.isArray(parsed)) {
-                    window.localStorage.setItem(LS_KEY, JSON.stringify(msgs));
-                }
-            }
-        } catch {
-            setMessages([]);
-        }
-    }, [mounted]);
-
-    // Persist
-    React.useEffect(() => {
-        if (!mounted) return;
-        try {
-            window.localStorage.setItem(
-                LS_KEY,
-                JSON.stringify(Array.isArray(messages) ? messages : []),
-            );
-        } catch { }
-    }, [mounted, messages]);
-
-    React.useEffect(() => {
-        if (mounted) inputRef.current?.focus();
-    }, [mounted]);
-
-    async function handleSend(e?: React.FormEvent) {
-        if (e?.preventDefault) e.preventDefault();
-        const text = input.trim();
-        if (!mounted || !text || busy) return;
-
-        setBusy(true);
-        setMessages((prev) => [...prev, { id: makeId(), role: 'user', content: text }]);
-
-        try {
-            // 1) Try calc first
-            let renderedCalc = false;
-            try {
-                const calcJson = await fetchCalcFromText(text);
-                const b = calcJson?.breakdown ?? {};
-                const hasMoney =
-                    Number(b.monthlyPI ?? 0) > 0 ||
-                    Number(b.monthlyTax ?? 0) > 0 ||
-                    Number(b.monthlyIns ?? 0) > 0 ||
-                    Number(b.monthlyHOA ?? 0) > 0 ||
-                    Number(b.monthlyMI ?? 0) > 0 ||
-                    Number(b.monthlyTotalPITI ?? 0) > 0;
-
-                const inputs = calcJson?.inputs ?? {};
-                const impliedLoan =
-                    Number(inputs.loanAmount ?? inputs.loan ?? 0) ||
-                    (inputs.price && inputs.downPercent != null
-                        ? Math.round(Number(inputs.price) * (1 - Number(inputs.downPercent) / 100))
-                        : 0);
-
-                if (hasMoney || impliedLoan > 0) {
-                    setMessages((prev) => [
-                        ...prev,
-                        { id: makeId(), role: 'assistant', content: <CalcView data={calcJson} /> },
-                    ]);
-                    renderedCalc = true;
-                }
-            } catch (calcErr: any) {
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        id: makeId(),
-                        role: 'assistant',
-                        content: (
-                            <div className="rounded-md border p-3 bg-amber-50 text-amber-900">
-                                Calc couldn’t run: {String(calcErr?.message || 'unknown')}
-                            </div>
-                        ),
-                    },
-                ]);
-            }
-
-            if (renderedCalc) {
-                setInput('');
-                setBusy(false);
-                return;
-            }
-
-            // 2) Fallback: sourced answer
-            const a = await fetchAnswer(text).catch((e) => ({ error: String(e) }));
-            const block =
-                (a as any)?.answerMarkdown ||
-                (a as any)?.answer ||
-                (a as any)?.message ||
-                (a as any)?.error ||
-                '…';
-            const follow =
-                (a as any)?.followUp || (a as any)?.follow_up || (a as any)?.cta || '';
-
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: makeId(),
-                    role: 'assistant',
-                    content: (
-                        <div className="space-y-2">
-                            <pre className="whitespace-pre-wrap font-sans text-[15px] leading-6">
-                                {String(block)}
-                            </pre>
-                            {Array.isArray((a as any)?.sources) && (a as any).sources.length > 0 ? (
-                                <div className="text-sm opacity-80">
-                                    <div className="font-semibold">Sources</div>
-                                    <ul className="list-disc ml-5">
-                                        {(a as any).sources.map((s: any, i: number) => (
-                                            <li key={i}>
-                                                <a
-                                                    className="underline"
-                                                    href={s.url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    {s.title}
-                                                </a>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ) : null}
-                            {follow ? (
-                                <div className="text-sm text-gray-700 pt-1">
-                                    <span className="font-medium">Follow-up:</span> {follow}
-                                </div>
-                            ) : null}
-                        </div>
-                    ),
-                },
-            ]);
-        } catch (err: any) {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: makeId(),
-                    role: 'assistant',
-                    content: `Error: ${String(err?.message || err || 'failed')}`,
-                },
-            ]);
-        } finally {
-            setInput('');
-            setBusy(false);
-        }
-    }
-
-    if (!mounted) {
-        // tiny skeleton to avoid flash
+    if (Array.isArray(s) && s.length > 0) {
         return (
-            <main className="max-w-3xl mx-auto p-4">
-                <div className="animate-pulse h-5 w-48 bg-gray-200 rounded" />
-                <div className="mt-4 space-y-3">
-                    <div className="h-16 bg-gray-100 rounded" />
-                    <div className="h-16 bg-gray-100 rounded" />
-                </div>
-            </main>
+            <ul className="ml-5 list-disc text-sm">
+                {s.map((row, i) => (
+                    <li key={i}>
+                        {row.label}: ${money(row.value)}
+                    </li>
+                ))}
+            </ul>
         );
     }
-
-    return (
-        <ErrorBoundary>
-            <main className="max-w-3xl mx-auto p-4">
-                <h1 className="text-2xl font-semibold">HomeRates.ai — Chat</h1>
-                <p className="text-sm text-gray-600">
-                    This chat routes mortgage math to the calc API and uses sourced answers for everything
-                    else.
-                </p>
-
-                <div className="mt-4 space-y-4">
-                    {messages.map((m) => (
-                        <div
-                            key={m.id}
-                            className={
-                                m.role === 'user'
-                                    ? 'rounded-xl border p-3 bg-white'
-                                    : 'rounded-xl border p-3 bg-gray-50'
-                            }
-                        >
-                            <div className="text-xs uppercase tracking-wider text-gray-500">{m.role}</div>
-                            <div className="mt-1">{m.content}</div>
-                        </div>
-                    ))}
-                </div>
-
-                <form onSubmit={handleSend} className="mt-4 flex gap-2">
-                    <input
-                        ref={inputRef}
-                        className="flex-1 border rounded-xl px-3 py-2"
-                        placeholder="Ask: $400k loan at 6.5% for 30 years (ZIP optional)…"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        disabled={busy}
-                    />
-                    <button
-                        type="submit"
-                        className="px-4 py-2 rounded-xl border bg-black text-white disabled:opacity-50"
-                        disabled={busy}
-                    >
-                        Send
-                    </button>
-                </form>
-
-                <div className="mt-6 text-xs text-gray-500">
-                    Tip: For taxes, include a price + ZIP. Example: “$750k in 91301 with 20% down at 6% for
-                    30 years”.
-                </div>
-            </main>
-        </ErrorBoundary>
-    );
+    if (!Array.isArray(s) && (s.piUp || s.piDown)) {
+        return (
+            <ul className="ml-5 list-disc text-sm">
+                {s.piUp != null ? <li>Rate +0.25% → P&amp;I ${money(s.piUp)}</li> : null}
+                {s.piDown != null ? <li>Rate −0.25% → P&amp;I ${money(s.piDown)}</li> : null}
+            </ul>
+        );
+    }
+    return <div className="text-sm opacity-60">No sensitivity data</div>;
 }
-// ==== REPLACE ENTIRE FILE ====
