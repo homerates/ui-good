@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const BUILD_TAG = "calc-v3.0.0-tokenizer-rules-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
-import { parseQuery_toInputs, type Inputs } from "../../lib/parse";
+import { parseQuery_toInputs, type Inputs } from "../lib/parse";
 
 /* ---------- helpers ---------- */
 
