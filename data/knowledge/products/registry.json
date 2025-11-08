@@ -1,0 +1,52 @@
+{
+  "registry": [
+    {
+      "id": "DSCR",
+      "label": "Advantage FLEX DSCR",
+      "summary": "Investor qualification based on property cash flow. DSCR ≥ 0.75 typical; no personal DTI.",
+      "notes": [
+        "Use market rent (1007) vs PITIA to derive DSCR.",
+        "LLPA-style pricing moves with DSCR bands and LTV."
+      ],
+      "eligibilityKeys": [
+        "investment property",
+        "rent",
+        "cash flow",
+        "DSCR",
+        "no DTI"
+      ]
+    },
+    {
+      "id": "ACCESS_ZERO",
+      "label": "Access Zero (DPA)",
+      "summary": "Down payment assistance paired with first-mortgage; structured alternative to scattered DPA.",
+      "notes": [
+        "Income/credit overlays apply; confirm program code and pricing bucket.",
+        "Good for first-time buyers needing funds at close."
+      ],
+      "eligibilityKeys": [
+        "first-time",
+        "down payment assistance",
+        "DPA",
+        "grant",
+        "forgivable"
+      ]
+    },
+    {
+      "id": "JUMBO_ADV",
+      "label": "Jumbo Advantage",
+      "summary": "Jumbo programs incl. full doc, bank statement, asset utilization.",
+      "notes": [
+        "Mind DTI thresholds and reserve matrices.",
+        "Visa types: purchase/R&T allowed; cash-out limits vary."
+      ],
+      "eligibilityKeys": [
+        "jumbo",
+        "bank statement",
+        "asset utilization",
+        "1099",
+        "self-employed"
+      ]
+    }
+  ]
+}

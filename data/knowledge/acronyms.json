@@ -1,0 +1,96 @@
+{
+  "acronyms": [
+    {
+      "key": "LTV",
+      "meaning": "Loan-to-Value"
+    },
+    {
+      "key": "CLTV",
+      "meaning": "Combined Loan-to-Value"
+    },
+    {
+      "key": "DTI",
+      "meaning": "Debt-to-Income"
+    },
+    {
+      "key": "PITI",
+      "meaning": "Principal, Interest, Taxes, Insurance"
+    },
+    {
+      "key": "MI",
+      "meaning": "Mortgage Insurance"
+    },
+    {
+      "key": "PMI",
+      "meaning": "Private Mortgage Insurance"
+    },
+    {
+      "key": "UFMIP",
+      "meaning": "Upfront Mortgage Insurance Premium"
+    },
+    {
+      "key": "APR",
+      "meaning": "Annual Percentage Rate"
+    },
+    {
+      "key": "ARM",
+      "meaning": "Adjustable-Rate Mortgage"
+    },
+    {
+      "key": "IO",
+      "meaning": "Interest-Only"
+    },
+    {
+      "key": "DSCR",
+      "meaning": "Debt Service Coverage Ratio"
+    },
+    {
+      "key": "DU",
+      "meaning": "Desktop Underwriter (Fannie Mae)"
+    },
+    {
+      "key": "LP",
+      "meaning": "Loan Product Advisor (Freddie Mac)"
+    },
+    {
+      "key": "COE",
+      "meaning": "Certificate of Eligibility (VA)"
+    },
+    {
+      "key": "AUS",
+      "meaning": "Automated Underwriting System"
+    },
+    {
+      "key": "TILA",
+      "meaning": "Truth in Lending Act"
+    },
+    {
+      "key": "RESPA",
+      "meaning": "Real Estate Settlement Procedures Act"
+    },
+    {
+      "key": "ECOA",
+      "meaning": "Equal Credit Opportunity Act"
+    },
+    {
+      "key": "HMDA",
+      "meaning": "Home Mortgage Disclosure Act"
+    },
+    {
+      "key": "QM",
+      "meaning": "Qualified Mortgage"
+    },
+    {
+      "key": "ATR",
+      "meaning": "Ability-to-Repay"
+    },
+    {
+      "key": "HOA",
+      "meaning": "Homeowners Association"
+    },
+    {
+      "key": "U/W",
+      "meaning": "Underwriting"
+    }
+  ]
+}
