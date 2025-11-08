@@ -1,5 +1,9 @@
 // app/api/calc/lib/parse.ts
-// Tiny tokenizer + deterministic rules for mortgage prompt parsing
+// Grammar-based parser using Chevrotain. Deterministic, avoids regex soup.
+
+import {
+    createToken, Lexer, CstParser, IToken
+} from "chevrotain";
 
 export type Inputs = {
     price?: number;
@@ -12,332 +16,250 @@ export type Inputs = {
     monthlyHOA?: number;
 };
 
-type Tok =
-    | { k: "KW_PRICE" | "KW_LOAN" | "KW_DOWN" | "KW_RATE" | "KW_INS" | "KW_HOA" | "AT" | "PERCENT_SYM" | "PERCENT_WORD" | "YRS" | "MOS" }
-    | { k: "NUM"; v: number; raw: string }          // 1, 1.25, 900k, 1.2m -> v expanded
-    | { k: "ZIP"; v: string }                       // 5-digit ZIP (or ZIP+4 collapsed to 5)
-    | { k: "PUNCT"; v: string }
-    | { k: "TEXT"; v: string };
+// ---------- Tokens ----------
+const WhiteSpace = createToken({ name: "WhiteSpace", pattern: /[ \t\r\n]+/, group: Lexer.SKIPPED });
 
-const NUM_RE = /(?:(?:\$)?\d[\d,]*\.?\d*)(?:[km])?/i;
-const ZIP_RE = /^\d{5}(?:-\d{4})?/; // anchored in lexer slice
-const KW_RE =
-    /^(price|loan|down|rate|ins(?:urance)?|hoa|at|@|yrs?|years?|y|mos?|months?|percent|pct)\b/i;
+const Dollar = createToken({ name: "Dollar", pattern: /\$/ });
+const At = createToken({ name: "At", pattern: /@|(?:\bat\b)/i });
+const PercentSym = createToken({ name: "PercentSym", pattern: /%/ });
+const PercentWord = createToken({ name: "PercentWord", pattern: /\b(percent|pct)\b/i });
 
-function expandMoney(raw: string): number | undefined {
-    if (!raw) return undefined;
-    let s = raw.trim().toLowerCase().replace(/[\$,]/g, "");
+const YearsWord = createToken({ name: "YearsWord", pattern: /\b(y|yr|yrs|year|years)\b/i });
+const MonthsWord = createToken({ name: "MonthsWord", pattern: /\b(mo|mos|month|months)\b/i });
+
+const KW_PRICE = createToken({ name: "KW_PRICE", pattern: /\bprice\b/i });
+const KW_LOAN = createToken({ name: "KW_LOAN", pattern: /\bloan\b/i });
+const KW_DOWN = createToken({ name: "KW_DOWN", pattern: /\bdown\b/i });
+const KW_RATE = createToken({ name: "KW_RATE", pattern: /\brate\b/i });
+const KW_INS = createToken({ name: "KW_INS", pattern: /\bins(?:urance)?\b/i });
+const KW_HOA = createToken({ name: "KW_HOA", pattern: /\bhoa\b/i });
+
+const ZIP = createToken({ name: "ZIP", pattern: /\b\d{5}(?:-\d{4})?\b/ });
+
+// 900k, 1.2m, 480000, 6.25, 30
+const NumWord = createToken({
+    name: "NumWord",
+    pattern: /(?:\d[\d,]*\.?\d*)(?:[km])?/i
+});
+
+// Punctuation we can safely ignore as separators
+const Sep = createToken({ name: "Sep", pattern: /[,:;\-\(\)\/]/ });
+
+const allTokens = [
+    WhiteSpace,
+    Dollar, At, PercentSym, PercentWord,
+    YearsWord, MonthsWord,
+    KW_PRICE, KW_LOAN, KW_DOWN, KW_RATE, KW_INS, KW_HOA,
+    ZIP, NumWord, Sep
+];
+
+const lexer = new Lexer(allTokens);
+
+// ---------- helpers ----------
+function expandMoney(raw: string): number {
+    let s = raw.toLowerCase().replace(/[,]/g, "");
     let mult = 1;
     if (s.endsWith("m")) { mult = 1_000_000; s = s.slice(0, -1); }
     else if (s.endsWith("k")) { mult = 1_000; s = s.slice(0, -1); }
-    const n = Number(s);
-    return isFinite(n) ? n * mult : undefined;
+    return Number(s) * mult;
 }
 
-function toPercentExplicit(raw: string | undefined): number | undefined {
-    if (!raw) return undefined;
-    const s = raw.replace(/%/g, "");
-    if (!s) return undefined;
-    const n = Number(s);
-    if (!isFinite(n)) return undefined;
+function asPct(n: number) {
     return n > 100 ? n / 100 : n;
 }
 
-function lex(input: string): Tok[] {
-    const s = input.replace(/\s+/g, " ").trim();
-    const out: Tok[] = [];
-    let i = 0;
+// ---------- Parser ----------
+class CalcParser extends CstParser {
+    public result: Inputs = {};
 
-    while (i < s.length) {
-        const tail = s.slice(i);
+    constructor() {
+        super(allTokens, { recoveryEnabled: true });
+        this.performSelfAnalysis();
+    }
 
-        // ZIP (must be at current position)
-        const mZip = tail.match(ZIP_RE);
-        if (mZip) {
-            const z = mZip[0].slice(0, 5);
-            out.push({ k: "ZIP", v: z });
-            i += mZip[0].length;
-            continue;
+    // Entry: we just scan the token stream, applying small rules. Order matters.
+    public query = this.RULE("query", () => {
+        // We make a single pass and collect facts.
+        const toks = this.LA(1); // just to force init
+
+        // Use manual loop—Chevrotain allows direct token reading via this.LA/CONSUME.
+        let i = 1; // 1-based lookahead index
+        const take = () => {
+            const t = this.LA(1);
+            this.CONSUME1((t as any).tokenType ?? NumWord); // generic consume
+            return t;
+        };
+
+        // Not using a strict grammar tree; we’ll iterate and apply patterns:
+        const buf: IToken[] = [];
+        while (this.LA(1).tokenType !== (this.tokensMap as any).EOF) {
+            buf.push(take());
         }
 
-        // Keywords / markers (anchored)
-        const mKw = tail.match(KW_RE);
-        if (mKw) {
-            const kw = mKw[1].toLowerCase();
-            switch (kw) {
-                case "price": out.push({ k: "KW_PRICE" }); break;
-                case "loan": out.push({ k: "KW_LOAN" }); break;
-                case "down": out.push({ k: "KW_DOWN" }); break;
-                case "rate": out.push({ k: "KW_RATE" }); break;
-                case "ins":
-                case "insurance": out.push({ k: "KW_INS" }); break;
-                case "hoa": out.push({ k: "KW_HOA" }); break;
-                case "at":
-                case "@": out.push({ k: "AT" }); break;
-                case "y":
-                case "yr":
-                case "yrs":
-                case "year":
-                case "years": out.push({ k: "YRS" }); break;
-                case "mo":
-                case "mos":
-                case "month":
-                case "months": out.push({ k: "MOS" }); break;
-                case "percent":
-                case "pct": out.push({ k: "PERCENT_WORD" }); break;
-                default: out.push({ k: "TEXT", v: kw });
+        // Pass 1: direct keyed captures
+        for (let k = 0; k < buf.length; k++) {
+            const t = buf[k];
+
+            // price <num>
+            if (t.tokenType === KW_PRICE) {
+                const n = nextNum(buf, k);
+                if (n) this.result.price = n;
             }
-            i += mKw[0].length;
-            continue;
+
+            // loan <num>  OR  <num> @ <num> (sets loan + rate)
+            if (t.tokenType === KW_LOAN) {
+                const n = nextNum(buf, k);
+                if (n) this.result.loanAmount = n;
+            }
+
+            // rate <num> or % after number
+            if (t.tokenType === KW_RATE) {
+                const n = nextNum(buf, k);
+                if (n != null) this.result.ratePct = asPct(n);
+            }
+
+            // ins <num>, hoa <num>
+            if (t.tokenType === KW_INS) {
+                const n = nextNum(buf, k);
+                if (n != null) this.result.monthlyIns = Math.max(0, Math.round(n));
+            }
+            if (t.tokenType === KW_HOA) {
+                const n = nextNum(buf, k);
+                if (n != null) this.result.monthlyHOA = Math.max(0, Math.round(n));
+            }
+
+            // ZIP
+            if (t.tokenType === ZIP) {
+                this.result.zip = (t.image || "").slice(0, 5);
+            }
         }
 
-        // Percent symbol
-        if (tail[0] === "%") {
-            out.push({ k: "PERCENT_SYM" });
-            i += 1;
-            continue;
+        // Pass 2: down%   ("down 20 %|percent") OR ("20 %|percent down")
+        for (let k = 0; k < buf.length; k++) {
+            const t = buf[k];
+
+            if (t.tokenType === KW_DOWN) {
+                const nTok = nextNumTok(buf, k);
+                if (nTok) {
+                    const after = buf[nTok.idx + 1];
+                    if (after && (after.tokenType === PercentSym || after.tokenType === PercentWord)) {
+                        this.result.downPercent = asPct(expandMoney(nTok.raw));
+                    }
+                }
+            }
+
+            if (t.tokenType === NumWord) {
+                const next = buf[k + 1], next2 = buf[k + 2];
+                if (
+                    next &&
+                    (next.tokenType === PercentSym || next.tokenType === PercentWord) &&
+                    next2 && next2.tokenType === KW_DOWN
+                ) {
+                    this.result.downPercent = asPct(expandMoney(t.image));
+                }
+            }
         }
 
-        // Number / money-like (anchored by slice start)
-        const mNum = tail.match(NUM_RE);
-        if (mNum && mNum.index === 0) {
-            const raw = mNum[0];
-            const val = expandMoney(raw);
-            if (typeof val === "number") out.push({ k: "NUM", v: val, raw });
-            i += raw.length;
-            continue;
+        // Pass 3: explicit percent after a number means RATE if not used for down
+        for (let k = 0; k < buf.length - 1; k++) {
+            const a = buf[k], b = buf[k + 1];
+            if (a.tokenType === NumWord && (b.tokenType === PercentSym || b.tokenType === PercentWord)) {
+                // If this pair is immediately followed/preceded by "down", skip (that's down%)
+                const prev = buf[k - 1], next = buf[k + 2];
+                const touchesDown = (prev && prev.tokenType === KW_DOWN) || (next && next.tokenType === KW_DOWN);
+                if (!touchesDown) {
+                    this.result.ratePct = asPct(expandMoney(a.image));
+                }
+            }
         }
 
-        // Punctuation / other
-        if (/^[,;:/\-()]/.test(tail)) {
-            out.push({ k: "PUNCT", v: tail[0] });
-            i += 1;
-            continue;
+        // Pass 4: at/@ relation: <num> @ <num>  (loan @ rate)
+        for (let k = 0; k < buf.length - 2; k++) {
+            const a = buf[k], b = buf[k + 1], c = buf[k + 2];
+            if (a.tokenType === NumWord && b.tokenType === At && c.tokenType === NumWord) {
+                if (this.result.loanAmount == null) this.result.loanAmount = expandMoney(a.image);
+                if (this.result.ratePct == null) this.result.ratePct = asPct(expandMoney(c.image));
+            }
         }
 
-        // Eat one char as TEXT
-        out.push({ k: "TEXT", v: tail[0] });
-        i += 1;
-    }
+        // Pass 5: term — "NUM years" or "NUM months"
+        for (let k = 0; k < buf.length - 1; k++) {
+            const a = buf[k], b = buf[k + 1];
+            if (a.tokenType === NumWord && b.tokenType === YearsWord) {
+                const years = Number(expandMoney(a.image));
+                if (isFinite(years) && years > 0) this.result.termMonths = Math.round(years * 12);
+            }
+            if (a.tokenType === NumWord && b.tokenType === MonthsWord) {
+                const mos = Number(expandMoney(a.image));
+                if (isFinite(mos) && mos > 0) this.result.termMonths = Math.round(mos);
+            }
+        }
 
-    return out;
+        // Derive loan from price+down
+        if (this.result.loanAmount == null && this.result.price != null && this.result.downPercent != null) {
+            this.result.loanAmount = this.result.price * (1 - (this.result.downPercent / 100));
+        }
+
+        // Last-resort rate guess (avoid grabbing down%): pick a decimal 0.1–25 that is NOT followed by %/percent,
+        // prefer <=15 (mortgage-ish), prefer decimals, prefer right-most before term marker.
+        if (this.result.ratePct == null) {
+            const termIdx = firstTermIndex(buf) ?? buf.length;
+            type Cand = { v: number; i: number; raw: string; isDecimal: boolean; };
+            const cands: Cand[] = [];
+            for (let i = 0; i < termIdx; i++) {
+                const t = buf[i], nx = buf[i + 1];
+                if (t.tokenType !== NumWord) continue;
+                if (nx && (nx.tokenType === PercentSym || nx.tokenType === PercentWord)) continue; // that's a percent, skip
+                const v = expandMoney(t.image);
+                if (v >= 0.1 && v <= 25) {
+                    cands.push({ v, i, raw: t.image, isDecimal: /\./.test(t.image) });
+                }
+            }
+            if (cands.length === 1) this.result.ratePct = cands[0].v;
+            else if (cands.length > 1) {
+                const within15 = cands.filter(c => c.v <= 15);
+                const pool = within15.length ? within15 : cands;
+                const dec = pool.filter(c => c.isDecimal);
+                const pickFrom = dec.length ? dec : pool;
+                pickFrom.sort((a, b) => b.i - a.i);
+                this.result.ratePct = pickFrom[0].v;
+            }
+        }
+
+        // Defaults for UI expectations
+        if (this.result.monthlyIns == null) this.result.monthlyIns = 100;
+        if (this.result.monthlyHOA == null) this.result.monthlyHOA = 0;
+    });
 }
 
-function nearestLeftNumber(tokens: Tok[], untilIdx: number, range: [number, number]): number | undefined {
-    const [lo, hi] = range;
-    let bestIdx = -1;
-    let bestVal: number | undefined = undefined;
-
-    for (let i = 0; i < untilIdx; i++) {
-        const t = tokens[i];
-        if (t.k !== "NUM") continue;
-
-        // Exclude if number touches time-units to the right
-        const next = tokens[i + 1];
-        if (next && (next.k === "YRS" || next.k === "MOS")) continue;
-        // Exclude if this number is clearly a percent token (down-payment etc.)
-        if (next && (next.k === "PERCENT_SYM" || next.k === "PERCENT_WORD")) continue;
-
-
-        // Exclude 5-digit ZIP-looking numbers (safety; ZIPs are tokenized but belt+suspenders)
-        if (String(Math.trunc((t as any).v)).length === 5 && (t as any).v >= 10000 && (t as any).v <= 99999) continue;
-
-        if (t.v >= lo && t.v <= hi && i > bestIdx) {
-            bestIdx = i;
-            bestVal = t.v;
+function nextNum(tokens: IToken[], idx: number): number | undefined {
+    const n = nextNumTok(tokens, idx);
+    return n ? expandMoney(n.raw) : undefined;
+}
+function nextNumTok(tokens: IToken[], idx: number): { raw: string; idx: number } | undefined {
+    for (let j = idx + 1; j < tokens.length; j++) {
+        const t = tokens[j];
+        if (t.tokenType === NumWord) return { raw: t.image, idx: j };
+        if (t.tokenType !== Sep && t.tokenType !== Dollar && t.tokenType !== WhiteSpace) break;
+    }
+    return undefined;
+}
+function firstTermIndex(tokens: IToken[]): number | undefined {
+    for (let k = 0; k < tokens.length - 1; k++) {
+        if (tokens[k].tokenType === NumWord && (tokens[k + 1].tokenType === YearsWord || tokens[k + 1].tokenType === MonthsWord)) {
+            return k;
         }
     }
-    return bestVal;
+    return undefined;
 }
 
+// ---------- public API ----------
 export function parseQuery_toInputs(q: string): Inputs {
-    const tokens = lex(q.toLowerCase());
+    const lexRes = lexer.tokenize(q.trim());
+    const parser = new CalcParser();
+    // feed tokens
+    (parser as any).input = lexRes.tokens;
+    parser.query();
 
-    const inputs: Inputs = {};
-    let lastNumIdx = -1;
-
-    // Helper: peek numeric after a given position, skipping filler
-    const numAfter = (idx: number): { v: number; j: number } | undefined => {
-        for (let j = idx + 1; j < tokens.length; j++) {
-            const t = tokens[j];
-            if (t.k === "NUM") return { v: (t as any).v, j };
-            if (t.k !== "PUNCT" && t.k !== "TEXT") break;
-        }
-        return undefined;
-    };
-
-    // First pass: capture explicit keyed values
-    for (let i = 0; i < tokens.length; i++) {
-        const t = tokens[i];
-
-        if (t.k === "KW_PRICE") {
-            const n = numAfter(i);
-            if (n) inputs.price = n.v;
-        }
-
-        if (t.k === "KW_LOAN") {
-            const n = numAfter(i);
-            if (n) inputs.loanAmount = n.v;
-        }
-
-        if (t.k === "KW_INS") {
-            const n = numAfter(i);
-            if (n) inputs.monthlyIns = Math.max(0, Math.round(n.v));
-        }
-
-        if (t.k === "KW_HOA") {
-            const n = numAfter(i);
-            if (n) inputs.monthlyHOA = Math.max(0, Math.round(n.v));
-        }
-
-        if (t.k === "ZIP") {
-            inputs.zip = t.v;
-        }
-
-        if (t.k === "NUM") lastNumIdx = i;
-    }
-
-    // Down percent: “down 20%” or “down 20 percent” OR “20% down” / “20 percent down”
-    for (let i = 0; i < tokens.length; i++) {
-        const t = tokens[i];
-
-        if (t.k === "KW_DOWN") {
-            const n = numAfter(i);
-            if (n) {
-                const after = tokens[n.j + 1];
-                if (after && (after.k === "PERCENT_SYM" || after.k === "PERCENT_WORD")) {
-                    const v = n.v;
-                    inputs.downPercent = v > 100 ? v / 100 : v;
-                }
-            }
-        }
-
-        if (t.k === "NUM") {
-            const next = tokens[i + 1];
-            const next2 = tokens[i + 2];
-            if (
-                next &&
-                (next.k === "PERCENT_SYM" || next.k === "PERCENT_WORD") &&
-                next2 &&
-                next2.k === "KW_DOWN"
-            ) {
-                const v = (t as any).v;
-                inputs.downPercent = v > 100 ? v / 100 : v;
-            }
-        }
-    }
-
-    // Term: look for “NUM yrs” / “NUM y/yr/years” or “NUM mo/months”
-    for (let i = 0; i < tokens.length; i++) {
-        const t = tokens[i];
-        if (t.k === "NUM") {
-            const next = tokens[i + 1];
-            if (next && next.k === "YRS") {
-                const years = (t as any).v;
-                if (isFinite(years) && years > 0) inputs.termMonths = Math.round(years * 12);
-            }
-            if (next && next.k === "MOS") {
-                const mos = (t as any).v;
-                if (isFinite(mos) && mos > 0) inputs.termMonths = Math.round(mos);
-            }
-        }
-    }
-
-    // Rate: explicit % or “rate <num>” or “at/@ <num>”
-    for (let i = 0; i < tokens.length; i++) {
-        const t = tokens[i];
-
-        // % or percent directly after number
-        if (t.k === "NUM") {
-            const nxt = tokens[i + 1];
-            if (nxt && (nxt.k === "PERCENT_SYM" || nxt.k === "PERCENT_WORD")) {
-                const v = (t as any).v;
-                inputs.ratePct = v > 100 ? v / 100 : v;
-            }
-        }
-
-        // rate <num>
-        if (t.k === "KW_RATE") {
-            const n = numAfter(i);
-            if (n) {
-                const v = n.v;
-                inputs.ratePct = v > 100 ? v / 100 : v;
-            }
-        }
-
-        // at/@ <num> (not followed by time-unit)
-        if (t.k === "AT") {
-            const n = numAfter(i);
-            if (n) {
-                const after = tokens[n.j + 1];
-                if (!(after && (after.k === "YRS" || after.k === "MOS"))) {
-                    const v = n.v;
-                    inputs.ratePct = v > 100 ? v / 100 : v;
-                }
-            }
-        }
-    }
-
-    // Derive loan from price+down%
-    if (inputs.price != null && inputs.downPercent != null && inputs.loanAmount == null) {
-        inputs.loanAmount = inputs.price * (1 - inputs.downPercent / 100);
-    }
-
-    // Bare-loan: number followed by at/@ <rate>
-    if (inputs.loanAmount == null && inputs.price == null) {
-        for (let i = 0; i < tokens.length - 2; i++) {
-            const a = tokens[i], b = tokens[i + 1], c = tokens[i + 2];
-            if (a.k === "NUM" && b.k === "AT" && c.k === "NUM") {
-                inputs.loanAmount = (a as any).v;
-                break;
-            }
-        }
-    }
-
-    // If we still don’t have rate but we have term, pick nearest decimal 0.1–25 before the term marker.
-    if (inputs.ratePct == null && inputs.termMonths) {
-        // find index of first NUM + (YRS|MOS)
-        let termIdx = tokens.length;
-        for (let i = 0; i < tokens.length - 1; i++) {
-            const a = tokens[i], b = tokens[i + 1];
-            if (a.k === "NUM" && (b.k === "YRS" || b.k === "MOS")) { termIdx = i; break; }
-        }
-        const pick = nearestLeftNumber(tokens, termIdx, [0.1, 25]);
-        if (typeof pick === "number") inputs.ratePct = pick;
-    }
-
-    // Last-ditch: if we have price+down+term and exactly one candidate 0.1–25 anywhere, take it as rate
-    if (inputs.ratePct == null && inputs.price != null && inputs.downPercent != null && inputs.termMonths != null) {
-        type Cand = { v: number; i: number; raw?: string };
-        const candidates: Cand[] = [];
-        for (let i = 0; i < tokens.length; i++) {
-            const t = tokens[i];
-            if (t.k !== "NUM") continue;
-            const nxt = tokens[i + 1];
-            // ignore term numbers and percent-marked numbers (down%)
-            if (nxt && (nxt.k === "YRS" || nxt.k === "MOS" || nxt.k === "PERCENT_SYM" || nxt.k === "PERCENT_WORD")) continue;
-            // ignore ZIP-looking integers
-            if (String(Math.trunc((t as any).v)).length === 5) continue;
-            const v = (t as any).v;
-            if (v >= 0.1 && v <= 25) candidates.push({ v, i, raw: (t as any).raw });
-        }
-
-        if (candidates.length === 1) {
-            inputs.ratePct = candidates[0].v;
-        } else if (candidates.length > 1) {
-            // Prefer decimals or <=15%, then right-most
-            const decimals = candidates.filter(c => (c.raw ?? "").includes("."));
-            const within15 = candidates.filter(c => c.v <= 15);
-            const pool = (decimals.length ? decimals : within15.length ? within15 : candidates);
-            pool.sort((a, b) => b.i - a.i);
-            inputs.ratePct = pool[0].v;
-        }
-
-    }
-
-    // Defaults for UI
-    if (inputs.monthlyIns == null) inputs.monthlyIns = 100;
-    if (inputs.monthlyHOA == null) inputs.monthlyHOA = 0;
-
-    return inputs;
+    return parser.result;
 }
