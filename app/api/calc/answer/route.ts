@@ -2,10 +2,12 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// bump this on every edit to confirm what's live in prod
-const BUILD_TAG = "calc-v2.1-parser-guard-2025-11-07";
+// bump each push to confirm what's live
+const BUILD_TAG = "calc-v2.2-parser-guard-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
+
+/* ---------- tiny helpers ---------- */
 
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });
@@ -75,42 +77,48 @@ function toTermMonths(raw?: string | null): number | undefined {
     return years * 12;
 }
 
-function parseQuery(q: string): Inputs {
-    const s = q.replace(/\s+/g, " ").trim().toLowerCase();
+/* ---------- parsing ---------- */
 
-    const priceMatch = s.match(/price\s*\$?([0-9\.,]+[mk]?)/) || s.match(/\bprice\s*([0-9\.,mk\$]+)/);
+function parseQuery(q: string): Inputs {
+    // normalize once
+    let s = q.replace(/\s+/g, " ").trim().toLowerCase();
+
+    // price / loan explicit tokens (also accepts "price900k"/"loan480k")
+    const priceMatch = s.match(/\bprice\s*\$?([0-9\.,]+[mk]?)/) || s.match(/\bprice\s*([0-9\.,mk\$]+)/);
     const loanMatch = s.match(/\bloan\s*\$?([0-9\.,]+[mk]?)/) || s.match(/\bloan\s*([0-9\.,mk\$]+)/);
 
+    // down%: “down 20%” or “20% down”
     const downMatch = s.match(/down\s*([0-9\.]+)\s*%/) || s.match(/([0-9\.]+)\s*%\s*down/);
-    const rateMatch =
-        s.match(/\brate\s*([0-9\.]+%?)/) ||
-        s.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%/) ||
-        s.match(/\b([0-9]+(?:\.[0-9]+)?)\b(?=.*\b(yr|year|years|y|mo|months)\b)/);
-    const termMatch =
-        s.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
-        s.match(/\b(\d{1,3})\s*(?:mo|months)\b/);
 
-    const zipMatch = s.match(/\b(\d{5})(?:-\d{4})?\b/);
-
+    // ins/hoa (both “ins 125” and “$125 ins”)
     const insMatch = s.match(/\bins(?:urance)?\s*\$?\s*([0-9\.,]+)/) || s.match(/\$?\s*([0-9\.,]+)\s*(?:ins|insurance)\b/);
     const hoaMatch = s.match(/\bhoa\s*\$?\s*([0-9\.,]+)/) || s.match(/\$?\s*([0-9\.,]+)\s*hoa\b/);
 
+    // ZIP
+    const zipMatch = s.match(/\b(\d{5})(?:-\d{4})?\b/);
+
     const inputs: Inputs = {};
 
+    // price / loan from keywords
     const price = toNumber(priceMatch?.[1]);
     const loan = toNumber(loanMatch?.[1]);
-    const downP = toPercent(downMatch?.[1]);
-
     if (typeof price === "number") inputs.price = price;
     if (typeof loan === "number") inputs.loanAmount = loan;
+
+    // derive down%
+    const downP = toPercent(downMatch?.[1]);
     if (typeof downP === "number") inputs.downPercent = downP;
 
+    // If price+down% present and loan missing → derive
     if (inputs.price != null && inputs.downPercent != null && inputs.loanAmount == null) {
         inputs.loanAmount = inputs.price * (1 - inputs.downPercent / 100);
     }
 
-    const ratePct = toPercent(rateMatch?.[1]);
-    if (typeof ratePct === "number") inputs.ratePct = ratePct;
+    // ===== Rate & Term detection =====
+    // First: detect term via common forms
+    const termMatch =
+        s.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
+        s.match(/\b(\d{1,3})\s*(?:mo|months)\b/);
 
     const termMonths =
         toTermMonths(termMatch?.[0]) ||
@@ -120,8 +128,44 @@ function parseQuery(q: string): Inputs {
         })();
     if (typeof termMonths === "number") inputs.termMonths = termMonths;
 
+    // Build a working copy with the matched down% removed
+    // so "down20%" doesn't get picked up as a rate.
+    let sForRate = s;
+    if (downMatch && downMatch[0]) {
+        sForRate = sForRate.replace(downMatch[0], " ");
+    }
+
+    // capture rate in multiple shapes:
+    // - "rate 6.25" or "rate 6.25%"
+    // - bare "6.25%" anywhere
+    // - bare "6.25" that appears before/near a term token
+    // - after '@' or 'at' → " @ 6.25% "
+    const rateMatch =
+        sForRate.match(/\brate\s*([0-9\.]+%?)/) ||
+        sForRate.match(/[@]\s*([0-9\.]+%)/) ||
+        sForRate.match(/\bat\s*([0-9\.]+%)/) ||
+        sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%/) ||
+        (inputs.termMonths
+            ? sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\b(?=[^\w]{0,10}\b(?:y|yr|yrs|year|years|mo|months)\b)/)
+            : null);
+
+    const ratePct = toPercent(rateMatch?.[1]);
+    if (typeof ratePct === "number") inputs.ratePct = ratePct;
+
+    // ===== Bare loan detection =====
+    // Accept a leading/bare amount as LOAN when followed by '@ 6.x' or 'at 6.x'
+    // and we don't already have an explicit price/loan.
+    if (inputs.loanAmount == null && inputs.price == null) {
+        const bareLoan =
+            s.match(/(?:^|\s)\$?([0-9][\d,\.]*[mk]?)(?=\s*(?:@|at)\s*[0-9])/);
+        const n = toNumber(bareLoan?.[1]);
+        if (typeof n === "number") inputs.loanAmount = n;
+    }
+
+    // ZIP
     if (zipMatch?.[1]) inputs.zip = zipMatch[1];
 
+    // monthly ins/hoa
     const monthlyIns = toNumber(insMatch?.[1]);
     const monthlyHOA = toNumber(hoaMatch?.[1]);
     if (typeof monthlyIns === "number") inputs.monthlyIns = monthlyIns;
@@ -129,6 +173,8 @@ function parseQuery(q: string): Inputs {
 
     return inputs;
 }
+
+/* ---------- finance ---------- */
 
 function monthlyPI(loanAmount: number, ratePct: number, termMonths: number) {
     const r = clamp(ratePct, 0.1, 25) / 100 / 12;
@@ -144,6 +190,8 @@ function estimateMonthlyTaxes(base: number, zip?: string) {
         source: "fallback:default • " + (annualRate * 100).toFixed(2) + "%" + (zip ? " • ZIP " + zip : "")
     };
 }
+
+/* ---------- handler ---------- */
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
