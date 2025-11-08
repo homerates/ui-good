@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BUILD_TAG = "calc-v2.5.4-parser-guard-2025-11-08";
+const BUILD_TAG = "calc-v2.5.5-parser-guard-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -81,7 +81,7 @@ function toTermMonths(raw?: string | null): number | undefined {
 function parseQuery(q: string): Inputs {
     let s = q.replace(/\s+/g, " ").trim().toLowerCase();
 
-    // explicit price/loan (also accepts "price900k", "loan480k")
+    // explicit price/loan
     const priceMatch =
         s.match(/\bprice\s*\$?([0-9\.,]+[mk]?)/) ||
         s.match(/\bprice\s*([0-9\.,mk\$]+)/);
@@ -90,7 +90,7 @@ function parseQuery(q: string): Inputs {
         s.match(/\bloan\s*\$?([0-9\.,]+[mk]?)/) ||
         s.match(/\bloan\s*([0-9\.,mk\$]+)/);
 
-    // down% spans: “down 20%” OR “20% down”
+    // down% spans
     const downSpanA = s.match(/down\s*[0-9\.]+\s*%/);
     const downSpanB = s.match(/[0-9\.]+\s*%\s*down/);
     const downMatch = s.match(/down\s*([0-9\.]+)\s*%/) || s.match(/([0-9\.]+)\s*%\s*down/);
@@ -119,8 +119,7 @@ function parseQuery(q: string): Inputs {
         inputs.loanAmount = inputs.price * (1 - inputs.downPercent / 100);
     }
 
-    // ===== Term detection (glued/tolerant) =====
-    // 30y / 30yr / 30yrs / 30 years / 360mo / 360 months
+    // ===== Term detection =====
     let termMonths: number | undefined;
     const termToken =
         s.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
@@ -183,11 +182,18 @@ function parseQuery(q: string): Inputs {
         while ((mm = numRegex.exec(sForRate)) !== null) {
             const idx = mm.index!;
             const text = mm[1];
-            // Ignore amounts like 900k/1.2m
+
+            // Ignore amounts like 900k/1.2m (price-ish)
             const nextChar = sForRate.slice(idx + text.length, idx + text.length + 1);
             if (nextChar === "k" || nextChar === "m") continue;
+
+            // Ignore 5-digit ZIP tokens
+            const prevFour = sForRate.slice(Math.max(0, idx - 4), idx) + text;
+            if (/^\d{5}$/.test(prevFour)) continue;
+
             const rawNum = Number(text);
             if (!isFinite(rawNum)) continue;
+
             candidates.push({ val: rawNum, idx });
         }
 
@@ -202,13 +208,23 @@ function parseQuery(q: string): Inputs {
         }
     }
 
-    // 3) Last-ditch: still no rate? pick the right-most decimal-with-dot in 0.1–25 anywhere.
+    // 3) Last-ditch: still no rate? pick the right-most numeric (int or decimal) in 0.1–25 anywhere.
     if (ratePct == null) {
-        const dotNums = [...sForRate.matchAll(/\b([0-9]+\.[0-9]+)\b/g)]
-            .map(m => ({ val: Number(m[1]), idx: m.index! }))
-            .filter(x => isFinite(x.val) && x.val >= 0.1 && x.val <= 25);
-        if (dotNums.length) {
-            ratePct = dotNums.sort((a, b) => b.idx - a.idx)[0].val;
+        const anyNums = [...sForRate.matchAll(/\b([0-9]+(?:\.[0-9]+)?)\b/g)]
+            .map(m => ({ val: Number(m[1]), idx: m.index!, text: m[1] }))
+            // exclude k/m suffix and 5-digit ZIPs and time-unit neighbors
+            .filter(tok => {
+                const nextChar = sForRate.slice(tok.idx + String(tok.text).length, tok.idx + String(tok.text).length + 1);
+                if (nextChar === "k" || nextChar === "m") return false;
+                const prevFour = sForRate.slice(Math.max(0, tok.idx - 4), tok.idx) + tok.text;
+                if (/^\d{5}$/.test(prevFour)) return false;
+                const tail = sForRate.slice(tok.idx + String(tok.text).length);
+                if (/^\s*(?:y|yr|yrs|year|years|mo|months)\b/.test(tail)) return false;
+                return tok.val >= 0.1 && tok.val <= 25;
+            });
+
+        if (anyNums.length) {
+            ratePct = anyNums.sort((a, b) => b.idx - a.idx)[0].val;
         }
     }
 
