@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BUILD_TAG = "calc-v2.5.3-parser-guard-2025-11-08";
+const BUILD_TAG = "calc-v2.5.4-parser-guard-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -57,7 +57,7 @@ function toNumber(raw?: string | null): number | undefined {
     return isFinite(n) ? n * mult : undefined;
 }
 
-// Explicit percent inputs (has % or "rate"/"@"/"at"): allow 625 -> 6.25
+// Only for explicit percent-ish inputs: allow 625 -> 6.25
 function toPercentExplicit(raw?: string | null): number | undefined {
     if (!raw) return undefined;
     const s = raw.trim().toLowerCase().replace(/%/g, "");
@@ -153,7 +153,7 @@ function parseQuery(q: string): Inputs {
         });
     }
 
-    // 1) Explicit forms ONLY
+    // 1) Explicit forms ONLY (don’t grab ZIPs/prices):
     //    - "rate 6.25"
     //    - "@ 6.25" / "at 6.25" (not followed by time units)
     //    - "6.25%"
@@ -166,51 +166,57 @@ function parseQuery(q: string): Inputs {
         ratePct = toPercentExplicit(m[1]);
     }
 
-    // 2) If still no rate and we have a term, pick the closest valid decimal *before the term*.
-    //    IMPORTANT: compute the term position from sForRate (after down% removal) to keep indices aligned.
-    if (ratePct == null && inputs.termMonths) {
+    // 2) If still no rate and we have a term, pick the closest valid decimal *before the term* (no scaling)
+    let termPosForRate = sForRate.length;
+    if (inputs.termMonths) {
         const termTokenRate =
             sForRate.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
             sForRate.match(/\b(\d{1,3})(?:y|yr|yrs)\b/) ||
             sForRate.match(/\b(\d{2,3})\s*(?:mo|months)\b/);
-        const termPos = termTokenRate?.index ?? sForRate.length;
+        termPosForRate = termTokenRate?.index ?? sForRate.length;
+    }
 
+    if (ratePct == null && inputs.termMonths) {
         const numRegex = /\b([0-9]+(?:\.[0-9]+)?)\b/g;
         const candidates: Array<{ val: number; idx: number }> = [];
         let mm: RegExpExecArray | null;
         while ((mm = numRegex.exec(sForRate)) !== null) {
             const idx = mm.index!;
             const text = mm[1];
-            // Ignore amounts like 900k/1.2m (price-ish)
+            // Ignore amounts like 900k/1.2m
             const nextChar = sForRate.slice(idx + text.length, idx + text.length + 1);
             if (nextChar === "k" || nextChar === "m") continue;
-
             const rawNum = Number(text);
             if (!isFinite(rawNum)) continue;
-
             candidates.push({ val: rawNum, idx });
         }
 
         const beforeTerm = candidates
-            .filter((c) => c.idx < termPos)
+            .filter((c) => c.idx < termPosForRate)
             .filter((c) => c.val >= 0.1 && c.val <= 25);
 
         if (beforeTerm.length) {
-            // prefer 1–15%, then right-most (closest to term)
             const pref = beforeTerm.filter((c) => c.val >= 1 && c.val <= 15);
             const pick = (pref.length ? pref : beforeTerm).sort((a, b) => b.idx - a.idx)[0];
             ratePct = pick.val;
         }
     }
 
+    // 3) Last-ditch: still no rate? pick the right-most decimal-with-dot in 0.1–25 anywhere.
+    if (ratePct == null) {
+        const dotNums = [...sForRate.matchAll(/\b([0-9]+\.[0-9]+)\b/g)]
+            .map(m => ({ val: Number(m[1]), idx: m.index! }))
+            .filter(x => isFinite(x.val) && x.val >= 0.1 && x.val <= 25);
+        if (dotNums.length) {
+            ratePct = dotNums.sort((a, b) => b.idx - a.idx)[0].val;
+        }
+    }
+
     if (typeof ratePct === "number") inputs.ratePct = ratePct;
 
     // ===== Bare loan detection =====
-    // Treat a leading/bare amount as LOAN when followed by '@ 6.x' or 'at 6.x'
     if (inputs.loanAmount == null && inputs.price == null) {
-        const bareLoan = s.match(
-            /(?:^|\b)\$?([0-9][\d,\.]*[mk]?)(?=\s*(?:@|at)\s*[0-9])/i
-        );
+        const bareLoan = s.match(/(?:^|\b)\$?([0-9][\d,\.]*[mk]?)(?=\s*(?:@|at)\s*[0-9])/i);
         const n = toNumber(bareLoan?.[1]);
         if (typeof n === "number") inputs.loanAmount = n;
     }
