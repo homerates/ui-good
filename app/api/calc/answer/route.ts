@@ -4,10 +4,6 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
 
-/* =========================
-   Utilities
-========================= */
-
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
@@ -16,261 +12,152 @@ function noStore(json: unknown, status = 200) {
     return res;
 }
 
-type Inputs = {
+type Parsed = {
     price?: number;
-    downPercent?: number;
-    loanAmount?: number;
-    ratePct?: number;
-    termMonths?: number;
-    zip?: string;
-    monthlyIns?: number;
-    monthlyHOA?: number;
+    downPercent?: number | null;
+    loan?: number | null;
+    rate?: number | null;      // percent as number, e.g., 6.375
+    termYears?: number | null; // 30, 15, etc.
+    zip?: string | undefined;
 };
 
-type Breakdown = {
-    monthlyPI: number;
-    monthlyTaxes: number;
-    monthlyIns: number;
-    monthlyHOA: number;
-    monthlyMI: number;
-    monthlyTotalPITI: number;
-};
-
-type Answer = {
-    ok: boolean;
-    inputs: Inputs;
-    breakdown?: Breakdown;
-    taxSource?: string;
-    msg?: string;
-};
-
-/* =========================
-   Parsing helpers
-========================= */
-
-// toNumber: handles "400k", "1.2m", "$480,000"
-function toNumber(raw?: string | null): number | undefined {
-    if (!raw) return undefined;
-    let s = raw.trim().toLowerCase().replace(/[\$,]/g, "");
-    const mult =
-        s.endsWith("m") ? (s = s.slice(0, -1), 1_000_000)
-            : s.endsWith("k") ? (s = s.slice(0, -1), 1_000)
-                : 1;
-    const n = Number(s);
-    if (!isFinite(n) || Number.isNaN(n)) return undefined;
-    return n * mult;
+function km(num: string, unit?: string | null) {
+    const base = Number(num.replace(/,/g, ""));
+    if (!Number.isFinite(base)) return null;
+    const u = (unit || "").toLowerCase();
+    return base * (u === "m" ? 1_000_000 : u === "k" ? 1_000 : 1);
 }
 
-// toPercent: accepts "6.25", "6.25%", "625"->6.25 only if clearly percent
-function toPercent(raw?: string | null): number | undefined {
-    if (!raw) return undefined;
-    let s = raw.trim().toLowerCase().replace(/%/g, "");
-    if (!s) return undefined;
-    const n = Number(s);
-    if (!isFinite(n) || Number.isNaN(n)) return undefined;
-    // Heuristic: if n > 100, treat as basis-point style mistake (e.g., 625 -> 6.25)
-    if (n > 100) return n / 100;
-    return n;
-}
+function parseQuestion(qRaw: string): Parsed | null {
+    const qq = qRaw.trim().replace(/\u00A0/g, " ");
 
-// toTermMonths: "30", "30y", "30 yr", "30 years"
-function toTermMonths(raw?: string | null): number | undefined {
-    if (!raw) return undefined;
-    const s = raw.trim().toLowerCase();
-    const m = s.match(/(\d{1,3})/);
-    if (!m) return undefined;
-    const years = Number(m[1]);
-    if (!isFinite(years) || years <= 0) return undefined;
-    return years * 12;
-}
+    // Allow bare $750k / 750k price / etc.
+    const priceRe = /\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?(?:\s*(?:home|house|condo|property|purchase|price))?\b/i;
+    const loanRe = /\bloan\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b|\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\s*loan\b/i;
+    const downRe = /(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:down|dp)?\b/i;
+    const rateRe = /(?:rate\s*)?(\d+(?:\.\d+)?)\s*(?:%|percent)?\s*(?:fixed|arm)?\b/i;
+    const termRe = /\b(\d+)\s*(?:years?|yrs?|yr|y|year|-year)\b/i;
+    const zipRe = /\b(?:zip\s*)?(\d{5})\b/i;
 
-function clamp(n: number, min: number, max: number) {
-    return Math.max(min, Math.min(max, n));
-}
+    let price: number | null = null;
+    const pm = qq.match(priceRe); if (pm) price = km(pm[1], pm[2]);
 
-function parseQuery(q: string): Inputs {
-    const s = q.replace(/\s+/g, " ").trim().toLowerCase();
+    let loan: number | null = null;
+    const lm = qq.match(loanRe);
+    if (lm) { const n = lm[1] || lm[3]; const u = lm[2] || lm[4]; loan = n ? km(n, u) : null; }
 
-    // price / loan amounts
-    const priceMatch =
-        s.match(/(?:^|[\s,])price\s*([$\d\.,]+[mk]?)/i) ||
-        s.match(/(?:^|[\s,])\$?(\d[\d,\.]*[mk]?)(?=.*\bprice\b)/i) ||
-        s.match(/(?:^|\s)price\s*([0-9\.\,mk\$]+)/i);
-    const loanMatch =
-        s.match(/(?:^|[\s,])loan\s*\$?([\d\.,]+[mk]?)/i) ||
-        s.match(/(?:^|[\s,])\$?([\d\.,]+[mk]?)(?=.*\bloan\b)/i);
+    const dm = qq.match(downRe); const downPercent = dm ? Number(dm[1]) : null;
+    const rm = qq.match(rateRe); const rate = rm ? Number(rm[1]) : null;
+    const tm = qq.match(termRe); const termYears = tm ? Number(tm[1]) : null;
+    const zm = qq.match(zipRe); const zip = zm ? zm[1] : undefined;
 
-    // standalone leading money when user writes "price900k ...", capture "900k"
-    const squeezedPrice = s.match(/price\s*([0-9\.,mk\$]+)/i);
-
-    // down percent "down 20%" / "20% down"
-    const downPctMatch =
-        s.match(/down\s*([0-9\.]+)\s*%/) ||
-        s.match(/([0-9\.]+)\s*%\s*down/);
-
-    // rate: "6.25" or "6.25%" or "rate 6.25"
-    const rateMatch =
-        s.match(/\brate\s*([0-9\.\%]+)/) ||
-        s.match(/\b([0-9]+\.[0-9]+|\d+)\s*%/) ||
-        s.match(/\b([0-9]+\.[0-9]+)\b(?=.*\b(year|yr|y|years|mo|months)\b)/);
-
-    // term: "30y", "30 years", "30 yr"
-    const termMatch =
-        s.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
-        s.match(/\b(\d{1,3})\s*(?:mo|months)\b/) ||
-        s.match(/\b(\d{2,3})\s*(?=y|yr|yrs|year|years)\b/);
-
-    // ZIP 5 digits
-    const zipMatch = s.match(/\b(\d{5})(?:-\d{4})?\b/);
-
-    // monthly insurance & HOA (accepts "ins 125", "insurance 125", "$125 ins", etc.)
-    const insMatch =
-        s.match(/\bins(?:urance)?\s*\$?\s*([0-9\.,]+)/) ||
-        s.match(/\$?\s*([0-9\.,]+)\s*(?:ins|insurance)\b/);
-
-    const hoaMatch =
-        s.match(/\bhoa\s*\$?\s*([0-9\.,]+)/) ||
-        s.match(/\$?\s*([0-9\.,]+)\s*hoa\b/);
-
-    // Also accept compact "price900k" / "loan480k"
-    const compactPrice = s.match(/\bprice\s*([0-9\.,mk\$]+)/);
-    const compactLoan = s.match(/\bloan\s*([0-9\.,mk\$]+)/);
-
-    // Build inputs
-    const inputs: Inputs = {};
-
-    // Price first (if present), else loan
-    const priceRaw =
-        priceMatch?.[1] ?? compactPrice?.[1] ?? squeezedPrice?.[1];
-    const loanRaw =
-        loanMatch?.[1] ?? compactLoan?.[1];
-
-    const price = toNumber(priceRaw);
-    const loan = toNumber(loanRaw);
-    const downPercent = toPercent(downPctMatch?.[1]);
-
-    if (typeof price === "number") inputs.price = price;
-    if (typeof downPercent === "number") inputs.downPercent = downPercent;
-    if (typeof loan === "number") inputs.loanAmount = loan;
-
-    // If price & down% provided and loan missing, derive loan
-    if (inputs.price && inputs.downPercent != null && inputs.loanAmount == null) {
-        const ltv = 1 - inputs.downPercent / 100;
-        inputs.loanAmount = inputs.price * ltv;
+    // NEW: If there's a single dollar amount and NO "down", treat it as LOAN (not price).
+    if (loan == null && price != null && !/\bdown\b/i.test(qq)) {
+        // Also make sure the text didn't explicitly label it as price/home/purchase
+        const explicitPriceWord = /\b(price|home|house|condo|property|purchase)\b/i.test(qq);
+        if (!explicitPriceWord) {
+            loan = price;
+            price = null;
+        }
     }
 
-    // Rate and term
-    const ratePct = toPercent(rateMatch?.[1]);
-    const termMonths = toTermMonths(termMatch?.[0] || termMatch?.[1] || "");
-
-    // If still no term but a bare "30" exists next to years text
-    if (!termMonths) {
-        const bareYears = s.match(/\b(\d{2,3})\b(?=.*\b(year|yr|y|years)\b)/);
-        if (bareYears) inputs.termMonths = Number(bareYears[1]) * 12;
-    } else {
-        inputs.termMonths = termMonths;
-    }
-
-    if (typeof ratePct === "number") inputs.ratePct = ratePct;
-
-    // ZIP
-    if (zipMatch?.[1]) inputs.zip = zipMatch[1];
-
-    // Monthly ins / HOA
-    const monthlyIns = toNumber(insMatch?.[1]);
-    const monthlyHOA = toNumber(hoaMatch?.[1]);
-    if (typeof monthlyIns === "number") inputs.monthlyIns = monthlyIns;
-    if (typeof monthlyHOA === "number") inputs.monthlyHOA = monthlyHOA;
-
-    // Final clamps / sensible defaults left to compute phase
-    return inputs;
+    // Require at least some principal basis
+    if (!loan && !price) return null;
+    return { price: price ?? undefined, downPercent, loan, rate, termYears, zip };
 }
 
-/* =========================
-   Finance helpers
-========================= */
+async function handle(req: NextRequest, urlOverride?: URL) {
+    const now = new Date().toISOString();
+    const url = urlOverride ?? new URL(req.url);
+    const origin = `${url.protocol}//${url.host}`;
+    const question = (url.searchParams.get("q") || "").trim();
 
-function monthlyPI(loanAmount: number, ratePct: number, termMonths: number) {
-    const r = clamp(ratePct, 0.1, 25) / 100 / 12;
-    const n = Math.max(12, termMonths);
-    // Standard amortization
-    return loanAmount * (r / (1 - Math.pow(1 + r, -n)));
+    if (!question) {
+        return noStore({
+            ok: true, route: "calc/answer", at: now,
+            message: "Try: “$750k in 91301 with 10% down at 6.375% for 30 years” or “$480k loan at 6% for 30 years, ZIP 90011”.",
+            answer: "",
+        });
+    }
+
+    const parsed = parseQuestion(question);
+    if (!parsed) {
+        // IMPORTANT: return ok:false so UI *falls back* to sourced Q&A (we throw on ok:false in the UI)
+        return noStore({
+            ok: false, route: "calc/answer", at: now,
+            message: "I couldn’t compute a payment yet—add one number and we’re good.",
+            needs: ["loan OR price (+ optional down%)", "rate", "term", "zip"],
+            suggest: [
+                "$750k in 91301 with 10% down at 6.375% for 30 years",
+                "Loan $480k at 6.5% for 30 years, ZIP 90011",
+                "Price $900k, 20% down, 6.25%, 30 years, ZIP 92688",
+            ],
+            answer: "",
+        });
+    }
+
+    const termYears = parsed.termYears ?? 30;
+
+    // Build params targeting BOTH naming conventions.
+    const q = new URLSearchParams();
+
+    // Core amount
+    if (parsed.loan != null) q.set("loan", String(parsed.loan));
+    if (parsed.price != null) q.set("price", String(parsed.price));
+    if (parsed.downPercent != null) q.set("downPercent", String(parsed.downPercent));
+
+    // Rate (percent)
+    if (parsed.rate != null) {
+        q.set("rate", String(parsed.rate));        // newer style
+        q.set("ratePct", String(parsed.rate));     // engine style
+    }
+
+    // Term
+    q.set("term", String(termYears));            // newer style (years)
+    q.set("termMonths", String(termYears * 12)); // engine style (months)
+
+    // ZIP for tax lookup
+    if (parsed.zip) q.set("zip", parsed.zip);
+
+    // Soft defaults for recurring fields (map to both styles)
+    q.set("ins", "100");           // newer
+    q.set("monthlyIns", "100");    // engine
+    q.set("hoa", "0");
+    q.set("monthlyHOA", "0");
+    // q.set("taxBase", "price");  // optional
+
+    const calcURL = new URL(`/api/calc/payment?${q.toString()}`, origin);
+    const resp = await fetch(calcURL, { cache: "no-store" });
+
+    if (!resp.ok) {
+        const text = await resp.text();
+        return noStore({
+            ok: false, route: "calc/answer", at: now,
+            message: `Payment engine error (${resp.status}).`,
+            answer: text.slice(0, 400),
+            suggest: [
+                "$750k in 91301 with 10% down at 6.375% for 30 years",
+                "Loan $480k at 6.5% for 30 years, ZIP 90011",
+            ],
+        }, 502);
+    }
+
+    const j = await resp.json();
+    const b = (j?.breakdown ?? {}) as Record<string, number>;
+    const nice = `P&I $${(b.monthlyPI ?? 0).toLocaleString()} • Tax $${(b.monthlyTax ?? 0).toLocaleString()} • Ins $${(b.monthlyIns ?? 0).toLocaleString()}${(b.monthlyHOA ?? 0 ? ` • HOA $${(b.monthlyHOA ?? 0).toLocaleString()}` : "")}`;
+
+    return noStore({
+        ok: true, route: "calc/answer", at: now,
+        inputs: j?.inputs, lookups: j?.lookups, breakdown: j?.breakdown,
+        sensitivity: j?.sensitivity,
+        answer: j?.answer ?? `Estimated monthly payment (see itemization):\n${nice}`,
+        lineItem: nice,
+    });
 }
 
-function estimateMonthlyTaxes(base: number, zip?: string): { amount: number; source: string } {
-    // TODO: plug real table by ZIP later
-    const annualRate = 0.012; // 1.20% fallback
-    const amt = (base * annualRate) / 12;
-    return { amount: amt, source: `fallback:default • ${(annualRate * 100).toFixed(2)}%${zip ? ` • ZIP ${zip}` : ""}` };
-}
-
-/* =========================
-   Handler
-========================= */
-
-export async function GET(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const q = (searchParams.get("q") || "").trim();
-
-    if (!q) {
-        return noStore(<Answer>{
-            ok: false,
-            msg: "Missing q. Example: 'Price $900k, 20% down, 6.25%, 30 years, ZIP 92688'.",
-            inputs: {},
-        }, 400);
-    }
-
-    const inputs = parseQuery(q);
-
-    // Require minimal set: (loan OR (price + down%)) AND rate AND term
-    const hasLoan = typeof inputs.loanAmount === "number";
-    const hasPriceCombo = typeof inputs.price === "number" && typeof inputs.downPercent === "number";
-    const hasRate = typeof inputs.ratePct === "number";
-    const hasTerm = typeof inputs.termMonths === "number";
-
-    if (!((hasLoan || hasPriceCombo) && hasRate && hasTerm)) {
-        const hint = "Try: 'Loan $400k at 6.5% for 30 years' or 'Price $900k, 20% down, 6.25%, 30 years, ZIP 92688'.";
-        return noStore(<Answer>{ ok: false, inputs, msg: `Need loan+rate+term OR price+down%+rate+term. ${hint}` }, 400);
-    }
-
-    // Compute canonical loanAmount
-    let loanAmount = inputs.loanAmount!;
-    if (!loanAmount && inputs.price && inputs.downPercent != null) {
-        loanAmount = inputs.price * (1 - inputs.downPercent / 100);
-    }
-
-    // Defaults for ins/HOA if not provided
-    const monthlyIns = typeof inputs.monthlyIns === "number" ? inputs.monthlyIns : 100;
-    const monthlyHOA = typeof inputs.monthlyHOA === "number" ? inputs.monthlyHOA : 0;
-
-    // Taxes: base it on price if available, otherwise loan
-    const taxBase = inputs.price ?? loanAmount;
-    const taxEst = estimateMonthlyTaxes(taxBase, inputs.zip);
-
-    // PI
-    const pi = monthlyPI(loanAmount, inputs.ratePct!, inputs.termMonths!);
-
-    const breakdown: Breakdown = {
-        monthlyPI: pi,
-        monthlyTaxes: taxEst.amount,
-        monthlyIns,
-        monthlyHOA,
-        monthlyMI: 0,
-        monthlyTotalPITI: pi + taxEst.amount + monthlyIns + monthlyHOA + 0,
-    };
-
-    const body: Answer = {
-        ok: true,
-        inputs: {
-            ...inputs,
-            loanAmount,
-            // Normalize/round to two decimals for display stability on client
-            ratePct: Number(inputs.ratePct!.toFixed(4)),
-            termMonths: inputs.termMonths!,
-        },
-        breakdown,
-        taxSource: taxEst.source,
-    };
-
-    return noStore(body, 200);
+export async function GET(req: NextRequest) { return handle(req); }
+export async function POST(req: NextRequest) {
+    const url = new URL(req.url);
+    try { const body = (await req.json()) as { q?: string }; const q = (body?.q || "").trim(); if (q) url.searchParams.set("q", q); } catch { }
+    return handle(req, url);
 }
