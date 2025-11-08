@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BUILD_TAG = "calc-v2.5.1-parser-guard-2025-11-08";
+const BUILD_TAG = "calc-v2.5.2-parser-guard-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -166,17 +166,15 @@ function parseQuery(q: string): Inputs {
             });
     }
 
-    // 1) Explicit forms (normalize 625 -> 6.25 OK here; tolerant for "@" or "%")
+    // 1) Explicit forms ONLY (no greedy catch-all):
+    //    - "rate 6.25" (percent optional)
+    //    - "@ 6.25" or "at 6.25" but NOT followed by "years/months"
+    //    - "6.25%" anywhere
     let ratePct: number | undefined;
     let m =
         sForRate.match(/\brate\s*([0-9]+(?:\.[0-9]+)?)/) ||
-        sForRate.match(/[@]\s*([0-9]+(?:\.[0-9]+)?)/) ||
-        sForRate.match(/\bat\s*([0-9]+(?:\.[0-9]+)?)/) ||
-        sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%?/);
-    if (m?.[1]) {
-        ratePct = toPercentExplicit(m[1]);
-    }
-
+        sForRate.match(/(?:@|at)\s*([0-9]+(?:\.[0-9]+)?)(?!\s*(?:y|yr|yrs|year|years|mo|months)\b)/) ||
+        sForRate.match(/\b([0-9]+(?:\.[0-9]+)?)\s*%/);
     if (m?.[1]) {
         ratePct = toPercentExplicit(m[1]);
     }
@@ -186,7 +184,7 @@ function parseQuery(q: string): Inputs {
         const termPos = termToken?.index ?? sForRate.length;
 
         const numRegex = /\b([0-9]+(?:\.[0-9]+)?)\b/g;
-        const candidates: Array<{ val: number; idx: number; hasPct: boolean }> = [];
+        const candidates: Array<{ val: number; idx: number }> = [];
         let mm: RegExpExecArray | null;
         while ((mm = numRegex.exec(sForRate)) !== null) {
             const idx = mm.index!;
@@ -195,17 +193,11 @@ function parseQuery(q: string): Inputs {
             const nextChar = sForRate.slice(idx + text.length, idx + text.length + 1);
             if (nextChar === "k" || nextChar === "m") continue;
 
-            // See if a % immediately follows (allow spaces)
-            const tail = sForRate.slice(idx + text.length);
-            const pctAfter = /^\s*%/.test(tail);
-
+            // literal number (no percent scaling)
             const rawNum = Number(text);
             if (!isFinite(rawNum)) continue;
 
-            // No 625 -> 6.25 here; bare numbers are literal
-            const val = pctAfter ? (rawNum > 100 ? rawNum / 100 : rawNum) : rawNum;
-
-            candidates.push({ val, idx, hasPct: pctAfter });
+            candidates.push({ val: rawNum, idx });
         }
 
         const beforeTerm = candidates
