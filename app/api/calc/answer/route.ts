@@ -208,25 +208,40 @@ function parseQuery(q: string): Inputs {
         }
     }
 
-    // 3) Last-ditch: still no rate? pick the right-most numeric (int or decimal) in 0.1–25 anywhere.
+    // 3) Last-ditch: still no rate?
+    // Collect valid numeric candidates (0.1–25), excluding ZIPs, k/m amounts, and time-unit neighbors.
     if (ratePct == null) {
-        const anyNums = [...sForRate.matchAll(/\b([0-9]+(?:\.[0-9]+)?)\b/g)]
+        const tokens = [...sForRate.matchAll(/\b([0-9]+(?:\.[0-9]+)?)\b/g)]
             .map(m => ({ val: Number(m[1]), idx: m.index!, text: m[1] }))
-            // exclude k/m suffix and 5-digit ZIPs and time-unit neighbors
             .filter(tok => {
-                const nextChar = sForRate.slice(tok.idx + String(tok.text).length, tok.idx + String(tok.text).length + 1);
+                if (!isFinite(tok.val)) return false;
+                // exclude k/m suffix
+                const end = tok.idx + String(tok.text).length;
+                const nextChar = sForRate.slice(end, end + 1);
                 if (nextChar === "k" || nextChar === "m") return false;
+                // exclude 5-digit ZIPs
                 const prevFour = sForRate.slice(Math.max(0, tok.idx - 4), tok.idx) + tok.text;
                 if (/^\d{5}$/.test(prevFour)) return false;
-                const tail = sForRate.slice(tok.idx + String(tok.text).length);
+                // exclude time-unit neighbors
+                const tail = sForRate.slice(end);
                 if (/^\s*(?:y|yr|yrs|year|years|mo|months)\b/.test(tail)) return false;
                 return tok.val >= 0.1 && tok.val <= 25;
             });
 
-        if (anyNums.length) {
-            ratePct = anyNums.sort((a, b) => b.idx - a.idx)[0].val;
+        if (tokens.length) {
+            if (
+                // If we already have price+down%+term, prefer uniqueness: a single candidate is almost surely the rate.
+                (typeof inputs.price === "number" && typeof inputs.downPercent === "number" && typeof inputs.termMonths === "number")
+                && tokens.length === 1
+            ) {
+                ratePct = tokens[0].val;
+            } else {
+                // Otherwise stick with right-most candidate (works well in free text).
+                ratePct = tokens.sort((a, b) => b.idx - a.idx)[0].val;
+            }
         }
     }
+
 
     if (typeof ratePct === "number") inputs.ratePct = ratePct;
 
