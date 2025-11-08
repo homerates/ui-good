@@ -58,3 +58,5 @@ _local_trash/
 
 # clerk configuration (can include secrets)
 /.clerk/
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
