@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BUILD_TAG = "calc-v2.5.2-parser-guard-2025-11-08";
+const BUILD_TAG = "calc-v2.5.3-parser-guard-2025-11-08";
 
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -51,18 +51,13 @@ function toNumber(raw?: string | null): number | undefined {
     if (!raw) return undefined;
     let s = raw.trim().toLowerCase().replace(/[\$,]/g, "");
     let mult = 1;
-    if (s.endsWith("m")) {
-        mult = 1_000_000;
-        s = s.slice(0, -1);
-    } else if (s.endsWith("k")) {
-        mult = 1_000;
-        s = s.slice(0, -1);
-    }
+    if (s.endsWith("m")) { mult = 1_000_000; s = s.slice(0, -1); }
+    else if (s.endsWith("k")) { mult = 1_000; s = s.slice(0, -1); }
     const n = Number(s);
     return isFinite(n) ? n * mult : undefined;
 }
 
-// For explicit percent inputs only (has % or "rate" keyword): allow 625 -> 6.25
+// Explicit percent inputs (has % or "rate"/"@"/"at"): allow 625 -> 6.25
 function toPercentExplicit(raw?: string | null): number | undefined {
     if (!raw) return undefined;
     const s = raw.trim().toLowerCase().replace(/%/g, "");
@@ -98,17 +93,11 @@ function parseQuery(q: string): Inputs {
     // down% spans: “down 20%” OR “20% down”
     const downSpanA = s.match(/down\s*[0-9\.]+\s*%/);
     const downSpanB = s.match(/[0-9\.]+\s*%\s*down/);
-    const downMatch =
-        s.match(/down\s*([0-9\.]+)\s*%/) ||
-        s.match(/([0-9\.]+)\s*%\s*down/);
+    const downMatch = s.match(/down\s*([0-9\.]+)\s*%/) || s.match(/([0-9\.]+)\s*%\s*down/);
 
     // ins/hoa tokens
-    const insMatch =
-        s.match(/\bins(?:urance)?\s*\$?\s*([0-9\.,]+)/) ||
-        s.match(/\$?\s*([0-9\.,]+)\s*(?:ins|insurance)\b/);
-    const hoaMatch =
-        s.match(/\bhoa\s*\$?\s*([0-9\.,]+)/) ||
-        s.match(/\$?\s*([0-9\.,]+)\s*hoa\b/);
+    const insMatch = s.match(/\bins(?:urance)?\s*\$?\s*([0-9\.,]+)/) || s.match(/\$?\s*([0-9\.,]+)\s*(?:ins|insurance)\b/);
+    const hoaMatch = s.match(/\bhoa\s*\$?\s*([0-9\.,]+)/) || s.match(/\$?\s*([0-9\.,]+)\s*hoa\b/);
 
     // ZIP
     const zipMatch = s.match(/\b(\d{5})(?:-\d{4})?\b/);
@@ -153,23 +142,21 @@ function parseQuery(q: string): Inputs {
     if (typeof termMonths === "number") inputs.termMonths = termMonths;
 
     // ===== Rate detection =====
-    // Build a clean string for rate parsing by removing exact down% span(s) by index
+    // Make a copy with *down%* spans removed by index so indices stay consistent
     let sForRate = s;
     const spans: Array<{ start: number; end: number }> = [];
     if (downSpanA) spans.push({ start: downSpanA.index!, end: downSpanA.index! + downSpanA[0].length });
     if (downSpanB) spans.push({ start: downSpanB.index!, end: downSpanB.index! + downSpanB[0].length });
     if (spans.length) {
-        spans
-            .sort((a, b) => b.start - a.start)
-            .forEach((sp) => {
-                sForRate = sForRate.slice(0, sp.start) + " " + sForRate.slice(sp.end);
-            });
+        spans.sort((a, b) => b.start - a.start).forEach(sp => {
+            sForRate = sForRate.slice(0, sp.start) + " " + sForRate.slice(sp.end);
+        });
     }
 
-    // 1) Explicit forms ONLY (no greedy catch-all):
-    //    - "rate 6.25" (percent optional)
-    //    - "@ 6.25" or "at 6.25" but NOT followed by "years/months"
-    //    - "6.25%" anywhere
+    // 1) Explicit forms ONLY
+    //    - "rate 6.25"
+    //    - "@ 6.25" / "at 6.25" (not followed by time units)
+    //    - "6.25%"
     let ratePct: number | undefined;
     let m =
         sForRate.match(/\brate\s*([0-9]+(?:\.[0-9]+)?)/) ||
@@ -179,9 +166,14 @@ function parseQuery(q: string): Inputs {
         ratePct = toPercentExplicit(m[1]);
     }
 
-    // 2) If still no rate and we have a term, choose the closest valid decimal before the term token (no scaling)
+    // 2) If still no rate and we have a term, pick the closest valid decimal *before the term*.
+    //    IMPORTANT: compute the term position from sForRate (after down% removal) to keep indices aligned.
     if (ratePct == null && inputs.termMonths) {
-        const termPos = termToken?.index ?? sForRate.length;
+        const termTokenRate =
+            sForRate.match(/\b(\d{1,3})\s*(?:y|yr|yrs|year|years)\b/) ||
+            sForRate.match(/\b(\d{1,3})(?:y|yr|yrs)\b/) ||
+            sForRate.match(/\b(\d{2,3})\s*(?:mo|months)\b/);
+        const termPos = termTokenRate?.index ?? sForRate.length;
 
         const numRegex = /\b([0-9]+(?:\.[0-9]+)?)\b/g;
         const candidates: Array<{ val: number; idx: number }> = [];
@@ -193,7 +185,6 @@ function parseQuery(q: string): Inputs {
             const nextChar = sForRate.slice(idx + text.length, idx + text.length + 1);
             if (nextChar === "k" || nextChar === "m") continue;
 
-            // literal number (no percent scaling)
             const rawNum = Number(text);
             if (!isFinite(rawNum)) continue;
 
