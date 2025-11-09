@@ -24,6 +24,7 @@ export type SidebarProps = {
   onSearch?: () => void;
   onLibrary?: () => void;
   onNewProject?: () => void;
+  onMortgageCalc?: () => void; // <-- NEW (optional)
 
   // NEW: open/close + selection
   isOpen?: boolean;
@@ -43,6 +44,7 @@ export default function Sidebar({
   onSearch,
   onLibrary,
   onNewProject,
+  onMortgageCalc, // <-- NEW
   isOpen = true,
   onToggle,
   activeId,
@@ -61,10 +63,11 @@ export default function Sidebar({
     if (act === 'search') return onSearch?.();
     if (act === 'library') return onLibrary?.();
     if (act === 'new-project') return onNewProject?.();
+    if (act === 'mortgage-calc') return onMortgageCalc?.(); // <-- NEW
     if (act === 'settings') return onSettings?.();
     if (act === 'login') { router.push('/login'); return; }
     if (act === 'share') return onShare?.();
-  }, [onNewChat, onSearch, onLibrary, onNewProject, onSettings, onShare, router]);
+  }, [onNewChat, onSearch, onLibrary, onNewProject, onMortgageCalc, onSettings, onShare, router]); // <-- added dep
 
   // Mobile detection (for slide-in/out)
   const [isMobile, setIsMobile] = React.useState(false);
@@ -143,6 +146,11 @@ export default function Sidebar({
         <path d="M10 3h8a1 1 0 011 1v16a1 1 0 01-1 1h-8v-2h7V5h-7V3zM5.59 7.41L7 6l5 5-5 5-1.41-1.41L8.17 12 5.59 9.41z" fill="currentColor" />
       </svg>
     ),
+    Calc: () => ( // <-- NEW
+      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm0 4h10V5H7v2zm2 4h2v2H9v-2zm0 4h2v2H9v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2z" fill="currentColor" />
+      </svg>
+    ),
   };
 
   // Slide behavior (inline style so we don't rely on CSS being present)
@@ -216,9 +224,17 @@ export default function Sidebar({
               <Icon.Book /> Library
             </span>
           </button>
+
           <button className="btn" type="button" data-action="new-project" aria-label="New Project">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Icon.Folder /> New Project +
+            </span>
+          </button>
+
+          {/* === Mortgage Calculator (NEW) — identical pill group & styling === */}
+          <button className="btn" type="button" data-action="mortgage-calc" aria-label="Mortgage Calculator">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon.Calc /> Mortgage Calculator
             </span>
           </button>
         </nav>
