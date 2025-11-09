@@ -26,8 +26,9 @@ type QuickCalcPanelProps = {
 };
 
 /**
- * A small, safe input panel that hits /api/calc/payment with
- * search params, no alias paths, no external libs.
+ * QuickCalc now proxies to the same calc engine as chat:
+ *   GET /api/calc/answer?q=<natural language>
+ * We compose a single "q" string (loan OR price+down) + rate + term + zip, with ins/hoa hints.
  */
 export default function QuickCalcPanel({
     open,
@@ -57,40 +58,59 @@ export default function QuickCalcPanel({
         if (seed?.ins != null) setIns(String(seed.ins));
     }, [open, seed]);
 
+    function toK(n: string) {
+        const v = n.trim();
+        if (!v) return '';
+        // allow 900k / 1.2m style or plain numbers
+        if (/^\d+(\.\d+)?[kKmM]$/.test(v)) return v.toLowerCase();
+        if (/^\d+(\.\d+)?$/.test(v)) return v;
+        return v; // leave as-is; parser is robust
+    }
+
+    function buildQueryString(): string {
+        const parts: string[] = [];
+
+        const loan = toK(loanAmount);
+        const price = toK(purchasePrice);
+        const down = downPercent.trim();
+        const rate = ratePct.trim();
+        const years = termYears.trim() || '30';
+        const zip5 = zip.trim();
+        const insVal = ins.trim();
+        const hoaVal = hoa.trim();
+
+        if (loan) {
+            // loan-first phrasing
+            parts.push(`loan ${loan}`);
+        } else if (price && down) {
+            parts.push(`price ${price}`, `down ${down}%`);
+        }
+
+        if (rate) parts.push(`${rate}%`);
+        if (years) parts.push(`${years} years`);
+        if (zip5) parts.push(`zip ${zip5}`);
+
+        // optional soft hints (engine supports these tokens)
+        if (insVal) parts.push(`ins ${insVal}`);
+        if (hoaVal) parts.push(`hoa ${hoaVal}`);
+
+        return parts.join(' ').replace(/\s+/g, ' ').trim();
+    }
+
     async function handleRun() {
-        const q = new URLSearchParams();
+        const q = buildQueryString();
 
-        // Either loanAmount or price+downPercent must exist for /api/calc/payment
-        if (loanAmount.trim()) q.set('loan', loanAmount.trim());
-        if (purchasePrice.trim()) q.set('price', purchasePrice.trim());
-        if (downPercent.trim()) q.set('downPercent', downPercent.trim());
-
-        if (ratePct.trim()) {
-            q.set('rate', ratePct.trim());    // supported by your engine
-            q.set('ratePct', ratePct.trim()); // also accepted
-        }
-
-        q.set('termYears', termYears.trim() || '30');
-        q.set('termMonths', String((Number(termYears) || 30) * 12));
-
-        if (zip.trim()) q.set('zip', zip.trim());
-
-        // defaults for consistency with your engine
-        q.set('ins', ins.trim() || '100');
-        q.set('monthlyIns', ins.trim() || '100');
-        q.set('hoa', hoa.trim() || '0');
-        q.set('monthlyHOA', hoa.trim() || '0');
-
-        // tax base is optional; engine can infer by ZIP+price
-        // if (seed?.taxBase) q.set('taxBase', seed.taxBase);
-
-        const url = `/api/calc/payment?${q.toString()}`;
+        // Guardrail: if neither loan nor (price+down) present, let the engine guide.
+        const url = `/api/calc/answer?q=${encodeURIComponent(q)}`;
         const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) {
-            const text = await res.text().catch(() => '');
-            throw new Error(`calc/payment ${res.status}: ${text.slice(0, 200)}`);
+        const text = await res.text();
+        let json: any = null;
+        try {
+            json = JSON.parse(text);
+        } catch {
+            throw new Error(`calc/answer invalid JSON: ${text.slice(0, 200)}`);
         }
-        const json = await res.json();
+
         onResult?.(json);
         onClose();
     }
@@ -127,7 +147,7 @@ export default function QuickCalcPanel({
                         <input
                             value={loanAmount}
                             onChange={(e) => setLoanAmount(e.target.value)}
-                            placeholder="e.g., 400000"
+                            placeholder="e.g., 400000 or 400k"
                             className="w-full rounded-md border px-3 py-2"
                             inputMode="numeric"
                         />
@@ -150,7 +170,7 @@ export default function QuickCalcPanel({
                         <input
                             value={purchasePrice}
                             onChange={(e) => setPurchasePrice(e.target.value)}
-                            placeholder="e.g., 750000"
+                            placeholder="e.g., 750000 or 750k"
                             className="w-full rounded-md border px-3 py-2"
                             inputMode="numeric"
                         />
@@ -160,7 +180,7 @@ export default function QuickCalcPanel({
                         <input
                             value={downPercent}
                             onChange={(e) => setDownPercent(e.target.value)}
-                            placeholder="e.g., 10"
+                            placeholder="e.g., 20"
                             className="w-full rounded-md border px-3 py-2"
                             inputMode="decimal"
                         />
@@ -183,7 +203,7 @@ export default function QuickCalcPanel({
                         <input
                             value={zip}
                             onChange={(e) => setZip(e.target.value)}
-                            placeholder="91301"
+                            placeholder="92688"
                             className="w-full rounded-md border px-3 py-2"
                             inputMode="numeric"
                             maxLength={5}
@@ -215,8 +235,7 @@ export default function QuickCalcPanel({
                 </div>
 
                 <p className="text-xs text-gray-600">
-                    Tip: If you enter a loan amount, price/down% are optional. If you don’t enter a loan amount,
-                    make sure to include price and down%.
+                    Tip: Use either a loan amount, or price + down%. Then add rate, term, and ZIP for the most accurate PITI.
                 </p>
             </div>
         </SlidePanel>
