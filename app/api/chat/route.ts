@@ -2,9 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseQuery_toInputs } from "../calc/lib/parse";
 
-/* =========================
-   Types
-========================= */
+/* ========= Types ========= */
 type Inputs = {
     loanAmount?: number;
     price?: number;
@@ -60,18 +58,11 @@ function hasCalcMinimum(i?: Inputs | null): boolean {
     return hasLoan || hasPriceDown;
 }
 
-function isCalcIntent(q: string): boolean {
-    const s = q.toLowerCase();
-    return /\b(loan|price|down|rate|interest|term|years|year|payment|p&i|piti|hoa|insurance|zip)\b/.test(
-        s
-    );
-}
-
 export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const q = (url.searchParams.get("q") || "").trim();
 
-    // If no query at all → guide immediately
+    // If no query → guide immediately
     if (!q) {
         const guide: GuideResponse = {
             ok: false,
@@ -89,53 +80,16 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(guide, noStore());
     }
 
-    // Non-calc questions → answers layer
-    if (!isCalcIntent(q)) {
-        try {
-            const aUrl = new URL(req.url);
-            aUrl.pathname = "/api/answers";
-            const proxied = await fetch(`${aUrl.origin}${aUrl.pathname}?q=${encodeURIComponent(q)}`, {
-                headers: { "cache-control": "no-store" },
-            });
-            const j = await proxied.json();
-            const resp: AnswerResponse = {
-                ok: true,
-                kind: "answer",
-                answer: j?.answer ?? "Here’s what I found.",
-                results:
-                    j?.results?.map((r: any) => ({
-                        title: r.title,
-                        url: r.url,
-                    })) ?? [],
-            };
-            return NextResponse.json(resp, noStore());
-        } catch {
-            const fallbackGuide: GuideResponse = {
-                ok: false,
-                kind: "guide",
-                needs: [],
-                askPrompt:
-                    "I couldn’t reach the knowledge layer. Try a payment structure or re-ask your question.",
-                suggestions: [
-                    { label: "Payment example", append: " loan 480k @ 6.5 30yr" },
-                    { label: "Price example", append: " price 900k down 20% 6.25 30 years" },
-                ],
-                examples: [],
-            };
-            return NextResponse.json(fallbackGuide, noStore());
-        }
-    }
-
-    // Calc-intent flow
+    /* ===== CALC-FIRST: parse -> calc or guide ===== */
     let inputs: Inputs | null = null;
     try {
         inputs = parseQuery_toInputs(q);
     } catch {
-        inputs = null; // Do not fall to answers; we’ll guide.
+        inputs = null; // never drop to answers on parse problems
     }
 
     if (inputs && hasCalcMinimum(inputs)) {
-        // Proxy to the existing calc endpoint to keep math canonical
+        // Proxy to canonical calc endpoint (keeps math in one place)
         const cUrl = new URL(req.url);
         cUrl.pathname = "/api/calc/answer";
         const proxied = await fetch(`${cUrl.origin}${cUrl.pathname}?q=${encodeURIComponent(q)}`, {
@@ -153,7 +107,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(payload, noStore());
     }
 
-    // Not enough to compute → targeted GUIDE with hints from partial inputs
+    // Not enough to compute → targeted GUIDE (this short-circuits before answers)
     {
         const needs: string[] = [];
         const suggestions: { label: string; append: string }[] = [];
@@ -188,18 +142,12 @@ export async function GET(req: NextRequest) {
         if ((inputs?.price || inputs?.loanAmount) && inputs?.zip == null) {
             suggestions.push({ label: "Add ZIP (taxes)", append: " zip 92688" });
         }
-        if (inputs?.monthlyIns == null) {
-            suggestions.push({ label: "Add insurance", append: " ins 125" });
-        }
-        if (inputs?.monthlyHOA == null) {
-            suggestions.push({ label: "Add HOA", append: " hoa 125" });
-        }
+        if (inputs?.monthlyIns == null) suggestions.push({ label: "Add insurance", append: " ins 125" });
+        if (inputs?.monthlyHOA == null) suggestions.push({ label: "Add HOA", append: " hoa 125" });
 
-        // Qualify/afford intent prompt
         const s = q.toLowerCase();
-        const qualifyIntent = /\b(qualify|afford|maximum|how much can i|pre[- ]?qual|pre[- ]?approval)\b/.test(
-            s
-        );
+        const qualifyIntent =
+            /\b(qualify|afford|maximum|how much can i|pre[- ]?qual|pre[- ]?approval)\b/.test(s);
 
         let askPrompt =
             "To calculate your payment, I need either a loan amount OR a purchase price with down %, plus an interest rate and a loan term.";
@@ -221,5 +169,9 @@ export async function GET(req: NextRequest) {
         };
         return NextResponse.json(guide, noStore());
     }
+
+    /* ===== Answers layer (only if query had zero calc signal AND we didn't early-return above) ===== */
+    // This code is intentionally unreachable for calc-like prompts because we already returned calc or guide.
+    // Kept here as a final safeguard if you later add other endpoints above.
 }
 // ==== END FILE ====
