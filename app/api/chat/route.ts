@@ -75,41 +75,45 @@ export async function GET(req: NextRequest) {
             s
         );
 
+    // 1) Try to parse calc inputs — NEVER fall straight to answers on parse issues
+    let inputs: ReturnType<typeof parseQuery_toInputs> | null = null;
     try {
-        // 1) Try to parse calc inputs
-        const inputs = parseQuery_toInputs(q);
+        inputs = parseQuery_toInputs(q);
+    } catch {
+        inputs = null; // we’ll guide instead of dropping to answers/web
+    }
 
-        if (hasCalcMinimum(inputs)) {
-            // 1a) We have enough for a calc → proxy to existing calc endpoint
-            const url = new URL(req.url);
-            url.pathname = "/api/calc/answer";
-            const proxied = await fetch(`${url.origin}${url.pathname}?q=${encodeURIComponent(q)}`, {
-                headers: { "cache-control": "no-store" },
-            });
-            const json = await proxied.json();
+    // If we have enough for a calc → proxy to existing calc endpoint
+    if (inputs && hasCalcMinimum(inputs)) {
+        const url = new URL(req.url);
+        url.pathname = "/api/calc/answer";
+        const proxied = await fetch(`${url.origin}${url.pathname}?q=${encodeURIComponent(q)}`, {
+            headers: { "cache-control": "no-store" },
+        });
+        const json = await proxied.json();
 
-            // Normalize into {kind: 'calc'}
-            const payload: CalcProxyResponse = {
-                ok: true,
-                kind: "calc",
-                build: json.build,
-                inputs: json.inputs,
-                breakdown: json.breakdown,
-                taxSource: json.taxSource,
-            };
-            return NextResponse.json(payload, noStore());
-        }
+        const payload: CalcProxyResponse = {
+            ok: true,
+            kind: "calc",
+            build: json.build,
+            inputs: json.inputs,
+            breakdown: json.breakdown,
+            taxSource: json.taxSource,
+        };
+        return NextResponse.json(payload, noStore());
+    }
 
-        // 2) If not enough for calc → produce a targeted GUIDE response
+    // Not enough for calc → targeted GUIDE (don’t fall to answers here)
+    {
         const needs: string[] = [];
         const suggestions: { label: string; append: string }[] = [];
         const examples: string[] = [];
 
-        const haveLoan = inputs.loanAmount != null;
-        const havePrice = inputs.price != null;
-        const haveDown = inputs.downPercent != null;
-        const haveRate = inputs.ratePct != null;
-        const haveTerm = inputs.termMonths != null;
+        const haveLoan = !!inputs?.loanAmount;
+        const havePrice = !!inputs?.price;
+        const haveDown = !!inputs?.downPercent;
+        const haveRate = !!inputs?.ratePct;
+        const haveTerm = !!inputs?.termMonths;
 
         if (!haveLoan && !(havePrice && haveDown)) {
             needs.push("loanAmount OR (price + down%)");
@@ -131,18 +135,21 @@ export async function GET(req: NextRequest) {
             suggestions.push({ label: "Use 30 years", append: " 30 years" });
         }
 
-        // Extras that improve realism
-        if (inputs.zip == null && (havePrice || haveLoan)) {
+        // helpful add-ons
+        if ((inputs?.price || inputs?.loanAmount) && inputs?.zip == null) {
             suggestions.push({ label: "Add ZIP (taxes)", append: " zip 92688" });
         }
-        if (inputs.monthlyIns == null) {
+        if (inputs?.monthlyIns == null) {
             suggestions.push({ label: "Add insurance", append: " ins 125" });
         }
-        if (inputs.monthlyHOA == null) {
+        if (inputs?.monthlyHOA == null) {
             suggestions.push({ label: "Add HOA", append: " hoa 125" });
         }
 
-        // Guide copy differs slightly if they’re asking affordability
+        const s = q.toLowerCase();
+        const qualifyIntent =
+            /\b(qualify|afford|maximum|how much can i|pre[- ]?qual|pre[- ]?approval)\b/.test(s);
+
         let askPrompt =
             "To calculate your payment, I need either a loan amount OR a purchase price with down %, plus an interest rate and a loan term.";
         if (qualifyIntent) {
@@ -167,40 +174,42 @@ export async function GET(req: NextRequest) {
             examples,
         };
         return NextResponse.json(guide, noStore());
-    } catch (err: any) {
-        // 3) Final fallback: general answers (your existing knowledge layer)
-        try {
-            const url = new URL(req.url);
-            url.pathname = "/api/answers";
-            const proxied = await fetch(`${url.origin}${url.pathname}?q=${encodeURIComponent(q)}`, {
-                headers: { "cache-control": "no-store" },
-            });
-            const j = await proxied.json();
-            const payload: AnswerResponse = {
-                ok: true,
-                kind: "answer",
-                answer: j?.answer ?? "Here's what I found.",
-                results: j?.results?.map((r: any) => ({ title: r.title, url: r.url })) ?? [],
-            };
-            return NextResponse.json(payload, noStore());
-        } catch {
-            return NextResponse.json(
-                {
-                    ok: false,
-                    kind: "guide",
-                    needs: [],
-                    askPrompt:
-                        "I couldn’t parse that or reach the knowledge layer. Try a payment question or ask what you want to achieve.",
-                    suggestions: [
-                        { label: "Payment example", append: " loan 480k @ 6.5 30yr" },
-                        { label: "Price example", append: " price 900k down 20% 6.25 30 years" },
-                    ],
-                    examples: [],
-                } as GuideResponse,
-                noStore()
-            );
-        }
     }
+
+} catch (err: any) {
+    // 3) Final fallback: general answers (your existing knowledge layer)
+    try {
+        const url = new URL(req.url);
+        url.pathname = "/api/answers";
+        const proxied = await fetch(`${url.origin}${url.pathname}?q=${encodeURIComponent(q)}`, {
+            headers: { "cache-control": "no-store" },
+        });
+        const j = await proxied.json();
+        const payload: AnswerResponse = {
+            ok: true,
+            kind: "answer",
+            answer: j?.answer ?? "Here's what I found.",
+            results: j?.results?.map((r: any) => ({ title: r.title, url: r.url })) ?? [],
+        };
+        return NextResponse.json(payload, noStore());
+    } catch {
+        return NextResponse.json(
+            {
+                ok: false,
+                kind: "guide",
+                needs: [],
+                askPrompt:
+                    "I couldn’t parse that or reach the knowledge layer. Try a payment question or ask what you want to achieve.",
+                suggestions: [
+                    { label: "Payment example", append: " loan 480k @ 6.5 30yr" },
+                    { label: "Price example", append: " price 900k down 20% 6.25 30 years" },
+                ],
+                examples: [],
+            } as GuideResponse,
+            noStore()
+        );
+    }
+}
 }
 
 function noStore() {
