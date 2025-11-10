@@ -46,11 +46,10 @@ function solvePI(loanAmount: number, annualRatePct: number, termYears: number): 
   return Math.round(pmt * 100) / 100;
 }
 
-/** Lightweight parser for free-form q, mirrors your client patterns enough for MVP */
+/** Lightweight parser for free-form q */
 function parseFromQ(q: string) {
   const clean = q.replace(/,/g, '').toLowerCase();
 
-  // dollars (with optional k/m) that are NOT followed by %
   const moneyTokens = Array.from(clean.matchAll(/\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g))
     .map((m) => {
       const start = m.index ?? 0;
@@ -60,7 +59,6 @@ function parseFromQ(q: string) {
       return { text, index: start, value: parseMoney(text), followedByPercent: /^\s*%/.test(next) };
     });
 
-  // rate %
   let annualRatePct: number | undefined;
   const near = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
   if (near) annualRatePct = parseFloat(near[1]);
@@ -69,26 +67,21 @@ function parseFromQ(q: string) {
     if (any) annualRatePct = parseFloat(any[1]);
   }
 
-  // term years
   const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y)\b/);
   let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
 
-  // explicit "loan amount: $X"
   let loanAmount: number | undefined;
   const loanExplicit = clean.match(/\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/);
   if (loanExplicit?.[1]) loanAmount = parseMoney(loanExplicit[1]);
 
-  // fallback: first non-% money token interpreted as loan
   if (!isFiniteNum(loanAmount)) {
     const candidate = moneyTokens.find((t) => !t.followedByPercent)?.value;
     if (isFiniteNum(candidate)) loanAmount = candidate;
   }
 
-  // down %
   const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down/);
   const downPercent = downMatch ? parseFloat(downMatch[1]) : undefined;
 
-  // purchase price (if they used "price" words)
   let purchasePrice: number | undefined;
   if (!isFiniteNum(loanAmount)) {
     const priceHint = /\b(purchase|purchase\s*price|price|home|house|pp|value)\b/.test(clean);
@@ -98,7 +91,6 @@ function parseFromQ(q: string) {
     }
   }
 
-  // default term if context exists
   if (!termYears && (isFiniteNum(loanAmount) || isFiniteNum(purchasePrice)) && isFiniteNum(annualRatePct)) {
     termYears = 30;
   }
@@ -112,15 +104,21 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const sp = url.searchParams;
 
-    // 1) Read structured params
+    // Structured params (with tolerant aliases)
     let loanAmount = parseMoney(sp.get('loanAmount'));
-    const purchasePrice = parseMoney(sp.get('purchasePrice'));
-    const downPercent = parsePercent(sp.get('downPercent'));
-    let annualRatePct = parsePercent(sp.get('annualRatePct'));
-    let termYears = parseInt(sp.get('termYears') || '', 10);
+    const purchasePrice =
+      parseMoney(sp.get('purchasePrice')) ??
+      parseMoney(sp.get('price')); // alias
+
+    const downPctParam =
+      parsePercent(sp.get('downPercent')) ??
+      parsePercent(sp.get('downPct')); // alias
+
+    let annualRatePct = parsePercent(sp.get('annualRatePct')) ?? parsePercent(sp.get('rate'));
+    let termYears = parseInt(sp.get('termYears') || sp.get('term') || '', 10);
     if (!Number.isFinite(termYears)) termYears = undefined as any;
 
-    // 2) If missing, try free-form q
+    // Free-form fallback using q=
     if (!loanAmount || !annualRatePct || !termYears) {
       const q = sp.get('q') || '';
       if (q.trim()) {
@@ -128,19 +126,21 @@ export async function GET(req: NextRequest) {
         loanAmount = loanAmount ?? parsed.loanAmount;
         annualRatePct = annualRatePct ?? parsed.annualRatePct;
         termYears = termYears ?? parsed.termYears;
-        // if they gave price + down% instead of loan
-        if (!loanAmount && parsed.purchasePrice && isFiniteNum(parsed.downPercent)) {
-          loanAmount = Math.round(parsed.purchasePrice * (1 - parsed.downPercent / 100));
+        // price + down% path
+        if (!loanAmount && parsed.purchasePrice) {
+          const d = isFiniteNum(parsed.downPercent) ? parsed.downPercent! : 0;
+          loanAmount = Math.round(parsed.purchasePrice * (1 - d / 100));
         }
       }
     }
 
-    // 3) If still no loan amount, derive from price + down%
-    if (!loanAmount && isFiniteNum(purchasePrice) && isFiniteNum(downPercent)) {
-      loanAmount = Math.round(purchasePrice * (1 - (downPercent! / 100)));
+    // Structured price (+ optional down) path
+    if (!loanAmount && isFiniteNum(purchasePrice)) {
+      const d = isFiniteNum(downPctParam) ? downPctParam! : 0;
+      loanAmount = Math.round(purchasePrice * (1 - d / 100));
     }
 
-    // Defaults: if we have enough context, assume 30y term
+    // Default term if we have enough to compute
     if (!termYears && isFiniteNum(annualRatePct) && isFiniteNum(loanAmount)) termYears = 30;
 
     // Validate
@@ -150,17 +150,16 @@ export async function GET(req: NextRequest) {
           path: 'error',
           usedFRED: false,
           message:
-            'Need loanAmount + annualRatePct + termYears, or purchasePrice + downPercent + annualRatePct (+ termYears).',
+            'Need loanAmount + annualRatePct + termYears, or purchasePrice/price + (optional down%) + annualRatePct (+ termYears).',
           status: 400,
           generatedAt: new Date().toISOString(),
         },
-        200 // keep 200 so UI shows the message without failing fetch()
+        200
       );
     }
 
     const monthlyPI = solvePI(loanAmount, annualRatePct, termYears) ?? 0;
 
-    // Sensitivity: base ± 0.25%
     const deltas = [-0.25, 0.0, 0.25];
     const sensitivities = deltas
       .map((d) => {
@@ -177,8 +176,6 @@ export async function GET(req: NextRequest) {
         loanAmount,
         monthlyPI,
         sensitivities,
-        // Optional fields left undefined until you pass taxes/ins/hoa/mi
-        // monthlyTax, monthlyIns, monthlyHOA, monthlyMI, monthlyTotalPITI
       },
       generatedAt: new Date().toISOString(),
       status: 200,
