@@ -1,124 +1,193 @@
-/* app/api/calc/payment/route.ts */
-import { NextResponse } from "next/server";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// ==== REPLACE ENTIRE FILE: app/api/calc/payment/route.ts ====
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-const num = (v: string | null) => (v == null ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
-const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+import { NextResponse, type NextRequest } from 'next/server';
 
-export async function GET(req: Request) {
-  const now = new Date().toISOString();
-  const url = new URL(req.url);
-  const origin = `${url.protocol}//${url.host}`;
+function noStore(json: unknown, status = 200) {
+  const res = NextResponse.json(json, { status });
+  res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.headers.set('Pragma', 'no-cache');
+  res.headers.set('Expires', '0');
+  return res;
+}
 
-  const price = num(url.searchParams.get("purchasePrice")) ?? num(url.searchParams.get("price"));
-  const downPct = num(url.searchParams.get("downPercent"));
-  const loanQ = num(url.searchParams.get("loan")) ?? num(url.searchParams.get("loanAmount"));
-  const rate = num(url.searchParams.get("rate")) ?? num(url.searchParams.get("ratePct"));
-  const termY = num(url.searchParams.get("term")) ?? num(url.searchParams.get("termYears")) ?? 30;
-  const termM = num(url.searchParams.get("termMonths")) ?? (termY! * 12);
-  const zip = url.searchParams.get("zip") || url.searchParams.get("postal") || undefined;
-  const ins = num(url.searchParams.get("ins")) ?? num(url.searchParams.get("monthlyIns")) ?? 0;
-  const hoa = num(url.searchParams.get("hoa")) ?? num(url.searchParams.get("monthlyHOA")) ?? 0;
-  const miPct = num(url.searchParams.get("miPctAnnual"));
-  const taxBase = (url.searchParams.get("taxBase") as "loan" | "price" | null) ?? null;
+// ---------- helpers ----------
+function isFiniteNum(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n);
+}
 
-  let loan = loanQ;
-  if (loan == null && price != null && downPct != null) loan = r2(price * (1 - downPct / 100));
-  // NEW: if we still have no loan but we do have a large price and no downPct, assume user meant loan = price
-  if (loan == null && price != null && (downPct == null || downPct < 0)) {
-    loan = price;
+function parseMoney(raw: string | null): number | undefined {
+  if (!raw) return undefined;
+  const s = raw.trim().toLowerCase().replace(/,/g, '');
+  const m = s.match(/^\$?\s*([\d]+(?:\.[\d]+)?)\s*([km])?\b/);
+  if (!m) return undefined;
+  let n = parseFloat(m[1]);
+  const unit = m[2];
+  if (unit === 'k') n *= 1_000;
+  if (unit === 'm') n *= 1_000_000;
+  if (!Number.isFinite(n)) return undefined;
+  return Math.round(n);
+}
+
+function parsePercent(raw: string | null): number | undefined {
+  if (!raw) return undefined;
+  const m = raw.match(/(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : undefined;
+}
+
+function solvePI(loanAmount: number, annualRatePct: number, termYears: number): number | undefined {
+  const r = (annualRatePct / 100) / 12;
+  const n = termYears * 12;
+  if (!(r > 0) || !(n > 0) || !(loanAmount > 0)) return undefined;
+  const denom = 1 - Math.pow(1 + r, -n);
+  if (denom <= 0) return undefined;
+  const pmt = loanAmount * (r / denom);
+  return Math.round(pmt * 100) / 100;
+}
+
+/** Lightweight parser for free-form q, mirrors your client patterns enough for MVP */
+function parseFromQ(q: string) {
+  const clean = q.replace(/,/g, '').toLowerCase();
+
+  // dollars (with optional k/m) that are NOT followed by %
+  const moneyTokens = Array.from(clean.matchAll(/\$?\s*\d+(?:\.\d+)?\s*[km]?\b/g))
+    .map((m) => {
+      const start = m.index ?? 0;
+      const text = m[0];
+      const end = start + text.length;
+      const next = clean.slice(end, end + 3);
+      return { text, index: start, value: parseMoney(text), followedByPercent: /^\s*%/.test(next) };
+    });
+
+  // rate %
+  let annualRatePct: number | undefined;
+  const near = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
+  if (near) annualRatePct = parseFloat(near[1]);
+  if (!isFiniteNum(annualRatePct)) {
+    const any = clean.match(/([0-9]+(?:\.\d+)?)\s*%/);
+    if (any) annualRatePct = parseFloat(any[1]);
   }
 
-  const missing: string[] = [];
-  if (loan == null) missing.push("loan (or price + downPercent)");
-  if (rate == null) missing.push("rate");
-  if (termM == null) missing.push("term or termMonths");
-  if (missing.length) {
-    return NextResponse.json(
-      { error: `Missing required parameter(s): ${missing.join(", ")}` },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
-    );
+  // term years
+  const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y)\b/);
+  let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
+
+  // explicit "loan amount: $X"
+  let loanAmount: number | undefined;
+  const loanExplicit = clean.match(/\bloan(?:\s*amount)?(?:\s*[:=])?\s*(?:of\s*)?(\$?\s*\d+(?:\.\d+)?\s*[km]?)\b/);
+  if (loanExplicit?.[1]) loanAmount = parseMoney(loanExplicit[1]);
+
+  // fallback: first non-% money token interpreted as loan
+  if (!isFiniteNum(loanAmount)) {
+    const candidate = moneyTokens.find((t) => !t.followedByPercent)?.value;
+    if (isFiniteNum(candidate)) loanAmount = candidate;
   }
 
-  // Knowledge (for label only; PITI will compute its own tax again)
-  let taxRate = 0.012, taxSource = "fallback:default", county: string | null = null, loanLimits: any = null;
-  try {
-    const kURL = new URL("/api/knowledge", origin);
-    if (zip) kURL.searchParams.set("zip", zip);
-    const kRes = await fetch(kURL.toString(), { cache: "no-store" });
-    if (kRes.ok) {
-      const k = await kRes.json();
-      const r = Number(k?.taxes?.rate);
-      if (Number.isFinite(r) && r > 0) { taxRate = r; taxSource = k?.taxes?.source || "knowledge:zipLookup"; }
-      county = k?.county ?? null;
-      loanLimits = k?.loanLimits ?? null;
+  // down %
+  const downMatch = clean.match(/(\d+(?:\.\d+)?)\s*%\s*down/);
+  const downPercent = downMatch ? parseFloat(downMatch[1]) : undefined;
+
+  // purchase price (if they used "price" words)
+  let purchasePrice: number | undefined;
+  if (!isFiniteNum(loanAmount)) {
+    const priceHint = /\b(purchase|purchase\s*price|price|home|house|pp|value)\b/.test(clean);
+    if (priceHint) {
+      const t = moneyTokens.find((t) => !t.followedByPercent)?.value;
+      if (isFiniteNum(t)) purchasePrice = t;
     }
-  } catch { }
+  }
 
-  // Delegate to PITI (same origin)
-  const pitiURL = new URL("/api/piti", origin);
-  pitiURL.searchParams.set("loan", String(loan));
-  pitiURL.searchParams.set("rate", String(rate));
-  pitiURL.searchParams.set("termMonths", String(termM));
-  if (zip) pitiURL.searchParams.set("zip", zip);
-  if (price != null) pitiURL.searchParams.set("price", String(price));
-  if (taxBase) pitiURL.searchParams.set("taxBase", taxBase);
-  if (ins != null) pitiURL.searchParams.set("ins", String(ins));
-  if (hoa != null) pitiURL.searchParams.set("hoa", String(hoa));
-  if (miPct != null) pitiURL.searchParams.set("miPctAnnual", String(miPct));
+  // default term if context exists
+  if (!termYears && (isFiniteNum(loanAmount) || isFiniteNum(purchasePrice)) && isFiniteNum(annualRatePct)) {
+    termYears = 30;
+  }
 
-  const pitiRes = await fetch(pitiURL.toString(), { cache: "no-store" });
-  if (!pitiRes.ok) {
-    return NextResponse.json(
-      { error: `PITI error: ${await pitiRes.text()}` },
-      { status: 502, headers: { "Cache-Control": "no-store" } }
+  return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears };
+}
+
+// ---------- handler ----------
+export async function GET(req: NextRequest) {
+  try {
+    const url = new URL(req.url);
+    const sp = url.searchParams;
+
+    // 1) Read structured params
+    let loanAmount = parseMoney(sp.get('loanAmount'));
+    const purchasePrice = parseMoney(sp.get('purchasePrice'));
+    const downPercent = parsePercent(sp.get('downPercent'));
+    let annualRatePct = parsePercent(sp.get('annualRatePct'));
+    let termYears = parseInt(sp.get('termYears') || '', 10);
+    if (!Number.isFinite(termYears)) termYears = undefined as any;
+
+    // 2) If missing, try free-form q
+    if (!loanAmount || !annualRatePct || !termYears) {
+      const q = sp.get('q') || '';
+      if (q.trim()) {
+        const parsed = parseFromQ(q);
+        loanAmount = loanAmount ?? parsed.loanAmount;
+        annualRatePct = annualRatePct ?? parsed.annualRatePct;
+        termYears = termYears ?? parsed.termYears;
+        // if they gave price + down% instead of loan
+        if (!loanAmount && parsed.purchasePrice && isFiniteNum(parsed.downPercent)) {
+          loanAmount = Math.round(parsed.purchasePrice * (1 - parsed.downPercent / 100));
+        }
+      }
+    }
+
+    // 3) If still no loan amount, derive from price + down%
+    if (!loanAmount && isFiniteNum(purchasePrice) && isFiniteNum(downPercent)) {
+      loanAmount = Math.round(purchasePrice * (1 - (downPercent! / 100)));
+    }
+
+    // Defaults: if we have enough context, assume 30y term
+    if (!termYears && isFiniteNum(annualRatePct) && isFiniteNum(loanAmount)) termYears = 30;
+
+    // Validate
+    if (!isFiniteNum(loanAmount) || !isFiniteNum(annualRatePct) || !isFiniteNum(termYears)) {
+      return noStore(
+        {
+          path: 'error',
+          usedFRED: false,
+          message:
+            'Need loanAmount + annualRatePct + termYears, or purchasePrice + downPercent + annualRatePct (+ termYears).',
+          status: 400,
+          generatedAt: new Date().toISOString(),
+        },
+        200 // keep 200 so UI shows the message without failing fetch()
+      );
+    }
+
+    const monthlyPI = solvePI(loanAmount, annualRatePct, termYears) ?? 0;
+
+    // Sensitivity: base ± 0.25%
+    const deltas = [-0.25, 0.0, 0.25];
+    const sensitivities = deltas
+      .map((d) => {
+        const r = annualRatePct + d;
+        const pi = solvePI(loanAmount!, r, termYears!);
+        return isFiniteNum(pi) ? { rate: r / 100, pi } : null;
+      })
+      .filter(Boolean) as { rate: number; pi: number }[];
+
+    return noStore({
+      path: 'calc',
+      usedFRED: false,
+      answer: {
+        loanAmount,
+        monthlyPI,
+        sensitivities,
+        // Optional fields left undefined until you pass taxes/ins/hoa/mi
+        // monthlyTax, monthlyIns, monthlyHOA, monthlyMI, monthlyTotalPITI
+      },
+      generatedAt: new Date().toISOString(),
+      status: 200,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return noStore(
+      { path: 'error', usedFRED: false, message: `calc/payment failed: ${msg}`, status: 500, generatedAt: new Date().toISOString() },
+      200
     );
   }
-  const piti = await pitiRes.json();
-
-  const b = piti?.breakdown ?? {};
-  const total = Number.isFinite(b.monthlyTotalPITI)
-    ? b.monthlyTotalPITI
-    : r2(
-      (b.monthlyPI ?? 0) +
-      (b.monthlyTax ?? 0) +
-      (b.monthlyIns ?? ins ?? 0) +
-      (b.monthlyHOA ?? hoa ?? 0) +
-      (b.monthlyMI ?? 0)
-    );
-
-  const response = {
-    status: "ok",
-    path: "calc/payment",
-    usedFRED: false,
-    at: now,
-    inputs: {
-      zip: zip ?? null,
-      county: county ?? undefined,
-      loanAmount: loan,
-      ratePct: rate,
-      termMonths: termM,
-      monthlyIns: ins ?? 0,
-      monthlyHOA: hoa ?? 0
-    },
-    lookups: { taxRate, taxSource, loanLimits: loanLimits ?? undefined },
-    breakdown: {
-      monthlyPI: b.monthlyPI ?? 0,
-      monthlyTax: b.monthlyTax ?? 0,
-      monthlyIns: b.monthlyIns ?? (ins ?? 0),
-      monthlyHOA: b.monthlyHOA ?? (hoa ?? 0),
-      monthlyMI: b.monthlyMI ?? 0,
-      monthlyTotalPITI: total
-    },
-    sensitivity: piti?.sensitivity ?? undefined,
-    answer:
-      piti?.answer ??
-      `Estimated monthly payment is $${r2(total).toLocaleString()} including principal & interest, taxes, insurance${((b.monthlyHOA ?? hoa ?? 0) > 0) ? ", and HOA" : ""
-      }.`
-  };
-
-  return NextResponse.json(response, {
-    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
-  });
 }
