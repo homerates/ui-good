@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Sidebar from './components/Sidebar';
+import Sidebar from '../components/Sidebar';
 
 const LS_KEY = 'hr.chat.v1';
 
