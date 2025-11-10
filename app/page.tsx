@@ -1,4 +1,5 @@
-﻿'use client';
+﻿// ==== REPLACE ENTIRE FILE: app/page.tsx ====
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
@@ -9,7 +10,7 @@ type Role = 'user' | 'assistant';
 
 /* =========================
    Calc helpers (UI)
-========================= */
+   ========================= */
 function isPaymentQuery(q: string) {
     const s = q.toLowerCase();
     if (/\bpay(ment|mnt|ments|mnts)?\b/.test(s)) return true;
@@ -17,14 +18,18 @@ function isPaymentQuery(q: string) {
     if (/\bp\s*&\s*i\b/.test(s)) return true;
     if (/\bprincipal\s*&?\s*interest\b/.test(s)) return true;
 
-    // pattern: has % and years with a money value (covers "$620k at 6.25% for 30 years")
-    if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+(?:at|@)\s+\d+(?:\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s)) return true;
-
     // pattern: has 'loan' + some % + some years
     const hasLoan = /\bloan\b/.test(s);
     const hasRate = /\b\d+(\.\d+)?\s*%/.test(s);
     const hasYears = /\b\d+\s*(years?|yrs?|yr|y|yeards?)\b/.test(s);
     if (hasLoan && hasRate && hasYears) return true;
+
+    // generic “$400k at 6.5% for 30 years”
+    if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+at\s+\d+(\.\d+)?\s*%\s+for\s+\d+/.test(s)) return true;
+
+    // generic “$400k @ 6.5% for 30y”
+    if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+@\s+\d+(\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s))
+        return true;
 
     // reverse: “payment is $3,800”, “$3800/mo”, “$2,528.27 per month”
     if (/\$?\s*\d[\d.,]*\s*(?:\/?\s*)?(?:mo|month)\b/.test(s)) return true;
@@ -35,7 +40,7 @@ function isPaymentQuery(q: string) {
 
 /* =========================
    Robust parsing helpers
-========================= */
+   ========================= */
 function isFiniteNum(n: unknown): n is number {
     return typeof n === 'number' && Number.isFinite(n);
 }
@@ -78,7 +83,6 @@ function solveLoanAmountFromPI(
 /**
  * Parse flexible phrasing:
  * - "$500k with 20% down at 6.5% for 30 years"
- * - "$620k at 6.25% for 30 years"
  * - "loan 400k at 6.5% for 30y"
  * - "payment is $3,800 at 6.5% for 30 years" (reverse: infer loan amount)
  * - "$3800/mo @ 6.5% 30y"
@@ -126,9 +130,13 @@ function parsePaymentQuery(q: string) {
         loanAmount = parseMoney(loanExplicit[1]);
     }
 
-    // If still missing, infer from context
+    // If still missing, infer from context:
+    //  - If the user said "payment on $X ..." treat $X as loan
+    //  - If exactly one money appears and there are no "price" hints, treat it as loan
+    //  - If "loan" keyword exists, prefer the first non-% money after it
     if (!isFiniteNum(loanAmount)) {
         if (hintsPaymentOn && tokens.length >= 1) {
+            // ex: "payment on $620k at 6.25% for 30y"
             const t = tokens.find((t) => !t.followedByPercent);
             if (isFiniteNum(t?.value)) loanAmount = t!.value!;
         } else if (hintsLoan && tokens.length >= 1) {
@@ -189,6 +197,8 @@ function parsePaymentQuery(q: string) {
     return { loanAmount, purchasePrice, downPercent, annualRatePct, termYears, paymentMonthly };
 }
 
+
+
 function buildCalcUrl(
     base: string,
     p: {
@@ -211,7 +221,7 @@ function buildCalcUrl(
 
 /* =========================
    Types
-========================= */
+   ========================= */
 type CalcAnswer = {
     loanAmount: number;
     monthlyPI: number;
@@ -251,7 +261,7 @@ type ChatMsg =
 
 /* =========================
    Utils
-========================= */
+   ========================= */
 function uid() {
     return Math.random().toString(36).slice(2, 10);
 }
@@ -315,7 +325,7 @@ function normalizeCalcResponse(raw: unknown, status: number): ApiResponse {
 
 /* =========================
    Rendering
-========================= */
+   ========================= */
 function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     if (!meta) return null;
 
@@ -455,7 +465,7 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 
 /* =========================
    Page
-========================= */
+   ========================= */
 export default function Page() {
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
@@ -484,7 +494,6 @@ export default function Page() {
     const [showLibrary, setShowLibrary] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showProject, setShowProject] = useState(false);
-    const [showMortgageCalc, setShowMortgageCalc] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [projectName, setProjectName] = useState('');
@@ -543,7 +552,7 @@ export default function Page() {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages]);
 
-    // SAFE HOTKEYS
+    // SAFE HOTKEYS: ignore when typing and require Cmd/Ctrl
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement | null;
@@ -611,7 +620,7 @@ export default function Page() {
         setHistory((h) => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
     }
 
-    // === kebab menu actions from Sidebar ===
+    // === kebab menu actions from Sidebar (rename/move/archive/delete) ===
     function handleHistoryAction(
         action: 'rename' | 'move' | 'archive' | 'delete',
         id: string
@@ -673,6 +682,7 @@ export default function Page() {
             setActiveId(tid);
             setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
         } else {
+            // SAFER HISTORY UPDATER (avoids TDZ / minifier traps)
             setHistory((prev) => {
                 const next = Array.isArray(prev) ? [...prev] : [];
                 const idx = next.findIndex((x) => x?.id === tid);
@@ -739,27 +749,20 @@ export default function Page() {
                     return;
                 }
 
-                // 🚧 IMPORTANT: branch cleanly to avoid conflicting params
-                let url: string;
-                if (okByLoan) {
-                    url = buildCalcUrl('/api/calc/payment', {
-                        loanAmount: parsed.loanAmount,
-                        annualRatePct: parsed.annualRatePct,
-                        termYears: parsed.termYears,
-                    });
-                } else {
-                    url = buildCalcUrl('/api/calc/payment', {
-                        purchasePrice: parsed.purchasePrice,
-                        downPercent: parsed.downPercent,
-                        annualRatePct: parsed.annualRatePct,
-                        termYears: parsed.termYears,
-                    });
+                const patched = { ...parsed };
+                if (isFiniteNum(patched.loanAmount) && !isFiniteNum(patched.purchasePrice)) {
+                    patched.purchasePrice = patched.loanAmount;
+                    if (!isFiniteNum(patched.downPercent)) patched.downPercent = 0;
                 }
-                // also pass raw question for server-side niceties (e.g., "180 months")
+
+                let url = buildCalcUrl('/api/calc/payment', patched);
+                // pass the raw question so the server can parse things like "180 months"
                 url += (url.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(q);
 
                 const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
+
                 const raw: unknown = await r.json().catch(() => ({}));
+
                 const meta = normalizeCalcResponse(raw, r.status);
 
                 let friendly = 'Calculated principal & interest payment.';
@@ -776,7 +779,6 @@ export default function Page() {
                 return;
             }
 
-            // Non-calc path
             const body: {
                 question: string;
                 mode: 'borrower' | 'public';
@@ -847,13 +849,11 @@ export default function Page() {
     function onSearch() { setShowSearch(true); }
     function onLibrary() { setShowLibrary(true); }
     function onNewProject() { setShowProject(true); }
-    function onMortgageCalc() { setShowMortgageCalc(true); }
     function closeAllOverlays() {
         setShowSearch(false);
         setShowLibrary(false);
         setShowSettings(false);
         setShowProject(false);
-        setShowMortgageCalc(false);
     }
 
     return (
@@ -867,7 +867,6 @@ export default function Page() {
                 onSearch={onSearch}
                 onLibrary={onLibrary}
                 onNewProject={onNewProject}
-                onMortgageCalc={onMortgageCalc}
                 activeId={activeId}
                 onSelectHistory={onSelectHistory}
                 isOpen={sidebarOpen}
@@ -955,8 +954,8 @@ export default function Page() {
                     </div>
                 </div>
 
-                {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
-                {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
+                {/* ------- Overlays (Search/Library/Settings/New Project) ------- */}
+                {(showSearch || showLibrary || showSettings || showProject) && (
                     <div
                         role="dialog"
                         aria-modal="true"
@@ -993,7 +992,6 @@ export default function Page() {
                                     {showLibrary && 'Library'}
                                     {showSettings && 'Settings'}
                                     {showProject && 'New Project'}
-                                    {showMortgageCalc && 'Mortgage Calculator'}
                                 </div>
                                 <button className="btn" onClick={closeAllOverlays} aria-label="Close">
                                     Close
@@ -1130,116 +1128,6 @@ export default function Page() {
                                     </div>
                                 </form>
                             )}
-
-                            {/* MORTGAGE CALCULATOR */}
-                            {showMortgageCalc && (
-                                <form
-                                    onSubmit={(e) => {
-                                        e.preventDefault();
-                                        const fd = new FormData(e.currentTarget);
-                                        const price = Number(String(fd.get('price') || '').replace(/[, ]+/g, '')) || 0;
-                                        const downPct = Number(String(fd.get('downPct') || '').replace(/[, ]+/g, '')) || 0;
-                                        const ratePct = Number(String(fd.get('ratePct') || '').replace(/[, ]+/g, '')) || 0;
-                                        const termYears = Number(String(fd.get('termYears') || '').replace(/[, ]+/g, '')) || 30;
-                                        const zip = String(fd.get('zip') || '').trim();
-                                        const hoa = Number(String(fd.get('hoa') || '').replace(/[, ]+/g, '')) || 0;
-
-                                        console.log('MortgageCalc inputs:', { price, downPct, ratePct, termYears, zip, hoa });
-
-                                        closeAllOverlays();
-
-                                        setMessages((m) => [
-                                            ...m,
-                                            {
-                                                id: uid(),
-                                                role: 'assistant',
-                                                content: `Using ${price.toLocaleString()} price, ${downPct}% down, ${ratePct}% for ${termYears} years, ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}.`,
-                                            },
-                                        ]);
-                                    }}
-                                    style={{ display: 'grid', gap: 10 }}
-                                >
-                                    <div className="grid" style={{ display: 'grid', gap: 10 }}>
-                                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                            Purchase price
-                                            <input
-                                                name="price"
-                                                inputMode="decimal"
-                                                defaultValue="900000"
-                                                placeholder="e.g. 900000"
-                                                className="input"
-                                                autoFocus
-                                            />
-                                        </label>
-
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                Down payment %
-                                                <input
-                                                    name="downPct"
-                                                    inputMode="decimal"
-                                                    defaultValue="20"
-                                                    placeholder="e.g. 20"
-                                                    className="input"
-                                                />
-                                            </label>
-                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                Rate %
-                                                <input
-                                                    name="ratePct"
-                                                    inputMode="decimal"
-                                                    defaultValue="6.25"
-                                                    placeholder="e.g. 6.25"
-                                                    className="input"
-                                                />
-                                            </label>
-                                        </div>
-
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                Term (years)
-                                                <input
-                                                    name="termYears"
-                                                    inputMode="numeric"
-                                                    defaultValue="30"
-                                                    placeholder="e.g. 30"
-                                                    className="input"
-                                                />
-                                            </label>
-                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                ZIP
-                                                <input
-                                                    name="zip"
-                                                    inputMode="numeric"
-                                                    defaultValue="92688"
-                                                    placeholder="e.g. 92688"
-                                                    className="input"
-                                                />
-                                            </label>
-                                        </div>
-
-                                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                            HOA (optional)
-                                            <input
-                                                name="hoa"
-                                                inputMode="decimal"
-                                                placeholder="e.g. 125"
-                                                className="input"
-                                            />
-                                        </label>
-
-                                        <p className="text-xs" style={{ opacity: 0.7 }}>
-                                            This is the guided input flow. No server parsing — we’ll plug these values into a client-side results card next.
-                                        </p>
-                                    </div>
-
-                                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                                        <button className="btn primary" type="submit">Use these inputs</button>
-                                    </div>
-                                </form>
-                            )}
-
                         </div>
                     </div>
                 )}
