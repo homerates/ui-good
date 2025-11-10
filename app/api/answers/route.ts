@@ -1,4 +1,4 @@
-﻿// ==== REPLACE ENTIRE FILE: app/api/answers/route.ts ====
+﻿// ==== CLEAN ESLINT VERSION: app/api/answers/route.ts ====
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -12,39 +12,39 @@ function noStore(json: unknown, status = 200) {
   return res;
 }
 
-// ===== Env flags (graceful, predictable behavior) =====
 const ALLOW_WEB = process.env.ALLOW_WEB === "1";
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || "";
 
-// ===== Types kept from your working route =====
+/* ===== Types ===== */
 type TavilyResult = { title: string; url: string; content?: string };
 type TavilyMini = { ok: boolean; answer: string | null; results: TavilyResult[] };
 
+/* ===== Type Guards ===== */
 function isTavilyResultArray(v: unknown): v is TavilyResult[] {
   return (
     Array.isArray(v) &&
-    v.every(
-      (r) =>
-        r &&
-        typeof r === "object" &&
-        "title" in r &&
-        typeof (r as any).title === "string" &&
-        "url" in r &&
-        typeof (r as any).url === "string"
-    )
-  );
-}
-function isTavilyMini(v: unknown): v is TavilyMini {
-  if (!v || typeof v !== "object") return false;
-  const o = v as Record<string, unknown>;
-  return (
-    typeof o.ok === "boolean" &&
-    (o.answer === null || typeof o.answer === "string") &&
-    isTavilyResultArray(o.results)
+    v.every((r) => {
+      if (!r || typeof r !== "object") return false;
+      const obj = r as Record<string, unknown>;
+      return (
+        typeof obj.title === "string" &&
+        typeof obj.url === "string"
+      );
+    })
   );
 }
 
-// ===== Helpers kept =====
+function isTavilyMini(v: unknown): v is TavilyMini {
+  if (!v || typeof v !== "object") return false;
+  const obj = v as Record<string, unknown>;
+  return (
+    typeof obj.ok === "boolean" &&
+    (obj.answer === null || typeof obj.answer === "string") &&
+    isTavilyResultArray(obj.results)
+  );
+}
+
+/* ===== Helpers ===== */
 function firstParagraph(s: string, max = 800) {
   return (s.split(/\n+/)[0]?.trim() ?? "").slice(0, max);
 }
@@ -56,18 +56,29 @@ function bulletsFrom(text: string, max = 4): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const line of raw) {
-    const k = line.toLowerCase();
-    if (!seen.has(k)) {
+    const key = line.toLowerCase();
+    if (!seen.has(key)) {
       out.push(line);
-      seen.add(k);
+      seen.add(key);
     }
     if (out.length >= max) break;
   }
   return out;
 }
-function topicFromQuestion(
-  q: string
-): "pmi" | "rates" | "fha" | "va" | "dp" | "dpa" | "jumbo" | "dscr" | "general" {
+
+/* ===== Topic handling ===== */
+type Topic =
+  | "pmi"
+  | "rates"
+  | "fha"
+  | "va"
+  | "dp"
+  | "dpa"
+  | "jumbo"
+  | "dscr"
+  | "general";
+
+function topicFromQuestion(q: string): Topic {
   const s = q.toLowerCase();
   if (/\bpmi\b|mortgage insurance/.test(s)) return "pmi";
   if (/\brates?\b|treasury|mbs|10[-\s]?year/.test(s)) return "rates";
@@ -79,7 +90,8 @@ function topicFromQuestion(
   if (/\bdscr\b/.test(s)) return "dscr";
   return "general";
 }
-function followUpFor(topic: ReturnType<typeof topicFromQuestion>): string {
+
+function followUpFor(topic: Topic): string {
   switch (topic) {
     case "pmi":
       return "Want me to estimate PMI based on your down payment and credit tier, or compare lender-paid vs borrower-paid?";
@@ -102,13 +114,12 @@ function followUpFor(topic: ReturnType<typeof topicFromQuestion>): string {
   }
 }
 
-// ===== Web lookup with guarded opt-out =====
+/* ===== Guarded Tavily lookup ===== */
 async function askTavily(
   req: NextRequest,
   query: string,
   opts?: { depth?: "basic" | "advanced"; max?: number }
 ): Promise<TavilyMini> {
-  // If web lookups are off or no key is present, act like research returned nothing (quietly).
   if (!ALLOW_WEB || !TAVILY_API_KEY) {
     return { ok: false, answer: null, results: [] };
   }
@@ -120,7 +131,7 @@ async function askTavily(
     body: JSON.stringify({
       query,
       searchDepth: opts?.depth ?? "basic",
-      maxResults: typeof opts?.max === "number" ? opts!.max : 5,
+      maxResults: typeof opts?.max === "number" ? opts.max : 5,
     }),
     cache: "no-store",
   });
@@ -129,21 +140,21 @@ async function askTavily(
   try {
     parsed = await res.json();
   } catch {
-    // fall through to normalized empty
+    /* ignore */
   }
 
   if (isTavilyMini(parsed)) return parsed;
 
-  const ok = !!(parsed && typeof parsed === "object" && (parsed as any).ok);
-  const answerRaw = parsed && typeof parsed === "object" ? (parsed as any).answer : null;
-  const answer = typeof answerRaw === "string" ? answerRaw : null;
-  const resultsRaw = parsed && typeof parsed === "object" ? (parsed as any).results : null;
-  const results = isTavilyResultArray(resultsRaw) ? resultsRaw : [];
+  const obj = (parsed ?? {}) as Record<string, unknown>;
+  const ok = !!obj.ok;
+  const answer =
+    typeof obj.answer === "string" ? (obj.answer as string) : null;
+  const results = isTavilyResultArray(obj.results) ? obj.results : [];
 
   return { ok, answer, results };
 }
 
-// ===== Core handler (kept shape, added fallback logic) =====
+/* ===== Core handler ===== */
 async function handle(req: NextRequest, intentParam?: string) {
   type Body = { question?: string; intent?: string; mode?: "borrower" | "public" };
   const generatedAt = new Date().toISOString();
@@ -158,6 +169,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       body = {};
     }
   }
+
   const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
   const intent = (intentParam || body.intent || "web").trim() || "web";
 
@@ -173,8 +185,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       generatedAt,
       usedFRED: false,
       usedTavily: Boolean(process.env.TAVILY_API_KEY),
-      message:
-        "Ask a specific mortgage question (e.g., PMI at 5% down or today’s rate drivers) and I’ll tailor it. Sources included when web lookups are on.",
+      message: followUp,
       answerMarkdown: "",
       sources: [],
       followUp,
@@ -188,46 +199,40 @@ async function handle(req: NextRequest, intentParam?: string) {
     });
   }
 
-  // Primary web call (env-guarded)
   let tav = await askTavily(req, question, { depth: "basic", max: 6 });
   if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
     tav = await askTavily(req, question, { depth: "advanced", max: 8 });
   }
+
   const usedTavily = tav.ok && (tav.answer !== null || tav.results.length > 0);
 
-  // If web is allowed but nothing came back, keep your original “ask for specifics” UX.
-  // If web is OFF, we *fall through* to provide a baseline dynamic explainer instead.
-  if (!tav.answer && tav.results.length === 0) {
-    if (ALLOW_WEB) {
-      const topic = topicFromQuestion(question);
-      const followUp = followUpFor(topic);
-      return noStore({
-        ok: true,
-        route: "answers",
-        intent,
-        path,
-        tag,
-        generatedAt,
-        usedFRED: false,
-        usedTavily: false,
-        message: "I can help—add one or two specifics and you’ll get a sharper answer.",
-        answerMarkdown: "",
-        sources: [],
-        followUp,
-        follow_up: followUp,
-        cta: followUp,
-        suggest: [
-          "Compare FHA vs Conventional at 3–5% down and ~700 credit—5-year total cost.",
-          "What affects PMI the most: down %, credit, or occupancy?",
-          "Summarize this week’s mortgage-rate drivers with 2–3 citations.",
-        ],
-        needs: ["product", "downPercent", "creditTier", "location"],
-      });
-    }
-    // else: ALLOW_WEB is false → continue to baseline answer
+  if (!tav.answer && tav.results.length === 0 && ALLOW_WEB) {
+    const topic = topicFromQuestion(question);
+    const followUp = followUpFor(topic);
+    return noStore({
+      ok: true,
+      route: "answers",
+      intent,
+      path,
+      tag,
+      generatedAt,
+      usedFRED: false,
+      usedTavily: false,
+      message: "I can help—add one or two specifics and you’ll get a sharper answer.",
+      answerMarkdown: "",
+      sources: [],
+      followUp,
+      follow_up: followUp,
+      cta: followUp,
+      suggest: [
+        "Compare FHA vs Conventional at 3–5% down and ~700 credit—5-year total cost.",
+        "What affects PMI the most: down %, credit, or occupancy?",
+        "Summarize this week’s mortgage-rate drivers with 2–3 citations.",
+      ],
+      needs: ["product", "downPercent", "creditTier", "location"],
+    });
   }
 
-  // Build answer + graceful non-web baseline when we have no content
   let base =
     (tav.answer ?? "") ||
     (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ?? "");
@@ -241,7 +246,10 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   const intro = firstParagraph(base, 800);
   const bullets = bulletsFrom(base, 4);
-  const topSources = (tav.results || []).slice(0, 3).map((s) => ({ title: s.title, url: s.url }));
+  const topSources = (tav.results || []).slice(0, 3).map((s) => ({
+    title: s.title,
+    url: s.url,
+  }));
   const sourcesMd = topSources.map((s) => `- [${s.title}](${s.url})`).join("\n");
 
   const answerMarkdown = [
@@ -256,7 +264,9 @@ async function handle(req: NextRequest, intentParam?: string) {
     intro,
     bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
     topSources.length
-      ? `Sources:\n${topSources.map((s) => `- ${s.title} — ${s.url}`).join("\n")}`
+      ? `Sources:\n${topSources
+        .map((s) => `- ${s.title} — ${s.url}`)
+        .join("\n")}`
       : "",
   ]
     .filter(Boolean)
@@ -278,7 +288,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     sources: topSources,
     followUp,
     follow_up: followUp,
-    cta: followUp, // alias safety
+    cta: followUp,
     message: legacyAnswer,
     answer: legacyAnswer,
     suggest: [
@@ -289,6 +299,7 @@ async function handle(req: NextRequest, intentParam?: string) {
   });
 }
 
+/* ===== Entry points ===== */
 export async function POST(req: NextRequest) {
   return handle(req);
 }
