@@ -1,4 +1,4 @@
-﻿// ==== CLEAN ESLINT VERSION: app/api/answers/route.ts ====
+﻿// ==== RESTORED WEB-FIRST + ENV-INTEGRATED: app/api/answers/route.ts ====
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -12,28 +12,25 @@ function noStore(json: unknown, status = 200) {
   return res;
 }
 
-const ALLOW_WEB = process.env.ALLOW_WEB === "1";
+// === Env: use what exists; no reinvention ===
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || "";
+const FRED_API_KEY = process.env.FRED_API_KEY || "";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
-/* ===== Types ===== */
+/* ===== Types kept ===== */
 type TavilyResult = { title: string; url: string; content?: string };
 type TavilyMini = { ok: boolean; answer: string | null; results: TavilyResult[] };
 
-/* ===== Type Guards ===== */
 function isTavilyResultArray(v: unknown): v is TavilyResult[] {
   return (
     Array.isArray(v) &&
     v.every((r) => {
       if (!r || typeof r !== "object") return false;
       const obj = r as Record<string, unknown>;
-      return (
-        typeof obj.title === "string" &&
-        typeof obj.url === "string"
-      );
+      return typeof obj.title === "string" && typeof obj.url === "string";
     })
   );
 }
-
 function isTavilyMini(v: unknown): v is TavilyMini {
   if (!v || typeof v !== "object") return false;
   const obj = v as Record<string, unknown>;
@@ -44,14 +41,14 @@ function isTavilyMini(v: unknown): v is TavilyMini {
   );
 }
 
-/* ===== Helpers ===== */
+/* ===== Helpers kept ===== */
 function firstParagraph(s: string, max = 800) {
   return (s.split(/\n+/)[0]?.trim() ?? "").slice(0, max);
 }
 function bulletsFrom(text: string, max = 4): string[] {
   const raw = text
     .split(/(?:\n+|(?<=\.)\s+)/)
-    .map((s) => s.replace(/^[-•]\s*/, "").trim())
+    .map((t) => t.replace(/^[-•]\s*/, "").trim())
     .filter(Boolean);
   const seen = new Set<string>();
   const out: string[] = [];
@@ -66,7 +63,7 @@ function bulletsFrom(text: string, max = 4): string[] {
   return out;
 }
 
-/* ===== Topic handling ===== */
+/* ===== Topic handling (unchanged) ===== */
 type Topic =
   | "pmi"
   | "rates"
@@ -81,7 +78,7 @@ type Topic =
 function topicFromQuestion(q: string): Topic {
   const s = q.toLowerCase();
   if (/\bpmi\b|mortgage insurance/.test(s)) return "pmi";
-  if (/\brates?\b|treasury|mbs|10[-\s]?year/.test(s)) return "rates";
+  if (/\brates?\b|treasury|mbs|10[-\s]?year|10y\b/.test(s)) return "rates";
   if (/\bfha\b/.test(s)) return "fha";
   if (/\bva\b/.test(s)) return "va";
   if (/\bdown[-\s]?payment|\b% down\b/.test(s)) return "dp";
@@ -90,7 +87,6 @@ function topicFromQuestion(q: string): Topic {
   if (/\bdscr\b/.test(s)) return "dscr";
   return "general";
 }
-
 function followUpFor(topic: Topic): string {
   switch (topic) {
     case "pmi":
@@ -114,16 +110,13 @@ function followUpFor(topic: Topic): string {
   }
 }
 
-/* ===== Guarded Tavily lookup ===== */
+/* ===== Web lookup (web-first if Tavily key exists) ===== */
 async function askTavily(
   req: NextRequest,
   query: string,
   opts?: { depth?: "basic" | "advanced"; max?: number }
 ): Promise<TavilyMini> {
-  if (!ALLOW_WEB || !TAVILY_API_KEY) {
-    return { ok: false, answer: null, results: [] };
-  }
-
+  if (!TAVILY_API_KEY) return { ok: false, answer: null, results: [] };
   const url = new URL("/api/tavily", req.url);
   const res = await fetch(url.toString(), {
     method: "POST",
@@ -135,39 +128,82 @@ async function askTavily(
     }),
     cache: "no-store",
   });
-
   let parsed: unknown = null;
   try {
     parsed = await res.json();
-  } catch {
-    /* ignore */
-  }
-
+  } catch {/* ignore */ }
   if (isTavilyMini(parsed)) return parsed;
 
   const obj = (parsed ?? {}) as Record<string, unknown>;
   const ok = !!obj.ok;
-  const answer =
-    typeof obj.answer === "string" ? (obj.answer as string) : null;
+  const answer = typeof obj.answer === "string" ? (obj.answer as string) : null;
   const results = isTavilyResultArray(obj.results) ? obj.results : [];
-
   return { ok, answer, results };
 }
 
-/* ===== Core handler ===== */
+/* ===== Optional FRED snapshot for 'rates' questions ===== */
+type FredSnap = {
+  tenYearYield: number | null;
+  mort30Avg: number | null;
+  spread: number | null;
+  asOf: string | null;
+};
+async function getFredSnapshot(): Promise<FredSnap> {
+  if (!FRED_API_KEY) return { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
+  // Latest observations for DGS10 and MORTGAGE30US (default last=1)
+  const [dgs10, m30] = await Promise.all([
+    fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`, { cache: "no-store" }).then(r => r.json()).catch(() => null),
+    fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=MORTGAGE30US&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`, { cache: "no-store" }).then(r => r.json()).catch(() => null),
+  ]);
+
+  const d = (dgs10?.observations?.[0]?.value ?? null) as string | null;
+  const m = (m30?.observations?.[0]?.value ?? null) as string | null;
+  const asOf = (m30?.observations?.[0]?.date ?? dgs10?.observations?.[0]?.date ?? null) as string | null;
+
+  const tenYearYield = d && d !== "." ? Number(d) : null;
+  const mort30Avg = m && m !== "." ? Number(m) : null;
+  const spread = tenYearYield != null && mort30Avg != null ? Number((mort30Avg - tenYearYield).toFixed(2)) : null;
+  return { tenYearYield, mort30Avg, spread, asOf };
+}
+
+/* ===== Optional OpenAI summarizer for Tavily text ===== */
+async function summarizeWithOpenAI(text: string): Promise<string | null> {
+  if (!OPENAI_API_KEY || !text) return null;
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "authorization": `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "Summarize clearly for a US mortgage audience. Keep it concise. Include 2–4 bullet points." },
+          { role: "user", content: text },
+        ],
+        temperature: 0.2,
+        max_tokens: 300,
+      }),
+    });
+    const json = await res.json();
+    const out = json?.choices?.[0]?.message?.content;
+    return typeof out === "string" ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+/* ===== Core handler (same response shape as yours) ===== */
 async function handle(req: NextRequest, intentParam?: string) {
   type Body = { question?: string; intent?: string; mode?: "borrower" | "public" };
   const generatedAt = new Date().toISOString();
   const path = "web";
-  const tag = "tavily-v2";
+  const tag = "answers-v2";
 
   let body: Body = {};
   if (req.method === "POST") {
-    try {
-      body = (await req.json()) as Body;
-    } catch {
-      body = {};
-    }
+    try { body = (await req.json()) as Body; } catch { body = {}; }
   }
 
   const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
@@ -175,22 +211,12 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   if (!question) {
     const followUp =
-      "Ask a specific mortgage question (e.g., PMI at 5% down or today’s rate drivers) and I’ll tailor it. Sources included when web lookups are on.";
+      "Ask a specific mortgage question (e.g., PMI at 5% down or today’s rate drivers). I’ll include sources when available.";
     return noStore({
-      ok: true,
-      route: "answers",
-      intent,
-      path,
-      tag,
-      generatedAt,
-      usedFRED: false,
-      usedTavily: Boolean(process.env.TAVILY_API_KEY),
-      message: followUp,
-      answerMarkdown: "",
-      sources: [],
-      followUp,
-      follow_up: followUp,
-      cta: followUp,
+      ok: true, route: "answers", intent, path, tag, generatedAt,
+      usedFRED: false, usedTavily: Boolean(TAVILY_API_KEY),
+      message: followUp, answerMarkdown: "", sources: [],
+      followUp, follow_up: followUp, cta: followUp,
       suggest: [
         "Explain PMI for a Conventional loan with 5% down and ~720 credit in California.",
         "Are 30-year fixed rates trending up this week? Cite two sources.",
@@ -199,98 +225,77 @@ async function handle(req: NextRequest, intentParam?: string) {
     });
   }
 
+  // 1) Web-first answer
   let tav = await askTavily(req, question, { depth: "basic", max: 6 });
   if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
     tav = await askTavily(req, question, { depth: "advanced", max: 8 });
   }
-
   const usedTavily = tav.ok && (tav.answer !== null || tav.results.length > 0);
 
-  if (!tav.answer && tav.results.length === 0 && ALLOW_WEB) {
-    const topic = topicFromQuestion(question);
-    const followUp = followUpFor(topic);
-    return noStore({
-      ok: true,
-      route: "answers",
-      intent,
-      path,
-      tag,
-      generatedAt,
-      usedFRED: false,
-      usedTavily: false,
-      message: "I can help—add one or two specifics and you’ll get a sharper answer.",
-      answerMarkdown: "",
-      sources: [],
-      followUp,
-      follow_up: followUp,
-      cta: followUp,
-      suggest: [
-        "Compare FHA vs Conventional at 3–5% down and ~700 credit—5-year total cost.",
-        "What affects PMI the most: down %, credit, or occupancy?",
-        "Summarize this week’s mortgage-rate drivers with 2–3 citations.",
-      ],
-      needs: ["product", "downPercent", "creditTier", "location"],
-    });
-  }
+  // 2) Optional FRED snapshot for rate/10y topics
+  const topic = topicFromQuestion(question);
+  const wantFred = topic === "rates";
+  const fred = wantFred ? await getFredSnapshot() : { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
+  const usedFRED = wantFred && (fred.tenYearYield !== null || fred.mort30Avg !== null);
 
+  // 3) Build answer (prefer Tavily answer; else summarize results; else minimal baseline)
   let base =
     (tav.answer ?? "") ||
     (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ?? "");
 
-  if (!base) {
-    base =
-      "Mortgage pricing generally follows the 10-year Treasury plus risk spreads (credit, liquidity, convexity). " +
-      "Spreads widen with volatility/risk aversion and compress when markets stabilize. " +
-      "Watch CPI/PCE, jobs, and Fed guidance that shifts rate expectations.";
+  if (!base && tav.results.length > 0) {
+    // Try LLM summarizer on concatenated snippets
+    const concat = tav.results
+      .map((r) => `${r.title}\n${r.content ?? ""}`)
+      .join("\n\n")
+      .slice(0, 8000);
+    const llm = await summarizeWithOpenAI(concat);
+    if (llm) base = llm;
   }
 
+  if (!base) {
+    base =
+      "Here’s a concise baseline while I gather details: mortgage pricing reflects the 10-year Treasury benchmark plus risk spreads (credit/liquidity/convexity). " +
+      "Spreads widen when volatility or risk aversion picks up, and compress when markets stabilize.";
+  }
+
+  // 4) Markdown + legacy message
   const intro = firstParagraph(base, 800);
   const bullets = bulletsFrom(base, 4);
-  const topSources = (tav.results || []).slice(0, 3).map((s) => ({
-    title: s.title,
-    url: s.url,
-  }));
+  const topSources = (tav.results || []).slice(0, 3).map((s) => ({ title: s.title, url: s.url }));
   const sourcesMd = topSources.map((s) => `- [${s.title}](${s.url})`).join("\n");
+
+  const fredLine =
+    usedFRED
+      ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"}%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
+      : "";
 
   const answerMarkdown = [
     intro,
     bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
     topSources.length ? `\n**Sources**\n${sourcesMd}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+    fredLine,
+  ].filter(Boolean).join("\n\n");
 
   const legacyAnswer = [
     intro,
     bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
-    topSources.length
-      ? `Sources:\n${topSources
-        .map((s) => `- ${s.title} — ${s.url}`)
-        .join("\n")}`
+    topSources.length ? `Sources:\n${topSources.map((s) => `- ${s.title} — ${s.url}`).join("\n")}` : "",
+    usedFRED
+      ? `FRED snapshot: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"}%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
       : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  ].filter(Boolean).join("\n\n");
 
-  const topic = topicFromQuestion(question);
   const followUp = followUpFor(topic);
 
   return noStore({
-    ok: true,
-    route: "answers",
-    intent,
-    path,
-    tag,
-    generatedAt,
-    usedFRED: false,
-    usedTavily,
-    answerMarkdown,
-    sources: topSources,
-    followUp,
-    follow_up: followUp,
-    cta: followUp,
-    message: legacyAnswer,
-    answer: legacyAnswer,
+    ok: true, route: "answers", intent, path, tag, generatedAt,
+    usedFRED, usedTavily,
+    // optional fred block if your UI ever reads it
+    fred: usedFRED ? fred : undefined,
+    answerMarkdown, sources: topSources,
+    followUp, follow_up: followUp, cta: followUp,
+    message: legacyAnswer, answer: legacyAnswer,
     suggest: [
       "Explain PMI for a Conventional loan with 5% down and ~720 credit in California.",
       "Are 30-year fixed rates trending up this week? Cite two sources.",
@@ -300,9 +305,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 }
 
 /* ===== Entry points ===== */
-export async function POST(req: NextRequest) {
-  return handle(req);
-}
+export async function POST(req: NextRequest) { return handle(req); }
 export async function GET(req: NextRequest) {
   const intent = (req.nextUrl.searchParams.get("intent") ?? "").trim();
   return handle(req, intent);
