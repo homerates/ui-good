@@ -813,8 +813,9 @@ export default function Page() {
                             {/* MORTGAGE CALCULATOR (dedicated panel) */}
                             {showMortgageCalc && (
                                 <MortgageCalcPanel
-                                    onClose={closeAllOverlays}
+                                    onCancel={closeAllOverlays}
                                     onSubmit={(res: CalcSubmitResult) => {
+
                                         closeAllOverlays();
                                         // echo a clean, human-readable line + structured calc meta reply
                                         setMessages((m) => [

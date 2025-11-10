@@ -43,11 +43,11 @@ function calcPI(loanAmount: number, ratePct: number, termYears: number): number 
 function calcSensitivities(loanAmount: number, ratePct: number, termYears: number): Sensitivity[] {
     const deltas = [-0.25, 0, 0.25];
     return deltas.map((d) => {
-        const rate = (ratePct + d) / 100;
-        const r = rate / 12;
+        const pct = ratePct + d;          // percent for label
+        const r = (pct / 100) / 12;       // monthly rate as fraction
         const n = termYears * 12;
         const pi = loanAmount * (r / (1 - Math.pow(1 + r, -n)));
-        return { rate: ratePct + d, pi: Math.round(pi * 100) / 100 };
+        return { rate: pct, pi: Math.round(pi * 100) / 100 };
     });
 }
 
@@ -75,7 +75,6 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-
         const dp = Math.max(0, Math.min(100, Number(downPct)));
         const loanAmount = Math.round(price * (1 - dp / 100));
         const monthlyPI = calcPI(loanAmount, ratePct, termYears);
@@ -93,6 +92,9 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
             sensitivities,
         });
     }
+
+    const previewLoan = Math.round(price * (1 - (downPct || 0) / 100));
+    const previewPI = calcPI(previewLoan, ratePct || 0, termYears || 0);
 
     return (
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 10 }}>
@@ -174,8 +176,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
 
                 <div className="panel" style={{ display: 'grid', gap: 6 }}>
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>Preview (client-side)</div>
-                    <div>Loan amount: ${money(Math.round(price * (1 - (downPct || 0) / 100)))}</div>
-                    <div>Monthly P&I: ${money(calcPI(Math.round(price * (1 - (downPct || 0) / 100)), ratePct || 0, termYears || 0))}</div>
+                    <div>Loan amount: ${money(previewLoan)}</div>
+                    <div>Monthly P&I: ${money(previewPI)}</div>
                 </div>
 
                 <p className="text-xs" style={{ opacity: 0.7 }}>
