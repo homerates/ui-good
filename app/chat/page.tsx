@@ -473,9 +473,11 @@ export default function Page() {
         },
     ]);
     const [input, setInput] = useState('');
-    const [mode, setMode] = useState<'borrower' | 'public'>('borrower');
-    const [intent, setIntent] = useState<'' | 'purchase' | 'refi' | 'investor'>('');
-    const [loanAmount, setLoanAmount] = useState<number | ''>('');
+    // Simplified input model — removed unused borrower/intent/loanAmount dropdowns
+    const [mode] = useState<'borrower' | 'public'>('borrower');
+    const [intent] = useState<''>('');
+    const [loanAmount] = useState<number | ''>('');
+
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
