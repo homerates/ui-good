@@ -10,7 +10,7 @@ type Role = 'user' | 'assistant';
 
 /* =========================
    Calc helpers (UI)
-========================= */
+   ========================= */
 function isPaymentQuery(q: string) {
     const s = q.toLowerCase();
     if (/\bpay(ment|mnt|ments|mnts)?\b/.test(s)) return true;
@@ -28,7 +28,8 @@ function isPaymentQuery(q: string) {
     if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+at\s+\d+(\.\d+)?\s*%\s+for\s+\d+/.test(s)) return true;
 
     // generic “$400k @ 6.5% for 30y”
-    if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+@\s+\d+(\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s)) return true;
+    if (/\$?\s*\d[\d.,]*(?:\s*[km])?\s+@\s+\d+(\.\d+)?\s*%\s+for\s+\d+\s*(years?|yrs?|yr|y)?\b/.test(s))
+        return true;
 
     // reverse: “payment is $3,800”, “$3800/mo”, “$2,528.27 per month”
     if (/\$?\s*\d[\d.,]*\s*(?:\/?\s*)?(?:mo|month)\b/.test(s)) return true;
@@ -39,7 +40,7 @@ function isPaymentQuery(q: string) {
 
 /* =========================
    Robust parsing helpers
-========================= */
+   ========================= */
 function isFiniteNum(n: unknown): n is number {
     return typeof n === 'number' && Number.isFinite(n);
 }
@@ -168,7 +169,6 @@ function parsePaymentQuery(q: string) {
     if (rateNear) {
         annualRatePct = parsePercent(rateNear[1]);
     } else {
-        // avoid misreading "20% down" as rate
         const anyPct = clean.match(/([0-9]+(?:\.[0-9]+)?)\s*%/i);
         if (anyPct && !/\b(down(\s*payment)?|ltv|loan\s*to\s*value)\b/i.test(clean)) {
             annualRatePct = parsePercent(anyPct[1]);
@@ -179,10 +179,10 @@ function parsePaymentQuery(q: string) {
     const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
     let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
     if (!termYears && (isFiniteNum(loanAmount) || isFiniteNum(purchasePrice)) && typeof annualRatePct === 'number') {
-        termYears = 30; // reasonable default when context exists
+        termYears = 30;
     }
 
-    // Reverse: infer loan amount
+    // Reverse: If a monthly payment is present and we have rate + term, infer loan amount
     if (!isFiniteNum(loanAmount) && isFiniteNum(paymentMonthly) && isFiniteNum(annualRatePct) && isFiniteNum(termYears)) {
         const inferred = solveLoanAmountFromPI(paymentMonthly!, annualRatePct!, termYears!);
         if (isFiniteNum(inferred)) loanAmount = inferred;
@@ -199,8 +199,6 @@ function buildCalcUrl(
         downPercent?: number;
         annualRatePct?: number;
         termYears?: number;
-        zip?: string;
-        hoa?: number;
     }
 ) {
     const sp = new URLSearchParams();
@@ -209,15 +207,13 @@ function buildCalcUrl(
     if (isFiniteNum(p.downPercent)) sp.set('downPercent', String(p.downPercent));
     if (isFiniteNum(p.annualRatePct)) sp.set('annualRatePct', String(p.annualRatePct));
     if (isFiniteNum(p.termYears)) sp.set('termYears', String(p.termYears));
-    if (p.zip) sp.set('zip', p.zip);
-    if (isFiniteNum(p.hoa)) sp.set('hoa', String(p.hoa));
     const qs = sp.toString();
     return qs ? `${base}?${qs}` : base;
 }
 
 /* =========================
    Types
-========================= */
+   ========================= */
 type CalcAnswer = {
     loanAmount: number;
     monthlyPI: number;
@@ -257,7 +253,7 @@ type ChatMsg =
 
 /* =========================
    Utils
-========================= */
+   ========================= */
 function uid() {
     return Math.random().toString(36).slice(2, 10);
 }
@@ -321,7 +317,7 @@ function normalizeCalcResponse(raw: unknown, status: number): ApiResponse {
 
 /* =========================
    Rendering
-========================= */
+   ========================= */
 function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     if (!meta) return null;
 
@@ -429,7 +425,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 </div>
             )}
 
-            {m.path === 'market' && m.usedFRED && m.borrowerSummary && (
+            {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
                 <div className="panel">
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
                     <ul style={{ marginTop: 0 }}>
@@ -461,7 +457,7 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 
 /* =========================
    Page
-========================= */
+   ========================= */
 export default function Page() {
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
@@ -549,7 +545,7 @@ export default function Page() {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages]);
 
-    // SAFE HOTKEYS: ignore when typing and require Cmd/Ctrl
+    // SAFE HOTKEYS
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement | null;
@@ -617,7 +613,7 @@ export default function Page() {
         setHistory((h) => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
     }
 
-    // === kebab menu actions from Sidebar (rename/move/archive/delete) ===
+    // === kebab menu actions from Sidebar ===
     function handleHistoryAction(
         action: 'rename' | 'move' | 'archive' | 'delete',
         id: string
@@ -679,7 +675,6 @@ export default function Page() {
             setActiveId(tid);
             setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
         } else {
-            // SAFER HISTORY UPDATER
             setHistory((prev) => {
                 const next = Array.isArray(prev) ? [...prev] : [];
                 const idx = next.findIndex((x) => x?.id === tid);
@@ -756,7 +751,9 @@ export default function Page() {
                 url += (url.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(q);
 
                 const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
+
                 const raw: unknown = await r.json().catch(() => ({}));
+
                 const meta = normalizeCalcResponse(raw, r.status);
 
                 let friendly = 'Calculated principal & interest payment.';
@@ -764,7 +761,9 @@ export default function Page() {
                     const a = meta.answer as CalcAnswer;
                     friendly = `Monthly P&I: $${fmtMoney(a.monthlyPI)} on $${fmtMoney(a.loanAmount)}`;
                 }
-                if (!r.ok) friendly = `Calc service returned ${r.status}. Showing raw data.`;
+                if (!r.ok) {
+                    friendly = `Calc service returned ${r.status}. Showing raw data.`;
+                }
 
                 setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
                 setLoading(false);
@@ -842,7 +841,6 @@ export default function Page() {
     function onLibrary() { setShowLibrary(true); }
     function onNewProject() { setShowProject(true); }
     function onMortgageCalc() { setShowMortgageCalc(true); }
-
     function closeAllOverlays() {
         setShowSearch(false);
         setShowLibrary(false);
@@ -950,7 +948,7 @@ export default function Page() {
                     </div>
                 </div>
 
-                {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
+                {/* ------- Overlays (Search/Library/Settings/New Project/Calculator) ------- */}
                 {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
                     <div
                         role="dialog"
@@ -1129,62 +1127,62 @@ export default function Page() {
                             {/* MORTGAGE CALCULATOR */}
                             {showMortgageCalc && (
                                 <form
-                                    onSubmit={async (e) => {
+                                    onSubmit={(e) => {
                                         e.preventDefault();
-
-                                        // 1) Read inputs
                                         const fd = new FormData(e.currentTarget);
-                                        const price = Number(String(fd.get('price') || '').replace(/[, ]+/g, '')) || 0;
-                                        const downPct = Number(String(fd.get('downPct') || '').replace(/[, ]+/g, '')) || 0;
-                                        const ratePct = Number(String(fd.get('ratePct') || '').replace(/[, ]+/g, '')) || 0;
-                                        const termYears = Number(String(fd.get('termYears') || '').replace(/[, ]+/g, '')) || 30;
-                                        const zip = String(fd.get('zip') || '').trim();
-                                        const hoa = Number(String(fd.get('hoa') || '').replace(/[, ]+/g, '')) || 0;
 
-                                        // 2) Close overlay for UX
+                                        const toNum = (v: unknown) =>
+                                            Number(String(v ?? '').replace(/[, ]+/g, '')) || 0;
+
+                                        const price = toNum(fd.get('price'));             // purchase price
+                                        const downPct = toNum(fd.get('downPct'));         // percent (e.g., 20)
+                                        const ratePct = toNum(fd.get('ratePct'));         // APR percent (e.g., 6.25)
+                                        const termYears = Math.max(1, toNum(fd.get('termYears')) || 30);
+                                        const zip = String(fd.get('zip') || '').trim();
+                                        const hoa = toNum(fd.get('hoa'));
+
+                                        // Core math: exact amortization P&I
+                                        const loanAmount = Math.round(price * (1 - (downPct / 100)));
+                                        const r = (ratePct / 100) / 12;
+                                        const n = termYears * 12;
+                                        const denom = 1 - Math.pow(1 + r, -n);
+                                        const monthlyPI = loanAmount > 0 && r > 0 && denom > 0
+                                            ? Math.round(loanAmount * (r / denom) * 100) / 100
+                                            : 0;
+
+                                        // Sensitivity ±0.25%
+                                        const bump = [-0.25, 0, 0.25].map((d) => {
+                                            const rr = (ratePct + d) / 100 / 12;
+                                            const dd = 1 - Math.pow(1 + rr, -(termYears * 12));
+                                            const pmt = (loanAmount > 0 && rr > 0 && dd > 0)
+                                                ? Math.round(loanAmount * (rr / dd) * 100) / 100
+                                                : 0;
+                                            return { rate: (ratePct + d) / 100, pi: pmt };
+                                        });
+
+                                        // Close overlay
                                         closeAllOverlays();
 
-                                        // 3) Echo the ask for breadcrumb
+                                        // Post result card
                                         setMessages((m) => [
                                             ...m,
                                             {
                                                 id: uid(),
-                                                role: 'user',
-                                                content: `Payment on ${price.toLocaleString()} with ${downPct}% down at ${ratePct}% for ${termYears} years (ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}).`,
+                                                role: 'assistant',
+                                                content: `Monthly P&I: $${monthlyPI.toLocaleString(undefined, { maximumFractionDigits: 2 })} on $${loanAmount.toLocaleString()} (ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}).`,
+                                                meta: {
+                                                    path: 'calc',
+                                                    usedFRED: false,
+                                                    answer: {
+                                                        loanAmount,
+                                                        monthlyPI,
+                                                        sensitivities: bump,
+                                                    },
+                                                    generatedAt: new Date().toISOString(),
+                                                    status: 200,
+                                                },
                                             },
                                         ]);
-
-                                        // 4) Call calc endpoint and render meta (same pipeline as answers)
-                                        try {
-                                            setLoading(true);
-
-                                            const url = buildCalcUrl('/api/calc/payment', {
-                                                purchasePrice: price,
-                                                downPercent: downPct,
-                                                annualRatePct: ratePct,
-                                                termYears,
-                                                zip,
-                                                hoa,
-                                            });
-
-                                            const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
-                                            const raw: unknown = await r.json().catch(() => ({}));
-                                            const meta = normalizeCalcResponse(raw, r.status);
-
-                                            let friendly = 'Calculated principal & interest payment.';
-                                            if (meta.path === 'calc' && meta.answer && typeof meta.answer === 'object') {
-                                                const a = meta.answer as CalcAnswer;
-                                                friendly = `Monthly P&I: $${fmtMoney(a.monthlyPI)} on $${fmtMoney(a.loanAmount)}`;
-                                            }
-                                            if (!r.ok) friendly = `Calc service returned ${r.status}. Showing raw data.`;
-
-                                            setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
-                                        } catch (err) {
-                                            const msg = err instanceof Error ? err.message : String(err);
-                                            setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
-                                        } finally {
-                                            setLoading(false);
-                                        }
                                     }}
                                     style={{ display: 'grid', gap: 10 }}
                                 >
@@ -1258,7 +1256,7 @@ export default function Page() {
                                         </label>
 
                                         <p className="text-xs" style={{ opacity: 0.7 }}>
-                                            Guided input. We’ll fetch a live calc and show the full results card in the chat.
+                                            P&I only for now. We’ll add taxes/insurance/MI next.
                                         </p>
                                     </div>
 
@@ -1268,6 +1266,7 @@ export default function Page() {
                                     </div>
                                 </form>
                             )}
+
                         </div>
                     </div>
                 )}
