@@ -1169,12 +1169,31 @@ export default function Page() {
                             )}
 
                             {/* MORTGAGE CALCULATOR */}
-                            {showMortgageCalc && (
-                                <MortgageCalcPanel
-                                    onSubmit={handleCalcSubmit}
-                                    onCancel={closeAllOverlays}
-                                />
-                            )}
+                            onSubmit={(res) => {
+                                // Close the overlay
+                                closeAllOverlays();
+
+                                // Nicely formatted result into chat (same style as your calc card summary)
+                                const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                const ratePct = res.inputs.ratePct;
+                                const term = res.inputs.termYears;
+
+                                // Build the friendly summary
+                                const header = `Guided inputs → $${fmt(res.monthlyPI)} P&I on $${fmt(res.loanAmount)} at ${ratePct}% for ${term}y.`;
+                                const sens = res.sensitivities
+                                    .map(s => `Rate: ${(s.rate * 100).toFixed(2)}% → P&I $${fmt(s.pi)}`)
+                                    .join('\n');
+
+                                setMessages((m) => [
+                                    ...m,
+                                    {
+                                        id: uid(),
+                                        role: 'assistant',
+                                        content: `${header}\n±0.25% Sensitivity\n${sens}`,
+                                    },
+                                ]);
+                            }}
+
                         </div>
                     </div>
                 )}

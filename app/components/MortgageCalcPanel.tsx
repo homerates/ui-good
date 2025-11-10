@@ -1,42 +1,99 @@
+// app/components/MortgageCalcPanel.tsx
 'use client';
+
 import * as React from 'react';
 
-type Props = {
-    onSubmit: (vals: {
-        price: number;
-        downPct: number;
-        ratePct: number;
-        termYears: number;
-        zip: string;
-        hoa: number;
-    }) => void;
-    onCancel: () => void;
+type Inputs = {
+    price: number;
+    downPct: number;      // 20 = 20%
+    ratePct: number;      // 6.25 = 6.25%
+    termYears: number;    // 30
+    zip?: string;
+    hoa?: number;
 };
 
-export default function MortgageCalcPanel({ onSubmit, onCancel }: Props) {
+type CalcResult = {
+    inputs: Inputs;
+    loanAmount: number;
+    monthlyPI: number;
+    sensitivities: Array<{ rate: number; pi: number }>; // rate as decimal (0.0625)
+};
+
+function toNumber(s: FormDataEntryValue | null, def = 0) {
+    if (s == null) return def;
+    const n = Number(String(s).replace(/[, ]+/g, ''));
+    return Number.isFinite(n) ? n : def;
+}
+
+function monthlyPI(loan: number, annualRatePct: number, termYears: number) {
+    const r = (annualRatePct / 100) / 12;
+    const n = termYears * 12;
+    if (loan <= 0 || r <= 0 || n <= 0) return 0;
+    const denom = r / (1 - Math.pow(1 + r, -n));
+    return Math.round((loan * denom) * 100) / 100;
+}
+
+function buildSensitivities(loan: number, baseRatePct: number, termYears: number) {
+    const bands = [baseRatePct - 0.25, baseRatePct, baseRatePct + 0.25];
+    return bands.map((bp) => ({
+        rate: bp / 100, // decimal
+        pi: monthlyPI(loan, bp, termYears),
+    }));
+}
+
+export default function MortgageCalcPanel(props: {
+    onSubmit: (result: CalcResult) => void;
+    onCancel: () => void;
+}) {
+    // Defaults aligned with your demos
+    const [price, setPrice] = React.useState('900000');
+    const [downPct, setDownPct] = React.useState('20');
+    const [ratePct, setRatePct] = React.useState('6.25');
+    const [termYears, setTermYears] = React.useState('30');
+    const [zip, setZip] = React.useState('92688');
+    const [hoa, setHoa] = React.useState('');
+
     return (
         <form
             onSubmit={(e) => {
                 e.preventDefault();
-                const fd = new FormData(e.currentTarget as HTMLFormElement);
-                const price = Number(String(fd.get('price') || '').replace(/[, ]+/g, '')) || 0;
-                const downPct = Number(String(fd.get('downPct') || '').replace(/[, ]+/g, '')) || 0;
-                const ratePct = Number(String(fd.get('ratePct') || '').replace(/[, ]+/g, '')) || 0;
-                const termYears = Number(String(fd.get('termYears') || '').replace(/[, ]+/g, '')) || 30;
-                const zip = String(fd.get('zip') || '').trim();
-                const hoa = Number(String(fd.get('hoa') || '').replace(/[, ]+/g, '')) || 0;
-                onSubmit({ price, downPct, ratePct, termYears, zip, hoa });
+                const fd = new FormData(e.currentTarget);
+
+                const _price = toNumber(fd.get('price'));
+                const _downPct = toNumber(fd.get('downPct'));
+                const _ratePct = toNumber(fd.get('ratePct'));
+                const _termYears = toNumber(fd.get('termYears'), 30);
+                const _zip = String(fd.get('zip') || '').trim();
+                const _hoa = toNumber(fd.get('hoa'));
+
+                const loanAmount = Math.max(0, Math.round(_price * (1 - _downPct / 100)));
+                const pi = monthlyPI(loanAmount, _ratePct, _termYears);
+                const sensitivities = buildSensitivities(loanAmount, _ratePct, _termYears);
+
+                props.onSubmit({
+                    inputs: {
+                        price: _price,
+                        downPct: _downPct,
+                        ratePct: _ratePct,
+                        termYears: _termYears,
+                        zip: _zip,
+                        hoa: _hoa,
+                    },
+                    loanAmount,
+                    monthlyPI: pi,
+                    sensitivities,
+                });
             }}
             style={{ display: 'grid', gap: 10 }}
         >
-            {/* Content grid (matches other overlays) */}
-            <div style={{ display: 'grid', gap: 10 }}>
+            <div className="grid" style={{ display: 'grid', gap: 10 }}>
                 <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
                     Purchase price
                     <input
                         name="price"
                         inputMode="decimal"
-                        defaultValue="900000"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
                         placeholder="e.g. 900000"
                         className="input"
                         autoFocus
@@ -49,7 +106,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel }: Props) {
                         <input
                             name="downPct"
                             inputMode="decimal"
-                            defaultValue="20"
+                            value={downPct}
+                            onChange={(e) => setDownPct(e.target.value)}
                             placeholder="e.g. 20"
                             className="input"
                         />
@@ -59,7 +117,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel }: Props) {
                         <input
                             name="ratePct"
                             inputMode="decimal"
-                            defaultValue="6.25"
+                            value={ratePct}
+                            onChange={(e) => setRatePct(e.target.value)}
                             placeholder="e.g. 6.25"
                             className="input"
                         />
@@ -72,7 +131,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel }: Props) {
                         <input
                             name="termYears"
                             inputMode="numeric"
-                            defaultValue="30"
+                            value={termYears}
+                            onChange={(e) => setTermYears(e.target.value)}
                             placeholder="e.g. 30"
                             className="input"
                         />
@@ -82,7 +142,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel }: Props) {
                         <input
                             name="zip"
                             inputMode="numeric"
-                            defaultValue="92688"
+                            value={zip}
+                            onChange={(e) => setZip(e.target.value)}
                             placeholder="e.g. 92688"
                             className="input"
                         />
@@ -94,19 +155,20 @@ export default function MortgageCalcPanel({ onSubmit, onCancel }: Props) {
                     <input
                         name="hoa"
                         inputMode="decimal"
+                        value={hoa}
+                        onChange={(e) => setHoa(e.target.value)}
                         placeholder="e.g. 125"
                         className="input"
                     />
                 </label>
 
-                <div className="text-xs" style={{ opacity: 0.7 }}>
-                    Guided inputs only. Math runs locally; results are posted back to the chat as a calc card.
-                </div>
+                <p className="text-xs" style={{ opacity: 0.7 }}>
+                    This runs real amortization locally. Next pass: plug tax/MI/ins lookups for full PITI.
+                </p>
             </div>
 
-            {/* Actions (matches other overlays) */}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button className="btn" type="button" onClick={onCancel}>Cancel</button>
+                <button className="btn" type="button" onClick={props.onCancel}>Cancel</button>
                 <button className="btn primary" type="submit">Use these inputs</button>
             </div>
         </form>
