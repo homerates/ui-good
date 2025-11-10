@@ -130,9 +130,6 @@ function parsePaymentQuery(q: string) {
     }
 
     // If still missing, infer from context:
-    //  - If the user said "payment on $X ..." treat $X as loan
-    //  - If exactly one money appears and there are no "price" hints, treat it as loan
-    //  - If "loan" keyword exists, prefer the first non-% money after it
     if (!isFiniteNum(loanAmount)) {
         if (hintsPaymentOn && tokens.length >= 1) {
             const t = tokens.find((t) => !t.followedByPercent);
@@ -185,7 +182,7 @@ function parsePaymentQuery(q: string) {
         termYears = 30; // reasonable default when context exists
     }
 
-    // Reverse: If a monthly payment is present and we have rate + term, infer loan amount
+    // Reverse: infer loan amount
     if (!isFiniteNum(loanAmount) && isFiniteNum(paymentMonthly) && isFiniteNum(annualRatePct) && isFiniteNum(termYears)) {
         const inferred = solveLoanAmountFromPI(paymentMonthly!, annualRatePct!, termYears!);
         if (isFiniteNum(inferred)) loanAmount = inferred;
@@ -202,6 +199,8 @@ function buildCalcUrl(
         downPercent?: number;
         annualRatePct?: number;
         termYears?: number;
+        zip?: string;
+        hoa?: number;
     }
 ) {
     const sp = new URLSearchParams();
@@ -210,6 +209,8 @@ function buildCalcUrl(
     if (isFiniteNum(p.downPercent)) sp.set('downPercent', String(p.downPercent));
     if (isFiniteNum(p.annualRatePct)) sp.set('annualRatePct', String(p.annualRatePct));
     if (isFiniteNum(p.termYears)) sp.set('termYears', String(p.termYears));
+    if (p.zip) sp.set('zip', p.zip);
+    if (isFiniteNum(p.hoa)) sp.set('hoa', String(p.hoa));
     const qs = sp.toString();
     return qs ? `${base}?${qs}` : base;
 }
@@ -428,7 +429,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 </div>
             )}
 
-            {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
+            {m.path === 'market' && m.usedFRED && m.borrowerSummary && (
                 <div className="panel">
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
                     <ul style={{ marginTop: 0 }}>
@@ -678,7 +679,7 @@ export default function Page() {
             setActiveId(tid);
             setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
         } else {
-            // SAFER HISTORY UPDATER (avoids TDZ / minifier traps)
+            // SAFER HISTORY UPDATER
             setHistory((prev) => {
                 const next = Array.isArray(prev) ? [...prev] : [];
                 const idx = next.findIndex((x) => x?.id === tid);
@@ -752,13 +753,10 @@ export default function Page() {
                 }
 
                 let url = buildCalcUrl('/api/calc/payment', patched);
-                // pass the raw question so the server can parse things like "180 months"
                 url += (url.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(q);
 
                 const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
-
                 const raw: unknown = await r.json().catch(() => ({}));
-
                 const meta = normalizeCalcResponse(raw, r.status);
 
                 let friendly = 'Calculated principal & interest payment.';
@@ -766,9 +764,7 @@ export default function Page() {
                     const a = meta.answer as CalcAnswer;
                     friendly = `Monthly P&I: $${fmtMoney(a.monthlyPI)} on $${fmtMoney(a.loanAmount)}`;
                 }
-                if (!r.ok) {
-                    friendly = `Calc service returned ${r.status}. Showing raw data.`;
-                }
+                if (!r.ok) friendly = `Calc service returned ${r.status}. Showing raw data.`;
 
                 setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
                 setLoading(false);
@@ -1133,9 +1129,10 @@ export default function Page() {
                             {/* MORTGAGE CALCULATOR */}
                             {showMortgageCalc && (
                                 <form
-                                    onSubmit={(e) => {
+                                    onSubmit={async (e) => {
                                         e.preventDefault();
-                                        // Read values directly and close. Next pass: inject as a results card.
+
+                                        // 1) Read inputs
                                         const fd = new FormData(e.currentTarget);
                                         const price = Number(String(fd.get('price') || '').replace(/[, ]+/g, '')) || 0;
                                         const downPct = Number(String(fd.get('downPct') || '').replace(/[, ]+/g, '')) || 0;
@@ -1144,20 +1141,50 @@ export default function Page() {
                                         const zip = String(fd.get('zip') || '').trim();
                                         const hoa = Number(String(fd.get('hoa') || '').replace(/[, ]+/g, '')) || 0;
 
-                                        console.log('MortgageCalc inputs:', { price, downPct, ratePct, termYears, zip, hoa });
-
-                                        // Close overlay for now
+                                        // 2) Close overlay for UX
                                         closeAllOverlays();
 
-                                        // Echo a friendly confirmation into chat so there's a breadcrumb
+                                        // 3) Echo the ask for breadcrumb
                                         setMessages((m) => [
                                             ...m,
                                             {
                                                 id: uid(),
-                                                role: 'assistant',
-                                                content: `Using ${price.toLocaleString()} price, ${downPct}% down, ${ratePct}% for ${termYears} years, ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}.`,
+                                                role: 'user',
+                                                content: `Payment on ${price.toLocaleString()} with ${downPct}% down at ${ratePct}% for ${termYears} years (ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}).`,
                                             },
                                         ]);
+
+                                        // 4) Call calc endpoint and render meta (same pipeline as answers)
+                                        try {
+                                            setLoading(true);
+
+                                            const url = buildCalcUrl('/api/calc/payment', {
+                                                purchasePrice: price,
+                                                downPercent: downPct,
+                                                annualRatePct: ratePct,
+                                                termYears,
+                                                zip,
+                                                hoa,
+                                            });
+
+                                            const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
+                                            const raw: unknown = await r.json().catch(() => ({}));
+                                            const meta = normalizeCalcResponse(raw, r.status);
+
+                                            let friendly = 'Calculated principal & interest payment.';
+                                            if (meta.path === 'calc' && meta.answer && typeof meta.answer === 'object') {
+                                                const a = meta.answer as CalcAnswer;
+                                                friendly = `Monthly P&I: $${fmtMoney(a.monthlyPI)} on $${fmtMoney(a.loanAmount)}`;
+                                            }
+                                            if (!r.ok) friendly = `Calc service returned ${r.status}. Showing raw data.`;
+
+                                            setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+                                        } catch (err) {
+                                            const msg = err instanceof Error ? err.message : String(err);
+                                            setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
+                                        } finally {
+                                            setLoading(false);
+                                        }
                                     }}
                                     style={{ display: 'grid', gap: 10 }}
                                 >
@@ -1231,7 +1258,7 @@ export default function Page() {
                                         </label>
 
                                         <p className="text-xs" style={{ opacity: 0.7 }}>
-                                            Guided input. No server parsing. We’ll render a results card next.
+                                            Guided input. We’ll fetch a live calc and show the full results card in the chat.
                                         </p>
                                     </div>
 
