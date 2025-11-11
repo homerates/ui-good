@@ -1,31 +1,23 @@
-﻿/* HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0001-9198324F | SHA256: 9198324FAD6C3AA7 */
-/* app/globals.css */
+﻿/* ==== REPLACE ENTIRE FILE: app/globals.css ==== */
+
+/* ---------- Base tokens ---------- */
 :root {
-  --bg: #fff;
-  --text: #0f172a;
-  --muted: #64748b;
-  --panel: #f8fafc;
-  --border: #e5e7eb;
-  --brand: #111827;
-  --brand-weak: #334155;
-  --accent: #0ea5e9;
-  --bubble-user: #e0f2fe;
-  --bubble-assistant: #f4f4f5;
+  --bg: #ffffff;
+  --text: #0b1220;
+  --text-weak: #566074;
+  --card: #ffffff;
+  --border: #E5E7EB;
+
+  /* Sidebar palette: light gray (not dark) */
+  --sidebar-bg: #f3f4f6;
+  --sidebar-text: #0b1220;
+
+  /* Accent (HomeRates) */
+  --brand: #6b21a8;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b0f17;
-    --text: #e5e7eb;
-    --muted: #94a3b8;
-    --panel: #0f172a;
-    --border: #1f2937;
-    --brand: #e5e7eb;
-    --brand-weak: #cbd5e1;
-    --accent: #38bdf8;
-    --bubble-user: #0b2b3a;
-    --bubble-assistant: #111827;
-  }
+* {
+  box-sizing: border-box;
 }
 
 html,
@@ -33,520 +25,240 @@ body {
   height: 100%;
 }
 
-* {
-  box-sizing: border-box;
-}
-
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.45 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
-/* â€”â€” App frame on <body> â€”â€” */
+/* ---------- App shell ---------- */
 .app {
-  height: 100dvh;
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  /* <- ensure the main column can shrink */
-  min-width: 0;
-  /* avoid overflow */
+  min-height: 100dvh;
 }
 
-/* Sidebar */
-.sidebar {
-  border-right: 1px solid var(--border);
-  background: var(--panel);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: 0;
+/* Main section must never shift when sidebar opens */
+.main {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  margin: 0 !important;
+  /* force single-column layout */
 }
 
-.side-top {
-  padding: 12px;
-  display: grid;
+/* Sticky header always on top */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 3000;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-inner {
+  height: 56px;
+  display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 0 16px;
 }
 
-.brand {
-  font-weight: 800;
-  color: var(--brand);
+/* ---------- Sidebar as overlay (not a column) ---------- */
+/* Target the Sidebar by id you already pass: id="hr-sidebar" */
+#hr-sidebar {
+  position: fixed !important;
+  inset: 0 auto 0 0;
+  /* left edge */
+  width: 320px;
+  max-width: 92vw;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  z-index: 4000;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  transform: translateX(-100%);
+  transition: transform 180ms ease;
+  /* ensure it never captures layout flow */
+  contain: layout paint;
+}
+
+/* Open state: support either a class "open" or a data attr */
+#hr-sidebar.open,
+#hr-sidebar[data-open="true"] {
+  transform: translateX(0);
+}
+
+/* Sidebar pills/buttons look light */
+#hr-sidebar .btn,
+#hr-sidebar .chat-item {
+  background: #ffffff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+/* Fix any leftover dark theme classes from prior styles */
+#hr-sidebar .dark,
+#hr-sidebar .bg-dark,
+#hr-sidebar .sidebar-dark {
+  background: var(--sidebar-bg) !important;
+  color: var(--sidebar-text) !important;
+}
+
+/* ---------- Hamburger (always visible) ---------- */
+.hamburger {
+  position: relative;
+  width: 28px;
+  height: 22px;
+  display: inline-flex !important;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.hamburger:focus {
+  outline: 2px solid #c7d2fe;
+  outline-offset: 2px;
+}
+
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: #0b1220;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.hamburger.open span:nth-child(1) {
+  transform: translateY(9.5px) rotate(45deg);
+}
+
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.open span:nth-child(3) {
+  transform: translateY(-9.5px) rotate(-45deg);
+}
+
+/* Never hide it on desktop or mobile */
+@media (max-width: 9999px) {
+  .header .btn[aria-haspopup="menu"] {
+    display: none !important;
+  }
+
+  /* hide old 'Menu' button */
+  .header .hamburger {
+    display: inline-flex !important;
+  }
+}
+
+/* ---------- Chat area ---------- */
+.center {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.messages {
+  display: grid;
+  gap: 14px;
+}
+
+.meta {
+  color: var(--text-weak);
+  font-size: 12px;
+}
+
+.bubble {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+  background: #0b1220;
+}
+
+.avatar.user {
+  background: #e5e7eb;
+  color: #111;
+}
+
+.balloon {
+  background: #f3f4f6;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 12px 14px;
+  max-width: 720px;
+}
+
+.balloon.user {
+  background: #e5e7eb;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+/* ---------- Composer ---------- */
+.composer {
+  background: var(--card);
+  border-top: 1px solid var(--border);
+}
+
+.composer-inner {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+}
+
+.input {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 0 12px;
+  background: #fff;
+  color: var(--text);
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
+  height: 44px;
   border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+  padding: 0 14px;
   cursor: pointer;
 }
 
 .btn.primary {
   background: var(--brand);
   color: #fff;
-  border-color: var(--brand);
+  border-color: transparent;
 }
 
-.btn.ghost {
-  background: transparent;
-}
-
-.btn:disabled {
-  opacity: .6;
-  cursor: not-allowed;
-}
-
-.chat-list {
-  overflow: auto;
-  padding: 8px 12px;
-  display: grid;
-  gap: 6px;
-}
-
-.chat-item {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--brand-weak);
-  cursor: pointer;
-}
-
-.chat-item:hover {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.side-bottom {
-  padding: 12px;
-  border-top: 1px solid var(--border);
-  display: grid;
-  gap: 8px;
-}
-
-/* Main column */
-.main {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-width: 0;
-  /* critical for grids */
-}
-
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in oklab, var(--bg) 92%, transparent);
-  backdrop-filter: blur(6px);
-}
-
-.header-inner {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.controls {
-  margin-left: auto;
-  display: flex;
-  gap: 8px;
-}
-
-select,
-input[type="number"],
-input[type="text"] {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
-  color: var(--text);
-}
-
-/* Chat area */
+/* ---------- Utility ---------- */
 .scroll {
-  overflow-y: auto;
-  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
-.center {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 12px 16px;
+.hidden {
+  display: none !important;
 }
-
-.messages {
-  display: grid;
-  gap: 12px;
-}
-
-/* Bubbles */
-.bubble {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  flex: 0 0 auto;
-}
-
-.avatar.user {
-  background: var(--accent);
-}
-
-.avatar.bot {
-  background: var(--brand);
-}
-
-.balloon {
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 10px 12px;
-  max-width: 760px;
-  white-space: pre-wrap;
-}
-
-.balloon.user {
-  background: var(--bubble-user);
-}
-
-.balloon.bot {
-  background: var(--bubble-assistant);
-}
-
-/* Meta + panels */
-.meta {
-  font-size: 12px;
-  color: var(--muted);
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
-}
-
-/* Composer */
-.composer {
-  border-top: 1px solid var(--border);
-  background: var(--panel);
-}
-
-.composer-inner {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 12px 16px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-}
-
-.input {
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg);
-  color: var(--text);
-}
-
-/* Collapse sidebar on narrow screens */
-@media (max-width: 920px) {
-  .app {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    display: none;
-  }
-}
-
-/* Always show the header hamburger/menu button (all breakpoints) */
-.header .btn[aria-haspopup="menu"],
-.hamburger {
-  display: inline-flex !important;
-}
-
-.hamburger {
-  position: relative;
-  width: 28px;
-  height: 22px;
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  margin-right: 8px;
-  cursor: pointer;
-}
-
-.hamburger span {
-  display: block;
-  height: 3px;
-  width: 100%;
-  border-radius: 2px;
-  background: var(--text, #111);
-  transition: transform 160ms ease, opacity 160ms ease;
-}
-
-.hamburger.open span:nth-child(1) {
-  transform: translateY(9.5px) rotate(45deg);
-}
-
-.hamburger.open span:nth-child(2) {
-  opacity: 0;
-}
-
-.hamburger.open span:nth-child(3) {
-  transform: translateY(-9.5px) rotate(-45deg);
-}
-
-/* Always show the header hamburger/menu button (all breakpoints) */
-.header .btn[aria-haspopup="menu"],
-.hamburger {
-  display: inline-flex !important;
-}
-
-.hamburger {
-  position: relative;
-  width: 28px;
-  height: 22px;
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  margin-right: 8px;
-  cursor: pointer;
-}
-
-.hamburger span {
-  display: block;
-  height: 3px;
-  width: 100%;
-  border-radius: 2px;
-  background: var(--text, #111);
-  transition: transform 160ms ease, opacity 160ms ease;
-}
-
-.hamburger.open span:nth-child(1) {
-  transform: translateY(9.5px) rotate(45deg);
-}
-
-.hamburger.open span:nth-child(2) {
-  opacity: 0;
-}
-
-.hamburger.open span:nth-child(3) {
-  transform: translateY(-9.5px) rotate(-45deg);
-}
-
-/* --- Sticky header so the hamburger always stays visible --- */
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 4000;
-  background: var(--bg, #fff);
-  /* light blur like ChatGPT */
-  backdrop-filter: saturate(160%) blur(6px);
-  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.06));
-}
-
-/* Ensure the header content aligns */
-.header .header-inner {
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-}
-
-/* --- Sidebar universal slide/toggle (works on desktop too) --- */
-.sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 320px;
-  transform: translateX(0);
-  transition: transform 180ms ease;
-  background: var(--sidebar, #0f172a);
-  color: var(--sidebar-fg, #fff);
-  z-index: 3500;
-  overflow: auto;
-  padding: 12px;
-}
-
-.sidebar.closed {
-  transform: translateX(-100%);
-}
-
-.sidebar.open {
-  transform: translateX(0);
-}
-
-.sidebar .sidebar-inner {
-  display: grid;
-  gap: 10px;
-}
-
-.pill {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
-  background: rgba(255, 255, 255, 0.06);
-  color: inherit;
-  text-align: left;
-}
-
-.pill.primary {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.pill.subtle {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.pill:hover {
-  filter: brightness(1.05);
-}
-
-.icon {
-  width: 18px;
-  display: inline-flex;
-  justify-content: center;
-}
-
-.sidebar-section {
-  margin-top: 8px;
-  display: grid;
-  gap: 8px;
-}
-
-.chat-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px;
-  align-items: center;
-}
-
-.chat-row.active .chat-button {
-  background: rgba(255, 255, 255, 0.18);
-}
-
-.chat-button {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
-  text-align: left;
-}
-
-.dotbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: transparent;
-  color: inherit;
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  display: grid;
-  gap: 8px;
-}
-
-/* Keep hamburger on top of the sidebar edge */
-.hamburger {
-  z-index: 4100;
-}
-
-/* Sticky header on all pages */
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 4000;
-  background: var(--bg, #fff);
-  border-bottom: 1px solid var(--border, #eceff3);
-}
-
-/* Ensure the scroll area doesn’t hide under the sticky header */
-.scroll {
-  padding-top: 8px;
-}
-
-/* Sidebar overlay: fixed, slides in, light theme */
-#hr-sidebar {
-  position: fixed !important;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: min(320px, 92vw);
-  background: #f3f5f7;
-  /* light gray instead of dark navy */
-  color: var(--text, #0f172a);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
-  transform: translateX(-100%);
-  transition: transform 180ms ease;
-  z-index: 5000;
-  /* above header content */
-  overflow: auto;
-}
-
-/* Open states — support multiple possible flags */
-#hr-sidebar.open,
-#hr-sidebar[data-open="true"],
-#hr-sidebar[aria-hidden="false"] {
-  transform: translateX(0);
-}
-
-/* When the sidebar is open, prevent background content from scrolling (optional) */
-body[data-sidebar-open="true"] {
-  overflow: hidden;
-}
-
-/* Single column, centered chat content */
-.main .center {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-
-/* Make sure the chat bubble column never falls under the sidebar due to stacking */
-.main {
-  position: relative;
-  z-index: 1;
-}
-
-/* (Keep your existing .hamburger and .hamburger.open ... styles) */
