@@ -280,11 +280,10 @@ input[type="text"] {
   }
 }
 
-/* hide header menu on narrow viewports, keep Sidebar hamburger there instead */
-@media (max-width: 768px) {
-  .header .btn[aria-haspopup="menu"] {
-    display: none;
-  }
+/* Always show the header hamburger/menu button (all breakpoints) */
+.header .btn[aria-haspopup="menu"],
+.hamburger {
+  display: inline-flex !important;
 }
 
 .hamburger {
@@ -322,11 +321,10 @@ input[type="text"] {
   transform: translateY(-9.5px) rotate(-45deg);
 }
 
-/* hide header menu on narrow viewports, keep Sidebar hamburger there instead */
-@media (max-width: 768px) {
-  .header .btn[aria-haspopup="menu"] {
-    display: none;
-  }
+/* Always show the header hamburger/menu button (all breakpoints) */
+.header .btn[aria-haspopup="menu"],
+.hamburger {
+  display: inline-flex !important;
 }
 
 .hamburger {
@@ -493,3 +491,62 @@ input[type="text"] {
 .hamburger {
   z-index: 4100;
 }
+
+/* Sticky header on all pages */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 4000;
+  background: var(--bg, #fff);
+  border-bottom: 1px solid var(--border, #eceff3);
+}
+
+/* Ensure the scroll area doesn’t hide under the sticky header */
+.scroll {
+  padding-top: 8px;
+}
+
+/* Sidebar overlay: fixed, slides in, light theme */
+#hr-sidebar {
+  position: fixed !important;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(320px, 92vw);
+  background: #f3f5f7;
+  /* light gray instead of dark navy */
+  color: var(--text, #0f172a);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  transform: translateX(-100%);
+  transition: transform 180ms ease;
+  z-index: 5000;
+  /* above header content */
+  overflow: auto;
+}
+
+/* Open states — support multiple possible flags */
+#hr-sidebar.open,
+#hr-sidebar[data-open="true"],
+#hr-sidebar[aria-hidden="false"] {
+  transform: translateX(0);
+}
+
+/* When the sidebar is open, prevent background content from scrolling (optional) */
+body[data-sidebar-open="true"] {
+  overflow: hidden;
+}
+
+/* Single column, centered chat content */
+.main .center {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Make sure the chat bubble column never falls under the sidebar due to stacking */
+.main {
+  position: relative;
+  z-index: 1;
+}
+
+/* (Keep your existing .hamburger and .hamburger.open ... styles) */
