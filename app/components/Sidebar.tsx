@@ -1,115 +1,172 @@
 // ==== REPLACE ENTIRE FILE: app/components/Sidebar.tsx ====
+// Sidebar: Clerk-ready, light UI, no extra pills, keeps prop parity with page.tsx
+
 'use client';
 
 import * as React from 'react';
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton,
+} from '@clerk/nextjs';
 
-export type SidebarHistoryItem = { id: string; title: string; updatedAt?: number };
+type HistoryItem = { id: string; title: string; updatedAt?: number };
 
 export type SidebarProps = {
-  history: SidebarHistoryItem[];
+  id?: string;
+  history: HistoryItem[];
   activeId: string | null;
+  isOpen: boolean;
+
+  onToggle: () => void;
+
   onSelectHistory: (id: string) => void;
+  onHistoryAction: (action: 'rename' | 'move' | 'archive' | 'delete', id: string) => void;
 
   onNewChat: () => void;
+  onSettings: () => void;
+  onShare: () => void; // kept for prop parity (not rendered as a pill)
   onSearch: () => void;
   onLibrary: () => void;
-  onSettings: () => void;
   onNewProject: () => void;
   onMortgageCalc: () => void;
-  onShare: () => void;
-
-  isOpen: boolean;
-  onToggle: () => void;
-  onHistoryAction: (action: 'rename' | 'move' | 'archive' | 'delete', id: string) => void;
-  id?: string; // optional id (you passed "hr-sidebar")
 };
 
 export default function Sidebar({
+  id,
   history,
   activeId,
-  onSelectHistory,
-  onNewChat,
-  onSearch,
-  onLibrary,
-  onSettings,
-  onNewProject,
-  onMortgageCalc,
-  onShare,
   isOpen,
   onToggle,
+  onSelectHistory,
   onHistoryAction,
-  id,
+  onNewChat,
+  onSettings,
+  onShare, // not used in UI (per request), but kept to match page props
+  onSearch,
+  onLibrary,
+  onNewProject,
+  onMortgageCalc,
 }: SidebarProps) {
   return (
     <aside
       id={id}
       className={`sidebar ${isOpen ? 'open' : 'closed'}`}
-      aria-hidden={!isOpen}
+      aria-label="Sidebar"
+    // No forced dark background here—let your global CSS control theme.
     >
-      <div className="sidebar-inner">
-        <button className="pill primary" onClick={onNewChat}>
-          <span className="icon">＋</span> New chat
+      {/* Header: hamburger + brand */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 8px 12px' }}>
+        <button
+          className="hamburger"
+          onClick={onToggle}
+          aria-label={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
+          title={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
+          type="button"
+        >
+          <span></span><span></span><span></span>
         </button>
 
-        <button className="pill" onClick={onSearch}>
-          <span className="icon">🔎</span> Search
-        </button>
+        <a
+          href="/"
+          aria-label="HomeRates.ai"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'inherit', textDecoration: 'none', fontWeight: 700 }}
+        >
+          {/* If the SVG doesn’t exist, the image 404s silently; text still shows. */}
+          <img
+            src="/HomeRates-mark.svg"
+            alt=""
+            width={18}
+            height={18}
+            style={{ display: 'block', objectFit: 'contain' }}
+          />
+          <span>HomeRates.ai</span>
+        </a>
+      </div>
 
-        <button className="pill" onClick={onLibrary}>
-          <span className="icon">📚</span> Library
+      {/* Primary actions */}
+      <div style={{ display: 'grid', gap: 10, padding: '8px 12px' }}>
+        <button className="btn primary" onClick={onNewChat} type="button">
+          New chat
         </button>
-
-        <button className="pill" onClick={onNewProject}>
-          <span className="icon">📁</span> New Project +
+        <button className="btn" onClick={onSearch} type="button">
+          Search
         </button>
-
-        <button className="pill" onClick={onMortgageCalc}>
-          <span className="icon">🏠</span> Mortgage Calculator
+        <button className="btn" onClick={onLibrary} type="button">
+          Library
         </button>
+        <button className="btn" onClick={onNewProject} type="button">
+          New Project +
+        </button>
+        <button className="btn" onClick={onMortgageCalc} type="button">
+          Mortgage Calculator
+        </button>
+      </div>
 
-        <div className="sidebar-section">
-          {history.map((h) => {
-            const active = h.id === activeId;
-            return (
-              <div key={h.id} className={`chat-row ${active ? 'active' : ''}`}>
-                <button
-                  className="chat-button"
-                  title={h.title}
-                  onClick={() => onSelectHistory(h.id)}
-                >
-                  {h.title}
-                </button>
-                <div className="chat-actions">
+      {/* Threads */}
+      <div style={{ padding: '8px 12px' }}>
+        {history.length > 0 ? (
+          <div className="chat-list" role="list" aria-label="Chats">
+            {history.map((h) => {
+              const isActive = h.id === activeId;
+              return (
+                <div key={h.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <button
-                    className="dotbtn"
-                    title="Rename"
-                    onClick={() => onHistoryAction('rename', h.id)}
+                    className="chat-item"
+                    role="listitem"
+                    onClick={() => onSelectHistory(h.id)}
+                    aria-current={isActive ? 'true' : 'false'}
+                    title={h.title}
+                    style={{
+                      flex: 1,
+                      textAlign: 'left',
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                    type="button"
                   >
-                    …
+                    {h.title}
                   </button>
-                  <button
-                    className="dotbtn"
-                    title="Delete"
-                    onClick={() => onHistoryAction('delete', h.id)}
-                  >
-                    ×
-                  </button>
+                  <div className="menu">
+                    <button
+                      className="btn"
+                      aria-label="Rename chat"
+                      title="Rename chat"
+                      onClick={() => onHistoryAction('rename', h.id)}
+                      type="button"
+                    >
+                      …
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ opacity: 0.7, fontSize: 13 }}>No chats yet</div>
+        )}
+      </div>
+
+      {/* Footer: settings + Clerk (no Copy conversation pill) */}
+      <div style={{ marginTop: 'auto', padding: '12px' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn" onClick={onSettings} type="button">
+            Settings
+          </button>
         </div>
 
-        <div className="sidebar-footer">
-          <button className="pill" onClick={onSettings}>
-            <span className="icon">⚙️</span> Settings
-          </button>
-          <button className="pill" onClick={onShare}>
-            <span className="icon">⧉</span> Copy conversation
-          </button>
-          <button className="pill subtle" onClick={onToggle}>
-            {isOpen ? 'Close Sidebar' : 'Open Sidebar'}
-          </button>
+        <div style={{ marginTop: 12 }}>
+          <SignedIn>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <UserButton showName appearance={{ elements: { userButtonOuterIdentifier: { fontWeight: 600 } } }} />
+            </div>
+          </SignedIn>
+
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="btn primary" type="button">Sign in</button>
+            </SignInButton>
+          </SignedOut>
         </div>
       </div>
     </aside>
