@@ -88,8 +88,8 @@ body {
 }
 
 .center {
-  /* this keeps the chat centered on all viewports */
-  max-width: 760px;
+  /* narrower main view */
+  max-width: 680px;
   width: 100%;
   margin: 0 auto;
   padding: 16px 12px 28px;
@@ -198,7 +198,7 @@ body {
   /* below sticky header */
   left: 0;
   height: calc(100dvh - 52px);
-  width: 210px;
+  width: 180px;
   /* ~2/3 of 320px */
   max-width: 70vw;
   background: #f5f6f8;
@@ -246,4 +246,19 @@ body {
 
 ul {
   padding-left: 18px;
+}
+
+/* === Ask Question Pill === */
+.ask-pill {
+  position: fixed;
+  bottom: 16px;
+  right: 20px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 6px 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
