@@ -953,11 +953,19 @@ export default function Page() {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={onKey}
                         />
-                        <button className="btn" onClick={send} disabled={loading || !input.trim()}>
+                        <button
+                            className="btn ask-pill"
+                            data-testid="ask-pill"
+                            aria-label="Send message"
+                            title="Send"
+                            onClick={send}
+                            disabled={loading || !input.trim()}
+                        >
                             Send
                         </button>
                     </div>
                 </div>
+
 
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
                 {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (

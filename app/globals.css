@@ -272,3 +272,41 @@ ul {
   transform: translateY(-1px);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
 }
+
+/* ===== Ask pill sizing & layout (chat composer) ===== */
+.composer .composer-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composer .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Make the pill compact and not stretch full width */
+.composer .btn.ask-pill {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  line-height: 1.1;
+  max-width: 160px;
+  /* cap width so it doesn't look like a bar */
+  white-space: nowrap;
+  /* keep "Send" on one line */
+}
+
+/* If any global .btn styles force width, neutralize here */
+.composer .composer-inner .btn.ask-pill {
+  width: auto !important;
+}
+
+/* Slightly smaller on narrow screens */
+@media (max-width: 640px) {
+  .composer .btn.ask-pill {
+    padding: 8px 12px;
+    max-width: 136px;
+    font-size: 0.95rem;
+  }
+}
