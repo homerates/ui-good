@@ -1,3 +1,4 @@
+// ==== REPLACE ENTIRE FILE: app/chat/page.tsx ====
 'use client';
 
 import * as React from 'react';
@@ -167,19 +168,19 @@ function parsePaymentQuery(q: string) {
 
     // rate %
     let annualRatePct: number | undefined;
-    const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
+    const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.\d+)?)[ ]*%/i);
     if (rateNear) {
         annualRatePct = parsePercent(rateNear[1]);
     } else {
         // avoid misreading "20% down" as rate
-        const anyPct = clean.match(/([0-9]+(?:\.[0-9]+)?)\s*%/i);
+        const anyPct = clean.match(/([0-9]+(?:\.\d+)?)[ ]*%/i);
         if (anyPct && !/\b(down(\s*payment)?|ltv|loan\s*to\s*value)\b/i.test(clean)) {
             annualRatePct = parsePercent(anyPct[1]);
         }
     }
 
     // term years
-    const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y|yeards?)/i);
+    const yearsMatch = clean.match(/(\d+)\s*(years?|yrs?|yr|y)/i);
     let termYears = yearsMatch ? parseInt(yearsMatch[1], 10) : undefined;
     if (!termYears && (isFiniteNum(loanAmount) || isFiniteNum(purchasePrice)) && typeof annualRatePct === 'number') {
         termYears = 30;
@@ -187,7 +188,11 @@ function parsePaymentQuery(q: string) {
 
     // Reverse: If a monthly payment is present and we have rate + term, infer loan amount
     if (!isFiniteNum(loanAmount) && isFiniteNum(paymentMonthly) && isFiniteNum(annualRatePct) && isFiniteNum(termYears)) {
-        const inferred = solveLoanAmountFromPI(paymentMonthly!, annualRatePct!, termYears!);
+        const inferred = solveLoanAmountFromPI(
+            paymentMonthly!,
+            annualRatePct!,
+            termYears!
+        );
         if (isFiniteNum(inferred)) loanAmount = inferred;
     }
 
@@ -268,7 +273,7 @@ async function safeJson(r: Response): Promise<ApiResponse> {
     try {
         return JSON.parse(txt) as ApiResponse;
     } catch {
-        return { path: 'error', usedFRED: false, answer: txt, status: r.status } as any;
+        return { path: 'error', usedFRED: false, answer: txt, status: r.status } as ApiResponse;
     }
 }
 
@@ -473,8 +478,9 @@ export default function Page() {
         },
     ]);
     const [input, setInput] = useState('');
+
     // Simplified input model — removed unused borrower/intent/loanAmount dropdowns
-    const [mode] = useState<'borrower' | 'public'>('borrower');
+    const mode: 'borrower' | 'public' = 'borrower';
     const [intent] = useState<''>('');
     const [loanAmount] = useState<number | ''>('');
 
@@ -919,7 +925,6 @@ export default function Page() {
                         <div style={{ fontWeight: 700 }}>Chat</div>
                         <div className="controls">
                             {/* top controls removed */}
-
                         </div>
                     </div>
                 </div>
