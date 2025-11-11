@@ -35,6 +35,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="footer-meta">
             HomeRates.Ai — Powered by OpenAI • {ts} • Version {shortSha}
           </div>
+          {/* === HR: hard-cap Ask pill width (last-in DOM override) === */}
+          <style
+            // this lives after all CSS so it wins, even against other !important rules
+            dangerouslySetInnerHTML={{
+              __html: `
+      .composer .composer-inner > .btn,
+      .composer .composer-inner > .btn:disabled {
+        flex: 0 0 160px !important;
+        width: 160px !important;
+        min-width: 160px !important;
+        max-width: 160px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+      /* ensure scroll area clears the footer + composer */
+      .scroll { padding-bottom: calc(var(--footer-h, 40px) + 92px) !important; }
+    `,
+            }}
+          />
+
+
         </body>
       </html>
     </ClerkProvider>
