@@ -90,22 +90,59 @@ export async function GET(req: NextRequest) {
 
     if (inputs && hasCalcMinimum(inputs)) {
         // Proxy to canonical calc endpoint (keeps math in one place)
-        const cUrl = new URL(req.url);
-        cUrl.pathname = "/api/calc/answer";
-        const proxied = await fetch(`${cUrl.origin}${cUrl.pathname}?q=${encodeURIComponent(q)}`, {
-            headers: { "cache-control": "no-store" },
-        });
-        const json = await proxied.json();
-        const payload: CalcProxyResponse = {
-            ok: true,
-            kind: "calc",
-            build: json.build,
-            inputs: json.inputs,
-            breakdown: json.breakdown,
-            taxSource: json.taxSource,
-        };
-        return NextResponse.json(payload, noStore());
+        try {
+            const cUrl = new URL(req.url);
+            cUrl.pathname = "/api/calc/answer";
+            const target = `${cUrl.origin}${cUrl.pathname}?q=${encodeURIComponent(q)}`;
+
+            const proxied = await fetch(target, { headers: { "cache-control": "no-store" } });
+            if (!proxied.ok) {
+                // Fall back to a targeted guide instead of 500/error path
+                const guide: GuideResponse = {
+                    ok: false,
+                    kind: "guide",
+                    needs: [],
+                    askPrompt:
+                        "I hit a hiccup running the calculator. Add or tweak one detail below and try again.",
+                    suggestions: [
+                        { label: "Try 6.25%", append: " 6.25%" },
+                        { label: "Use 30 years", append: " 30 years" },
+                        { label: "Add ZIP (taxes)", append: " zip 92688" },
+                    ],
+                    examples: ["loan 400k @ 6.25 30yr", "price 900k down 20% 6.25 30 years 92688"],
+                };
+                return NextResponse.json(guide, noStore());
+            }
+
+            const json = await proxied.json();
+            const payload: CalcProxyResponse = {
+                ok: true,
+                kind: "calc",
+                build: json.build,
+                inputs: json.inputs,
+                breakdown: json.breakdown,
+                taxSource: json.taxSource,
+            };
+            return NextResponse.json(payload, noStore());
+        } catch {
+            // Network/JSON/parsing issues → guide, not error
+            const guide: GuideResponse = {
+                ok: false,
+                kind: "guide",
+                needs: [],
+                askPrompt:
+                    "The calculator timed out. Nudge it with a small change (rate/term/ZIP) and try again.",
+                suggestions: [
+                    { label: "Try 6.25%", append: " 6.25%" },
+                    { label: "Use 30 years", append: " 30 years" },
+                    { label: "Add ZIP (taxes)", append: " zip 92688" },
+                ],
+                examples: ["loan 400k @ 6.25 30yr", "price 900k down 20% 6.25 30 years 92688"],
+            };
+            return NextResponse.json(guide, noStore());
+        }
     }
+
 
     // Not enough to compute → targeted GUIDE (this short-circuits before answers)
     {

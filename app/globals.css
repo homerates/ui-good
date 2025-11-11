@@ -1,110 +1,471 @@
-/* app/globals.css */
+﻿/* ==== HomeRates UI base (center chat, overlay sidebar, sticky header) ==== */
+
 :root {
-  --bg:#fff; --text:#0f172a; --muted:#64748b; --panel:#f8fafc; --border:#e5e7eb;
-  --brand:#111827; --brand-weak:#334155; --accent:#0ea5e9;
-  --bubble-user:#e0f2fe; --bubble-assistant:#f4f4f5;
+  --bg: #fafbfc;
+  --card: #ffffff;
+  --text: #121212;
+  --text-weak: #60646c;
+  --border: #e7e9ee;
+  --muted: #f3f4f7;
+  --accent: #0a66c2;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:#0b0f17; --text:#e5e7eb; --muted:#94a3b8; --panel:#0f172a; --border:#1f2937;
-    --brand:#e5e7eb; --brand-weak:#cbd5e1; --accent:#38bdf8;
-    --bubble-user:#0b2b3a; --bubble-assistant:#111827;
-  }
+
+* {
+  box-sizing: border-box
 }
-html, body { height: 100%; }
-* { box-sizing: border-box; }
+
+html,
 body {
-  margin: 0; background: var(--bg); color: var(--text);
-  font: 16px/1.45 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  height: 100%
 }
 
-/* —— App frame on <body> —— */
-.app {
-  height: 100dvh;
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr); /* <- ensure the main column can shrink */
-  min-width: 0; /* avoid overflow */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
 }
 
-/* Sidebar */
-.sidebar {
-  border-right: 1px solid var(--border);
-  background: var(--panel);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: 0;
-}
-.side-top { padding: 12px; display: grid; gap: 8px; }
-.brand { font-weight: 800; color: var(--brand); }
-.btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 12px; border: 1px solid var(--border);
-  background: var(--bg); color: var(--text); border-radius: 12px; cursor: pointer;
-}
-.btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
-.btn.ghost { background: transparent; }
-.btn:disabled { opacity:.6; cursor:not-allowed; }
-.chat-list { overflow:auto; padding: 8px 12px; display:grid; gap:6px; }
-.chat-item { padding: 8px 10px; border:1px solid var(--border); border-radius:10px; color:var(--brand-weak); cursor:pointer; }
-.chat-item:hover { border-color:var(--accent); color:var(--text); }
-.side-bottom { padding:12px; border-top:1px solid var(--border); display:grid; gap:8px; }
-
-/* Main column */
-.main {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-width: 0; /* critical for grids */
-}
+/* ---------- Header (sticky) ---------- */
 .header {
-  position: sticky; top: 0; z-index: 10;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--card);
   border-bottom: 1px solid var(--border);
-  background: color-mix(in oklab, var(--bg) 92%, transparent);
-  backdrop-filter: blur(6px);
-}
-.header-inner {
-  max-width: 980px; margin: 0 auto; padding: 10px 16px;
-  display: flex; align-items: center; gap: 10px;
-}
-.controls { margin-left: auto; display:flex; gap:8px; }
-select, input[type="number"], input[type="text"] {
-  padding: 8px 10px; border:1px solid var(--border); border-radius:10px;
-  background: var(--bg); color: var(--text);
 }
 
-/* Chat area */
-.scroll { overflow-y: auto; min-height: 0; }
-.center { max-width: 980px; margin: 0 auto; padding: 12px 16px; }
-.messages { display: grid; gap: 12px; }
+.header-inner {
+  max-width: 820px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+/* Always show hamburger (we'll wire its behavior next step) */
+.hamburger {
+  position: relative;
+  z-index: 1500;
+  /* above sidebar body */
+  width: 28px;
+  height: 22px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+/* CSS-only tooltip that follows aria-expanded */
+.hamburger::after {
+  position: absolute;
+  left: 36px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 8px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .12s ease;
+  content: "Open sidebar";
+}
+
+.hamburger[aria-expanded="true"]::after {
+  content: "Close sidebar";
+}
+
+.hamburger:hover::after {
+  opacity: 1;
+}
+
+.hamburger span {
+  display: block;
+  height: 3px;
+  width: 100%;
+  border-radius: 2px;
+  background: var(--text);
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.hamburger.open span:nth-child(1) {
+  transform: translateY(9.5px) rotate(45deg);
+}
+
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.open span:nth-child(3) {
+  transform: translateY(-9.5px) rotate(-45deg);
+}
+
+/* ---------- Main area ---------- */
+.main {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.center {
+  /* narrower main view */
+  max-width: 600px;
+  /* was 680px */
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 12px 28px;
+}
+
+.scroll {
+  /* container that owns the scroll */
+  flex: 1;
+  overflow-y: auto;
+}
 
 /* Bubbles */
-.bubble { display:flex; gap:10px; align-items:flex-start; }
-.avatar {
-  width: 28px; height: 28px; border-radius:999px; display:grid; place-items:center;
-  color:#fff; font-size:14px; font-weight:700; flex:0 0 auto;
+.bubble {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0;
 }
-.avatar.user { background: var(--accent); }
-.avatar.bot { background: var(--brand); }
-.balloon {
-  border:1px solid var(--border); border-radius:16px; padding:10px 12px;
-  max-width: 760px; white-space: pre-wrap;
-}
-.balloon.user { background: var(--bubble-user); }
-.balloon.bot  { background: var(--bubble-assistant); }
 
-/* Meta + panels */
-.meta { font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; }
-.panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px; }
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 12px;
+  background: var(--muted);
+  color: var(--text-weak);
+}
+
+.balloon {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: 10px;
+  max-width: 100%;
+}
 
 /* Composer */
-.composer { border-top:1px solid var(--border); background: var(--panel); }
-.composer-inner {
-  max-width:980px; margin:0 auto; padding:12px 16px;
-  display:grid; grid-template-columns: 1fr auto; gap:8px;
+.composer {
+  border-top: 1px solid var(--border);
+  background: var(--card);
 }
-.input { padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg); color:var(--text); }
 
-/* Collapse sidebar on narrow screens */
-@media (max-width: 920px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+.composer-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.input {
+  flex: 1;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.btn {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Panels / lists */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.chat-list {
+  display: grid;
+  gap: 8px;
+}
+
+.chat-item {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+/* ---------- Sidebar (overlay) ---------- */
+/* Assumes the Sidebar component renders a root with class "sidebar".
+   It slides over content instead of resizing columns. */
+
+.sidebar {
+  position: fixed;
+  top: 52px;
+  /* below sticky header */
+  left: 0;
+  height: calc(100dvh - 52px);
+  width: 220px;
+  /* drawer size (smaller) */
+  max-width: min(66vw, 260px);
+  /* cap at ~2/3 of prior feel */
+  background: #f5f6f8;
+  /* light gray, not dark */
+  border-right: 1px solid var(--border);
+  transform: translateX(-100%);
+  transition: transform 180ms ease;
+  z-index: 1200;
+  overflow: auto;
+}
+
+/* When Sidebar is open, ensure it’s visible. 
+   Support common classnames and data/aria toggles. */
+.sidebar.open,
+.sidebar.is-open,
+.sidebar[data-open="true"],
+.sidebar[aria-hidden="false"] {
+  transform: translateX(0);
+}
+
+/* Optional scrim (if your Sidebar renders one with .sidebar-scrim) */
+.sidebar-scrim {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, .25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+  z-index: 1100;
+}
+
+.sidebar-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------- Utilities ---------- */
+.meta {
+  color: var(--text-weak);
+  font-size: 12px;
+}
+
+ul {
+  padding-left: 18px;
+}
+
+/* === Ask Question Pill (compact, top layer) === */
+.ask-pill {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 6000;
+  /* stays above sidebar/menu */
+  background: var(--accent, #0070f3);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ask-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* ===== Ask pill sizing & layout (chat composer) ===== */
+.composer .composer-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composer .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Make the pill compact and not stretch full width */
+.composer .btn.ask-pill {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  line-height: 1.1;
+  max-width: 160px;
+  /* cap width so it doesn't look like a bar */
+  white-space: nowrap;
+  /* keep "Send" on one line */
+}
+
+/* If any global .btn styles force width, neutralize here */
+.composer .composer-inner .btn.ask-pill {
+  width: auto !important;
+}
+
+/* Slightly smaller on narrow screens */
+@media (max-width: 640px) {
+  .composer .btn.ask-pill {
+    padding: 8px 12px;
+    max-width: 136px;
+    font-size: 0.95rem;
+  }
+}
+
+/* === Footer meta sits under composer, never intercepts clicks === */
+.footer-meta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  /* lower than composer & menu */
+  display: flex;
+  justify-content: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-weak);
+  background: transparent;
+  /* no big bar blocking the view */
+  pointer-events: none;
+  /* never steals clicks/hover */
+}
+
+/* Composer should render above footer-meta */
+.composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 900 !important;
+  /* override inline z-index:5 */
+  border-top: 1px solid var(--border);
+  background: var(--card);
+}
+
+/* Give the scroll area breathing room so footer-meta doesn’t overlap */
+.scroll {
+  padding-bottom: 72px;
+  /* room for composer + footer text */
+}
+
+/* Make sure the send pill never stretches full width */
+.composer .composer-inner>.btn {
+  display: inline-flex !important;
+  width: auto !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+  align-self: center;
+}
+
+.composer .btn.ask-pill {
+  padding: 8px 14px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+@media (max-width: 640px) {
+  .composer .btn.ask-pill {
+    padding: 8px 12px;
+    max-width: 136px;
+    font-size: 0.95rem;
+  }
+}
+
+/* ===== HR: composer + footer controls (2025-11-11) ===== */
+
+/* Layout variables */
+:root {
+  --footer-h: 30px;
+  --composer-h: 72px;
+}
+
+/* Ensure page has breathing room beneath content */
+body.app,
+main,
+.scroll,
+.scroll-region,
+.messages {
+  padding-bottom: calc(var(--footer-h) + var(--composer-h) + 24px) !important;
+}
+
+/* Footer line: fixed, low layer, non-blocking */
+.footer-meta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--footer-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.6;
+  z-index: 10;
+  /* keep low */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.06), transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Composer: your DOM shows inline style "position:sticky; bottom:0; z-index:5"
+   We override bottom + z-index so it sits ABOVE the footer. */
+.composer {
+  position: sticky !important;
+  bottom: var(--footer-h) !important;
+  z-index: 900 !important;
+}
+
+/* DOM-specific: .composer → .composer-inner → ( .input , .btn ) */
+.composer .composer-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Input takes slack */
+.composer .composer-inner .input {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+/* Pill is your <button class="btn">…</button> — hard-cap it at 160px */
+.composer .composer-inner .btn {
+  flex: 0 1 160px !important;
+  max-width: 160px !important;
+  width: 160px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
