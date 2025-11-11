@@ -941,13 +941,16 @@ export default function Page() {
                     </div>
                 </div>
 
+                {/* HR: composer pinned above footer; pill hard-capped at 160px */}
                 <div
                     className="composer"
-                    style={{ position: 'sticky', bottom: 0, zIndex: 5 }}
+                    // keep it sticky, but sit above the solid footer and ensure top z-order
+                    style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
                 >
-                    <div className="composer-inner">
+                    <div className="composer-inner" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <input
                             className="input"
+                            style={{ flex: 1, minWidth: 0 }}
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | ..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
@@ -955,6 +958,15 @@ export default function Page() {
                         />
                         <button
                             className="btn ask-pill"
+                            // HARD cap the pill; prevent flex grow or w-full utilities from stretching it
+                            style={{
+                                flex: '0 1 160px',
+                                maxWidth: 160,
+                                width: 160,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}
                             data-testid="ask-pill"
                             aria-label="Send message"
                             title="Send"
@@ -965,6 +977,7 @@ export default function Page() {
                         </button>
                     </div>
                 </div>
+
 
 
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
