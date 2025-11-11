@@ -401,3 +401,71 @@ ul {
     font-size: 0.95rem;
   }
 }
+
+/* ===== HR: composer + footer controls (2025-11-11) ===== */
+
+/* Layout variables */
+:root {
+  --footer-h: 30px;
+  --composer-h: 72px;
+}
+
+/* Ensure page has breathing room beneath content */
+body.app,
+main,
+.scroll,
+.scroll-region,
+.messages {
+  padding-bottom: calc(var(--footer-h) + var(--composer-h) + 24px) !important;
+}
+
+/* Footer line: fixed, low layer, non-blocking */
+.footer-meta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--footer-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.6;
+  z-index: 10;
+  /* keep low */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.06), transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Composer: your DOM shows inline style "position:sticky; bottom:0; z-index:5"
+   We override bottom + z-index so it sits ABOVE the footer. */
+.composer {
+  position: sticky !important;
+  bottom: var(--footer-h) !important;
+  z-index: 900 !important;
+}
+
+/* DOM-specific: .composer → .composer-inner → ( .input , .btn ) */
+.composer .composer-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Input takes slack */
+.composer .composer-inner .input {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+/* Pill is your <button class="btn">…</button> — hard-cap it at 160px */
+.composer .composer-inner .btn {
+  flex: 0 1 160px !important;
+  max-width: 160px !important;
+  width: 160px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
