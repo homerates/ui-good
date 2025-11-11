@@ -1,5 +1,4 @@
 ﻿// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
-// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
 // <HR-GUARD> Home chat = borrower mode only. Do NOT reintroduce Borrower/Public, Intent, or "Loan (optional)" controls.
 // ==== REPLACE ENTIRE FILE: app/page.tsx ====
 'use client';
@@ -9,16 +8,19 @@ import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
 import MenuButton from './components/MenuButton';
+
 /* =========================
    Small helpers
 ========================= */
 const LS_KEY = 'hr.chat.v1';
 const uid = () => Math.random().toString(36).slice(2, 10);
-const fmtISOshort = (iso?: string) => (iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a');
+const fmtISOshort = (iso?: string) =>
+    iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
 const fmtMoney = (n: unknown) =>
-    (typeof n === 'number' && Number.isFinite(n) ? n : 0).toLocaleString(undefined, {
-        maximumFractionDigits: 2,
-    });
+    (typeof n === 'number' && Number.isFinite(n) ? n : 0).toLocaleString(
+        undefined,
+        { maximumFractionDigits: 2 }
+    );
 
 /* =========================
    Types
@@ -95,8 +97,8 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
     type NestedMeta = { meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string } };
     const m = meta as ApiResponse & NestedMeta;
-    const headerPath: ApiResponse['path'] | '—' = (m.path ?? m.meta?.path ?? '—') as any;
-    const headerUsedFRED: boolean =
+    const headerPath = (m.path ?? m.meta?.path ?? '—') as ApiResponse['path'] | '—';
+    const headerUsedFRED =
         typeof m.usedFRED === 'boolean' ? m.usedFRED : (m.meta?.usedFRED ?? false);
     const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
 
@@ -105,28 +107,14 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         return (
             <div style={{ display: 'grid', gap: 10 }}>
                 <div className="meta">
-                    <span>
-                        path: <b>{String(headerPath)}</b>
-                    </span>
-                    <span>
-                        {' '}
-                        | usedFRED: <b>{String(headerUsedFRED)}</b>
-                    </span>
-                    {headerAt && (
-                        <span>
-                            {' '}
-                            | at: <b>{fmtISOshort(headerAt)}</b>
-                        </span>
-                    )}
+                    <span>path: <b>{String(headerPath)}</b></span>
+                    <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
+                    {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
                 </div>
 
                 <div>
-                    <div>
-                        <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
-                    </div>
-                    <div>
-                        <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
-                    </div>
+                    <div><b>Loan amount:</b> ${fmtMoney(a.loanAmount)}</div>
+                    <div><b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}</div>
                 </div>
 
                 {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
@@ -137,9 +125,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                             <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
                             <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
                             <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-                            <li>
-                                <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
-                            </li>
+                            <li><b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b></li>
                         </ul>
                     </div>
                 )}
@@ -177,27 +163,21 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 ? m.answer
                 : '');
 
-    const lines = (typeof m.answer === 'string' ? m.answer : '').split('\n').map((s) => s.trim());
+    const lines = (typeof m.answer === 'string' ? m.answer : '')
+        .split('\n')
+        .map((s) => s.trim());
     const takeaway = primary || lines[0] || '';
     const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
-    const nexts = lines.filter((l) => l.toLowerCase().startsWith('next:')).map((l) => l.slice(5).trim());
+    const nexts = lines
+        .filter((l) => l.toLowerCase().startsWith('next:'))
+        .map((l) => l.slice(5).trim());
 
     return (
         <div style={{ display: 'grid', gap: 10 }}>
             <div className="meta">
-                <span>
-                    path: <b>{String(m.path ?? '—')}</b>
-                </span>
-                <span>
-                    {' '}
-                    | usedFRED: <b>{String(headerUsedFRED)}</b>
-                </span>
-                {headerAt && (
-                    <span>
-                        {' '}
-                        | at: <b>{fmtISOshort(headerAt)}</b>
-                    </span>
-                )}
+                <span>path: <b>{String(m.path ?? '—')}</b></span>
+                <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
+                {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
             </div>
 
             {takeaway && <div>{takeaway}</div>}
@@ -206,28 +186,20 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 <div>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
                     <ul style={{ marginTop: 0 }}>
-                        {m.tldr.map((t, i) => (
-                            <li key={i}>{t}</li>
-                        ))}
+                        {m.tldr.map((t, i) => <li key={i}>{t}</li>)}
                     </ul>
                 </div>
             )}
 
             {bullets.length > 0 && (
                 <ul style={{ marginTop: 0 }}>
-                    {bullets.map((b, i) => (
-                        <li key={i}>{b}</li>
-                    ))}
+                    {bullets.map((b, i) => <li key={i}>{b}</li>)}
                 </ul>
             )}
 
             {nexts.length > 0 && (
                 <div style={{ display: 'grid', gap: 4 }}>
-                    {nexts.map((n, i) => (
-                        <div key={i}>
-                            <b>Next:</b> {n}
-                        </div>
-                    ))}
+                    {nexts.map((n, i) => (<div key={i}><b>Next:</b> {n}</div>))}
                 </div>
             )}
 
@@ -262,68 +234,6 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 }
 
 /* =========================
-   Header Menu (desktop-friendly)
-========================= */
-function HeaderMenu({
-    onToggleSidebar,
-    onNewChat,
-    onSearch,
-    onLibrary,
-    onSettings,
-    onNewProject,
-    onMortgageCalc,
-    onShare,
-}: {
-    onToggleSidebar: () => void;
-    onNewChat: () => void;
-    onSearch: () => void;
-    onLibrary: () => void;
-    onSettings: () => void;
-    onNewProject: () => void;
-    onMortgageCalc: () => void;
-    onShare: () => void;
-}) {
-
-
-    // click outside to close
-    useEffect(() => {
-        if (!open) return;
-        const onDown = (e: MouseEvent | PointerEvent | TouchEvent) => {
-            const target = e.target as Node;
-            if (!panelRef.current || !btnRef.current) return;
-            if (panelRef.current.contains(target) || btnRef.current.contains(target)) return;
-            setOpen(false);
-        };
-        window.addEventListener('pointerdown', onDown, { capture: true });
-        return () => window.removeEventListener('pointerdown', onDown, { capture: true } as any);
-    }, [open]);
-
-    // escape to close
-    useEffect(() => {
-        if (!open) return;
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setOpen(false);
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [open]);
-
-    function run(fn: () => void) {
-        setOpen(false);
-        // small delay to allow panel to close before overlay opens
-        setTimeout(fn, 0);
-    }
-
-    return (
-        <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
-        <div style={{ fontWeight: 700 }}>Chat</div>
-        <div className="controls">{/* empty on purpose */}</div>
-
-    );
-
-}
-
-/* =========================
    Page
 ========================= */
 export default function Page() {
@@ -332,7 +242,7 @@ export default function Page() {
             id: uid(),
             role: 'assistant',
             content:
-                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year). Add intent + loan for buyer math.',
+                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
         },
     ]);
     const [input, setInput] = useState('');
@@ -341,7 +251,9 @@ export default function Page() {
     const mode: 'borrower' = 'borrower';
 
     const [loading, setLoading] = useState(false);
-    const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
+    const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>(
+        []
+    );
     const scrollRef = useRef<HTMLDivElement>(null);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const toggleSidebar = () => setSidebarOpen((o) => !o);
@@ -484,16 +396,18 @@ export default function Page() {
             const current = history.find((h) => h.id === id)?.title ?? '';
             const name = prompt('Rename chat:', current);
             if (name && name.trim()) {
-                setHistory((h) => h.map((x) => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x)));
+                setHistory((h) =>
+                    h.map((x) => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x))
+                );
             }
             return;
         }
         if (action === 'move') {
-            alert('Move to project… (coming soon)');
+            alert('Move to project (coming soon)');
             return;
         }
         if (action === 'archive') {
-            alert('Archive… (coming soon)');
+            alert('Archive (coming soon)');
             return;
         }
         if (action === 'delete') {
@@ -538,7 +452,8 @@ export default function Page() {
                 if (idx >= 0) {
                     const current = next[idx] ?? { id: tid!, title: 'Untitled' };
                     const needsTitle =
-                        typeof current.title === 'string' && (current.title === 'New chat' || current.title.startsWith('Untitled'));
+                        typeof current.title === 'string' &&
+                        (current.title === 'New chat' || current.title.startsWith('Untitled'));
 
                     next[idx] = {
                         ...current,
@@ -571,10 +486,19 @@ export default function Page() {
             const friendly =
                 meta.message ??
                 meta.summary ??
-                (meta.fred && meta.fred.tenYearYield != null && meta.fred.mort30Avg != null && meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number' ? `${meta.fred.tenYearYield.toFixed(2)}%` : meta.fred.tenYearYield
-                    } 10Y, ${typeof meta.fred.mort30Avg === 'number' ? `${meta.fred.mort30Avg.toFixed(2)}%` : meta.fred.mort30Avg
-                    } 30Y, spread ${typeof meta.fred.spread === 'number' ? `${meta.fred.spread.toFixed(2)}%` : meta.fred.spread
+                (meta.fred &&
+                    meta.fred.tenYearYield != null &&
+                    meta.fred.mort30Avg != null &&
+                    meta.fred.spread != null
+                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
+                        ? `${meta.fred.tenYearYield.toFixed(2)}%`
+                        : meta.fred.tenYearYield
+                    } 10Y, ${typeof meta.fred.mort30Avg === 'number'
+                        ? `${meta.fred.mort30Avg.toFixed(2)}%`
+                        : meta.fred.mort30Avg
+                    } 30Y, spread ${typeof meta.fred.spread === 'number'
+                        ? `${meta.fred.spread.toFixed(2)}%`
+                        : meta.fred.spread
                     }.`
                     : typeof meta.answer === 'string'
                         ? meta.answer
@@ -615,21 +539,11 @@ export default function Page() {
         }
     }
 
-    function onSettings() {
-        setShowSettings(true);
-    }
-    function onSearch() {
-        setShowSearch(true);
-    }
-    function onLibrary() {
-        setShowLibrary(true);
-    }
-    function onNewProject() {
-        setShowProject(true);
-    }
-    function onMortgageCalc() {
-        setShowMortgageCalc(true);
-    }
+    function onSettings() { setShowSettings(true); }
+    function onSearch() { setShowSearch(true); }
+    function onLibrary() { setShowLibrary(true); }
+    function onNewProject() { setShowProject(true); }
+    function onMortgageCalc() { setShowMortgageCalc(true); }
 
     function closeAllOverlays() {
         setShowSearch(false);
@@ -643,7 +557,6 @@ export default function Page() {
         <>
             {/* Sidebar */}
             <Sidebar
-                id="hr-sidebar"
                 history={history}
                 onNewChat={newChat}
                 onSettings={onSettings}
@@ -663,21 +576,8 @@ export default function Page() {
             <section className="main" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
                 <div className="header">
                     <div className="header-inner" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {/* NEW: Kebab/Dropdown Menu (desktop friendly) */}
-                        <HeaderMenu
-                            onToggleSidebar={toggleSidebar}
-                            onNewChat={newChat}
-                            onSearch={onSearch}
-                            onLibrary={onLibrary}
-                            onSettings={onSettings}
-                            onNewProject={onNewProject}
-                            onMortgageCalc={onMortgageCalc}
-                            onShare={onShare}
-                        />
-
+                        <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
                         <div style={{ fontWeight: 700, marginLeft: 8 }}>Chat</div>
-
-                        {/* right side spacer */}
                         <div style={{ marginLeft: 'auto' }} />
                     </div>
                 </div>
@@ -687,7 +587,9 @@ export default function Page() {
                         <div className="messages">
                             {messages.map((m) => (
                                 <div key={m.id}>
-                                    <Bubble role={m.role}>{m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}</Bubble>
+                                    <Bubble role={m.role}>
+                                        {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
+                                    </Bubble>
                                 </div>
                             ))}
                             {loading && <div className="meta">...thinking</div>}
@@ -699,7 +601,7 @@ export default function Page() {
                     <div className="composer-inner">
                         <input
                             className="input"
-                            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | ..."
+                            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={onKey}
@@ -716,9 +618,7 @@ export default function Page() {
                         role="dialog"
                         aria-modal="true"
                         aria-label="Overlay"
-                        onClick={(e) => {
-                            if (e.target === e.currentTarget) closeAllOverlays();
-                        }}
+                        onClick={(e) => { if (e.target === e.currentTarget) closeAllOverlays(); }}
                         style={{
                             position: 'fixed',
                             inset: 0,
@@ -750,9 +650,7 @@ export default function Page() {
                                     {showProject && 'New Project'}
                                     {showMortgageCalc && 'Mortgage Calculator'}
                                 </div>
-                                <button className="btn" onClick={closeAllOverlays} aria-label="Close">
-                                    Close
-                                </button>
+                                <button className="btn" onClick={closeAllOverlays} aria-label="Close">Close</button>
                             </div>
 
                             {/* SEARCH */}
@@ -760,7 +658,7 @@ export default function Page() {
                                 <div style={{ display: 'grid', gap: 10 }}>
                                     <input
                                         className="input"
-                                        placeholder="Search your current thread and history…"
+                                        placeholder="Search your current thread and history..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         autoFocus
@@ -789,9 +687,7 @@ export default function Page() {
                                             {history
                                                 .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
                                                 .slice(0, 20)
-                                                .map((h) => (
-                                                    <li key={h.id}>{h.title}</li>
-                                                ))}
+                                                .map((h) => <li key={h.id}>{h.title}</li>)}
                                         </ul>
                                     </div>
                                 </div>
@@ -861,12 +757,12 @@ export default function Page() {
                                         const name = projectName.trim() || 'Untitled Project';
                                         const id = uid();
                                         setActiveId(id);
-                                        setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                                        setHistory((h) => [{ id, title: `Project: ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
                                         setMessages([
                                             {
                                                 id: uid(),
                                                 role: 'assistant',
-                                                content: `New Project “${name}” started. What’s the goal?`,
+                                                content: `New Project "${name}" started. What is the goal?`,
                                             },
                                         ]);
                                         setProjectName('');
@@ -882,12 +778,8 @@ export default function Page() {
                                         autoFocus
                                     />
                                     <div style={{ display: 'flex', gap: 8 }}>
-                                        <button className="btn primary" type="submit">
-                                            Create
-                                        </button>
-                                        <button className="btn" type="button" onClick={closeAllOverlays}>
-                                            Cancel
-                                        </button>
+                                        <button className="btn primary" type="submit">Create</button>
+                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
                                     </div>
                                 </form>
                             )}
@@ -904,7 +796,7 @@ export default function Page() {
                                             {
                                                 id: uid(),
                                                 role: 'assistant',
-                                                content: `Guided inputs → $${fmtMoney(res.monthlyPI)} P&I on $${fmtMoney(
+                                                content: `Guided inputs -> $${fmtMoney(res.monthlyPI)} P&I on $${fmtMoney(
                                                     res.loanAmount
                                                 )} at ${res.ratePct}% for ${res.termYears}y.`,
                                                 meta: {
