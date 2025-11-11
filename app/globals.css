@@ -1,115 +1,55 @@
-﻿/* ==== REPLACE ENTIRE FILE: app/globals.css ==== */
+﻿/* ==== HomeRates UI base (center chat, overlay sidebar, sticky header) ==== */
 
-/* ---------- Base tokens ---------- */
 :root {
-  --bg: #ffffff;
-  --text: #0b1220;
-  --text-weak: #566074;
+  --bg: #fafbfc;
   --card: #ffffff;
-  --border: #E5E7EB;
-
-  /* Sidebar palette: light gray (not dark) */
-  --sidebar-bg: #f3f4f6;
-  --sidebar-text: #0b1220;
-
-  /* Accent (HomeRates) */
-  --brand: #6b21a8;
+  --text: #121212;
+  --text-weak: #60646c;
+  --border: #e7e9ee;
+  --muted: #f3f4f7;
+  --accent: #0a66c2;
 }
 
 * {
-  box-sizing: border-box;
+  box-sizing: border-box
 }
 
 html,
 body {
-  height: 100%;
+  height: 100%
 }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
 }
 
-/* ---------- App shell ---------- */
-.app {
-  min-height: 100dvh;
-}
-
-/* Main section must never shift when sidebar opens */
-.main {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  margin: 0 !important;
-  /* force single-column layout */
-}
-
-/* Sticky header always on top */
+/* ---------- Header (sticky) ---------- */
 .header {
   position: sticky;
   top: 0;
-  z-index: 3000;
+  z-index: 1000;
   background: var(--card);
   border-bottom: 1px solid var(--border);
 }
 
 .header-inner {
-  height: 56px;
+  max-width: 980px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px;
+  padding: 10px 12px;
 }
 
-/* ---------- Sidebar as overlay (not a column) ---------- */
-/* Target the Sidebar by id you already pass: id="hr-sidebar" */
-#hr-sidebar {
-  position: fixed !important;
-  inset: 0 auto 0 0;
-  /* left edge */
-  width: 320px;
-  max-width: 92vw;
-  background: var(--sidebar-bg);
-  color: var(--sidebar-text);
-  z-index: 4000;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  transform: translateX(-100%);
-  transition: transform 180ms ease;
-  /* ensure it never captures layout flow */
-  contain: layout paint;
-}
-
-/* Open state: support either a class "open" or a data attr */
-#hr-sidebar.open,
-#hr-sidebar[data-open="true"] {
-  transform: translateX(0);
-}
-
-/* Sidebar pills/buttons look light */
-#hr-sidebar .btn,
-#hr-sidebar .chat-item {
-  background: #ffffff;
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-
-/* Fix any leftover dark theme classes from prior styles */
-#hr-sidebar .dark,
-#hr-sidebar .bg-dark,
-#hr-sidebar .sidebar-dark {
-  background: var(--sidebar-bg) !important;
-  color: var(--sidebar-text) !important;
-}
-
-/* ---------- Hamburger (always visible) ---------- */
+/* Always show hamburger (we'll wire its behavior next step) */
 .hamburger {
   position: relative;
   width: 28px;
   height: 22px;
-  display: inline-flex !important;
+  display: inline-flex;
   flex-direction: column;
   justify-content: space-between;
   border: 0;
@@ -119,17 +59,12 @@ body {
   cursor: pointer;
 }
 
-.hamburger:focus {
-  outline: 2px solid #c7d2fe;
-  outline-offset: 2px;
-}
-
 .hamburger span {
   display: block;
-  width: 100%;
   height: 3px;
+  width: 100%;
   border-radius: 2px;
-  background: #0b1220;
+  background: var(--text);
   transition: transform 160ms ease, opacity 160ms ease;
 }
 
@@ -145,120 +80,169 @@ body {
   transform: translateY(-9.5px) rotate(-45deg);
 }
 
-/* Never hide it on desktop or mobile */
-@media (max-width: 9999px) {
-  .header .btn[aria-haspopup="menu"] {
-    display: none !important;
-  }
-
-  /* hide old 'Menu' button */
-  .header .hamburger {
-    display: inline-flex !important;
-  }
+/* ---------- Main area ---------- */
+.main {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ---------- Chat area ---------- */
 .center {
-  max-width: 980px;
+  /* this keeps the chat centered on all viewports */
+  max-width: 880px;
+  width: 100%;
   margin: 0 auto;
-  padding: 16px;
+  padding: 16px 12px 28px;
 }
 
-.messages {
-  display: grid;
-  gap: 14px;
+.scroll {
+  /* container that owns the scroll */
+  flex: 1;
+  overflow-y: auto;
 }
 
-.meta {
-  color: var(--text-weak);
-  font-size: 12px;
-}
-
+/* Bubbles */
 .bubble {
   display: flex;
-  align-items: flex-start;
   gap: 10px;
+  margin: 8px 0;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-weight: 700;
-  color: #fff;
-  background: #0b1220;
-}
-
-.avatar.user {
-  background: #e5e7eb;
-  color: #111;
+  font-weight: 600;
+  font-size: 12px;
+  background: var(--muted);
+  color: var(--text-weak);
 }
 
 .balloon {
-  background: #f3f4f6;
+  background: var(--card);
   border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 16px;
-  padding: 12px 14px;
-  max-width: 720px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  max-width: 100%;
 }
 
-.balloon.user {
-  background: #e5e7eb;
+/* Composer */
+.composer {
+  border-top: 1px solid var(--border);
+  background: var(--card);
 }
 
+.composer-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.input {
+  flex: 1;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.btn {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Panels / lists */
 .panel {
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
 }
 
-/* ---------- Composer ---------- */
-.composer {
-  background: var(--card);
-  border-top: 1px solid var(--border);
-}
-
-.composer-inner {
-  display: flex;
+.chat-list {
+  display: grid;
   gap: 8px;
-  padding: 10px 16px;
 }
 
-.input {
-  flex: 1;
-  min-height: 44px;
-  border-radius: 12px;
+.chat-item {
+  width: 100%;
+  padding: 10px 12px;
   border: 1px solid var(--border);
-  padding: 0 12px;
-  background: #fff;
-  color: var(--text);
-}
-
-.btn {
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  color: var(--text);
-  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--card);
   cursor: pointer;
 }
 
-.btn.primary {
-  background: var(--brand);
-  color: #fff;
-  border-color: transparent;
+/* ---------- Sidebar (overlay) ---------- */
+/* Assumes the Sidebar component renders a root with class "sidebar".
+   It slides over content instead of resizing columns. */
+
+.sidebar {
+  position: fixed;
+  top: 52px;
+  /* below sticky header */
+  left: 0;
+  height: calc(100dvh - 52px);
+  width: 320px;
+  max-width: 86vw;
+  background: #f5f6f8;
+  /* light gray, not dark */
+  border-right: 1px solid var(--border);
+  transform: translateX(-100%);
+  transition: transform 180ms ease;
+  z-index: 1200;
+  overflow: auto;
 }
 
-/* ---------- Utility ---------- */
-.scroll {
-  -webkit-overflow-scrolling: touch;
+/* When Sidebar is open, ensure it’s visible. 
+   Support common classnames and data/aria toggles. */
+.sidebar.open,
+.sidebar.is-open,
+.sidebar[data-open="true"],
+.sidebar[aria-hidden="false"] {
+  transform: translateX(0);
 }
 
-.hidden {
-  display: none !important;
+/* Optional scrim (if your Sidebar renders one with .sidebar-scrim) */
+.sidebar-scrim {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, .25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+  z-index: 1100;
+}
+
+.sidebar-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------- Utilities ---------- */
+.meta {
+  color: var(--text-weak);
+  font-size: 12px;
+}
+
+ul {
+  padding-left: 18px;
 }
