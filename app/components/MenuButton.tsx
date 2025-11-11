@@ -1,4 +1,3 @@
-// ==== REPLACE ENTIRE FILE: app/components/MenuButton.tsx ====
 'use client';
 
 import * as React from 'react';
@@ -9,14 +8,14 @@ type Props = {
 };
 
 export default function MenuButton({ isOpen, onToggle }: Props) {
-    const title = isOpen ? 'Close Sidebar' : 'Open Sidebar';
+    const title = isOpen ? 'Close sidebar' : 'Open sidebar';
     return (
         <button
             type="button"
-            className={`hamburger${isOpen ? ' open' : ''}`}
             aria-label={title}
-            aria-pressed={isOpen}
             title={title}
+            aria-pressed={isOpen}
+            className={`hamburger${isOpen ? ' open' : ''}`}
             onClick={onToggle}
         >
             <span />
