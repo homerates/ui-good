@@ -36,7 +36,7 @@ body {
 }
 
 .header-inner {
-  max-width: 980px;
+  max-width: 820px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -89,7 +89,7 @@ body {
 
 .center {
   /* this keeps the chat centered on all viewports */
-  max-width: 880px;
+  max-width: 760px;
   width: 100%;
   margin: 0 auto;
   padding: 16px 12px 28px;
@@ -198,8 +198,9 @@ body {
   /* below sticky header */
   left: 0;
   height: calc(100dvh - 52px);
-  width: 320px;
-  max-width: 86vw;
+  width: 210px;
+  /* ~2/3 of 320px */
+  max-width: 70vw;
   background: #f5f6f8;
   /* light gray, not dark */
   border-right: 1px solid var(--border);
