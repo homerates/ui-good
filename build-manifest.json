@@ -1,0 +1,54 @@
+﻿{
+    "buildId":  "HRB-2025-11-10-d994b21",
+    "buildName":  "HomeRates",
+    "timestamp":  "2025-11-10T23:19:18Z",
+    "git":  {
+                "branch":  "feature/mortgage-calc-pill",
+                "commit":  "d994b2195a76c0df49d1c17d2f828c999c4e9049",
+                "short":  "d994b21"
+            },
+    "files":  [
+                  {
+                      "fileRef":  "HRF-0001-9198324F",
+                      "path":  "app/globals.css",
+                      "size":  4082,
+                      "sha256":  "9198324FAD6C3AA7049F0BAA42A75B874BF0ABCDB3BB0237B4A57A4558FC4BDF",
+                      "language":  "css"
+                  },
+                  {
+                      "fileRef":  "HRF-0002-D684DDC7",
+                      "path":  "app/layout.tsx",
+                      "size":  1093,
+                      "sha256":  "D684DDC76358CC27A4E891AC4A769DD9BA3E8AC6A18DEC904B23184E7E9835C1",
+                      "language":  "tsx"
+                  },
+                  {
+                      "fileRef":  "HRF-0003-EDF303E2",
+                      "path":  "app/page.backup.tsx",
+                      "size":  10253,
+                      "sha256":  "EDF303E24ED73BD184318A40BFE3D1857D315C1E38B6966529355576433C0808",
+                      "language":  "tsx"
+                  },
+                  {
+                      "fileRef":  "HRF-0004-25F8FCE9",
+                      "path":  "app/page.tsx",
+                      "size":  37800,
+                      "sha256":  "25F8FCE98F4D90CE561ACC32C476232C038F97EA1CAE0CD5751351008FAD2B22",
+                      "language":  "tsx"
+                  },
+                  {
+                      "fileRef":  "HRF-0005-629EB29C",
+                      "path":  "lib/knowledge.ts",
+                      "size":  1244,
+                      "sha256":  "629EB29CABFE046F76F281F8C730574F81AA59547E7DEB60A3D9DBC5875E4389",
+                      "language":  "ts"
+                  },
+                  {
+                      "fileRef":  "HRF-0006-C8CBDC45",
+                      "path":  "lib/payment.ts",
+                      "size":  1423,
+                      "sha256":  "C8CBDC4539B2A8A529994056EC64909752CF9AE118FAD575F396F261F6D0B278",
+                      "language":  "ts"
+                  }
+              ]
+}
