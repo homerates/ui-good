@@ -974,24 +974,22 @@ export default function Page() {
                         />
                         <button
                             className="btn ask-pill"
-                            data-testid="ask-pill"
-                            data-pill="ask"
-                            title="Send"
-                            aria-label="Send message"
-                            onClick={send}
-                            disabled={loading || !input.trim()}
                             style={{
                                 flex: '0 0 160px',
                                 width: 160,
-                                minWidth: 120,
+                                minWidth: 160,
                                 maxWidth: 160,
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                             }}
+                            data-testid="ask-pill"
+                            onClick={send}
+                            disabled={loading || !input.trim()}
                         >
                             Send
                         </button>
+
                     </div>
                 </div>
 

@@ -534,3 +534,15 @@ main,
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* HR: enforce fixed Ask button width */
+.composer .composer-inner button.btn,
+.composer .composer-inner .ask-pill {
+  flex: 0 0 160px !important;
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
