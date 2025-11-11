@@ -141,8 +141,8 @@ function parsePaymentQuery(q: string) {
         } else if (hintsLoan && tokens.length >= 1) {
             const loanIdx = clean.indexOf('loan');
             const afterLoanMoney =
-                tokens.find((t) => t.index > loanIdx && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)) ??
-                tokens.find((t) => t.index > loanIdx && !t.followedByPercent);
+                tokens.find((t) => t.index > (loanIdx) && !t.followedByPercent && (t.hasCurrency || t.hasSuffix)) ??
+                tokens.find((t) => t.index > (loanIdx) && !t.followedByPercent);
             if (isFiniteNum(afterLoanMoney?.value)) loanAmount = afterLoanMoney!.value!;
         } else if (tokens.length === 1 && !hintsPrice) {
             const only = tokens[0];
@@ -168,12 +168,12 @@ function parsePaymentQuery(q: string) {
 
     // rate %
     let annualRatePct: number | undefined;
-    const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.\d+)?)[ ]*%/i);
+    const rateNear = clean.match(/(?:rate|at|@)\s*:?[\s]*([0-9]+(?:\.[0-9]+)?)[ ]*%/i);
     if (rateNear) {
         annualRatePct = parsePercent(rateNear[1]);
     } else {
         // avoid misreading "20% down" as rate
-        const anyPct = clean.match(/([0-9]+(?:\.\d+)?)[ ]*%/i);
+        const anyPct = clean.match(/([0-9]+(?:\.[0-9]+)?)[ ]*%/i);
         if (anyPct && !/\b(down(\s*payment)?|ltv|loan\s*to\s*value)\b/i.test(clean)) {
             annualRatePct = parsePercent(anyPct[1]);
         }
@@ -479,10 +479,10 @@ export default function Page() {
     ]);
     const [input, setInput] = useState('');
 
-    // Simplified input model — removed unused borrower/intent/loanAmount dropdowns
+    // fixed input model (no dropdowns in UI)
     const mode: 'borrower' | 'public' = 'borrower';
-    const [intent] = useState<''>('');
-    const [loanAmount] = useState<number | ''>('');
+    const intent = '' as const;           // kept for body compatibility (not shown in UI)
+    const loanAmount: '' | number = '';   // kept for body compatibility (not shown in UI)
 
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
@@ -534,7 +534,7 @@ export default function Page() {
         }
     }, [threads, history, activeId]);
 
-    // Snapshot messages into active thread + bump history.updatedAt (guarded + stable)
+    // Snapshot messages into active thread + bump history.updatedAt
     useEffect(() => {
         if (!activeId) return;
 
@@ -684,13 +684,17 @@ export default function Page() {
         termYears?: number;
         rawQ?: string;
     }) {
-        const url = buildCalcUrl('/api/calc/payment', {
-            loanAmount: params.loanAmount,
-            purchasePrice: params.purchasePrice,
-            downPercent: params.downPercent,
-            annualRatePct: params.annualRatePct,
-            termYears: params.termYears,
-        }, params.rawQ);
+        const url = buildCalcUrl(
+            '/api/calc/payment',
+            {
+                loanAmount: params.loanAmount,
+                purchasePrice: params.purchasePrice,
+                downPercent: params.downPercent,
+                annualRatePct: params.annualRatePct,
+                termYears: params.termYears,
+            },
+            params.rawQ
+        );
 
         const r = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-store' } });
         const raw: unknown = await r.json().catch(() => ({}));
@@ -813,7 +817,7 @@ export default function Page() {
                 intent?: 'purchase' | 'refi' | 'investor';
                 loanAmount?: number;
             } = { question: q, mode };
-            if (intent) body.intent = intent;
+            if (intent) body.intent = intent; // intent is '', so omitted by JSON.stringify
             if (loanAmount && Number(loanAmount) > 0) body.loanAmount = Number(loanAmount);
 
             const r = await fetch('/api/answers', {
@@ -856,7 +860,10 @@ export default function Page() {
 
     function onShare() {
         const text = messages
-            .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
+            .map(
+                (m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''
+                    }`
+            )
             .join('\n');
         if (navigator.clipboard?.writeText) {
             navigator.clipboard.writeText(text).catch(() => { });
@@ -923,9 +930,7 @@ export default function Page() {
                             Menu
                         </button>
                         <div style={{ fontWeight: 700 }}>Chat</div>
-                        <div className="controls">
-                            {/* top controls removed */}
-                        </div>
+                        <div className="controls" />
                     </div>
                 </div>
 
@@ -939,7 +944,9 @@ export default function Page() {
                             {messages.map((m) => (
                                 <div key={m.id}>
                                     <Bubble role={m.role}>
-                                        {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
+                                        {m.role === 'assistant'
+                                            ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content)
+                                            : m.content}
                                     </Bubble>
                                 </div>
                             ))}
@@ -1262,7 +1269,6 @@ export default function Page() {
                                     </div>
                                 </form>
                             )}
-
                         </div>
                     </div>
                 )}
