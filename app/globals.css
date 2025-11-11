@@ -546,3 +546,39 @@ main,
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
+
+/* ===============================
+   HR: Final composer visual polish
+   =============================== */
+
+/* Separate the input and button visually */
+.composer .composer-inner {
+  gap: 8px !important;
+  background: transparent !important;
+}
+
+/* Keep input compact and flush */
+.composer .composer-inner .input {
+  flex: 1 1 auto !important;
+  min-width: 0;
+  border-radius: 8px 0 0 8px !important;
+  border-right: none !important;
+}
+
+/* Distinct Send button "pill" */
+.composer .composer-inner .ask-pill {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 8px 8px 0 !important;
+  background: #1e293b !important;
+  /* slate-800 */
+  color: #fff !important;
+  font-weight: 500;
+  transition: background 0.2s ease-in-out;
+}
+
+.composer .composer-inner .ask-pill:hover:not(:disabled) {
+  background: #334155 !important;
+  /* slate-700 */
+}
