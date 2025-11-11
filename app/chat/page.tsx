@@ -969,8 +969,14 @@ export default function Page() {
                                 textOverflow: 'ellipsis',
                             }}
                             data-testid="ask-pill"
-
+                            data-pill="ask"
+                            onClick={send}
+                            disabled={loading || !input.trim()}
+                        >
+                            Send
+                        </button>
                     </div>
+
 
 
 

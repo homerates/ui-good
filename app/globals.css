@@ -129,6 +129,7 @@ body {
 .scroll {
   /* container that owns the scroll */
   flex: 1;
+  padding-bottom: calc(var(--footer-h, 40px) + 84px);
   overflow-y: auto;
 }
 
@@ -521,4 +522,15 @@ main,
 .scroll-region,
 .messages {
   padding-bottom: calc(var(--footer-h) + var(--composer-h) + 24px) !important;
+}
+
+/* === hard-cap ask pill (scoped override) === */
+.composer .composer-inner [data-pill="ask"] {
+  flex: 0 0 160px !important;
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
