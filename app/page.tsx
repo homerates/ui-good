@@ -1,4 +1,5 @@
-﻿// ==== REPLACE ENTIRE FILE: app/page.tsx ====
+﻿// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
+// ==== REPLACE ENTIRE FILE: app/page.tsx ====
 'use client';
 
 import * as React from 'react';
@@ -158,19 +159,15 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 ? m.answer
                 : '');
 
-    const lines = (typeof m.answer === 'string' ? m.answer : '')
-        .split('\n')
-        .map((s) => s.trim());
+    const lines = (typeof m.answer === 'string' ? m.answer : '').split('\n').map((s) => s.trim());
     const takeaway = primary || lines[0] || '';
     const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
-    const nexts = lines
-        .filter((l) => l.toLowerCase().startsWith('next:'))
-        .map((l) => l.slice(5).trim());
+    const nexts = lines.filter((l) => l.toLowerCase().startsWith('next:')).map((l) => l.slice(5).trim());
 
     return (
         <div style={{ display: 'grid', gap: 10 }}>
             <div className="meta">
-                <span>path: <b>{String(headerPath)}</b></span>
+                <span>path: <b>{String(m.path ?? '—')}</b></span>
                 <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
                 {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
             </div>
@@ -237,13 +234,10 @@ export default function Page() {
             id: uid(),
             role: 'assistant',
             content:
-                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year). Add intent + loan for buyer math.',
+                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year). Add price/down/rate/term for math, or open the calculator.',
         },
     ]);
     const [input, setInput] = useState('');
-    const [mode, setMode] = useState<'borrower' | 'public'>('borrower');
-    const [intent, setIntent] = useState<'' | 'purchase' | 'refi' | 'investor'>('');
-    const [loanAmount, setLoanAmount] = useState<number | ''>('');
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -464,14 +458,10 @@ export default function Page() {
         setLoading(true);
 
         try {
-            const body: {
-                question: string;
-                mode: 'borrower' | 'public';
-                intent?: 'purchase' | 'refi' | 'investor';
-                loanAmount?: number;
-            } = { question: q, mode };
-            if (intent) body.intent = intent;
-            if (loanAmount && Number(loanAmount) > 0) body.loanAmount = Number(loanAmount);
+            const body: { question: string; mode: 'borrower' | 'public' } = {
+                question: q,
+                mode: 'borrower',
+            };
 
             const r = await fetch('/api/answers', {
                 method: 'POST',
@@ -488,10 +478,10 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'}: 10Y ${typeof meta.fred.tenYearYield === 'number' ? meta.fred.tenYearYield.toFixed(2) : meta.fred.tenYearYield
-                    }%, 30Y ${typeof meta.fred.mort30Avg === 'number' ? meta.fred.mort30Avg.toFixed(2) : meta.fred.mort30Avg
-                    }%, spread ${typeof meta.fred.spread === 'number' ? meta.fred.spread.toFixed(2) : meta.fred.spread
-                    }%.`
+                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number' ? `10Y ${meta.fred.tenYearYield.toFixed(2)}%` : `10Y ${meta.fred.tenYearYield}%`
+                    }, ${typeof meta.fred.mort30Avg === 'number' ? `30Y ${meta.fred.mort30Avg.toFixed(2)}%` : `30Y ${meta.fred.mort30Avg}%`
+                    }, spread ${typeof meta.fred.spread === 'number' ? `${meta.fred.spread.toFixed(2)}%` : `${meta.fred.spread}%`
+                    }.`
                     : typeof meta.answer === 'string'
                         ? meta.answer
                         : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
@@ -579,27 +569,7 @@ export default function Page() {
                         </button>
                         <div style={{ fontWeight: 700 }}>Chat</div>
                         <div className="controls">
-                            <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}>
-                                <option value="borrower">Borrower</option>
-                                <option value="public">Public</option>
-                            </select>
-                            <select
-                                value={intent}
-                                onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')}
-                            >
-                                <option value="">Intent: auto</option>
-                                <option value="purchase">Purchase</option>
-                                <option value="refi">Refi</option>
-                                <option value="investor">Investor</option>
-                            </select>
-                            <input
-                                type="number"
-                                min={50000}
-                                step={1000}
-                                placeholder="Loan (optional)"
-                                value={loanAmount}
-                                onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
-                            />
+                            {/* controls removed */}
                         </div>
                     </div>
                 </div>
@@ -815,7 +785,6 @@ export default function Page() {
                                 <MortgageCalcPanel
                                     onCancel={closeAllOverlays}
                                     onSubmit={(res: CalcSubmitResult) => {
-
                                         closeAllOverlays();
                                         // echo a clean, human-readable line + structured calc meta reply
                                         setMessages((m) => [
