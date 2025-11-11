@@ -363,3 +363,133 @@ input[type="text"] {
 .hamburger.open span:nth-child(3) {
   transform: translateY(-9.5px) rotate(-45deg);
 }
+
+/* --- Sticky header so the hamburger always stays visible --- */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 4000;
+  background: var(--bg, #fff);
+  /* light blur like ChatGPT */
+  backdrop-filter: saturate(160%) blur(6px);
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.06));
+}
+
+/* Ensure the header content aligns */
+.header .header-inner {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+/* --- Sidebar universal slide/toggle (works on desktop too) --- */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  transform: translateX(0);
+  transition: transform 180ms ease;
+  background: var(--sidebar, #0f172a);
+  color: var(--sidebar-fg, #fff);
+  z-index: 3500;
+  overflow: auto;
+  padding: 12px;
+}
+
+.sidebar.closed {
+  transform: translateX(-100%);
+}
+
+.sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar .sidebar-inner {
+  display: grid;
+  gap: 10px;
+}
+
+.pill {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  text-align: left;
+}
+
+.pill.primary {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pill.subtle {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pill:hover {
+  filter: brightness(1.05);
+}
+
+.icon {
+  width: 18px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.sidebar-section {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.chat-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.chat-row.active .chat-button {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.chat-button {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  text-align: left;
+}
+
+.dotbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: inherit;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  display: grid;
+  gap: 8px;
+}
+
+/* Keep hamburger on top of the sidebar edge */
+.hamburger {
+  z-index: 4100;
+}

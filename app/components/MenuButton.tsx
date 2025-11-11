@@ -9,17 +9,19 @@ type Props = {
 };
 
 export default function MenuButton({ isOpen, onToggle }: Props) {
+    const title = isOpen ? 'Close Sidebar' : 'Open Sidebar';
     return (
         <button
             type="button"
-            aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
+            className={`hamburger${isOpen ? ' open' : ''}`}
+            aria-label={title}
             aria-pressed={isOpen}
-            className="hamburger"
+            title={title}
             onClick={onToggle}
         >
-            <span className={isOpen ? 'open' : undefined} />
-            <span className={isOpen ? 'open' : undefined} />
-            <span className={isOpen ? 'open' : undefined} />
+            <span />
+            <span />
+            <span />
         </button>
     );
 }
