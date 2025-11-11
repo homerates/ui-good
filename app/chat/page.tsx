@@ -946,9 +946,24 @@ export default function Page() {
                 <div
                     className="composer"
                     // keep it sticky, but sit above the solid footer and ensure top z-order
-                    style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
+                    style={{
+                        position: 'sticky',
+                        bottom: 'var(--footer-h)',
+                        zIndex: 900,
+                        background: 'var(--bg)',
+                        borderTop: '1px solid var(--border)',
+                        padding: '8px 12px',
+                    }}
                 >
-                    <div className="composer-inner" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                        className="composer-inner"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            maxWidth: '100%',
+                        }}
+                    >
                         <input
                             className="input"
                             style={{ flex: 1, minWidth: 0 }}
@@ -959,327 +974,331 @@ export default function Page() {
                         />
                         <button
                             className="btn ask-pill"
+                            data-testid="ask-pill"
+                            data-pill="ask"
+                            title="Send"
+                            aria-label="Send message"
+                            onClick={send}
+                            disabled={loading || !input.trim()}
                             style={{
                                 flex: '0 0 160px',
                                 width: 160,
-                                minWidth: 160,
+                                minWidth: 120,
                                 maxWidth: 160,
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                             }}
-                            data-testid="ask-pill"
-                            data-pill="ask"
-                            onClick={send}
-                            disabled={loading || !input.trim()}
                         >
                             Send
                         </button>
                     </div>
+                </div>
 
 
 
 
 
-                    {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
-                    {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
+
+                {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
+                {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Overlay"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) closeAllOverlays();
+                        }}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.35)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            zIndex: 5000,
+                        }}
+                    >
                         <div
-                            role="dialog"
-                            aria-modal="true"
-                            aria-label="Overlay"
-                            onClick={(e) => {
-                                if (e.target === e.currentTarget) closeAllOverlays();
-                            }}
+                            className="panel"
                             style={{
-                                position: 'fixed',
-                                inset: 0,
-                                background: 'rgba(0,0,0,0.35)',
+                                width: 'min(680px, 92vw)',
+                                maxHeight: '80vh',
+                                overflow: 'auto',
+                                padding: 16,
+                                borderRadius: 12,
+                                background: 'var(--card)',
+                                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
                                 display: 'grid',
-                                placeItems: 'center',
-                                zIndex: 5000,
+                                gap: 12,
                             }}
                         >
-                            <div
-                                className="panel"
-                                style={{
-                                    width: 'min(680px, 92vw)',
-                                    maxHeight: '80vh',
-                                    overflow: 'auto',
-                                    padding: 16,
-                                    borderRadius: 12,
-                                    background: 'var(--card)',
-                                    boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
-                                    display: 'grid',
-                                    gap: 12,
-                                }}
-                            >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 700 }}>
-                                        {showSearch && 'Search'}
-                                        {showLibrary && 'Library'}
-                                        {showSettings && 'Settings'}
-                                        {showProject && 'New Project'}
-                                        {showMortgageCalc && 'Mortgage Calculator'}
-                                    </div>
-                                    <button className="btn" onClick={closeAllOverlays} aria-label="Close">
-                                        Close
-                                    </button>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 700 }}>
+                                    {showSearch && 'Search'}
+                                    {showLibrary && 'Library'}
+                                    {showSettings && 'Settings'}
+                                    {showProject && 'New Project'}
+                                    {showMortgageCalc && 'Mortgage Calculator'}
                                 </div>
+                                <button className="btn" onClick={closeAllOverlays} aria-label="Close">
+                                    Close
+                                </button>
+                            </div>
 
-                                {/* SEARCH */}
-                                {showSearch && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <input
-                                            className="input"
-                                            placeholder="Search your current thread and history…"
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                                            <div style={{ fontWeight: 600 }}>Matches in current thread</div>
-                                            <ul style={{ marginTop: 0 }}>
-                                                {messages
-                                                    .filter(
-                                                        (m) =>
-                                                            typeof m.content === 'string' &&
-                                                            m.content.toLowerCase().includes(searchQuery.toLowerCase())
-                                                    )
-                                                    .slice(0, 12)
-                                                    .map((m, i) => (
-                                                        <li key={m.id + i}>
-                                                            <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
-                                                            <span>{(m.content as string).slice(0, 200)}</span>
-                                                        </li>
-                                                    ))}
-                                            </ul>
-                                        </div>
-                                        <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                                            <div style={{ fontWeight: 600 }}>Matches in history titles</div>
-                                            <ul style={{ marginTop: 0 }}>
-                                                {history
-                                                    .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                                                    .slice(0, 20)
-                                                    .map((h) => <li key={h.id}>{h.title}</li>)}
-                                            </ul>
-                                        </div>
+                            {/* SEARCH */}
+                            {showSearch && (
+                                <div style={{ display: 'grid', gap: 10 }}>
+                                    <input
+                                        className="input"
+                                        placeholder="Search your current thread and history…"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                                        <div style={{ fontWeight: 600 }}>Matches in current thread</div>
+                                        <ul style={{ marginTop: 0 }}>
+                                            {messages
+                                                .filter(
+                                                    (m) =>
+                                                        typeof m.content === 'string' &&
+                                                        m.content.toLowerCase().includes(searchQuery.toLowerCase())
+                                                )
+                                                .slice(0, 12)
+                                                .map((m, i) => (
+                                                    <li key={m.id + i}>
+                                                        <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
+                                                        <span>{(m.content as string).slice(0, 200)}</span>
+                                                    </li>
+                                                ))}
+                                        </ul>
                                     </div>
-                                )}
-
-                                {/* LIBRARY */}
-                                {showLibrary && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
-                                        <div className="chat-list" role="list">
-                                            {history.length === 0 && (
-                                                <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
-                                                    No history yet
-                                                </div>
-                                            )}
-                                            {history.map((h) => (
-                                                <button
-                                                    key={h.id}
-                                                    className="chat-item"
-                                                    role="listitem"
-                                                    title={h.title}
-                                                    onClick={() => onSelectHistory(h.id)}
-                                                    style={{ textAlign: 'left' }}
-                                                >
-                                                    {h.title}
-                                                </button>
-                                            ))}
-                                        </div>
+                                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                                        <div style={{ fontWeight: 600 }}>Matches in history titles</div>
+                                        <ul style={{ marginTop: 0 }}>
+                                            {history
+                                                .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                                                .slice(0, 20)
+                                                .map((h) => <li key={h.id}>{h.title}</li>)}
+                                        </ul>
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {/* SETTINGS */}
-                                {showSettings && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <input type="checkbox" onChange={() => { /* next pass */ }} />
-                                            Compact bubbles (coming soon)
-                                        </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <input type="checkbox" onChange={() => { /* next pass */ }} />
-                                            Prefer dark mode (coming soon)
-                                        </label>
-                                        <button
-                                            className="btn"
-                                            onClick={() => {
-                                                setHistory([]);
-                                                setMessages([
-                                                    {
-                                                        id: uid(),
-                                                        role: 'assistant',
-                                                        content: 'New chat. What do you want to figure out?',
-                                                    },
-                                                ]);
-                                                closeAllOverlays();
-                                            }}
-                                        >
-                                            Clear history & reset chat
-                                        </button>
+                            {/* LIBRARY */}
+                            {showLibrary && (
+                                <div style={{ display: 'grid', gap: 10 }}>
+                                    <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
+                                    <div className="chat-list" role="list">
+                                        {history.length === 0 && (
+                                            <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
+                                                No history yet
+                                            </div>
+                                        )}
+                                        {history.map((h) => (
+                                            <button
+                                                key={h.id}
+                                                className="chat-item"
+                                                role="listitem"
+                                                title={h.title}
+                                                onClick={() => onSelectHistory(h.id)}
+                                                style={{ textAlign: 'left' }}
+                                            >
+                                                {h.title}
+                                            </button>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {/* NEW PROJECT */}
-                                {showProject && (
-                                    <form
-                                        onSubmit={(e) => {
-                                            e.preventDefault();
-                                            const name = projectName.trim() || 'Untitled Project';
-                                            const id = uid();
-                                            setActiveId(id);
-                                            setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                            {/* SETTINGS */}
+                            {showSettings && (
+                                <div style={{ display: 'grid', gap: 10 }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <input type="checkbox" onChange={() => { /* next pass */ }} />
+                                        Compact bubbles (coming soon)
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <input type="checkbox" onChange={() => { /* next pass */ }} />
+                                        Prefer dark mode (coming soon)
+                                    </label>
+                                    <button
+                                        className="btn"
+                                        onClick={() => {
+                                            setHistory([]);
                                             setMessages([
                                                 {
                                                     id: uid(),
                                                     role: 'assistant',
-                                                    content: `New Project "${name}" started. What’s the goal?`,
+                                                    content: 'New chat. What do you want to figure out?',
                                                 },
                                             ]);
-                                            setProjectName('');
                                             closeAllOverlays();
                                         }}
-                                        style={{ display: 'grid', gap: 10 }}
                                     >
-                                        <input
-                                            className="input"
-                                            placeholder="Project name"
-                                            value={projectName}
-                                            onChange={(e) => setProjectName(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            <button className="btn primary" type="submit">Create</button>
-                                            <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                                        </div>
-                                    </form>
-                                )}
+                                        Clear history & reset chat
+                                    </button>
+                                </div>
+                            )}
 
-                                {/* MORTGAGE CALCULATOR */}
-                                {showMortgageCalc && (
-                                    <form
-                                        onSubmit={async (e) => {
-                                            e.preventDefault();
-                                            const fd = new FormData(e.currentTarget);
-                                            const price = Number(String(fd.get('price') || '').replace(/[, ]+/g, '')) || 0;
-                                            const downPct = Number(String(fd.get('downPct') || '').replace(/[, ]+/g, '')) || 0;
-                                            const ratePct = Number(String(fd.get('ratePct') || '').replace(/[, ]+/g, '')) || 0;
-                                            const termYears = Number(String(fd.get('termYears') || '').replace(/[, ]+/g, '')) || 30;
-                                            const zip = String(fd.get('zip') || '').trim();
-                                            const hoa = Number(String(fd.get('hoa') || '').replace(/[, ]+/g, '')) || 0;
+                            {/* NEW PROJECT */}
+                            {showProject && (
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const name = projectName.trim() || 'Untitled Project';
+                                        const id = uid();
+                                        setActiveId(id);
+                                        setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                                        setMessages([
+                                            {
+                                                id: uid(),
+                                                role: 'assistant',
+                                                content: `New Project "${name}" started. What’s the goal?`,
+                                            },
+                                        ]);
+                                        setProjectName('');
+                                        closeAllOverlays();
+                                    }}
+                                    style={{ display: 'grid', gap: 10 }}
+                                >
+                                    <input
+                                        className="input"
+                                        placeholder="Project name"
+                                        value={projectName}
+                                        onChange={(e) => setProjectName(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button className="btn primary" type="submit">Create</button>
+                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                                    </div>
+                                </form>
+                            )}
 
-                                            closeAllOverlays();
+                            {/* MORTGAGE CALCULATOR */}
+                            {showMortgageCalc && (
+                                <form
+                                    onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const fd = new FormData(e.currentTarget);
+                                        const price = Number(String(fd.get('price') || '').replace(/[, ]+/g, '')) || 0;
+                                        const downPct = Number(String(fd.get('downPct') || '').replace(/[, ]+/g, '')) || 0;
+                                        const ratePct = Number(String(fd.get('ratePct') || '').replace(/[, ]+/g, '')) || 0;
+                                        const termYears = Number(String(fd.get('termYears') || '').replace(/[, ]+/g, '')) || 30;
+                                        const zip = String(fd.get('zip') || '').trim();
+                                        const hoa = Number(String(fd.get('hoa') || '').replace(/[, ]+/g, '')) || 0;
 
-                                            // breadcrumb echo
-                                            setMessages((m) => [
-                                                ...m,
-                                                {
-                                                    id: uid(),
-                                                    role: 'assistant',
-                                                    content: `Using ${price.toLocaleString()} price, ${downPct}% down, ${ratePct}% for ${termYears} years, ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}.`,
-                                                },
-                                            ]);
+                                        closeAllOverlays();
 
-                                            setLoading(true);
-                                            try {
-                                                await runCalc({
-                                                    purchasePrice: price,
-                                                    downPercent: downPct,
-                                                    annualRatePct: ratePct,
-                                                    termYears,
-                                                    rawQ: `price ${price} with ${downPct}% down at ${ratePct}% for ${termYears} years zip ${zip}`,
-                                                });
-                                            } finally {
-                                                setLoading(false);
-                                            }
-                                        }}
-                                        style={{ display: 'grid', gap: 10 }}
-                                    >
-                                        <div className="grid" style={{ display: 'grid', gap: 10 }}>
+                                        // breadcrumb echo
+                                        setMessages((m) => [
+                                            ...m,
+                                            {
+                                                id: uid(),
+                                                role: 'assistant',
+                                                content: `Using ${price.toLocaleString()} price, ${downPct}% down, ${ratePct}% for ${termYears} years, ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}.`,
+                                            },
+                                        ]);
+
+                                        setLoading(true);
+                                        try {
+                                            await runCalc({
+                                                purchasePrice: price,
+                                                downPercent: downPct,
+                                                annualRatePct: ratePct,
+                                                termYears,
+                                                rawQ: `price ${price} with ${downPct}% down at ${ratePct}% for ${termYears} years zip ${zip}`,
+                                            });
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }}
+                                    style={{ display: 'grid', gap: 10 }}
+                                >
+                                    <div className="grid" style={{ display: 'grid', gap: 10 }}>
+                                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                            Purchase price
+                                            <input
+                                                name="price"
+                                                inputMode="decimal"
+                                                defaultValue="900000"
+                                                placeholder="e.g. 900000"
+                                                className="input"
+                                                autoFocus
+                                            />
+                                        </label>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                             <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                Purchase price
+                                                Down payment %
                                                 <input
-                                                    name="price"
+                                                    name="downPct"
                                                     inputMode="decimal"
-                                                    defaultValue="900000"
-                                                    placeholder="e.g. 900000"
-                                                    className="input"
-                                                    autoFocus
-                                                />
-                                            </label>
-
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                    Down payment %
-                                                    <input
-                                                        name="downPct"
-                                                        inputMode="decimal"
-                                                        defaultValue="20"
-                                                        placeholder="e.g. 20"
-                                                        className="input"
-                                                    />
-                                                </label>
-                                                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                    Rate %
-                                                    <input
-                                                        name="ratePct"
-                                                        inputMode="decimal"
-                                                        defaultValue="6.25"
-                                                        placeholder="e.g. 6.25"
-                                                        className="input"
-                                                    />
-                                                </label>
-                                            </div>
-
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                    Term (years)
-                                                    <input
-                                                        name="termYears"
-                                                        inputMode="numeric"
-                                                        defaultValue="30"
-                                                        placeholder="e.g. 30"
-                                                        className="input"
-                                                    />
-                                                </label>
-                                                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                    ZIP
-                                                    <input
-                                                        name="zip"
-                                                        inputMode="numeric"
-                                                        defaultValue="92688"
-                                                        placeholder="e.g. 92688"
-                                                        className="input"
-                                                    />
-                                                </label>
-                                            </div>
-
-                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                HOA (optional)
-                                                <input
-                                                    name="hoa"
-                                                    inputMode="decimal"
-                                                    placeholder="e.g. 125"
+                                                    defaultValue="20"
+                                                    placeholder="e.g. 20"
                                                     className="input"
                                                 />
                                             </label>
-
-                                            <p className="text-xs" style={{ opacity: 0.7 }}>
-                                                Guided input flow. These values hit the same calc endpoint used by typed questions.
-                                            </p>
+                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                                Rate %
+                                                <input
+                                                    name="ratePct"
+                                                    inputMode="decimal"
+                                                    defaultValue="6.25"
+                                                    placeholder="e.g. 6.25"
+                                                    className="input"
+                                                />
+                                            </label>
                                         </div>
 
-                                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                                            <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                                            <button className="btn primary" type="submit">Use these inputs</button>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                                Term (years)
+                                                <input
+                                                    name="termYears"
+                                                    inputMode="numeric"
+                                                    defaultValue="30"
+                                                    placeholder="e.g. 30"
+                                                    className="input"
+                                                />
+                                            </label>
+                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                                ZIP
+                                                <input
+                                                    name="zip"
+                                                    inputMode="numeric"
+                                                    defaultValue="92688"
+                                                    placeholder="e.g. 92688"
+                                                    className="input"
+                                                />
+                                            </label>
                                         </div>
-                                    </form>
-                                )}
-                            </div>
+
+                                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                            HOA (optional)
+                                            <input
+                                                name="hoa"
+                                                inputMode="decimal"
+                                                placeholder="e.g. 125"
+                                                className="input"
+                                            />
+                                        </label>
+
+                                        <p className="text-xs" style={{ opacity: 0.7 }}>
+                                            Guided input flow. These values hit the same calc endpoint used by typed questions.
+                                        </p>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                                        <button className="btn primary" type="submit">Use these inputs</button>
+                                    </div>
+                                </form>
+                            )}
                         </div>
-                    )}
+                    </div>
+                )}
             </section>
         </>
     );
