@@ -8,7 +8,7 @@ import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
-
+import MenuButton from './components/MenuButton';
 /* =========================
    Small helpers
 ========================= */
@@ -283,9 +283,7 @@ function HeaderMenu({
     onMortgageCalc: () => void;
     onShare: () => void;
 }) {
-    const [open, setOpen] = useState(false);
-    const btnRef = useRef<HTMLButtonElement | null>(null);
-    const panelRef = useRef<HTMLDivElement | null>(null);
+
 
     // click outside to close
     useEffect(() => {
@@ -317,64 +315,12 @@ function HeaderMenu({
     }
 
     return (
-        <div style={{ position: 'relative', display: 'inline-block' }}>
-            <button
-                ref={btnRef}
-                className="btn"
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded={open}
-                onClick={() => setOpen((v) => !v)}
-            >
-                Menu
-            </button>
+        <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
+        <div style={{ fontWeight: 700 }}>Chat</div>
+        <div className="controls">{/* empty on purpose */}</div>
 
-            {open && (
-                <div
-                    ref={panelRef}
-                    role="menu"
-                    aria-label="Main menu"
-                    style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: 'calc(100% + 8px)',
-                        minWidth: 220,
-                        background: 'var(--card)',
-                        borderRadius: 12,
-                        boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
-                        padding: 8,
-                        zIndex: 6000,
-                    }}
-                >
-                    <button className="menu-item" role="menuitem" onClick={() => run(onNewChat)}>
-                        New chat
-                    </button>
-                    <button className="menu-item" role="menuitem" onClick={() => run(onSearch)}>
-                        Search
-                    </button>
-                    <button className="menu-item" role="menuitem" onClick={() => run(onLibrary)}>
-                        Library
-                    </button>
-                    <button className="menu-item" role="menuitem" onClick={() => run(onNewProject)}>
-                        New project
-                    </button>
-                    <button className="menu-item" role="menuitem" onClick={() => run(onMortgageCalc)}>
-                        Mortgage calculator
-                    </button>
-                    <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '8px 0' }} />
-                    <button className="menu-item" role="menuitem" onClick={() => run(onSettings)}>
-                        Settings
-                    </button>
-                    <button className="menu-item" role="menuitem" onClick={() => run(onShare)}>
-                        Copy conversation
-                    </button>
-                    <button className="menu-item" role="menuitem" onClick={() => run(onToggleSidebar)}>
-                        Toggle sidebar
-                    </button>
-                </div>
-            )}
-        </div>
     );
+
 }
 
 /* =========================
@@ -697,6 +643,7 @@ export default function Page() {
         <>
             {/* Sidebar */}
             <Sidebar
+                id="hr-sidebar"
                 history={history}
                 onNewChat={newChat}
                 onSettings={onSettings}
