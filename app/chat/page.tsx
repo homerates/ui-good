@@ -918,27 +918,8 @@ export default function Page() {
                         </button>
                         <div style={{ fontWeight: 700 }}>Chat</div>
                         <div className="controls">
-                            <select value={mode} onChange={(e) => setMode(e.target.value as 'borrower' | 'public')}>
-                                <option value="borrower">Borrower</option>
-                                <option value="public">Public</option>
-                            </select>
-                            <select
-                                value={intent}
-                                onChange={(e) => setIntent(e.target.value as '' | 'purchase' | 'refi' | 'investor')}
-                            >
-                                <option value="">Intent: auto</option>
-                                <option value="purchase">Purchase</option>
-                                <option value="refi">Refi</option>
-                                <option value="investor">Investor</option>
-                            </select>
-                            <input
-                                type="number"
-                                min={50000}
-                                step={1000}
-                                placeholder="Loan (optional)"
-                                value={loanAmount}
-                                onChange={(e) => setLoanAmount(e.target.value ? Number(e.target.value) : '')}
-                            />
+                            {/* top controls removed */}
+
                         </div>
                     </div>
                 </div>
