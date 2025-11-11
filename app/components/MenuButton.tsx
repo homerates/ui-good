@@ -2,24 +2,29 @@
 'use client';
 import * as React from 'react';
 
-type MenuButtonProps = {
+type Props = {
     isOpen: boolean;
     onToggle: () => void;
 };
 
-export default function MenuButton({ isOpen, onToggle }: MenuButtonProps) {
+/**
+ * Header hamburger that ONLY toggles the sidebar.
+ * Always returns a single parent element to satisfy JSX.
+ */
+export default function MenuButton({ isOpen, onToggle }: Props) {
     return (
-        <button
-            className={`hamburger ${isOpen ? 'open' : ''}`}
-            type="button"
-            aria-label="Toggle sidebar"
-            aria-expanded={isOpen}
-            aria-controls="hr-sidebar"
-            onClick={onToggle}
-        >
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
+        <div className="header-menu" style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <button
+                type="button"
+                className={`hamburger ${isOpen ? 'open' : ''}`}
+                aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
+                aria-pressed={isOpen}
+                onClick={onToggle}
+            >
+                <span />
+                <span />
+                <span />
+            </button>
+        </div>
     );
 }
