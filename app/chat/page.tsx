@@ -173,7 +173,7 @@ function parsePaymentQuery(q: string) {
         annualRatePct = parsePercent(rateNear[1]);
     } else {
         // avoid misreading "20% down" as rate
-        const anyPct = clean.match(/([0-9]+(?:\.[0-9]+)?)[ ]*%/i);
+        const anyPct = clean.match(/([0-9]+(?:\.\d+)?)[ ]*%/i);
         if (anyPct && !/\b(down(\s*payment)?|ltv|loan\s*to\s*value)\b/i.test(clean)) {
             annualRatePct = parsePercent(anyPct[1]);
         }
@@ -478,11 +478,6 @@ export default function Page() {
         },
     ]);
     const [input, setInput] = useState('');
-
-    // fixed input model (no dropdowns in UI)
-    const mode: 'borrower' | 'public' = 'borrower';
-    const intent = '' as const;           // kept for body compatibility (not shown in UI)
-    const loanAmount: '' | number = '';   // kept for body compatibility (not shown in UI)
 
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
@@ -810,20 +805,11 @@ export default function Page() {
                 return;
             }
 
-            // Answers path
-            const body: {
-                question: string;
-                mode: 'borrower' | 'public';
-                intent?: 'purchase' | 'refi' | 'investor';
-                loanAmount?: number;
-            } = { question: q, mode };
-            if (intent) body.intent = intent; // intent is '', so omitted by JSON.stringify
-            if (loanAmount && Number(loanAmount) > 0) body.loanAmount = Number(loanAmount);
-
+            // Answers path — stripped to question only (no mode/intent/loanAmount)
             const r = await fetch('/api/answers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify({ question: q }),
             });
 
             const meta = await safeJson(r);
