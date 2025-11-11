@@ -1,4 +1,6 @@
 ﻿// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
+// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
+// <HR-GUARD> Home chat = borrower mode only. Do NOT reintroduce Borrower/Public, Intent, or "Loan (optional)" controls.
 // ==== REPLACE ENTIRE FILE: app/page.tsx ====
 'use client';
 
@@ -93,7 +95,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
     type NestedMeta = { meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string } };
     const m = meta as ApiResponse & NestedMeta;
-    const headerPath: ApiResponse['path'] | '—' = m.path ?? m.meta?.path ?? '—';
+    const headerPath: ApiResponse['path'] | '—' = (m.path ?? m.meta?.path ?? '—') as any;
     const headerUsedFRED: boolean =
         typeof m.usedFRED === 'boolean' ? m.usedFRED : (m.meta?.usedFRED ?? false);
     const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
@@ -103,14 +105,28 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         return (
             <div style={{ display: 'grid', gap: 10 }}>
                 <div className="meta">
-                    <span>path: <b>{String(headerPath)}</b></span>
-                    <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-                    {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+                    <span>
+                        path: <b>{String(headerPath)}</b>
+                    </span>
+                    <span>
+                        {' '}
+                        | usedFRED: <b>{String(headerUsedFRED)}</b>
+                    </span>
+                    {headerAt && (
+                        <span>
+                            {' '}
+                            | at: <b>{fmtISOshort(headerAt)}</b>
+                        </span>
+                    )}
                 </div>
 
                 <div>
-                    <div><b>Loan amount:</b> ${fmtMoney(a.loanAmount)}</div>
-                    <div><b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}</div>
+                    <div>
+                        <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
+                    </div>
+                    <div>
+                        <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
+                    </div>
                 </div>
 
                 {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
@@ -121,7 +137,9 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                             <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
                             <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
                             <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-                            <li><b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b></li>
+                            <li>
+                                <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
+                            </li>
                         </ul>
                     </div>
                 )}
@@ -167,9 +185,19 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     return (
         <div style={{ display: 'grid', gap: 10 }}>
             <div className="meta">
-                <span>path: <b>{String(m.path ?? '—')}</b></span>
-                <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-                {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+                <span>
+                    path: <b>{String(m.path ?? '—')}</b>
+                </span>
+                <span>
+                    {' '}
+                    | usedFRED: <b>{String(headerUsedFRED)}</b>
+                </span>
+                {headerAt && (
+                    <span>
+                        {' '}
+                        | at: <b>{fmtISOshort(headerAt)}</b>
+                    </span>
+                )}
             </div>
 
             {takeaway && <div>{takeaway}</div>}
@@ -178,20 +206,28 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 <div>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
                     <ul style={{ marginTop: 0 }}>
-                        {m.tldr.map((t, i) => <li key={i}>{t}</li>)}
+                        {m.tldr.map((t, i) => (
+                            <li key={i}>{t}</li>
+                        ))}
                     </ul>
                 </div>
             )}
 
             {bullets.length > 0 && (
                 <ul style={{ marginTop: 0 }}>
-                    {bullets.map((b, i) => <li key={i}>{b}</li>)}
+                    {bullets.map((b, i) => (
+                        <li key={i}>{b}</li>
+                    ))}
                 </ul>
             )}
 
             {nexts.length > 0 && (
                 <div style={{ display: 'grid', gap: 4 }}>
-                    {nexts.map((n, i) => (<div key={i}><b>Next:</b> {n}</div>))}
+                    {nexts.map((n, i) => (
+                        <div key={i}>
+                            <b>Next:</b> {n}
+                        </div>
+                    ))}
                 </div>
             )}
 
@@ -226,6 +262,122 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 }
 
 /* =========================
+   Header Menu (desktop-friendly)
+========================= */
+function HeaderMenu({
+    onToggleSidebar,
+    onNewChat,
+    onSearch,
+    onLibrary,
+    onSettings,
+    onNewProject,
+    onMortgageCalc,
+    onShare,
+}: {
+    onToggleSidebar: () => void;
+    onNewChat: () => void;
+    onSearch: () => void;
+    onLibrary: () => void;
+    onSettings: () => void;
+    onNewProject: () => void;
+    onMortgageCalc: () => void;
+    onShare: () => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement | null>(null);
+    const panelRef = useRef<HTMLDivElement | null>(null);
+
+    // click outside to close
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent | PointerEvent | TouchEvent) => {
+            const target = e.target as Node;
+            if (!panelRef.current || !btnRef.current) return;
+            if (panelRef.current.contains(target) || btnRef.current.contains(target)) return;
+            setOpen(false);
+        };
+        window.addEventListener('pointerdown', onDown, { capture: true });
+        return () => window.removeEventListener('pointerdown', onDown, { capture: true } as any);
+    }, [open]);
+
+    // escape to close
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [open]);
+
+    function run(fn: () => void) {
+        setOpen(false);
+        // small delay to allow panel to close before overlay opens
+        setTimeout(fn, 0);
+    }
+
+    return (
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+                ref={btnRef}
+                className="btn"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                onClick={() => setOpen((v) => !v)}
+            >
+                Menu
+            </button>
+
+            {open && (
+                <div
+                    ref={panelRef}
+                    role="menu"
+                    aria-label="Main menu"
+                    style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: 'calc(100% + 8px)',
+                        minWidth: 220,
+                        background: 'var(--card)',
+                        borderRadius: 12,
+                        boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
+                        padding: 8,
+                        zIndex: 6000,
+                    }}
+                >
+                    <button className="menu-item" role="menuitem" onClick={() => run(onNewChat)}>
+                        New chat
+                    </button>
+                    <button className="menu-item" role="menuitem" onClick={() => run(onSearch)}>
+                        Search
+                    </button>
+                    <button className="menu-item" role="menuitem" onClick={() => run(onLibrary)}>
+                        Library
+                    </button>
+                    <button className="menu-item" role="menuitem" onClick={() => run(onNewProject)}>
+                        New project
+                    </button>
+                    <button className="menu-item" role="menuitem" onClick={() => run(onMortgageCalc)}>
+                        Mortgage calculator
+                    </button>
+                    <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+                    <button className="menu-item" role="menuitem" onClick={() => run(onSettings)}>
+                        Settings
+                    </button>
+                    <button className="menu-item" role="menuitem" onClick={() => run(onShare)}>
+                        Copy conversation
+                    </button>
+                    <button className="menu-item" role="menuitem" onClick={() => run(onToggleSidebar)}>
+                        Toggle sidebar
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* =========================
    Page
 ========================= */
 export default function Page() {
@@ -234,10 +386,14 @@ export default function Page() {
             id: uid(),
             role: 'assistant',
             content:
-                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year). Add price/down/rate/term for math, or open the calculator.',
+                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year). Add intent + loan for buyer math.',
         },
     ]);
     const [input, setInput] = useState('');
+
+    // borrower-only mode fixed
+    const mode: 'borrower' = 'borrower';
+
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -382,9 +538,7 @@ export default function Page() {
             const current = history.find((h) => h.id === id)?.title ?? '';
             const name = prompt('Rename chat:', current);
             if (name && name.trim()) {
-                setHistory((h) =>
-                    h.map((x) => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x))
-                );
+                setHistory((h) => h.map((x) => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x)));
             }
             return;
         }
@@ -438,8 +592,7 @@ export default function Page() {
                 if (idx >= 0) {
                     const current = next[idx] ?? { id: tid!, title: 'Untitled' };
                     const needsTitle =
-                        typeof current.title === 'string' &&
-                        (current.title === 'New chat' || current.title.startsWith('Untitled'));
+                        typeof current.title === 'string' && (current.title === 'New chat' || current.title.startsWith('Untitled'));
 
                     next[idx] = {
                         ...current,
@@ -458,10 +611,8 @@ export default function Page() {
         setLoading(true);
 
         try {
-            const body: { question: string; mode: 'borrower' | 'public' } = {
-                question: q,
-                mode: 'borrower',
-            };
+            // borrower-only body (no intent/loanAmount passthrough)
+            const body: { question: string; mode: 'borrower' } = { question: q, mode };
 
             const r = await fetch('/api/answers', {
                 method: 'POST',
@@ -474,13 +625,10 @@ export default function Page() {
             const friendly =
                 meta.message ??
                 meta.summary ??
-                (meta.fred &&
-                    meta.fred.tenYearYield != null &&
-                    meta.fred.mort30Avg != null &&
-                    meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number' ? `10Y ${meta.fred.tenYearYield.toFixed(2)}%` : `10Y ${meta.fred.tenYearYield}%`
-                    }, ${typeof meta.fred.mort30Avg === 'number' ? `30Y ${meta.fred.mort30Avg.toFixed(2)}%` : `30Y ${meta.fred.mort30Avg}%`
-                    }, spread ${typeof meta.fred.spread === 'number' ? `${meta.fred.spread.toFixed(2)}%` : `${meta.fred.spread}%`
+                (meta.fred && meta.fred.tenYearYield != null && meta.fred.mort30Avg != null && meta.fred.spread != null
+                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number' ? `${meta.fred.tenYearYield.toFixed(2)}%` : meta.fred.tenYearYield
+                    } 10Y, ${typeof meta.fred.mort30Avg === 'number' ? `${meta.fred.mort30Avg.toFixed(2)}%` : meta.fred.mort30Avg
+                    } 30Y, spread ${typeof meta.fred.spread === 'number' ? `${meta.fred.spread.toFixed(2)}%` : meta.fred.spread
                     }.`
                     : typeof meta.answer === 'string'
                         ? meta.answer
@@ -521,11 +669,21 @@ export default function Page() {
         }
     }
 
-    function onSettings() { setShowSettings(true); }
-    function onSearch() { setShowSearch(true); }
-    function onLibrary() { setShowLibrary(true); }
-    function onNewProject() { setShowProject(true); }
-    function onMortgageCalc() { setShowMortgageCalc(true); }
+    function onSettings() {
+        setShowSettings(true);
+    }
+    function onSearch() {
+        setShowSearch(true);
+    }
+    function onLibrary() {
+        setShowLibrary(true);
+    }
+    function onNewProject() {
+        setShowProject(true);
+    }
+    function onMortgageCalc() {
+        setShowMortgageCalc(true);
+    }
 
     function closeAllOverlays() {
         setShowSearch(false);
@@ -557,20 +715,23 @@ export default function Page() {
             {/* Main */}
             <section className="main" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
                 <div className="header">
-                    <div className="header-inner">
-                        <button
-                            className="btn"
-                            type="button"
-                            onClick={toggleSidebar}
-                            aria-label="Toggle sidebar"
-                            style={{ marginRight: 8 }}
-                        >
-                            Menu
-                        </button>
-                        <div style={{ fontWeight: 700 }}>Chat</div>
-                        <div className="controls">
-                            {/* controls removed */}
-                        </div>
+                    <div className="header-inner" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {/* NEW: Kebab/Dropdown Menu (desktop friendly) */}
+                        <HeaderMenu
+                            onToggleSidebar={toggleSidebar}
+                            onNewChat={newChat}
+                            onSearch={onSearch}
+                            onLibrary={onLibrary}
+                            onSettings={onSettings}
+                            onNewProject={onNewProject}
+                            onMortgageCalc={onMortgageCalc}
+                            onShare={onShare}
+                        />
+
+                        <div style={{ fontWeight: 700, marginLeft: 8 }}>Chat</div>
+
+                        {/* right side spacer */}
+                        <div style={{ marginLeft: 'auto' }} />
                     </div>
                 </div>
 
@@ -579,9 +740,7 @@ export default function Page() {
                         <div className="messages">
                             {messages.map((m) => (
                                 <div key={m.id}>
-                                    <Bubble role={m.role}>
-                                        {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
-                                    </Bubble>
+                                    <Bubble role={m.role}>{m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}</Bubble>
                                 </div>
                             ))}
                             {loading && <div className="meta">...thinking</div>}
@@ -683,7 +842,9 @@ export default function Page() {
                                             {history
                                                 .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
                                                 .slice(0, 20)
-                                                .map((h) => <li key={h.id}>{h.title}</li>)}
+                                                .map((h) => (
+                                                    <li key={h.id}>{h.title}</li>
+                                                ))}
                                         </ul>
                                     </div>
                                 </div>
@@ -774,8 +935,12 @@ export default function Page() {
                                         autoFocus
                                     />
                                     <div style={{ display: 'flex', gap: 8 }}>
-                                        <button className="btn primary" type="submit">Create</button>
-                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                                        <button className="btn primary" type="submit">
+                                            Create
+                                        </button>
+                                        <button className="btn" type="button" onClick={closeAllOverlays}>
+                                            Cancel
+                                        </button>
                                     </div>
                                 </form>
                             )}
@@ -786,7 +951,7 @@ export default function Page() {
                                     onCancel={closeAllOverlays}
                                     onSubmit={(res: CalcSubmitResult) => {
                                         closeAllOverlays();
-                                        // echo a clean, human-readable line + structured calc meta reply
+                                        // echo a clean line + structured calc meta reply
                                         setMessages((m) => [
                                             ...m,
                                             {
