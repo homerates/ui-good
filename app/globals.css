@@ -342,3 +342,62 @@ ul {
     font-size: 0.95rem;
   }
 }
+
+/* === Footer meta sits under composer, never intercepts clicks === */
+.footer-meta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  /* lower than composer & menu */
+  display: flex;
+  justify-content: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-weak);
+  background: transparent;
+  /* no big bar blocking the view */
+  pointer-events: none;
+  /* never steals clicks/hover */
+}
+
+/* Composer should render above footer-meta */
+.composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 900 !important;
+  /* override inline z-index:5 */
+  border-top: 1px solid var(--border);
+  background: var(--card);
+}
+
+/* Give the scroll area breathing room so footer-meta doesn’t overlap */
+.scroll {
+  padding-bottom: 72px;
+  /* room for composer + footer text */
+}
+
+/* Make sure the send pill never stretches full width */
+.composer .composer-inner>.btn {
+  display: inline-flex !important;
+  width: auto !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+  align-self: center;
+}
+
+.composer .btn.ask-pill {
+  padding: 8px 14px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+@media (max-width: 640px) {
+  .composer .btn.ask-pill {
+    padding: 8px 12px;
+    max-width: 136px;
+    font-size: 0.95rem;
+  }
+}

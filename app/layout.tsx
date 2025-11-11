@@ -1,4 +1,5 @@
-﻿// app/layout.tsx
+﻿// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0002-D684DDC7 | SHA256: D684DDC76358CC27
+// app/layout.tsx
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body className="app">
           {children}
 
-          {/* Footer bar */}
+          {/* Footer meta stays separate and non-interactive */}
           <div className="footer-meta">
             HomeRates.Ai — Powered by OpenAI • {ts} • Version {shortSha}
           </div>
@@ -39,3 +40,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </ClerkProvider>
   );
 }
+
