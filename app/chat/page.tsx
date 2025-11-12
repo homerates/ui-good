@@ -942,51 +942,40 @@ export default function Page() {
                     </div>
                 </div>
 
-                {/* HR: composer pinned above footer; pill hard-capped at 160px */}
+                {/* HR: composer pinned above footer; compact in-field Send */}
                 <div
                     className="composer"
                     // keep it sticky, but sit above the solid footer and ensure top z-order
-                    style={{
-                        position: 'sticky',
-                        bottom: 'var(--footer-h)',
-                        zIndex: 900,
-                        background: 'var(--bg)',
-                        borderTop: '1px solid var(--border)',
-                        padding: '8px 12px',
-                    }}
+                    style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
                 >
+                    {/* Combo pill: input with in-field Send button */}
                     <div
                         className="composer-inner"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            maxWidth: '100%',
-                            position: 'relative'
-                        }}
+                        style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
                     >
-                        {/* Combo pill: input with in-field Send button (fixed size) */}
                         <input
                             className="input"
-                            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
+                            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year | ..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={onKey}
                             style={{
                                 flex: '1 1 auto',
                                 minWidth: 0,
-                                paddingRight: 52, // room for the circular send button
-                                borderRadius: 12
+                                // make room for the circular send button that sits on the right
+                                paddingRight: 52,
+                                borderRadius: 12,
                             }}
                         />
 
                         <button
                             className="btn ask-pill"
                             data-testid="ask-pill"
-                            title="Send"
                             aria-label="Send message"
+                            title="Send"
                             onClick={send}
                             disabled={loading || !input.trim()}
+                            // circular button docked inside the input, right-aligned
                             style={{
                                 position: 'absolute',
                                 right: 6,
@@ -998,9 +987,14 @@ export default function Page() {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                flex: '0 0 38px'
+                                flex: '0 0 38px',
+                                // prevent any global flex/grid rules from stretching it
+                                minWidth: 38,
+                                maxWidth: 38,
+                                padding: 0,
                             }}
                         >
+                            {/* Simple arrow icon */}
                             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                                 <path
                                     d="M3 12h14.5M13 6l6 6-6 6"
@@ -1014,6 +1008,7 @@ export default function Page() {
                         </button>
                     </div>
                 </div>
+
 
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
                 {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
