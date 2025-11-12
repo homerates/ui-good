@@ -35,88 +35,45 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="footer-meta">
             HomeRates.Ai — Powered by OpenAI • {ts} • Version {shortSha}
           </div>
-          {/* === HR: hard-cap Ask pill width (last-in DOM override) === */}
-          <style
-            // this lives after all CSS so it wins, even against other !important rules
-            dangerouslySetInnerHTML={{
-              __html: `
-      .composer .composer-inner > .btn,
-      .composer .composer-inner > .btn:disabled {
-        flex: 0 0 160px !important;
-        width: 160px !important;
-        min-width: 160px !important;
-        max-width: 160px !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-      }
-      /* ensure scroll area clears the footer + composer */
-      .scroll { padding-bottom: calc(var(--footer-h, 40px) + 92px) !important; }
-    `,
-            }}
-          />
-
-          <style
-            // lives after all CSS, so it wins even against utility classes
-            dangerouslySetInnerHTML={{
-              __html: `
-/* Row: stop stretch and define 1fr | 160px tracks */
-.composer-inner{
-  display:grid !important;
-  grid-template-columns: 1fr 160px !important;
-  align-items:center !important;
-  gap:8px !important;
-}
-
-/* Button: hard-cap width no matter what utilities say */
-.composer-inner > button.btn{
-  flex:0 0 160px !important;
-  width:160px !important;
-  min-width:160px !important;
-  max-width:160px !important;
-  white-space:nowrap !important;
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
-}
-`}}
-          />
+          {/* Hard override: composer row = input (flexible) + fixed 160px button */}
           <style
             dangerouslySetInnerHTML={{
               __html: `
-/* Composer row: force grid 1fr | 160px and stop stretch */
-.composer .composer-inner{
+/* Row: force a 2-track grid so children can't stretch each other */
+.composer .composer-inner {
   display: grid !important;
   grid-template-columns: minmax(0,1fr) 160px !important;
   align-items: center !important;
   gap: 8px !important;
+  max-width: 100% !important;
 }
 
-/* Input: allow it to shrink without pushing the button */
-.composer .composer-inner > input{
+/* Input: allow shrink so grid doesn't overflow */
+.composer .composer-inner > .input,
+.composer .composer-inner > input {
   min-width: 0 !important;
 }
 
-/* Button: match *any* button in the composer, disabled or not */
+/* Button: match any variant and hard-cap at 160px */
 .composer .composer-inner > button,
-.composer .composer-inner > button.btn,
-.composer .composer-inner > [data-testid="ask-pill"]{
+.composer .composer-inner > .btn,
+.composer .composer-inner [data-testid="ask-pill"] {
   box-sizing: border-box !important;
-  flex: 0 0 160px !important;
   width: 160px !important;
   min-width: 160px !important;
   max-width: 160px !important;
+  justify-self: end !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  /* small padding so 160 includes it when border-box applies */
-  padding: 8px 12px !important;
 }
+
+/* Scroll area: clear footer + composer */
+.scroll { padding-bottom: calc(var(--footer-h, 40px) + 92px) !important; }
 `}}
           />
-
         </body>
       </html>
     </ClerkProvider>
   );
 }
-
