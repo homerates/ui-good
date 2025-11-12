@@ -35,41 +35,66 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="footer-meta">
             HomeRates.Ai — Powered by OpenAI • {ts} • Version {shortSha}
           </div>
-          {/* Hard override: composer row = input (flexible) + fixed 160px button */}
+
+          {/* Hard override: fix composer layout + keep it off the sidebar */}
           <style
             dangerouslySetInnerHTML={{
               __html: `
-/* Row: force a 2-track grid so children can't stretch each other */
-.composer .composer-inner {
+/* Keep composer centered and away from sidebar; prevent full-bleed */
+.composer{
+  max-width: min(920px, 96vw) !important;
+  margin: 0 auto !important;
+  padding: 8px 12px !important;
+  box-sizing: border-box !important;
+  z-index: 900 !important;
+}
+
+/* Row: force a 2-track grid: input (1fr) | button (160px) */
+.composer .composer-inner{
   display: grid !important;
   grid-template-columns: minmax(0,1fr) 160px !important;
+  grid-auto-flow: column !important;
   align-items: center !important;
   gap: 8px !important;
   max-width: 100% !important;
 }
 
-/* Input: allow shrink so grid doesn't overflow */
+/* Input: allow shrink so the grid can resolve without overflow */
 .composer .composer-inner > .input,
-.composer .composer-inner > input {
+.composer .composer-inner > input{
   min-width: 0 !important;
 }
 
-/* Button: match any variant and hard-cap at 160px */
+/* Button: force it into column 2 and hard-cap width */
 .composer .composer-inner > button,
 .composer .composer-inner > .btn,
-.composer .composer-inner [data-testid="ask-pill"] {
+.composer .composer-inner [data-testid="ask-pill"]{
+  grid-column: 2 !important;
+  justify-self: end !important;
+
   box-sizing: border-box !important;
   width: 160px !important;
   min-width: 160px !important;
   max-width: 160px !important;
-  justify-self: end !important;
+
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
 
-/* Scroll area: clear footer + composer */
-.scroll { padding-bottom: calc(var(--footer-h, 40px) + 92px) !important; }
+/* Nuke stretchy utility variants that may be applied to the pill */
+.composer .composer-inner > .btn.w-full,
+.composer .composer-inner > .btn.flex-1,
+.composer .composer-inner > .btn[style*="flex: 1"],
+.composer .composer-inner > .btn[style*="width: 100%"]{
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  flex: 0 0 160px !important;
+}
+
+/* Ensure scroll area clears footer + composer */
+.scroll{ padding-bottom: calc(var(--footer-h, 40px) + 92px) !important; }
 `}}
           />
         </body>
