@@ -582,3 +582,72 @@ main,
   background: #334155 !important;
   /* slate-700 */
 }
+
+/* ===== HR composer & footer fixes (safe, global) ===== */
+
+/* Solid footer — no bleed-through */
+.footer-meta {
+  background: var(--card, #fff) !important;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Keep composer centered and away from sidebar; prevent full-bleed */
+.composer {
+  max-width: min(920px, 96vw) !important;
+  margin: 0 auto !important;
+  padding: 8px 12px !important;
+  box-sizing: border-box !important;
+  z-index: 900 !important;
+}
+
+/* Give the scroll area enough space to never overlap footer + composer */
+.scroll {
+  padding-bottom: calc(var(--footer-h, 44px) + 96px) !important;
+}
+
+/* Drawer open: offset the composer so it doesn’t hide under it (if drawer uses .drawer.open) */
+body:has(.drawer.open) .composer {
+  margin-left: 260px !important;
+}
+
+/* Combo composer: one-track input with in-field Send button */
+.composer .composer-inner {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  max-width: 100% !important;
+}
+
+/* Input: allow shrink and reserve room for the circular send button */
+.composer .composer-inner input.input {
+  min-width: 0 !important;
+  padding-right: 56px !important;
+  /* 40px button + gutters */
+  border-radius: 12px !important;
+}
+
+/* The circular in-field send button */
+.composer .composer-inner .ask-pill {
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+/* Optional: subtle hover/active */
+.composer .ask-pill:hover {
+  filter: brightness(0.97);
+}
+
+.composer .ask-pill:active {
+  transform: translateY(-50%) scale(0.98);
+}
