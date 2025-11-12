@@ -56,6 +56,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }}
           />
 
+          <style
+            // lives after all CSS, so it wins even against utility classes
+            dangerouslySetInnerHTML={{
+              __html: `
+/* Row: stop stretch and define 1fr | 160px tracks */
+.composer-inner{
+  display:grid !important;
+  grid-template-columns: 1fr 160px !important;
+  align-items:center !important;
+  gap:8px !important;
+}
+
+/* Button: hard-cap width no matter what utilities say */
+.composer-inner > button.btn{
+  flex:0 0 160px !important;
+  width:160px !important;
+  min-width:160px !important;
+  max-width:160px !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+`}}
+          />
 
         </body>
       </html>
