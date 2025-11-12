@@ -949,69 +949,82 @@ export default function Page() {
                     style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
                 >
                     {/* Combo pill: input with a circular Send button inside (absolute) */}
+                    /* ==== START INSERT: sticky composer wrapper ==== */
                     <div
-                        className="composer-inner"
-                        style={{
-                            position: 'relative',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            maxWidth: '100%',
-                        }}
+                        className="composer"
+                        data-composer="v2"
+                        // keep it sticky, above the solid footer (which uses --footer-h)
+                        style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
                     >
-                        <input
-                            className="input"
-                            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={onKey}
-                            style={{
-                                flex: '1 1 auto',
-                                minWidth: 0,
-                                // room for the in-field button
-                                paddingRight: 56,
-                                borderRadius: 12,
-                            }}
-                        />
 
-                        {/* in-field Send button (overlays inside the input) */}
-                        <button
-                            className="btn ask-pill"
-                            data-testid="ask-pill"
-                            aria-label="Send message"
-                            title="Send"
-                            onClick={send}
-                            disabled={loading || !input.trim()}
+                        <div
+                            className="composer-inner"
                             style={{
-                                position: 'absolute',
-                                right: 8,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: 40,
-                                height: 40,
-                                borderRadius: 9999,
-                                display: 'inline-flex',
+                                position: 'relative',
+                                display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                // keep it visible over input caret
-                                zIndex: 1,
-                                padding: 0,
+                                gap: 8,
+                                maxWidth: '100%',
                             }}
                         >
-                            {/* Simple arrow icon */}
-                            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                                <path
-                                    d="M3 12h14.5M13 6l6 6-6 6"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            </svg>
-                        </button>
+
+
+                            <input
+                                className="input"
+                                placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={onKey}
+                                style={{
+                                    flex: '1 1 auto',
+                                    minWidth: 0,
+                                    // room for the in-field button
+                                    paddingRight: 56,
+                                    borderRadius: 12,
+                                }}
+                            />
+
+                            {/* in-field Send button (overlays inside the input) */}
+                            <button
+                                className="btn ask-pill"
+                                data-testid="ask-pill"
+                                aria-label="Send message"
+                                title="Send"
+                                onClick={send}
+                                disabled={loading || !input.trim()}
+                                style={{
+                                    position: 'absolute',
+                                    right: 8,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 9999,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    // keep it visible over input caret
+                                    zIndex: 1,
+                                    padding: 0,
+                                }}
+                            >
+                                {/* Simple arrow icon */}
+                                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M3 12h14.5M13 6l6 6-6 6"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
+                /* ==== END INSERT: sticky composer wrapper ==== */
+
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
 
                 {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
