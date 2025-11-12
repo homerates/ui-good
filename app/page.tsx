@@ -612,7 +612,8 @@ export default function Page() {
                             position: 'relative',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 12,
+                            gap: 0,
+                            width: '100%',
                             maxWidth: '100%',
                         }}
                     >
@@ -624,10 +625,11 @@ export default function Page() {
                             onKeyDown={onKey}
                             style={{
                                 flex: '1 1 auto',
+                                width: '100%',
                                 minWidth: 0,
-                                height: 64,          // bigger pill
-                                paddingLeft: 18,
-                                paddingRight: 64,    // room for circle button
+                                height: 36,          // bigger pill
+                                paddingLeft: 14,
+                                paddingRight: 44,    // room for circle button
                                 borderRadius: 9999,
                                 boxSizing: 'border-box',
                             }}
@@ -641,11 +643,11 @@ export default function Page() {
                             disabled={loading || !input.trim()}
                             style={{
                                 position: 'absolute',
-                                right: 12,
+                                right: 10,
                                 top: '50%',
                                 transform: 'translateY(-50%)',
-                                width: 48,           // bigger circle
-                                height: 48,
+                                width: 24,           // bigger circle
+                                height: 24,
                                 borderRadius: 9999,
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -656,7 +658,7 @@ export default function Page() {
                                 color: '#fff',
                                 cursor: loading || !input.trim() ? 'default' : 'pointer',
                                 opacity: loading || !input.trim() ? 0.6 : 1,
-                                zIndex: 1,
+                                zIndex: 2,
                             }}
                         >
                             <svg
