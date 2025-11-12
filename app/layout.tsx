@@ -80,6 +80,39 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 `}}
           />
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+/* Composer row: force grid 1fr | 160px and stop stretch */
+.composer .composer-inner{
+  display: grid !important;
+  grid-template-columns: minmax(0,1fr) 160px !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* Input: allow it to shrink without pushing the button */
+.composer .composer-inner > input{
+  min-width: 0 !important;
+}
+
+/* Button: match *any* button in the composer, disabled or not */
+.composer .composer-inner > button,
+.composer .composer-inner > button.btn,
+.composer .composer-inner > [data-testid="ask-pill"]{
+  box-sizing: border-box !important;
+  flex: 0 0 160px !important;
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  /* small padding so 160 includes it when border-box applies */
+  padding: 8px 12px !important;
+}
+`}}
+          />
 
         </body>
       </html>
