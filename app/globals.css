@@ -684,3 +684,54 @@ body:has(.drawer.open) .composer {
   border-radius: 9999px;
   box-sizing: border-box;
 }
+
+/* === HR: Composer final clamp === */
+.composer[data-composer="primary"] .composer-inner {
+  position: relative !important;
+}
+
+.composer[data-composer="primary"] .input {
+  height: 48px !important;
+  /* smaller, not bulky */
+  padding-right: 52px !important;
+  /* reserve space for the circle */
+  border-radius: 9999px !important;
+  /* pill */
+  box-sizing: border-box !important;
+}
+
+.composer[data-composer="primary"] .ask-pill {
+  all: unset;
+  /* nuke any inherited .btn styles */
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  /* compact circle */
+  height: 36px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border: none !important;
+  background: #111827 !important;
+  /* dark */
+  color: #fff !important;
+  cursor: pointer !important;
+  z-index: 2 !important;
+  /* sit above input surface */
+}
+
+.composer[data-composer="primary"] .ask-pill svg {
+  width: 16px !important;
+  height: 16px !important;
+  transform: rotate(-90deg) !important;
+  /* arrow up */
+}
+
+/* Hide any non-primary composer just in case */
+.composer:not([data-composer="primary"]) {
+  display: none !important;
+}
