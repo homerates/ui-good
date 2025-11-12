@@ -616,24 +616,20 @@ export default function Page() {
                             maxWidth: '100%',
                         }}
                     >
-                        <input
-                            className="input"
-                            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={onKey}
-                            style={{
-                                flex: '1 1 auto',
-                                minWidth: 0,
-                                // room for the in-field Send button
-                                paddingRight: 56,
-                                borderRadius: 12,
-                            }}
-                        />
+                        style={{
+                            flex: '1 1 auto',
+                            minWidth: 0,
+                            height: 52,                 // taller pill
+                            paddingLeft: 16,
+                            paddingRight: 56,           // room for in-field Send circle
+                            borderRadius: 9999,         // full pill
+                            boxSizing: 'border-box',
+                        }}
+
 
                         {/* in-field Send button (overlays inside the input) */}
                         <button
-                            className="btn ask-pill"
+                            className="ask-pill"
                             data-testid="ask-pill"
                             aria-label="Send message"
                             title="Send"
@@ -647,15 +643,22 @@ export default function Page() {
                                 transform: 'translateY(-50%)',
                                 width: 40,
                                 height: 40,
-                                borderRadius: 9999,
+                                borderRadius: 9999,          // circle
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                padding: 0,
+                                border: 'none',
+                                background: 'var(--btn-bg, #111827)',  // adjust if you have a theme token
+                                color: 'white',
+                                cursor: loading || !input.trim() ? 'default' : 'pointer',
+                                opacity: loading || !input.trim() ? 0.6 : 1,
                                 zIndex: 1,
                             }}
+
                         >
                             {/* Simple arrow icon */}
-                            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ transform: 'rotate(-90deg)' }}>
                                 <path
                                     d="M3 12h14.5M13 6l6 6-6 6"
                                     fill="none"
