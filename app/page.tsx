@@ -624,12 +624,11 @@ export default function Page() {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={onKey}
                             style={{
-                                flex: '1 1 auto',
                                 width: '100%',
                                 minWidth: 0,
-                                height: 36,          // bigger pill
+                                height: 36,          // compact pill
                                 paddingLeft: 14,
-                                paddingRight: 44,    // room for circle button
+                                paddingRight: 44,    // room for 24px circle + breathing room
                                 borderRadius: 9999,
                                 boxSizing: 'border-box',
                             }}
@@ -646,7 +645,7 @@ export default function Page() {
                                 right: 10,
                                 top: '50%',
                                 transform: 'translateY(-50%)',
-                                width: 24,           // bigger circle
+                                width: 24,
                                 height: 24,
                                 borderRadius: 9999,
                                 display: 'inline-flex',
