@@ -995,9 +995,10 @@ export default function Page() {
                                 justifyContent: 'center',
                                 // keep it visible over input caret
                                 zIndex: 1,
+                                padding: 0,
                             }}
                         >
-                            {/* simple arrow icon */}
+                            {/* Simple arrow icon */}
                             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                                 <path
                                     d="M3 12h14.5M13 6l6 6-6 6"
@@ -1011,10 +1012,8 @@ export default function Page() {
                         </button>
                     </div>
                 </div>
-
-
-
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
+
                 {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
                     <div
                         role="dialog"
