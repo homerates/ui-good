@@ -597,15 +597,8 @@ export default function Page() {
                     </div>
                 </div>
 
-                /* ==== START REPLACE: composer block (balanced) ==== */
-                /* HR: composer pinned above footer; combo input with in-field Send */
-                <div
-                    className="composer"
-                    data-composer="v2"
-                    // keep it sticky, above the solid footer (which uses --footer-h)
-                    style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
-                >
-                </div>
+
+
                 {/* Combo pill: input with a circular Send button inside (absolute) */}
                 {/* HR: composer pinned above footer; combo input with in-field Send */}
                 <div
