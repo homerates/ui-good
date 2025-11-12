@@ -691,11 +691,8 @@ export default function Page() {
 
                 <div
                     className="composer"
-                    data-composer="v2"
-                    // keep it sticky, above the solid footer (which uses --footer-h)
                     style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
                 >
-                    {/* Combo pill: input with a circular Send button inside (absolute) */}
                     <div
                         className="composer-inner"
                         style={{
@@ -715,23 +712,20 @@ export default function Page() {
                             style={{
                                 flex: '1 1 auto',
                                 minWidth: 0,
-                                height: 52,          // taller pill
+                                height: 52,
                                 paddingLeft: 16,
-                                paddingRight: 56,    // reserve space for in-field button
-                                borderRadius: 9999,  // round pill
+                                paddingRight: 56,
+                                borderRadius: 9999,
                                 boxSizing: 'border-box',
                             }}
                         />
 
-                        {/* in-field Send button (overlays inside the input) */}
                         <button
                             className="ask-pill"
-                            data-testid="ask-pill"
                             aria-label="Send message"
                             title="Send"
                             onClick={send}
                             disabled={loading || !input.trim()}
-                            // keep this absolute so width is decoupled from row flex/grid
                             style={{
                                 position: 'absolute',
                                 right: 8,
@@ -739,20 +733,16 @@ export default function Page() {
                                 transform: 'translateY(-50%)',
                                 width: 40,
                                 height: 40,
-                                borderRadius: 9999,       // circle
+                                borderRadius: 9999,
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 padding: 0,
                                 border: 'none',
-                                background: 'var(--btn-bg, #111827)',
+                                background: '#111827',
                                 color: 'white',
-                                cursor: loading || !input.trim() ? 'default' : 'pointer',
-                                opacity: loading || !input.trim() ? 0.6 : 1,
-                                zIndex: 1,
                             }}
                         >
-                            {/* Arrow (rotated up) */}
                             <svg
                                 width="18"
                                 height="18"
@@ -772,13 +762,7 @@ export default function Page() {
                         </button>
                     </div>
                 </div>
-/* ==== END REPLACE: composer (wrapper + inner + button) ==== */
 
-                /* ==== END REPLACE: composer block (balanced) ==== */
-
-                /* ==== END REPLACE: composer block ==== */
-
-                /* ==== END INSERT: sticky composer wrapper ==== */
 
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
                 {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
