@@ -573,7 +573,16 @@ export default function Page() {
             />
 
             {/* Main */}
-            <section className="main" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+            <section
+                className="main"
+                style={{
+                    minHeight: '100dvh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    paddingBottom: 'var(--footer-h)',
+                }}
+            >
+
                 <div className="header">
                     <div className="header-inner" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
@@ -608,9 +617,9 @@ export default function Page() {
                         position: 'sticky',
                         bottom: 'var(--footer-h)',
                         zIndex: 900,
-                        width: '100%',
                     }}
                 >
+
                     <div
                         className="composer-inner"
                         style={{
