@@ -939,411 +939,411 @@ export default function Page() {
 
                         <div className="controls" style={{ marginLeft: 'auto' }} />
                     </div>
+                </div>
 
-
-                    <div
-                        ref={scrollRef}
-                        className="scroll"
-                        style={{ flex: 1, overflowY: 'auto' }}
-                    >
-                        <div className="center">
-                            <div className="messages">
-                                {messages.map((m) => (
-                                    <div key={m.id}>
-                                        <Bubble role={m.role}>
-                                            {m.role === 'assistant'
-                                                ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content)
-                                                : m.content}
-                                        </Bubble>
-                                    </div>
-                                ))}
-                                {loading && <div className="meta">...thinking</div>}
-                            </div>
+                <div
+                    ref={scrollRef}
+                    className="scroll"
+                    style={{ flex: 1, overflowY: 'auto' }}
+                >
+                    <div className="center">
+                        <div className="messages">
+                            {messages.map((m) => (
+                                <div key={m.id}>
+                                    <Bubble role={m.role}>
+                                        {m.role === 'assistant'
+                                            ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content)
+                                            : m.content}
+                                    </Bubble>
+                                </div>
+                            ))}
+                            {loading && <div className="meta">...thinking</div>}
                         </div>
                     </div>
+                </div>
 
-                    {/* HR: composer pinned above footer; combo input with in-field Send */}
+                {/* HR: composer pinned above footer; combo input with in-field Send */}
+                <div
+                    className="composer"
+                    // keep it sticky, but sit above the solid footer and ensure top z-order
+                    style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
+                >
+                    {/* Combo pill: input with a circular Send button inside (absolute) */}
+                    /* ==== START INSERT: sticky composer wrapper ==== */
                     <div
                         className="composer"
-                        // keep it sticky, but sit above the solid footer and ensure top z-order
+                        data-composer="v2"
+                        // keep it sticky, above the solid footer (which uses --footer-h)
                         style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
                     >
-                        {/* Combo pill: input with a circular Send button inside (absolute) */}
-                    /* ==== START INSERT: sticky composer wrapper ==== */
+
                         <div
-                            className="composer"
-                            data-composer="v2"
-                            // keep it sticky, above the solid footer (which uses --footer-h)
-                            style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
+                            className="composer-inner"
+                            style={{
+                                position: 'relative',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                maxWidth: '100%',
+                            }}
                         >
 
-                            <div
-                                className="composer-inner"
+
+                            <input
+                                className="input"
+                                placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={onKey}
                                 style={{
-                                    position: 'relative',
-                                    display: 'flex',
+                                    flex: '1 1 auto',
+                                    minWidth: 0,
+                                    // room for the in-field button
+                                    paddingRight: 56,
+                                    borderRadius: 12,
+                                }}
+                            />
+
+                            {/* in-field Send button (overlays inside the input) */}
+                            <button
+                                className="ask-pill"
+                                data-testid="ask-pill"
+                                aria-label="Send message"
+                                title="Send"
+                                onClick={send}
+                                disabled={loading || !input.trim()}
+                                style={{
+                                    position: 'absolute',
+                                    right: 8,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 9999,
+                                    display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: 8,
-                                    maxWidth: '100%',
+                                    justifyContent: 'center',
+                                    // keep it visible over input caret
+                                    zIndex: 1,
+                                    padding: 0,
                                 }}
                             >
-
-
-                                <input
-                                    className="input"
-                                    placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={onKey}
-                                    style={{
-                                        flex: '1 1 auto',
-                                        minWidth: 0,
-                                        // room for the in-field button
-                                        paddingRight: 56,
-                                        borderRadius: 12,
-                                    }}
-                                />
-
-                                {/* in-field Send button (overlays inside the input) */}
-                                <button
-                                    className="ask-pill"
-                                    data-testid="ask-pill"
-                                    aria-label="Send message"
-                                    title="Send"
-                                    onClick={send}
-                                    disabled={loading || !input.trim()}
-                                    style={{
-                                        position: 'absolute',
-                                        right: 8,
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: 9999,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        // keep it visible over input caret
-                                        zIndex: 1,
-                                        padding: 0,
-                                    }}
-                                >
-                                    {/* Simple arrow icon */}
-                                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path
-                                            d="M3 12h14.5M13 6l6 6-6 6"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        />
-                                    </svg>
-                                </button>
-                            </div>
+                                {/* Simple arrow icon */}
+                                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M3 12h14.5M13 6l6 6-6 6"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
                         </div>
                     </div>
+                </div>
                 /* ==== END INSERT: sticky composer wrapper ==== */
 
-                    {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
+                {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
 
-                    {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
+                {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Overlay"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) closeAllOverlays();
+                        }}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.35)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            zIndex: 5000
+                        }}
+                    >
                         <div
-                            role="dialog"
-                            aria-modal="true"
-                            aria-label="Overlay"
-                            onClick={(e) => {
-                                if (e.target === e.currentTarget) closeAllOverlays();
-                            }}
+                            className="panel"
                             style={{
-                                position: 'fixed',
-                                inset: 0,
-                                background: 'rgba(0,0,0,0.35)',
+                                width: 'min(680px, 92vw)',
+                                maxHeight: '80vh',
+                                overflow: 'auto',
+                                padding: 16,
+                                borderRadius: 12,
+                                background: 'var(--card)',
+                                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
                                 display: 'grid',
-                                placeItems: 'center',
-                                zIndex: 5000
+                                gap: 12
                             }}
                         >
-                            <div
-                                className="panel"
-                                style={{
-                                    width: 'min(680px, 92vw)',
-                                    maxHeight: '80vh',
-                                    overflow: 'auto',
-                                    padding: 16,
-                                    borderRadius: 12,
-                                    background: 'var(--card)',
-                                    boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
-                                    display: 'grid',
-                                    gap: 12
-                                }}
-                            >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 700 }}>
-                                        {showSearch && 'Search'}
-                                        {showLibrary && 'Library'}
-                                        {showSettings && 'Settings'}
-                                        {showProject && 'New Project'}
-                                        {showMortgageCalc && 'Mortgage Calculator'}
-                                    </div>
-                                    <button className="btn" onClick={closeAllOverlays} aria-label="Close">
-                                        Close
-                                    </button>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 700 }}>
+                                    {showSearch && 'Search'}
+                                    {showLibrary && 'Library'}
+                                    {showSettings && 'Settings'}
+                                    {showProject && 'New Project'}
+                                    {showMortgageCalc && 'Mortgage Calculator'}
                                 </div>
+                                <button className="btn" onClick={closeAllOverlays} aria-label="Close">
+                                    Close
+                                </button>
+                            </div>
 
-                                {/* SEARCH */}
-                                {showSearch && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <input
-                                            className="input"
-                                            placeholder="Search your current thread and history…"
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                                            <div style={{ fontWeight: 600 }}>Matches in current thread</div>
-                                            <ul style={{ marginTop: 0 }}>
-                                                {messages
-                                                    .filter(
-                                                        (m) =>
-                                                            typeof m.content === 'string' &&
-                                                            m.content.toLowerCase().includes(searchQuery.toLowerCase())
-                                                    )
-                                                    .slice(0, 12)
-                                                    .map((m, i) => (
-                                                        <li key={m.id + i}>
-                                                            <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
-                                                            <span>{(m.content as string).slice(0, 200)}</span>
-                                                        </li>
-                                                    ))}
-                                            </ul>
-                                        </div>
-                                        <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                                            <div style={{ fontWeight: 600 }}>Matches in history titles</div>
-                                            <ul style={{ marginTop: 0 }}>
-                                                {history
-                                                    .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                                                    .slice(0, 20)
-                                                    .map((h) => <li key={h.id}>{h.title}</li>)}
-                                            </ul>
-                                        </div>
+                            {/* SEARCH */}
+                            {showSearch && (
+                                <div style={{ display: 'grid', gap: 10 }}>
+                                    <input
+                                        className="input"
+                                        placeholder="Search your current thread and history…"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                                        <div style={{ fontWeight: 600 }}>Matches in current thread</div>
+                                        <ul style={{ marginTop: 0 }}>
+                                            {messages
+                                                .filter(
+                                                    (m) =>
+                                                        typeof m.content === 'string' &&
+                                                        m.content.toLowerCase().includes(searchQuery.toLowerCase())
+                                                )
+                                                .slice(0, 12)
+                                                .map((m, i) => (
+                                                    <li key={m.id + i}>
+                                                        <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
+                                                        <span>{(m.content as string).slice(0, 200)}</span>
+                                                    </li>
+                                                ))}
+                                        </ul>
                                     </div>
-                                )}
-
-                                {/* LIBRARY */}
-                                {showLibrary && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
-                                        <div className="chat-list" role="list">
-                                            {history.length === 0 && (
-                                                <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
-                                                    No history yet
-                                                </div>
-                                            )}
-                                            {history.map((h) => (
-                                                <button
-                                                    key={h.id}
-                                                    className="chat-item"
-                                                    role="listitem"
-                                                    title={h.title}
-                                                    onClick={() => onSelectHistory(h.id)}
-                                                    style={{ textAlign: 'left' }}
-                                                >
-                                                    {h.title}
-                                                </button>
-                                            ))}
-                                        </div>
+                                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                                        <div style={{ fontWeight: 600 }}>Matches in history titles</div>
+                                        <ul style={{ marginTop: 0 }}>
+                                            {history
+                                                .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                                                .slice(0, 20)
+                                                .map((h) => <li key={h.id}>{h.title}</li>)}
+                                        </ul>
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {/* SETTINGS */}
-                                {showSettings && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <input type="checkbox" onChange={() => { /* next pass */ }} />
-                                            Compact bubbles (coming soon)
-                                        </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <input type="checkbox" onChange={() => { /* next pass */ }} />
-                                            Prefer dark mode (coming soon)
-                                        </label>
-                                        <button
-                                            className="btn"
-                                            onClick={() => {
-                                                setHistory([]);
-                                                setMessages([
-                                                    {
-                                                        id: uid(),
-                                                        role: 'assistant',
-                                                        content: 'New chat. What do you want to figure out?'
-                                                    }
-                                                ]);
-                                                closeAllOverlays();
-                                            }}
-                                        >
-                                            Clear history & reset chat
-                                        </button>
+                            {/* LIBRARY */}
+                            {showLibrary && (
+                                <div style={{ display: 'grid', gap: 10 }}>
+                                    <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
+                                    <div className="chat-list" role="list">
+                                        {history.length === 0 && (
+                                            <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
+                                                No history yet
+                                            </div>
+                                        )}
+                                        {history.map((h) => (
+                                            <button
+                                                key={h.id}
+                                                className="chat-item"
+                                                role="listitem"
+                                                title={h.title}
+                                                onClick={() => onSelectHistory(h.id)}
+                                                style={{ textAlign: 'left' }}
+                                            >
+                                                {h.title}
+                                            </button>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {/* NEW PROJECT */}
-                                {showProject && (
-                                    <form
-                                        onSubmit={(e) => {
-                                            e.preventDefault();
-                                            const name = projectName.trim() || 'Untitled Project';
-                                            const id = uid();
-                                            setActiveId(id);
-                                            setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                            {/* SETTINGS */}
+                            {showSettings && (
+                                <div style={{ display: 'grid', gap: 10 }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <input type="checkbox" onChange={() => { /* next pass */ }} />
+                                        Compact bubbles (coming soon)
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <input type="checkbox" onChange={() => { /* next pass */ }} />
+                                        Prefer dark mode (coming soon)
+                                    </label>
+                                    <button
+                                        className="btn"
+                                        onClick={() => {
+                                            setHistory([]);
                                             setMessages([
                                                 {
                                                     id: uid(),
                                                     role: 'assistant',
-                                                    content: `New Project "${name}" started. What’s the goal?`
+                                                    content: 'New chat. What do you want to figure out?'
                                                 }
                                             ]);
-                                            setProjectName('');
                                             closeAllOverlays();
                                         }}
-                                        style={{ display: 'grid', gap: 10 }}
                                     >
-                                        <input
-                                            className="input"
-                                            placeholder="Project name"
-                                            value={projectName}
-                                            onChange={(e) => setProjectName(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            <button className="btn primary" type="submit">Create</button>
-                                            <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                                        </div>
-                                    </form>
-                                )}
+                                        Clear history & reset chat
+                                    </button>
+                                </div>
+                            )}
 
-                                {/* MORTGAGE CALCULATOR */}
-                                {showMortgageCalc && (
-                                    <form
-                                        onSubmit={async (e) => {
-                                            e.preventDefault();
-                                            const fd = new FormData(e.currentTarget);
-                                            const price = Number(String(fd.get('price') || '').replace(/[, ]+/g, '')) || 0;
-                                            const downPct = Number(String(fd.get('downPct') || '').replace(/[, ]+/g, '')) || 0;
-                                            const ratePct = Number(String(fd.get('ratePct') || '').replace(/[, ]+/g, '')) || 0;
-                                            const termYears = Number(String(fd.get('termYears') || '').replace(/[, ]+/g, '')) || 30;
-                                            const zip = String(fd.get('zip') || '').trim();
-                                            const hoa = Number(String(fd.get('hoa') || '').replace(/[, ]+/g, '')) || 0;
-
-                                            closeAllOverlays();
-
-                                            setMessages((m) => [
-                                                ...m,
-                                                {
-                                                    id: uid(),
-                                                    role: 'assistant',
-                                                    content: `Using ${price.toLocaleString()} price, ${downPct}% down, ${ratePct}% for ${termYears} years, ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}.`
-                                                }
-                                            ]);
-
-                                            setLoading(true);
-                                            try {
-                                                await runCalc({
-                                                    purchasePrice: price,
-                                                    downPercent: downPct,
-                                                    annualRatePct: ratePct,
-                                                    termYears,
-                                                    rawQ: `price ${price} with ${downPct}% down at ${ratePct}% for ${termYears} years zip ${zip}`
-                                                });
-                                            } finally {
-                                                setLoading(false);
+                            {/* NEW PROJECT */}
+                            {showProject && (
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const name = projectName.trim() || 'Untitled Project';
+                                        const id = uid();
+                                        setActiveId(id);
+                                        setHistory((h) => [{ id, title: `📁 ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
+                                        setMessages([
+                                            {
+                                                id: uid(),
+                                                role: 'assistant',
+                                                content: `New Project "${name}" started. What’s the goal?`
                                             }
-                                        }}
-                                        style={{ display: 'grid', gap: 10 }}
-                                    >
-                                        <div className="grid" style={{ display: 'grid', gap: 10 }}>
+                                        ]);
+                                        setProjectName('');
+                                        closeAllOverlays();
+                                    }}
+                                    style={{ display: 'grid', gap: 10 }}
+                                >
+                                    <input
+                                        className="input"
+                                        placeholder="Project name"
+                                        value={projectName}
+                                        onChange={(e) => setProjectName(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button className="btn primary" type="submit">Create</button>
+                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                                    </div>
+                                </form>
+                            )}
+
+                            {/* MORTGAGE CALCULATOR */}
+                            {showMortgageCalc && (
+                                <form
+                                    onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const fd = new FormData(e.currentTarget);
+                                        const price = Number(String(fd.get('price') || '').replace(/[, ]+/g, '')) || 0;
+                                        const downPct = Number(String(fd.get('downPct') || '').replace(/[, ]+/g, '')) || 0;
+                                        const ratePct = Number(String(fd.get('ratePct') || '').replace(/[, ]+/g, '')) || 0;
+                                        const termYears = Number(String(fd.get('termYears') || '').replace(/[, ]+/g, '')) || 30;
+                                        const zip = String(fd.get('zip') || '').trim();
+                                        const hoa = Number(String(fd.get('hoa') || '').replace(/[, ]+/g, '')) || 0;
+
+                                        closeAllOverlays();
+
+                                        setMessages((m) => [
+                                            ...m,
+                                            {
+                                                id: uid(),
+                                                role: 'assistant',
+                                                content: `Using ${price.toLocaleString()} price, ${downPct}% down, ${ratePct}% for ${termYears} years, ZIP ${zip}${hoa ? `, HOA $${hoa}` : ''}.`
+                                            }
+                                        ]);
+
+                                        setLoading(true);
+                                        try {
+                                            await runCalc({
+                                                purchasePrice: price,
+                                                downPercent: downPct,
+                                                annualRatePct: ratePct,
+                                                termYears,
+                                                rawQ: `price ${price} with ${downPct}% down at ${ratePct}% for ${termYears} years zip ${zip}`
+                                            });
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }}
+                                    style={{ display: 'grid', gap: 10 }}
+                                >
+                                    <div className="grid" style={{ display: 'grid', gap: 10 }}>
+                                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                            Purchase price
+                                            <input
+                                                name="price"
+                                                inputMode="decimal"
+                                                defaultValue="900000"
+                                                placeholder="e.g. 900000"
+                                                className="input"
+                                                autoFocus
+                                            />
+                                        </label>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                             <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                Purchase price
+                                                Down payment %
                                                 <input
-                                                    name="price"
+                                                    name="downPct"
                                                     inputMode="decimal"
-                                                    defaultValue="900000"
-                                                    placeholder="e.g. 900000"
+                                                    defaultValue="20"
+                                                    placeholder="e.g. 20"
                                                     className="input"
-                                                    autoFocus
                                                 />
                                             </label>
-
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                    Down payment %
-                                                    <input
-                                                        name="downPct"
-                                                        inputMode="decimal"
-                                                        defaultValue="20"
-                                                        placeholder="e.g. 20"
-                                                        className="input"
-                                                    />
-                                                </label>
-                                                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                    Rate %
-                                                    <input
-                                                        name="ratePct"
-                                                        inputMode="decimal"
-                                                        defaultValue="6.25"
-                                                        placeholder="e.g. 6.25"
-                                                        className="input"
-                                                    />
-                                                </label>
-                                            </div>
-
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                    Term (years)
-                                                    <input
-                                                        name="termYears"
-                                                        inputMode="numeric"
-                                                        defaultValue="30"
-                                                        placeholder="e.g. 30"
-                                                        className="input"
-                                                    />
-                                                </label>
-                                                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                    ZIP
-                                                    <input
-                                                        name="zip"
-                                                        inputMode="numeric"
-                                                        defaultValue="92688"
-                                                        placeholder="e.g. 92688"
-                                                        className="input"
-                                                    />
-                                                </label>
-                                            </div>
-
                                             <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                                                HOA (optional)
+                                                Rate %
                                                 <input
-                                                    name="hoa"
+                                                    name="ratePct"
                                                     inputMode="decimal"
-                                                    placeholder="e.g. 125"
+                                                    defaultValue="6.25"
+                                                    placeholder="e.g. 6.25"
                                                     className="input"
                                                 />
                                             </label>
-
-                                            <p className="text-xs" style={{ opacity: 0.7 }}>
-                                                Guided input flow. These values hit the same calc endpoint used by typed questions.
-                                            </p>
                                         </div>
 
-                                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                                            <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                                            <button className="btn primary" type="submit">Use these inputs</button>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                                Term (years)
+                                                <input
+                                                    name="termYears"
+                                                    inputMode="numeric"
+                                                    defaultValue="30"
+                                                    placeholder="e.g. 30"
+                                                    className="input"
+                                                />
+                                            </label>
+                                            <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                                ZIP
+                                                <input
+                                                    name="zip"
+                                                    inputMode="numeric"
+                                                    defaultValue="92688"
+                                                    placeholder="e.g. 92688"
+                                                    className="input"
+                                                />
+                                            </label>
                                         </div>
-                                    </form>
-                                )}
-                            </div>
+
+                                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                                            HOA (optional)
+                                            <input
+                                                name="hoa"
+                                                inputMode="decimal"
+                                                placeholder="e.g. 125"
+                                                className="input"
+                                            />
+                                        </label>
+
+                                        <p className="text-xs" style={{ opacity: 0.7 }}>
+                                            Guided input flow. These values hit the same calc endpoint used by typed questions.
+                                        </p>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
+                                        <button className="btn primary" type="submit">Use these inputs</button>
+                                    </div>
+                                </form>
+                            )}
                         </div>
-                    )}
+                    </div>
+                )}
             </section>
         </>
     );
