@@ -608,36 +608,99 @@ export default function Page() {
 
 
 
-                {/* HR: Chat-style composer pinned above footer; pill + round send */}
-                <div className="composer" data-composer="primary">
-                    <div className="composer-inner">
+                {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
+                <div
+                    className="hr-composer"
+                    data-composer="primary"
+                    style={{
+                        position: 'sticky',
+                        bottom: 'var(--footer-h)',
+                        zIndex: 900,
+                        borderTop: '1px solid rgba(148, 163, 184, 0.4)',
+                        background: 'transparent',
+                    }}
+                >
+                    <div
+                        className="hr-composer-inner"
+                        style={{
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            maxWidth: 640,        // line up with main column
+                            width: '100%',
+                            margin: '0 auto',
+                            padding: '8px 12px',
+                            boxSizing: 'border-box',
+                        }}
+                    >
                         <input
-                            className="input"
+                            className="hr-composer-input"
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={onKey}
+                            style={{
+                                flex: '1 1 auto',
+                                minWidth: 0,
+                                height: 36,            // compact (about half your old tall pill)
+                                borderRadius: 9999,    // true pill
+                                border: '1px solid #E5E7EB',
+                                padding: '6px 40px 6px 12px', // room on the right for the arrow circle
+                                background: '#FFFFFF',
+                                fontSize: 14,
+                                lineHeight: 1.3,
+                                boxSizing: 'border-box',
+                            }}
                         />
 
                         <button
-                            type="button"
-                            className="composer-send"
+                            className="hr-composer-send"
                             data-testid="ask-pill"
                             aria-label="Send message"
                             title="Send"
                             onClick={send}
                             disabled={loading || !input.trim()}
+                            style={{
+                                position: 'absolute',
+                                right: 16,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                width: 24,             // small circle
+                                height: 24,
+                                borderRadius: 9999,
+                                padding: 0,
+                                border: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: '#111827',
+                                color: '#FFFFFF',
+                                cursor: loading || !input.trim() ? 'default' : 'pointer',
+                                opacity: loading || !input.trim() ? 0.5 : 1,
+                                zIndex: 2,
+                            }}
                         >
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                            <svg
+                                width={14}
+                                height={14}
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                style={{ transform: 'rotate(-90deg)' }} // arrow points up
+                            >
                                 <path
-                                    d="M3 10.5L16 3l-3.5 13-2.5-5-5-2.5z"
-                                    fill="currentColor"
+                                    d="M3 12h14.5M13 6l6 6-6 6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
                                 />
                             </svg>
-
                         </button>
                     </div>
                 </div>
+
 
 
 
