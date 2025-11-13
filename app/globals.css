@@ -383,7 +383,7 @@ ul {
   border-top: 1px solid rgba(148, 163, 184, 0.4);
 
   /* stacking */
-  z-index: 9000;
+  z-index: 800;
   /* composer is at 900 */
 }
 
