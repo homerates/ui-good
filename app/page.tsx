@@ -245,6 +245,16 @@ export default function Page() {
                 'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
         },
     ]);
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        window.requestAnimationFrame(() => {
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth',
+            });
+        });
+    }, [messages.length]);
     const [input, setInput] = useState('');
 
     // borrower-only mode fixed
@@ -614,7 +624,7 @@ export default function Page() {
                     data-composer="primary"
                     style={{
                         position: 'sticky',
-                        bottom: 'calc(var(--footer-h) - 2px)', // nudge closer to footer
+                        bottom: 'calc(var(--footer-h) - 12px)', // nudge closer to footer
                         zIndex: 900,
                         borderTop: '1px solid rgba(245, 247, 250, 0.06)',
                         background: 'transparent',
