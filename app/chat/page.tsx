@@ -986,7 +986,7 @@ export default function Page() {
 
                             {/* in-field Send button (overlays inside the input) */}
                             <button
-                                className="btn ask-pill"
+                                className="ask-pill"
                                 data-testid="ask-pill"
                                 aria-label="Send message"
                                 title="Send"
