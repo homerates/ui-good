@@ -383,7 +383,7 @@ ul {
   border-top: 1px solid rgba(148, 163, 184, 0.4);
 
   /* stacking */
-  z-index: 800;
+  z-index: 9000;
   /* composer is at 900 */
 }
 
@@ -395,7 +395,7 @@ ul {
   /* Stick inside the chat column, not the whole viewport */
   position: sticky;
   bottom: 0;
-  z-index: 400;
+  z-index: 9999;
 
   /* Let the inner pill control the width – this avoids bleeding into drawer */
   padding: 12px 16px 16px;
