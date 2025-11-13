@@ -369,11 +369,18 @@ ul {
   padding: 8px 16px;
   font-size: 0.75rem;
   text-align: center;
+
+  /* background + text */
   background: rgba(15, 23, 42, 0.9);
-  /* slightly transparent slate */
+  /* deep slate, slightly transparent */
+  color: #e5e7eb;
+  /* soft gray text */
+
+  /* subtle styling */
   backdrop-filter: blur(8px);
-  /* softens the bar over chat */
   border-top: 1px solid rgba(148, 163, 184, 0.4);
+
+  /* stacking */
   z-index: 800;
-  /* below the composer (900), above content */
+  /* composer is at 900 */
 }
