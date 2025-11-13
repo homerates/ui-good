@@ -614,9 +614,9 @@ export default function Page() {
                     data-composer="primary"
                     style={{
                         position: 'sticky',
-                        bottom: 'calc(var(--footer-h) - 6px)', // nudge closer to footer
+                        bottom: 'calc(var(--footer-h) - 2px)', // nudge closer to footer
                         zIndex: 900,
-                        borderTop: '1px solid rgba(148, 163, 184, 0.4)',
+                        borderTop: '1px solid rgba(245, 247, 250, 0.06)',
                         background: 'transparent',
                     }}
                 >
