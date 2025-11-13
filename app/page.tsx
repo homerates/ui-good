@@ -608,91 +608,37 @@ export default function Page() {
 
 
 
-                {/* Combo pill: input with a circular Send button inside (absolute) */}
-                {/* HR: composer pinned above footer; full-width compact pill with in-field arrow */}
-                <div
-                    className="composer"
-                    data-composer="primary"
-                    style={{
-                        position: 'sticky',
-                        bottom: 'var(--footer-h)',
-                        zIndex: 900,
-                    }}
-                >
-
-                    <div
-                        className="composer-inner"
-                        style={{
-                            position: 'relative',
-                            display: 'flex',
-                            alignItems: 'center',
-                            width: '100%',
-                            maxWidth: '100%',
-                        }}
-                    >
+                {/* HR: Chat-style composer pinned above footer; pill + round send */}
+                <div className="composer" data-composer="primary">
+                    <div className="composer-inner">
                         <input
                             className="input"
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={onKey}
-                            style={{
-                                width: '100%',
-                                minWidth: 0,
-                                height: 36,              // compact, about half your big pill
-                                paddingLeft: 14,
-                                paddingRight: 44,        // reserve space for the small circle
-                                borderRadius: 9999,      // true pill
-                                boxSizing: 'border-box',
-                            }}
                         />
 
                         <button
-                            className="ask-pill"
+                            type="button"
+                            className="composer-send"
                             data-testid="ask-pill"
                             aria-label="Send message"
                             title="Send"
                             onClick={send}
                             disabled={loading || !input.trim()}
-                            style={{
-                                position: 'absolute',
-                                right: 10,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: 24,               // small circle
-                                height: 24,
-                                borderRadius: 9999,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: 0,
-                                border: 'none',
-                                background: '#111827',
-                                color: '#fff',
-                                cursor: loading || !input.trim() ? 'default' : 'pointer',
-                                opacity: loading || !input.trim() ? 0.6 : 1,
-                                zIndex: 2,
-                            }}
                         >
-                            <svg
-                                width={14}
-                                height={14}
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                                style={{ transform: 'rotate(-90deg)' }} // arrow points up
-                            >
+                            <svg viewBox="0 0 20 20" aria-hidden="true">
                                 <path
-                                    d="M3 12h14.5M13 6l6 6-6 6"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={2}
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
+                                    d="M3 10.5L16 3l-3.5 13-2.5-5-5-2.5z"
+                                    fill="currentColor"
                                 />
                             </svg>
+
                         </button>
                     </div>
                 </div>
+
 
 
 
