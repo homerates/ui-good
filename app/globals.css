@@ -281,457 +281,99 @@ ul {
   padding-left: 18px;
 }
 
-/* === Ask Question Pill (compact, top layer) === */
-.ask-pill {
-  position: fixed;
-  bottom: 18px;
-  right: 18px;
-  z-index: 6000;
-  /* stays above sidebar/menu */
-  background: var(--accent, #0070f3);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 4px 10px;
-  line-height: 1.2;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+/* === Chat composer + Ask pill (scoped to .composer) === */
+
+/* Keep composer bar stuck above the footer, spanning the chat width */
+.composer {
+  position: sticky;
+  bottom: var(--footer-h);
+  z-index: 900;
+  width: 100%;
 }
 
-.ask-pill:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
-}
-
-/* ===== Ask pill sizing & layout (chat composer) ===== */
+/* Row that holds the Ask pill */
 .composer .composer-inner {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  gap: 0;
+  /* no gap between input and in-field button */
 }
 
+/* Ask input pill: full width, compact height, space reserved for circle */
 .composer .input {
   flex: 1 1 auto;
   min-width: 0;
-}
-
-/* Make the pill compact and not stretch full width */
-.composer .btn.ask-pill {
-  flex: 0 0 auto;
-  padding: 8px 14px;
+  width: 100%;
+  height: 36px;
+  /* compact, about half what you had */
+  padding-left: 14px;
+  padding-right: 44px;
+  /* room for 24px circle + breathing room */
   border-radius: 9999px;
-  line-height: 1.1;
-  max-width: 160px;
-  /* cap width so it doesn't look like a bar */
-  white-space: nowrap;
-  /* keep "Send" on one line */
+  /* true pill */
+  box-sizing: border-box;
+  margin: 0;
 }
 
-/* If any global .btn styles force width, neutralize here */
-.composer .composer-inner .btn.ask-pill {
-  width: auto !important;
-}
-
-/* Slightly smaller on narrow screens */
-@media (max-width: 640px) {
-  .composer .btn.ask-pill {
-    padding: 8px 12px;
-    max-width: 136px;
-    font-size: 0.95rem;
-  }
-}
-
-/* === Footer meta sits under composer, never intercepts clicks === */
-.footer-meta {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--footer-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  line-height: 1;
-  opacity: 0.85;
-  z-index: 10;
-  /* keep low; composer sits at 900 */
-  background: #fff;
-  /* ← solid: hides scroll behind it */
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  pointer-events: none;
-  /* never steal focus/clicks */
-  user-select: none;
-}
-
-
-/* Composer sits just above the footer line */
-.composer {
-  position: sticky !important;
-  /* matches your inline sticky */
-  bottom: var(--footer-h) !important;
-  /* hover just above footer */
-  z-index: 900 !important;
-  /* beat inline z-index:5 */
-}
-
-
-/* Give the scroll area breathing room so footer-meta doesn’t overlap */
-.scroll {
-  padding-bottom: 72px;
-  /* room for composer + footer text */
-}
-
-/* Make sure the send pill never stretches full width */
-.composer .composer-inner>.btn {
-  display: inline-flex !important;
-  width: auto !important;
-  max-width: none !important;
-  flex: 0 0 auto !important;
-  align-self: center;
-}
-
-.composer .btn.ask-pill {
-  padding: 8px 14px;
-  border-radius: 9999px;
-  white-space: nowrap;
-  max-width: 160px;
-}
-
-@media (max-width: 640px) {
-  .composer .btn.ask-pill {
-    padding: 8px 12px;
-    max-width: 136px;
-    font-size: 0.95rem;
-  }
-}
-
-/* ===== HR: composer + footer controls (2025-11-11) ===== */
-
-/* Layout variables */
-:root {
-  --footer-h: 30px;
-  --composer-h: 72px;
-}
-
-/* Ensure page has breathing room beneath content */
-body.app,
-main,
-.scroll,
-.scroll-region,
-.messages {
-  padding-bottom: calc(var(--footer-h) + var(--composer-h) + 24px) !important;
-}
-
-/* Footer line: fixed, low layer, non-blocking */
-.footer-meta {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--footer-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  line-height: 1;
-  opacity: 0.6;
-  z-index: 10;
-  /* keep low */
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.06), transparent);
-  pointer-events: none;
-  user-select: none;
-}
-
-/* Composer: your DOM shows inline style "position:sticky; bottom:0; z-index:5"
-   We override bottom + z-index so it sits ABOVE the footer. */
-.composer {
-  position: sticky !important;
-  bottom: var(--footer-h) !important;
-  z-index: 900 !important;
-}
-
-/* DOM-specific: .composer → .composer-inner → ( .input , .btn ) */
-.composer .composer-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Input takes slack */
-.composer .composer-inner .input {
-  flex: 1 1 auto !important;
-  min-width: 0 !important;
-}
-
-/* Pill is your <button class="btn">…</button> — hard-cap it at 160px */
-.composer .composer-inner .btn {
-  flex: 0 1 160px !important;
-  max-width: 160px !important;
-  width: 160px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-/* ==== DOM-specific composer rules (composer → composer-inner → input/btn) ==== */
-.composer .composer-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Input takes the slack */
-.composer .composer-inner .input {
-  flex: 1 1 auto !important;
-  min-width: 0 !important;
-}
-
-/* Pill = <button class="btn">Send</button> — HARD CAP at 160px */
-.composer .composer-inner>.btn {
-  flex: 0 1 160px !important;
-  /* do NOT grow */
-  max-width: 160px !important;
-  width: 160px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-/* Guard: if any utility set w-full/flex-1 on the button, neutralize it */
-.composer .composer-inner>.btn.w-full,
-.composer .composer-inner>.btn.flex-1,
-.composer .composer-inner>.btn[style*="flex: 1"],
-.composer .composer-inner>.btn[style*="width: 100%"] {
-  width: 160px !important;
-  max-width: 160px !important;
-  flex: 0 1 160px !important;
-}
-
-:root {
-  --footer-h: 30px;
-  --composer-h: 72px;
-}
-
-body.app,
-main,
-.scroll,
-.scroll-region,
-.messages {
-  padding-bottom: calc(var(--footer-h) + var(--composer-h) + 24px) !important;
-}
-
-/* === hard-cap ask pill (scoped override) === */
-.composer .composer-inner [data-pill="ask"] {
-  flex: 0 0 160px !important;
-  width: 160px !important;
-  min-width: 160px !important;
-  max-width: 160px !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* HR: enforce fixed Ask button width */
-.composer .composer-inner button.btn,
-.composer .composer-inner .ask-pill {
-  flex: 0 0 160px !important;
-  width: 160px !important;
-  min-width: 160px !important;
-  max-width: 160px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-/* ===============================
-   HR: Final composer visual polish
-   =============================== */
-
-/* Separate the input and button visually */
-.composer .composer-inner {
-  gap: 8px !important;
-  background: transparent !important;
-}
-
-/* Keep input compact and flush */
-.composer .composer-inner .input {
-  flex: 1 1 auto !important;
-  min-width: 0;
-  border-radius: 8px 0 0 8px !important;
-  border-right: none !important;
-}
-
-/* Distinct Send button "pill" */
-.composer .composer-inner .ask-pill {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0 8px 8px 0 !important;
-  background: #1e293b !important;
-  /* slate-800 */
-  color: #fff !important;
-  font-weight: 500;
-  transition: background 0.2s ease-in-out;
-}
-
-.composer .composer-inner .ask-pill:hover:not(:disabled) {
-  background: #334155 !important;
-  /* slate-700 */
-}
-
-/* ===== HR composer & footer fixes (safe, global) ===== */
-
-/* Solid footer — no bleed-through */
-.footer-meta {
-  background: var(--card, #fff) !important;
-  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.06) !important;
-}
-
-/* Keep composer centered and away from sidebar; prevent full-bleed */
-.composer {
-  max-width: min(920px, 96vw) !important;
-  margin: 0 auto !important;
-  padding: 8px 12px !important;
-  box-sizing: border-box !important;
-  z-index: 900 !important;
-}
-
-/* Give the scroll area enough space to never overlap footer + composer */
-.scroll {
-  padding-bottom: calc(var(--footer-h, 44px) + 96px) !important;
-}
-
-/* Drawer open: offset the composer so it doesn’t hide under it (if drawer uses .drawer.open) */
-body:has(.drawer.open) .composer {
-  margin-left: 260px !important;
-}
-
-/* Combo composer: one-track input with in-field Send button */
-.composer .composer-inner {
-  position: relative !important;
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  align-items: center !important;
-  gap: 8px !important;
-  max-width: 100% !important;
-}
-
-/* Input: allow shrink and reserve room for the circular send button */
-.composer .composer-inner input.input {
-  min-width: 0 !important;
-  padding-right: 56px !important;
-  /* 40px button + gutters */
-  border-radius: 12px !important;
-}
-
-/* The circular in-field send button */
-.composer .composer-inner .ask-pill {
-  position: absolute !important;
-  right: 8px !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  width: 40px !important;
-  height: 40px !important;
-  border-radius: 9999px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-}
-
-/* Optional: subtle hover/active */
-.composer .ask-pill:hover {
-  filter: brightness(0.97);
-}
-
-.composer .ask-pill:active {
-  transform: translateY(-50%) scale(0.98);
-}
-
-/* HR: composer hardening */
-.composer:not([data-composer="primary"]) {
-  display: none !important;
-}
-
-/* hide any old composer */
+/* In-field Send: small circular arrow, inside the pill on the right */
 .composer .ask-pill {
+  all: unset;
+  /* wipe .btn and other inherited styles */
   position: absolute;
-  right: 12px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
+  width: 24px;
+  /* small circle */
+  height: 24px;
   border-radius: 9999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  border: none;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+  z-index: 2;
+  /* sit above the input surface */
 }
 
+/* Arrow icon pointing up inside the circle */
 .composer .ask-pill svg {
+  display: block;
+  width: 14px;
+  height: 14px;
   transform: rotate(-90deg);
+  /* turn right-arrow into up-arrow */
 }
 
-/* arrow up */
-.composer .input {
-  height: 64px;
-  padding-right: 64px;
-  border-radius: 9999px;
-  box-sizing: border-box;
+/* Neutralize old 160px caps that previously forced a fat pill */
+.composer .composer-inner .btn,
+.composer .composer-inner>.btn,
+.composer .btn.ask-pill {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
-/* === HR: Composer final clamp === */
-.composer[data-composer="primary"] .composer-inner {
-  position: relative !important;
-}
-
-.composer[data-composer="primary"] .input {
-  height: 48px !important;
-  /* smaller, not bulky */
-  padding-right: 52px !important;
-  /* reserve space for the circle */
-  border-radius: 9999px !important;
-  /* pill */
-  box-sizing: border-box !important;
-}
-
-.composer[data-composer="primary"] .ask-pill {
-  all: unset;
-  /* nuke any inherited .btn styles */
-  position: absolute !important;
-  right: 8px !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  width: 36px !important;
-  /* compact circle */
-  height: 36px !important;
-  border-radius: 9999px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  border: none !important;
-  background: #111827 !important;
-  /* dark */
-  color: #fff !important;
-  cursor: pointer !important;
-  z-index: 2 !important;
-  /* sit above input surface */
-}
-
-.composer[data-composer="primary"] .ask-pill svg {
-  width: 16px !important;
-  height: 16px !important;
-  transform: rotate(-90deg) !important;
-  /* arrow up */
-}
-
-/* Hide any non-primary composer just in case */
-.composer:not([data-composer="primary"]) {
-  display: none !important;
+/* === Footer look on the chat page === */
+.footer-meta {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.9);
+  /* slightly transparent slate */
+  backdrop-filter: blur(8px);
+  /* softens the bar over chat */
+  border-top: 1px solid rgba(148, 163, 184, 0.4);
+  z-index: 800;
+  /* below the composer (900), above content */
 }

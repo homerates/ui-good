@@ -600,11 +600,16 @@ export default function Page() {
 
 
                 {/* Combo pill: input with a circular Send button inside (absolute) */}
-                {/* HR: composer pinned above footer; combo input with in-field Send */}
+                {/* HR: composer pinned above footer; full-width compact pill with in-field arrow */}
                 <div
                     className="composer"
                     data-composer="primary"
-                    style={{ position: 'sticky', bottom: 'var(--footer-h)', zIndex: 900 }}
+                    style={{
+                        position: 'sticky',
+                        bottom: 'var(--footer-h)',
+                        zIndex: 900,
+                        width: '100%',
+                    }}
                 >
                     <div
                         className="composer-inner"
@@ -612,7 +617,6 @@ export default function Page() {
                             position: 'relative',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 0,
                             width: '100%',
                             maxWidth: '100%',
                         }}
@@ -626,17 +630,18 @@ export default function Page() {
                             style={{
                                 width: '100%',
                                 minWidth: 0,
-                                height: 36,          // compact pill
+                                height: 36,              // compact, about half your big pill
                                 paddingLeft: 14,
-                                paddingRight: 44,    // room for 24px circle + breathing room
-                                borderRadius: 9999,
+                                paddingRight: 44,        // reserve space for the small circle
+                                borderRadius: 9999,      // true pill
                                 boxSizing: 'border-box',
                             }}
                         />
 
                         <button
                             className="ask-pill"
-                            aria-label="Send"
+                            data-testid="ask-pill"
+                            aria-label="Send message"
                             title="Send"
                             onClick={send}
                             disabled={loading || !input.trim()}
@@ -645,7 +650,7 @@ export default function Page() {
                                 right: 10,
                                 top: '50%',
                                 transform: 'translateY(-50%)',
-                                width: 24,
+                                width: 24,               // small circle
                                 height: 24,
                                 borderRadius: 9999,
                                 display: 'inline-flex',
@@ -661,17 +666,17 @@ export default function Page() {
                             }}
                         >
                             <svg
-                                width="18"
-                                height="18"
+                                width={14}
+                                height={14}
                                 viewBox="0 0 24 24"
                                 aria-hidden="true"
-                                style={{ transform: 'rotate(-90deg)' }}  // arrow up
+                                style={{ transform: 'rotate(-90deg)' }} // arrow points up
                             >
                                 <path
                                     d="M3 12h14.5M13 6l6 6-6 6"
                                     fill="none"
                                     stroke="currentColor"
-                                    strokeWidth="2"
+                                    strokeWidth={2}
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
                                 />
@@ -679,6 +684,7 @@ export default function Page() {
                         </button>
                     </div>
                 </div>
+
 
 
 
