@@ -648,13 +648,13 @@ export default function Page() {
                     className="hr-composer"
                     data-composer="primary"
                     style={{
-                        position: 'sticky',
-                        bottom: 'calc(var(--footer-h) - 12px)', // nudge closer to footer
+                        // position/bottom now handled in CSS (desktop vs mobile)
                         zIndex: 900,
                         borderTop: '1px solid rgba(245, 247, 250, 0.06)',
                         background: 'transparent',
                     }}
                 >
+
                     <div
                         className="hr-composer-inner"
                         style={{
@@ -683,7 +683,7 @@ export default function Page() {
                                 border: '1px solid #E5E7EB',
                                 padding: '6px 40px 6px 12px', // room on the right for the arrow circle
                                 background: '#FFFFFF',
-                                fontSize: 14,
+                                fontSize: 16,
                                 lineHeight: 1.3,
                                 boxSizing: 'border-box',
                             }}

@@ -135,6 +135,14 @@ body {
   overflow-y: auto;
 }
 
+/* HR composer: sticky above footer by default (desktop / larger screens) */
+.hr-composer {
+  position: sticky;
+  bottom: var(--footer-h);
+  z-index: 900;
+  /* matches inline zIndex */
+}
+
 /* Bubbles */
 .bubble {
   display: flex;
@@ -555,6 +563,36 @@ ul {
   /* iOS Safari: font-size >= 16px stops auto zooming the whole page */
   .composer-inner .input,
   .composer .input {
+    font-size: 16px;
+  }
+}
+
+/* Small screens: pin hr-composer to bottom and keep content visible above it */
+@media (max-width: 640px) {
+
+  /* Make sure the last messages aren't hidden behind the pill */
+  .scroll {
+    padding-bottom: calc(var(--footer-h) + 80px);
+  }
+
+  /* Mobile: anchor composer to bottom of viewport, edge-to-edge */
+  .hr-composer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--footer-h);
+    padding-left: 10px;
+    padding-right: 10px;
+    box-sizing: border-box;
+  }
+
+  .hr-composer-inner {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Extra safety: ensure font-size stays 16px+ on mobile too */
+  .hr-composer-input {
     font-size: 16px;
   }
 }
