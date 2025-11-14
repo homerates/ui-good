@@ -527,21 +527,11 @@ ul {
   /* transform: translateY(0.5px) rotate(-25deg); */
 }
 
-/* Small screens: keep pill usable edge to edge inside the main column */
+/* Small screens: keep the composer pill usable edge-to-edge */
 @media (max-width: 640px) {
   .composer {
-    padding-inline: 10px;
-  }
-
-  .composer-inner {
-    max-width: 100%;
-  }
-}
-
-
-@media (max-width: 640px) {
-  .composer {
-    padding-inline: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
   .composer-inner {
