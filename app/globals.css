@@ -128,7 +128,6 @@ body {
   padding: 16px 12px 28px;
 }
 
-/* Main scroll container for chat */
 .scroll {
   /* container that owns the scroll */
   flex: 1;
@@ -136,87 +135,28 @@ body {
   overflow-y: auto;
 }
 
-/* Center the chat column and cap its width */
-.center {
-  display: flex;
-  justify-content: center;
-  padding: 16px 12px;
-  box-sizing: border-box;
+/* Laptop+ view: slightly smaller, denser type inside the scroll area */
+@media (min-width: 1024px) {
+  .scroll {
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
 }
 
-/* Messages column inside the center tray */
-.center .messages {
-  width: 100%;
-  max-width: 720px;
+/* HR composer: sticky above footer by default (desktop / larger screens) */
+.hr-composer {
+  position: sticky;
+  bottom: var(--footer-h);
+  z-index: 900;
+  /* matches inline zIndex */
 }
 
-.messages {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Each row (question or answer) */
+/* Bubbles */
 .bubble {
   display: flex;
   gap: 10px;
   margin: 8px 0;
 }
-
-/* Hide avatars for now */
-.avatar {
-  display: none;
-}
-
-/* Base balloon */
-.balloon {
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-/* User question: grey pill on the right */
-.balloon.user {
-  margin-left: auto;
-  align-self: flex-end;
-  background: #e5e7eb;
-  color: #111827;
-  border-radius: 9999px;
-  padding: 8px 14px;
-  font-size: 0.95rem;
-}
-
-/* Assistant answer: white card on the left */
-.balloon.bot {
-  margin-right: auto;
-  align-self: flex-start;
-  background: #ffffff;
-  color: #111827;
-  border-radius: 16px;
-  padding: 10px 14px;
-  font-size: 0.95rem;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-}
-
-/* Answer block inside the assistant balloon */
-.answer-block {
-  display: grid;
-  gap: 10px;
-  font-size: 0.95rem;
-  line-height: 1.55;
-}
-
-.answer-block .meta {
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
-.answer-block ul {
-  margin-top: 0;
-  padding-left: 1.25rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
 
 /* User questions: right-aligned, darker grey pill */
 .bubble.user,
@@ -247,56 +187,6 @@ body {
   max-width: 100%;
 }
 
-/* HR: global composer docking */
-.composer {
-  position: fixed !important;
-  /* beat inline sticky */
-  left: 0;
-  right: 0;
-  bottom: var(--footer-h);
-  /* still sits just above the footer */
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-  background: #ffffff;
-  z-index: 950;
-  /* above footer, below modals */
-}
-
-/* Keep the pill nicely centered on all viewports */
-.composer-inner {
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-/* Make sure content can scroll behind without being hidden */
-body {
-  padding-bottom: calc(var(--footer-h) + 96px);
-}
-
-/* HR: global composer docking */
-.composer {
-  position: fixed !important;
-  /* beat inline sticky */
-  left: 0;
-  right: 0;
-  bottom: var(--footer-h);
-  /* still sits just above the footer */
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-  background: #ffffff;
-  z-index: 950;
-  /* above footer, below modals */
-}
-
-/* Keep the pill nicely centered on all viewports */
-.composer-inner {
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-/* Make sure content can scroll behind without being hidden */
-body {
-  padding-bottom: calc(var(--footer-h) + 96px);
-}
-
 /* Assistant answers: a bit wider and centered on larger screens */
 @media (min-width: 1024px) {
 
@@ -307,8 +197,6 @@ body {
     margin-right: auto;
   }
 }
-
-
 
 /* Assistant answers: a bit wider and centered on larger screens */
 @media (min-width: 1024px) {
@@ -707,14 +595,12 @@ ul {
   /* transform: translateY(0.5px) rotate(-25deg); */
 }
 
-/* Main answer block: centered card-like layout + smaller type */
+/* Main answer block: centered card-like layout */
 .answer-block {
   max-width: 720px;
   margin: 0 auto;
   display: grid;
   gap: 10px;
-  font-size: 0.95rem;
-  line-height: 1.55;
 }
 
 /* Meta row at top (path, usedFRED, at) */
@@ -730,7 +616,6 @@ ul {
   font-size: 0.9rem;
   line-height: 1.5;
 }
-
 
 /* Small screens: pin composer to bottom and prevent iOS zoom */
 @media (max-width: 640px) {
