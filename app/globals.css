@@ -136,30 +136,6 @@ body {
 }
 
 
-/* HR: mobile docking for new hr-composer wrapper */
-@media (max-width: 768px) {
-
-  /* On phones: pin the composer to the visual bottom */
-  .hr-composer[data-composer="primary"] {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 900;
-    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-    background: #ffffff;
-  }
-
-  .hr-composer-inner {
-    max-width: 640px;
-    margin: 0 auto;
-  }
-
-  /* Make sure last messages don't sit under the pill */
-  body {
-    padding-bottom: 96px;
-  }
-}
 
 /* Laptop+ view: slightly smaller, denser type inside the scroll area */
 @media (min-width: 1024px) {
