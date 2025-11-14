@@ -904,26 +904,34 @@ export default function Page() {
                 className="main"
                 style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}
             >
-                <div className="header">
+                <div
+                    className="header"
+                    style={{
+                        position: 'relative',
+                        zIndex: 10,
+                    }}
+                >
                     <div
                         className="header-inner"
                         style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: 8,
-                            paddingLeft: 8
+                            paddingInline: 8,
                         }}
                     >
+                        {/* HomeRates logo */}
                         <img
-                            src="/assets/Homerates-full-logo.png"
+                            src="/assets/homerates-full-logo.png"
                             alt="HomeRates.ai"
                             style={{
                                 height: 28,
                                 width: 'auto',
-                                display: 'block'
+                                display: 'inline-block',
                             }}
                         />
 
+                        {/* Menu button (kept identical in behavior) */}
                         <button
                             className="btn"
                             data-build="deploy-2025-11-11-01"
@@ -935,11 +943,14 @@ export default function Page() {
                             Menu
                         </button>
 
+                        {/* Title */}
                         <div style={{ fontWeight: 700 }}>Chat</div>
 
+                        {/* Right-side controls / spacer */}
                         <div className="controls" style={{ marginLeft: 'auto' }} />
                     </div>
                 </div>
+
 
                 <div
                     ref={scrollRef}
