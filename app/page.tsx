@@ -36,60 +36,30 @@ function useMobileComposerPin() {
         if (!composer || !vv) return;
 
         const updatePosition = () => {
-            const isMobile = window.innerWidth <= 768;
-
-            // Desktop: clear overrides and exit
-            if (!isMobile) {
-                composer.style.position = '';
-                composer.style.left = '';
-                composer.style.right = '';
-                composer.style.bottom = '';
+            // Desktop: no special handling
+            if (window.innerWidth > 768) {
                 composer.style.transform = '';
-                composer.style.zIndex = '';
                 return;
             }
 
-            // Mobile: pin composer to visible bottom based on keyboard height
-            composer.style.position = 'fixed';
-            composer.style.left = '0';
-            composer.style.right = '0';
-            composer.style.zIndex = '900';
-            composer.style.transform = '';
+            // How much of the layout is covered by the keyboard / viewport shift
+            const offset = window.innerHeight - vv.height - vv.offsetTop;
+            const y = offset > 0 ? offset : 0;
 
-            // Calculate the covered bottom area (keyboard height)
-            const bottomGap = window.innerHeight - (vv.height + vv.offsetTop);
-            const b = bottomGap > 0 ? bottomGap : 0;
-
-            composer.style.bottom = `${b}px`;
+            composer.style.transform = y > 0 ? `translateY(-${y}px)` : '';
         };
 
         vv.addEventListener('resize', updatePosition);
         vv.addEventListener('scroll', updatePosition);
         window.addEventListener('scroll', updatePosition);
 
-        updatePosition(); // initial call
+        updatePosition(); // run once on mount
 
         return () => {
             vv.removeEventListener('resize', updatePosition);
             vv.removeEventListener('scroll', updatePosition);
             window.removeEventListener('scroll', updatePosition);
         };
-    }, []);
-}
-
-
-
-vv.addEventListener('resize', updatePosition);
-vv.addEventListener('scroll', updatePosition);
-window.addEventListener('scroll', updatePosition);
-
-updatePosition(); // run once on mount
-
-return () => {
-    vv.removeEventListener('resize', updatePosition);
-    vv.removeEventListener('scroll', updatePosition);
-    window.removeEventListener('scroll', updatePosition);
-};
     }, []);
 }
 
