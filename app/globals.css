@@ -135,33 +135,7 @@ body {
   overflow-y: auto;
 }
 
-/* HR: mobile composer docking (desktop unchanged) */
-@media (max-width: 768px) {
 
-  /* On phones: keep the pill attached to the bottom of the viewport,
-     even when the page scrolls with the keyboard open. */
-  .composer {
-    position: fixed !important;
-    /* overrides inline sticky only on small screens */
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 900;
-    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-    background: #ffffff;
-  }
-
-  /* Keep the pill nicely centered, not edge-to-edge */
-  .composer-inner {
-    max-width: 720px;
-    margin: 0 auto;
-  }
-
-  /* Make sure the last messages don't hide behind the composer */
-  body {
-    padding-bottom: 96px;
-  }
-}
 
 /* Laptop+ view: slightly smaller, denser type inside the scroll area */
 @media (min-width: 1024px) {
