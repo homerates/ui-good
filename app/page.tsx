@@ -28,6 +28,13 @@ function useMobileComposerPin() {
             return;
         }
 
+        const composer = document.querySelector<HTMLElement>(
+            '.hr-composer[data-composer="primary"]'
+        );
+        const vv = (window as any).visualViewport as any;
+
+        if (!composer || !vv) return;
+
         const updatePosition = () => {
             const isMobile = window.innerWidth <= 768;
 
@@ -56,18 +63,33 @@ function useMobileComposerPin() {
             composer.style.bottom = `${b}px`;
         };
 
-
         vv.addEventListener('resize', updatePosition);
         vv.addEventListener('scroll', updatePosition);
         window.addEventListener('scroll', updatePosition);
 
-        updatePosition(); // run once on mount
+        updatePosition(); // initial call
 
         return () => {
             vv.removeEventListener('resize', updatePosition);
             vv.removeEventListener('scroll', updatePosition);
             window.removeEventListener('scroll', updatePosition);
         };
+    }, []);
+}
+
+
+
+vv.addEventListener('resize', updatePosition);
+vv.addEventListener('scroll', updatePosition);
+window.addEventListener('scroll', updatePosition);
+
+updatePosition(); // run once on mount
+
+return () => {
+    vv.removeEventListener('resize', updatePosition);
+    vv.removeEventListener('scroll', updatePosition);
+    window.removeEventListener('scroll', updatePosition);
+};
     }, []);
 }
 
