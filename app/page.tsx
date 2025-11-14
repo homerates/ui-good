@@ -85,7 +85,12 @@ async function safeJson(r: Response): Promise<ApiResponse> {
     try {
         return JSON.parse(txt) as ApiResponse;
     } catch {
-        return { path: 'error', usedFRED: false, answer: txt, status: r.status } as any;
+        return {
+            path: 'error',
+            usedFRED: false,
+            answer: txt,
+            status: r.status,
+        } as any;
     }
 }
 
@@ -95,26 +100,42 @@ async function safeJson(r: Response): Promise<ApiResponse> {
 function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     if (!meta) return null;
 
-    type NestedMeta = { meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string } };
+    type NestedMeta = {
+        meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
+    };
     const m = meta as ApiResponse & NestedMeta;
     const headerPath = (m.path ?? m.meta?.path ?? '—') as ApiResponse['path'] | '—';
     const headerUsedFRED =
-        typeof m.usedFRED === 'boolean' ? m.usedFRED : (m.meta?.usedFRED ?? false);
+        typeof m.usedFRED === 'boolean' ? m.usedFRED : m.meta?.usedFRED ?? false;
     const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
 
     if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
         const a = m.answer as CalcAnswer;
         return (
-            <div style={{ display: 'grid', gap: 10 }}>
+            <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
                 <div className="meta">
-                    <span>path: <b>{String(headerPath)}</b></span>
-                    <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-                    {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+                    <span>
+                        path: <b>{String(headerPath)}</b>
+                    </span>
+                    <span>
+                        {' '}
+                        | usedFRED: <b>{String(headerUsedFRED)}</b>
+                    </span>
+                    {headerAt && (
+                        <span>
+                            {' '}
+                            | at: <b>{fmtISOshort(headerAt)}</b>
+                        </span>
+                    )}
                 </div>
 
                 <div>
-                    <div><b>Loan amount:</b> ${fmtMoney(a.loanAmount)}</div>
-                    <div><b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}</div>
+                    <div>
+                        <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
+                    </div>
+                    <div>
+                        <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
+                    </div>
                 </div>
 
                 {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
@@ -125,14 +146,18 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                             <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
                             <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
                             <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-                            <li><b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b></li>
+                            <li>
+                                <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
+                            </li>
                         </ul>
                     </div>
                 )}
 
                 {Array.isArray(a.sensitivities) && a.sensitivities.length > 0 && (
                     <div>
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>±0.25% Sensitivity</div>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                            ±0.25% Sensitivity
+                        </div>
                         <ul style={{ marginTop: 0 }}>
                             {a.sensitivities.map((s, i) => (
                                 <li key={i}>
@@ -143,7 +168,9 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                     </div>
                 )}
 
-                {typeof m.tldr === 'string' && <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>}
+                {typeof m.tldr === 'string' && (
+                    <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>
+                )}
             </div>
         );
     }
@@ -155,9 +182,15 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
             m.fred.tenYearYield != null &&
             m.fred.mort30Avg != null &&
             m.fred.spread != null
-            ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${typeof m.fred.tenYearYield === 'number' ? m.fred.tenYearYield.toFixed(2) : m.fred.tenYearYield
-            }%, 30Y ${typeof m.fred.mort30Avg === 'number' ? m.fred.mort30Avg.toFixed(2) : m.fred.mort30Avg
-            }%, spread ${typeof m.fred.spread === 'number' ? m.fred.spread.toFixed(2) : m.fred.spread
+            ? `As of ${m.fred.asOf ?? 'recent data'}: ${typeof m.fred.tenYearYield === 'number'
+                ? m.fred.tenYearYield.toFixed(2)
+                : m.fred.tenYearYield
+            }%, 30Y ${typeof m.fred.mort30Avg === 'number'
+                ? m.fred.mort30Avg.toFixed(2)
+                : m.fred.mort30Avg
+            }%, spread ${typeof m.fred.spread === 'number'
+                ? m.fred.spread.toFixed(2)
+                : m.fred.spread
             }%.`
             : typeof m.answer === 'string'
                 ? m.answer
@@ -173,11 +206,21 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         .map((l) => l.slice(5).trim());
 
     return (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
             <div className="meta">
-                <span>path: <b>{String(m.path ?? '—')}</b></span>
-                <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-                {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+                <span>
+                    path: <b>{String(m.path ?? '—')}</b>
+                </span>
+                <span>
+                    {' '}
+                    | usedFRED: <b>{String(headerUsedFRED)}</b>
+                </span>
+                {headerAt && (
+                    <span>
+                        {' '}
+                        | at: <b>{fmtISOshort(headerAt)}</b>
+                    </span>
+                )}
             </div>
 
             {takeaway && <div>{takeaway}</div>}
@@ -186,26 +229,36 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 <div>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
                     <ul style={{ marginTop: 0 }}>
-                        {m.tldr.map((t, i) => <li key={i}>{t}</li>)}
+                        {m.tldr.map((t, i) => (
+                            <li key={i}>{t}</li>
+                        ))}
                     </ul>
                 </div>
             )}
 
             {bullets.length > 0 && (
                 <ul style={{ marginTop: 0 }}>
-                    {bullets.map((b, i) => <li key={i}>{b}</li>)}
+                    {bullets.map((b, i) => (
+                        <li key={i}>{b}</li>
+                    ))}
                 </ul>
             )}
 
             {nexts.length > 0 && (
                 <div style={{ display: 'grid', gap: 4 }}>
-                    {nexts.map((n, i) => (<div key={i}><b>Next:</b> {n}</div>))}
+                    {nexts.map((n, i) => (
+                        <div key={i}>
+                            <b>Next:</b> {n}
+                        </div>
+                    ))}
                 </div>
             )}
 
             {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
                 <div className="panel">
-                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                        Borrower Summary
+                    </div>
                     <ul style={{ marginTop: 0 }}>
                         {m.borrowerSummary.split('\n').map((l, i) => (
                             <li key={i}>{l.replace(/^\s*[-|*]\s*/, '')}</li>
@@ -216,7 +269,8 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
             {m.paymentDelta && (
                 <div style={{ fontSize: 13 }}>
-                    Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on ${m.paymentDelta.loanAmount.toLocaleString()}.
+                    Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
+                    {m.paymentDelta.loanAmount.toLocaleString()}.
                 </div>
             )}
         </div>
@@ -226,9 +280,11 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
     const isUser = role === 'user';
     return (
-        <div className="bubble">
-            <div className={`avatar ${isUser ? 'user' : 'bot'}`}>{isUser ? 'U' : 'HR'}</div>
-            <div className={`balloon ${isUser ? 'user' : 'bot'}`}>{children}</div>
+        <div
+            className={`bubble ${isUser ? 'user' : 'assistant'}`}
+            data-role={role}
+        >
+            <div className={`balloon ${isUser ? 'user' : 'assistant'}`}>{children}</div>
         </div>
     );
 }
@@ -241,8 +297,7 @@ export default function Page() {
         {
             id: uid(),
             role: 'assistant',
-            content:
-                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
+            content: 'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
         },
     ]);
     React.useEffect(() => {
@@ -261,9 +316,9 @@ export default function Page() {
     const mode: 'borrower' = 'borrower';
 
     const [loading, setLoading] = useState(false);
-    const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>(
-        []
-    );
+    const [history, setHistory] = useState<
+        { id: string; title: string; updatedAt?: number }[]
+    >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const toggleSidebar = () => setSidebarOpen((o) => !o);
@@ -332,7 +387,10 @@ export default function Page() {
 
     // autoscroll
     useEffect(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        scrollRef.current?.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: 'smooth',
+        });
     }, [messages]);
 
     // hotkeys
@@ -387,7 +445,8 @@ export default function Page() {
                 {
                     id: uid(),
                     role: 'assistant',
-                    content: 'Restored chat (no snapshot found). Start typing to continue.',
+                    content:
+                        'Restored chat (no snapshot found). Start typing to continue.',
                 },
             ]);
         }
@@ -397,17 +456,33 @@ export default function Page() {
     function newChat() {
         const id = uid();
         setActiveId(id);
-        setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
-        setHistory((h) => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
+        setMessages([
+            {
+                id: uid(),
+                role: 'assistant',
+                content: 'New chat. What do you want to figure out?',
+            },
+        ]);
+        setHistory((h) => [
+            { id, title: 'New chat', updatedAt: Date.now() },
+            ...h,
+        ].slice(0, 20));
     }
 
-    function handleHistoryAction(action: 'rename' | 'move' | 'archive' | 'delete', id: string) {
+    function handleHistoryAction(
+        action: 'rename' | 'move' | 'archive' | 'delete',
+        id: string
+    ) {
         if (action === 'rename') {
             const current = history.find((h) => h.id === id)?.title ?? '';
             const name = prompt('Rename chat:', current);
             if (name && name.trim()) {
                 setHistory((h) =>
-                    h.map((x) => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x))
+                    h.map((x) =>
+                        x.id === id
+                            ? { ...x, title: name.trim(), updatedAt: Date.now() }
+                            : x
+                    )
                 );
             }
             return;
@@ -454,7 +529,9 @@ export default function Page() {
         if (!tid) {
             tid = uid();
             setActiveId(tid);
-            setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
+            setHistory((h) =>
+                [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20)
+            );
         } else {
             setHistory((prev) => {
                 const next = Array.isArray(prev) ? [...prev] : [];
@@ -463,7 +540,8 @@ export default function Page() {
                     const current = next[idx] ?? { id: tid!, title: 'Untitled' };
                     const needsTitle =
                         typeof current.title === 'string' &&
-                        (current.title === 'New chat' || current.title.startsWith('Untitled'));
+                        (current.title === 'New chat' ||
+                            current.title.startsWith('Untitled'));
 
                     next[idx] = {
                         ...current,
@@ -500,7 +578,8 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
+                    ? `As of ${meta.fred.asOf ?? 'recent data'
+                    }: ${typeof meta.fred.tenYearYield === 'number'
                         ? `${meta.fred.tenYearYield.toFixed(2)}%`
                         : meta.fred.tenYearYield
                     } 10Y, ${typeof meta.fred.mort30Avg === 'number'
@@ -512,12 +591,20 @@ export default function Page() {
                     }.`
                     : typeof meta.answer === 'string'
                         ? meta.answer
-                        : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
+                        : `path: ${meta.path} | usedFRED: ${String(
+                            meta.usedFRED
+                        )} | confidence: ${meta.confidence ?? '-'}`);
 
-            setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+            setMessages((m) => [
+                ...m,
+                { id: uid(), role: 'assistant', content: friendly, meta },
+            ]);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
-            setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
+            setMessages((m) => [
+                ...m,
+                { id: uid(), role: 'assistant', content: `Error: ${msg}` },
+            ]);
         } finally {
             setLoading(false);
         }
@@ -532,7 +619,10 @@ export default function Page() {
 
     function onShare() {
         const text = messages
-            .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
+            .map((m) =>
+                `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''
+                }`
+            )
             .join('\n');
         if (navigator.clipboard?.writeText) {
             navigator.clipboard.writeText(text).catch(() => { });
@@ -549,11 +639,21 @@ export default function Page() {
         }
     }
 
-    function onSettings() { setShowSettings(true); }
-    function onSearch() { setShowSearch(true); }
-    function onLibrary() { setShowLibrary(true); }
-    function onNewProject() { setShowProject(true); }
-    function onMortgageCalc() { setShowMortgageCalc(true); }
+    function onSettings() {
+        setShowSettings(true);
+    }
+    function onSearch() {
+        setShowSearch(true);
+    }
+    function onLibrary() {
+        setShowLibrary(true);
+    }
+    function onNewProject() {
+        setShowProject(true);
+    }
+    function onMortgageCalc() {
+        setShowMortgageCalc(true);
+    }
 
     function closeAllOverlays() {
         setShowSearch(false);
@@ -592,7 +692,6 @@ export default function Page() {
                     paddingBottom: 'var(--footer-h)',
                 }}
             >
-
                 <div className="header">
                     <div
                         className="header-inner"
@@ -625,14 +724,21 @@ export default function Page() {
                     </div>
                 </div>
 
-
-                <div ref={scrollRef} className="scroll" style={{ flex: 1, overflowY: 'auto' }}>
+                <div
+                    ref={scrollRef}
+                    className="scroll"
+                    style={{ flex: 1, overflowY: 'auto' }}
+                >
                     <div className="center">
                         <div className="messages">
                             {messages.map((m) => (
                                 <div key={m.id}>
                                     <Bubble role={m.role}>
-                                        {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
+                                        {m.role === 'assistant'
+                                            ? m.meta
+                                                ? <AnswerBlock meta={m.meta} />
+                                                : m.content
+                                            : m.content}
                                     </Bubble>
                                 </div>
                             ))}
@@ -640,8 +746,6 @@ export default function Page() {
                         </div>
                     </div>
                 </div>
-
-
 
                 {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
                 <div
@@ -654,7 +758,6 @@ export default function Page() {
                         background: 'transparent',
                     }}
                 >
-
                     <div
                         className="hr-composer-inner"
                         style={{
@@ -662,7 +765,7 @@ export default function Page() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            maxWidth: 640,        // line up with main column
+                            maxWidth: 640, // line up with main column
                             width: '100%',
                             margin: '0 auto',
                             padding: '8px 12px',
@@ -678,12 +781,12 @@ export default function Page() {
                             style={{
                                 flex: '1 1 auto',
                                 minWidth: 0,
-                                height: 36,            // compact (about half your old tall pill)
-                                borderRadius: 9999,    // true pill
+                                height: 36, // compact (about half your old tall pill)
+                                borderRadius: 9999, // true pill
                                 border: '1px solid #E5E7EB',
                                 padding: '6px 40px 6px 12px', // room on the right for the arrow circle
                                 background: '#FFFFFF',
-                                fontSize: 16,
+                                fontSize: 16, // >=16 prevents iOS zoom on focus
                                 lineHeight: 1.3,
                                 boxSizing: 'border-box',
                             }}
@@ -701,7 +804,7 @@ export default function Page() {
                                 right: 16,
                                 top: '50%',
                                 transform: 'translateY(-50%)',
-                                width: 24,             // small circle
+                                width: 24, // small circle
                                 height: 24,
                                 borderRadius: 9999,
                                 padding: 0,
@@ -736,216 +839,298 @@ export default function Page() {
                     </div>
                 </div>
 
-
-
-
-
-
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
-                {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
-                    <div
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label="Overlay"
-                        onClick={(e) => { if (e.target === e.currentTarget) closeAllOverlays(); }}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.35)',
-                            display: 'grid',
-                            placeItems: 'center',
-                            zIndex: 5000,
-                        }}
-                    >
+                {(showSearch ||
+                    showLibrary ||
+                    showSettings ||
+                    showProject ||
+                    showMortgageCalc) && (
                         <div
-                            className="panel"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Overlay"
+                            onClick={(e) => {
+                                if (e.target === e.currentTarget) closeAllOverlays();
+                            }}
                             style={{
-                                width: 'min(680px, 92vw)',
-                                maxHeight: '80vh',
-                                overflow: 'auto',
-                                padding: 16,
-                                borderRadius: 12,
-                                background: 'var(--card)',
-                                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                                position: 'fixed',
+                                inset: 0,
+                                background: 'rgba(0,0,0,0.35)',
                                 display: 'grid',
-                                gap: 12,
+                                placeItems: 'center',
+                                zIndex: 5000,
                             }}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ fontWeight: 700 }}>
-                                    {showSearch && 'Search'}
-                                    {showLibrary && 'Library'}
-                                    {showSettings && 'Settings'}
-                                    {showProject && 'New Project'}
-                                    {showMortgageCalc && 'Mortgage Calculator'}
-                                </div>
-                                <button className="btn" onClick={closeAllOverlays} aria-label="Close">Close</button>
-                            </div>
-
-                            {/* SEARCH */}
-                            {showSearch && (
-                                <div style={{ display: 'grid', gap: 10 }}>
-                                    <input
-                                        className="input"
-                                        placeholder="Search your current thread and history..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        autoFocus
-                                    />
-                                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                                        <div style={{ fontWeight: 600 }}>Matches in current thread</div>
-                                        <ul style={{ marginTop: 0 }}>
-                                            {messages
-                                                .filter(
-                                                    (m) =>
-                                                        typeof m.content === 'string' &&
-                                                        m.content.toLowerCase().includes(searchQuery.toLowerCase())
-                                                )
-                                                .slice(0, 12)
-                                                .map((m, i) => (
-                                                    <li key={m.id + i}>
-                                                        <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
-                                                        <span>{(m.content as string).slice(0, 200)}</span>
-                                                    </li>
-                                                ))}
-                                        </ul>
+                            <div
+                                className="panel"
+                                style={{
+                                    width: 'min(680px, 92vw)',
+                                    maxHeight: '80vh',
+                                    overflow: 'auto',
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    background: 'var(--card)',
+                                    boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                                    display: 'grid',
+                                    gap: 12,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 700 }}>
+                                        {showSearch && 'Search'}
+                                        {showLibrary && 'Library'}
+                                        {showSettings && 'Settings'}
+                                        {showProject && 'New Project'}
+                                        {showMortgageCalc && 'Mortgage Calculator'}
                                     </div>
-                                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                                        <div style={{ fontWeight: 600 }}>Matches in history titles</div>
-                                        <ul style={{ marginTop: 0 }}>
-                                            {history
-                                                .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                                                .slice(0, 20)
-                                                .map((h) => <li key={h.id}>{h.title}</li>)}
-                                        </ul>
-                                    </div>
+                                    <button className="btn" onClick={closeAllOverlays} aria-label="Close">
+                                        Close
+                                    </button>
                                 </div>
-                            )}
 
-                            {/* LIBRARY */}
-                            {showLibrary && (
-                                <div style={{ display: 'grid', gap: 10 }}>
-                                    <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
-                                    <div className="chat-list" role="list">
-                                        {history.length === 0 && (
-                                            <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
-                                                No history yet
+                                {/* SEARCH */}
+                                {showSearch && (
+                                    <div style={{ display: 'grid', gap: 10 }}>
+                                        <input
+                                            className="input"
+                                            placeholder="Search your current thread and history..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            autoFocus
+                                        />
+                                        <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                                            <div style={{ fontWeight: 600 }}>
+                                                Matches in current thread
                                             </div>
-                                        )}
-                                        {history.map((h) => (
-                                            <button
-                                                key={h.id}
-                                                className="chat-item"
-                                                role="listitem"
-                                                title={h.title}
-                                                onClick={() => onSelectHistory(h.id)}
-                                                style={{ textAlign: 'left' }}
-                                            >
-                                                {h.title}
-                                            </button>
-                                        ))}
+                                            <ul style={{ marginTop: 0 }}>
+                                                {messages
+                                                    .filter(
+                                                        (m) =>
+                                                            typeof m.content === 'string' &&
+                                                            m.content
+                                                                .toLowerCase()
+                                                                .includes(searchQuery.toLowerCase())
+                                                    )
+                                                    .slice(0, 12)
+                                                    .map((m, i) => (
+                                                        <li key={m.id + i}>
+                                                            <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
+                                                            <span>
+                                                                {(m.content as string).slice(0, 200)}
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                            </ul>
+                                        </div>
+                                        <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                                            <div style={{ fontWeight: 600 }}>
+                                                Matches in history titles
+                                            </div>
+                                            <ul style={{ marginTop: 0 }}>
+                                                {history
+                                                    .filter((h) =>
+                                                        h.title
+                                                            .toLowerCase()
+                                                            .includes(searchQuery.toLowerCase())
+                                                    )
+                                                    .slice(0, 20)
+                                                    .map((h) => (
+                                                        <li key={h.id}>{h.title}</li>
+                                                    ))}
+                                            </ul>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* SETTINGS */}
-                            {showSettings && (
-                                <div style={{ display: 'grid', gap: 10 }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <input type="checkbox" onChange={() => { /* next pass */ }} />
-                                        Compact bubbles (coming soon)
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <input type="checkbox" onChange={() => { /* next pass */ }} />
-                                        Prefer dark mode (coming soon)
-                                    </label>
-                                    <button
-                                        className="btn"
-                                        onClick={() => {
-                                            setHistory([]);
+                                {/* LIBRARY */}
+                                {showLibrary && (
+                                    <div style={{ display: 'grid', gap: 10 }}>
+                                        <div style={{ color: 'var(--text-weak)' }}>
+                                            Your recent chats:
+                                        </div>
+                                        <div className="chat-list" role="list">
+                                            {history.length === 0 && (
+                                                <div
+                                                    className="chat-item"
+                                                    style={{ opacity: 0.7 }}
+                                                    role="listitem"
+                                                >
+                                                    No history yet
+                                                </div>
+                                            )}
+                                            {history.map((h) => (
+                                                <button
+                                                    key={h.id}
+                                                    className="chat-item"
+                                                    role="listitem"
+                                                    title={h.title}
+                                                    onClick={() => onSelectHistory(h.id)}
+                                                    style={{ textAlign: 'left' }}
+                                                >
+                                                    {h.title}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* SETTINGS */}
+                                {showSettings && (
+                                    <div style={{ display: 'grid', gap: 10 }}>
+                                        <label
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                onChange={() => {
+                                                    /* next pass */
+                                                }}
+                                            />
+                                            Compact bubbles (coming soon)
+                                        </label>
+                                        <label
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                onChange={() => {
+                                                    /* next pass */
+                                                }}
+                                            />
+                                            Prefer dark mode (coming soon)
+                                        </label>
+                                        <button
+                                            className="btn"
+                                            onClick={() => {
+                                                setHistory([]);
+                                                setMessages([
+                                                    {
+                                                        id: uid(),
+                                                        role: 'assistant',
+                                                        content:
+                                                            'New chat. What do you want to figure out?',
+                                                    },
+                                                ]);
+                                                closeAllOverlays();
+                                            }}
+                                        >
+                                            Clear history & reset chat
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* NEW PROJECT */}
+                                {showProject && (
+                                    <form
+                                        onSubmit={(
+                                            e: React.FormEvent<HTMLFormElement>
+                                        ) => {
+                                            e.preventDefault();
+                                            const name =
+                                                projectName.trim() || 'Untitled Project';
+                                            const id = uid();
+                                            setActiveId(id);
+                                            setHistory((h) =>
+                                                [
+                                                    {
+                                                        id,
+                                                        title: `Project: ${name}`,
+                                                        updatedAt: Date.now(),
+                                                    },
+                                                    ...h,
+                                                ].slice(0, 20)
+                                            );
                                             setMessages([
                                                 {
                                                     id: uid(),
                                                     role: 'assistant',
-                                                    content: 'New chat. What do you want to figure out?',
+                                                    content: `New Project "${name}" started. What is the goal?`,
                                                 },
                                             ]);
+                                            setProjectName('');
                                             closeAllOverlays();
                                         }}
+                                        style={{ display: 'grid', gap: 10 }}
                                     >
-                                        Clear history & reset chat
-                                    </button>
-                                </div>
-                            )}
+                                        <input
+                                            className="input"
+                                            placeholder="Project name"
+                                            value={projectName}
+                                            onChange={(e) =>
+                                                setProjectName(e.target.value)
+                                            }
+                                            autoFocus
+                                        />
+                                        <div
+                                            style={{ display: 'flex', gap: 8 }}
+                                        >
+                                            <button
+                                                className="btn primary"
+                                                type="submit"
+                                            >
+                                                Create
+                                            </button>
+                                            <button
+                                                className="btn"
+                                                type="button"
+                                                onClick={closeAllOverlays}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
 
-                            {/* NEW PROJECT */}
-                            {showProject && (
-                                <form
-                                    onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-                                        e.preventDefault();
-                                        const name = projectName.trim() || 'Untitled Project';
-                                        const id = uid();
-                                        setActiveId(id);
-                                        setHistory((h) => [{ id, title: `Project: ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
-                                        setMessages([
-                                            {
-                                                id: uid(),
-                                                role: 'assistant',
-                                                content: `New Project "${name}" started. What is the goal?`,
-                                            },
-                                        ]);
-                                        setProjectName('');
-                                        closeAllOverlays();
-                                    }}
-                                    style={{ display: 'grid', gap: 10 }}
-                                >
-                                    <input
-                                        className="input"
-                                        placeholder="Project name"
-                                        value={projectName}
-                                        onChange={(e) => setProjectName(e.target.value)}
-                                        autoFocus
-                                    />
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <button className="btn primary" type="submit">Create</button>
-                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                                    </div>
-                                </form>
-                            )}
-
-                            {/* MORTGAGE CALCULATOR (dedicated panel) */}
-                            {showMortgageCalc && (
-                                <MortgageCalcPanel
-                                    onCancel={closeAllOverlays}
-                                    onSubmit={(res: CalcSubmitResult) => {
-                                        closeAllOverlays();
-                                        // echo a clean line + structured calc meta reply
-                                        setMessages((m) => [
-                                            ...m,
-                                            {
-                                                id: uid(),
-                                                role: 'assistant',
-                                                content: `Guided inputs -> $${fmtMoney(res.monthlyPI)} P&I on $${fmtMoney(
-                                                    res.loanAmount
-                                                )} at ${res.ratePct}% for ${res.termYears}y.`,
-                                                meta: {
-                                                    path: 'calc',
-                                                    usedFRED: false,
-                                                    generatedAt: new Date().toISOString(),
-                                                    answer: {
-                                                        loanAmount: res.loanAmount,
-                                                        monthlyPI: res.monthlyPI,
-                                                        sensitivities: res.sensitivities,
+                                {/* MORTGAGE CALCULATOR (dedicated panel) */}
+                                {showMortgageCalc && (
+                                    <MortgageCalcPanel
+                                        onCancel={closeAllOverlays}
+                                        onSubmit={(res: CalcSubmitResult) => {
+                                            closeAllOverlays();
+                                            // echo a clean line + structured calc meta reply
+                                            setMessages((m) => [
+                                                ...m,
+                                                {
+                                                    id: uid(),
+                                                    role: 'assistant',
+                                                    content: `Guided inputs -> $${fmtMoney(
+                                                        res.monthlyPI
+                                                    )} P&I on $${fmtMoney(
+                                                        res.loanAmount
+                                                    )} at ${res.ratePct}% for ${res.termYears
+                                                        }y.`,
+                                                    meta: {
+                                                        path: 'calc',
+                                                        usedFRED: false,
+                                                        generatedAt: new Date().toISOString(),
+                                                        answer: {
+                                                            loanAmount: res.loanAmount,
+                                                            monthlyPI: res.monthlyPI,
+                                                            sensitivities: res.sensitivities,
+                                                        },
                                                     },
                                                 },
-                                            },
-                                        ]);
-                                    }}
-                                />
-                            )}
+                                            ]);
+                                        }}
+                                    />
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
             </section>
         </>
     );

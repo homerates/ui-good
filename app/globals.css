@@ -135,6 +135,14 @@ body {
   overflow-y: auto;
 }
 
+/* Laptop+ view: slightly smaller, denser type inside the scroll area */
+@media (min-width: 1024px) {
+  .scroll {
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+}
+
 /* HR composer: sticky above footer by default (desktop / larger screens) */
 .hr-composer {
   position: sticky;
@@ -149,6 +157,58 @@ body {
   gap: 10px;
   margin: 8px 0;
 }
+
+/* User questions: right-aligned, darker grey pill */
+.bubble.user,
+.bubble[data-role="user"] {
+  justify-content: flex-end;
+}
+
+.bubble.user .balloon.user,
+.bubble[data-role="user"] .balloon.user {
+  background: #e5e7eb;
+  color: #111827;
+  padding: 8px 12px;
+  border-radius: 9999px;
+  max-width: 75%;
+  box-sizing: border-box;
+}
+
+/* Assistant answers: left-aligned, full-width content */
+.bubble.assistant,
+.bubble[data-role="assistant"] {
+  justify-content: flex-start;
+}
+
+.bubble.assistant .balloon.assistant,
+.bubble[data-role="assistant"] .balloon.assistant {
+  background: transparent;
+  padding: 0;
+  max-width: 100%;
+}
+
+/* Assistant answers: a bit wider and centered on larger screens */
+@media (min-width: 1024px) {
+
+  .bubble.assistant,
+  .bubble[data-role="assistant"] {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Assistant answers: a bit wider and centered on larger screens */
+@media (min-width: 1024px) {
+
+  .bubble.assistant,
+  .bubble[data-role="assistant"] {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 
 .avatar {
   width: 28px;
@@ -533,6 +593,28 @@ ul {
   display: block;
   /* optional: uncomment if you want a slight upward tilt */
   /* transform: translateY(0.5px) rotate(-25deg); */
+}
+
+/* Main answer block: centered card-like layout */
+.answer-block {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 10px;
+}
+
+/* Meta row at top (path, usedFRED, at) */
+.answer-block .meta {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+/* Bullets / TL;DR / borrower summary inside answers */
+.answer-block ul {
+  margin-top: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 /* Small screens: pin composer to bottom and prevent iOS zoom */
