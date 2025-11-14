@@ -594,12 +594,37 @@ export default function Page() {
             >
 
                 <div className="header">
-                    <div className="header-inner" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                        className="header-inner"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            paddingLeft: 8,
+                        }}
+                    >
+                        {/* HomeRates logo */}
+                        <img
+                            src="/assets/homerates-full-logo.png"
+                            alt="HomeRates.ai"
+                            style={{
+                                height: 28,
+                                width: 'auto',
+                                display: 'block',
+                            }}
+                        />
+
+                        {/* Existing hamburger menu */}
                         <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
+
+                        {/* Title */}
                         <div style={{ fontWeight: 700, marginLeft: 8 }}>Chat</div>
+
+                        {/* Right-side spacer / controls */}
                         <div style={{ marginLeft: 'auto' }} />
                     </div>
                 </div>
+
 
                 <div ref={scrollRef} className="scroll" style={{ flex: 1, overflowY: 'auto' }}>
                     <div className="center">
