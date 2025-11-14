@@ -764,14 +764,14 @@ export default function Page() {
                             position: 'relative',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
+                            // let the inner input flex control width, avoid pill growth on type
                             maxWidth: 640, // line up with main column
-                            width: '100%',
                             margin: '0 auto',
                             padding: '8px 12px',
                             boxSizing: 'border-box',
                         }}
                     >
+
                         <input
                             className="hr-composer-input"
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
