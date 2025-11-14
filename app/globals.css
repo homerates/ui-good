@@ -527,14 +527,22 @@ ul {
   /* transform: translateY(0.5px) rotate(-25deg); */
 }
 
-/* Small screens: keep the composer pill usable edge-to-edge */
+/* Small screens: keep the composer pill usable edge-to-edge and prevent iOS zoom */
 @media (max-width: 640px) {
   .composer {
     padding-left: 10px;
     padding-right: 10px;
+    box-sizing: border-box;
   }
 
   .composer-inner {
     max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* iOS Safari: font-size >= 16px prevents zooming the whole page */
+  .composer-inner .input,
+  .composer .input {
+    font-size: 16px;
   }
 }
