@@ -21,6 +21,47 @@ const fmtMoney = (n: unknown) =>
         undefined,
         { maximumFractionDigits: 2 }
     );
+// HR: keep hr-composer pinned to the visual viewport on mobile (keyboard aware)
+function useMobileComposerPin() {
+    useEffect(() => {
+        if (typeof window === 'undefined' || !(window as any).visualViewport) {
+            return;
+        }
+
+        const composer = document.querySelector<HTMLElement>(
+            '.hr-composer[data-composer="primary"]'
+        );
+        const vv = (window as any).visualViewport as any;
+
+        if (!composer || !vv) return;
+
+        const updatePosition = () => {
+            // Desktop: no special handling
+            if (window.innerWidth > 768) {
+                composer.style.transform = '';
+                return;
+            }
+
+            // How much of the layout is covered by the keyboard / viewport shift
+            const offset = window.innerHeight - vv.height - vv.offsetTop;
+            const y = offset > 0 ? offset : 0;
+
+            composer.style.transform = y > 0 ? `translateY(-${y}px)` : '';
+        };
+
+        vv.addEventListener('resize', updatePosition);
+        vv.addEventListener('scroll', updatePosition);
+        window.addEventListener('scroll', updatePosition);
+
+        updatePosition(); // run once on mount
+
+        return () => {
+            vv.removeEventListener('resize', updatePosition);
+            vv.removeEventListener('scroll', updatePosition);
+            window.removeEventListener('scroll', updatePosition);
+        };
+    }, []);
+}
 
 /* =========================
    Types
@@ -292,60 +333,18 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 /* =========================
    Page
 ========================= */
-// === Page component ===
 export default function Page() {
+    useMobileComposerPin();
+
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
             id: uid(),
             role: 'assistant',
             content:
-                'Ask about a concept (DTI, PMI, FHA) or where rates sit vs the 10-year.',
+                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
         },
     ]);
-    const [input, setInput] = useState('');
-    const [loading, setLoading] = useState(false);
 
-    // HR: pin hr-composer to the visual viewport on mobile (keyboard open)
-    useEffect(() => {
-        if (typeof window === 'undefined' || !(window as any).visualViewport) {
-            return;
-        }
-
-        const composer = document.querySelector<HTMLElement>(
-            '.hr-composer[data-composer="primary"]'
-        );
-        const vv = (window as any).visualViewport as VisualViewport;
-
-        if (!composer || !vv) return;
-
-        const updatePosition = () => {
-            // Desktop: reset transform
-            if (window.innerWidth > 768) {
-                composer.style.transform = '';
-                return;
-            }
-
-            // How much of the layout is covered by keyboard / viewport shift
-            const offset = window.innerHeight - vv.height - vv.offsetTop;
-            const y = offset > 0 ? offset : 0;
-
-            composer.style.transform = y > 0 ? `translateY(-${y}px)` : '';
-        };
-
-        vv.addEventListener('resize', updatePosition);
-        vv.addEventListener('scroll', updatePosition);
-        window.addEventListener('scroll', updatePosition);
-
-        updatePosition(); // run once on mount
-
-        return () => {
-            vv.removeEventListener('resize', updatePosition);
-            vv.removeEventListener('scroll', updatePosition);
-            window.removeEventListener('scroll', updatePosition);
-        };
-    }, []);
-
-    // Auto-scroll to bottom when a new message is added
     React.useEffect(() => {
         if (typeof window === 'undefined') return;
 
@@ -356,9 +355,9 @@ export default function Page() {
             });
         });
     }, [messages.length]);
+    const [input, setInput] = useState('');
 
     // borrower-only mode fixed
-
     const mode: 'borrower' = 'borrower';
 
     const [loading, setLoading] = useState(false);
