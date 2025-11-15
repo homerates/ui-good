@@ -68,21 +68,8 @@ export default function Sidebar({
           <span></span><span></span><span></span>
         </button>
 
-        <a
-          href="/"
-          aria-label="HomeRates.ai"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'inherit', textDecoration: 'none', fontWeight: 700 }}
-        >
-          {/* If the SVG doesn’t exist, the image 404s silently; text still shows. */}
-          <img
-            src="/HomeRates-mark.svg"
-            alt=""
-            width={18}
-            height={18}
-            style={{ display: 'block', objectFit: 'contain' }}
-          />
-          <span>HomeRates.ai</span>
-        </a>
+        <div style={{ height: 0 }} />
+
       </div>
 
       {/* Primary actions */}
