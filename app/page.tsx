@@ -866,16 +866,20 @@ export default function Page() {
                                 display: 'grid',
                                 placeItems: 'center',
                                 zIndex: 5000,
+                                padding: 16, // NEW: gives margin around the panel on all sides
+                                boxSizing: 'border-box',
                             }}
+
                         >
                             <div
                                 className="panel"
                                 style={{
-                                    width: 'min(560px, 94vw)',       // a bit narrower so it feels less “iPad on phone”
-                                    maxHeight: '80vh',               // back to a taller, natural height (no over-shrinking)
+                                    width: '100%',              // fill the padded area, not the whole screen
+                                    maxWidth: 520,              // hard cap so it doesn't feel like an iPad on phones
+                                    maxHeight: '80vh',
                                     overflowY: 'auto',
                                     padding: 16,
-                                    paddingBottom: 32,               // extra breathing room for Cancel / Calculate
+                                    paddingBottom: 32,          // gives room under the buttons
                                     borderRadius: 12,
                                     background: 'var(--card)',
                                     boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
@@ -884,6 +888,7 @@ export default function Page() {
                                     boxSizing: 'border-box',
                                 }}
                             >
+
 
                                 <div
                                     style={{
