@@ -22,47 +22,7 @@ const fmtMoney = (n: unknown) =>
         undefined,
         { maximumFractionDigits: 2 }
     );
-// HR: keep hr-composer pinned to the visual viewport on mobile (keyboard aware)
-function useMobileComposerPin() {
-    useEffect(() => {
-        if (typeof window === 'undefined' || !(window as any).visualViewport) {
-            return;
-        }
 
-        const composer = document.querySelector<HTMLElement>(
-            '.hr-composer[data-composer="primary"]'
-        );
-        const vv = (window as any).visualViewport as any;
-
-        if (!composer || !vv) return;
-
-        const updatePosition = () => {
-            // Desktop: no special handling
-            if (window.innerWidth > 768) {
-                composer.style.transform = '';
-                return;
-            }
-
-            // How much of the layout is covered by the keyboard / viewport shift
-            const offset = window.innerHeight - vv.height - vv.offsetTop;
-            const y = offset > 0 ? offset : 0;
-
-            composer.style.transform = y > 0 ? `translateY(-${y}px)` : '';
-        };
-
-        vv.addEventListener('resize', updatePosition);
-        vv.addEventListener('scroll', updatePosition);
-        window.addEventListener('scroll', updatePosition);
-
-        updatePosition(); // run once on mount
-
-        return () => {
-            vv.removeEventListener('resize', updatePosition);
-            vv.removeEventListener('scroll', updatePosition);
-            window.removeEventListener('scroll', updatePosition);
-        };
-    }, []);
-}
 
 /* =========================
    Types
