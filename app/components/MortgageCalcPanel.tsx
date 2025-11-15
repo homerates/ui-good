@@ -104,7 +104,17 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
                 margin: '0 auto',
             }}
         >
-            <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
+            <form
+                onSubmit={handleSubmit}
+                style={{
+                    display: 'grid',
+                    gap: 10,
+                    width: '100%',
+                    maxWidth: 420,   // <— this is what actually shrinks the pills
+                    margin: '0 auto',
+                }}
+            >
+
                 <div className="grid" style={{ display: 'grid', gap: 10 }}>
                     <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
                         Purchase price
