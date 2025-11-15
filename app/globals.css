@@ -182,23 +182,18 @@ body {
   justify-content: flex-start;
 }
 
-.bubble.assistant .balloon.assistant,
-.bubble[data-role="assistant"] .balloon.assistant {
-  background: transparent;
-  padding: 0;
+.bubble.assistant>.balloon.assistant,
+.bubble[data-role="assistant"]>.balloon.assistant {
+  background: #ffffff !important;
+  padding: 12px 18px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-sizing: border-box !important;
+  font-size: 0.85rem !important;
+  line-height: 1.55 !important;
   max-width: 100%;
 }
 
-/* Assistant answers: a bit wider and centered on larger screens */
-@media (min-width: 1024px) {
-
-  .bubble.assistant,
-  .bubble[data-role="assistant"] {
-    max-width: 720px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-}
 
 /* Assistant answers: a bit wider and centered on larger screens */
 @media (min-width: 1024px) {
@@ -211,6 +206,15 @@ body {
   }
 }
 
+/* Assistant answers: add side padding on smaller screens */
+@media (max-width: 1023px) {
+
+  .bubble.assistant,
+  .bubble[data-role="assistant"] {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
 
 .avatar {
   width: 28px;
@@ -713,5 +717,34 @@ ul {
   .app-main,
   .hr-main {
     padding-bottom: calc(var(--footer-h, 56px) + 88px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* HR: Assistant answers layout - narrower, centered, consistent spacing */
+.balloon.bot {
+  max-width: 640px !important;
+  /* keep answers centered like desktop */
+  width: 100%;
+  box-sizing: border-box;
+
+  margin: 12px auto !important;
+  /* center answers horizontally */
+  padding: 12px 18px !important;
+  /* add breathing room */
+
+  font-size: 0.95rem !important;
+  line-height: 1.55 !important;
+
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Mobile adjustments: keep answers off screen edges */
+@media (max-width: 768px) {
+  .balloon.bot {
+    max-width: 100% !important;
+    margin: 8px 12px !important;
+    /* keep 12px gap from edges on phones */
   }
 }
