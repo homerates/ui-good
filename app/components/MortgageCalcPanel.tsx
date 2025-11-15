@@ -97,98 +97,130 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
     const previewPI = calcPI(previewLoan, ratePct || 0, termYears || 0);
 
     return (
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 10 }}>
-            <div className="grid" style={{ display: 'grid', gap: 10 }}>
-                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                    Purchase price
-                    <input
-                        name="price"
-                        inputMode="decimal"
-                        value={price}
-                        onChange={(e) => setPrice(cleanNum(e.target.value))}
-                        className="input"
-                        autoFocus
-                        placeholder="e.g. 900000"
-                    />
-                </label>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div
+            style={{
+                width: '100%',
+                maxWidth: 420,          // <— main shrink: keeps calc narrow on mobile
+                margin: '0 auto',
+            }}
+        >
+            <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
+                <div className="grid" style={{ display: 'grid', gap: 10 }}>
                     <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                        Down payment %
+                        Purchase price
                         <input
-                            name="downPct"
+                            name="price"
                             inputMode="decimal"
-                            value={downPct}
-                            onChange={(e) => setDownPct(cleanNum(e.target.value))}
+                            value={price}
+                            onChange={(e) => setPrice(cleanNum(e.target.value))}
                             className="input"
-                            placeholder="e.g. 20"
+                            autoFocus
+                            placeholder="e.g. 900000"
                         />
                     </label>
+
+                    <div
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: 10,
+                        }}
+                    >
+                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                            Down payment %
+                            <input
+                                name="downPct"
+                                inputMode="decimal"
+                                value={downPct}
+                                onChange={(e) => setDownPct(cleanNum(e.target.value))}
+                                className="input"
+                                placeholder="e.g. 20"
+                            />
+                        </label>
+                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                            Rate %
+                            <input
+                                name="ratePct"
+                                inputMode="decimal"
+                                value={ratePct}
+                                onChange={(e) => setRatePct(cleanNum(e.target.value))}
+                                className="input"
+                                placeholder="e.g. 6.25"
+                            />
+                        </label>
+                    </div>
+
+                    <div
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: 10,
+                        }}
+                    >
+                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                            Term (years)
+                            <input
+                                name="termYears"
+                                inputMode="numeric"
+                                value={termYears}
+                                onChange={(e) => setTermYears(cleanNum(e.target.value))}
+                                className="input"
+                                placeholder="e.g. 30"
+                            />
+                        </label>
+                        <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
+                            ZIP
+                            <input
+                                name="zip"
+                                inputMode="numeric"
+                                value={zip}
+                                onChange={(e) => setZip(e.target.value.trim())}
+                                className="input"
+                                placeholder="e.g. 92688"
+                            />
+                        </label>
+                    </div>
+
                     <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                        Rate %
+                        HOA (optional)
                         <input
-                            name="ratePct"
+                            name="hoa"
                             inputMode="decimal"
-                            value={ratePct}
-                            onChange={(e) => setRatePct(cleanNum(e.target.value))}
+                            value={hoa || ''}
+                            onChange={(e) => setHoa(cleanNum(e.target.value))}
                             className="input"
-                            placeholder="e.g. 6.25"
+                            placeholder="e.g. 125"
                         />
                     </label>
+
+                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>Preview (client-side)</div>
+                        <div>Loan amount: ${money(previewLoan)}</div>
+                        <div>Monthly P&I: ${money(previewPI)}</div>
+                    </div>
+
+                    <p className="text-xs" style={{ opacity: 0.7 }}>
+                        Guided inputs only. We’ll feed these values into your chat
+                        later.
+                    </p>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                        Term (years)
-                        <input
-                            name="termYears"
-                            inputMode="numeric"
-                            value={termYears}
-                            onChange={(e) => setTermYears(cleanNum(e.target.value))}
-                            className="input"
-                            placeholder="e.g. 30"
-                        />
-                    </label>
-                    <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                        ZIP
-                        <input
-                            name="zip"
-                            inputMode="numeric"
-                            value={zip}
-                            onChange={(e) => setZip(e.target.value.trim())}
-                            className="input"
-                            placeholder="e.g. 92688"
-                        />
-                    </label>
+                <div
+                    style={{
+                        display: 'flex',
+                        gap: 8,
+                        justifyContent: 'flex-end',
+                        marginTop: 4,
+                    }}
+                >
+                    <button className="btn" type="button" onClick={onCancel}>
+                        Cancel
+                    </button>
+                    <button className="btn primary" type="submit">
+                        Calculate
+                    </button>
                 </div>
-
-                <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
-                    HOA (optional)
-                    <input
-                        name="hoa"
-                        inputMode="decimal"
-                        value={hoa || ''}
-                        onChange={(e) => setHoa(cleanNum(e.target.value))}
-                        className="input"
-                        placeholder="e.g. 125"
-                    />
-                </label>
-
-                <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Preview (client-side)</div>
-                    <div>Loan amount: ${money(previewLoan)}</div>
-                    <div>Monthly P&I: ${money(previewPI)}</div>
-                </div>
-
-                <p className="text-xs" style={{ opacity: 0.7 }}>
-                    Guided inputs only. We’ll feed these values into your chat.
-                </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button className="btn" type="button" onClick={onCancel}>Cancel</button>
-                <button className="btn primary" type="submit">Calculate</button>
-            </div>
-        </form>
+            </form>
+        </div>
     );
 }
