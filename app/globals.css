@@ -715,10 +715,3 @@ ul {
     padding-bottom: calc(var(--footer-h, 56px) + 88px + env(safe-area-inset-bottom, 0px));
   }
 }
-
-/* TEMP: visual check for mobile composer */
-@media (max-width: 768px) {
-  .hr-composer[data-composer="primary"] {
-    outline: 2px solid magenta;
-  }
-}

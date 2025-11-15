@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
 import MenuButton from './components/MenuButton';
+import { useMobileComposerPin } from './hooks/useMobileComposerPin';
 
 /* =========================
    Small helpers
