@@ -181,13 +181,13 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
                 </div>
 
                 <p className="text-xs" style={{ opacity: 0.7 }}>
-                    Guided inputs only. We’ll feed these values into your chat as a results card and wire the API later.
+                    Guided inputs only. We’ll feed these values into your chat.
                 </p>
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button className="btn" type="button" onClick={onCancel}>Cancel</button>
-                <button className="btn primary" type="submit">Use these inputs</button>
+                <button className="btn primary" type="submit">Calculate</button>
             </div>
         </form>
     );
