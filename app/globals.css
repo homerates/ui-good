@@ -680,3 +680,38 @@ ul {
     font-size: 16px;
   }
 }
+
+/* =========================
+   HR: Composer behavior
+   ========================= */
+
+/* Default / desktop: stick above the footer inside the scroll area */
+.hr-composer[data-composer="primary"] {
+  position: sticky;
+  bottom: var(--footer-h, 56px);
+  z-index: 900;
+}
+
+/* Make sure the main content leaves room so the composer doesn't cover last lines.
+   If your main wrapper class is different, swap .app-main/.hr-main accordingly. */
+.app-main,
+.hr-main {
+  padding-bottom: calc(var(--footer-h, 56px) + 72px);
+}
+
+/* Mobile: pin composer to viewport bottom while scrolling / typing */
+@media (max-width: 768px) {
+  .hr-composer[data-composer="primary"] {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 900;
+  }
+
+  /* Slightly more padding at the bottom so last answer isn't hidden */
+  .app-main,
+  .hr-main {
+    padding-bottom: calc(var(--footer-h, 56px) + 88px + env(safe-area-inset-bottom, 0px));
+  }
+}
