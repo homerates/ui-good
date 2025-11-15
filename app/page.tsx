@@ -225,7 +225,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     const bullets = contentLines
         .filter((l) => l.startsWith('- '))
         .map((l) => l.slice(2));
-
+    const showTakeaway = !!takeaway && bullets.length === 0;
     // "Next:" suggestions from the main content
     const nexts = contentLines
         .filter((l) => l.toLowerCase().startsWith('next:'))
@@ -255,7 +255,8 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 )}
             </div>
 
-            {takeaway && <div>{takeaway}</div>}
+            {showTakeaway && <div>{takeaway}</div>}
+
 
             {Array.isArray(m.tldr) && m.tldr.length > 0 && (
                 <div>
@@ -269,22 +270,24 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
             )}
 
             {bullets.length > 0 && (
-                <ul style={{ marginTop: 0 }}>
-                    {bullets.map((b, i) => (
-                        <li key={i}>{b}</li>
-                    ))}
-                </ul>
-            )}
-            {sources.length > 0 && (
                 <div>
-                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Sources</div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Summary</div>
                     <ul style={{ marginTop: 0 }}>
-                        {sources.slice(0, 3).map((s, i) => (
-                            <li key={i}>{s}</li>
+                        {bullets.map((b, i) => (
+                            <li key={i}>{b}</li>
                         ))}
                     </ul>
                 </div>
             )}
+
+            {sources.length > 0 && (
+                <ul style={{ marginTop: 0 }}>
+                    {sources.slice(0, 3).map((s, i) => (
+                        <li key={i}>{s}</li>
+                    ))}
+                </ul>
+            )}
+
 
             {nexts.length > 0 && (
                 <div style={{ display: 'grid', gap: 4 }}>
