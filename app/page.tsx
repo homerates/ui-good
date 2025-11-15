@@ -866,10 +866,9 @@ export default function Page() {
                                 display: 'grid',
                                 placeItems: 'center',
                                 zIndex: 5000,
-                                padding: 16, // NEW: gives margin around the panel on all sides
-                                boxSizing: 'border-box',
+                                maxWidth: '100vw',
+                                overflowX: 'hidden',
                             }}
-
                         >
                             <div
                                 className="panel"
