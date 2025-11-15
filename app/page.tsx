@@ -14,6 +14,7 @@ import { useMobileComposerPin } from './hooks/useMobileComposerPin';
    Small helpers
 ========================= */
 const LS_KEY = 'hr.chat.v1';
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
     iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
@@ -870,17 +871,20 @@ export default function Page() {
                             <div
                                 className="panel"
                                 style={{
-                                    width: 'min(680px, 92vw)',
-                                    maxHeight: '80vh',
-                                    overflow: 'auto',
+                                    width: 'min(560px, 94vw)',       // a bit narrower so it feels less “iPad on phone”
+                                    maxHeight: '80vh',               // back to a taller, natural height (no over-shrinking)
+                                    overflowY: 'auto',
                                     padding: 16,
+                                    paddingBottom: 32,               // extra breathing room for Cancel / Calculate
                                     borderRadius: 12,
                                     background: 'var(--card)',
                                     boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
                                     display: 'grid',
                                     gap: 12,
+                                    boxSizing: 'border-box',
                                 }}
                             >
+
                                 <div
                                     style={{
                                         display: 'flex',
