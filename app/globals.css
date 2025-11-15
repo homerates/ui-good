@@ -816,3 +816,43 @@ body {
   max-width: 100vw;
   overflow-x: hidden;
 }
+
+/* ===== Mortgage Calculator layout ===== */
+
+.mortgage-calc-panel {
+  width: 100%;
+  max-width: 420px;
+  /* overall card width inside the popup */
+  margin: 0 auto;
+}
+
+.mortgage-calc-form {
+  display: grid;
+  gap: 10px;
+}
+
+/* 2-column rows for desktop / larger screens */
+.mortgage-calc-panel .mortgage-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Prevent inputs from forcing the layout wider than the viewport */
+.mortgage-calc-panel .input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  /* <— important: overrides any global min-width */
+}
+
+/* On small phones: stack the 2-column rows so they can never overflow */
+@media (max-width: 480px) {
+  .mortgage-calc-panel {
+    max-width: 360px;
+  }
+
+  .mortgage-calc-panel .mortgage-two-col {
+    grid-template-columns: 1fr;
+  }
+}

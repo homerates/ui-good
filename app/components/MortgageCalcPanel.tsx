@@ -43,8 +43,8 @@ function calcPI(loanAmount: number, ratePct: number, termYears: number): number 
 function calcSensitivities(loanAmount: number, ratePct: number, termYears: number): Sensitivity[] {
     const deltas = [-0.25, 0, 0.25];
     return deltas.map((d) => {
-        const pct = ratePct + d;          // percent for label
-        const r = (pct / 100) / 12;       // monthly rate as fraction
+        const pct = ratePct + d;
+        const r = (pct / 100) / 12;
         const n = termYears * 12;
         const pi = loanAmount * (r / (1 - Math.pow(1 + r, -n)));
         return { rate: pct, pi: Math.round(pi * 100) / 100 };
@@ -53,10 +53,8 @@ function calcSensitivities(loanAmount: number, ratePct: number, termYears: numbe
 
 /* ========= Component ========= */
 type Props = {
-    /** Send back both the inputs and the computed result */
     onSubmit: (result: CalcSubmitResult) => void;
     onCancel: () => void;
-    /** Optional defaults to seed the form */
     defaultValues?: Partial<CalcInputs>;
 };
 
@@ -97,24 +95,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
     const previewPI = calcPI(previewLoan, ratePct || 0, termYears || 0);
 
     return (
-        <div
-            style={{
-                width: '100%',
-                maxWidth: 420,          // <— main shrink: keeps calc narrow on mobile
-                margin: '0 auto',
-            }}
-        >
-            <form
-                onSubmit={handleSubmit}
-                style={{
-                    display: 'grid',
-                    gap: 10,
-                    width: '100%',
-                    maxWidth: 420,   // <— this is what actually shrinks the pills
-                    margin: '0 auto',
-                }}
-            >
-
+        <div className="mortgage-calc-panel">
+            <form onSubmit={handleSubmit} className="mortgage-calc-form">
                 <div className="grid" style={{ display: 'grid', gap: 10 }}>
                     <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
                         Purchase price
@@ -129,13 +111,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
                         />
                     </label>
 
-                    <div
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: 10,
-                        }}
-                    >
+                    {/* 2-col: Down % / Rate % */}
+                    <div className="mortgage-two-col">
                         <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
                             Down payment %
                             <input
@@ -160,13 +137,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
                         </label>
                     </div>
 
-                    <div
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: 10,
-                        }}
-                    >
+                    {/* 2-col: Term / ZIP */}
+                    <div className="mortgage-two-col">
                         <label className="text-sm" style={{ display: 'grid', gap: 6 }}>
                             Term (years)
                             <input
@@ -210,8 +182,8 @@ export default function MortgageCalcPanel({ onSubmit, onCancel, defaultValues }:
                     </div>
 
                     <p className="text-xs" style={{ opacity: 0.7 }}>
-                        Guided inputs only. We’ll feed these values into your chat
-                        later.
+                        Guided inputs only. We’ll feed these values into your chat.
+
                     </p>
                 </div>
 
