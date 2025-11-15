@@ -748,3 +748,43 @@ ul {
     /* keep 12px gap from edges on phones */
   }
 }
+
+/* HR: Answer content + sources layout */
+
+/* Base typography + wrapping for assistant answers */
+.bubble.assistant .answer-block,
+.bubble[data-role="assistant"] .answer-block {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  word-break: break-word;
+  /* allow long tokens to wrap */
+  overflow-wrap: anywhere;
+  /* modern browsers: wrap long URLs/meta */
+}
+
+/* Sources list: "Sources" heading + smaller text */
+.bubble.assistant .answer-block ul,
+.bubble[data-role="assistant"] .answer-block ul {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  margin: 4px 0 0 0;
+  padding-left: 1.1rem;
+  list-style-type: disc;
+}
+
+/* Inject "Sources" label above the list, ChatGPT-style */
+.bubble.assistant .answer-block ul::before,
+.bubble[data-role="assistant"] .answer-block ul::before {
+  content: "Sources";
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* Visually cap at 3 sources */
+.bubble.assistant .answer-block ul li:nth-child(n + 4),
+.bubble[data-role="assistant"] .answer-block ul li:nth-child(n + 4) {
+  display: none;
+}
