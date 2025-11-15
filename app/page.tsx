@@ -178,10 +178,25 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         );
     }
 
-    const primary =
-        m.message ??
-        m.summary ??
-        (m.fred &&
+    // Raw answer text (may include a "Sources:" section)
+    const rawAnswer = typeof m.answer === 'string' ? m.answer : '';
+
+    // Split into trimmed, non-empty lines
+    const allLines = rawAnswer
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+    // Find a dedicated "Sources:" section, if present
+    const sourcesIdx = allLines.findIndex((l) => /^sources[:]?$/i.test(l));
+    const contentLines =
+        sourcesIdx >= 0 ? allLines.slice(0, sourcesIdx) : allLines;
+    const sourceLines =
+        sourcesIdx >= 0 ? allLines.slice(sourcesIdx + 1) : [];
+
+    // Optional FRED summary, same logic as before
+    const fredSummary =
+        m.fred &&
             m.fred.tenYearYield != null &&
             m.fred.mort30Avg != null &&
             m.fred.spread != null
@@ -195,18 +210,32 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 ? m.fred.spread.toFixed(2)
                 : m.fred.spread
             }%.`
-            : typeof m.answer === 'string'
-                ? m.answer
-                : '');
+            : '';
 
-    const lines = (typeof m.answer === 'string' ? m.answer : '')
-        .split('\n')
-        .map((s) => s.trim());
-    const takeaway = primary || lines[0] || '';
-    const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
-    const nexts = lines
+    // Main answer text: message/summary if present, else FRED summary, else
+    // the answer content *before* any "Sources:" section.
+    const primary =
+        m.message ??
+        m.summary ??
+        (fredSummary || (contentLines.length ? contentLines.join(' ') : rawAnswer));
+
+    const takeaway = primary;
+
+    // Generic bullets from the main content (non-Sources)
+    const bullets = contentLines
+        .filter((l) => l.startsWith('- '))
+        .map((l) => l.slice(2));
+
+    // "Next:" suggestions from the main content
+    const nexts = contentLines
         .filter((l) => l.toLowerCase().startsWith('next:'))
         .map((l) => l.slice(5).trim());
+
+    // Source bullets from the dedicated Sources section (if any)
+    const sources = sourceLines
+        .filter((l) => l.startsWith('- '))
+        .map((l) => l.slice(2));
+
 
     return (
         <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
@@ -245,6 +274,16 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                         <li key={i}>{b}</li>
                     ))}
                 </ul>
+            )}
+            {sources.length > 0 && (
+                <div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Sources</div>
+                    <ul style={{ marginTop: 0 }}>
+                        {sources.slice(0, 3).map((s, i) => (
+                            <li key={i}>{s}</li>
+                        ))}
+                    </ul>
+                </div>
             )}
 
             {nexts.length > 0 && (
