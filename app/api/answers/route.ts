@@ -342,6 +342,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   // === GROK FINAL BRAIN: optional, non-breaking ===
   let grokFinal: any = null;
+  console.log("XAI_API_KEY loaded:", !!process.env.XAI_API_KEY);
   if (process.env.XAI_API_KEY) {
     try {
       const grokPrompt = `
