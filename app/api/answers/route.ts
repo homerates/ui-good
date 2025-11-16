@@ -340,20 +340,16 @@ async function handle(req: NextRequest, intentParam?: string) {
     .filter(Boolean)
     .join("\n\n");
 
-  // === GROK FINAL BRAIN: FIXED CONTEXT ===
+  // === GROK FINAL BRAIN: FINAL VERSION ===
   let grokFinal: any = null;
-  console.log("Grok: Starting... XAI_API_KEY exists:", !!process.env.XAI_API_KEY);
-
   if (process.env.XAI_API_KEY) {
     try {
-      console.log("Grok: Sending request...");
-
       const grokPrompt = `
-      You are a US homebuyer mortgage assistant.
+      You are a US mortgage AI assistant for homebuyers.
       Question: "${question}"
-      Context: This is about home loans, not economics or PMI index.
-      Use data from FRED/Tavily if available.
-      Respond in clean JSON: { answer: "3 sentences", next_step: "1 action", follow_up: "1 question" }
+      This is about home loans — NOT economic PMI index.
+      Use FRED/Tavily data if available.
+      Answer in clean JSON: { answer: "3 sentences", next_step: "1 action", follow_up: "1 question" }
     `.trim();
 
       const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -369,17 +365,12 @@ async function handle(req: NextRequest, intentParam?: string) {
         })
       });
 
-      console.log("Grok: Status:", grokRes.status);
       if (!grokRes.ok) throw new Error(`HTTP ${grokRes.status}`);
-
       const grokData = await grokRes.json();
       const content = grokData.choices?.[0]?.message?.content;
-      if (content) {
-        grokFinal = JSON.parse(content);
-        console.log("Grok: Success:", grokFinal);
-      }
-    } catch (e: any) {
-      console.error("Grok: FAILED:", e.message);
+      if (content) grokFinal = JSON.parse(content);
+    } catch (e) {
+      console.error("Grok failed:", e);
     }
   }
   // =======================================
