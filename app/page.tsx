@@ -582,12 +582,10 @@ export default function Page() {
             });
 
             const data = await r.json();
-            // ← KEEP YOUR EXISTING SUCCESS CODE HERE (e.g., add to chat, update UI)
-
-            wchar_t
+            // ← YOUR EXISTING SUCCESS CODE GOES HERE
         } catch (e) {
             console.error('Send failed:', e);
-            // ← KEEP YOUR EXISTING ERROR HANDLING HERE
+            // ← YOUR EXISTING ERROR HANDLING GOES HERE
         }
 
         const meta = await safeJson(r);
