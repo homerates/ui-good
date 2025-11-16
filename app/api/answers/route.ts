@@ -280,9 +280,9 @@ async function handle(req: NextRequest, intentParam?: string) {
   }
 
   // 1) Web-first answer
-  let tav = await askTavily(req, `${question} 2025`, { depth: "basic", max: 6 });  // Add "2025" for freshness
+  let tav = await askTavily(req, `${question} 2025 mortgage insurance -pmi.org -project -management`, { depth: "basic", max: 6 });
   if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
-    tav = await askTavily(req, question, { depth: "advanced", max: 8 });
+    tav = await askTavily(req, `${question} mortgage insurance -pmi.org`, { depth: "advanced", max: 8 });
   }
   const usedTavily = tav.ok && (tav.answer !== null || tav.results.length > 0);
 
