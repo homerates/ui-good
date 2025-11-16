@@ -231,16 +231,25 @@ async function summarizeWithOpenAI(text: string): Promise<string | null> {
 
 /* ===== Core handler (same response shape as yours) ===== */
 async function handle(req: NextRequest, intentParam?: string) {
-  type Body = { question?: string; intent?: string; mode?: "borrower" | "public" };
+  type Body = {
+    question?: string;
+    intent?: string;
+    mode?: "borrower" | "public";
+    userId?: string; // ← ADDED
+  };
 
   const generatedAt = new Date().toISOString();
   const path = "web";
   const tag = "answers-v2";
 
   let body: Body = {};
+  let userId: string | undefined;
+
   if (req.method === "POST") {
     try {
-      body = (await req.json()) as Body;
+      const raw = await req.json();
+      body = raw as Body;
+      userId = raw.userId; // ← EXTRACTED
     } catch {
       body = {};
     }
@@ -376,16 +385,16 @@ async function handle(req: NextRequest, intentParam?: string) {
     }
   }
   // === AUTO-SAVE GROK ANSWER TO LIBRARY ===
-  if (grokFinal && body.userId) {
+  if (grokFinal && userId) {
     await fetch(`${req.headers.get('origin')}/api/library`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        clerkUserId: body.userId,
-        question,
+        clerkUserId: userId,
+        question: body.question || '',
         answer: grokFinal,
       }),
-    }).catch(() => { }); // fire-and-forget
+    }).catch(() => { });
   }
   // =========================================
   // =======================================
