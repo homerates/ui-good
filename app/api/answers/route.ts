@@ -340,47 +340,57 @@ async function handle(req: NextRequest, intentParam?: string) {
     .filter(Boolean)
     .join("\n\n");
 
-  // === GROK FINAL BRAIN: optional, non-breaking ===
+  // === GROK FINAL BRAIN: DEBUG MODE ===
   let grokFinal: any = null;
-  console.log("XAI_API_KEY loaded:", !!process.env.XAI_API_KEY);
+  console.log("Grok: Starting... XAI_API_KEY exists:", !!process.env.XAI_API_KEY);
+
   if (process.env.XAI_API_KEY) {
     try {
+      console.log("Grok: Sending request to x.ai...");
+
       const grokPrompt = `
-Question: "${question}"
-Topic: ${topic}
-FRED: 10y=${fred.tenYearYield ?? "—"}%, 30y avg=${fred.mort30Avg ?? "—"
-        }%, spread=${fred.spread ?? "—"}
-Tavily Answer: ${tav.answer || "None"}
-Key Sources: ${topSources.map((s) => s.title).join(" | ")}
+      Question: "${question}"
+      Answer in 1 sentence: What is PMI?
+    `.trim();
 
-Respond in clean, structured JSON for a US homebuyer. Be direct, jargon-free, and actionable.
-Include: answer (3 sentences), piti_example (if relevant), next_step, follow_up.
-Use real numbers from FRED/Tavily when possible.
-      `.trim();
-
-      const grokRes = await fetch("https://api.x.ai/v1/chat/completions", {
-        method: "POST",
+      const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${process.env.XAI_API_KEY}`,
-          "Content-Type": "application/json",
+          'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: "grok-3",
-          messages: [{ role: "user", content: grokPrompt }],
-          response_format: { type: "json_object" },
-        }),
+          model: 'grok-3',
+          messages: [{ role: 'user', content: grokPrompt }],
+          response_format: { type: 'json_object' }
+        })
       });
 
+      console.log("Grok: Status:", grokRes.status);
+
+      if (!grokRes.ok) {
+        const errorText = await grokRes.text();
+        console.error("Grok: API Error:", errorText);
+        throw new Error(`HTTP ${grokRes.status}`);
+      }
+
       const grokData = await grokRes.json();
-      const content = grokData?.choices?.[0]?.message?.content;
+      console.log("Grok: Raw response:", JSON.stringify(grokData).slice(0, 500));
+
+      const content = grokData.choices?.[0]?.message?.content;
       if (content) {
         grokFinal = JSON.parse(content);
+        console.log("Grok: Success! Parsed answer:", grokFinal);
+      } else {
+        console.error("Grok: No content in response");
       }
-    } catch (e) {
-      console.error("Grok failed:", e);
-      // Fallback: keep existing answer
+    } catch (e: any) {
+      console.error("Grok: FAILED:", e.message || e);
     }
+  } else {
+    console.error("Grok: XAI_API_KEY is MISSING");
   }
+  // =======================================
 
   const legacyAnswer = [
     intro,
