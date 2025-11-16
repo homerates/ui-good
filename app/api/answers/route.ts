@@ -340,17 +340,20 @@ async function handle(req: NextRequest, intentParam?: string) {
     .filter(Boolean)
     .join("\n\n");
 
-  // === GROK FINAL BRAIN: DEBUG MODE ===
+  // === GROK FINAL BRAIN: FIXED CONTEXT ===
   let grokFinal: any = null;
   console.log("Grok: Starting... XAI_API_KEY exists:", !!process.env.XAI_API_KEY);
 
   if (process.env.XAI_API_KEY) {
     try {
-      console.log("Grok: Sending request to x.ai...");
+      console.log("Grok: Sending request...");
 
       const grokPrompt = `
+      You are a US homebuyer mortgage assistant.
       Question: "${question}"
-      Answer in 1 sentence: What is PMI?
+      Context: This is about home loans, not economics or PMI index.
+      Use data from FRED/Tavily if available.
+      Respond in clean JSON: { answer: "3 sentences", next_step: "1 action", follow_up: "1 question" }
     `.trim();
 
       const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -367,31 +370,19 @@ async function handle(req: NextRequest, intentParam?: string) {
       });
 
       console.log("Grok: Status:", grokRes.status);
-
-      if (!grokRes.ok) {
-        const errorText = await grokRes.text();
-        console.error("Grok: API Error:", errorText);
-        throw new Error(`HTTP ${grokRes.status}`);
-      }
+      if (!grokRes.ok) throw new Error(`HTTP ${grokRes.status}`);
 
       const grokData = await grokRes.json();
-      console.log("Grok: Raw response:", JSON.stringify(grokData).slice(0, 500));
-
       const content = grokData.choices?.[0]?.message?.content;
       if (content) {
         grokFinal = JSON.parse(content);
-        console.log("Grok: Success! Parsed answer:", grokFinal);
-      } else {
-        console.error("Grok: No content in response");
+        console.log("Grok: Success:", grokFinal);
       }
     } catch (e: any) {
-      console.error("Grok: FAILED:", e.message || e);
+      console.error("Grok: FAILED:", e.message);
     }
-  } else {
-    console.error("Grok: XAI_API_KEY is MISSING");
   }
   // =======================================
-
   const legacyAnswer = [
     intro,
     bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
