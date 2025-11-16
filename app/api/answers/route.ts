@@ -280,7 +280,7 @@ async function handle(req: NextRequest, intentParam?: string) {
   }
 
   // 1) Web-first answer
-  let tav = await askTavily(req, question, { depth: "basic", max: 6 });
+  let tav = await askTavily(req, `${question} 2025`, { depth: "basic", max: 6 });  // Add "2025" for freshness
   if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
     tav = await askTavily(req, question, { depth: "advanced", max: 8 });
   }
@@ -345,12 +345,14 @@ async function handle(req: NextRequest, intentParam?: string) {
   if (process.env.XAI_API_KEY) {
     try {
       const grokPrompt = `
-      You are a US mortgage AI assistant for homebuyers.
-      Question: "${question}"
-      This is about home loans — NOT economic PMI index.
-      Use FRED/Tavily data if available.
-      Answer in clean JSON: { answer: "3 sentences", next_step: "1 action", follow_up: "1 question" }
-    `.trim();
+  You are a US mortgage AI assistant for homebuyers. Use ONLY 2025 data (ignore 2023/2024).
+  Question: "${question}"
+  Context: Home loans only. FRED: 10y=$$ {fred.tenYearYield ?? "—"}%, 30y avg= $${fred.mort30Avg ?? "—"}% (as of Nov 16, 2025).
+  Tavily: ${tav.answer || "None"}. Sources: ${topSources.map(s => s.title).join(" | ")}.
+  If data is outdated, say "Check latest at HUD/Freddie Mac."
+  JSON: { answer: "3 timely sentences", piti_example: "if relevant", next_step: "1 action", follow_up: "1 question" }
+`.trim();
+
 
       const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
@@ -407,8 +409,11 @@ async function handle(req: NextRequest, intentParam?: string) {
     follow_up: followUp,
     cta: followUp,
 
-    // === GROK-POWERED STRUCTURED ANSWER ===
+    // === GROK + FRESHNESS ===
     grok: grokFinal || null,
+    data_freshness: grokFinal ? "2025" : "Check sources—may be pre-2025",
+    // =========================
+
     message: grokFinal?.answer || legacyAnswer,
     answer: grokFinal?.answer || legacyAnswer,
     answerMarkdown: grokFinal
