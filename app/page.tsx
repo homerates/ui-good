@@ -20,7 +20,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
     iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
 const fmtMoney = (n: unknown) =>
-    (typeof n === 'number' && && Number.isFinite(n) ? n : 0).toLocaleString(
+    (typeof n === 'number' && Number.isFinite(n) ? n : 0).toLocaleString(
         undefined,
         { maximumFractionDigits: 2 }
     );
