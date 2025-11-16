@@ -106,12 +106,15 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     type NestedMeta = {
         meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
     };
+
     const m = meta as ApiResponse & NestedMeta;
+
     const headerPath = (m.path ?? m.meta?.path ?? '—') as ApiResponse['path'] | '—';
     const headerUsedFRED =
         typeof m.usedFRED === 'boolean' ? m.usedFRED : m.meta?.usedFRED ?? false;
     const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
 
+    /* ===== CALC ANSWERS (unchanged behavior) ===== */
     if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
         const a = m.answer as CalcAnswer;
         return (
@@ -137,8 +140,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                         <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
                     </div>
                     <div>
-                        <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
-                    </div>
+                        <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}</div>
                 </div>
 
                 {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
@@ -178,23 +180,25 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         );
     }
 
-    // Raw answer text (may include a "Sources:" section)
+    /* ===== NON-CALC ANSWERS ===== */
+
+    // Raw answer text (may include a "Sources:" section at the bottom)
     const rawAnswer = typeof m.answer === 'string' ? m.answer : '';
 
-    // Split into trimmed, non-empty lines
     const allLines = rawAnswer
         .split('\n')
         .map((s) => s.trim())
         .filter(Boolean);
 
-    // Find a dedicated "Sources:" section, if present
+    // Look for a dedicated "Sources:" line
     const sourcesIdx = allLines.findIndex((l) => /^sources[:]?$/i.test(l));
+
     const contentLines =
         sourcesIdx >= 0 ? allLines.slice(0, sourcesIdx) : allLines;
     const sourceLines =
         sourcesIdx >= 0 ? allLines.slice(sourcesIdx + 1) : [];
 
-    // Optional FRED summary, same logic as before
+    // Optional FRED summary (same logic as before)
     const fredSummary =
         m.fred &&
             m.fred.tenYearYield != null &&
@@ -212,30 +216,33 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
             }%.`
             : '';
 
-    // Main answer text: message/summary if present, else FRED summary, else
-    // the answer content *before* any "Sources:" section.
-    const primary =
+    // Main answer body:
+    // message/summary if present, else FRED summary,
+    // else everything *before* "Sources:" joined with line breaks,
+    // else fall back to the raw answer.
+    const mainBody =
         m.message ??
         m.summary ??
-        (fredSummary || (contentLines.length ? contentLines.join(' ') : rawAnswer));
+        (fredSummary ||
+            (contentLines.length ? contentLines.join('\n') : rawAnswer));
 
-    const takeaway = primary;
+    // Summary bullets: use the content lines (before "Sources:"),
+    // but skip explicit "Next:" lines.
+    const summaryBullets = contentLines
+        .filter((l) => !l.toLowerCase().startsWith('next:'))
+        .filter(Boolean);
 
-    // Generic bullets from the main content (non-Sources)
-    const bullets = contentLines
-        .filter((l) => l.startsWith('- '))
-        .map((l) => l.slice(2));
-    const showTakeaway = !!takeaway && bullets.length === 0;
-    // "Next:" suggestions from the main content
+    // "Next:" suggestions from the content
     const nexts = contentLines
         .filter((l) => l.toLowerCase().startsWith('next:'))
-        .map((l) => l.slice(5).trim());
+        .map((l) => l.slice(5).trim())
+        .filter(Boolean);
 
-    // Source bullets from the dedicated Sources section (if any)
+    // Sources: lines after "Sources:", normalize by stripping leading "- "
     const sources = sourceLines
-        .filter((l) => l.startsWith('- '))
-        .map((l) => l.slice(2));
-
+        .map((line) => line.replace(/^-+\s*/, '').trim())
+        .filter(Boolean)
+        .slice(0, 3); // cap at 3
 
     return (
         <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
@@ -255,40 +262,35 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 )}
             </div>
 
-            {showTakeaway && <div>{takeaway}</div>}
-
-
-            {Array.isArray(m.tldr) && m.tldr.length > 0 && (
-                <div>
-                    <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
-                    <ul style={{ marginTop: 0 }}>
-                        {m.tldr.map((t, i) => (
-                            <li key={i}>{t}</li>
-                        ))}
-                    </ul>
+            {/* Main answer body (multi-line) */}
+            {mainBody && (
+                <div style={{ whiteSpace: 'pre-line' }}>
+                    {mainBody}
                 </div>
             )}
 
-            {bullets.length > 0 && (
+            {/* Summary in bullet points */}
+            {summaryBullets.length > 0 && (
                 <div>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>Summary</div>
                     <ul style={{ marginTop: 0 }}>
-                        {bullets.map((b, i) => (
+                        {summaryBullets.map((b, i) => (
                             <li key={i}>{b}</li>
                         ))}
                     </ul>
                 </div>
             )}
 
+            {/* Sources (up to 3), no inline "Sources:" text */}
             {sources.length > 0 && (
                 <ul style={{ marginTop: 0 }}>
-                    {sources.slice(0, 3).map((s, i) => (
+                    {sources.map((s, i) => (
                         <li key={i}>{s}</li>
                     ))}
                 </ul>
             )}
 
-
+            {/* Optional "Next:" suggestions */}
             {nexts.length > 0 && (
                 <div style={{ display: 'grid', gap: 4 }}>
                     {nexts.map((n, i) => (
@@ -299,6 +301,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 </div>
             )}
 
+            {/* Borrower summary (unchanged) */}
             {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
                 <div className="panel">
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>
@@ -312,6 +315,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 </div>
             )}
 
+            {/* Payment delta (unchanged) */}
             {m.paymentDelta && (
                 <div style={{ fontSize: 13 }}>
                     Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
@@ -321,6 +325,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         </div>
     );
 }
+
 
 function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
     const isUser = role === 'user';
