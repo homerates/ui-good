@@ -31,6 +31,7 @@ function isTavilyResultArray(v: unknown): v is TavilyResult[] {
     })
   );
 }
+
 function isTavilyMini(v: unknown): v is TavilyMini {
   if (!v || typeof v !== "object") return false;
   const obj = v as Record<string, unknown>;
@@ -45,6 +46,7 @@ function isTavilyMini(v: unknown): v is TavilyMini {
 function firstParagraph(s: string, max = 800) {
   return (s.split(/\n+/)[0]?.trim() ?? "").slice(0, max);
 }
+
 function bulletsFrom(text: string, max = 4): string[] {
   const raw = text
     .split(/(?:\n+|(?<=\.)\s+)/)
@@ -52,6 +54,7 @@ function bulletsFrom(text: string, max = 4): string[] {
     .filter(Boolean);
   const seen = new Set<string>();
   const out: string[] = [];
+
   for (const line of raw) {
     const key = line.toLowerCase();
     if (!seen.has(key)) {
@@ -60,6 +63,7 @@ function bulletsFrom(text: string, max = 4): string[] {
     }
     if (out.length >= max) break;
   }
+
   return out;
 }
 
@@ -87,6 +91,7 @@ function topicFromQuestion(q: string): Topic {
   if (/\bdscr\b/.test(s)) return "dscr";
   return "general";
 }
+
 function followUpFor(topic: Topic): string {
   switch (topic) {
     case "pmi":
@@ -117,6 +122,7 @@ async function askTavily(
   opts?: { depth?: "basic" | "advanced"; max?: number }
 ): Promise<TavilyMini> {
   if (!TAVILY_API_KEY) return { ok: false, answer: null, results: [] };
+
   const url = new URL("/api/tavily", req.url);
   const res = await fetch(url.toString(), {
     method: "POST",
@@ -128,10 +134,14 @@ async function askTavily(
     }),
     cache: "no-store",
   });
+
   let parsed: unknown = null;
   try {
     parsed = await res.json();
-  } catch {/* ignore */ }
+  } catch {
+    /* ignore */
+  }
+
   if (isTavilyMini(parsed)) return parsed;
 
   const obj = (parsed ?? {}) as Record<string, unknown>;
@@ -148,44 +158,69 @@ type FredSnap = {
   spread: number | null;
   asOf: string | null;
 };
+
 async function getFredSnapshot(): Promise<FredSnap> {
-  if (!FRED_API_KEY) return { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
-  // Latest observations for DGS10 and MORTGAGE30US (default last=1)
+  if (!FRED_API_KEY) {
+    return { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
+  }
+
   const [dgs10, m30] = await Promise.all([
-    fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`, { cache: "no-store" }).then(r => r.json()).catch(() => null),
-    fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=MORTGAGE30US&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`, { cache: "no-store" }).then(r => r.json()).catch(() => null),
+    fetch(
+      `https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`,
+      { cache: "no-store" }
+    )
+      .then((r) => r.json())
+      .catch(() => null),
+    fetch(
+      `https://api.stlouisfed.org/fred/series/observations?series_id=MORTGAGE30US&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`,
+      { cache: "no-store" }
+    )
+      .then((r) => r.json())
+      .catch(() => null),
   ]);
 
   const d = (dgs10?.observations?.[0]?.value ?? null) as string | null;
   const m = (m30?.observations?.[0]?.value ?? null) as string | null;
-  const asOf = (m30?.observations?.[0]?.date ?? dgs10?.observations?.[0]?.date ?? null) as string | null;
+  const asOf = (m30?.observations?.[0]?.date ??
+    dgs10?.observations?.[0]?.date ??
+    null) as string | null;
 
   const tenYearYield = d && d !== "." ? Number(d) : null;
   const mort30Avg = m && m !== "." ? Number(m) : null;
-  const spread = tenYearYield != null && mort30Avg != null ? Number((mort30Avg - tenYearYield).toFixed(2)) : null;
+  const spread =
+    tenYearYield != null && mort30Avg != null
+      ? Number((mort30Avg - tenYearYield).toFixed(2))
+      : null;
+
   return { tenYearYield, mort30Avg, spread, asOf };
 }
 
 /* ===== Optional OpenAI summarizer for Tavily text ===== */
 async function summarizeWithOpenAI(text: string): Promise<string | null> {
   if (!OPENAI_API_KEY || !text) return null;
+
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "authorization": `Bearer ${OPENAI_API_KEY}`,
+        authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "Summarize clearly for a US mortgage audience. Keep it concise. Include 2–4 bullet points." },
+          {
+            role: "system",
+            content:
+              "Summarize clearly for a US mortgage audience. Keep it concise. Include 2–4 bullet points.",
+          },
           { role: "user", content: text },
         ],
         temperature: 0.2,
         max_tokens: 300,
       }),
     });
+
     const json = await res.json();
     const out = json?.choices?.[0]?.message?.content;
     return typeof out === "string" ? out : null;
@@ -197,26 +232,45 @@ async function summarizeWithOpenAI(text: string): Promise<string | null> {
 /* ===== Core handler (same response shape as yours) ===== */
 async function handle(req: NextRequest, intentParam?: string) {
   type Body = { question?: string; intent?: string; mode?: "borrower" | "public" };
+
   const generatedAt = new Date().toISOString();
   const path = "web";
   const tag = "answers-v2";
 
   let body: Body = {};
   if (req.method === "POST") {
-    try { body = (await req.json()) as Body; } catch { body = {}; }
+    try {
+      body = (await req.json()) as Body;
+    } catch {
+      body = {};
+    }
   }
 
-  const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
+  const question = (
+    req.nextUrl.searchParams.get("q") ||
+    body.question ||
+    ""
+  ).trim();
   const intent = (intentParam || body.intent || "web").trim() || "web";
 
   if (!question) {
     const followUp =
       "Ask a specific mortgage question (e.g., PMI at 5% down or today’s rate drivers). I’ll include sources when available.";
     return noStore({
-      ok: true, route: "answers", intent, path, tag, generatedAt,
-      usedFRED: false, usedTavily: Boolean(TAVILY_API_KEY),
-      message: followUp, answerMarkdown: "", sources: [],
-      followUp, follow_up: followUp, cta: followUp,
+      ok: true,
+      route: "answers",
+      intent,
+      path,
+      tag,
+      generatedAt,
+      usedFRED: false,
+      usedTavily: Boolean(TAVILY_API_KEY),
+      message: followUp,
+      answerMarkdown: "",
+      sources: [],
+      followUp,
+      follow_up: followUp,
+      cta: followUp,
       suggest: [
         "Explain PMI for a Conventional loan with 5% down and ~720 credit in California.",
         "Are 30-year fixed rates trending up this week? Cite two sources.",
@@ -235,16 +289,20 @@ async function handle(req: NextRequest, intentParam?: string) {
   // 2) Optional FRED snapshot for rate/10y topics
   const topic = topicFromQuestion(question);
   const wantFred = topic === "rates";
-  const fred = wantFred ? await getFredSnapshot() : { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
-  const usedFRED = wantFred && (fred.tenYearYield !== null || fred.mort30Avg !== null);
+  const fred = wantFred
+    ? await getFredSnapshot()
+    : { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
+  const usedFRED =
+    wantFred &&
+    (fred.tenYearYield !== null || fred.mort30Avg !== null);
 
   // 3) Build answer (prefer Tavily answer; else summarize results; else minimal baseline)
   let base =
-    (tav.answer ?? "") ||
-    (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ?? "");
+    tav.answer ??
+    (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ??
+      "");
 
   if (!base && tav.results.length > 0) {
-    // Try LLM summarizer on concatenated snippets
     const concat = tav.results
       .map((r) => `${r.title}\n${r.content ?? ""}`)
       .join("\n\n")
@@ -262,40 +320,108 @@ async function handle(req: NextRequest, intentParam?: string) {
   // 4) Markdown + legacy message
   const intro = firstParagraph(base, 800);
   const bullets = bulletsFrom(base, 4);
-  const topSources = (tav.results || []).slice(0, 3).map((s) => ({ title: s.title, url: s.url }));
-  const sourcesMd = topSources.map((s) => `- [${s.title}](${s.url})`).join("\n");
+  const topSources = (tav.results || [])
+    .slice(0, 3)
+    .map((s) => ({ title: s.title, url: s.url }));
+  const sourcesMd = topSources
+    .map((s) => `- [${s.title}](${s.url})`)
+    .join("\n");
 
-  const fredLine =
-    usedFRED
-      ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"}%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
-      : "";
+  const fredLine = usedFRED
+    ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"}%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
+    : "";
 
   const answerMarkdown = [
     intro,
     bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
     topSources.length ? `\n**Sources**\n${sourcesMd}` : "",
     fredLine,
-  ].filter(Boolean).join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  // === GROK FINAL BRAIN: optional, non-breaking ===
+  let grokFinal: any = null;
+  if (process.env.XAI_API_KEY) {
+    try {
+      const grokPrompt = `
+Question: "${question}"
+Topic: ${topic}
+FRED: 10y=${fred.tenYearYield ?? "—"}%, 30y avg=${fred.mort30Avg ?? "—"
+        }%, spread=${fred.spread ?? "—"}
+Tavily Answer: ${tav.answer || "None"}
+Key Sources: ${topSources.map((s) => s.title).join(" | ")}
+
+Respond in clean, structured JSON for a US homebuyer. Be direct, jargon-free, and actionable.
+Include: answer (3 sentences), piti_example (if relevant), next_step, follow_up.
+Use real numbers from FRED/Tavily when possible.
+      `.trim();
+
+      const grokRes = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "grok-3",
+          messages: [{ role: "user", content: grokPrompt }],
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      const grokData = await grokRes.json();
+      const content = grokData?.choices?.[0]?.message?.content;
+      if (content) {
+        grokFinal = JSON.parse(content);
+      }
+    } catch (e) {
+      console.error("Grok failed:", e);
+      // Fallback: keep existing answer
+    }
+  }
 
   const legacyAnswer = [
     intro,
     bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
-    topSources.length ? `Sources:\n${topSources.map((s) => `- ${s.title} — ${s.url}`).join("\n")}` : "",
-    usedFRED
-      ? `FRED snapshot: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"}%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
+    topSources.length
+      ? `Sources:\n${topSources
+        .map((s) => `- ${s.title} — ${s.url}`)
+        .join("\n")}`
       : "",
-  ].filter(Boolean).join("\n\n");
+    usedFRED
+      ? `FRED snapshot: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"
+      }%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   const followUp = followUpFor(topic);
 
   return noStore({
-    ok: true, route: "answers", intent, path, tag, generatedAt,
-    usedFRED, usedTavily,
-    // optional fred block if your UI ever reads it
+    ok: true,
+    route: "answers",
+    intent,
+    path,
+    tag,
+    generatedAt,
+    usedFRED,
+    usedTavily,
     fred: usedFRED ? fred : undefined,
-    answerMarkdown, sources: topSources,
-    followUp, follow_up: followUp, cta: followUp,
-    message: legacyAnswer, answer: legacyAnswer,
+    sources: topSources,
+    followUp,
+    follow_up: followUp,
+    cta: followUp,
+
+    // === GROK-POWERED STRUCTURED ANSWER ===
+    grok: grokFinal || null,
+    message: grokFinal?.answer || legacyAnswer,
+    answer: grokFinal?.answer || legacyAnswer,
+    answerMarkdown: grokFinal
+      ? `**Answer**\n${grokFinal.answer}\n\n**Next Step**\n${grokFinal.next_step}\n\n**Sources**\n${sourcesMd}${fredLine}`
+      : answerMarkdown,
+
     suggest: [
       "Explain PMI for a Conventional loan with 5% down and ~720 credit in California.",
       "Are 30-year fixed rates trending up this week? Cite two sources.",
@@ -304,8 +430,11 @@ async function handle(req: NextRequest, intentParam?: string) {
   });
 }
 
-/* ===== Entry points ===== */
-export async function POST(req: NextRequest) { return handle(req); }
+// ===== Entry points =====
+export async function POST(req: NextRequest) {
+  return handle(req);
+}
+
 export async function GET(req: NextRequest) {
   const intent = (req.nextUrl.searchParams.get("intent") ?? "").trim();
   return handle(req, intent);
