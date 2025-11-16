@@ -566,20 +566,29 @@ export default function Page() {
         setInput('');
         setLoading(true);
 
+        try {
+            const { user } = useUser();
 
-        const { user } = useUser();
+            const body: { question: string; mode: 'borrower'; userId?: string } = {
+                question: q,
+                mode: 'borrower',
+                ...(user?.id && { userId: user.id }),
+            };
 
-        const body: { question: string; mode: 'borrower'; userId?: string } = {
-            question: q,
-            mode: 'borrower',
-            ...(user?.id && { userId: user.id }),
-        };
+            const r = await fetch('/api/answers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
 
-        const r = await fetch('/api/answers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
+            const data = await r.json();
+            // ← KEEP YOUR EXISTING SUCCESS CODE HERE (e.g., add to chat, update UI)
+
+            wchar_t
+        } catch (e) {
+            console.error('Send failed:', e);
+            // ← KEEP YOUR EXISTING ERROR HANDLING HERE
+        }
 
         const meta = await safeJson(r);
 
