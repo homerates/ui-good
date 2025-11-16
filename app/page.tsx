@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
 import MenuButton from './components/MenuButton';
+import { useUser } from '@clerk/nextjs';
 import { useMobileComposerPin } from './hooks/useMobileComposerPin';
 
 /* =========================
@@ -570,10 +571,21 @@ export default function Page() {
             // borrower-only body (no intent/loanAmount passthrough)
             const body: { question: string; mode: 'borrower' } = { question: q, mode };
 
+            import { useUser } from '@clerk/nextjs'; // ← ADD THIS AT TOP OF FILE
+
+            // ... inside your component
+            const { user } = useUser(); // ← ADD THIS
+
+            // ... then your fetch
+            const { user } = useUser(); // ← ADD THIS LINE (inside the function)
+
             const r = await fetch('/api/answers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify({
+                    ...body,
+                    userId: user?.id, // ← ADD userId HERE
+                }),
             });
 
             const meta = await safeJson(r);

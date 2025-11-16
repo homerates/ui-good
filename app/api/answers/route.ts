@@ -375,6 +375,19 @@ async function handle(req: NextRequest, intentParam?: string) {
       console.error("Grok failed:", e);
     }
   }
+  // === AUTO-SAVE GROK ANSWER TO LIBRARY ===
+  if (grokFinal && body.userId) {
+    await fetch(`${req.headers.get('origin')}/api/library`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clerkUserId: body.userId,
+        question,
+        answer: grokFinal,
+      }),
+    }).catch(() => { }); // fire-and-forget
+  }
+  // =========================================
   // =======================================
   const legacyAnswer = [
     intro,
