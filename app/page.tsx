@@ -582,51 +582,53 @@ export default function Page() {
             });
 
             const data = await r.json();
-            // ← YOUR EXISTING SUCCESS CODE GOES HERE
+            // ← YOUR SUCCESS CODE HERE
         } catch (e) {
             console.error('Send failed:', e);
-            // ← YOUR EXISTING ERROR HANDLING GOES HERE
+            // ← YOUR ERROR CODE HERE
         }
-
-        const meta = await safeJson(r);
-
-        const friendly =
-            meta.message ??
-            meta.summary ??
-            (meta.fred &&
-                meta.fred.tenYearYield != null &&
-                meta.fred.mort30Avg != null &&
-                meta.fred.spread != null
-                ? `As of ${meta.fred.asOf ?? 'recent data'
-                }: ${typeof meta.fred.tenYearYield === 'number'
-                    ? `${meta.fred.tenYearYield.toFixed(2)}%`
-                    : meta.fred.tenYearYield
-                } 10Y, ${typeof meta.fred.mort30Avg === 'number'
-                    ? `${meta.fred.mort30Avg.toFixed(2)}%`
-                    : meta.fred.mort30Avg
-                } 30Y, spread ${typeof meta.fred.spread === 'number'
-                    ? `${meta.fred.spread.toFixed(2)}%`
-                    : meta.fred.spread
-                }.`
-                : typeof meta.answer === 'string'
-                    ? meta.answer
-                    : `path: ${meta.path} | usedFRED: ${String(
-                        meta.usedFRED
-                    )} | confidence: ${meta.confidence ?? '-'}`);
-
-        setMessages((m) => [
-            ...m,
-            { id: uid(), role: 'assistant', content: friendly, meta },
-        ]);
-    } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        setMessages((m) => [
-            ...m,
-            { id: uid(), role: 'assistant', content: `Error: ${msg}` },
-        ]);
-    } finally {
-        setLoading(false);
+              </section >
+          </>
+       );
     }
+    const meta = await safeJson(r);
+
+    const friendly =
+        meta.message ??
+        meta.summary ??
+        (meta.fred &&
+            meta.fred.tenYearYield != null &&
+            meta.fred.mort30Avg != null &&
+            meta.fred.spread != null
+            ? `As of ${meta.fred.asOf ?? 'recent data'
+            }: ${typeof meta.fred.tenYearYield === 'number'
+                ? `${meta.fred.tenYearYield.toFixed(2)}%`
+                : meta.fred.tenYearYield
+            } 10Y, ${typeof meta.fred.mort30Avg === 'number'
+                ? `${meta.fred.mort30Avg.toFixed(2)}%`
+                : meta.fred.mort30Avg
+            } 30Y, spread ${typeof meta.fred.spread === 'number'
+                ? `${meta.fred.spread.toFixed(2)}%`
+                : meta.fred.spread
+            }.`
+            : typeof meta.answer === 'string'
+                ? meta.answer
+                : `path: ${meta.path} | usedFRED: ${String(
+                    meta.usedFRED
+                )} | confidence: ${meta.confidence ?? '-'}`);
+
+    setMessages((m) => [
+        ...m,
+        { id: uid(), role: 'assistant', content: friendly, meta },
+    ]);
+} catch (e) {
+    console.error('Send failed:', e);
+    // ← YOUR EXISTING ERROR HANDLING
+}
+
+      </section >
+    </>
+  );
 }
 
 function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
