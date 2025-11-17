@@ -297,6 +297,8 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 export default function Page() {
     useMobileComposerPin();
 
+    const { user } = useUser();
+
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
             id: uid(),
@@ -316,8 +318,10 @@ export default function Page() {
             });
         });
     }, [messages.length]);
+
     const [input, setInput] = useState('');
 
+    // borrower-only mode
     const mode: 'borrower' = 'borrower';
 
     const [loading, setLoading] = useState(false);
@@ -339,6 +343,7 @@ export default function Page() {
     const [searchQuery, setSearchQuery] = useState('');
     const [projectName, setProjectName] = useState('');
 
+    // restore
     useEffect(() => {
         try {
             const raw = localStorage.getItem(LS_KEY);
@@ -359,6 +364,7 @@ export default function Page() {
         }
     }, []);
 
+    // persist
     useEffect(() => {
         try {
             localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
@@ -367,6 +373,7 @@ export default function Page() {
         }
     }, [threads, history, activeId]);
 
+    // snapshot into active thread
     useEffect(() => {
         if (!activeId) return;
 
@@ -385,6 +392,7 @@ export default function Page() {
         });
     }, [messages, activeId]);
 
+    // autoscroll within scrollRef
     useEffect(() => {
         scrollRef.current?.scrollTo({
             top: scrollRef.current.scrollHeight,
@@ -392,6 +400,7 @@ export default function Page() {
         });
     }, [messages]);
 
+    // hotkeys
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement | null;
@@ -460,10 +469,12 @@ export default function Page() {
                 content: 'New chat. What do you want to figure out?',
             },
         ]);
-        setHistory((h) => [
-            { id, title: 'New chat', updatedAt: Date.now() },
-            ...h,
-        ].slice(0, 20));
+        setHistory((h) =>
+            [
+                { id, title: 'New chat', updatedAt: Date.now() },
+                ...(h ?? []),
+            ].slice(0, 20)
+        );
     }
 
     function handleHistoryAction(
@@ -526,7 +537,7 @@ export default function Page() {
             tid = uid();
             setActiveId(tid);
             setHistory((h) =>
-                [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20)
+                [{ id: tid!, title, updatedAt: Date.now() }, ...(h ?? [])].slice(0, 20)
             );
         } else {
             setHistory((prev) => {
@@ -556,12 +567,10 @@ export default function Page() {
         setLoading(true);
 
         try {
-            const { user } = useUser();
-
             const body: { question: string; mode: 'borrower'; userId?: string } = {
                 question: q,
                 mode: 'borrower',
-                ...(user?.id && { userId: user.id }),
+                ...(user?.id ? { userId: user.id } : {}),
             };
 
             const r = await fetch('/api/answers', {
@@ -579,7 +588,8 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
+                    ? `As of ${meta.fred.asOf ?? 'recent data'
+                    }: ${typeof meta.fred.tenYearYield === 'number'
                         ? `${meta.fred.tenYearYield.toFixed(2)}%`
                         : meta.fred.tenYearYield
                     } 10Y, ${typeof meta.fred.mort30Avg === 'number'
@@ -595,6 +605,23 @@ export default function Page() {
                             meta.usedFRED
                         )} | confidence: ${meta.confidence ?? '-'}`);
 
+            // fire-and-forget save to Supabase-backed library (if logged-in)
+            if (user?.id) {
+                try {
+                    void fetch('/api/library', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            clerkUserId: user.id,
+                            question: q,
+                            answer: friendly,
+                        }),
+                    });
+                } catch (err) {
+                    console.warn('library save failed', err);
+                }
+            }
+
             setMessages((m) => [
                 ...m,
                 { id: uid(), role: 'assistant', content: friendly, meta },
@@ -603,7 +630,11 @@ export default function Page() {
             console.error('Send failed:', e);
             setMessages((m) => [
                 ...m,
-                { id: uid(), role: 'assistant', content: 'Error: Could not reach server.' },
+                {
+                    id: uid(),
+                    role: 'assistant',
+                    content: 'Error: Could not reach server.',
+                },
             ]);
         } finally {
             setLoading(false);
@@ -665,6 +696,7 @@ export default function Page() {
 
     return (
         <>
+            {/* Sidebar */}
             <Sidebar
                 history={history}
                 onNewChat={newChat}
@@ -681,6 +713,7 @@ export default function Page() {
                 onHistoryAction={handleHistoryAction}
             />
 
+            {/* Main */}
             <section
                 className="main"
                 style={{
@@ -700,6 +733,7 @@ export default function Page() {
                             paddingLeft: 8,
                         }}
                     >
+                        {/* HomeRates logo */}
                         <img
                             src="/assets/homerates-full-logo.png"
                             alt="HomeRates.ai"
@@ -709,8 +743,14 @@ export default function Page() {
                                 display: 'block',
                             }}
                         />
+
+                        {/* Existing hamburger menu */}
                         <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
+
+                        {/* Title */}
                         <div style={{ fontWeight: 700, marginLeft: 8 }}>Chat</div>
+
+                        {/* Right-side spacer / controls */}
                         <div style={{ marginLeft: 'auto' }} />
                     </div>
                 </div>
@@ -738,6 +778,7 @@ export default function Page() {
                     </div>
                 </div>
 
+                {/* Main Ask composer */}
                 <div
                     className="hr-composer"
                     data-composer="primary"
@@ -885,6 +926,7 @@ export default function Page() {
                                     </button>
                                 </div>
 
+                                {/* SEARCH */}
                                 {showSearch && (
                                     <div style={{ display: 'grid', gap: 10 }}>
                                         <input
@@ -938,6 +980,7 @@ export default function Page() {
                                     </div>
                                 )}
 
+                                {/* LIBRARY */}
                                 {showLibrary && (
                                     <div style={{ display: 'grid', gap: 10 }}>
                                         <div style={{ color: 'var(--text-weak)' }}>
@@ -969,6 +1012,7 @@ export default function Page() {
                                     </div>
                                 )}
 
+                                {/* SETTINGS */}
                                 {showSettings && (
                                     <div style={{ display: 'grid', gap: 10 }}>
                                         <label
@@ -1021,6 +1065,7 @@ export default function Page() {
                                     </div>
                                 )}
 
+                                {/* NEW PROJECT */}
                                 {showProject && (
                                     <form
                                         onSubmit={(
@@ -1038,7 +1083,7 @@ export default function Page() {
                                                         title: `Project: ${name}`,
                                                         updatedAt: Date.now(),
                                                     },
-                                                    ...h,
+                                                    ...(h ?? []),
                                                 ].slice(0, 20)
                                             );
                                             setMessages([
@@ -1082,11 +1127,13 @@ export default function Page() {
                                     </form>
                                 )}
 
+                                {/* MORTGAGE CALCULATOR (dedicated panel) */}
                                 {showMortgageCalc && (
                                     <MortgageCalcPanel
                                         onCancel={closeAllOverlays}
                                         onSubmit={(res: CalcSubmitResult) => {
                                             closeAllOverlays();
+                                            // echo a clean line + structured calc meta reply
                                             setMessages((m) => [
                                                 ...m,
                                                 {
