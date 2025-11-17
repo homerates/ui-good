@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
 
 const TABLE = "user_answers";
@@ -21,10 +21,8 @@ function noStore(json: unknown, status = 200) {
  */
 export async function GET(_req: NextRequest) {
     try {
-        // Clerk auth – now safe because middleware.ts runs clerkMiddleware
         const { userId } = await auth();
 
-        // If not signed in, just return empty list
         if (!userId) {
             return noStore({ ok: true, entries: [] });
         }
@@ -44,7 +42,7 @@ export async function GET(_req: NextRequest) {
 
         const { data, error } = await supabase
             .from(TABLE)
-            .select("id, created_at, question, answer")
+            .select("id, created_at, clerk_user_id, email, full_name, question, answer, app_version")
             .eq("clerk_user_id", userId)
             .order("created_at", { ascending: false })
             .limit(20);
@@ -82,7 +80,6 @@ export async function GET(_req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
     try {
-        // Clerk auth – must be signed in to save
         const { userId } = await auth();
 
         if (!userId) {
@@ -95,6 +92,28 @@ export async function POST(req: NextRequest) {
                 401
             );
         }
+
+        // Pull profile info from Clerk
+        const user = await currentUser().catch((err) => {
+            console.error("currentUser() error in POST /api/library:", err);
+            return null;
+        });
+
+        const primaryEmail =
+            user?.emailAddresses?.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress ??
+            user?.emailAddresses?.[0]?.emailAddress ??
+            null;
+
+        const fullName =
+            (user?.firstName || user?.lastName)
+                ? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim()
+                : user?.username ?? null;
+
+        // app version, if available
+        const appVersion =
+            process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
+            process.env.NEXT_PUBLIC_APP_VERSION ??
+            null;
 
         // Parse body
         let body: any;
@@ -139,11 +158,13 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Insert row – answer is jsonb in your user_answers table
         const { data, error } = await supabase
             .from(TABLE)
             .insert({
                 clerk_user_id: userId,
+                email: primaryEmail,
+                full_name: fullName,
+                app_version: appVersion,
                 question,
                 answer,
             })
