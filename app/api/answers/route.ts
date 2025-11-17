@@ -349,19 +349,21 @@ async function handle(req: NextRequest, intentParam?: string) {
     .filter(Boolean)
     .join("\n\n");
 
-  // === GROK FINAL BRAIN: FINAL VERSION ===
-  let grokFinal: any = null;
-  if (process.env.XAI_API_KEY) {
-    try {
-      const grokPrompt = `
-  You are a US mortgage AI assistant for homebuyers. Use ONLY 2025 data (ignore 2023/2024).
-  Question: "${question}"
-  Context: Home loans only. FRED: 10y=$$ {fred.tenYearYield ?? "—"}%, 30y avg= $${fred.mort30Avg ?? "—"}% (as of Nov 16, 2025).
-  Tavily: ${tav.answer || "None"}. Sources: ${topSources.map(s => s.title).join(" | ")}.
-  If data is outdated, say "Check latest at HUD/Freddie Mac."
-  JSON: { answer: "3 timely sentences", piti_example: "if relevant", next_step: "1 action", follow_up: "1 question" }
-`.trim();
+  // === GROK FINAL BRAIN: DEBUG MODE ===
+  console.log("GROK: Starting... XAI_API_KEY exists:", !!process.env.XAI_API_KEY);
+  console.log("GROK: Question:", question);
+  console.log("GROK: UserId:", userId);
 
+  let grokFinal: any = null;
+  if (process.env.XAI_API_KEY && question) {
+    try {
+      console.log("GROK: Sending request to x.ai...");
+
+      const grokPrompt = `
+      You are a US mortgage AI assistant for homebuyers. Use ONLY 2025 data.
+      Question: "${question}"
+      Respond in clean JSON: { answer: "3 sentences", next_step: "1 action", follow_up: "1 question" }
+    `.trim();
 
       const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
@@ -376,27 +378,30 @@ async function handle(req: NextRequest, intentParam?: string) {
         })
       });
 
-      if (!grokRes.ok) throw new Error(`HTTP ${grokRes.status}`);
+      console.log("GROK: Status:", grokRes.status);
+
+      if (!grokRes.ok) {
+        const errorText = await grokRes.text();
+        console.error("GROK: API Error:", errorText);
+        throw new Error(`HTTP ${grokRes.status}`);
+      }
+
       const grokData = await grokRes.json();
+      console.log("GROK: Raw response:", JSON.stringify(grokData).slice(0, 500));
+
       const content = grokData.choices?.[0]?.message?.content;
-      if (content) grokFinal = JSON.parse(content);
-    } catch (e) {
-      console.error("Grok failed:", e);
+      if (content) {
+        grokFinal = JSON.parse(content);
+        console.log("GROK: Success! Answer:", grokFinal.answer);
+      } else {
+        console.error("GROK: No content in response");
+      }
+    } catch (e: any) {
+      console.error("GROK: FAILED:", e.message || e);
     }
+  } else {
+    console.error("GROK: Missing key or question");
   }
-  // === AUTO-SAVE GROK ANSWER TO LIBRARY ===
-  if (grokFinal && userId) {
-    await fetch(`${req.headers.get('origin')}/api/library`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clerkUserId: userId,
-        question: body.question || '',
-        answer: grokFinal,
-      }),
-    }).catch(() => { });
-  }
-  // =========================================
   // =======================================
   const legacyAnswer = [
     intro,
