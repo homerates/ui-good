@@ -9,7 +9,7 @@ import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
 import MenuButton from './components/MenuButton';
 import { useMobileComposerPin } from './hooks/useMobileComposerPin';
-import { useUser } from '@clerk/nextjs';
+import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
 
 /* =========================
    Small helpers
@@ -24,6 +24,7 @@ const fmtMoney = (n: unknown) =>
         undefined,
         { maximumFractionDigits: 2 }
     );
+
 
 /* =========================
    Types
@@ -67,6 +68,7 @@ type ChatMsg =
     | { id: string; role: 'user'; content: string }
     | { id: string; role: 'assistant'; content: string; meta?: ApiResponse };
 
+/* Result payload your MortgageCalcPanel returns */
 export type CalcSubmitResult = {
     price: number;
     downPct: number;
@@ -297,8 +299,6 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 export default function Page() {
     useMobileComposerPin();
 
-    const { user } = useUser();
-
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
             id: uid(),
@@ -318,10 +318,9 @@ export default function Page() {
             });
         });
     }, [messages.length]);
-
     const [input, setInput] = useState('');
 
-    // borrower-only mode
+    // borrower-only mode fixed
     const mode: 'borrower' = 'borrower';
 
     const [loading, setLoading] = useState(false);
@@ -332,9 +331,11 @@ export default function Page() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const toggleSidebar = () => setSidebarOpen((o) => !o);
 
+    // threads + active
     const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
     const [activeId, setActiveId] = useState<string | null>(null);
 
+    // overlays
     const [showSearch, setShowSearch] = useState(false);
     const [showLibrary, setShowLibrary] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -392,7 +393,7 @@ export default function Page() {
         });
     }, [messages, activeId]);
 
-    // autoscroll within scrollRef
+    // autoscroll
     useEffect(() => {
         scrollRef.current?.scrollTo({
             top: scrollRef.current.scrollHeight,
@@ -441,6 +442,7 @@ export default function Page() {
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
+    // history select
     function onSelectHistory(id: string) {
         setActiveId(id);
         const thread = threads[id];
@@ -469,12 +471,10 @@ export default function Page() {
                 content: 'New chat. What do you want to figure out?',
             },
         ]);
-        setHistory((h) =>
-            [
-                { id, title: 'New chat', updatedAt: Date.now() },
-                ...(h ?? []),
-            ].slice(0, 20)
-        );
+        setHistory((h) => [
+            { id, title: 'New chat', updatedAt: Date.now() },
+            ...h,
+        ].slice(0, 20));
     }
 
     function handleHistoryAction(
@@ -532,12 +532,13 @@ export default function Page() {
 
         const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
+        // ensure thread
         let tid = activeId;
         if (!tid) {
             tid = uid();
             setActiveId(tid);
             setHistory((h) =>
-                [{ id: tid!, title, updatedAt: Date.now() }, ...(h ?? [])].slice(0, 20)
+                [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20)
             );
         } else {
             setHistory((prev) => {
@@ -567,11 +568,8 @@ export default function Page() {
         setLoading(true);
 
         try {
-            const body: { question: string; mode: 'borrower'; userId?: string } = {
-                question: q,
-                mode: 'borrower',
-                ...(user?.id ? { userId: user.id } : {}),
-            };
+            // borrower-only body (no intent/loanAmount passthrough)
+            const body: { question: string; mode: 'borrower' } = { question: q, mode };
 
             const r = await fetch('/api/answers', {
                 method: 'POST',
@@ -605,36 +603,23 @@ export default function Page() {
                             meta.usedFRED
                         )} | confidence: ${meta.confidence ?? '-'}`);
 
-            // fire-and-forget save to Supabase-backed library (if logged-in)
-            if (user?.id) {
-                try {
-                    void fetch('/api/library', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            clerkUserId: user.id,
-                            question: q,
-                            answer: friendly,
-                        }),
-                    });
-                } catch (err) {
-                    console.warn('library save failed', err);
-                }
+            // Fire-and-forget: log this Q&A to the user's library
+            try {
+                void logAnswerToLibrary(q, { friendly, meta });
+            } catch (err) {
+                console.error("Library logging error:", err);
             }
 
             setMessages((m) => [
                 ...m,
                 { id: uid(), role: 'assistant', content: friendly, meta },
             ]);
+
         } catch (e) {
-            console.error('Send failed:', e);
+            const msg = e instanceof Error ? e.message : String(e);
             setMessages((m) => [
                 ...m,
-                {
-                    id: uid(),
-                    role: 'assistant',
-                    content: 'Error: Could not reach server.',
-                },
+                { id: uid(), role: 'assistant', content: `Error: ${msg}` },
             ]);
         } finally {
             setLoading(false);
@@ -778,11 +763,12 @@ export default function Page() {
                     </div>
                 </div>
 
-                {/* Main Ask composer */}
+                {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
                 <div
                     className="hr-composer"
                     data-composer="primary"
                     style={{
+                        // position/bottom now handled in CSS (desktop vs mobile)
                         zIndex: 900,
                         borderTop: '1px solid rgba(245, 247, 250, 0.06)',
                         background: 'transparent',
@@ -794,12 +780,14 @@ export default function Page() {
                             position: 'relative',
                             display: 'flex',
                             alignItems: 'center',
-                            maxWidth: 640,
+                            // let the inner input flex control width, avoid pill growth on type
+                            maxWidth: 640, // line up with main column
                             margin: '0 auto',
                             padding: '8px 12px',
                             boxSizing: 'border-box',
                         }}
                     >
+
                         <input
                             className="hr-composer-input"
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
@@ -809,12 +797,12 @@ export default function Page() {
                             style={{
                                 flex: '1 1 auto',
                                 minWidth: 0,
-                                height: 36,
-                                borderRadius: 9999,
+                                height: 36, // compact (about half your old tall pill)
+                                borderRadius: 9999, // true pill
                                 border: '1px solid #E5E7EB',
-                                padding: '6px 40px 6px 12px',
+                                padding: '6px 40px 6px 12px', // room on the right for the arrow circle
                                 background: '#FFFFFF',
-                                fontSize: 16,
+                                fontSize: 16, // >=16 prevents iOS zoom on focus
                                 lineHeight: 1.3,
                                 boxSizing: 'border-box',
                             }}
@@ -832,7 +820,7 @@ export default function Page() {
                                 right: 16,
                                 top: '50%',
                                 transform: 'translateY(-50%)',
-                                width: 24,
+                                width: 24, // small circle
                                 height: 24,
                                 borderRadius: 9999,
                                 padding: 0,
@@ -852,7 +840,7 @@ export default function Page() {
                                 height={14}
                                 viewBox="0 0 24 24"
                                 aria-hidden="true"
-                                style={{ transform: 'rotate(-90deg)' }}
+                                style={{ transform: 'rotate(-90deg)' }} // arrow points up
                             >
                                 <path
                                     d="M3 12h14.5M13 6l6 6-6 6"
@@ -867,6 +855,7 @@ export default function Page() {
                     </div>
                 </div>
 
+                {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
                 {(showSearch ||
                     showLibrary ||
                     showSettings ||
@@ -893,12 +882,12 @@ export default function Page() {
                             <div
                                 className="panel"
                                 style={{
-                                    width: '100%',
-                                    maxWidth: 520,
+                                    width: '100%',              // fill the padded area, not the whole screen
+                                    maxWidth: 520,              // hard cap so it doesn't feel like an iPad on phones
                                     maxHeight: '80vh',
                                     overflowY: 'auto',
                                     padding: 16,
-                                    paddingBottom: 32,
+                                    paddingBottom: 32,          // gives room under the buttons
                                     borderRadius: 12,
                                     background: 'var(--card)',
                                     boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
@@ -907,6 +896,8 @@ export default function Page() {
                                     boxSizing: 'border-box',
                                 }}
                             >
+
+
                                 <div
                                     style={{
                                         display: 'flex',
@@ -1083,7 +1074,7 @@ export default function Page() {
                                                         title: `Project: ${name}`,
                                                         updatedAt: Date.now(),
                                                     },
-                                                    ...(h ?? []),
+                                                    ...h,
                                                 ].slice(0, 20)
                                             );
                                             setMessages([
