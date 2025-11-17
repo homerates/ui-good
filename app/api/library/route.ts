@@ -4,7 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getSupabase } from "@/lib/supabaseServer";
+// Using relative path to avoid alias issues with "@/lib/..."
+import { getSupabase } from "../../../lib/supabaseServer";
 
 const TABLE = "user_answers";
 
@@ -20,7 +21,8 @@ function noStore(json: unknown, status = 200) {
  * GET: return last 20 saved answers for this user
  */
 export async function GET(_req: NextRequest) {
-    const { userId } = auth();
+    // auth() is async in your Clerk version
+    const { userId } = await auth();
 
     if (!userId) {
         return noStore({ ok: true, entries: [] });
@@ -56,7 +58,8 @@ export async function GET(_req: NextRequest) {
  * POST: save a user question + answer
  */
 export async function POST(req: NextRequest) {
-    const { userId } = auth();
+    // auth() is async here too
+    const { userId } = await auth();
 
     if (!userId) {
         return noStore({ ok: false, reason: "not_authenticated" }, 401);
@@ -77,7 +80,11 @@ export async function POST(req: NextRequest) {
     const { question, answer } = body;
     if (!question || !answer) {
         return noStore(
-            { ok: false, reason: "missing_fields", details: "question + answer required" },
+            {
+                ok: false,
+                reason: "missing_fields",
+                details: "question + answer required",
+            },
             400
         );
     }
@@ -87,7 +94,7 @@ export async function POST(req: NextRequest) {
         .insert({
             clerk_user_id: userId,
             question,
-            answer, // JSONB — ok to store raw structured answer
+            answer, // stored as jsonb in your table
         })
         .select()
         .single();
