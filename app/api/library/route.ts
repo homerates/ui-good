@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-// Relative import to match your repo structure
 import { getSupabase } from "../../../lib/supabaseServer";
 
 const TABLE = "user_answers";
@@ -18,33 +17,18 @@ function noStore(json: unknown, status = 200) {
 }
 
 /**
- * GET: return last 20 saved answers for this user
+ * GET: return last 20 saved answers for this signed-in user
  */
 export async function GET(_req: NextRequest) {
     try {
-        // --- Stage 1: Clerk auth ---
-        let userId: string | null = null;
-        try {
-            const a = await auth();
-            userId = a.userId;
-        } catch (err) {
-            console.error("Clerk auth error in GET /api/library:", err);
-            return noStore(
-                {
-                    ok: false,
-                    reason: "clerk_auth_error",
-                    stage: "auth_get",
-                    message: err instanceof Error ? err.message : String(err),
-                },
-                500
-            );
-        }
+        // Clerk auth – now safe because middleware.ts runs clerkMiddleware
+        const { userId } = await auth();
 
+        // If not signed in, just return empty list
         if (!userId) {
             return noStore({ ok: true, entries: [] });
         }
 
-        // --- Stage 2: Supabase client ---
         const supabase = getSupabase();
         if (!supabase) {
             console.error("Supabase not configured in GET /api/library");
@@ -58,7 +42,6 @@ export async function GET(_req: NextRequest) {
             );
         }
 
-        // --- Stage 3: Supabase query ---
         const { data, error } = await supabase
             .from(TABLE)
             .select("id, created_at, question, answer")
@@ -95,27 +78,12 @@ export async function GET(_req: NextRequest) {
 }
 
 /**
- * POST: save a user question + answer
+ * POST: save a question + answer for this signed-in user
  */
 export async function POST(req: NextRequest) {
     try {
-        // --- Stage 1: Clerk auth ---
-        let userId: string | null = null;
-        try {
-            const a = await auth();
-            userId = a.userId;
-        } catch (err) {
-            console.error("Clerk auth error in POST /api/library:", err);
-            return noStore(
-                {
-                    ok: false,
-                    reason: "clerk_auth_error",
-                    stage: "auth_post",
-                    message: err instanceof Error ? err.message : String(err),
-                },
-                500
-            );
-        }
+        // Clerk auth – must be signed in to save
+        const { userId } = await auth();
 
         if (!userId) {
             return noStore(
@@ -128,7 +96,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // --- Stage 2: parse body ---
+        // Parse body
         let body: any;
         try {
             body = await req.json();
@@ -158,7 +126,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // --- Stage 3: Supabase client ---
         const supabase = getSupabase();
         if (!supabase) {
             console.error("Supabase not configured in POST /api/library");
@@ -172,13 +139,12 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // --- Stage 4: Supabase insert ---
+        // Insert row – answer is jsonb in your user_answers table
         const { data, error } = await supabase
             .from(TABLE)
             .insert({
                 clerk_user_id: userId,
                 question,
-                // Stored as jsonb in your table
                 answer,
             })
             .select()
