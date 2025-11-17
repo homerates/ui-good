@@ -1,5 +1,5 @@
 // ==== REPLACE ENTIRE FILE: app/components/Sidebar.tsx ====
-// Sidebar: Clerk-ready, light UI, with Knowledge Tools section (projects, library, underwriting)
+// Sidebar: Clerk-ready, light UI, with streamlined Knowledge Tools section
 
 'use client';
 
@@ -15,13 +15,8 @@ type HistoryItem = { id: string; title: string; updatedAt?: number };
 
 // Knowledge tools you'll wire in from app/page.tsx later
 export type KnowledgeToolId =
-  | 'programs' // general mortgage programs hub
-  | 'uw-fnma'
-  | 'uw-freddie'
-  | 'uw-fha'
-  | 'uw-jumbo'
-  | 'uw-dscr'
-  | 'uw-bank-statement';
+  | 'mortgage-solutions'
+  | 'ask-underwriting';
 
 export type SidebarProps = {
   id?: string;
@@ -119,7 +114,7 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Knowledge tools: Programs + Ask Underwriting */}
+      {/* Knowledge tools: two portal-style entries */}
       <div
         style={{
           padding: '8px 12px',
@@ -141,76 +136,32 @@ export default function Sidebar({
           Knowledge tools
         </div>
 
-        {/* Mortgage Programs hub (can later open a dedicated view or prefill prompts) */}
         <button
           className="btn"
           type="button"
           style={{ width: '100%', marginBottom: 8 }}
-          onClick={() => handleKnowledgeClick('programs')}
+          onClick={() => handleKnowledgeClick('mortgage-solutions')}
         >
-          Mortgage Programs
+          Mortgage Solutions
         </button>
 
-        {/* Ask Underwriting shortcuts */}
+        <button
+          className="btn"
+          type="button"
+          style={{ width: '100%', marginBottom: 4 }}
+          onClick={() => handleKnowledgeClick('ask-underwriting')}
+        >
+          Ask Underwriting
+        </button>
+
         <div
           style={{
-            fontSize: 12,
-            opacity: 0.8,
-            marginBottom: 4,
+            fontSize: 11,
+            opacity: 0.65,
             marginTop: 4,
           }}
         >
-          Ask Underwriting
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 6,
-          }}
-        >
-          <button
-            className="btn"
-            type="button"
-            onClick={() => handleKnowledgeClick('uw-fnma')}
-          >
-            FNMA
-          </button>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => handleKnowledgeClick('uw-freddie')}
-          >
-            Freddie
-          </button>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => handleKnowledgeClick('uw-fha')}
-          >
-            FHA
-          </button>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => handleKnowledgeClick('uw-jumbo')}
-          >
-            Jumbo
-          </button>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => handleKnowledgeClick('uw-dscr')}
-          >
-            DSCR
-          </button>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => handleKnowledgeClick('uw-bank-statement')}
-          >
-            Bank Stmnt
-          </button>
+          Portal-style views coming soon
         </div>
       </div>
 
