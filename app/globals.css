@@ -633,7 +633,9 @@ ul {
 
   /* Make sure the last messages aren't hidden behind the pill */
   .scroll {
-    padding-bottom: calc(var(--footer-h) + 72px);
+
+    padding-bottom: calc(var(--footer-h) - 14px);
+
   }
 
   /* Override inline sticky on mobile: pin to bottom of viewport */
