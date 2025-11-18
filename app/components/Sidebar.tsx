@@ -11,8 +11,10 @@ import {
   UserButton,
 } from '@clerk/nextjs';
 
-// Projects list (read-only for now)
+// Projects list (read-only)
 import ProjectsPanel from './ProjectsPanel';
+// Move-to-project dialog
+import MoveToProjectDialog from './MoveToProjectDialog';
 
 type HistoryItem = { id: string; title: string; updatedAt?: number };
 
@@ -71,8 +73,31 @@ export default function Sidebar({
   // For now, selecting a project is just logged.
   // Later we can wire this into filtering / loading threads by project.
   const handleSelectProject = React.useCallback((project: any) => {
-    // Placeholder: no behavior change yet, but keeps wiring ready.
+    // Placeholder hook point
     // console.log('Selected project:', project);
+  }, []);
+
+  // Local state for "Move to project" dialog
+  const [moveDialogOpen, setMoveDialogOpen] = React.useState(false);
+  const [moveDialogThreadId, setMoveDialogThreadId] = React.useState<string | null>(null);
+
+  const handleMoveToProject = React.useCallback(
+    (threadId: string) => {
+      setMoveDialogThreadId(threadId);
+      setMoveDialogOpen(true);
+
+      // If you still want to notify the parent that a move was requested,
+      // you can keep this line. For now it's just a hook.
+      if (onHistoryAction) {
+        onHistoryAction('move', threadId);
+      }
+    },
+    [onHistoryAction]
+  );
+
+  const handleCloseMoveDialog = React.useCallback(() => {
+    setMoveDialogOpen(false);
+    setMoveDialogThreadId(null);
   }, []);
 
   return (
@@ -175,7 +200,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Projects list (read-only for now) */}
+      {/* Projects list (ChatGPT-style) */}
       <div
         style={{
           padding: '8px 12px',
@@ -225,7 +250,7 @@ export default function Sidebar({
                       className="btn"
                       aria-label="Move chat to project"
                       title="Move to project"
-                      onClick={() => onHistoryAction('move', h.id)}
+                      onClick={() => handleMoveToProject(h.id)}
                       type="button"
                     >
                       …
@@ -271,6 +296,14 @@ export default function Sidebar({
           </SignedOut>
         </div>
       </div>
+
+      {/* Move-to-project dialog lives here so it can overlay the page */}
+      <MoveToProjectDialog
+        open={moveDialogOpen}
+        threadId={moveDialogThreadId}
+        onClose={handleCloseMoveDialog}
+        onMoved={undefined}
+      />
     </aside>
   );
 }
