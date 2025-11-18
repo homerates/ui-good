@@ -886,3 +886,9 @@ body {
   min-height: 0;
   overflow-y: auto;
 }
+
+/* Prevent messages from hiding behind the Ask composer */
+.scroll {
+  padding-bottom: 90px;
+  /* adjust 80–110px depending on your pill height */
+}

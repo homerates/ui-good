@@ -760,12 +760,12 @@ export default function Page() {
             <section
                 className="main"
                 style={{
-                    flex: '1 1 auto',
+                    minHeight: '100dvh',
                     display: 'flex',
                     flexDirection: 'column',
-                    minHeight: 0,
-                    paddingBottom: 0, // remove extra bottom gap so composer can sit where CSS says
                 }}
+            >
+
             >
 
 
