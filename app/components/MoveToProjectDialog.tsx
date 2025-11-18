@@ -1,405 +1,424 @@
 // ==== REPLACE ENTIRE FILE: app/components/MoveToProjectDialog.tsx ====
+// Modal dialog to move a chat thread into a project.
+// Handles auth gracefully: if not signed in, shows a Sign in prompt instead of raw JSON.
+
 'use client';
 
-import * as React from "react";
-import type { Project } from "../../lib/projectsClient";
-import { fetchProjects } from "../../lib/projectsClient";
+import * as React from 'react';
+import { SignInButton, useUser } from '@clerk/nextjs';
+
+type Project = {
+    id: string;
+    name: string;
+    project_threads?: { id: string; thread_id: string | null; created_at: string }[];
+};
 
 type MoveToProjectDialogProps = {
     open: boolean;
-    /** The chat/thread id we are attaching to a project */
     threadId: string | null;
-    /** Called when user cancels or after a successful move */
     onClose: () => void;
-    /** Optional hook so the parent can refresh history/projects */
-    onMoved?: (project: Project) => void;
+    onMoved?: (projectId: string, threadId: string) => void;
 };
 
-/** Keep only first 2–3 words, then add an ellipsis if longer */
-function truncateProjectName(raw: string): string {
-    const name = (raw || "").trim();
-    if (!name) return "(untitled project)";
-    const words = name.split(/\s+/);
-    if (words.length <= 3) return name;
-    return words.slice(0, 3).join(" ") + "…";
-}
+type ProjectsResponse =
+    | { ok: true; projects: Project[] }
+    | { ok: false; reason: string; stage?: string; message?: string };
 
-/**
- * MoveToProjectDialog
- *
- * ChatGPT-style "Move to project" dialog:
- * - Lists existing projects (compact, no thread counts)
- * - Lets user create a new project by name
- * - Calls POST /api/projects with { threadId, projectName }
- */
+type PostResponse =
+    | { ok: true; project: Project; mapping: any }
+    | { ok: false; reason: string; stage?: string; message?: string };
+
 export default function MoveToProjectDialog({
     open,
     threadId,
     onClose,
     onMoved,
 }: MoveToProjectDialogProps) {
+    const { isSignedIn } = useUser();
+
     const [projects, setProjects] = React.useState<Project[]>([]);
-    const [loadingProjects, setLoadingProjects] = React.useState(false);
-    const [projectName, setProjectName] = React.useState("");
+    const [loading, setLoading] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
-    const [status, setStatus] = React.useState<string | null>(null);
 
-    // Load projects when dialog opens
+    const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
+    const [newProjectName, setNewProjectName] = React.useState('');
+
+    const [authRequired, setAuthRequired] = React.useState(false);
+    const [errorText, setErrorText] = React.useState<string | null>(null);
+
+    // Reset internal state whenever dialog opens/closes
     React.useEffect(() => {
-        if (!open) return;
-        setStatus(null);
-        setError(null);
-        setProjectName("");
-        setProjects([]);
-        setLoadingProjects(true);
-
-        (async () => {
-            try {
-                const res = await fetchProjects();
-                if (!res.ok) {
-                    const msg =
-                        res.message ||
-                        res.error ||
-                        res.reason ||
-                        "Unable to load projects.";
-                    setError(msg);
-                    setProjects([]);
-                } else {
-                    setProjects(res.projects ?? []);
-                }
-            } catch (err) {
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Unexpected error loading projects."
-                );
-                setProjects([]);
-            } finally {
-                setLoadingProjects(false);
-            }
-        })();
+        if (!open) {
+            setProjects([]);
+            setLoading(false);
+            setSaving(false);
+            setSelectedProjectId(null);
+            setNewProjectName('');
+            setAuthRequired(false);
+            setErrorText(null);
+        }
     }, [open]);
 
-    // If dialog is closed, render nothing
-    if (!open) return null;
-
-    const disabled = !threadId || saving;
-
-    async function handleSave(targetName?: string) {
-        if (!threadId) return;
-        const finalName = (targetName ?? projectName).trim();
-        if (!finalName) {
-            setError("Please enter a project name.");
+    // Load projects when dialog opens and user is signed in
+    React.useEffect(() => {
+        if (!open) return;
+        if (!isSignedIn) {
+            // User is not signed in – show auth prompt instead of trying API calls
+            setAuthRequired(true);
+            setProjects([]);
             return;
         }
 
-        setSaving(true);
-        setError(null);
-        setStatus("Saving…");
+        let cancelled = false;
+
+        async function load() {
+            try {
+                setLoading(true);
+                setErrorText(null);
+                setAuthRequired(false);
+
+                const res = await fetch('/api/projects', {
+                    method: 'GET',
+                    cache: 'no-store',
+                });
+
+                const json = (await res.json()) as ProjectsResponse;
+
+                if (!json.ok) {
+                    // Defensive: if backend ever returns not_authenticated here, gate with auth prompt.
+                    if (json.reason === 'not_authenticated') {
+                        if (!cancelled) {
+                            setAuthRequired(true);
+                            setProjects([]);
+                        }
+                        return;
+                    }
+                    if (!cancelled) {
+                        setErrorText('There was a problem loading your projects.');
+                    }
+                    return;
+                }
+
+                if (!cancelled) {
+                    setProjects(json.projects ?? []);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setErrorText('There was a problem loading your projects.');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        load();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [open, isSignedIn]);
+
+    if (!open) return null;
+
+    const hasProjects = projects && projects.length > 0;
+
+    async function handleSave() {
+        if (!threadId) {
+            onClose();
+            return;
+        }
+
+        // If user is not signed in, show auth prompt instead of calling the API.
+        if (!isSignedIn) {
+            setAuthRequired(true);
+            setErrorText(null);
+            return;
+        }
+
+        const chosenExisting = selectedProjectId && selectedProjectId !== 'new';
+        const trimmedNewName = newProjectName.trim();
+
+        if (!chosenExisting && !trimmedNewName) {
+            setErrorText('Please pick a project or enter a name.');
+            return;
+        }
 
         try {
-            const res = await fetch("/api/projects", {
-                method: "POST",
+            setSaving(true);
+            setErrorText(null);
+
+            const res = await fetch('/api/projects', {
+                method: 'POST',
                 headers: {
-                    "Content-Type": "application/json",
-                    Accept: "application/json",
+                    'Content-Type': 'application/json',
                 },
+                cache: 'no-store',
                 body: JSON.stringify({
                     threadId,
-                    projectName: finalName,
+                    projectName: chosenExisting
+                        ? projects.find((p) => p.id === selectedProjectId)?.name ?? ''
+                        : trimmedNewName,
                 }),
             });
 
-            if (!res.ok) {
-                let text: string | undefined;
-                try {
-                    text = await res.text();
-                } catch {
-                    // ignore
+            const json = (await res.json()) as PostResponse;
+
+            if (!json.ok) {
+                if (json.reason === 'not_authenticated') {
+                    // Backend says we need auth – switch to authRequired state.
+                    setAuthRequired(true);
+                    setErrorText(null);
+                    return;
                 }
-                setError(
-                    text ||
-                    `Request failed with HTTP ${res.status}. Please try again.`
-                );
-                setStatus(null);
+
+                setErrorText('There was a problem saving this chat to a project.');
                 return;
             }
 
-            const json = (await res.json()) as {
-                ok: boolean;
-                project?: Project;
-                reason?: string;
-                message?: string;
-                error?: string;
-            };
-
-            if (!json.ok || !json.project) {
-                setError(
-                    json.message ||
-                    json.error ||
-                    json.reason ||
-                    "Unable to save project mapping."
-                );
-                setStatus(null);
-                return;
+            // Success
+            if (onMoved) {
+                onMoved(json.project.id, threadId);
             }
-
-            setStatus("Saved");
-            if (onMoved) onMoved(json.project);
-
-            // Close after a short delay so user can see "Saved"
-            setTimeout(() => {
-                onClose();
-            }, 400);
+            onClose();
         } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Unexpected error saving project."
-            );
-            setStatus(null);
+            setErrorText('There was a problem saving this chat to a project.');
         } finally {
             setSaving(false);
         }
     }
 
+    const handleCancel = () => {
+        onClose();
+    };
+
     return (
         <div
-            // Overlay
+            // Simple overlay
             style={{
-                position: "fixed",
+                position: 'fixed',
                 inset: 0,
-                background: "rgba(0,0,0,0.25)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 9999,
+                background: 'rgba(0,0,0,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
             }}
+            aria-modal="true"
+            role="dialog"
         >
             <div
                 style={{
-                    width: 360,
-                    maxWidth: "90vw",
-                    background: "#fff",
-                    color: "#111",
-                    borderRadius: 12,
+                    width: '100%',
+                    maxWidth: 420,
+                    margin: '0 16px',
+                    background: '#fff',
+                    borderRadius: 20,
                     boxShadow:
-                        "0 18px 45px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.06)",
-                    padding: 16,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    fontSize: 13,
+                        '0 18px 45px rgba(15,23,42,0.25), 0 0 0 1px rgba(15,23,42,0.06)',
+                    padding: 20,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
                 }}
             >
                 {/* Header */}
                 <div
                     style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
                         marginBottom: 4,
                     }}
                 >
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>
+                    <div
+                        style={{
+                            fontSize: 16,
+                            fontWeight: 600,
+                        }}
+                    >
                         Move chat to project
                     </div>
                     <button
                         type="button"
-                        onClick={onClose}
-                        disabled={saving}
+                        aria-label="Close"
+                        onClick={handleCancel}
                         style={{
-                            border: "none",
-                            background: "none",
-                            cursor: saving ? "default" : "pointer",
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
                             fontSize: 18,
                             lineHeight: 1,
                         }}
-                        aria-label="Close"
-                        title="Close"
                     >
                         ×
                     </button>
                 </div>
 
-                {/* Existing projects list */}
-                <div
-                    style={{
-                        maxHeight: 180,
-                        overflowY: "auto",
-                        paddingRight: 2,
-                    }}
-                >
-                    {loadingProjects && (
-                        <div style={{ opacity: 0.7, fontSize: 12 }}>
-                            Loading projects…
-                        </div>
-                    )}
-
-                    {!loadingProjects && projects && projects.length > 0 && (
-                        <ul
+                {/* AUTH REQUIRED STATE */}
+                {authRequired ? (
+                    <>
+                        <div
                             style={{
-                                listStyle: "none",
-                                padding: 0,
-                                margin: 0,
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 4,
-                                fontSize: 12,
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                                marginTop: 4,
+                                marginBottom: 8,
                             }}
                         >
-                            {projects.map((project) => {
-                                const displayName = truncateProjectName(
-                                    project.name || "(untitled project)"
-                                );
-                                return (
-                                    <li key={project.id}>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                void handleSave(project.name)
-                                            }
-                                            disabled={disabled}
-                                            style={{
-                                                width: "100%",
-                                                textAlign: "left",
-                                                borderRadius: 8,
-                                                border:
-                                                    "1px solid rgba(0,0,0,0.08)",
-                                                padding: "6px 8px",
-                                                background: "#fafafa",
-                                                cursor: disabled
-                                                    ? "default"
-                                                    : "pointer",
-                                                fontSize: 12,
-                                            }}
-                                            title={project.name}
-                                        >
-                                            <span
-                                                style={{
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                    fontWeight: 500,
-                                                }}
-                                            >
-                                                {displayName}
-                                            </span>
-                                        </button>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
+                            You need to sign in to create projects and save chats into them.
+                        </div>
 
-                    {!loadingProjects &&
-                        (!projects || projects.length === 0) && (
-                            <div style={{ opacity: 0.7, fontSize: 12 }}>
-                                No projects yet. Create one below.
+                        <div
+                            style={{
+                                display: 'flex',
+                                gap: 8,
+                                marginTop: 8,
+                            }}
+                        >
+                            <SignInButton mode="modal">
+                                <button
+                                    type="button"
+                                    className="btn primary"
+                                    style={{ flex: '0 0 auto' }}
+                                >
+                                    Sign in
+                                </button>
+                            </SignInButton>
+                            <button
+                                type="button"
+                                className="btn"
+                                style={{ flex: '0 0 auto' }}
+                                onClick={handleCancel}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {/* EXISTING PROJECTS */}
+                        <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                            {loading
+                                ? 'Loading your projects…'
+                                : hasProjects
+                                    ? 'Choose a project below, or create a new one.'
+                                    : 'No projects yet. Create one below.'}
+                        </div>
+
+                        {hasProjects && (
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 6,
+                                    marginTop: 4,
+                                    marginBottom: 8,
+                                    maxHeight: 200,
+                                    overflowY: 'auto',
+                                }}
+                            >
+                                {projects.map((p) => {
+                                    const isActive = selectedProjectId === p.id;
+                                    return (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => setSelectedProjectId(p.id)}
+                                            style={{
+                                                border: 'none',
+                                                background: isActive
+                                                    ? 'rgba(15,23,42,0.06)'
+                                                    : 'rgba(15,23,42,0.02)',
+                                                borderRadius: 10,
+                                                padding: '8px 10px',
+                                                textAlign: 'left',
+                                                cursor: 'pointer',
+                                                fontSize: 13,
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 500 }}>{p.name}</div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
-                </div>
 
-                {/* New project name input */}
-                <div
-                    style={{
-                        borderTop: "1px solid rgba(0,0,0,0.06)",
-                        paddingTop: 8,
-                        marginTop: 4,
-                    }}
-                >
-                    <div
-                        style={{
-                            fontSize: 11,
-                            opacity: 0.75,
-                            marginBottom: 4,
-                        }}
-                    >
-                        Or create a new project
-                    </div>
-                    <input
-                        type="text"
-                        value={projectName}
-                        onChange={(e) => setProjectName(e.target.value)}
-                        placeholder="New project name"
-                        disabled={disabled}
-                        style={{
-                            width: "100%",
-                            borderRadius: 8,
-                            border: "1px solid rgba(0,0,0,0.12)",
-                            padding: "6px 8px",
-                            fontSize: 13,
-                            boxSizing: "border-box",
-                        }}
-                    />
-                </div>
+                        {/* NEW PROJECT INPUT */}
+                        <div
+                            style={{
+                                marginTop: 8,
+                                paddingTop: 8,
+                                borderTop: '1px solid rgba(148,163,184,0.3)',
+                                fontSize: 12,
+                                opacity: 0.9,
+                            }}
+                        >
+                            Or create a new project
+                        </div>
 
-                {/* Status + actions */}
-                {error && (
-                    <div
-                        style={{
-                            color: "#b00020",
-                            fontSize: 11,
-                            marginTop: 2,
-                        }}
-                    >
-                        {error}
-                    </div>
+                        <input
+                            type="text"
+                            placeholder="New project name"
+                            value={newProjectName}
+                            onChange={(e) => {
+                                setNewProjectName(e.target.value);
+                                if (e.target.value.trim()) {
+                                    setSelectedProjectId('new');
+                                }
+                            }}
+                            style={{
+                                marginTop: 6,
+                                padding: '8px 10px',
+                                borderRadius: 999,
+                                border: '1px solid rgba(148,163,184,0.7)',
+                                fontSize: 13,
+                                outline: 'none',
+                            }}
+                        />
+
+                        {/* Error message (friendly, no raw JSON) */}
+                        {errorText && (
+                            <div
+                                style={{
+                                    color: '#b91c1c',
+                                    fontSize: 12,
+                                    marginTop: 4,
+                                }}
+                            >
+                                {errorText}
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                gap: 8,
+                                marginTop: 14,
+                            }}
+                        >
+                            <button
+                                type="button"
+                                className="btn"
+                                onClick={handleCancel}
+                                disabled={saving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="btn primary"
+                                onClick={handleSave}
+                                disabled={saving}
+                            >
+                                {saving ? 'Saving…' : 'Save'}
+                            </button>
+                        </div>
+                    </>
                 )}
-                {status && !error && (
-                    <div
-                        style={{
-                            fontSize: 11,
-                            opacity: 0.7,
-                            marginTop: 2,
-                        }}
-                    >
-                        {status}
-                    </div>
-                )}
-
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: 8,
-                        marginTop: 8,
-                    }}
-                >
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={saving}
-                        style={{
-                            borderRadius: 999,
-                            border: "1px solid rgba(0,0,0,0.14)",
-                            padding: "6px 12px",
-                            background: "#fff",
-                            cursor: saving ? "default" : "pointer",
-                            fontSize: 13,
-                        }}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => void handleSave()}
-                        disabled={disabled}
-                        style={{
-                            borderRadius: 999,
-                            border: "none",
-                            padding: "6px 14px",
-                            background: "#111827",
-                            color: "#fff",
-                            cursor: disabled ? "default" : "pointer",
-                            fontSize: 13,
-                            opacity: disabled ? 0.6 : 1,
-                        }}
-                    >
-                        {saving ? "Saving…" : "Save"}
-                    </button>
-                </div>
             </div>
         </div>
     );
