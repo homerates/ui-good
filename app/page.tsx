@@ -328,6 +328,17 @@ export default function Page() {
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+
+        // run after DOM updates so scrollHeight is correct
+        requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight;
+        });
+    }, [messages, loading]);
+
+
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const toggleSidebar = () => setSidebarOpen((o) => !o);
 
@@ -749,12 +760,14 @@ export default function Page() {
             <section
                 className="main"
                 style={{
-                    minHeight: '100dvh',
+                    flex: '1 1 auto',
                     display: 'flex',
                     flexDirection: 'column',
+                    minHeight: 0, // let the inner .scroll div own the overflow
                     paddingBottom: 'var(--footer-h)',
                 }}
             >
+
                 <div className="header">
                     <div
                         className="header-inner"
@@ -790,7 +803,11 @@ export default function Page() {
                 <div
                     ref={scrollRef}
                     className="scroll"
-                    style={{ flex: 1, overflowY: 'auto' }}
+                    style={{
+                        flex: '1 1 auto',
+                        minHeight: 0,
+                        overflowY: 'auto',
+                    }}
                 >
                     <div className="center">
                         <div className="messages">
@@ -809,6 +826,7 @@ export default function Page() {
                         </div>
                     </div>
                 </div>
+
 
                 {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
                 <div

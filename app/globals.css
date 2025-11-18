@@ -18,8 +18,13 @@
 
 html,
 body {
-  height: 100%
+  height: 100%;
+  overflow: hidden;
+  /* stop window scrolling */
+  margin: 0;
+  padding: 0;
 }
+
 
 body {
   margin: 0;
@@ -855,4 +860,27 @@ body {
   .mortgage-calc-panel .mortgage-two-col {
     grid-template-columns: 1fr;
   }
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  /* no window scroll */
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  /* inner .scroll manages overflow */
+}
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
