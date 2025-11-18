@@ -87,10 +87,9 @@ export default function Sidebar({
       setMoveDialogThreadId(threadId);
       setMoveDialogOpen(true);
 
-      // IMPORTANT: do NOT call onHistoryAction('move', ...) here anymore,
+      // IMPORTANT: we do NOT call onHistoryAction('move', ...) here anymore,
       // because the parent implementation still uses window.prompt.
-      // We'll keep onHistoryAction available for future actions like
-      // rename/archive/delete, but "move" is now owned by this dialog.
+      // "Move" is now owned entirely by this dialog.
     },
     []
   );
@@ -215,8 +214,21 @@ export default function Sidebar({
           />
         </div>
 
-        {/* Threads */}
+        {/* Threads / Chats */}
         <div style={{ padding: '8px 12px' }}>
+          {/* Small CHATS header so it's clear this is message history, not another "Projects" row */}
+          <div
+            style={{
+              fontSize: 10,
+              textTransform: 'uppercase',
+              letterSpacing: 0.6,
+              opacity: 0.7,
+              marginBottom: 6,
+            }}
+          >
+            Chats
+          </div>
+
           {history.length > 0 ? (
             <div className="chat-list" role="list" aria-label="Chats">
               {history.map((h) => {
