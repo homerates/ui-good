@@ -80,16 +80,14 @@ export default function Sidebar({
 
   // Local state for "Move to project" dialog
   const [moveDialogOpen, setMoveDialogOpen] = React.useState(false);
-  const [moveDialogThreadId, setMoveDialogThreadId] = React.useState<string | null>(null);
+  const [moveDialogThreadId, setMoveDialogThreadId] =
+    React.useState<string | null>(null);
 
-  const handleMoveToProject = React.useCallback(
-    (threadId: string) => {
-      setMoveDialogThreadId(threadId);
-      setMoveDialogOpen(true);
-      // IMPORTANT: do not call onHistoryAction('move', ...) here – that still uses window.prompt upstream.
-    },
-    []
-  );
+  const handleMoveToProject = React.useCallback((threadId: string) => {
+    setMoveDialogThreadId(threadId);
+    setMoveDialogOpen(true);
+    // IMPORTANT: do not call onHistoryAction('move', ...) here – that still uses window.prompt upstream.
+  }, []);
 
   const handleCloseMoveDialog = React.useCallback(() => {
     setMoveDialogOpen(false);
@@ -100,6 +98,20 @@ export default function Sidebar({
   const handleSelectProject = React.useCallback((_project: any) => {
     // placeholder for future filtering / routing
   }, []);
+
+  // Hover + menu state for chats
+  const [hoverChatId, setHoverChatId] = React.useState<string | null>(null);
+  const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(null);
+
+  const closeMenu = React.useCallback(() => setMenuOpenForId(null), []);
+
+  const handleDeleteChat = React.useCallback(
+    (id: string) => {
+      closeMenu();
+      onHistoryAction('delete', id);
+    },
+    [closeMenu, onHistoryAction]
+  );
 
   return (
     <>
@@ -198,7 +210,7 @@ export default function Sidebar({
               marginTop: 4,
             }}
           >
-
+            Portal-style views coming soon
           </div>
         </div>
 
@@ -236,19 +248,31 @@ export default function Sidebar({
               {history.map((h) => {
                 const isActive = h.id === activeId;
                 const label = truncateChatTitle(h.title);
+                const isHovered = hoverChatId === h.id;
+                const menuOpen = menuOpenForId === h.id;
+
+                const background = isActive
+                  ? 'rgba(0,0,0,0.06)'
+                  : isHovered
+                    ? 'rgba(0,0,0,0.03)'
+                    : 'transparent';
 
                 return (
                   <div
                     key={h.id}
                     style={{
                       display: 'flex',
-                      gap: 8,
+                      gap: 4,
                       alignItems: 'center',
-                      marginBottom: 6,
+                      marginBottom: 4,
+                      position: 'relative',
+                    }}
+                    onMouseEnter={() => setHoverChatId(h.id)}
+                    onMouseLeave={() => {
+                      setHoverChatId((prev) => (prev === h.id ? null : prev));
                     }}
                   >
                     <button
-                      className="chat-item"
                       role="listitem"
                       onClick={() => onSelectHistory(h.id)}
                       aria-current={isActive ? 'true' : 'false'}
@@ -256,30 +280,96 @@ export default function Sidebar({
                       type="button"
                       style={{
                         flex: 1,
-                        textAlign: 'left',
+                        border: 'none',
+                        background,
+                        padding: '4px 6px',
+                        borderRadius: 6,
                         fontSize: 12,
                         fontWeight: isActive ? 600 : 400,
-                        paddingTop: 4,
-                        paddingBottom: 4,
-                        // keep shape but make it feel more like text than a giant pill
+                        textAlign: 'left',
+                        cursor: 'pointer',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
+                        transition: 'background 0.12s ease-out',
                       }}
                     >
                       {label}
                     </button>
-                    <div className="menu">
-                      <button
-                        className="btn"
-                        aria-label="Move chat to project"
-                        title="Move to project"
-                        onClick={() => handleMoveToProject(h.id)}
-                        type="button"
+
+                    {/* Plain text "..." trigger – no white circle */}
+                    <button
+                      type="button"
+                      aria-label="Chat options"
+                      title="Chat options"
+                      onClick={() =>
+                        setMenuOpenForId((prev) => (prev === h.id ? null : h.id))
+                      }
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: 16,
+                        lineHeight: 1,
+                        opacity: 0.7,
+                      }}
+                    >
+                      …
+                    </button>
+
+                    {/* Simple dropdown menu */}
+                    {menuOpen && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: '100%',
+                          marginTop: 4,
+                          padding: 6,
+                          background: '#fff',
+                          borderRadius: 8,
+                          boxShadow:
+                            '0 10px 25px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)',
+                          minWidth: 140,
+                          zIndex: 50,
+                          fontSize: 12,
+                        }}
                       >
-                        …
-                      </button>
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            closeMenu();
+                            handleMoveToProject(h.id);
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            border: 'none',
+                            background: 'transparent',
+                            padding: '4px 6px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Move to project
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteChat(h.id)}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            border: 'none',
+                            background: 'transparent',
+                            padding: '4px 6px',
+                            cursor: 'pointer',
+                            color: '#b00020',
+                          }}
+                        >
+                          Delete chat
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
