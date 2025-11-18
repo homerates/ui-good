@@ -1,9 +1,13 @@
 // ==== REPLACE ENTIRE FILE: app/api/projects/route.ts ====
+
+// These three lines MUST appear before anything else
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const revalidate = 0;
+
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
-export const dynamic = 'force-dynamic';
-
 
 // Initialize Supabase
 const supabase = createClient(
@@ -13,15 +17,18 @@ const supabase = createClient(
 
 export async function GET() {
     try {
-        // 1) Clerk user (async API)
+        // Clerk session (async)
         const session = await auth();
         const userId = session?.userId;
 
         if (!userId) {
-            return NextResponse.json({ ok: false, error: 'Not authenticated' }, { status: 401 });
+            return NextResponse.json(
+                { ok: false, error: 'Not authenticated' },
+                { status: 401 }
+            );
         }
 
-        // 2) Fetch all projects owned by this user
+        // Fetch projects
         const { data, error } = await supabase
             .from('projects')
             .select('id, name, created_at, updated_at')
