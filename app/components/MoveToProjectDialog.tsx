@@ -1,312 +1,406 @@
-// ==== REPLACE ENTIRE FILE: app/components/Sidebar.tsx ====
-// Sidebar: Clerk-ready, light UI, with streamlined Knowledge Tools section
-
+// ==== REPLACE ENTIRE FILE: app/components/MoveToProjectDialog.tsx ====
 'use client';
 
-import * as React from 'react';
-import {
-    SignedIn,
-    SignedOut,
-    SignInButton,
-    UserButton,
-} from '@clerk/nextjs';
+import * as React from "react";
+import type { Project } from "../../lib/projectsClient";
+import { fetchProjects } from "../../lib/projectsClient";
 
-// Projects list (read-only)
-import ProjectsPanel from './ProjectsPanel';
-// Move-to-project dialog
-import MoveToProjectDialog from './MoveToProjectDialog';
-
-type HistoryItem = { id: string; title: string; updatedAt?: number };
-
-// Knowledge tools you'll wire in from app/page.tsx later
-export type KnowledgeToolId =
-    | 'mortgage-solutions'
-    | 'ask-underwriting';
-
-export type SidebarProps = {
-    id?: string;
-    history: HistoryItem[];
-    activeId: string | null;
-    isOpen: boolean;
-
-    onToggle: () => void;
-
-    onSelectHistory: (id: string) => void;
-    onHistoryAction: (
-        action: 'rename' | 'move' | 'archive' | 'delete',
-        id: string
-    ) => void;
-
-    onNewChat: () => void;
-    onSettings: () => void;
-    onShare: () => void; // kept for prop parity (not rendered as a pill)
-    onSearch: () => void;
-    onLibrary: () => void;
-    onNewProject: () => void;
-    onMortgageCalc: () => void;
-
-    // Optional intelligence layer hook – safe even if not passed yet
-    onKnowledgeTool?: (tool: KnowledgeToolId) => void;
+type MoveToProjectDialogProps = {
+    open: boolean;
+    /** The chat/thread id we are attaching to a project */
+    threadId: string | null;
+    /** Called when user cancels or after a successful move */
+    onClose: () => void;
+    /** Optional hook so the parent can refresh history/projects */
+    onMoved?: (project: Project) => void;
 };
 
-export default function Sidebar({
-    id,
-    history,
-    activeId,
-    isOpen,
-    onToggle,
-    onSelectHistory,
-    onHistoryAction,
-    onNewChat,
-    onSettings,
-    onShare, // not used in UI (per request), but kept to match page props
-    onSearch,
-    onLibrary,
-    onNewProject,
-    onMortgageCalc,
-    onKnowledgeTool,
-}: SidebarProps) {
-    const handleKnowledgeClick = (tool: KnowledgeToolId) => {
-        if (onKnowledgeTool) onKnowledgeTool(tool);
-    };
+/** Keep only first 2–3 words, then add an ellipsis if longer */
+function truncateProjectName(raw: string): string {
+    const name = (raw || "").trim();
+    if (!name) return "(untitled project)";
+    const words = name.split(/\s+/);
+    if (words.length <= 3) return name;
+    return words.slice(0, 3).join(" ") + "…";
+}
 
-    // For now, selecting a project is just logged.
-    // Later we can wire this into filtering / loading threads by project.
-    const handleSelectProject = React.useCallback((project: any) => {
-        // Placeholder hook point
-        // console.log('Selected project:', project);
-    }, []);
+/**
+ * MoveToProjectDialog
+ *
+ * ChatGPT-style "Move to project" dialog:
+ * - Lists existing projects (compact, no thread counts)
+ * - Lets user create a new project by name
+ * - Calls POST /api/projects with { threadId, projectName }
+ */
+export default function MoveToProjectDialog({
+    open,
+    threadId,
+    onClose,
+    onMoved,
+}: MoveToProjectDialogProps) {
+    const [projects, setProjects] = React.useState<Project[]>([]);
+    const [loadingProjects, setLoadingProjects] = React.useState(false);
+    const [projectName, setProjectName] = React.useState("");
+    const [saving, setSaving] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+    const [status, setStatus] = React.useState<string | null>(null);
 
-    // Local state for "Move to project" dialog
-    const [moveDialogOpen, setMoveDialogOpen] = React.useState(false);
-    const [moveDialogThreadId, setMoveDialogThreadId] = React.useState<string | null>(null);
+    // Load projects when dialog opens
+    React.useEffect(() => {
+        if (!open) return;
+        setStatus(null);
+        setError(null);
+        setProjectName("");
+        setProjects([]);
+        setLoadingProjects(true);
 
-    const handleMoveToProject = React.useCallback(
-        (threadId: string) => {
-            // Open our custom dialog and remember which thread we're moving
-            setMoveDialogThreadId(threadId);
-            setMoveDialogOpen(true);
+        (async () => {
+            try {
+                const res = await fetchProjects();
+                if (!res.ok) {
+                    const msg =
+                        res.message ||
+                        res.error ||
+                        res.reason ||
+                        "Unable to load projects.";
+                    setError(msg);
+                    setProjects([]);
+                } else {
+                    setProjects(res.projects ?? []);
+                }
+            } catch (err) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Unexpected error loading projects."
+                );
+                setProjects([]);
+            } finally {
+                setLoadingProjects(false);
+            }
+        })();
+    }, [open]);
 
-            // IMPORTANT: do NOT call onHistoryAction('move', ...) here anymore,
-            // because the parent implementation still uses window.prompt.
-            // We'll keep onHistoryAction available for future actions like
-            // rename/archive/delete, but "move" is now owned by this dialog.
-        },
-        []
-    );
+    // If dialog is closed, render nothing
+    if (!open) return null;
 
-    const handleCloseMoveDialog = React.useCallback(() => {
-        setMoveDialogOpen(false);
-        setMoveDialogThreadId(null);
-    }, []);
+    const disabled = !threadId || saving;
+
+    async function handleSave(targetName?: string) {
+        if (!threadId) return;
+        const finalName = (targetName ?? projectName).trim();
+        if (!finalName) {
+            setError("Please enter a project name.");
+            return;
+        }
+
+        setSaving(true);
+        setError(null);
+        setStatus("Saving…");
+
+        try {
+            const res = await fetch("/api/projects", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({
+                    threadId,
+                    projectName: finalName,
+                }),
+            });
+
+            if (!res.ok) {
+                let text: string | undefined;
+                try {
+                    text = await res.text();
+                } catch {
+                    // ignore
+                }
+                setError(
+                    text ||
+                    `Request failed with HTTP ${res.status}. Please try again.`
+                );
+                setStatus(null);
+                return;
+            }
+
+            const json = (await res.json()) as {
+                ok: boolean;
+                project?: Project;
+                reason?: string;
+                message?: string;
+                error?: string;
+            };
+
+            if (!json.ok || !json.project) {
+                setError(
+                    json.message ||
+                    json.error ||
+                    json.reason ||
+                    "Unable to save project mapping."
+                );
+                setStatus(null);
+                return;
+            }
+
+            setStatus("Saved");
+            if (onMoved) onMoved(json.project);
+
+            // Close after a short delay so user can see "Saved"
+            setTimeout(() => {
+                onClose();
+            }, 400);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Unexpected error saving project."
+            );
+            setStatus(null);
+        } finally {
+            setSaving(false);
+        }
+    }
 
     return (
-        <>
-            <aside
-                id={id}
-                className={`sidebar ${isOpen ? 'open' : 'closed'}`}
-                aria-label="Sidebar"
+        <div
+            // Overlay
+            style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.25)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9999,
+            }}
+        >
+            <div
+                style={{
+                    width: 360,
+                    maxWidth: "90vw",
+                    background: "#fff",
+                    color: "#111",
+                    borderRadius: 12,
+                    boxShadow:
+                        "0 18px 45px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.06)",
+                    padding: 16,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                    fontSize: 13,
+                }}
             >
-                {/* Header: hamburger + brand placeholder */}
+                {/* Header */}
                 <div
                     style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '12px 12px 8px 12px',
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 4,
                     }}
                 >
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        Move chat to project
+                    </div>
                     <button
-                        className="hamburger"
-                        onClick={onToggle}
-                        aria-label={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
-                        title={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
                         type="button"
+                        onClick={onClose}
+                        disabled={saving}
+                        style={{
+                            border: "none",
+                            background: "none",
+                            cursor: saving ? "default" : "pointer",
+                            fontSize: 18,
+                            lineHeight: 1,
+                        }}
+                        aria-label="Close"
+                        title="Close"
                     >
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
-
-                    <div style={{ height: 0 }} />
-                </div>
-
-                {/* Primary actions */}
-                <div style={{ display: 'grid', gap: 10, padding: '8px 12px' }}>
-                    <button className="btn primary" onClick={onNewChat} type="button">
-                        New chat
-                    </button>
-                    <button className="btn" onClick={onSearch} type="button">
-                        Search
-                    </button>
-                    <button className="btn" onClick={onLibrary} type="button">
-                        Library
-                    </button>
-                    <button className="btn" onClick={onNewProject} type="button">
-                        New Project +
-                    </button>
-                    <button className="btn" onClick={onMortgageCalc} type="button">
-                        Mortgage Calculator
+                        ×
                     </button>
                 </div>
 
-                {/* Knowledge tools: two portal-style entries */}
+                {/* Existing projects list */}
                 <div
                     style={{
-                        padding: '8px 12px',
-                        borderTop: '1px solid rgba(0,0,0,0.05)',
-                        borderBottom: '1px solid rgba(0,0,0,0.04)',
+                        maxHeight: 180,
+                        overflowY: "auto",
+                        paddingRight: 2,
+                    }}
+                >
+                    {loadingProjects && (
+                        <div style={{ opacity: 0.7, fontSize: 12 }}>
+                            Loading projects…
+                        </div>
+                    )}
+
+                    {!loadingProjects && projects && projects.length > 0 && (
+                        <ul
+                            style={{
+                                listStyle: "none",
+                                padding: 0,
+                                margin: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 4,
+                                fontSize: 12,
+                            }}
+                        >
+                            {projects.map((project) => {
+                                const displayName = truncateProjectName(
+                                    project.name || "(untitled project)"
+                                );
+                                return (
+                                    <li key={project.id}>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleSave(project.name)
+                                            }
+                                            disabled={disabled}
+                                            style={{
+                                                width: "100%",
+                                                textAlign: "left",
+                                                borderRadius: 8,
+                                                border:
+                                                    "1px solid rgba(0,0,0,0.08)",
+                                                padding: "6px 8px",
+                                                background: "#fafafa",
+                                                cursor: disabled
+                                                    ? "default"
+                                                    : "pointer",
+                                                fontSize: 12,
+                                            }}
+                                            title={project.name}
+                                        >
+                                            <span
+                                                style={{
+                                                    whiteSpace: "nowrap",
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    fontWeight: 500,
+                                                }}
+                                            >
+                                                {displayName}
+                                            </span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+
+                    {!loadingProjects &&
+                        (!projects || projects.length === 0) && (
+                            <div style={{ opacity: 0.7, fontSize: 12 }}>
+                                No projects yet. Create one below.
+                            </div>
+                        )}
+                </div>
+
+                {/* New project name input */}
+                <div
+                    style={{
+                        borderTop: "1px solid rgba(0,0,0,0.06)",
+                        paddingTop: 8,
                         marginTop: 4,
-                        marginBottom: 4,
                     }}
                 >
                     <div
                         style={{
                             fontSize: 11,
-                            textTransform: 'uppercase',
-                            letterSpacing: 0.5,
-                            opacity: 0.7,
-                            marginBottom: 6,
+                            opacity: 0.75,
+                            marginBottom: 4,
                         }}
                     >
-                        Knowledge tools
+                        Or create a new project
                     </div>
-
-                    <button
-                        className="btn"
-                        type="button"
-                        style={{ width: '100%', marginBottom: 8 }}
-                        onClick={() => handleKnowledgeClick('mortgage-solutions')}
-                    >
-                        Mortgage Solutions
-                    </button>
-
-                    <button
-                        className="btn"
-                        type="button"
-                        style={{ width: '100%', marginBottom: 4 }}
-                        onClick={() => handleKnowledgeClick('ask-underwriting')}
-                    >
-                        Ask Underwriting
-                    </button>
-
-                    <div
+                    <input
+                        type="text"
+                        value={projectName}
+                        onChange={(e) => setProjectName(e.target.value)}
+                        placeholder="New project name"
+                        disabled={disabled}
                         style={{
-                            fontSize: 11,
-                            opacity: 0.65,
-                            marginTop: 4,
+                            width: "100%",
+                            borderRadius: 8,
+                            border: "1px solid rgba(0,0,0,0.12)",
+                            padding: "6px 8px",
+                            fontSize: 13,
+                            boxSizing: "border-box",
                         }}
-                    >
-                        Portal-style views coming soon
-                    </div>
-                </div>
-
-                {/* Projects list (ChatGPT-style) */}
-                <div
-                    style={{
-                        padding: '8px 12px',
-                        borderBottom: '1px solid rgba(0,0,0,0.04)',
-                        marginBottom: 4,
-                    }}
-                >
-                    <ProjectsPanel
-                        activeProjectId={null}
-                        onSelectProject={handleSelectProject}
                     />
                 </div>
 
-                {/* Threads */}
-                <div style={{ padding: '8px 12px' }}>
-                    {history.length > 0 ? (
-                        <div className="chat-list" role="list" aria-label="Chats">
-                            {history.map((h) => {
-                                const isActive = h.id === activeId;
-                                return (
-                                    <div
-                                        key={h.id}
-                                        style={{
-                                            display: 'flex',
-                                            gap: 8,
-                                            alignItems: 'center',
-                                            marginBottom: 8,
-                                        }}
-                                    >
-                                        <button
-                                            className="chat-item"
-                                            role="listitem"
-                                            onClick={() => onSelectHistory(h.id)}
-                                            aria-current={isActive ? 'true' : 'false'}
-                                            title={h.title}
-                                            style={{
-                                                flex: 1,
-                                                textAlign: 'left',
-                                                fontWeight: isActive ? 600 : 400,
-                                            }}
-                                            type="button"
-                                        >
-                                            {h.title}
-                                        </button>
-                                        <div className="menu">
-                                            <button
-                                                className="btn"
-                                                aria-label="Move chat to project"
-                                                title="Move to project"
-                                                onClick={() => handleMoveToProject(h.id)}
-                                                type="button"
-                                            >
-                                                …
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div style={{ opacity: 0.7, fontSize: 13 }}>No chats yet</div>
-                    )}
-                </div>
-
-                {/* Footer: settings + Clerk (no Copy conversation pill) */}
-                <div style={{ marginTop: 'auto', padding: '12px' }}>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn" onClick={onSettings} type="button">
-                            Settings
-                        </button>
+                {/* Status + actions */}
+                {error && (
+                    <div
+                        style={{
+                            color: "#b00020",
+                            fontSize: 11,
+                            marginTop: 2,
+                        }}
+                    >
+                        {error}
                     </div>
-
-                    <div style={{ marginTop: 12 }}>
-                        <SignedIn>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <UserButton
-                                    showName
-                                    appearance={{
-                                        elements: {
-                                            userButtonOuterIdentifier: { fontWeight: 600 },
-                                        },
-                                    }}
-                                />
-                            </div>
-                        </SignedIn>
-
-                        <SignedOut>
-                            <SignInButton mode="modal">
-                                <button className="btn primary" type="button">
-                                    Sign in
-                                </button>
-                            </SignInButton>
-                        </SignedOut>
+                )}
+                {status && !error && (
+                    <div
+                        style={{
+                            fontSize: 11,
+                            opacity: 0.7,
+                            marginTop: 2,
+                        }}
+                    >
+                        {status}
                     </div>
-                </div>
-            </aside>
+                )}
 
-            {/* Move-to-project dialog lives outside the sidebar
-          so its fixed overlay can cover the whole viewport. */}
-            <MoveToProjectDialog
-                open={moveDialogOpen}
-                threadId={moveDialogThreadId}
-                onClose={handleCloseMoveDialog}
-                onMoved={undefined}
-            />
-        </>
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 8,
+                        marginTop: 8,
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={saving}
+                        style={{
+                            borderRadius: 999,
+                            border: "1px solid rgba(0,0,0,0.14)",
+                            padding: "6px 12px",
+                            background: "#fff",
+                            cursor: saving ? "default" : "pointer",
+                            fontSize: 13,
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void handleSave()}
+                        disabled={disabled}
+                        style={{
+                            borderRadius: 999,
+                            border: "none",
+                            padding: "6px 14px",
+                            background: "#111827",
+                            color: "#fff",
+                            cursor: disabled ? "default" : "pointer",
+                            fontSize: 13,
+                            opacity: disabled ? 0.6 : 1,
+                        }}
+                    >
+                        {saving ? "Saving…" : "Save"}
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 }
