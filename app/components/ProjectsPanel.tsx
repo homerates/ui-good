@@ -1,4 +1,4 @@
-// ==== CREATE FILE: app/components/ProjectsPanel.tsx ====
+// ==== REPLACE ENTIRE FILE: app/components/ProjectsPanel.tsx ====
 'use client';
 
 import * as React from "react";
@@ -6,18 +6,30 @@ import type { Project } from "../../lib/projectsClient";
 import { fetchProjects } from "../../lib/projectsClient";
 
 type ProjectsPanelProps = {
+    /** Optional: externally selected project id */
     activeProjectId?: string | null;
+    /** Called when the user clicks a project */
     onSelectProject?: (project: Project) => void;
+    /** Extra class if you want to style from globals */
     className?: string;
 };
+
+/** Keep only first 2–3 words, then add an ellipsis if longer */
+function truncateProjectName(raw: string): string {
+    const name = (raw || "").trim();
+    if (!name) return "(untitled project)";
+    const words = name.split(/\s+/);
+    if (words.length <= 3) return name;
+    return words.slice(0, 3).join(" ") + "…";
+}
 
 /**
  * ProjectsPanel
  *
- * Read-only list of projects for the signed-in user.
- * - Uses /api/projects under the hood via fetchProjects()
- * - Shows loading / error / empty states
- * - Optional onSelectProject callback for parent components
+ * ChatGPT-style list of projects:
+ * - compact
+ * - no thread counts
+ * - project names truncated to 2–3 words + …
  */
 export default function ProjectsPanel({
     activeProjectId,
@@ -28,6 +40,12 @@ export default function ProjectsPanel({
     const [loading, setLoading] = React.useState<boolean>(true);
     const [error, setError] = React.useState<string | null>(null);
     const [refreshing, setRefreshing] = React.useState<boolean>(false);
+    const [localSelectedId, setLocalSelectedId] = React.useState<string | null>(
+        null
+    );
+
+    // If parent passes activeProjectId, it wins; otherwise we fall back to local selection
+    const effectiveActiveId = activeProjectId ?? localSelectedId ?? null;
 
     const load = React.useCallback(async () => {
         setLoading(true);
@@ -68,58 +86,72 @@ export default function ProjectsPanel({
         void load();
     }, [load]);
 
+    const handleClickProject = (project: Project) => {
+        setLocalSelectedId(project.id);
+        if (onSelectProject) onSelectProject(project);
+    };
+
     return (
         <div
             className={className}
             style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: 8,
-                fontSize: 13,
-                lineHeight: 1.4,
+                gap: 4,
+                fontSize: 11, // smaller overall
+                lineHeight: 1.35,
             }}
         >
-            {/* Header row */}
+            {/* Label row, light and small */}
             <div
                 style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 4,
+                    marginBottom: 2,
                 }}
             >
-                <div style={{ fontWeight: 600 }}>Projects</div>
-
+                <div
+                    style={{
+                        fontSize: 10,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.6,
+                        opacity: 0.7,
+                    }}
+                >
+                    Projects
+                </div>
                 <button
                     type="button"
                     onClick={() => void refresh()}
                     disabled={loading || refreshing}
                     style={{
-                        fontSize: 11,
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        background: "transparent",
+                        fontSize: 10,
+                        padding: 0,
+                        border: "none",
+                        background: "none",
                         cursor: loading || refreshing ? "default" : "pointer",
-                        opacity: loading || refreshing ? 0.5 : 1,
+                        opacity: loading || refreshing ? 0.4 : 0.75,
+                        textDecoration: "underline",
                     }}
                 >
-                    {refreshing ? "Refreshing..." : "Refresh"}
+                    {refreshing ? "Refreshing" : "Refresh"}
                 </button>
             </div>
 
-            {/* Status states */}
+            {/* States */}
             {loading && (
-                <div style={{ opacity: 0.7 }}>Loading projects…</div>
+                <div style={{ opacity: 0.6, fontSize: 11 }}>Loading…</div>
             )}
 
             {!loading && error && (
                 <div
                     style={{
                         color: "#ff9b9b",
-                        background: "rgba(255,0,0,0.05)",
+                        background: "rgba(255,0,0,0.03)",
                         borderRadius: 4,
-                        padding: 6,
+                        padding: 4,
+                        fontSize: 10,
                     }}
                 >
                     {error}
@@ -127,7 +159,9 @@ export default function ProjectsPanel({
             )}
 
             {!loading && !error && projects && projects.length === 0 && (
-                <div style={{ opacity: 0.7 }}>No projects yet.</div>
+                <div style={{ opacity: 0.6, fontSize: 11 }}>
+                    No projects yet.
+                </div>
             )}
 
             {/* Projects list */}
@@ -139,55 +173,47 @@ export default function ProjectsPanel({
                         margin: 0,
                         display: "flex",
                         flexDirection: "column",
-                        gap: 4,
+                        gap: 2,
                     }}
                 >
                     {projects.map((project) => {
-                        const isActive = project.id === activeProjectId;
+                        const isActive = project.id === effectiveActiveId;
+                        const displayName = truncateProjectName(
+                            project.name || "(untitled project)"
+                        );
 
                         return (
                             <li key={project.id}>
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        onSelectProject && onSelectProject(project)
-                                    }
+                                    onClick={() => handleClickProject(project)}
                                     style={{
                                         width: "100%",
                                         textAlign: "left",
                                         borderRadius: 6,
-                                        border: "1px solid rgba(255,255,255,0.08)",
-                                        padding: "6px 8px",
+                                        border: "none",
+                                        padding: "4px 0",
                                         background: isActive
-                                            ? "rgba(255,255,255,0.1)"
+                                            ? "rgba(0,0,0,0.04)"
                                             : "transparent",
-                                        cursor: onSelectProject ? "pointer" : "default",
-                                        fontSize: 13,
+                                        cursor: "pointer",
+                                        fontSize: 11,
+                                        display: "flex",
+                                        flexDirection: "row",
+                                        alignItems: "center",
                                     }}
                                 >
-                                    <div
+                                    <span
                                         style={{
-                                            fontWeight: 500,
-                                            marginBottom: 2,
+                                            fontWeight: isActive ? 500 : 400,
                                             whiteSpace: "nowrap",
                                             overflow: "hidden",
                                             textOverflow: "ellipsis",
                                         }}
+                                        title={project.name}
                                     >
-                                        {project.name || "(untitled project)"}
-                                    </div>
-                                    {project.project_threads &&
-                                        project.project_threads.length > 0 && (
-                                            <div
-                                                style={{
-                                                    fontSize: 11,
-                                                    opacity: 0.7,
-                                                }}
-                                            >
-                                                {project.project_threads.length} thread
-                                                {project.project_threads.length === 1 ? "" : "s"}
-                                            </div>
-                                        )}
+                                        {displayName}
+                                    </span>
                                 </button>
                             </li>
                         );
