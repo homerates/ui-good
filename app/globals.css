@@ -699,7 +699,7 @@ ul {
 /* Default / desktop: stick above the footer inside the scroll area */
 .hr-composer[data-composer="primary"] {
   position: sticky;
-  bottom: var(--footer-h, 56px);
+  bottom: var(--footer-h, 14px);
   z-index: 900;
 }
 

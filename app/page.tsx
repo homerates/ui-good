@@ -763,10 +763,11 @@ export default function Page() {
                     flex: '1 1 auto',
                     display: 'flex',
                     flexDirection: 'column',
-                    minHeight: 0, // let the inner .scroll div own the overflow
-                    paddingBottom: 'var(--footer-h)',
+                    minHeight: 0,
+                    paddingBottom: 0, // remove extra bottom gap so composer can sit where CSS says
                 }}
             >
+
 
                 <div className="header">
                     <div
