@@ -667,7 +667,7 @@ ul {
 
   /* Make sure the last messages aren't hidden behind the pill */
   .scroll {
-    padding-bottom: calc(var(--footer-h) + 80px);
+    padding-bottom: calc(var(--footer-h) + 14px);
   }
 
   /* Mobile: anchor composer to bottom of viewport, edge-to-edge */
