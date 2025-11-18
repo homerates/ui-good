@@ -199,9 +199,9 @@ export default function Sidebar({
                   <div className="menu">
                     <button
                       className="btn"
-                      aria-label="Rename chat"
-                      title="Rename chat"
-                      onClick={() => onHistoryAction('rename', h.id)}
+                      aria-label="Move chat to project"
+                      title="Move to project"
+                      onClick={() => onHistoryAction('move', h.id)}
                       type="button"
                     >
                       …
