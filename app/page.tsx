@@ -507,27 +507,35 @@ export default function Page() {
             // Fire-and-forget async call to Supabase via /api/projects
             (async () => {
                 try {
+                    const payload = {
+                        threadId: id,
+                        projectName,
+                        // extra aliases in case the API expects a different field name
+                        name: projectName,
+                        title: projectName,
+                    };
+
                     const res = await fetch('/api/projects', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ threadId: id, projectName }),
+                        body: JSON.stringify(payload),
                     });
 
                     const json = await res.json().catch(() => ({} as any));
 
+                    console.log('projects POST response', {
+                        status: res.status,
+                        json,
+                    });
+
                     if (!res.ok || !json?.ok) {
-                        console.error('Project save failed', {
-                            status: res.status,
-                            json,
-                        });
                         alert(
                             'Sorry, there was a problem saving this chat to a project.'
                         );
                         return;
                     }
 
-                    console.log('Saved chat to project:', json);
-                    // Later: update local project list in UI
+                    // Later: toast + update local project state
                 } catch (err) {
                     console.error('Project save error:', err);
                     alert('Network error while saving this chat to a project.');
@@ -536,6 +544,7 @@ export default function Page() {
 
             return;
         }
+
 
         if (action === 'archive') {
             alert('Archive (coming soon)');
