@@ -46,6 +46,10 @@ export type SidebarProps = {
 
   // Optional intelligence layer hook – safe even if not passed yet
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
+
+  // NEW: optional hooks for project actions and moving chats to projects
+  onProjectAction?: (action: 'rename' | 'delete', project: Project) => void;
+  onMoveChatToProject?: (threadId: string, projectId: string) => void;
 };
 
 // Small helper: keep chat titles to ~2–3 words + …
@@ -74,6 +78,8 @@ export default function Sidebar({
   onNewProject,
   onMortgageCalc,
   onKnowledgeTool,
+  onProjectAction,
+  onMoveChatToProject,
 }: SidebarProps) {
   const handleKnowledgeClick = (tool: KnowledgeToolId) => {
     if (onKnowledgeTool) onKnowledgeTool(tool);
@@ -230,6 +236,7 @@ export default function Sidebar({
           <ProjectsPanel
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
+            onProjectAction={onProjectAction}
           />
         </div>
 
@@ -422,7 +429,11 @@ export default function Sidebar({
         open={moveDialogOpen}
         threadId={moveDialogThreadId}
         onClose={handleCloseMoveDialog}
-        onMoved={undefined}
+        onMoved={
+          onMoveChatToProject && moveDialogThreadId
+            ? (projectId) => onMoveChatToProject(moveDialogThreadId, projectId)
+            : undefined
+        }
       />
     </>
   );
