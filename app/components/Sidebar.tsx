@@ -11,9 +11,7 @@ import {
   UserButton,
 } from '@clerk/nextjs';
 
-// Projects list (read-only)
 import ProjectsPanel from './ProjectsPanel';
-// Move-to-project dialog
 import MoveToProjectDialog from './MoveToProjectDialog';
 
 type HistoryItem = { id: string; title: string; updatedAt?: number };
@@ -49,6 +47,16 @@ export type SidebarProps = {
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
 };
 
+// Small helper: keep chat titles to ~2–3 words + …
+function truncateChatTitle(raw: string): string {
+  const title = (raw || '').trim();
+  if (!title) return 'New chat';
+
+  const words = title.split(/\s+/);
+  if (words.length <= 3) return title;
+  return words.slice(0, 3).join(' ') + '…';
+}
+
 export default function Sidebar({
   id,
   history,
@@ -70,26 +78,15 @@ export default function Sidebar({
     if (onKnowledgeTool) onKnowledgeTool(tool);
   };
 
-  // For now, selecting a project is just logged.
-  // Later we can wire this into filtering / loading threads by project.
-  const handleSelectProject = React.useCallback((project: any) => {
-    // Placeholder hook point
-    // console.log('Selected project:', project);
-  }, []);
-
   // Local state for "Move to project" dialog
   const [moveDialogOpen, setMoveDialogOpen] = React.useState(false);
   const [moveDialogThreadId, setMoveDialogThreadId] = React.useState<string | null>(null);
 
   const handleMoveToProject = React.useCallback(
     (threadId: string) => {
-      // Open our custom dialog and remember which thread we're moving
       setMoveDialogThreadId(threadId);
       setMoveDialogOpen(true);
-
-      // IMPORTANT: we do NOT call onHistoryAction('move', ...) here anymore,
-      // because the parent implementation still uses window.prompt.
-      // "Move" is now owned entirely by this dialog.
+      // IMPORTANT: do not call onHistoryAction('move', ...) here – that still uses window.prompt upstream.
     },
     []
   );
@@ -97,6 +94,11 @@ export default function Sidebar({
   const handleCloseMoveDialog = React.useCallback(() => {
     setMoveDialogOpen(false);
     setMoveDialogThreadId(null);
+  }, []);
+
+  // For now, project clicks don't filter – just a hook for later
+  const handleSelectProject = React.useCallback((_project: any) => {
+    // placeholder for future filtering / routing
   }, []);
 
   return (
@@ -196,11 +198,11 @@ export default function Sidebar({
               marginTop: 4,
             }}
           >
-            Portal-style views coming soon
+
           </div>
         </div>
 
-        {/* Projects list (ChatGPT-style) */}
+        {/* Projects list */}
         <div
           style={{
             padding: '8px 12px',
@@ -216,7 +218,7 @@ export default function Sidebar({
 
         {/* Threads / Chats */}
         <div style={{ padding: '8px 12px' }}>
-          {/* Small CHATS header so it's clear this is message history, not another "Projects" row */}
+          {/* Small CHATS header */}
           <div
             style={{
               fontSize: 10,
@@ -233,6 +235,8 @@ export default function Sidebar({
             <div className="chat-list" role="list" aria-label="Chats">
               {history.map((h) => {
                 const isActive = h.id === activeId;
+                const label = truncateChatTitle(h.title);
+
                 return (
                   <div
                     key={h.id}
@@ -240,7 +244,7 @@ export default function Sidebar({
                       display: 'flex',
                       gap: 8,
                       alignItems: 'center',
-                      marginBottom: 8,
+                      marginBottom: 6,
                     }}
                   >
                     <button
@@ -249,14 +253,21 @@ export default function Sidebar({
                       onClick={() => onSelectHistory(h.id)}
                       aria-current={isActive ? 'true' : 'false'}
                       title={h.title}
+                      type="button"
                       style={{
                         flex: 1,
                         textAlign: 'left',
+                        fontSize: 12,
                         fontWeight: isActive ? 600 : 400,
+                        paddingTop: 4,
+                        paddingBottom: 4,
+                        // keep shape but make it feel more like text than a giant pill
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
-                      type="button"
                     >
-                      {h.title}
+                      {label}
                     </button>
                     <div className="menu">
                       <button
@@ -278,7 +289,7 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Footer: settings + Clerk (no Copy conversation pill) */}
+        {/* Footer: settings + Clerk */}
         <div style={{ marginTop: 'auto', padding: '12px' }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn" onClick={onSettings} type="button">
@@ -311,8 +322,7 @@ export default function Sidebar({
         </div>
       </aside>
 
-      {/* Move-to-project dialog lives outside the sidebar
-          so its fixed overlay can cover the whole viewport. */}
+      {/* Move-to-project dialog lives outside the sidebar */}
       <MoveToProjectDialog
         open={moveDialogOpen}
         threadId={moveDialogThreadId}
