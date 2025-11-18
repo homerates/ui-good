@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase (service role not required for read)
+// Initialize Supabase
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -11,8 +11,10 @@ const supabase = createClient(
 
 export async function GET() {
     try {
-        // 1) Clerk user
-        const { userId } = auth();
+        // 1) Clerk user (async API)
+        const session = await auth();
+        const userId = session?.userId;
+
         if (!userId) {
             return NextResponse.json({ ok: false, error: 'Not authenticated' }, { status: 401 });
         }
