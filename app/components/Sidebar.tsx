@@ -11,6 +11,9 @@ import {
   UserButton,
 } from '@clerk/nextjs';
 
+// Projects list (read-only for now)
+import ProjectsPanel from './ProjectsPanel';
+
 type HistoryItem = { id: string; title: string; updatedAt?: number };
 
 // Knowledge tools you'll wire in from app/page.tsx later
@@ -64,6 +67,13 @@ export default function Sidebar({
   const handleKnowledgeClick = (tool: KnowledgeToolId) => {
     if (onKnowledgeTool) onKnowledgeTool(tool);
   };
+
+  // For now, selecting a project is just logged.
+  // Later we can wire this into filtering / loading threads by project.
+  const handleSelectProject = React.useCallback((project: any) => {
+    // Placeholder: no behavior change yet, but keeps wiring ready.
+    // console.log('Selected project:', project);
+  }, []);
 
   return (
     <aside
@@ -163,6 +173,20 @@ export default function Sidebar({
         >
           Portal-style views coming soon
         </div>
+      </div>
+
+      {/* Projects list (read-only for now) */}
+      <div
+        style={{
+          padding: '8px 12px',
+          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          marginBottom: 4,
+        }}
+      >
+        <ProjectsPanel
+          activeProjectId={null}
+          onSelectProject={handleSelectProject}
+        />
       </div>
 
       {/* Threads */}
