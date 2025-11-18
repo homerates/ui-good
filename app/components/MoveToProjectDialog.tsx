@@ -1,32 +1,23 @@
 // ==== REPLACE ENTIRE FILE: app/components/MoveToProjectDialog.tsx ====
-// Modal dialog to move a chat thread into a project.
-// Handles auth gracefully: if not signed in, shows a Sign in prompt instead of raw JSON.
-
 'use client';
 
 import * as React from 'react';
-import { SignInButton, useUser } from '@clerk/nextjs';
-
-type Project = {
-    id: string;
-    name: string;
-    project_threads?: { id: string; thread_id: string | null; created_at: string }[];
-};
+import type { Project } from '../../lib/projectsClient';
+import { fetchProjects } from '../../lib/projectsClient';
 
 type MoveToProjectDialogProps = {
+    /** Controls visibility of the dialog */
     open: boolean;
+    /** The chat / thread id we’re moving */
     threadId: string | null;
+    /** Called when the dialog should close */
     onClose: () => void;
-    onMoved?: (projectId: string, threadId: string) => void;
+    /**
+     * Optional: parent can do the real persistence (Supabase, etc.)
+     * If not provided, we’ll just show a friendly alert so it never fails silently.
+     */
+    onMoved?: (projectId: string) => void;
 };
-
-type ProjectsResponse =
-    | { ok: true; projects: Project[] }
-    | { ok: false; reason: string; stage?: string; message?: string };
-
-type PostResponse =
-    | { ok: true; project: Project; mapping: any }
-    | { ok: false; reason: string; stage?: string; message?: string };
 
 export default function MoveToProjectDialog({
     open,
@@ -34,391 +25,267 @@ export default function MoveToProjectDialog({
     onClose,
     onMoved,
 }: MoveToProjectDialogProps) {
-    const { isSignedIn } = useUser();
-
     const [projects, setProjects] = React.useState<Project[]>([]);
     const [loading, setLoading] = React.useState(false);
-    const [saving, setSaving] = React.useState(false);
-
+    const [error, setError] = React.useState<string | null>(null);
     const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
-    const [newProjectName, setNewProjectName] = React.useState('');
+    const [submitting, setSubmitting] = React.useState(false);
 
-    const [authRequired, setAuthRequired] = React.useState(false);
-    const [errorText, setErrorText] = React.useState<string | null>(null);
+    // Load projects when dialog opens
+    React.useEffect(() => {
+        if (!open) return;
 
-    // Reset internal state whenever dialog opens/closes
+        const load = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await fetchProjects();
+                if (!res.ok) {
+                    const msg =
+                        res.message || res.error || res.reason || 'Unable to load projects.';
+                    setError(msg);
+                    setProjects([]);
+                } else {
+                    const list = res.projects ?? [];
+                    setProjects(list);
+                    // Auto-select first project if none selected yet
+                    if (list.length > 0 && !selectedProjectId) {
+                        setSelectedProjectId(list[0].id);
+                    }
+                }
+            } catch (err) {
+                setError(
+                    err instanceof Error ? err.message : 'Unexpected error loading projects.'
+                );
+                setProjects([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void load();
+    }, [open, selectedProjectId]);
+
+    // Reset state when closing
     React.useEffect(() => {
         if (!open) {
-            setProjects([]);
-            setLoading(false);
-            setSaving(false);
             setSelectedProjectId(null);
-            setNewProjectName('');
-            setAuthRequired(false);
-            setErrorText(null);
+            setError(null);
+            setSubmitting(false);
         }
     }, [open]);
 
-    // Load projects when dialog opens and user is signed in
-    React.useEffect(() => {
-        if (!open) return;
-        if (!isSignedIn) {
-            // User is not signed in – show auth prompt instead of trying API calls
-            setAuthRequired(true);
-            setProjects([]);
-            return;
-        }
+    if (!open || !threadId) return null;
 
-        let cancelled = false;
+    const handleConfirm = async () => {
+        if (!selectedProjectId) return;
 
-        async function load() {
-            try {
-                setLoading(true);
-                setErrorText(null);
-                setAuthRequired(false);
-
-                const res = await fetch('/api/projects', {
-                    method: 'GET',
-                    cache: 'no-store',
-                });
-
-                const json = (await res.json()) as ProjectsResponse;
-
-                if (!json.ok) {
-                    // Defensive: if backend ever returns not_authenticated here, gate with auth prompt.
-                    if (json.reason === 'not_authenticated') {
-                        if (!cancelled) {
-                            setAuthRequired(true);
-                            setProjects([]);
-                        }
-                        return;
-                    }
-                    if (!cancelled) {
-                        setErrorText('There was a problem loading your projects.');
-                    }
-                    return;
-                }
-
-                if (!cancelled) {
-                    setProjects(json.projects ?? []);
-                }
-            } catch (err) {
-                if (!cancelled) {
-                    setErrorText('There was a problem loading your projects.');
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            }
-        }
-
-        load();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [open, isSignedIn]);
-
-    if (!open) return null;
-
-    const hasProjects = projects && projects.length > 0;
-
-    async function handleSave() {
-        if (!threadId) {
-            onClose();
-            return;
-        }
-
-        // If user is not signed in, show auth prompt instead of calling the API.
-        if (!isSignedIn) {
-            setAuthRequired(true);
-            setErrorText(null);
-            return;
-        }
-
-        const chosenExisting = selectedProjectId && selectedProjectId !== 'new';
-        const trimmedNewName = newProjectName.trim();
-
-        if (!chosenExisting && !trimmedNewName) {
-            setErrorText('Please pick a project or enter a name.');
-            return;
-        }
-
+        setSubmitting(true);
         try {
-            setSaving(true);
-            setErrorText(null);
-
-            const res = await fetch('/api/projects', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                cache: 'no-store',
-                body: JSON.stringify({
-                    threadId,
-                    projectName: chosenExisting
-                        ? projects.find((p) => p.id === selectedProjectId)?.name ?? ''
-                        : trimmedNewName,
-                }),
-            });
-
-            const json = (await res.json()) as PostResponse;
-
-            if (!json.ok) {
-                if (json.reason === 'not_authenticated') {
-                    // Backend says we need auth – switch to authRequired state.
-                    setAuthRequired(true);
-                    setErrorText(null);
-                    return;
-                }
-
-                setErrorText('There was a problem saving this chat to a project.');
-                return;
-            }
-
-            // Success
             if (onMoved) {
-                onMoved(json.project.id, threadId);
+                await Promise.resolve(onMoved(selectedProjectId));
+            } else {
+                // Fallback so it doesn’t look broken if we forget to wire onMoved
+                window.alert('Move-to-project is not fully wired yet (no onMoved handler).');
             }
             onClose();
         } catch (err) {
-            setErrorText('There was a problem saving this chat to a project.');
+            setError(
+                err instanceof Error ? err.message : 'There was a problem moving this chat.'
+            );
         } finally {
-            setSaving(false);
+            setSubmitting(false);
         }
-    }
-
-    const handleCancel = () => {
-        onClose();
     };
+
+    const cannotSubmit =
+        submitting || loading || !selectedProjectId || (projects?.length ?? 0) === 0;
 
     return (
         <div
-            // Simple overlay
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="move-to-project-title"
             style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'rgba(0,0,0,0.25)',
+                zIndex: 1000,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                zIndex: 1000,
+                background: 'rgba(0, 0, 0, 0.35)',
             }}
-            aria-modal="true"
-            role="dialog"
+            onClick={onClose}
         >
+            {/* Inner card – stop propagation so clicks inside don’t close */}
             <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
                     width: '100%',
                     maxWidth: 420,
                     margin: '0 16px',
+                    borderRadius: 12,
                     background: '#fff',
-                    borderRadius: 20,
                     boxShadow:
-                        '0 18px 45px rgba(15,23,42,0.25), 0 0 0 1px rgba(15,23,42,0.06)',
-                    padding: 20,
+                        '0 18px 40px rgba(0,0,0,0.20), 0 0 0 1px rgba(0,0,0,0.04)',
+                    padding: 16,
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 12,
                 }}
             >
-                {/* Header */}
                 <div
+                    id="move-to-project-title"
                     style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
+                        fontSize: 16,
+                        fontWeight: 600,
                         marginBottom: 4,
                     }}
                 >
-                    <div
-                        style={{
-                            fontSize: 16,
-                            fontWeight: 600,
-                        }}
-                    >
-                        Move chat to project
-                    </div>
-                    <button
-                        type="button"
-                        aria-label="Close"
-                        onClick={handleCancel}
-                        style={{
-                            border: 'none',
-                            background: 'transparent',
-                            cursor: 'pointer',
-                            fontSize: 18,
-                            lineHeight: 1,
-                        }}
-                    >
-                        ×
-                    </button>
+                    Move chat to a project
                 </div>
 
-                {/* AUTH REQUIRED STATE */}
-                {authRequired ? (
-                    <>
-                        <div
-                            style={{
-                                fontSize: 13,
-                                lineHeight: 1.5,
-                                marginTop: 4,
-                                marginBottom: 8,
-                            }}
-                        >
-                            You need to sign in to create projects and save chats into them.
-                        </div>
+                <div style={{ fontSize: 13, opacity: 0.8 }}>
+                    Choose which project you want this chat to live under. You can still
+                    find it in your history.
+                </div>
 
-                        <div
-                            style={{
-                                display: 'flex',
-                                gap: 8,
-                                marginTop: 8,
-                            }}
-                        >
-                            <SignInButton mode="modal">
-                                <button
-                                    type="button"
-                                    className="btn primary"
-                                    style={{ flex: '0 0 auto' }}
-                                >
-                                    Sign in
-                                </button>
-                            </SignInButton>
-                            <button
-                                type="button"
-                                className="btn"
-                                style={{ flex: '0 0 auto' }}
-                                onClick={handleCancel}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        {/* EXISTING PROJECTS */}
-                        <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-                            {loading
-                                ? 'Loading your projects…'
-                                : hasProjects
-                                    ? 'Choose a project below, or create a new one.'
-                                    : 'No projects yet. Create one below.'}
-                        </div>
-
-                        {hasProjects && (
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: 6,
-                                    marginTop: 4,
-                                    marginBottom: 8,
-                                    maxHeight: 200,
-                                    overflowY: 'auto',
-                                }}
-                            >
-                                {projects.map((p) => {
-                                    const isActive = selectedProjectId === p.id;
-                                    return (
-                                        <button
-                                            key={p.id}
-                                            type="button"
-                                            onClick={() => setSelectedProjectId(p.id)}
-                                            style={{
-                                                border: 'none',
-                                                background: isActive
-                                                    ? 'rgba(15,23,42,0.06)'
-                                                    : 'rgba(15,23,42,0.02)',
-                                                borderRadius: 10,
-                                                padding: '8px 10px',
-                                                textAlign: 'left',
-                                                cursor: 'pointer',
-                                                fontSize: 13,
-                                            }}
-                                        >
-                                            <div style={{ fontWeight: 500 }}>{p.name}</div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        {/* NEW PROJECT INPUT */}
-                        <div
-                            style={{
-                                marginTop: 8,
-                                paddingTop: 8,
-                                borderTop: '1px solid rgba(148,163,184,0.3)',
-                                fontSize: 12,
-                                opacity: 0.9,
-                            }}
-                        >
-                            Or create a new project
-                        </div>
-
-                        <input
-                            type="text"
-                            placeholder="New project name"
-                            value={newProjectName}
-                            onChange={(e) => {
-                                setNewProjectName(e.target.value);
-                                if (e.target.value.trim()) {
-                                    setSelectedProjectId('new');
-                                }
-                            }}
-                            style={{
-                                marginTop: 6,
-                                padding: '8px 10px',
-                                borderRadius: 999,
-                                border: '1px solid rgba(148,163,184,0.7)',
-                                fontSize: 13,
-                                outline: 'none',
-                            }}
-                        />
-
-                        {/* Error message (friendly, no raw JSON) */}
-                        {errorText && (
-                            <div
-                                style={{
-                                    color: '#b91c1c',
-                                    fontSize: 12,
-                                    marginTop: 4,
-                                }}
-                            >
-                                {errorText}
-                            </div>
-                        )}
-
-                        {/* Actions */}
-                        <div
-                            style={{
-                                display: 'flex',
-                                justifyContent: 'flex-end',
-                                gap: 8,
-                                marginTop: 14,
-                            }}
-                        >
-                            <button
-                                type="button"
-                                className="btn"
-                                onClick={handleCancel}
-                                disabled={saving}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className="btn primary"
-                                onClick={handleSave}
-                                disabled={saving}
-                            >
-                                {saving ? 'Saving…' : 'Save'}
-                            </button>
-                        </div>
-                    </>
+                {/* Status area */}
+                {loading && (
+                    <div style={{ fontSize: 13, opacity: 0.75 }}>Loading projects…</div>
                 )}
+
+                {!loading && error && (
+                    <div
+                        style={{
+                            fontSize: 12,
+                            color: '#b00020',
+                            background: 'rgba(176,0,32,0.06)',
+                            padding: 8,
+                            borderRadius: 8,
+                        }}
+                    >
+                        {error}
+                    </div>
+                )}
+
+                {!loading && !error && projects.length === 0 && (
+                    <div style={{ fontSize: 13, opacity: 0.75 }}>
+                        You don&apos;t have any projects yet. Create a project from the sidebar
+                        first, then move this chat.
+                    </div>
+                )}
+
+                {/* Projects list */}
+                {!loading && !error && projects.length > 0 && (
+                    <div
+                        style={{
+                            maxHeight: 220,
+                            overflowY: 'auto',
+                            padding: '4px 0',
+                            borderRadius: 8,
+                            background: 'rgba(0,0,0,0.02)',
+                        }}
+                    >
+                        {projects.map((project) => {
+                            const isSelected = project.id === selectedProjectId;
+                            return (
+                                <button
+                                    key={project.id}
+                                    type="button"
+                                    onClick={() => setSelectedProjectId(project.id)}
+                                    style={{
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        border: 'none',
+                                        padding: '6px 8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        background: isSelected
+                                            ? 'rgba(0,0,0,0.06)'
+                                            : 'transparent',
+                                        cursor: 'pointer',
+                                        fontSize: 13,
+                                    }}
+                                    title={project.name}
+                                >
+                                    <span
+                                        style={{
+                                            width: 12,
+                                            height: 12,
+                                            borderRadius: '50%',
+                                            border: '1px solid rgba(0,0,0,0.4)',
+                                            background: isSelected
+                                                ? 'rgba(0,0,0,0.8)'
+                                                : 'transparent',
+                                            boxShadow: isSelected
+                                                ? '0 0 0 2px rgba(0,0,0,0.15)'
+                                                : 'none',
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                    <span
+                                        style={{
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            flex: '1 1 auto',
+                                        }}
+                                    >
+                                        {project.name || '(untitled project)'}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Buttons */}
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        gap: 8,
+                        marginTop: 8,
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={submitting}
+                        style={{
+                            borderRadius: 6,
+                            border: 'none',
+                            padding: '6px 10px',
+                            fontSize: 13,
+                            background: 'transparent',
+                            cursor: submitting ? 'default' : 'pointer',
+                            opacity: submitting ? 0.6 : 0.9,
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleConfirm}
+                        disabled={cannotSubmit}
+                        style={{
+                            borderRadius: 6,
+                            border: 'none',
+                            padding: '6px 12px',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            background: cannotSubmit
+                                ? 'rgba(0,0,0,0.08)'
+                                : 'rgba(0,0,0,0.9)',
+                            color: cannotSubmit ? 'rgba(0,0,0,0.4)' : '#fff',
+                            cursor: cannotSubmit ? 'default' : 'pointer',
+                        }}
+                    >
+                        {submitting ? 'Moving…' : 'Move chat'}
+                    </button>
+                </div>
             </div>
         </div>
     );

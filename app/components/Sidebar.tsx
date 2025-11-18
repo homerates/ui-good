@@ -13,6 +13,7 @@ import {
 
 import ProjectsPanel from './ProjectsPanel';
 import MoveToProjectDialog from './MoveToProjectDialog';
+import type { Project } from '../../lib/projectsClient';
 
 type HistoryItem = { id: string; title: string; updatedAt?: number };
 
@@ -94,9 +95,13 @@ export default function Sidebar({
     setMoveDialogThreadId(null);
   }, []);
 
-  // For now, project clicks don't filter – just a hook for later
-  const handleSelectProject = React.useCallback((_project: any) => {
-    // placeholder for future filtering / routing
+  // Local active project selection – for now this is purely visual
+  const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
+
+  const handleSelectProject = React.useCallback((project: Project) => {
+    // For now: just highlight the selected project in the list.
+    // Later: we can wire this to filter chats or route to a /projects/[id] view.
+    setActiveProjectId(project.id);
   }, []);
 
   // Hover + menu state for chats
@@ -223,7 +228,7 @@ export default function Sidebar({
           }}
         >
           <ProjectsPanel
-            activeProjectId={null}
+            activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
           />
         </div>

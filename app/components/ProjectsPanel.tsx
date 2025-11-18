@@ -10,6 +10,11 @@ type ProjectsPanelProps = {
     activeProjectId?: string | null;
     /** Called when the user clicks a project */
     onSelectProject?: (project: Project) => void;
+    /** Optional: project-level actions (rename/delete) */
+    onProjectAction?: (
+        action: "rename" | "delete",
+        project: Project
+    ) => void;
     /** Extra class if you want to style from globals */
     className?: string;
 };
@@ -30,10 +35,12 @@ function truncateProjectName(raw: string): string {
  * - compact
  * - no thread counts
  * - project names truncated to 2–3 words + …
+ * - per-project "..." menu for Rename/Delete
  */
 export default function ProjectsPanel({
     activeProjectId,
     onSelectProject,
+    onProjectAction,
     className,
 }: ProjectsPanelProps) {
     const [projects, setProjects] = React.useState<Project[] | null>(null);
@@ -43,6 +50,7 @@ export default function ProjectsPanel({
     const [localSelectedId, setLocalSelectedId] = React.useState<string | null>(
         null
     );
+    const [menuOpenId, setMenuOpenId] = React.useState<string | null>(null);
 
     // If parent passes activeProjectId, it wins; otherwise we fall back to local selection
     const effectiveActiveId = activeProjectId ?? localSelectedId ?? null;
@@ -89,6 +97,25 @@ export default function ProjectsPanel({
     const handleClickProject = (project: Project) => {
         setLocalSelectedId(project.id);
         if (onSelectProject) onSelectProject(project);
+    };
+
+    const handleProjectAction = (
+        action: "rename" | "delete",
+        project: Project
+    ) => {
+        setMenuOpenId(null);
+
+        if (onProjectAction) {
+            onProjectAction(action, project);
+            return;
+        }
+
+        // Fallback so the user gets feedback even if parent hasn't wired it yet
+        if (action === "rename") {
+            window.alert("Rename project not wired yet.");
+        } else if (action === "delete") {
+            window.alert("Delete project not wired yet.");
+        }
     };
 
     return (
@@ -181,40 +208,128 @@ export default function ProjectsPanel({
                         const displayName = truncateProjectName(
                             project.name || "(untitled project)"
                         );
+                        const menuOpen = menuOpenId === project.id;
 
                         return (
                             <li key={project.id}>
-                                <button
-                                    type="button"
-                                    onClick={() => handleClickProject(project)}
+                                <div
                                     style={{
-                                        width: "100%",
-                                        textAlign: "left",
-                                        borderRadius: 6,
-                                        border: "none",
-                                        padding: "4px 0",
-                                        background: isActive
-                                            ? "rgba(0,0,0,0.04)"
-                                            : "transparent",
-                                        cursor: "pointer",
-                                        fontSize: 11,
                                         display: "flex",
-                                        flexDirection: "row",
                                         alignItems: "center",
+                                        gap: 4,
+                                        position: "relative",
                                     }}
                                 >
-                                    <span
+                                    <button
+                                        type="button"
+                                        onClick={() => handleClickProject(project)}
                                         style={{
-                                            fontWeight: isActive ? 500 : 400,
-                                            whiteSpace: "nowrap",
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
+                                            width: "100%",
+                                            textAlign: "left",
+                                            borderRadius: 6,
+                                            border: "none",
+                                            padding: "4px 0",
+                                            background: isActive
+                                                ? "rgba(0,0,0,0.04)"
+                                                : "transparent",
+                                            cursor: "pointer",
+                                            fontSize: 11,
+                                            display: "flex",
+                                            flexDirection: "row",
+                                            alignItems: "center",
                                         }}
                                         title={project.name}
                                     >
-                                        {displayName}
-                                    </span>
-                                </button>
+                                        <span
+                                            style={{
+                                                fontWeight: isActive ? 500 : 400,
+                                                whiteSpace: "nowrap",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                            }}
+                                        >
+                                            {displayName}
+                                        </span>
+                                    </button>
+
+                                    {/* Simple "..." menu trigger */}
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setMenuOpenId((prev) =>
+                                                prev === project.id ? null : project.id
+                                            )
+                                        }
+                                        aria-label="Project options"
+                                        title="Project options"
+                                        style={{
+                                            border: "none",
+                                            background: "transparent",
+                                            cursor: "pointer",
+                                            padding: 0,
+                                            fontSize: 14,
+                                            lineHeight: 1,
+                                            opacity: 0.7,
+                                            flex: "0 0 auto",
+                                        }}
+                                    >
+                                        …
+                                    </button>
+
+                                    {/* Dropdown menu */}
+                                    {menuOpen && (
+                                        <div
+                                            style={{
+                                                position: "absolute",
+                                                right: 0,
+                                                top: "100%",
+                                                marginTop: 4,
+                                                padding: 6,
+                                                background: "#fff",
+                                                borderRadius: 8,
+                                                boxShadow:
+                                                    "0 10px 25px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)",
+                                                minWidth: 140,
+                                                zIndex: 50,
+                                                fontSize: 12,
+                                            }}
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleProjectAction("rename", project)
+                                                }
+                                                style={{
+                                                    width: "100%",
+                                                    textAlign: "left",
+                                                    border: "none",
+                                                    background: "transparent",
+                                                    padding: "4px 6px",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                Rename project
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleProjectAction("delete", project)
+                                                }
+                                                style={{
+                                                    width: "100%",
+                                                    textAlign: "left",
+                                                    border: "none",
+                                                    background: "transparent",
+                                                    padding: "4px 6px",
+                                                    cursor: "pointer",
+                                                    color: "#b00020",
+                                                }}
+                                            >
+                                                Delete project
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </li>
                         );
                     })}
