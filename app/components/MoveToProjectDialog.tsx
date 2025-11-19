@@ -1,23 +1,28 @@
 // ==== REPLACE ENTIRE FILE: app/components/MoveToProjectDialog.tsx ====
+// Move-to-project dialog: lets you pick a project and moves the chat via /api/projects/move-chat
+
 'use client';
 
 import * as React from 'react';
-import type { Project } from '../../lib/projectsClient';
 import { fetchProjects } from '../../lib/projectsClient';
+import type { Project } from '../../lib/projectsClient';
 
 type MoveToProjectDialogProps = {
-    /** Controls visibility of the dialog */
     open: boolean;
-    /** The chat / thread id we’re moving */
     threadId: string | null;
-    /** Called when the dialog should close */
     onClose: () => void;
     /**
-     * Optional: parent can do the real persistence (Supabase, etc.)
-     * If not provided, we’ll just show a friendly alert so it never fails silently.
+     * Optional callback fired after a successful move.
+     * Sidebar can use this to refresh state, but it is not required.
      */
     onMoved?: (projectId: string) => void;
 };
+
+type MoveState =
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'success'; projectId: string }
+    | { status: 'error'; message: string };
 
 export default function MoveToProjectDialog({
     open,
@@ -26,264 +31,281 @@ export default function MoveToProjectDialog({
     onMoved,
 }: MoveToProjectDialogProps) {
     const [projects, setProjects] = React.useState<Project[]>([]);
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
-    const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
-    const [submitting, setSubmitting] = React.useState(false);
+    const [loadingProjects, setLoadingProjects] = React.useState(false);
+    const [projectsError, setProjectsError] = React.useState<string | null>(null);
+
+    const [selectedProjectId, setSelectedProjectId] = React.useState<string>('');
+    const [moveState, setMoveState] = React.useState<MoveState>({ status: 'idle' });
 
     // Load projects when dialog opens
     React.useEffect(() => {
         if (!open) return;
 
+        setProjects([]);
+        setProjectsError(null);
+        setSelectedProjectId('');
+        setMoveState({ status: 'idle' });
+
         const load = async () => {
-            setLoading(true);
-            setError(null);
+            setLoadingProjects(true);
             try {
                 const res = await fetchProjects();
                 if (!res.ok) {
-                    const msg =
-                        res.message || res.error || res.reason || 'Unable to load projects.';
-                    setError(msg);
+                    setProjectsError(
+                        res.message ||
+                        res.error ||
+                        res.reason ||
+                        'Unable to load projects.'
+                    );
                     setProjects([]);
                 } else {
                     const list = res.projects ?? [];
                     setProjects(list);
-                    // Auto-select first project if none selected yet
-                    if (list.length > 0 && !selectedProjectId) {
+                    if (list.length > 0) {
                         setSelectedProjectId(list[0].id);
                     }
                 }
             } catch (err) {
-                setError(
+                setProjectsError(
                     err instanceof Error ? err.message : 'Unexpected error loading projects.'
                 );
                 setProjects([]);
             } finally {
-                setLoading(false);
+                setLoadingProjects(false);
             }
         };
 
         void load();
-    }, [open, selectedProjectId]);
-
-    // Reset state when closing
-    React.useEffect(() => {
-        if (!open) {
-            setSelectedProjectId(null);
-            setError(null);
-            setSubmitting(false);
-        }
     }, [open]);
 
-    if (!open || !threadId) return null;
+    if (!open) {
+        return null;
+    }
 
-    const handleConfirm = async () => {
-        if (!selectedProjectId) return;
+    const handleCancel = () => {
+        setMoveState({ status: 'idle' });
+        onClose();
+    };
 
-        setSubmitting(true);
+    const handleMove = async () => {
+        if (!threadId || !selectedProjectId) return;
+
+        setMoveState({ status: 'loading' });
+
         try {
-            if (onMoved) {
-                await Promise.resolve(onMoved(selectedProjectId));
-            } else {
-                // Fallback so it doesn’t look broken if we forget to wire onMoved
-                window.alert('Move-to-project is not fully wired yet (no onMoved handler).');
+            const res = await fetch('/api/projects/move-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    threadId,
+                    projectId: selectedProjectId,
+                }),
+            });
+
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                const msg =
+                    json?.message ||
+                    json?.error ||
+                    json?.reason ||
+                    `Move failed with status ${res.status}`;
+                setMoveState({ status: 'error', message: msg });
+                return;
             }
-            onClose();
+
+            setMoveState({ status: 'success', projectId: selectedProjectId });
+
+            // Optional callback for the parent (Sidebar) to refresh mapping
+            if (onMoved) {
+                onMoved(selectedProjectId);
+            }
+
+            // Close shortly after success
+            setTimeout(() => {
+                onClose();
+                setMoveState({ status: 'idle' });
+            }, 400);
         } catch (err) {
-            setError(
-                err instanceof Error ? err.message : 'There was a problem moving this chat.'
-            );
-        } finally {
-            setSubmitting(false);
+            setMoveState({
+                status: 'error',
+                message:
+                    err instanceof Error
+                        ? err.message
+                        : 'Unexpected error moving chat to project.',
+            });
         }
     };
 
-    const cannotSubmit =
-        submitting || loading || !selectedProjectId || (projects?.length ?? 0) === 0;
+    const disabled =
+        !threadId ||
+        !selectedProjectId ||
+        moveState.status === 'loading' ||
+        loadingProjects;
 
     return (
         <div
-            role="dialog"
             aria-modal="true"
+            role="dialog"
             aria-labelledby="move-to-project-title"
             style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: 1000,
+                background: 'rgba(0,0,0,0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(0, 0, 0, 0.35)',
+                zIndex: 1000,
             }}
-            onClick={onClose}
+            onClick={handleCancel}
         >
-            {/* Inner card – stop propagation so clicks inside don’t close */}
             <div
-                onClick={(e) => e.stopPropagation()}
                 style={{
-                    width: '100%',
-                    maxWidth: 420,
-                    margin: '0 16px',
-                    borderRadius: 12,
                     background: '#fff',
-                    boxShadow:
-                        '0 18px 40px rgba(0,0,0,0.20), 0 0 0 1px rgba(0,0,0,0.04)',
+                    borderRadius: 12,
+                    boxShadow: '0 18px 40px rgba(0,0,0,0.25)',
+                    width: '100%',
+                    maxWidth: 360,
                     padding: 16,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 12,
+                    gap: 10,
                 }}
+                onClick={(e) => e.stopPropagation()}
             >
                 <div
                     id="move-to-project-title"
                     style={{
-                        fontSize: 16,
                         fontWeight: 600,
+                        fontSize: 15,
                         marginBottom: 4,
                     }}
                 >
                     Move chat to a project
                 </div>
 
-                <div style={{ fontSize: 13, opacity: 0.8 }}>
-                    Choose which project you want this chat to live under. You can still
-                    find it in your history.
-                </div>
-
-                {/* Status area */}
-                {loading && (
-                    <div style={{ fontSize: 13, opacity: 0.75 }}>Loading projects…</div>
+                {loadingProjects && (
+                    <div style={{ fontSize: 13, opacity: 0.8 }}>Loading projects…</div>
                 )}
 
-                {!loading && error && (
+                {!loadingProjects && projectsError && (
                     <div
                         style={{
                             fontSize: 12,
                             color: '#b00020',
-                            background: 'rgba(176,0,32,0.06)',
-                            padding: 8,
-                            borderRadius: 8,
+                            background: 'rgba(176,0,32,0.05)',
+                            borderRadius: 6,
+                            padding: 6,
                         }}
                     >
-                        {error}
+                        {projectsError}
                     </div>
                 )}
 
-                {!loading && !error && projects.length === 0 && (
-                    <div style={{ fontSize: 13, opacity: 0.75 }}>
-                        You don&apos;t have any projects yet. Create a project from the sidebar
-                        first, then move this chat.
+                {!loadingProjects && !projectsError && projects.length === 0 && (
+                    <div style={{ fontSize: 13, opacity: 0.8 }}>
+                        You don&apos;t have any projects yet. Create one first, then move
+                        chats into it.
                     </div>
                 )}
 
-                {/* Projects list */}
-                {!loading && !error && projects.length > 0 && (
+                {!loadingProjects && !projectsError && projects.length > 0 && (
+                    <>
+                        <label
+                            htmlFor="move-project-select"
+                            style={{
+                                fontSize: 12,
+                                opacity: 0.8,
+                                marginBottom: 4,
+                            }}
+                        >
+                            Choose a project
+                        </label>
+                        <select
+                            id="move-project-select"
+                            value={selectedProjectId}
+                            onChange={(e) => setSelectedProjectId(e.target.value)}
+                            style={{
+                                width: '100%',
+                                fontSize: 13,
+                                padding: '4px 6px',
+                                borderRadius: 6,
+                                border: '1px solid rgba(0,0,0,0.12)',
+                            }}
+                        >
+                            {projects.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                    {p.name || '(untitled project)'}
+                                </option>
+                            ))}
+                        </select>
+                    </>
+                )}
+
+                {moveState.status === 'error' && (
                     <div
                         style={{
-                            maxHeight: 220,
-                            overflowY: 'auto',
-                            padding: '4px 0',
-                            borderRadius: 8,
-                            background: 'rgba(0,0,0,0.02)',
+                            fontSize: 12,
+                            color: '#b00020',
+                            background: 'rgba(176,0,32,0.05)',
+                            borderRadius: 6,
+                            padding: 6,
                         }}
                     >
-                        {projects.map((project) => {
-                            const isSelected = project.id === selectedProjectId;
-                            return (
-                                <button
-                                    key={project.id}
-                                    type="button"
-                                    onClick={() => setSelectedProjectId(project.id)}
-                                    style={{
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        border: 'none',
-                                        padding: '6px 8px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 8,
-                                        background: isSelected
-                                            ? 'rgba(0,0,0,0.06)'
-                                            : 'transparent',
-                                        cursor: 'pointer',
-                                        fontSize: 13,
-                                    }}
-                                    title={project.name}
-                                >
-                                    <span
-                                        style={{
-                                            width: 12,
-                                            height: 12,
-                                            borderRadius: '50%',
-                                            border: '1px solid rgba(0,0,0,0.4)',
-                                            background: isSelected
-                                                ? 'rgba(0,0,0,0.8)'
-                                                : 'transparent',
-                                            boxShadow: isSelected
-                                                ? '0 0 0 2px rgba(0,0,0,0.15)'
-                                                : 'none',
-                                            flexShrink: 0,
-                                        }}
-                                    />
-                                    <span
-                                        style={{
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            flex: '1 1 auto',
-                                        }}
-                                    >
-                                        {project.name || '(untitled project)'}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                        {moveState.message}
                     </div>
                 )}
 
-                {/* Buttons */}
+                {moveState.status === 'success' && (
+                    <div
+                        style={{
+                            fontSize: 12,
+                            color: '#0b7a1b',
+                            background: 'rgba(0,128,0,0.06)',
+                            borderRadius: 6,
+                            padding: 6,
+                        }}
+                    >
+                        Chat moved to project successfully.
+                    </div>
+                )}
+
                 <div
                     style={{
                         display: 'flex',
                         justifyContent: 'flex-end',
                         gap: 8,
-                        marginTop: 8,
+                        marginTop: 10,
                     }}
                 >
                     <button
                         type="button"
-                        onClick={onClose}
-                        disabled={submitting}
+                        onClick={handleCancel}
                         style={{
-                            borderRadius: 6,
-                            border: 'none',
-                            padding: '6px 10px',
+                            borderRadius: 999,
+                            border: '1px solid rgba(0,0,0,0.15)',
+                            background: '#fff',
+                            padding: '4px 10px',
                             fontSize: 13,
-                            background: 'transparent',
-                            cursor: submitting ? 'default' : 'pointer',
-                            opacity: submitting ? 0.6 : 0.9,
+                            cursor: 'pointer',
                         }}
                     >
                         Cancel
                     </button>
                     <button
                         type="button"
-                        onClick={handleConfirm}
-                        disabled={cannotSubmit}
+                        onClick={handleMove}
+                        disabled={disabled}
                         style={{
-                            borderRadius: 6,
+                            borderRadius: 999,
                             border: 'none',
-                            padding: '6px 12px',
+                            background: disabled ? '#ccc' : '#111827',
+                            color: '#fff',
+                            padding: '4px 12px',
                             fontSize: 13,
-                            fontWeight: 500,
-                            background: cannotSubmit
-                                ? 'rgba(0,0,0,0.08)'
-                                : 'rgba(0,0,0,0.9)',
-                            color: cannotSubmit ? 'rgba(0,0,0,0.4)' : '#fff',
-                            cursor: cannotSubmit ? 'default' : 'pointer',
+                            cursor: disabled ? 'default' : 'pointer',
                         }}
                     >
-                        {submitting ? 'Moving…' : 'Move chat'}
+                        {moveState.status === 'loading' ? 'Moving…' : 'Move'}
                     </button>
                 </div>
             </div>
