@@ -21,7 +21,7 @@ const LS_KEY = 'hr.chat.v1';
 // anonymous, non-signed-in usage meter (per browser, per day)
 const ANON_METER_KEY = 'hr.anon.q.v1';
 const ANON_DAILY_LIMIT = 3;
-
+const SIGNED_DAILY_LIMIT = 10;   // signed-in, triggers Upgrade modal
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
     iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
