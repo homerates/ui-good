@@ -17,7 +17,10 @@ import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
    Small helpers
 ========================= */
 const LS_KEY = 'hr.chat.v1';
-const FREE_COUNT_KEY = 'hr.free.count.v1';
+
+// anonymous, non-signed-in usage meter (per browser, per day)
+const ANON_METER_KEY = 'hr.anon.q.v1';
+const ANON_DAILY_LIMIT = 3;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
@@ -27,6 +30,55 @@ const fmtMoney = (n: unknown) =>
         undefined,
         { maximumFractionDigits: 2 }
     );
+
+/**
+ * Increment the anonymous (not signed-in) question counter.
+ * Returns true if the user is allowed to ask this question,
+ * false if they've already hit today's limit.
+ */
+function bumpAnonCounterOrBlock(): boolean {
+    try {
+        if (typeof window === 'undefined') return true;
+
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const raw = window.localStorage.getItem(ANON_METER_KEY);
+
+        if (!raw) {
+            window.localStorage.setItem(
+                ANON_METER_KEY,
+                JSON.stringify({ d: today, c: 1 })
+            );
+            return true;
+        }
+
+        const parsed = JSON.parse(raw) as { d?: string; c?: number };
+        const storedDay = parsed?.d;
+        const storedCount = typeof parsed?.c === 'number' ? parsed.c : 0;
+
+        // New day: reset count
+        if (storedDay !== today) {
+            window.localStorage.setItem(
+                ANON_METER_KEY,
+                JSON.stringify({ d: today, c: 1 })
+            );
+            return true;
+        }
+
+        // Same day: enforce limit
+        if (storedCount >= ANON_DAILY_LIMIT) {
+            return false;
+        }
+
+        window.localStorage.setItem(
+            ANON_METER_KEY,
+            JSON.stringify({ d: today, c: storedCount + 1 })
+        );
+        return true;
+    } catch {
+        // If anything goes wrong with localStorage, fail open
+        return true;
+    }
+}
 
 /* =========================
    Types
@@ -64,6 +116,10 @@ type ApiResponse = {
     confidence?: 'low' | 'med' | 'high';
     status?: number;
     generatedAt?: string;
+
+    // optional flags the backend might return for metering
+    upgradeRequired?: boolean;
+    limitHit?: boolean;
 };
 
 type ChatMsg =
@@ -110,10 +166,13 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
     };
     const m = meta as ApiResponse & NestedMeta;
-    const headerPath = (m.path ?? m.meta?.path ?? '—') as ApiResponse['path'] | '—';
+    const headerPath = (m.path ?? m.meta?.path ?? '—') as
+        | ApiResponse['path']
+        | '—';
     const headerUsedFRED =
         typeof m.usedFRED === 'boolean' ? m.usedFRED : m.meta?.usedFRED ?? false;
-    const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
+    const headerAt: string | undefined =
+        m.generatedAt ?? m.meta?.at ?? undefined;
 
     if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
         const a = m.answer as CalcAnswer;
@@ -144,35 +203,53 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                     </div>
                 </div>
 
-                {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
-                    <div className="panel">
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>PITI breakdown</div>
-                        <ul style={{ marginTop: 0 }}>
-                            <li>Taxes: ${fmtMoney(a.monthlyTax)}</li>
-                            <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
-                            <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
-                            <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-                            <li>
-                                <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
-                            </li>
-                        </ul>
-                    </div>
-                )}
-
-                {Array.isArray(a.sensitivities) && a.sensitivities.length > 0 && (
-                    <div>
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                            ±0.25% Sensitivity
-                        </div>
-                        <ul style={{ marginTop: 0 }}>
-                            {a.sensitivities.map((s, i) => (
-                                <li key={i}>
-                                    Rate: {(Number(s.rate) * 100).toFixed(2)}% → P&I ${fmtMoney(s.pi)}
+                {typeof a.monthlyTotalPITI === 'number' &&
+                    a.monthlyTotalPITI > 0 && (
+                        <div className="panel">
+                            <div
+                                style={{
+                                    fontWeight: 600,
+                                    marginBottom: 6,
+                                }}
+                            >
+                                PITI breakdown
+                            </div>
+                            <ul style={{ marginTop: 0 }}>
+                                <li>Taxes: ${fmtMoney(a.monthlyTax)}</li>
+                                <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
+                                <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
+                                <li>MI: ${fmtMoney(a.monthlyMI)}</li>
+                                <li>
+                                    <b>
+                                        Total PITI: ${fmtMoney(a.monthlyTotalPITI)}
+                                    </b>
                                 </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
+                            </ul>
+                        </div>
+                    )}
+
+                {Array.isArray(a.sensitivities) &&
+                    a.sensitivities.length > 0 && (
+                        <div>
+                            <div
+                                style={{
+                                    fontWeight: 600,
+                                    marginBottom: 6,
+                                }}
+                            >
+                                ±0.25% Sensitivity
+                            </div>
+                            <ul style={{ marginTop: 0 }}>
+                                {a.sensitivities.map((s, i) => (
+                                    <li key={i}>
+                                        Rate:{' '}
+                                        {(Number(s.rate) * 100).toFixed(2)}% → P&I $
+                                        {fmtMoney(s.pi)}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
                 {typeof m.tldr === 'string' && (
                     <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>
@@ -188,7 +265,8 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
             m.fred.tenYearYield != null &&
             m.fred.mort30Avg != null &&
             m.fred.spread != null
-            ? `As of ${m.fred.asOf ?? 'recent data'}: ${typeof m.fred.tenYearYield === 'number'
+            ? `As of ${m.fred.asOf ?? 'recent data'
+            }: ${typeof m.fred.tenYearYield === 'number'
                 ? m.fred.tenYearYield.toFixed(2)
                 : m.fred.tenYearYield
             }%, 30Y ${typeof m.fred.mort30Avg === 'number'
@@ -275,7 +353,8 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
             {m.paymentDelta && (
                 <div style={{ fontSize: 13 }}>
-                    Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
+                    Every 0.25% ~{' '}
+                    <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
                     {m.paymentDelta.loanAmount.toLocaleString()}.
                 </div>
             )}
@@ -290,7 +369,9 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
             className={`bubble ${isUser ? 'user' : 'assistant'}`}
             data-role={role}
         >
-            <div className={`balloon ${isUser ? 'user' : 'assistant'}`}>{children}</div>
+            <div className={`balloon ${isUser ? 'user' : 'assistant'}`}>
+                {children}
+            </div>
         </div>
     );
 }
@@ -301,15 +382,8 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 export default function Page() {
     useMobileComposerPin();
 
-    const { isSignedIn } = useUser();
     const router = useRouter();
-
-    // simple free-tier limits (can tweak anytime)
-    const FREE_LIMIT_GUEST = 3;
-    const FREE_LIMIT_SIGNED = 20;
-
-    const [freeCount, setFreeCount] = useState(0);
-    const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
+    const { isSignedIn } = useUser();
 
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
@@ -330,12 +404,16 @@ export default function Page() {
             });
         });
     }, [messages.length]);
+
     const [input, setInput] = useState('');
 
     // borrower-only mode fixed
     const mode: 'borrower' = 'borrower';
 
     const [loading, setLoading] = useState(false);
+    const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
+    const [showAuthRequired, setShowAuthRequired] = useState(false);
+
     const [history, setHistory] = useState<
         { id: string; title: string; updatedAt?: number }[]
     >([]);
@@ -366,22 +444,6 @@ export default function Page() {
     const [searchQuery, setSearchQuery] = useState('');
     const [projectName, setProjectName] = useState('');
 
-    // load free-count from localStorage
-    useEffect(() => {
-        try {
-            if (typeof window === 'undefined') return;
-            const raw = window.localStorage.getItem(FREE_COUNT_KEY);
-            if (raw != null) {
-                const parsed = Number(raw);
-                if (!Number.isNaN(parsed)) {
-                    setFreeCount(parsed);
-                }
-            }
-        } catch {
-            // ignore
-        }
-    }, []);
-
     // restore
     useEffect(() => {
         try {
@@ -406,7 +468,10 @@ export default function Page() {
     // persist
     useEffect(() => {
         try {
-            localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
+            localStorage.setItem(
+                LS_KEY,
+                JSON.stringify({ threads, history, activeId })
+            );
         } catch (e) {
             console.warn('hr.chat save failed', e);
         }
@@ -508,7 +573,7 @@ export default function Page() {
                 name: project?.name,
             });
         },
-        [],
+        []
     );
 
     const handleMoveChatToProject = React.useCallback(
@@ -533,7 +598,7 @@ export default function Page() {
                     });
                     window.alert(
                         json?.error ||
-                        'There was a problem moving this chat to the project.',
+                        'There was a problem moving this chat to the project.'
                     );
                     return;
                 }
@@ -547,16 +612,16 @@ export default function Page() {
                     `Chat moved to project (${mode}).` +
                     (mapping?.thread_id
                         ? `\nthread_id: ${mapping.thread_id}\nproject_id: ${mapping.project_id}`
-                        : ''),
+                        : '')
                 );
             } catch (err) {
                 console.error('[Move chat to project] exception', err);
                 window.alert(
-                    'Unexpected error while moving this chat. Please try again.',
+                    'Unexpected error while moving this chat. Please try again.'
                 );
             }
         },
-        [],
+        []
     );
 
     function newChat() {
@@ -570,10 +635,7 @@ export default function Page() {
             },
         ]);
         setHistory((h) =>
-            [
-                { id, title: 'New chat', updatedAt: Date.now() },
-                ...h,
-            ].slice(0, 20),
+            [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20)
         );
     }
 
@@ -672,37 +734,18 @@ export default function Page() {
         }
     }
 
-    function bumpFreeCount() {
-        try {
-            if (typeof window === 'undefined') {
-                // just bump state; no localStorage on server (defensive)
-                setFreeCount((prev) => prev + 1);
-                return;
-            }
-            setFreeCount((prev) => {
-                const next = prev + 1;
-                window.localStorage.setItem(FREE_COUNT_KEY, String(next));
-                return next;
-            });
-        } catch {
-            // ignore storage errors, still let the question through
-            setFreeCount((prev) => prev + 1);
-        }
-    }
-
     async function send() {
         const q = input.trim();
         if (!q || loading) return;
 
-        // subscription gate: enforce free-tier limits before sending
-        const LIMIT = isSignedIn ? FREE_LIMIT_SIGNED : FREE_LIMIT_GUEST;
-        if (freeCount >= LIMIT) {
-            setShowUpgradeRequired(true);
-            return;
+        // anonymous users: soft gate at ANON_DAILY_LIMIT per day
+        if (!isSignedIn) {
+            const ok = bumpAnonCounterOrBlock();
+            if (!ok) {
+                setShowAuthRequired(true);
+                return;
+            }
         }
-
-        // record this usage
-        bumpFreeCount();
 
         const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
@@ -743,7 +786,10 @@ export default function Page() {
 
         try {
             // borrower-only body (no intent/loanAmount passthrough)
-            const body: { question: string; mode: 'borrower' } = { question: q, mode };
+            const body: { question: string; mode: 'borrower' } = {
+                question: q,
+                mode,
+            };
 
             const r = await fetch('/api/answers', {
                 method: 'POST',
@@ -777,6 +823,15 @@ export default function Page() {
                             meta.usedFRED
                         )} | confidence: ${meta.confidence ?? '-'}`);
 
+            // Check for backend limit / upgrade flag for signed-in users
+            const upgradeFlag =
+                (meta as any).upgradeRequired === true ||
+                (meta as any).limitHit === true ||
+                meta.status === 429;
+            if (upgradeFlag) {
+                setShowUpgradeRequired(true);
+            }
+
             // Fire-and-forget: log this Q&A to the user's library
             try {
                 void logAnswerToLibrary(q, { friendly, meta });
@@ -788,7 +843,6 @@ export default function Page() {
                 ...m,
                 { id: uid(), role: 'assistant', content: friendly, meta },
             ]);
-
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             setMessages((m) => [
@@ -917,8 +971,8 @@ export default function Page() {
                 isOpen={sidebarOpen}
                 onToggle={toggleSidebar}
                 onHistoryAction={handleHistoryAction}
-                onProjectAction={handleProjectAction}          // NEW
-                onMoveChatToProject={handleMoveChatToProject}  // NEW
+                onProjectAction={handleProjectAction} // NEW
+                onMoveChatToProject={handleMoveChatToProject} // NEW
             />
 
             {/* Main */}
@@ -976,11 +1030,15 @@ export default function Page() {
                             {messages.map((m) => (
                                 <div key={m.id}>
                                     <Bubble role={m.role}>
-                                        {m.role === 'assistant'
-                                            ? m.meta
-                                                ? <AnswerBlock meta={m.meta} />
-                                                : m.content
-                                            : m.content}
+                                        {m.role === 'assistant' ? (
+                                            m.meta ? (
+                                                <AnswerBlock meta={m.meta} />
+                                            ) : (
+                                                m.content
+                                            )
+                                        ) : (
+                                            m.content
+                                        )}
                                     </Bubble>
                                 </div>
                             ))}
@@ -1055,7 +1113,8 @@ export default function Page() {
                                 justifyContent: 'center',
                                 background: '#111827',
                                 color: '#FFFFFF',
-                                cursor: loading || !input.trim() ? 'default' : 'pointer',
+                                cursor:
+                                    loading || !input.trim() ? 'default' : 'pointer',
                                 opacity: loading || !input.trim() ? 0.5 : 1,
                                 zIndex: 2,
                             }}
@@ -1107,12 +1166,12 @@ export default function Page() {
                             <div
                                 className="panel"
                                 style={{
-                                    width: '100%',              // fill the padded area, not the whole screen
-                                    maxWidth: 520,              // hard cap so it doesn't feel like an iPad on phones
+                                    width: '100%', // fill the padded area, not the whole screen
+                                    maxWidth: 520, // hard cap so it doesn't feel like an iPad on phones
                                     maxHeight: '80vh',
                                     overflowY: 'auto',
                                     padding: 16,
-                                    paddingBottom: 32,          // gives room under the buttons
+                                    paddingBottom: 32, // gives room under the buttons
                                     borderRadius: 12,
                                     background: 'var(--card)',
                                     boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
@@ -1135,7 +1194,11 @@ export default function Page() {
                                         {showProject && 'New Project'}
                                         {showMortgageCalc && 'Mortgage Calculator'}
                                     </div>
-                                    <button className="btn" onClick={closeAllOverlays} aria-label="Close">
+                                    <button
+                                        className="btn"
+                                        onClick={closeAllOverlays}
+                                        aria-label="Close"
+                                    >
                                         Close
                                     </button>
                                 </div>
@@ -1147,10 +1210,15 @@ export default function Page() {
                                             className="input"
                                             placeholder="Search your current thread and history..."
                                             value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onChange={(e) =>
+                                                setSearchQuery(e.target.value)
+                                            }
                                             autoFocus
                                         />
-                                        <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                                        <div
+                                            className="panel"
+                                            style={{ display: 'grid', gap: 6 }}
+                                        >
                                             <div style={{ fontWeight: 600 }}>
                                                 Matches in current thread
                                             </div>
@@ -1158,23 +1226,36 @@ export default function Page() {
                                                 {messages
                                                     .filter(
                                                         (m) =>
-                                                            typeof m.content === 'string' &&
+                                                            typeof m.content ===
+                                                            'string' &&
                                                             m.content
                                                                 .toLowerCase()
-                                                                .includes(searchQuery.toLowerCase())
+                                                                .includes(
+                                                                    searchQuery.toLowerCase()
+                                                                )
                                                     )
                                                     .slice(0, 12)
                                                     .map((m, i) => (
                                                         <li key={m.id + i}>
-                                                            <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
+                                                            <b>
+                                                                {m.role === 'user'
+                                                                    ? 'You'
+                                                                    : 'HomeRates'}
+                                                                :
+                                                            </b>{' '}
                                                             <span>
-                                                                {(m.content as string).slice(0, 200)}
+                                                                {(
+                                                                    m.content as string
+                                                                ).slice(0, 200)}
                                                             </span>
                                                         </li>
                                                     ))}
                                             </ul>
                                         </div>
-                                        <div className="panel" style={{ display: 'grid', gap: 6 }}>
+                                        <div
+                                            className="panel"
+                                            style={{ display: 'grid', gap: 6 }}
+                                        >
                                             <div style={{ fontWeight: 600 }}>
                                                 Matches in history titles
                                             </div>
@@ -1183,7 +1264,9 @@ export default function Page() {
                                                     .filter((h) =>
                                                         h.title
                                                             .toLowerCase()
-                                                            .includes(searchQuery.toLowerCase())
+                                                            .includes(
+                                                                searchQuery.toLowerCase()
+                                                            )
                                                     )
                                                     .slice(0, 20)
                                                     .map((h) => (
@@ -1216,7 +1299,9 @@ export default function Page() {
                                                     className="chat-item"
                                                     role="listitem"
                                                     title={h.title}
-                                                    onClick={() => onSelectHistory(h.id)}
+                                                    onClick={() =>
+                                                        onSelectHistory(h.id)
+                                                    }
                                                     style={{ textAlign: 'left' }}
                                                 >
                                                     {h.title}
@@ -1287,7 +1372,8 @@ export default function Page() {
                                         ) => {
                                             e.preventDefault();
                                             const name =
-                                                projectName.trim() || 'Untitled Project';
+                                                projectName.trim() ||
+                                                'Untitled Project';
                                             const id = uid();
                                             setActiveId(id);
                                             setHistory((h) =>
@@ -1322,7 +1408,10 @@ export default function Page() {
                                             autoFocus
                                         />
                                         <div
-                                            style={{ display: 'flex', gap: 8 }}
+                                            style={{
+                                                display: 'flex',
+                                                gap: 8,
+                                            }}
                                         >
                                             <button
                                                 className="btn primary"
@@ -1362,11 +1451,15 @@ export default function Page() {
                                                     meta: {
                                                         path: 'calc',
                                                         usedFRED: false,
-                                                        generatedAt: new Date().toISOString(),
+                                                        generatedAt:
+                                                            new Date().toISOString(),
                                                         answer: {
-                                                            loanAmount: res.loanAmount,
-                                                            monthlyPI: res.monthlyPI,
-                                                            sensitivities: res.sensitivities,
+                                                            loanAmount:
+                                                                res.loanAmount,
+                                                            monthlyPI:
+                                                                res.monthlyPI,
+                                                            sensitivities:
+                                                                res.sensitivities,
                                                         },
                                                     },
                                                 },
@@ -1377,6 +1470,101 @@ export default function Page() {
                             </div>
                         </div>
                     )}
+
+                {/* -------- Auth-required (sign in for more free questions) modal -------- */}
+                {showAuthRequired && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            backgroundColor: 'rgba(0,0,0,0.45)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 6000,
+                        }}
+                        onClick={() => setShowAuthRequired(false)}
+                    >
+                        <div
+                            style={{
+                                background: 'var(--surface, #111827)',
+                                borderRadius: 16,
+                                padding: 24,
+                                maxWidth: 380,
+                                width: '90%',
+                                boxShadow: '0 18px 45px rgba(0,0,0,0.5)',
+                                color: 'var(--fg, #e5e7eb)',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h2
+                                style={{
+                                    fontSize: 18,
+                                    fontWeight: 600,
+                                    marginBottom: 8,
+                                }}
+                            >
+                                Sign in to keep going
+                            </h2>
+                            <p
+                                style={{
+                                    fontSize: 14,
+                                    lineHeight: 1.5,
+                                    marginBottom: 20,
+                                    opacity: 0.9,
+                                }}
+                            >
+                                You&apos;ve used today&apos;s free guest
+                                questions. Create a free HomeRates.ai account or
+                                sign in to continue asking questions and unlock
+                                more tools.
+                            </p>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    gap: 8,
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAuthRequired(false)}
+                                    style={{
+                                        padding: '6px 12px',
+                                        borderRadius: 999,
+                                        border:
+                                            '1px solid rgba(249,250,251,0.1)',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: 13,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Maybe later
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        router.push('/sign-in')
+                                    }
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        background:
+                                            'var(--accent, #22c55e)',
+                                        color: '#020617',
+                                        fontWeight: 600,
+                                        fontSize: 13,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Continue free
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* -------- Upgrade-required (Pro plan) modal -------- */}
                 {showUpgradeRequired && (
@@ -1421,9 +1609,10 @@ export default function Page() {
                                     opacity: 0.9,
                                 }}
                             >
-                                You&apos;ve reached today&apos;s free question limit for
-                                your account. Upgrade to HomeRates.ai Pro for unlimited
-                                questions and full access to advanced mortgage tools and
+                                You&apos;ve reached today&apos;s free question
+                                limit for your account. Upgrade to
+                                HomeRates.ai&nbsp;Pro for unlimited questions
+                                and full access to advanced mortgage tools and
                                 scenario modeling.
                             </p>
                             <div
@@ -1435,11 +1624,14 @@ export default function Page() {
                             >
                                 <button
                                     type="button"
-                                    onClick={() => setShowUpgradeRequired(false)}
+                                    onClick={() =>
+                                        setShowUpgradeRequired(false)
+                                    }
                                     style={{
                                         padding: '6px 12px',
                                         borderRadius: 999,
-                                        border: '1px solid rgba(249,250,251,0.1)',
+                                        border:
+                                            '1px solid rgba(249,250,251,0.1)',
                                         background: 'transparent',
                                         color: 'inherit',
                                         fontSize: 13,
@@ -1455,7 +1647,8 @@ export default function Page() {
                                         padding: '6px 14px',
                                         borderRadius: 999,
                                         border: 'none',
-                                        background: 'var(--accent, #22c55e)',
+                                        background:
+                                            'var(--accent, #22c55e)',
                                         color: '#020617',
                                         fontWeight: 600,
                                         fontSize: 13,
