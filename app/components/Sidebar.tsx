@@ -1,5 +1,5 @@
 // ==== REPLACE ENTIRE FILE: app/components/Sidebar.tsx ====
-// Sidebar: Clerk-ready, light UI, with streamlined Knowledge Tools section
+// Sidebar: Clerk-ready, light UI, with Projects + Chats and project-aware filtering
 
 'use client';
 
@@ -13,14 +13,11 @@ import {
 
 import ProjectsPanel from './ProjectsPanel';
 import MoveToProjectDialog from './MoveToProjectDialog';
-import type { Project } from '../../lib/projectsClient';
 
 type HistoryItem = { id: string; title: string; updatedAt?: number };
 
 // Knowledge tools you'll wire in from app/page.tsx later
-export type KnowledgeToolId =
-  | 'mortgage-solutions'
-  | 'ask-underwriting';
+export type KnowledgeToolId = 'mortgage-solutions' | 'ask-underwriting';
 
 export type SidebarProps = {
   id?: string;
@@ -47,8 +44,8 @@ export type SidebarProps = {
   // Optional intelligence layer hook – safe even if not passed yet
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
 
-  // Optional hooks for project actions and moving chats to projects
-  onProjectAction?: (action: 'rename' | 'delete', project: Project) => void;
+  // Optional hooks for future project actions (rename/delete, etc.)
+  onProjectAction?: (action: 'rename' | 'delete', project: any) => void;
   onMoveChatToProject?: (threadId: string, projectId: string) => void;
 };
 
@@ -61,6 +58,18 @@ function truncateChatTitle(raw: string): string {
   if (words.length <= 3) return title;
   return words.slice(0, 3).join(' ') + '…';
 }
+
+// Shape of the /api/projects payload we care about
+type ProjectRow = {
+  id: string;
+  name?: string | null;
+  chat_threads?: { thread_id?: string | null }[] | null;
+};
+
+type ProjectsResponse = {
+  ok?: boolean;
+  projects?: ProjectRow[];
+};
 
 export default function Sidebar({
   id,
@@ -78,8 +87,6 @@ export default function Sidebar({
   onNewProject,
   onMortgageCalc,
   onKnowledgeTool,
-  onProjectAction,
-  onMoveChatToProject,
 }: SidebarProps) {
   const handleKnowledgeClick = (tool: KnowledgeToolId) => {
     if (onKnowledgeTool) onKnowledgeTool(tool);
@@ -93,7 +100,7 @@ export default function Sidebar({
   const handleMoveToProject = React.useCallback((threadId: string) => {
     setMoveDialogThreadId(threadId);
     setMoveDialogOpen(true);
-    // IMPORTANT: do not call onHistoryAction('move', ...) here – that still uses window.prompt upstream.
+    // The dialog will call the API and show success/error.
   }, []);
 
   const handleCloseMoveDialog = React.useCallback(() => {
@@ -101,18 +108,91 @@ export default function Sidebar({
     setMoveDialogThreadId(null);
   }, []);
 
-  // Local active project selection – for now this is purely visual
-  const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
+  // ===== Project-aware chat filtering =====
 
-  const handleSelectProject = React.useCallback((project: Project) => {
-    // For now: just highlight the selected project in the list.
-    // Later: we can wire this to filter chats or route to a /projects/[id] view.
-    setActiveProjectId(project.id);
+  // Which project (if any) is currently "active" for filtering the chat list
+  const [activeProjectId, setActiveProjectId] = React.useState<string | null>(
+    null,
+  );
+
+  // Map: projectId -> [threadId, threadId, ...]
+  const [projectThreadsMap, setProjectThreadsMap] = React.useState<
+    Record<string, string[]>
+  >({});
+
+  const loadProjectThreadsMap = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/projects', { cache: 'no-store' });
+      if (!res.ok) {
+        console.warn(
+          '[Sidebar] /api/projects responded with status',
+          res.status,
+        );
+        return;
+      }
+
+      const json = (await res.json()) as ProjectsResponse;
+      if (!json.ok || !json.projects) {
+        // Soft failure; we just show all chats
+        return;
+      }
+
+      const map: Record<string, string[]> = {};
+      for (const p of json.projects) {
+        const pid = p.id;
+        const threads = p.chat_threads ?? [];
+        const ids = threads
+          .map((t) => (t?.thread_id ?? '').trim())
+          .filter((id) => !!id);
+        map[pid] = ids;
+      }
+      setProjectThreadsMap(map);
+    } catch (err) {
+      console.error(
+        '[Sidebar] Failed to load project thread map from /api/projects',
+        err,
+      );
+    }
   }, []);
+
+  // Initial load of project -> thread map
+  React.useEffect(() => {
+    void loadProjectThreadsMap();
+  }, [loadProjectThreadsMap]);
+
+  // Whenever the move-dialog closes (after a move or cancel),
+  // refresh the project-thread mapping so filters stay accurate.
+  React.useEffect(() => {
+    if (!moveDialogOpen) {
+      void loadProjectThreadsMap();
+    }
+  }, [moveDialogOpen, loadProjectThreadsMap]);
+
+  // When you click a project in the ProjectsPanel, toggle it as the active filter.
+  const handleSelectProject = React.useCallback((project: any) => {
+    if (!project || !project.id) return;
+    setActiveProjectId((prev) => (prev === project.id ? null : project.id));
+  }, []);
+
+  // Filter the chat history based on the active project, if any.
+  const visibleHistory = React.useMemo(() => {
+    if (!activeProjectId) return history;
+
+    const threadIds = projectThreadsMap[activeProjectId];
+    if (!threadIds || threadIds.length === 0) {
+      // If no mapping yet, fall back to full list rather than "empty UI"
+      return history;
+    }
+
+    const allowed = new Set(threadIds);
+    return history.filter((h) => allowed.has(h.id));
+  }, [history, activeProjectId, projectThreadsMap]);
 
   // Hover + menu state for chats
   const [hoverChatId, setHoverChatId] = React.useState<string | null>(null);
-  const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(null);
+  const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(
+    null,
+  );
 
   const closeMenu = React.useCallback(() => setMenuOpenForId(null), []);
 
@@ -121,7 +201,7 @@ export default function Sidebar({
       closeMenu();
       onHistoryAction('delete', id);
     },
-    [closeMenu, onHistoryAction]
+    [closeMenu, onHistoryAction],
   );
 
   return (
@@ -157,7 +237,11 @@ export default function Sidebar({
 
         {/* Primary actions */}
         <div style={{ display: 'grid', gap: 10, padding: '8px 12px' }}>
-          <button className="btn primary" onClick={onNewChat} type="button">
+          <button
+            className="btn primary"
+            onClick={onNewChat}
+            type="button"
+          >
             New chat
           </button>
           <button className="btn" onClick={onSearch} type="button">
@@ -166,10 +250,18 @@ export default function Sidebar({
           <button className="btn" onClick={onLibrary} type="button">
             Library
           </button>
-          <button className="btn" onClick={onNewProject} type="button">
+          <button
+            className="btn"
+            onClick={onNewProject}
+            type="button"
+          >
             New Project +
           </button>
-          <button className="btn" onClick={onMortgageCalc} type="button">
+          <button
+            className="btn"
+            onClick={onMortgageCalc}
+            type="button"
+          >
             Mortgage Calculator
           </button>
         </div>
@@ -236,7 +328,6 @@ export default function Sidebar({
           <ProjectsPanel
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
-            onProjectAction={onProjectAction}
           />
         </div>
 
@@ -255,9 +346,9 @@ export default function Sidebar({
             Chats
           </div>
 
-          {history.length > 0 ? (
+          {visibleHistory.length > 0 ? (
             <div className="chat-list" role="list" aria-label="Chats">
-              {history.map((h) => {
+              {visibleHistory.map((h) => {
                 const isActive = h.id === activeId;
                 const label = truncateChatTitle(h.title);
                 const isHovered = hoverChatId === h.id;
@@ -281,7 +372,9 @@ export default function Sidebar({
                     }}
                     onMouseEnter={() => setHoverChatId(h.id)}
                     onMouseLeave={() => {
-                      setHoverChatId((prev) => (prev === h.id ? null : prev));
+                      setHoverChatId((prev) =>
+                        prev === h.id ? null : prev,
+                      );
                     }}
                   >
                     <button
@@ -315,7 +408,9 @@ export default function Sidebar({
                       aria-label="Chat options"
                       title="Chat options"
                       onClick={() =>
-                        setMenuOpenForId((prev) => (prev === h.id ? null : h.id))
+                        setMenuOpenForId((prev) =>
+                          prev === h.id ? null : h.id,
+                        )
                       }
                       style={{
                         border: 'none',
@@ -394,19 +489,31 @@ export default function Sidebar({
         {/* Footer: settings + Clerk */}
         <div style={{ marginTop: 'auto', padding: '12px' }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn" onClick={onSettings} type="button">
+            <button
+              className="btn"
+              onClick={onSettings}
+              type="button"
+            >
               Settings
             </button>
           </div>
 
           <div style={{ marginTop: 12 }}>
             <SignedIn>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
                 <UserButton
                   showName
                   appearance={{
                     elements: {
-                      userButtonOuterIdentifier: { fontWeight: 600 },
+                      userButtonOuterIdentifier: {
+                        fontWeight: 600,
+                      },
                     },
                   }}
                 />
@@ -429,11 +536,7 @@ export default function Sidebar({
         open={moveDialogOpen}
         threadId={moveDialogThreadId}
         onClose={handleCloseMoveDialog}
-        onMoved={
-          onMoveChatToProject && moveDialogThreadId
-            ? (projectId) => onMoveChatToProject(moveDialogThreadId, projectId)
-            : undefined
-        }
+        onMoved={undefined}
       />
     </>
   );
