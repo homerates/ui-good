@@ -59,16 +59,10 @@ function truncateChatTitle(raw: string): string {
   return words.slice(0, 3).join(' ') + '…';
 }
 
-// Shape of the /api/projects payload we care about
-type ProjectRow = {
-  id: string;
-  name?: string | null;
-  chat_threads?: { thread_id?: string | null }[] | null;
-};
-
-type ProjectsResponse = {
+// Shape of the threads-map payload
+type ThreadsMapResponse = {
   ok?: boolean;
-  projects?: ProjectRow[];
+  map?: Record<string, string[]>;
 };
 
 export default function Sidebar({
@@ -122,34 +116,27 @@ export default function Sidebar({
 
   const loadProjectThreadsMap = React.useCallback(async () => {
     try {
-      const res = await fetch('/api/projects', { cache: 'no-store' });
+      const res = await fetch('/api/projects/threads-map', {
+        cache: 'no-store',
+      });
       if (!res.ok) {
         console.warn(
-          '[Sidebar] /api/projects responded with status',
+          '[Sidebar] /api/projects/threads-map responded with status',
           res.status,
         );
         return;
       }
 
-      const json = (await res.json()) as ProjectsResponse;
-      if (!json.ok || !json.projects) {
+      const json = (await res.json()) as ThreadsMapResponse;
+      if (!json.ok || !json.map) {
         // Soft failure; we just show all chats
         return;
       }
 
-      const map: Record<string, string[]> = {};
-      for (const p of json.projects) {
-        const pid = p.id;
-        const threads = p.chat_threads ?? [];
-        const ids = threads
-          .map((t) => (t?.thread_id ?? '').trim())
-          .filter((id) => !!id);
-        map[pid] = ids;
-      }
-      setProjectThreadsMap(map);
+      setProjectThreadsMap(json.map);
     } catch (err) {
       console.error(
-        '[Sidebar] Failed to load project thread map from /api/projects',
+        '[Sidebar] Failed to load project thread map from /api/projects/threads-map',
         err,
       );
     }
