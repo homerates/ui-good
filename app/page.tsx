@@ -496,7 +496,7 @@ export default function Page() {
                     body: JSON.stringify({ threadId, projectId }),
                 });
 
-                const json = await res.json().catch(() => null);
+                const json: any = await res.json().catch(() => null);
 
                 if (!res.ok || !json?.ok) {
                     console.error('[Move chat to project] failed', {
@@ -510,9 +510,17 @@ export default function Page() {
                     return;
                 }
 
-                console.log('[Move chat to project] success');
-                window.alert('Chat moved to project successfully.');
-                // Later: refresh local state (threads/projects) to reflect this mapping.
+                console.log('[Move chat to project] success', json);
+
+                const mode = json?.mode || 'unknown';
+                const mapping = json?.mapping;
+
+                window.alert(
+                    `Chat moved to project (${mode}).` +
+                    (mapping?.thread_id
+                        ? `\nthread_id: ${mapping.thread_id}\nproject_id: ${mapping.project_id}`
+                        : ''),
+                );
             } catch (err) {
                 console.error('[Move chat to project] exception', err);
                 window.alert(
@@ -522,6 +530,7 @@ export default function Page() {
         },
         [],
     );
+
 
 
     function newChat() {
