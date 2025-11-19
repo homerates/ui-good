@@ -777,15 +777,62 @@ export default function Page() {
     function onSettings() {
         setShowSettings(true);
     }
+
     function onSearch() {
         setShowSearch(true);
     }
+
     function onLibrary() {
         setShowLibrary(true);
     }
-    function onNewProject() {
-        setShowProject(true);
+
+    // ==== REPLACED FUNCTION: New Project (real Supabase create) ====
+    async function onNewProject() {
+        // You need a current chat/thread to attach this new project to
+        if (!activeId) {
+            window.alert('Open or create a chat first, then create a project for it.');
+            return;
+        }
+
+        const name = window.prompt('Name this project:', '');
+        const projectName = (name || '').trim();
+        if (!projectName) {
+            return; // user cancelled or blank name
+        }
+
+        try {
+            const res = await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    threadId: activeId,
+                    projectName,
+                }),
+            });
+
+            const json = await res.json().catch(() => ({}));
+
+            if (!res.ok || !json?.ok) {
+                const msg =
+                    json?.message ||
+                    json?.error ||
+                    json?.reason ||
+                    `Project create failed with status ${res.status}`;
+                window.alert(msg);
+                return;
+            }
+
+            // Optional: preserve old UI behavior
+            setShowProject(true);
+        } catch (err) {
+            window.alert(
+                err instanceof Error
+                    ? err.message
+                    : 'Unexpected error creating project.'
+            );
+        }
     }
+
     function onMortgageCalc() {
         setShowMortgageCalc(true);
     }
@@ -797,6 +844,7 @@ export default function Page() {
         setShowProject(false);
         setShowMortgageCalc(false);
     }
+
 
     return (
         <>
