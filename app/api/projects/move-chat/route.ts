@@ -1,5 +1,5 @@
 // ==== CREATE / REPLACE FILE: app/api/projects/move-chat/route.ts ====
-// Move chat to project: updates project_threads mapping for the signed-in user.
+// Move chat to project: updates chat_threads mapping for the signed-in user.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
-const THREADS_TABLE = "project_threads";
+const THREADS_TABLE = "chat_threads";
 
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });

@@ -9,7 +9,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
 
 const PROJECTS_TABLE = "projects";
-const THREADS_TABLE = "project_threads";
+const THREADS_TABLE = "chat_threads";
 
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });
@@ -55,7 +55,7 @@ export async function GET(_req: NextRequest) {
         id,
         name,
         created_at,
-        project_threads (
+        chat_threads (
           id,
           thread_id,
           created_at
