@@ -1,64 +1,180 @@
-// ==== NEW FILE: app/api/projects/move-chat/route.ts ====
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+// ==== CREATE / REPLACE FILE: app/api/projects/move-chat/route.ts ====
+// Move chat to project: updates project_threads mapping for the signed-in user.
 
-// Using the same public creds you use on the client.
-// RLS is off right now so this is fine for your prototype.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-if (!supabaseUrl || !anonKey) {
-    console.error(
-        '[move-chat] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.',
-    );
+import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { getSupabase } from "../../../../lib/supabaseServer";
+
+const THREADS_TABLE = "project_threads";
+
+function noStore(json: unknown, status = 200) {
+    const res = NextResponse.json(json, { status });
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+    return res;
 }
 
-const supabase =
-    supabaseUrl && anonKey ? createClient(supabaseUrl, anonKey) : null;
-
-// POST /api/projects/move-chat
-// Body: { threadId: string; projectId: string }
-export async function POST(req: Request) {
-    if (!supabase) {
-        return NextResponse.json(
-            { ok: false, error: 'Supabase is not configured on the server.' },
-            { status: 500 },
-        );
-    }
-
-    let body: { threadId?: string; projectId?: string };
+/**
+ * POST /api/projects/move-chat
+ *
+ * Body: { threadId: string; projectId: string }
+ *
+ * - Reassigns an existing thread mapping to a different project
+ *   for the current Clerk user.
+ * - If no mapping exists yet, we create one (so older chats still work).
+ */
+export async function POST(req: NextRequest) {
     try {
-        body = await req.json();
-    } catch {
-        return NextResponse.json(
-            { ok: false, error: 'Invalid JSON body.' },
-            { status: 400 },
+        const { userId } = await auth();
+
+        if (!userId) {
+            return noStore(
+                {
+                    ok: false,
+                    reason: "not_authenticated",
+                    stage: "auth_post",
+                },
+                401
+            );
+        }
+
+        // Parse body
+        let body: any;
+        try {
+            body = await req.json();
+        } catch (err) {
+            console.error("JSON parse error in POST /api/projects/move-chat:", err);
+            return noStore(
+                {
+                    ok: false,
+                    reason: "invalid_json",
+                    stage: "parse_body",
+                    message: err instanceof Error ? err.message : String(err),
+                },
+                400
+            );
+        }
+
+        const rawThreadId = body?.threadId;
+        const rawProjectId = body?.projectId;
+
+        const threadId =
+            typeof rawThreadId === "string" ? rawThreadId.trim() : "";
+        const projectId =
+            typeof rawProjectId === "string" ? rawProjectId.trim() : "";
+
+        if (!threadId || !projectId) {
+            return noStore(
+                {
+                    ok: false,
+                    reason: "missing_fields",
+                    stage: "validate_body",
+                    details: "threadId and projectId are required",
+                },
+                400
+            );
+        }
+
+        const supabase = getSupabase();
+        if (!supabase) {
+            console.error(
+                "Supabase not configured in POST /api/projects/move-chat"
+            );
+            return noStore(
+                {
+                    ok: false,
+                    reason: "supabase_not_configured",
+                    stage: "get_supabase_move_chat",
+                },
+                200
+            );
+        }
+
+        // 1) Try to update an existing mapping for this user + thread
+        const { data: updated, error: updateError } = await supabase
+            .from(THREADS_TABLE)
+            .update({ project_id: projectId })
+            .eq("clerk_user_id", userId)
+            .eq("thread_id", threadId)
+            .select("id, project_id, thread_id, created_at");
+
+        if (updateError) {
+            console.error(
+                "Supabase update error in POST /api/projects/move-chat:",
+                updateError
+            );
+            return noStore(
+                {
+                    ok: false,
+                    reason: "supabase_error",
+                    stage: "update_mapping",
+                    error: updateError.message,
+                },
+                500
+            );
+        }
+
+        if (updated && updated.length > 0) {
+            // Happy path: mapping existed and is now reassigned
+            return noStore(
+                {
+                    ok: true,
+                    mapping: updated[0],
+                    mode: "updated",
+                },
+                200
+            );
+        }
+
+        // 2) No existing mapping: create one (this can happen for older chats)
+        const { data: inserted, error: insertError } = await supabase
+            .from(THREADS_TABLE)
+            .insert({
+                clerk_user_id: userId,
+                project_id: projectId,
+                thread_id: threadId,
+            })
+            .select("id, project_id, thread_id, created_at")
+            .single();
+
+        if (insertError) {
+            console.error(
+                "Supabase insert error in POST /api/projects/move-chat (create mapping):",
+                insertError
+            );
+            return noStore(
+                {
+                    ok: false,
+                    reason: "supabase_error",
+                    stage: "insert_mapping",
+                    error: insertError.message,
+                },
+                500
+            );
+        }
+
+        return noStore(
+            {
+                ok: true,
+                mapping: inserted,
+                mode: "inserted",
+            },
+            200
+        );
+    } catch (err) {
+        console.error("Unhandled POST /api/projects/move-chat error:", err);
+        return noStore(
+            {
+                ok: false,
+                reason: "unhandled_error",
+                stage: "post_outer",
+                message: err instanceof Error ? err.message : String(err),
+            },
+            500
         );
     }
-
-    const threadId = body.threadId?.trim();
-    const projectId = body.projectId?.trim();
-
-    if (!threadId || !projectId) {
-        return NextResponse.json(
-            { ok: false, error: 'threadId and projectId are required.' },
-            { status: 400 },
-        );
-    }
-
-    // Your schema: project_threads(id, clerk_user_id, project_id, thread_id, created_at)
-    const { error } = await supabase
-        .from('project_threads')
-        .update({ project_id: projectId })
-        .eq('thread_id', threadId);
-
-    if (error) {
-        console.error('[move-chat] Supabase error:', error);
-        return NextResponse.json(
-            { ok: false, error: error.message },
-            { status: 500 },
-        );
-    }
-
-    return NextResponse.json({ ok: true }, { status: 200 });
 }
