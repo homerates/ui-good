@@ -47,7 +47,7 @@ export type SidebarProps = {
   // Optional intelligence layer hook – safe even if not passed yet
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
 
-  // NEW: optional hooks for project actions and moving chats to projects
+  // Optional hooks for project actions and moving chats to projects
   onProjectAction?: (action: 'rename' | 'delete', project: Project) => void;
   onMoveChatToProject?: (threadId: string, projectId: string) => void;
 };
