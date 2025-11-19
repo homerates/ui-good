@@ -25,7 +25,6 @@ const fmtMoney = (n: unknown) =>
         { maximumFractionDigits: 2 }
     );
 
-
 /* =========================
    Types
 ========================= */
@@ -79,6 +78,16 @@ export type CalcSubmitResult = {
     loanAmount: number;
     monthlyPI: number;
     sensitivities: Array<{ rate: number; pi: number }>;
+};
+
+/* Subscription summary returned by /api/subscription/status (best-effort) */
+type SubscriptionStatus = {
+    plan: 'free' | 'pro' | 'trial' | 'none' | 'unknown';
+    canAsk: boolean;
+    /** Remaining questions/chats for the current window (if provided). */
+    remaining?: number | null;
+    /** Human-readable message from the server, e.g. "3 chats left today" or "Upgrade to continue". */
+    message?: string;
 };
 
 /* =========================
@@ -318,16 +327,26 @@ export default function Page() {
             });
         });
     }, [messages.length]);
+
     const [input, setInput] = useState('');
 
     // borrower-only mode fixed
     const mode: 'borrower' = 'borrower';
+
+    // subscription status: default = "unknown but allowed"
+    const [subStatus, setSubStatus] = useState<SubscriptionStatus>({
+        plan: 'unknown',
+        canAsk: true,
+        remaining: null,
+        message: undefined,
+    });
 
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         const el = scrollRef.current;
         if (!el) return;
@@ -337,7 +356,6 @@ export default function Page() {
             el.scrollTop = el.scrollHeight;
         });
     }, [messages, loading]);
-
 
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const toggleSidebar = () => setSidebarOpen((o) => !o);
@@ -355,7 +373,7 @@ export default function Page() {
     const [searchQuery, setSearchQuery] = useState('');
     const [projectName, setProjectName] = useState('');
 
-    // restore
+    // restore threads/history from localStorage
     useEffect(() => {
         try {
             const raw = localStorage.getItem(LS_KEY);
@@ -376,7 +394,7 @@ export default function Page() {
         }
     }, []);
 
-    // persist
+    // persist threads/history to localStorage
     useEffect(() => {
         try {
             localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
@@ -385,7 +403,7 @@ export default function Page() {
         }
     }, [threads, history, activeId]);
 
-    // snapshot into active thread
+    // snapshot messages into active thread + bump updatedAt
     useEffect(() => {
         if (!activeId) return;
 
@@ -404,7 +422,7 @@ export default function Page() {
         });
     }, [messages, activeId]);
 
-    // autoscroll
+    // autoscroll convenience
     useEffect(() => {
         scrollRef.current?.scrollTo({
             top: scrollRef.current.scrollHeight,
@@ -453,6 +471,50 @@ export default function Page() {
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
+    // subscription status check (best-effort, no hard dependency)
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const res = await fetch('/api/subscription/status', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+
+                if (!res.ok) {
+                    // If endpoint doesn't exist or returns non-200, silently ignore.
+                    return;
+                }
+
+                const json: any = await res.json().catch(() => null);
+                if (!json || cancelled) return;
+
+                setSubStatus({
+                    plan: (json.plan as SubscriptionStatus['plan']) ?? 'unknown',
+                    canAsk:
+                        typeof json.canAsk === 'boolean'
+                            ? json.canAsk
+                            : true,
+                    remaining:
+                        typeof json.remaining === 'number'
+                            ? json.remaining
+                            : null,
+                    message:
+                        typeof json.message === 'string'
+                            ? json.message
+                            : undefined,
+                });
+            } catch (err) {
+                console.warn('subscription status check failed', err);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     // history select
     function onSelectHistory(id: string) {
         setActiveId(id);
@@ -471,6 +533,7 @@ export default function Page() {
         }
         setShowLibrary(false);
     }
+
     const handleProjectAction = React.useCallback(
         (action: 'rename' | 'delete', project: any) => {
             // Sidebar project actions reach here.
@@ -480,7 +543,7 @@ export default function Page() {
                 name: project?.name,
             });
         },
-        [],
+        []
     );
 
     const handleMoveChatToProject = React.useCallback(
@@ -505,7 +568,7 @@ export default function Page() {
                     });
                     window.alert(
                         json?.error ||
-                        'There was a problem moving this chat to the project.',
+                        'There was a problem moving this chat to the project.'
                     );
                     return;
                 }
@@ -519,19 +582,17 @@ export default function Page() {
                     `Chat moved to project (${mode}).` +
                     (mapping?.thread_id
                         ? `\nthread_id: ${mapping.thread_id}\nproject_id: ${mapping.project_id}`
-                        : ''),
+                        : '')
                 );
             } catch (err) {
                 console.error('[Move chat to project] exception', err);
                 window.alert(
-                    'Unexpected error while moving this chat. Please try again.',
+                    'Unexpected error while moving this chat. Please try again.'
                 );
             }
         },
-        [],
+        []
     );
-
-
 
     function newChat() {
         const id = uid();
@@ -543,10 +604,9 @@ export default function Page() {
                 content: 'New chat. What do you want to figure out?',
             },
         ]);
-        setHistory((h) => [
-            { id, title: 'New chat', updatedAt: Date.now() },
-            ...h,
-        ].slice(0, 20));
+        setHistory((h) =>
+            [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20)
+        );
     }
 
     function handleHistoryAction(
@@ -617,7 +677,6 @@ export default function Page() {
             return;
         }
 
-
         if (action === 'archive') {
             alert('Archive (coming soon)');
             return;
@@ -648,6 +707,21 @@ export default function Page() {
     async function send() {
         const q = input.trim();
         if (!q || loading) return;
+
+        // Subscription gate: if the current plan says "no more questions", surface that
+        if (!subStatus.canAsk) {
+            setMessages((m) => [
+                ...m,
+                {
+                    id: uid(),
+                    role: 'assistant',
+                    content:
+                        subStatus.message ||
+                        'You have reached your current HomeRates.ai plan limit. Upgrade your subscription in order to ask more questions.',
+                },
+            ]);
+            return;
+        }
 
         const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
@@ -705,8 +779,7 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'
-                    }: ${typeof meta.fred.tenYearYield === 'number'
+                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
                         ? `${meta.fred.tenYearYield.toFixed(2)}%`
                         : meta.fred.tenYearYield
                     } 10Y, ${typeof meta.fred.mort30Avg === 'number'
@@ -726,14 +799,13 @@ export default function Page() {
             try {
                 void logAnswerToLibrary(q, { friendly, meta });
             } catch (err) {
-                console.error("Library logging error:", err);
+                console.error('Library logging error:', err);
             }
 
             setMessages((m) => [
                 ...m,
                 { id: uid(), role: 'assistant', content: friendly, meta },
             ]);
-
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             setMessages((m) => [
@@ -845,7 +917,6 @@ export default function Page() {
         setShowMortgageCalc(false);
     }
 
-
     return (
         <>
             {/* Sidebar */}
@@ -867,7 +938,6 @@ export default function Page() {
                 onMoveChatToProject={handleMoveChatToProject}  // NEW
             />
 
-
             {/* Main */}
             <section
                 className="main"
@@ -877,10 +947,6 @@ export default function Page() {
                     flexDirection: 'column',
                 }}
             >
-
-
-
-
                 <div className="header">
                     <div
                         className="header-inner"
@@ -940,7 +1006,6 @@ export default function Page() {
                     </div>
                 </div>
 
-
                 {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
                 <div
                     className="hr-composer"
@@ -965,7 +1030,6 @@ export default function Page() {
                             boxSizing: 'border-box',
                         }}
                     >
-
                         <input
                             className="hr-composer-input"
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
@@ -992,7 +1056,7 @@ export default function Page() {
                             aria-label="Send message"
                             title="Send"
                             onClick={send}
-                            disabled={loading || !input.trim()}
+                            disabled={loading || !input.trim() || !subStatus.canAsk}
                             style={{
                                 position: 'absolute',
                                 right: 16,
@@ -1008,8 +1072,14 @@ export default function Page() {
                                 justifyContent: 'center',
                                 background: '#111827',
                                 color: '#FFFFFF',
-                                cursor: loading || !input.trim() ? 'default' : 'pointer',
-                                opacity: loading || !input.trim() ? 0.5 : 1,
+                                cursor:
+                                    loading || !input.trim() || !subStatus.canAsk
+                                        ? 'default'
+                                        : 'pointer',
+                                opacity:
+                                    loading || !input.trim() || !subStatus.canAsk
+                                        ? 0.5
+                                        : 1,
                                 zIndex: 2,
                             }}
                         >
@@ -1031,6 +1101,27 @@ export default function Page() {
                             </svg>
                         </button>
                     </div>
+
+                    {subStatus.message && (
+                        <div
+                            className="meta"
+                            style={{
+                                textAlign: 'center',
+                                fontSize: 12,
+                                opacity: 0.75,
+                                padding: '0 16px 8px',
+                            }}
+                        >
+                            {subStatus.message}
+                            {typeof subStatus.remaining === 'number' &&
+                                subStatus.remaining >= 0 && (
+                                    <>
+                                        {' '}
+                                        ({subStatus.remaining} chats left today)
+                                    </>
+                                )}
+                        </div>
+                    )}
                 </div>
 
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
@@ -1074,8 +1165,6 @@ export default function Page() {
                                     boxSizing: 'border-box',
                                 }}
                             >
-
-
                                 <div
                                     style={{
                                         display: 'flex',
