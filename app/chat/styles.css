@@ -110,7 +110,7 @@
         position: sticky;
         top: 0;
         z-index: 1000;
-        background: #020617;
+        background: #eff0f5;
         /* or a grey like #1f2937 */
     }
 
@@ -118,5 +118,29 @@
         flex: 1 1 auto;
         min-height: 0;
         overflow-y: auto;
+    }
+}
+
+/* === Mobile: lock header + adjust layout === */
+@media (max-width: 640px) {
+
+    /* Give the page room for a fixed header */
+    .main {
+        padding-top: 56px;
+        /* tweak if your header is taller/shorter */
+    }
+
+    /* Force the header to stay pinned at the top of the viewport */
+    .header {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 950;
+    }
+
+    /* Make sure content starts visibly below it and still scrolls */
+    .scroll {
+        padding-top: 8px;
     }
 }
