@@ -68,3 +68,13 @@
     cursor: pointer;
     z-index: 2;
 }
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: var(--surface, #f2f3f5);
+    /* or your current header bg */
+}
+
+1E293B
