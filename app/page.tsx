@@ -12,6 +12,7 @@ import MortgageCalcPanel from './components/MortgageCalcPanel';
 import MenuButton from './components/MenuButton';
 import { useMobileComposerPin } from './hooks/useMobileComposerPin';
 import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
+import './chat/styles.css';
 
 /* =========================
    Small helpers
@@ -394,16 +395,6 @@ export default function Page() {
         },
     ]);
 
-    React.useEffect(() => {
-        if (typeof window === 'undefined') return;
-
-        window.requestAnimationFrame(() => {
-            window.scrollTo({
-                top: document.body.scrollHeight,
-                behavior: 'smooth',
-            });
-        });
-    }, [messages.length]);
 
     const [input, setInput] = useState('');
 
