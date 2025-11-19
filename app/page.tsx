@@ -5,6 +5,8 @@
 
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
 import MenuButton from './components/MenuButton';
@@ -15,6 +17,7 @@ import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
    Small helpers
 ========================= */
 const LS_KEY = 'hr.chat.v1';
+const FREE_COUNT_KEY = 'hr.free.count.v1';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
@@ -78,16 +81,6 @@ export type CalcSubmitResult = {
     loanAmount: number;
     monthlyPI: number;
     sensitivities: Array<{ rate: number; pi: number }>;
-};
-
-/* Subscription summary returned by /api/subscription/status (best-effort) */
-type SubscriptionStatus = {
-    plan: 'free' | 'pro' | 'trial' | 'none' | 'unknown';
-    canAsk: boolean;
-    /** Remaining questions/chats for the current window (if provided). */
-    remaining?: number | null;
-    /** Human-readable message from the server, e.g. "3 chats left today" or "Upgrade to continue". */
-    message?: string;
 };
 
 /* =========================
@@ -308,6 +301,16 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
 export default function Page() {
     useMobileComposerPin();
 
+    const { isSignedIn } = useUser();
+    const router = useRouter();
+
+    // simple free-tier limits (can tweak anytime)
+    const FREE_LIMIT_GUEST = 3;
+    const FREE_LIMIT_SIGNED = 20;
+
+    const [freeCount, setFreeCount] = useState(0);
+    const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
+
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
             id: uid(),
@@ -327,26 +330,16 @@ export default function Page() {
             });
         });
     }, [messages.length]);
-
     const [input, setInput] = useState('');
 
     // borrower-only mode fixed
     const mode: 'borrower' = 'borrower';
-
-    // subscription status: default = "unknown but allowed"
-    const [subStatus, setSubStatus] = useState<SubscriptionStatus>({
-        plan: 'unknown',
-        canAsk: true,
-        remaining: null,
-        message: undefined,
-    });
 
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState<
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
-
     useEffect(() => {
         const el = scrollRef.current;
         if (!el) return;
@@ -373,7 +366,23 @@ export default function Page() {
     const [searchQuery, setSearchQuery] = useState('');
     const [projectName, setProjectName] = useState('');
 
-    // restore threads/history from localStorage
+    // load free-count from localStorage
+    useEffect(() => {
+        try {
+            if (typeof window === 'undefined') return;
+            const raw = window.localStorage.getItem(FREE_COUNT_KEY);
+            if (raw != null) {
+                const parsed = Number(raw);
+                if (!Number.isNaN(parsed)) {
+                    setFreeCount(parsed);
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }, []);
+
+    // restore
     useEffect(() => {
         try {
             const raw = localStorage.getItem(LS_KEY);
@@ -394,7 +403,7 @@ export default function Page() {
         }
     }, []);
 
-    // persist threads/history to localStorage
+    // persist
     useEffect(() => {
         try {
             localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
@@ -403,7 +412,7 @@ export default function Page() {
         }
     }, [threads, history, activeId]);
 
-    // snapshot messages into active thread + bump updatedAt
+    // snapshot into active thread
     useEffect(() => {
         if (!activeId) return;
 
@@ -422,7 +431,7 @@ export default function Page() {
         });
     }, [messages, activeId]);
 
-    // autoscroll convenience
+    // autoscroll
     useEffect(() => {
         scrollRef.current?.scrollTo({
             top: scrollRef.current.scrollHeight,
@@ -471,50 +480,6 @@ export default function Page() {
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
-    // subscription status check (best-effort, no hard dependency)
-    useEffect(() => {
-        let cancelled = false;
-
-        (async () => {
-            try {
-                const res = await fetch('/api/subscription/status', {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-
-                if (!res.ok) {
-                    // If endpoint doesn't exist or returns non-200, silently ignore.
-                    return;
-                }
-
-                const json: any = await res.json().catch(() => null);
-                if (!json || cancelled) return;
-
-                setSubStatus({
-                    plan: (json.plan as SubscriptionStatus['plan']) ?? 'unknown',
-                    canAsk:
-                        typeof json.canAsk === 'boolean'
-                            ? json.canAsk
-                            : true,
-                    remaining:
-                        typeof json.remaining === 'number'
-                            ? json.remaining
-                            : null,
-                    message:
-                        typeof json.message === 'string'
-                            ? json.message
-                            : undefined,
-                });
-            } catch (err) {
-                console.warn('subscription status check failed', err);
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
     // history select
     function onSelectHistory(id: string) {
         setActiveId(id);
@@ -543,7 +508,7 @@ export default function Page() {
                 name: project?.name,
             });
         },
-        []
+        [],
     );
 
     const handleMoveChatToProject = React.useCallback(
@@ -568,7 +533,7 @@ export default function Page() {
                     });
                     window.alert(
                         json?.error ||
-                        'There was a problem moving this chat to the project.'
+                        'There was a problem moving this chat to the project.',
                     );
                     return;
                 }
@@ -582,16 +547,16 @@ export default function Page() {
                     `Chat moved to project (${mode}).` +
                     (mapping?.thread_id
                         ? `\nthread_id: ${mapping.thread_id}\nproject_id: ${mapping.project_id}`
-                        : '')
+                        : ''),
                 );
             } catch (err) {
                 console.error('[Move chat to project] exception', err);
                 window.alert(
-                    'Unexpected error while moving this chat. Please try again.'
+                    'Unexpected error while moving this chat. Please try again.',
                 );
             }
         },
-        []
+        [],
     );
 
     function newChat() {
@@ -605,7 +570,10 @@ export default function Page() {
             },
         ]);
         setHistory((h) =>
-            [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20)
+            [
+                { id, title: 'New chat', updatedAt: Date.now() },
+                ...h,
+            ].slice(0, 20),
         );
     }
 
@@ -704,24 +672,37 @@ export default function Page() {
         }
     }
 
+    function bumpFreeCount() {
+        try {
+            if (typeof window === 'undefined') {
+                // just bump state; no localStorage on server (defensive)
+                setFreeCount((prev) => prev + 1);
+                return;
+            }
+            setFreeCount((prev) => {
+                const next = prev + 1;
+                window.localStorage.setItem(FREE_COUNT_KEY, String(next));
+                return next;
+            });
+        } catch {
+            // ignore storage errors, still let the question through
+            setFreeCount((prev) => prev + 1);
+        }
+    }
+
     async function send() {
         const q = input.trim();
         if (!q || loading) return;
 
-        // Subscription gate: if the current plan says "no more questions", surface that
-        if (!subStatus.canAsk) {
-            setMessages((m) => [
-                ...m,
-                {
-                    id: uid(),
-                    role: 'assistant',
-                    content:
-                        subStatus.message ||
-                        'You have reached your current HomeRates.ai plan limit. Upgrade your subscription in order to ask more questions.',
-                },
-            ]);
+        // subscription gate: enforce free-tier limits before sending
+        const LIMIT = isSignedIn ? FREE_LIMIT_SIGNED : FREE_LIMIT_GUEST;
+        if (freeCount >= LIMIT) {
+            setShowUpgradeRequired(true);
             return;
         }
+
+        // record this usage
+        bumpFreeCount();
 
         const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
@@ -779,7 +760,8 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
+                    ? `As of ${meta.fred.asOf ?? 'recent data'
+                    }: ${typeof meta.fred.tenYearYield === 'number'
                         ? `${meta.fred.tenYearYield.toFixed(2)}%`
                         : meta.fred.tenYearYield
                     } 10Y, ${typeof meta.fred.mort30Avg === 'number'
@@ -806,6 +788,7 @@ export default function Page() {
                 ...m,
                 { id: uid(), role: 'assistant', content: friendly, meta },
             ]);
+
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             setMessages((m) => [
@@ -1056,7 +1039,7 @@ export default function Page() {
                             aria-label="Send message"
                             title="Send"
                             onClick={send}
-                            disabled={loading || !input.trim() || !subStatus.canAsk}
+                            disabled={loading || !input.trim()}
                             style={{
                                 position: 'absolute',
                                 right: 16,
@@ -1072,14 +1055,8 @@ export default function Page() {
                                 justifyContent: 'center',
                                 background: '#111827',
                                 color: '#FFFFFF',
-                                cursor:
-                                    loading || !input.trim() || !subStatus.canAsk
-                                        ? 'default'
-                                        : 'pointer',
-                                opacity:
-                                    loading || !input.trim() || !subStatus.canAsk
-                                        ? 0.5
-                                        : 1,
+                                cursor: loading || !input.trim() ? 'default' : 'pointer',
+                                opacity: loading || !input.trim() ? 0.5 : 1,
                                 zIndex: 2,
                             }}
                         >
@@ -1101,27 +1078,6 @@ export default function Page() {
                             </svg>
                         </button>
                     </div>
-
-                    {subStatus.message && (
-                        <div
-                            className="meta"
-                            style={{
-                                textAlign: 'center',
-                                fontSize: 12,
-                                opacity: 0.75,
-                                padding: '0 16px 8px',
-                            }}
-                        >
-                            {subStatus.message}
-                            {typeof subStatus.remaining === 'number' &&
-                                subStatus.remaining >= 0 && (
-                                    <>
-                                        {' '}
-                                        ({subStatus.remaining} chats left today)
-                                    </>
-                                )}
-                        </div>
-                    )}
                 </div>
 
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
@@ -1421,6 +1377,97 @@ export default function Page() {
                             </div>
                         </div>
                     )}
+
+                {/* -------- Upgrade-required (Pro plan) modal -------- */}
+                {showUpgradeRequired && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            backgroundColor: 'rgba(0,0,0,0.45)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 6000,
+                        }}
+                        onClick={() => setShowUpgradeRequired(false)}
+                    >
+                        <div
+                            style={{
+                                background: 'var(--surface, #111827)',
+                                borderRadius: 16,
+                                padding: 24,
+                                maxWidth: 380,
+                                width: '90%',
+                                boxShadow: '0 18px 45px rgba(0,0,0,0.5)',
+                                color: 'var(--fg, #e5e7eb)',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h2
+                                style={{
+                                    fontSize: 18,
+                                    fontWeight: 600,
+                                    marginBottom: 8,
+                                }}
+                            >
+                                Upgrade to HomeRates.ai Pro
+                            </h2>
+                            <p
+                                style={{
+                                    fontSize: 14,
+                                    lineHeight: 1.5,
+                                    marginBottom: 20,
+                                    opacity: 0.9,
+                                }}
+                            >
+                                You&apos;ve reached today&apos;s free question limit for
+                                your account. Upgrade to HomeRates.ai Pro for unlimited
+                                questions and full access to advanced mortgage tools and
+                                scenario modeling.
+                            </p>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    gap: 8,
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setShowUpgradeRequired(false)}
+                                    style={{
+                                        padding: '6px 12px',
+                                        borderRadius: 999,
+                                        border: '1px solid rgba(249,250,251,0.1)',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: 13,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Maybe later
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => router.push('/upgrade')}
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        background: 'var(--accent, #22c55e)',
+                                        color: '#020617',
+                                        fontWeight: 600,
+                                        fontSize: 13,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    View plans
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </section>
         </>
     );
