@@ -484,17 +484,45 @@ export default function Page() {
     );
 
     const handleMoveChatToProject = React.useCallback(
-        (threadId: string, projectId: string) => {
-            // Sidebar move-to-project dialog reaches here.
-            // Next step: replace this with Supabase thread reassignment.
-            console.log('[Move chat to project]', { threadId, projectId });
+        async (threadId: string, projectId: string) => {
+            try {
+                console.log('[Move chat to project] begin', { threadId, projectId });
 
-            window.alert(
-                'Move-to-project wiring is connected. Next step: persist mapping to Supabase.'
-            );
+                const res = await fetch('/api/projects/move-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ threadId, projectId }),
+                });
+
+                const json = await res.json().catch(() => null);
+
+                if (!res.ok || !json?.ok) {
+                    console.error('[Move chat to project] failed', {
+                        status: res.status,
+                        body: json,
+                    });
+                    window.alert(
+                        json?.error ||
+                        'There was a problem moving this chat to the project.',
+                    );
+                    return;
+                }
+
+                console.log('[Move chat to project] success');
+                window.alert('Chat moved to project successfully.');
+                // Later: refresh local state (threads/projects) to reflect this mapping.
+            } catch (err) {
+                console.error('[Move chat to project] exception', err);
+                window.alert(
+                    'Unexpected error while moving this chat. Please try again.',
+                );
+            }
         },
         [],
     );
+
 
     function newChat() {
         const id = uid();
