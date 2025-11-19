@@ -471,6 +471,30 @@ export default function Page() {
         }
         setShowLibrary(false);
     }
+    const handleProjectAction = React.useCallback(
+        (action: 'rename' | 'delete', project: any) => {
+            // Sidebar project actions reach here.
+            // Next step: replace this with Supabase rename/delete.
+            console.log('[Project action]', action, {
+                id: project?.id,
+                name: project?.name,
+            });
+        },
+        [],
+    );
+
+    const handleMoveChatToProject = React.useCallback(
+        (threadId: string, projectId: string) => {
+            // Sidebar move-to-project dialog reaches here.
+            // Next step: replace this with Supabase thread reassignment.
+            console.log('[Move chat to project]', { threadId, projectId });
+
+            window.alert(
+                'Move-to-project wiring is connected. Next step: persist mapping to Supabase.'
+            );
+        },
+        [],
+    );
 
     function newChat() {
         const id = uid();
@@ -754,7 +778,10 @@ export default function Page() {
                 isOpen={sidebarOpen}
                 onToggle={toggleSidebar}
                 onHistoryAction={handleHistoryAction}
+                onProjectAction={handleProjectAction}          // NEW
+                onMoveChatToProject={handleMoveChatToProject}  // NEW
             />
+
 
             {/* Main */}
             <section
