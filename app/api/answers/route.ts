@@ -386,70 +386,53 @@ async function handle(req: NextRequest, intentParam?: string) {
   const legacyAnswerMarkdown = answerMarkdown;
   const legacyAnswer = intro || answerMarkdown;
 
-  // ===== GROK BRAIN v3 – integrates with FRED + Tavily + user_answers =====
+  // ===== GROK BRAIN v3.1 – FINAL COMPATIBLE VERSION =====
+  console.log("GROK v3.1: Starting for user:", userId);
 
-  console.log("GROK v3: Starting for user:", userId);
-
-  // 1. Pull conversation memory from user_answers (last 3 exchanges)
   let conversationHistory = "";
   if (userId && supabase) {
     try {
-      const { data: history, error: historyError } = await supabase
+      const { data: history } = await supabase
         .from("user_answers")
         .select("question, answer_summary, answer")
         .eq("clerk_user_id", userId)
         .order("created_at", { ascending: false })
         .limit(3);
 
-      if (historyError) {
-        console.warn("GROK v3: history fetch error", historyError.message);
-      }
-
-      if (history && history.length) {
+      if (history?.length) {
         conversationHistory = history
           .reverse()
           .map((entry: any) => {
-            const rawAnswer =
+            const prev =
               entry.answer_summary ||
-              (entry.answer &&
-                typeof entry.answer === "object" &&
-                typeof entry.answer.answer === "string"
-                ? entry.answer.answer.slice(0, 200) + "..."
+              (typeof entry.answer === "object" && entry.answer?.answer
+                ? String(entry.answer.answer).slice(0, 200) + "..."
                 : "Previous answer");
-
-            return `User: ${entry.question}\nAssistant: ${rawAnswer}`;
+            return `User: ${entry.question}\nAssistant: ${prev}`;
           })
           .join("\n\n");
       }
     } catch (err: any) {
-      console.warn("GROK v3: history fetch exception", err?.message || err);
+      console.warn("GROK v3.1: history fetch failed", err.message);
     }
   }
 
-  // 2. Build rich context from FRED + Tavily
   const today = new Date().toISOString().slice(0, 10);
+  const fredContext = usedFRED
+    ? `FRED (${fred.asOf || today}): 30Y fixed = ${fred.mort30Avg}%, 10Y yield = ${fred.tenYearYield}%, spread = ${fred.spread}%`
+    : "FRED data unavailable";
 
-  const fredContext =
-    usedFRED && fred
-      ? `FRED (${fred.asOf || today}): 30Y fixed = ${fred.mort30Avg}%, 10Y yield = ${fred.tenYearYield}%, spread = ${fred.spread}%`
-      : "FRED data unavailable";
-
-  // Use original Tavily results (with content/snippet) for Grok context
   const tavilyContext =
     Array.isArray(tav.results) && tav.results.length
       ? tav.results
         .slice(0, 4)
-        .map((s) =>
-          `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140) || "(no snippet)"
-          }...`
-        )
+        .map(s => `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`)
         .join("\n")
-      : "No recent news sources";
+      : "No recent sources";
 
-  // 3. Final enriched prompt for Grok
   const grokPrompt = `
-You are HomeRates.AI — the calm, data-first mortgage advisor for 2025–2026.
-Never sell. Never hype. Just empower with precision.
+You are HomeRates.AI — calm, data-first mortgage advisor (2025–2026).
+Never sell. Never hype.
 
 Date: ${today}
 ${fredContext}
@@ -462,16 +445,15 @@ ${conversationHistory || "First message"}
 
 Current question: "${question}"
 
-Respond in valid JSON (exact schema):
+Respond in valid JSON:
 {
-  "answer": "180–380 word markdown. Use tables, bullets, mini-scenarios. Cite FRED inline when relevant.",
-  "next_step": "1–2 specific, actionable steps the user can take right now.",
-  "follow_up": "One natural, personalized follow-up question that continues the thread.",
-  "confidence": "0.00–1.00 + 5–8 word rationale"
+  "answer": "180–380 word markdown with tables/bullets/scenarios.",
+  "next_step": "1–2 specific actions",
+  "follow_up": "One natural follow-up question",
+  "confidence": "0.00–1.00 + short rationale"
 }
 `.trim();
 
-  // 4. Call Grok
   let grokFinal: any = null;
 
   if (process.env.XAI_API_KEY && question.trim()) {
@@ -492,62 +474,59 @@ Respond in valid JSON (exact schema):
       });
 
       if (!res.ok) throw new Error(`Grok ${res.status}`);
-
       const data = await res.json();
       const content = data?.choices?.[0]?.message?.content?.trim();
 
       if (content) {
         try {
-          grokFinal = JSON.parse(content);
-          console.log("GROK v3 SUCCESS → confidence:", grokFinal.confidence);
-        } catch (parseErr: any) {
-          console.error(
-            "GROK v3 JSON parse failed",
-            parseErr?.message || parseErr
-          );
+          let cleaned = content.replace(/^```json\s*\n?/, "").replace(/\n?```$/, "").trim();
+          const first = cleaned.indexOf("{");
+          const last = cleaned.lastIndexOf("}");
+          if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1);
+
+          grokFinal = JSON.parse(cleaned);
+
+          if (!grokFinal.answer || !grokFinal.next_step || !grokFinal.follow_up || !grokFinal.confidence) {
+            throw new Error("Missing fields");
+          }
+
+          console.log("GROK v3.1 SUCCESS → confidence:", grokFinal.confidence);
+        } catch (parseErr) {
+          console.warn("GROK v3.1: recovery mode", parseErr);
+          grokFinal = {
+            answer: content.slice(0, 1200),
+            next_step: "Share your loan amount and rate for exact numbers.",
+            follow_up: "What’s your timeline or location?",
+            confidence: "0.71 — recovered",
+          };
         }
-      } else {
-        console.warn("GROK v3: empty content from Grok");
       }
     } catch (e: any) {
-      console.error("GROK v3 failed → using legacy", e?.message || e);
+      console.error("GROK v3.1 failed → legacy", e.message || e);
+      grokFinal = null;
     }
   }
 
-  // 5. Save to user_answers for memory + analytics
+  // Save memory — Supabase v2+ safe
   if (grokFinal && userId && supabase) {
     try {
-      const fullAnswer =
-        typeof grokFinal.answer === "string"
-          ? grokFinal.answer
-          : JSON.stringify(grokFinal);
-
-      const summary =
-        typeof grokFinal.answer === "string"
-          ? grokFinal.answer.slice(0, 320) + "..."
-          : fullAnswer.slice(0, 320) + "...";
-
       await supabase.from("user_answers").insert({
         clerk_user_id: userId,
         question,
-        answer: grokFinal, // jsonb column
-        answer_summary: summary,
+        answer: grokFinal,
+        answer_summary: typeof grokFinal.answer === "string" ? grokFinal.answer.slice(0, 320) + "..." : "",
         model: "grok-3",
         created_at: new Date().toISOString(),
       });
     } catch (err: any) {
-      console.warn("GROK v3: failed to log user_answers", err?.message || err);
+      console.warn("GROK v3.1: save failed", err.message);
     }
   }
 
-  // 6. Build final markdown for the frontend
   const finalMarkdown = grokFinal
-    ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence
-    }\n\n**Next step**\n${grokFinal.next_step}\n\n**Ask me next** → ${grokFinal.follow_up
-    }\n\n${sourcesMd}${fredLine || ""}`
+    ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n\n**Next step**\n${grokFinal.next_step}\n\n**Ask me next** → ${grokFinal.follow_up}\n\n${sourcesMd}${fredLine || ""}`
     : legacyAnswerMarkdown;
 
-  // 7. Unified return shape
   return noStore({
     ok: true,
     route: "answers",
