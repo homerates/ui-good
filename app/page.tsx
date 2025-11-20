@@ -22,11 +22,7 @@ const LS_KEY = 'hr.chat.v1';
 // anonymous, non-signed-in usage meter (per browser, per day)
 const ANON_METER_KEY = 'hr.anon.q.v1';
 const ANON_DAILY_LIMIT = 3;
-
-// signed-in usage meter (per user, per browser, per day)
-const SIGNED_METER_KEY = 'hr.signed.q.v1';
 const SIGNED_DAILY_LIMIT = 10; // signed-in, triggers Upgrade modal
-
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
     iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
@@ -81,55 +77,6 @@ function bumpAnonCounterOrBlock(): boolean {
         return true;
     } catch {
         // If anything goes wrong with localStorage, fail open
-        return true;
-    }
-}
-
-/**
- * Increment the signed-in question counter (per user, per day).
- * Returns true if allowed, false if daily limit reached.
- */
-function bumpSignedCounterOrBlock(userId: string | null | undefined): boolean {
-    try {
-        if (typeof window === 'undefined') return true;
-
-        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-        const key = `${SIGNED_METER_KEY}:${userId ?? 'anon'}`;
-        const raw = window.localStorage.getItem(key);
-
-        if (!raw) {
-            window.localStorage.setItem(
-                key,
-                JSON.stringify({ d: today, c: 1 })
-            );
-            return true;
-        }
-
-        const parsed = JSON.parse(raw) as { d?: string; c?: number };
-        const storedDay = parsed?.d;
-        const storedCount = typeof parsed?.c === 'number' ? parsed.c : 0;
-
-        // New day: reset count
-        if (storedDay !== today) {
-            window.localStorage.setItem(
-                key,
-                JSON.stringify({ d: today, c: 1 })
-            );
-            return true;
-        }
-
-        // Same day: enforce limit
-        if (storedCount >= SIGNED_DAILY_LIMIT) {
-            return false;
-        }
-
-        window.localStorage.setItem(
-            key,
-            JSON.stringify({ d: today, c: storedCount + 1 })
-        );
-        return true;
-    } catch {
-        // Fail open if anything breaks
         return true;
     }
 }
@@ -210,9 +157,6 @@ async function safeJson(r: Response): Promise<ApiResponse> {
     }
 }
 
-/* =========================
-   Answer block
-========================= */
 function AnswerBlock({
     meta,
     friendly,
@@ -311,7 +255,8 @@ function AnswerBlock({
             m.fred.tenYearYield != null &&
             m.fred.mort30Avg != null &&
             m.fred.spread != null
-            ? `As of ${m.fred.asOf ?? 'recent data'}: ${typeof m.fred.tenYearYield === 'number'
+            ? `As of ${m.fred.asOf ?? 'recent data'
+            }: ${typeof m.fred.tenYearYield === 'number'
                 ? m.fred.tenYearYield.toFixed(2)
                 : m.fred.tenYearYield
             }%, 30Y ${typeof m.fred.mort30Avg === 'number'
@@ -432,7 +377,7 @@ export default function Page() {
     useMobileComposerPin();
 
     const router = useRouter();
-    const { isSignedIn, user } = useUser();
+    const { isSignedIn } = useUser();
 
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
@@ -810,24 +755,32 @@ export default function Page() {
         [setMessages]
     );
 
+    // Quick "I'm on it..." line based on the question
+    function buildPrologue(question: string): string {
+        const q = question.toLowerCase();
+
+        if (q.includes('rate')) {
+            return 'Checking on live mortgage rates for you...';
+        }
+        if (q.includes('payment') || q.includes('p&i') || q.includes('piti')) {
+            return 'Running the numbers on that payment...';
+        }
+        if (
+            q.includes('fha') ||
+            q.includes('conventional') ||
+            q.includes('va loan') ||
+            q.includes('va ') ||
+            q.includes('jumbo')
+        ) {
+            return 'Lining up the guideline details for you...';
+        }
+
+        return 'Let me think that through for you...';
+    }
+
     async function send() {
         const q = input.trim();
         if (!q || loading) return;
-
-        // Enforce simple daily limits before we send anything
-        if (!isSignedIn) {
-            const allowed = bumpAnonCounterOrBlock();
-            if (!allowed) {
-                setShowAuthRequired(true);
-                return;
-            }
-        } else {
-            const allowed = bumpSignedCounterOrBlock(user?.id);
-            if (!allowed) {
-                setShowUpgradeRequired(true);
-                return;
-            }
-        }
 
         const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
@@ -862,13 +815,14 @@ export default function Page() {
             });
         }
 
-        // Create a placeholder assistant bubble immediately (no canned text)
+        // Create a placeholder assistant bubble immediately
         const answerId = uid();
+        const prologue = buildPrologue(q);
 
         setMessages((m) => [
             ...m,
             { id: uid(), role: 'user', content: q },
-            { id: answerId, role: 'assistant', content: '' },
+            { id: answerId, role: 'assistant', content: prologue },
         ]);
 
         setInput('');
@@ -876,10 +830,7 @@ export default function Page() {
 
         try {
             // borrower-only body (no intent/loanAmount passthrough)
-            const body: { question: string; mode: 'borrower' } = {
-                question: q,
-                mode,
-            };
+            const body: { question: string; mode: 'borrower' } = { question: q, mode };
 
             const r = await fetch('/api/answers', {
                 method: 'POST',
@@ -896,8 +847,7 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'
-                    }: ${typeof meta.fred.tenYearYield === 'number'
+                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
                         ? `${meta.fred.tenYearYield.toFixed(2)}%`
                         : meta.fred.tenYearYield
                     } 10Y, ${typeof meta.fred.mort30Avg === 'number'
@@ -920,17 +870,10 @@ export default function Page() {
                 console.error('Library logging error:', err);
             }
 
-            // If the backend signals that a limit was hit, surface the right modal
-            if (meta.upgradeRequired || meta.limitHit) {
-                if (!isSignedIn) {
-                    setShowAuthRequired(true);
-                } else {
-                    setShowUpgradeRequired(true);
-                }
-            }
+            // Include the prologue at the top of the streamed answer
+            const fullText = prologue ? `${prologue}\n\n${friendly}` : friendly;
 
-            // Type out the actual answer text into the existing assistant bubble
-            const fullText = friendly;
+            // animate the answer text into the existing assistant bubble
             typeOutAssistant(answerId, fullText);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
@@ -984,10 +927,50 @@ export default function Page() {
         setShowLibrary(true);
     }
 
-    // === New Project: single, in-app dialog only (no Windows prompt) ===
+    // ==== New Project: keep single prompt; no second overlay dialog ====
     async function onNewProject() {
-        // Just open the overlay; the form inside will handle naming + chat setup.
-        setShowProject(true);
+        // You need a current chat/thread to attach this new project to
+        if (!activeId) {
+            window.alert('Open or create a chat first, then create a project for it.');
+            return;
+        }
+
+        const name = window.prompt('Name this project:', '');
+        const projectName = (name || '').trim();
+        if (!projectName) {
+            return; // user cancelled or blank name
+        }
+
+        try {
+            const res = await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    threadId: activeId,
+                    projectName,
+                }),
+            });
+
+            const json = await res.json().catch(() => ({}));
+
+            if (!res.ok || !json?.ok) {
+                const msg =
+                    (json as any)?.message ||
+                    (json as any)?.error ||
+                    (json as any)?.reason ||
+                    `Project create failed with status ${res.status}`;
+                window.alert(msg);
+                return;
+            }
+
+            console.log('Project created', json);
+        } catch (err) {
+            window.alert(
+                err instanceof Error
+                    ? err.message
+                    : 'Unexpected error creating project.'
+            );
+        }
     }
 
     function onMortgageCalc() {
@@ -1098,16 +1081,7 @@ export default function Page() {
                                 </div>
                             ))}
 
-                            {loading && (
-                                <Bubble role="assistant">
-                                    <div className="typing-dots" aria-label="HomeRates is thinking">
-                                        <span></span>
-                                        <span></span>
-                                        <span></span>
-                                    </div>
-                                </Bubble>
-                            )}
-
+                            {loading && <div className="meta">...thinking</div>}
                         </div>
                     </div>
                 </div>
@@ -1179,9 +1153,7 @@ export default function Page() {
                                 background: '#111827',
                                 color: '#FFFFFF',
                                 cursor:
-                                    loading || !input.trim()
-                                        ? 'default'
-                                        : 'pointer',
+                                    loading || !input.trim() ? 'default' : 'pointer',
                                 opacity: loading || !input.trim() ? 0.5 : 1,
                                 zIndex: 2,
                             }}
@@ -1340,20 +1312,20 @@ export default function Page() {
                                                         <li key={h.id}>
                                                             <button
                                                                 type="button"
-                                                                className="btn"
-                                                                style={{
-                                                                    padding:
-                                                                        '2px 6px',
-                                                                    fontSize: 13,
-                                                                    width: '100%',
-                                                                    textAlign:
-                                                                        'left',
+                                                                onClick={() => {
+                                                                    onSelectHistory(h.id);
+                                                                    closeAllOverlays();
                                                                 }}
-                                                                onClick={() =>
-                                                                    onSelectHistory(
-                                                                        h.id
-                                                                    )
-                                                                }
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    padding: 0,
+                                                                    margin: 0,
+                                                                    cursor: 'pointer',
+                                                                    textAlign: 'left',
+                                                                    fontSize: 13,
+                                                                    color: 'inherit',
+                                                                }}
                                                             >
                                                                 {h.title}
                                                             </button>
@@ -1386,9 +1358,7 @@ export default function Page() {
                                                     className="chat-item"
                                                     role="listitem"
                                                     title={h.title}
-                                                    onClick={() =>
-                                                        onSelectHistory(h.id)
-                                                    }
+                                                    onClick={() => onSelectHistory(h.id)}
                                                     style={{ textAlign: 'left' }}
                                                 >
                                                     {h.title}
@@ -1451,7 +1421,7 @@ export default function Page() {
                                     </div>
                                 )}
 
-                                {/* NEW PROJECT */}
+                                {/* NEW PROJECT (legacy overlay – now unused, but kept for now) */}
                                 {showProject && (
                                     <form
                                         onSubmit={(
@@ -1631,7 +1601,9 @@ export default function Page() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => router.push('/sign-in')}
+                                    onClick={() =>
+                                        router.push('/sign-in')
+                                    }
                                     style={{
                                         padding: '6px 14px',
                                         borderRadius: 999,

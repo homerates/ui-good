@@ -110,7 +110,7 @@ export default function ProjectsPanel({
             return;
         }
 
-        // Fallback: no UI alerts, just log so it doesn't feel "broken" to users
+        // Fallback: no UI alerts, just log so it doesn't feel broken
         console.log("[ProjectsPanel] project action (no handler wired):", {
             action,
             projectId: project.id,
@@ -125,7 +125,7 @@ export default function ProjectsPanel({
                 display: "flex",
                 flexDirection: "column",
                 gap: 4,
-                fontSize: 11, // smaller overall
+                fontSize: 11,
                 lineHeight: 1.35,
             }}
         >
