@@ -1,31 +1,18 @@
 // ==== REPLACE ENTIRE FILE: app/components/Sidebar.tsx ====
-// Sidebar: Clerk-ready, light UI, with Projects + Chats and project-aware filtering
-
 'use client';
 
 import * as React from 'react';
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  UserButton,
-} from '@clerk/nextjs';
-
 import ProjectsPanel from './ProjectsPanel';
-import MoveToProjectDialog from './MoveToProjectDialog';
 
-type HistoryItem = { id: string; title: string; updatedAt?: number };
+type HistoryItem = {
+  id: string;
+  title: string;
+  updatedAt?: number;
+};
 
-// Knowledge tools you'll wire in from app/page.tsx later
-export type KnowledgeToolId = 'mortgage-solutions' | 'ask-underwriting';
-
-export type SidebarProps = {
-  id?: string;
+type SidebarProps = {
   history: HistoryItem[];
   activeId: string | null;
-  isOpen: boolean;
-
-  onToggle: () => void;
 
   onSelectHistory: (id: string) => void;
   onHistoryAction: (
@@ -35,496 +22,386 @@ export type SidebarProps = {
 
   onNewChat: () => void;
   onSettings: () => void;
-  onShare: () => void; // kept for prop parity (not rendered as a pill)
+  onShare: () => void;
   onSearch: () => void;
   onLibrary: () => void;
   onNewProject: () => void;
   onMortgageCalc: () => void;
 
-  // Optional intelligence layer hook – safe even if not passed yet
-  onKnowledgeTool?: (tool: KnowledgeToolId) => void;
+  isOpen: boolean;
+  onToggle: () => void;
 
-  // Optional hooks for future project actions (rename/delete, etc.)
   onProjectAction?: (action: 'rename' | 'delete', project: any) => void;
   onMoveChatToProject?: (threadId: string, projectId: string) => void;
-};
-
-// Small helper: keep chat titles to ~2–3 words + …
-function truncateChatTitle(raw: string): string {
-  const title = (raw || '').trim();
-  if (!title) return 'New chat';
-
-  const words = title.split(/\s+/);
-  if (words.length <= 3) return title;
-  return words.slice(0, 3).join(' ') + '…';
-}
-
-// Shape of the threads-map payload
-type ThreadsMapResponse = {
-  ok?: boolean;
-  map?: Record<string, string[]>;
+  onSelectProject?: (project: { id: string; name?: string | null }) => void;
 };
 
 export default function Sidebar({
-  id,
   history,
   activeId,
-  isOpen,
-  onToggle,
   onSelectHistory,
   onHistoryAction,
   onNewChat,
   onSettings,
-  onShare, // not used in UI (per request), but kept to match page props
+  onShare,
   onSearch,
   onLibrary,
   onNewProject,
   onMortgageCalc,
-  onKnowledgeTool,
+  isOpen,
+  onToggle,
+  onProjectAction,
+  onMoveChatToProject,
+  onSelectProject,
 }: SidebarProps) {
-  const handleKnowledgeClick = (tool: KnowledgeToolId) => {
-    if (onKnowledgeTool) onKnowledgeTool(tool);
+  const [menuChatId, setMenuChatId] = React.useState<string | null>(null);
+
+  const handleChatClick = (id: string) => {
+    onSelectHistory(id);
+    setMenuChatId(null);
   };
 
-  // Local state for "Move to project" dialog
-  const [moveDialogOpen, setMoveDialogOpen] = React.useState(false);
-  const [moveDialogThreadId, setMoveDialogThreadId] =
-    React.useState<string | null>(null);
-
-  const handleMoveToProject = React.useCallback((threadId: string) => {
-    setMoveDialogThreadId(threadId);
-    setMoveDialogOpen(true);
-    // The dialog will call the API and show success/error.
-  }, []);
-
-  const handleCloseMoveDialog = React.useCallback(() => {
-    setMoveDialogOpen(false);
-    setMoveDialogThreadId(null);
-  }, []);
-
-  // ===== Project-aware chat filtering =====
-
-  // Which project (if any) is currently "active" for filtering the chat list
-  const [activeProjectId, setActiveProjectId] = React.useState<string | null>(
-    null,
-  );
-
-  // Map: projectId -> [threadId, threadId, ...]
-  const [projectThreadsMap, setProjectThreadsMap] = React.useState<
-    Record<string, string[]>
-  >({});
-
-  const loadProjectThreadsMap = React.useCallback(async () => {
-    try {
-      const res = await fetch('/api/projects/threads-map', {
-        cache: 'no-store',
-      });
-      if (!res.ok) {
-        console.warn(
-          '[Sidebar] /api/projects/threads-map responded with status',
-          res.status,
-        );
-        return;
-      }
-
-      const json = (await res.json()) as ThreadsMapResponse;
-      if (!json.ok || !json.map) {
-        // Soft failure; we just show all chats
-        return;
-      }
-
-      setProjectThreadsMap(json.map);
-    } catch (err) {
-      console.error(
-        '[Sidebar] Failed to load project thread map from /api/projects/threads-map',
-        err,
-      );
-    }
-  }, []);
-
-  // Initial load of project -> thread map
-  React.useEffect(() => {
-    void loadProjectThreadsMap();
-  }, [loadProjectThreadsMap]);
-
-  // Whenever the move-dialog closes (after a move or cancel),
-  // refresh the project-thread mapping so filters stay accurate.
-  React.useEffect(() => {
-    if (!moveDialogOpen) {
-      void loadProjectThreadsMap();
-    }
-  }, [moveDialogOpen, loadProjectThreadsMap]);
-
-  // When you click a project in the ProjectsPanel, toggle it as the active filter.
-  const handleSelectProject = React.useCallback((project: any) => {
-    if (!project || !project.id) return;
-    setActiveProjectId((prev) => (prev === project.id ? null : project.id));
-  }, []);
-
-  // Filter the chat history based on the active project, if any.
-  const visibleHistory = React.useMemo(() => {
-    if (!activeProjectId) return history;
-
-    const threadIds = projectThreadsMap[activeProjectId];
-    if (!threadIds || threadIds.length === 0) {
-      // If no mapping yet, fall back to full list rather than "empty UI"
-      return history;
-    }
-
-    const allowed = new Set(threadIds);
-    return history.filter((h) => allowed.has(h.id));
-  }, [history, activeProjectId, projectThreadsMap]);
-
-  // Hover + menu state for chats
-  const [hoverChatId, setHoverChatId] = React.useState<string | null>(null);
-  const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(
-    null,
-  );
-
-  const closeMenu = React.useCallback(() => setMenuOpenForId(null), []);
-
-  const handleDeleteChat = React.useCallback(
-    (id: string) => {
-      closeMenu();
-      onHistoryAction('delete', id);
-    },
-    [closeMenu, onHistoryAction],
-  );
+  const handleChatAction = (action: 'rename' | 'move' | 'archive' | 'delete', id: string) => {
+    setMenuChatId(null);
+    onHistoryAction(action, id);
+  };
 
   return (
-    <>
-      <aside
-        id={id}
-        className={`sidebar ${isOpen ? 'open' : 'closed'}`}
-        aria-label="Sidebar"
+    <aside
+      className="sidebar"
+      data-open={isOpen ? 'true' : 'false'}
+      style={{
+        // let existing CSS handle layout; this just makes it sane if CSS is minimal
+        width: isOpen ? 260 : 0,
+        transition: 'width 0.2s ease',
+        overflow: 'hidden',
+        borderRight: '1px solid rgba(148, 163, 184, 0.25)',
+        background: 'var(--sidebar-bg, #020617)',
+        color: 'var(--sidebar-fg, #e5e7eb)',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100dvh',
+      }}
+    >
+      {/* Top bar with toggle (if you want it) */}
+      <div
+        className="sidebar-header"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 10px',
+          borderBottom: '1px solid rgba(148, 163, 184, 0.25)',
+          fontSize: 12,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: 0.8,
+        }}
       >
-        {/* Header: hamburger + brand placeholder */}
-        <div
+        <span>Sessions</span>
+        <button
+          type="button"
+          onClick={onToggle}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '12px 12px 8px 12px',
+            border: 'none',
+            background: 'transparent',
+            color: 'inherit',
+            fontSize: 11,
+            cursor: 'pointer',
+            opacity: 0.8,
           }}
         >
-          <button
-            className="hamburger"
-            onClick={onToggle}
-            aria-label={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
-            title={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
-            type="button"
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
+          {isOpen ? 'Hide' : 'Show'}
+        </button>
+      </div>
 
-          <div style={{ height: 0 }} />
-        </div>
-
-        {/* Primary actions */}
-        <div style={{ display: 'grid', gap: 10, padding: '8px 12px' }}>
-          <button
-            className="btn primary"
-            onClick={onNewChat}
-            type="button"
-          >
-            New chat
-          </button>
-          <button className="btn" onClick={onSearch} type="button">
-            Search
-          </button>
-          <button className="btn" onClick={onLibrary} type="button">
-            Library
-          </button>
-          <button
-            className="btn"
-            onClick={onNewProject}
-            type="button"
-          >
-            New Project +
-          </button>
-          <button
-            className="btn"
-            onClick={onMortgageCalc}
-            type="button"
-          >
-            Mortgage Calculator
-          </button>
-        </div>
-
-        {/* Knowledge tools: two portal-style entries */}
-        <div
+      {/* Scrollable body */}
+      <div
+        className="sidebar-body"
+        style={{
+          flex: '1 1 auto',
+          minHeight: 0,
+          overflowY: 'auto',
+          padding: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        {/* New Chat button */}
+        <button
+          type="button"
+          onClick={onNewChat}
           style={{
-            padding: '8px 12px',
-            borderTop: '1px solid rgba(0,0,0,0.05)',
-            borderBottom: '1px solid rgba(0,0,0,0.04)',
-            marginTop: 4,
-            marginBottom: 4,
+            width: '100%',
+            padding: '6px 10px',
+            borderRadius: 6,
+            border: 'none',
+            background: '#22c55e',
+            color: '#020617',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            marginBottom: 6,
           }}
         >
-          <div
-            style={{
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-              opacity: 0.7,
-              marginBottom: 6,
-            }}
-          >
-            Knowledge tools
-          </div>
+          New chat
+        </button>
 
-          <button
-            className="btn"
-            type="button"
-            style={{ width: '100%', marginBottom: 8 }}
-            onClick={() => handleKnowledgeClick('mortgage-solutions')}
-          >
-            Mortgage Solutions
-          </button>
-
-          <button
-            className="btn"
-            type="button"
-            style={{ width: '100%', marginBottom: 4 }}
-            onClick={() => handleKnowledgeClick('ask-underwriting')}
-          >
-            Ask Underwriting
-          </button>
-
-          <div
-            style={{
-              fontSize: 11,
-              opacity: 0.65,
-              marginTop: 4,
-            }}
-          >
-            Portal-style views coming soon
-          </div>
-        </div>
-
-        {/* Projects list */}
-        <div
-          style={{
-            padding: '8px 12px',
-            borderBottom: '1px solid rgba(0,0,0,0.04)',
-            marginBottom: 4,
-          }}
-        >
-          <ProjectsPanel
-            activeProjectId={activeProjectId}
-            onSelectProject={handleSelectProject}
-          />
-        </div>
-
-        {/* Threads / Chats */}
-        <div style={{ padding: '8px 12px' }}>
-          {/* Small CHATS header */}
+        {/* Chats list */}
+        <div>
           <div
             style={{
               fontSize: 10,
               textTransform: 'uppercase',
               letterSpacing: 0.6,
               opacity: 0.7,
-              marginBottom: 6,
+              marginBottom: 4,
             }}
           >
             Chats
           </div>
 
-          {visibleHistory.length > 0 ? (
-            <div className="chat-list" role="list" aria-label="Chats">
-              {visibleHistory.map((h) => {
-                const isActive = h.id === activeId;
-                const label = truncateChatTitle(h.title);
-                const isHovered = hoverChatId === h.id;
-                const menuOpen = menuOpenForId === h.id;
-
-                const background = isActive
-                  ? 'rgba(0,0,0,0.06)'
-                  : isHovered
-                    ? 'rgba(0,0,0,0.03)'
-                    : 'transparent';
-
-                return (
-                  <div
-                    key={h.id}
-                    style={{
-                      display: 'flex',
-                      gap: 4,
-                      alignItems: 'center',
-                      marginBottom: 4,
-                      position: 'relative',
-                    }}
-                    onMouseEnter={() => setHoverChatId(h.id)}
-                    onMouseLeave={() => {
-                      setHoverChatId((prev) =>
-                        prev === h.id ? null : prev,
-                      );
-                    }}
-                  >
-                    <button
-                      role="listitem"
-                      onClick={() => onSelectHistory(h.id)}
-                      aria-current={isActive ? 'true' : 'false'}
-                      title={h.title}
-                      type="button"
-                      style={{
-                        flex: 1,
-                        border: 'none',
-                        background,
-                        padding: '2px 4px',
-                        borderRadius: 6,
-                        fontSize: 11,
-                        fontWeight: isActive ? 400 : 400,
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        transition: 'background 0.12s ease-out',
-                      }}
-                    >
-                      {label}
-                    </button>
-
-                    {/* Plain text "..." trigger – no white circle */}
-                    <button
-                      type="button"
-                      aria-label="Chat options"
-                      title="Chat options"
-                      onClick={() =>
-                        setMenuOpenForId((prev) =>
-                          prev === h.id ? null : h.id,
-                        )
-                      }
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        padding: 0,
-                        fontSize: 16,
-                        lineHeight: 1,
-                        opacity: 0.7,
-                      }}
-                    >
-                      …
-                    </button>
-
-                    {/* Simple dropdown menu */}
-                    {menuOpen && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: '100%',
-                          marginTop: 4,
-                          padding: 6,
-                          background: '#fff',
-                          borderRadius: 8,
-                          boxShadow:
-                            '0 10px 25px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)',
-                          minWidth: 140,
-                          zIndex: 50,
-                          fontSize: 12,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            closeMenu();
-                            handleMoveToProject(h.id);
-                          }}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            border: 'none',
-                            background: 'transparent',
-                            padding: '4px 6px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Move to project
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteChat(h.id)}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            border: 'none',
-                            background: 'transparent',
-                            padding: '4px 6px',
-                            cursor: 'pointer',
-                            color: '#b00020',
-                          }}
-                        >
-                          Delete chat
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ opacity: 0.7, fontSize: 13 }}>No chats yet</div>
-          )}
-        </div>
-
-        {/* Footer: settings + Clerk */}
-        <div style={{ marginTop: 'auto', padding: '12px' }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              className="btn"
-              onClick={onSettings}
-              type="button"
-            >
-              Settings
-            </button>
-          </div>
-
-          <div style={{ marginTop: 12 }}>
-            <SignedIn>
+          <div className="chat-list" role="list">
+            {history.length === 0 && (
               <div
+                className="chat-item"
+                role="listitem"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
+                  opacity: 0.7,
+                  fontSize: 12,
+                  padding: '4px 4px',
                 }}
               >
-                <UserButton
-                  showName
-                  appearance={{
-                    elements: {
-                      userButtonOuterIdentifier: {
-                        fontWeight: 600,
-                      },
-                    },
-                  }}
-                />
+                No chats yet
               </div>
-            </SignedIn>
+            )}
 
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="btn primary" type="button">
-                  Sign in
-                </button>
-              </SignInButton>
-            </SignedOut>
+            {history.map((h) => {
+              const isActive = h.id === activeId;
+              const title = h.title || 'Untitled chat';
+              const updated =
+                typeof h.updatedAt === 'number'
+                  ? new Date(h.updatedAt).toLocaleString()
+                  : null;
+
+              return (
+                <div
+                  key={h.id}
+                  className="chat-item"
+                  role="listitem"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    marginBottom: 2,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleChatClick(h.id)}
+                    title={title}
+                    style={{
+                      flex: '1 1 auto',
+                      textAlign: 'left',
+                      padding: '4px 6px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: isActive
+                        ? 'rgba(148, 163, 184, 0.25)'
+                        : 'transparent',
+                      color: 'inherit',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {title}
+                    {updated && (
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: 10,
+                          opacity: 0.6,
+                          marginTop: 1,
+                        }}
+                      >
+                        {updated}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Simple per-chat "..." menu */}
+                  <button
+                    type="button"
+                    aria-label="Chat options"
+                    onClick={() =>
+                      setMenuChatId((prev) =>
+                        prev === h.id ? null : h.id
+                      )
+                    }
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'inherit',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      lineHeight: 1,
+                      padding: '0 2px',
+                      opacity: 0.8,
+                    }}
+                  >
+                    …
+                  </button>
+
+                  {menuChatId === h.id && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        marginTop: 24,
+                        marginLeft: 120,
+                        padding: 6,
+                        background: '#0b1120',
+                        borderRadius: 8,
+                        boxShadow:
+                          '0 10px 25px rgba(0,0,0,0.35), 0 0 0 1px rgba(15,23,42,0.8)',
+                        zIndex: 100,
+                        minWidth: 150,
+                        fontSize: 12,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleChatAction('rename', h.id)
+                        }
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          border: 'none',
+                          background: 'transparent',
+                          padding: '4px 6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Rename chat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleChatAction('move', h.id)
+                        }
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          border: 'none',
+                          background: 'transparent',
+                          padding: '4px 6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Move to project
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleChatAction('archive', h.id)
+                        }
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          border: 'none',
+                          background: 'transparent',
+                          padding: '4px 6px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Archive chat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleChatAction('delete', h.id)
+                        }
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          border: 'none',
+                          background: 'transparent',
+                          padding: '4px 6px',
+                          cursor: 'pointer',
+                          color: '#f97373',
+                        }}
+                      >
+                        Delete chat
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-      </aside>
 
-      {/* Move-to-project dialog lives outside the sidebar */}
-      <MoveToProjectDialog
-        open={moveDialogOpen}
-        threadId={moveDialogThreadId}
-        onClose={handleCloseMoveDialog}
-        onMoved={undefined}
-      />
-    </>
+        {/* Projects */}
+        <div>
+          <ProjectsPanel
+            className="sidebar-projects"
+            activeProjectId={null}
+            onProjectAction={onProjectAction}
+            onSelectProject={onSelectProject}
+          />
+        </div>
+      </div>
+
+      {/* Footer buttons */}
+      <div
+        className="sidebar-footer"
+        style={{
+          padding: 8,
+          borderTop: '1px solid rgba(148, 163, 184, 0.25)',
+          display: 'grid',
+          gap: 6,
+          fontSize: 11,
+        }}
+      >
+        <button
+          type="button"
+          onClick={onMortgageCalc}
+          style={btnStyle}
+        >
+          Mortgage calculator
+        </button>
+        <button type="button" onClick={onNewProject} style={btnStyle}>
+          New project
+        </button>
+        <button type="button" onClick={onSearch} style={btnStyle}>
+          Search chats
+        </button>
+        <button type="button" onClick={onLibrary} style={btnStyle}>
+          Open library
+        </button>
+        <button type="button" onClick={onSettings} style={btnStyle}>
+          Settings
+        </button>
+        <button type="button" onClick={onShare} style={btnStyle}>
+          Export conversation
+        </button>
+      </div>
+    </aside>
   );
 }
+
+const btnStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '4px 6px',
+  borderRadius: 6,
+  border: '1px solid rgba(148,163,184,0.4)',
+  background: 'rgba(15,23,42,0.85)',
+  color: '#e5e7eb',
+  cursor: 'pointer',
+  fontSize: 11,
+  textAlign: 'left',
+};
