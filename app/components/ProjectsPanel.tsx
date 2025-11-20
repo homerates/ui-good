@@ -110,12 +110,12 @@ export default function ProjectsPanel({
             return;
         }
 
-        // Fallback so the user gets feedback even if parent hasn't wired it yet
-        if (action === "rename") {
-            window.alert("Rename project not wired yet.");
-        } else if (action === "delete") {
-            window.alert("Delete project not wired yet.");
-        }
+        // Fallback: no UI alerts, just log so it doesn't feel "broken" to users
+        console.log("[ProjectsPanel] project action (no handler wired):", {
+            action,
+            projectId: project.id,
+            name: project.name,
+        });
     };
 
     return (
