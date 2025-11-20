@@ -22,7 +22,11 @@ const LS_KEY = 'hr.chat.v1';
 // anonymous, non-signed-in usage meter (per browser, per day)
 const ANON_METER_KEY = 'hr.anon.q.v1';
 const ANON_DAILY_LIMIT = 3;
-const SIGNED_DAILY_LIMIT = 10;   // signed-in, triggers Upgrade modal
+
+// signed-in usage meter (per user, per browser, per day)
+const SIGNED_METER_KEY = 'hr.signed.q.v1';
+const SIGNED_DAILY_LIMIT = 10; // signed-in, triggers Upgrade modal
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
     iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
@@ -77,6 +81,55 @@ function bumpAnonCounterOrBlock(): boolean {
         return true;
     } catch {
         // If anything goes wrong with localStorage, fail open
+        return true;
+    }
+}
+
+/**
+ * Increment the signed-in question counter (per user, per day).
+ * Returns true if allowed, false if daily limit reached.
+ */
+function bumpSignedCounterOrBlock(userId: string | null | undefined): boolean {
+    try {
+        if (typeof window === 'undefined') return true;
+
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const key = `${SIGNED_METER_KEY}:${userId ?? 'anon'}`;
+        const raw = window.localStorage.getItem(key);
+
+        if (!raw) {
+            window.localStorage.setItem(
+                key,
+                JSON.stringify({ d: today, c: 1 })
+            );
+            return true;
+        }
+
+        const parsed = JSON.parse(raw) as { d?: string; c?: number };
+        const storedDay = parsed?.d;
+        const storedCount = typeof parsed?.c === 'number' ? parsed.c : 0;
+
+        // New day: reset count
+        if (storedDay !== today) {
+            window.localStorage.setItem(
+                key,
+                JSON.stringify({ d: today, c: 1 })
+            );
+            return true;
+        }
+
+        // Same day: enforce limit
+        if (storedCount >= SIGNED_DAILY_LIMIT) {
+            return false;
+        }
+
+        window.localStorage.setItem(
+            key,
+            JSON.stringify({ d: today, c: storedCount + 1 })
+        );
+        return true;
+    } catch {
+        // Fail open if anything breaks
         return true;
     }
 }
@@ -157,6 +210,9 @@ async function safeJson(r: Response): Promise<ApiResponse> {
     }
 }
 
+/* =========================
+   Answer block
+========================= */
 function AnswerBlock({
     meta,
     friendly,
@@ -355,7 +411,6 @@ function AnswerBlock({
     );
 }
 
-
 function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
     const isUser = role === 'user';
     return (
@@ -377,7 +432,7 @@ export default function Page() {
     useMobileComposerPin();
 
     const router = useRouter();
-    const { isSignedIn } = useUser();
+    const { isSignedIn, user } = useUser();
 
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
@@ -387,7 +442,6 @@ export default function Page() {
                 'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
         },
     ]);
-
 
     const [input, setInput] = useState('');
 
@@ -717,6 +771,7 @@ export default function Page() {
             return;
         }
     }
+
     // === Typewriter helper for a "streaming" feel ===
     const typeOutAssistant = React.useCallback(
         (id: string, full: string) => {
@@ -734,8 +789,8 @@ export default function Page() {
                     // Final update with full string
                     setMessages((prev) =>
                         prev.map((m) =>
-                            m.id === id ? { ...m, content: full } : m,
-                        ),
+                            m.id === id ? { ...m, content: full } : m
+                        )
                     );
                     return;
                 }
@@ -743,8 +798,8 @@ export default function Page() {
                 const slice = chars.slice(0, index).join('');
                 setMessages((prev) =>
                     prev.map((m) =>
-                        m.id === id ? { ...m, content: slice } : m,
-                    ),
+                        m.id === id ? { ...m, content: slice } : m
+                    )
                 );
 
                 window.setTimeout(step, 20); // ms between ticks
@@ -752,8 +807,9 @@ export default function Page() {
 
             step();
         },
-        [setMessages],
+        [setMessages]
     );
+
     // Quick "I'm on it..." line based on the question
     function buildPrologue(question: string): string {
         const q = question.toLowerCase();
@@ -774,12 +830,32 @@ export default function Page() {
             return 'Lining up the guideline details for you...';
         }
 
-        return 'Let me think that through for you...';
+        // Fallback: echo a trimmed version of the question so it feels specific
+        const trimmed =
+            question.length > 140
+                ? question.slice(0, 137) + '...'
+                : question;
+        return `Let me line this up around your question: "${trimmed}"`;
     }
 
     async function send() {
         const q = input.trim();
         if (!q || loading) return;
+
+        // Enforce simple daily limits before we send anything
+        if (!isSignedIn) {
+            const allowed = bumpAnonCounterOrBlock();
+            if (!allowed) {
+                setShowAuthRequired(true);
+                return;
+            }
+        } else {
+            const allowed = bumpSignedCounterOrBlock(user?.id);
+            if (!allowed) {
+                setShowUpgradeRequired(true);
+                return;
+            }
+        }
 
         const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
@@ -829,7 +905,10 @@ export default function Page() {
 
         try {
             // borrower-only body (no intent/loanAmount passthrough)
-            const body: { question: string; mode: 'borrower' } = { question: q, mode };
+            const body: { question: string; mode: 'borrower' } = {
+                question: q,
+                mode,
+            };
 
             const r = await fetch('/api/answers', {
                 method: 'POST',
@@ -846,7 +925,8 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
+                    ? `As of ${meta.fred.asOf ?? 'recent data'
+                    }: ${typeof meta.fred.tenYearYield === 'number'
                         ? `${meta.fred.tenYearYield.toFixed(2)}%`
                         : meta.fred.tenYearYield
                     } 10Y, ${typeof meta.fred.mort30Avg === 'number'
@@ -869,6 +949,15 @@ export default function Page() {
                 console.error('Library logging error:', err);
             }
 
+            // If the backend signals that a limit was hit, surface the right modal
+            if (meta.upgradeRequired || meta.limitHit) {
+                if (!isSignedIn) {
+                    setShowAuthRequired(true);
+                } else {
+                    setShowUpgradeRequired(true);
+                }
+            }
+
             // Include the prologue at the top of the streamed answer
             const fullText = prologue ? `${prologue}\n\n${friendly}` : friendly;
 
@@ -884,7 +973,6 @@ export default function Page() {
             setLoading(false);
         }
     }
-
 
     function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -931,7 +1019,9 @@ export default function Page() {
     async function onNewProject() {
         // You need a current chat/thread to attach this new project to
         if (!activeId) {
-            window.alert('Open or create a chat first, then create a project for it.');
+            window.alert(
+                'Open or create a chat first, then create a project for it.'
+            );
             return;
         }
 
@@ -1067,7 +1157,9 @@ export default function Page() {
                                                 <AnswerBlock
                                                     meta={m.meta}
                                                     friendly={
-                                                        typeof m.content === 'string' ? m.content : undefined
+                                                        typeof m.content === 'string'
+                                                            ? m.content
+                                                            : undefined
                                                     }
                                                 />
                                             ) : (
@@ -1152,7 +1244,9 @@ export default function Page() {
                                 background: '#111827',
                                 color: '#FFFFFF',
                                 cursor:
-                                    loading || !input.trim() ? 'default' : 'pointer',
+                                    loading || !input.trim()
+                                        ? 'default'
+                                        : 'pointer',
                                 opacity: loading || !input.trim() ? 0.5 : 1,
                                 zIndex: 2,
                             }}
@@ -1484,8 +1578,8 @@ export default function Page() {
                                                         res.monthlyPI
                                                     )} P&I on $${fmtMoney(
                                                         res.loanAmount
-                                                    )} at ${res.ratePct}% for ${res.termYears
-                                                        }y.`,
+                                                    )} at ${res.ratePct
+                                                        }% for ${res.termYears}y.`,
                                                     meta: {
                                                         path: 'calc',
                                                         usedFRED: false,
@@ -1582,9 +1676,7 @@ export default function Page() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        router.push('/sign-in')
-                                    }
+                                    onClick={() => router.push('/sign-in')}
                                     style={{
                                         padding: '6px 14px',
                                         borderRadius: 999,
