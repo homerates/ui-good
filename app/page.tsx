@@ -13,6 +13,7 @@ import MenuButton from './components/MenuButton';
 import { useMobileComposerPin } from './hooks/useMobileComposerPin';
 import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
 import './chat/styles.css';
+import GrokCard from "@/components/GrokCard";
 
 /* =========================
    Small helpers
@@ -897,6 +898,18 @@ export default function Page() {
             });
 
             const meta = await safeJson(r);
+            // Attach Grok metadata to the assistant message
+            setMessages((prev) =>
+                prev.map((m) =>
+                    m.id === answerId && m.role === "assistant"
+                        ? {
+                            ...m,
+                            ...meta,        // <-- THIS is where message.grok, message.answerMarkdown, etc. come from
+                            content: "",    // typewriter will fill summary, not markdown
+                        }
+                        : m
+                )
+            );
 
             const friendly =
                 meta.message ??
@@ -1088,7 +1101,29 @@ export default function Page() {
                                 <div key={m.id}>
                                     <Bubble role={m.role}>
                                         {m.role === 'assistant' ? (
-                                            m.meta ? (
+                                            // If this is a Grok-style answer with markdown, use GrokCard
+                                            m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
+                                                <GrokCard
+                                                    data={{
+                                                        grok: m.meta.grok,
+                                                        answerMarkdown:
+                                                            m.meta.answerMarkdown ??
+                                                            (typeof m.content === 'string' ? m.content : ''),
+                                                        followUp: m.meta.followUp ?? m.meta.grok?.follow_up,
+                                                        data_freshness:
+                                                            m.meta.data_freshness ??
+                                                            m.meta.fred?.as_of ??
+                                                            '',
+                                                    }}
+                                                    onFollowUp={(q) => {
+                                                        if (!q) return;
+                                                        setInput(q);
+                                                        doAsk(q);
+                                                    }}
+
+                                                />
+                                            ) : m.meta ? (
+                                                // Legacy / calc answers still use AnswerBlock
                                                 <AnswerBlock
                                                     meta={m.meta}
                                                     friendly={
@@ -1098,11 +1133,14 @@ export default function Page() {
                                                     }
                                                 />
                                             ) : (
-                                                m.content
+                                                // Bare assistant content fallback
+                                                typeof m.content === 'string' ? m.content : ''
                                             )
                                         ) : (
+                                            // User messages unchanged
                                             m.content
                                         )}
+
                                     </Bubble>
                                 </div>
                             ))}
