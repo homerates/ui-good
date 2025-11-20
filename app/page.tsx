@@ -754,19 +754,32 @@ export default function Page() {
         },
         [setMessages],
     );
+    // Quick "I'm on it..." line based on the question
+    function buildPrologue(question: string): string {
+        const q = question.toLowerCase();
+
+        if (q.includes('rate')) {
+            return 'Checking on live mortgage rates for you...';
+        }
+        if (q.includes('payment') || q.includes('p&i') || q.includes('piti')) {
+            return 'Running the numbers on that payment...';
+        }
+        if (
+            q.includes('fha') ||
+            q.includes('conventional') ||
+            q.includes('va loan') ||
+            q.includes('va ') ||
+            q.includes('jumbo')
+        ) {
+            return 'Lining up the guideline details for you...';
+        }
+
+        return 'Let me think that through for you...';
+    }
 
     async function send() {
         const q = input.trim();
         if (!q || loading) return;
-
-        // anonymous users: soft gate at ANON_DAILY_LIMIT per day
-        if (!isSignedIn) {
-            const ok = bumpAnonCounterOrBlock();
-            if (!ok) {
-                setShowAuthRequired(true);
-                return;
-            }
-        }
 
         const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
@@ -801,16 +814,22 @@ export default function Page() {
             });
         }
 
-        setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
+        // Create a placeholder assistant bubble immediately
+        const answerId = uid();
+        const prologue = buildPrologue(q);
+
+        setMessages((m) => [
+            ...m,
+            { id: uid(), role: 'user', content: q },
+            { id: answerId, role: 'assistant', content: prologue },
+        ]);
+
         setInput('');
         setLoading(true);
 
         try {
             // borrower-only body (no intent/loanAmount passthrough)
-            const body: { question: string; mode: 'borrower' } = {
-                question: q,
-                mode,
-            };
+            const body: { question: string; mode: 'borrower' } = { question: q, mode };
 
             const r = await fetch('/api/answers', {
                 method: 'POST',
@@ -827,8 +846,7 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'
-                    }: ${typeof meta.fred.tenYearYield === 'number'
+                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
                         ? `${meta.fred.tenYearYield.toFixed(2)}%`
                         : meta.fred.tenYearYield
                     } 10Y, ${typeof meta.fred.mort30Avg === 'number'
@@ -844,15 +862,6 @@ export default function Page() {
                             meta.usedFRED
                         )} | confidence: ${meta.confidence ?? '-'}`);
 
-            // Check for backend limit / upgrade flag for signed-in users
-            const upgradeFlag =
-                (meta as any).upgradeRequired === true ||
-                (meta as any).limitHit === true ||
-                meta.status === 429;
-            if (upgradeFlag) {
-                setShowUpgradeRequired(true);
-            }
-
             // Fire-and-forget: log this Q&A to the user's library
             try {
                 void logAnswerToLibrary(q, { friendly, meta });
@@ -860,14 +869,11 @@ export default function Page() {
                 console.error('Library logging error:', err);
             }
 
-            // Create an assistant bubble and "type" the answer into it
-            const answerId = uid();
-            setMessages((m) => [
-                ...m,
-                { id: answerId, role: 'assistant', content: '', meta },
-            ]);
-            typeOutAssistant(answerId, friendly);
+            // Include the prologue at the top of the streamed answer
+            const fullText = prologue ? `${prologue}\n\n${friendly}` : friendly;
 
+            // animate the answer text into the existing assistant bubble
+            typeOutAssistant(answerId, fullText);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             setMessages((m) => [
@@ -878,6 +884,7 @@ export default function Page() {
             setLoading(false);
         }
     }
+
 
     function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
         if (e.key === 'Enter' && !e.shiftKey) {
