@@ -1098,7 +1098,16 @@ export default function Page() {
                                 </div>
                             ))}
 
-                            {loading && <div className="meta">...thinking</div>}
+                            {loading && (
+                                <Bubble role="assistant">
+                                    <div className="typing-dots" aria-label="HomeRates is thinking">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </div>
+                                </Bubble>
+                            )}
+
                         </div>
                     </div>
                 </div>
