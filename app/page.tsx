@@ -1112,14 +1112,16 @@ export default function Page() {
                                                         followUp: m.meta.followUp ?? m.meta.grok?.follow_up,
                                                         data_freshness:
                                                             m.meta.data_freshness ??
-                                                            m.meta.fred?.as_of ??
+                                                            m.meta.fred?.asOf ??
+
                                                             '',
                                                     }}
-                                                    onFollowUp={(q) => {
+                                                    onFollowUp={(q: string) => {
                                                         if (!q) return;
                                                         setInput(q);
-                                                        doAsk(q);
+                                                        // Then you can review/edit and hit Enter or the Send button
                                                     }}
+
 
                                                 />
                                             ) : m.meta ? (
