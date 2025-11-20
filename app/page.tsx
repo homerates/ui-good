@@ -174,7 +174,16 @@ type ApiResponse = {
     // optional flags the backend might return for metering
     upgradeRequired?: boolean;
     limitHit?: boolean;
+
+    // ===== New fields for Grok + AnswerCard =====
+    answerMarkdown?: string; // rich markdown answer we render in the card
+    followUp?: string;       // camelCase version from backend
+    follow_up?: string;      // snake_case version if Grok uses it
+    grok?: any;              // full Grok JSON for confidence / next_step / follow_up
+    data_freshness?: string; // e.g. "Live 2025–2026 (Grok-3)"
+    topSources?: Array<{ title: string; url: string }>;
 };
+
 
 type ChatMsg =
     | { id: string; role: 'user'; content: string }
