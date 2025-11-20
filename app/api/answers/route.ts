@@ -1,9 +1,11 @@
-﻿// ==== RESTORED WEB-FIRST + ENV-INTEGRATED: app/api/answers/route.ts ====
+﻿// ==== RESTORED WEB-FIRST + GROK v3 + SUPABASE: app/api/answers/route.ts ====
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
+// ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
   const res = NextResponse.json(json, { status });
   res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
@@ -12,13 +14,31 @@ function noStore(json: unknown, status = 200) {
   return res;
 }
 
-// === Env: use what exists; no reinvention ===
+// ---------- Env ----------
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || "";
 const FRED_API_KEY = process.env.FRED_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
-/* ===== Types kept ===== */
-type TavilyResult = { title: string; url: string; content?: string };
+// Supabase (service-side client; used for user_answers memory)
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+
+const supabase =
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    })
+    : null;
+
+/* ===== Types ===== */
+type TavilyResult = {
+  title: string;
+  url: string;
+  content?: string;
+  snippet?: string; // allow snippet if present
+};
 type TavilyMini = { ok: boolean; answer: string | null; results: TavilyResult[] };
 
 function isTavilyResultArray(v: unknown): v is TavilyResult[] {
@@ -42,7 +62,7 @@ function isTavilyMini(v: unknown): v is TavilyMini {
   );
 }
 
-/* ===== Helpers kept ===== */
+/* ===== Helpers ===== */
 function firstParagraph(s: string, max = 800) {
   return (s.split(/\n+/)[0]?.trim() ?? "").slice(0, max);
 }
@@ -67,7 +87,7 @@ function bulletsFrom(text: string, max = 4): string[] {
   return out;
 }
 
-/* ===== Topic handling (unchanged) ===== */
+/* ===== Topic handling ===== */
 type Topic =
   | "pmi"
   | "rates"
@@ -115,7 +135,7 @@ function followUpFor(topic: Topic): string {
   }
 }
 
-/* ===== Web lookup (web-first if Tavily key exists) ===== */
+/* ===== Web lookup (Tavily proxy route) ===== */
 async function askTavily(
   req: NextRequest,
   query: string,
@@ -151,7 +171,7 @@ async function askTavily(
   return { ok, answer, results };
 }
 
-/* ===== Optional FRED snapshot for 'rates' questions ===== */
+/* ===== FRED snapshot (for rate questions) ===== */
 type FredSnap = {
   tenYearYield: number | null;
   mort30Avg: number | null;
@@ -195,7 +215,7 @@ async function getFredSnapshot(): Promise<FredSnap> {
   return { tenYearYield, mort30Avg, spread, asOf };
 }
 
-/* ===== Optional OpenAI summarizer for Tavily text ===== */
+/* ===== OpenAI summarizer for Tavily text (fallback) ===== */
 async function summarizeWithOpenAI(text: string): Promise<string | null> {
   if (!OPENAI_API_KEY || !text) return null;
 
@@ -229,13 +249,13 @@ async function summarizeWithOpenAI(text: string): Promise<string | null> {
   }
 }
 
-/* ===== Core handler (same response shape as yours) ===== */
+/* ===== Core handler ===== */
 async function handle(req: NextRequest, intentParam?: string) {
   type Body = {
     question?: string;
     intent?: string;
     mode?: "borrower" | "public";
-    userId?: string; // ← ADDED
+    userId?: string;
   };
 
   const generatedAt = new Date().toISOString();
@@ -249,7 +269,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     try {
       const raw = await req.json();
       body = raw as Body;
-      userId = raw.userId; // ← EXTRACTED
+      userId = raw.userId;
     } catch {
       body = {};
     }
@@ -288,14 +308,24 @@ async function handle(req: NextRequest, intentParam?: string) {
     });
   }
 
-  // 1) Web-first answer
-  let tav = await askTavily(req, `${question} 2025 mortgage insurance -pmi.org -project -management`, { depth: "basic", max: 6 });
+  // 1) Web-first via Tavily
+  let tav = await askTavily(
+    req,
+    `${question} 2025 mortgage insurance -pmi.org -project -management`,
+    { depth: "basic", max: 6 }
+  );
+
   if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
-    tav = await askTavily(req, `${question} mortgage insurance -pmi.org`, { depth: "advanced", max: 8 });
+    tav = await askTavily(
+      req,
+      `${question} mortgage insurance -pmi.org`,
+      { depth: "advanced", max: 8 }
+    );
   }
+
   const usedTavily = tav.ok && (tav.answer !== null || tav.results.length > 0);
 
-  // 2) Optional FRED snapshot for rate/10y topics
+  // 2) Optional FRED snapshot for rate questions
   const topic = topicFromQuestion(question);
   const wantFred = topic === "rates";
   const fred = wantFred
@@ -305,7 +335,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     wantFred &&
     (fred.tenYearYield !== null || fred.mort30Avg !== null);
 
-  // 3) Build answer (prefer Tavily answer; else summarize results; else minimal baseline)
+  // 3) Build a baseline answer (legacy stack)
   let base =
     tav.answer ??
     (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ??
@@ -326,18 +356,21 @@ async function handle(req: NextRequest, intentParam?: string) {
       "Spreads widen when volatility or risk aversion picks up, and compress when markets stabilize.";
   }
 
-  // 4) Markdown + legacy message
   const intro = firstParagraph(base, 800);
   const bullets = bulletsFrom(base, 4);
+
+  // topSources for markdown (titles+urls only)
   const topSources = (tav.results || [])
     .slice(0, 3)
     .map((s) => ({ title: s.title, url: s.url }));
+
   const sourcesMd = topSources
     .map((s) => `- [${s.title}](${s.url})`)
     .join("\n");
 
   const fredLine = usedFRED
-    ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"}%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
+    ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"
+    }%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
     : "";
 
   const answerMarkdown = [
@@ -349,118 +382,196 @@ async function handle(req: NextRequest, intentParam?: string) {
     .filter(Boolean)
     .join("\n\n");
 
-  // === GROK FINAL BRAIN: DEBUG MODE ===
-  console.log("GROK: Starting... XAI_API_KEY exists:", !!process.env.XAI_API_KEY);
-  console.log("GROK: Question:", question);
-  console.log("GROK: UserId:", userId);
+  // Legacy fields used as fallback if Grok is unavailable
+  const legacyAnswerMarkdown = answerMarkdown;
+  const legacyAnswer = intro || answerMarkdown;
 
-  let grokFinal: any = null;
-  if (process.env.XAI_API_KEY && question) {
+  // ===== GROK BRAIN v3 – integrates with FRED + Tavily + user_answers =====
+
+  console.log("GROK v3: Starting for user:", userId);
+
+  // 1. Pull conversation memory from user_answers (last 3 exchanges)
+  let conversationHistory = "";
+  if (userId && supabase) {
     try {
-      console.log("GROK: Sending request to x.ai...");
+      const { data: history, error: historyError } = await supabase
+        .from("user_answers")
+        .select("question, answer_summary, answer")
+        .eq("clerk_user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(3);
 
-      const grokPrompt = `
-      You are a US mortgage AI assistant for homebuyers. Use ONLY 2025 data.
-      Question: "${question}"
-      Respond in clean JSON: { answer: "3 sentences", next_step: "1 action", follow_up: "1 question" }
-    `.trim();
+      if (historyError) {
+        console.warn("GROK v3: history fetch error", historyError.message);
+      }
 
-      const grokRes = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
+      if (history && history.length) {
+        conversationHistory = history
+          .reverse()
+          .map((entry: any) => {
+            const rawAnswer =
+              entry.answer_summary ||
+              (entry.answer &&
+                typeof entry.answer === "object" &&
+                typeof entry.answer.answer === "string"
+                ? entry.answer.answer.slice(0, 200) + "..."
+                : "Previous answer");
+
+            return `User: ${entry.question}\nAssistant: ${rawAnswer}`;
+          })
+          .join("\n\n");
+      }
+    } catch (err: any) {
+      console.warn("GROK v3: history fetch exception", err?.message || err);
+    }
+  }
+
+  // 2. Build rich context from FRED + Tavily
+  const today = new Date().toISOString().slice(0, 10);
+
+  const fredContext =
+    usedFRED && fred
+      ? `FRED (${fred.asOf || today}): 30Y fixed = ${fred.mort30Avg}%, 10Y yield = ${fred.tenYearYield}%, spread = ${fred.spread}%`
+      : "FRED data unavailable";
+
+  // Use original Tavily results (with content/snippet) for Grok context
+  const tavilyContext =
+    Array.isArray(tav.results) && tav.results.length
+      ? tav.results
+        .slice(0, 4)
+        .map((s) =>
+          `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140) || "(no snippet)"
+          }...`
+        )
+        .join("\n")
+      : "No recent news sources";
+
+  // 3. Final enriched prompt for Grok
+  const grokPrompt = `
+You are HomeRates.AI — the calm, data-first mortgage advisor for 2025–2026.
+Never sell. Never hype. Just empower with precision.
+
+Date: ${today}
+${fredContext}
+
+Latest signals:
+${tavilyContext}
+
+Conversation so far:
+${conversationHistory || "First message"}
+
+Current question: "${question}"
+
+Respond in valid JSON (exact schema):
+{
+  "answer": "180–380 word markdown. Use tables, bullets, mini-scenarios. Cite FRED inline when relevant.",
+  "next_step": "1–2 specific, actionable steps the user can take right now.",
+  "follow_up": "One natural, personalized follow-up question that continues the thread.",
+  "confidence": "0.00–1.00 + 5–8 word rationale"
+}
+`.trim();
+
+  // 4. Call Grok
+  let grokFinal: any = null;
+
+  if (process.env.XAI_API_KEY && question.trim()) {
+    try {
+      const res = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: 'grok-3',
-          messages: [{ role: 'user', content: grokPrompt }],
-          response_format: { type: 'json_object' }
-        })
+          model: "grok-3",
+          messages: [{ role: "user", content: grokPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.35,
+          max_tokens: 1400,
+        }),
       });
 
-      console.log("GROK: Status:", grokRes.status);
+      if (!res.ok) throw new Error(`Grok ${res.status}`);
 
-      if (!grokRes.ok) {
-        const errorText = await grokRes.text();
-        console.error("GROK: API Error:", errorText);
-        throw new Error(`HTTP ${grokRes.status}`);
-      }
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content?.trim();
 
-      const grokData = await grokRes.json();
-      console.log("GROK: Raw response:", JSON.stringify(grokData).slice(0, 500));
-
-      const content = grokData.choices?.[0]?.message?.content;
       if (content) {
-        grokFinal = JSON.parse(content);
-        console.log("GROK: Success! Answer:", grokFinal.answer);
+        try {
+          grokFinal = JSON.parse(content);
+          console.log("GROK v3 SUCCESS → confidence:", grokFinal.confidence);
+        } catch (parseErr: any) {
+          console.error(
+            "GROK v3 JSON parse failed",
+            parseErr?.message || parseErr
+          );
+        }
       } else {
-        console.error("GROK: No content in response");
+        console.warn("GROK v3: empty content from Grok");
       }
     } catch (e: any) {
-      console.error("GROK: FAILED:", e.message || e);
+      console.error("GROK v3 failed → using legacy", e?.message || e);
     }
-  } else {
-    console.error("GROK: Missing key or question");
   }
-  // =======================================
-  const legacyAnswer = [
-    intro,
-    bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
-    topSources.length
-      ? `Sources:\n${topSources
-        .map((s) => `- ${s.title} — ${s.url}`)
-        .join("\n")}`
-      : "",
-    usedFRED
-      ? `FRED snapshot: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"
-      }%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
 
-  const followUp = followUpFor(topic);
+  // 5. Save to user_answers for memory + analytics
+  if (grokFinal && userId && supabase) {
+    try {
+      const fullAnswer =
+        typeof grokFinal.answer === "string"
+          ? grokFinal.answer
+          : JSON.stringify(grokFinal);
 
+      const summary =
+        typeof grokFinal.answer === "string"
+          ? grokFinal.answer.slice(0, 320) + "..."
+          : fullAnswer.slice(0, 320) + "...";
+
+      await supabase.from("user_answers").insert({
+        clerk_user_id: userId,
+        question,
+        answer: grokFinal, // jsonb column
+        answer_summary: summary,
+        model: "grok-3",
+        created_at: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.warn("GROK v3: failed to log user_answers", err?.message || err);
+    }
+  }
+
+  // 6. Build final markdown for the frontend
+  const finalMarkdown = grokFinal
+    ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence
+    }\n\n**Next step**\n${grokFinal.next_step}\n\n**Ask me next** → ${grokFinal.follow_up
+    }\n\n${sourcesMd}${fredLine || ""}`
+    : legacyAnswerMarkdown;
+
+  // 7. Unified return shape
   return noStore({
     ok: true,
     route: "answers",
-    intent,
+    grok: grokFinal || null,
+    data_freshness: grokFinal ? "Live 2025–2026 (Grok-3)" : "Legacy stack",
+    message: grokFinal?.answer || legacyAnswer,
+    answerMarkdown: finalMarkdown,
+    followUp: grokFinal?.follow_up || followUpFor(topic),
     path,
     tag,
     generatedAt,
     usedFRED,
     usedTavily,
-    fred: usedFRED ? fred : undefined,
-    sources: topSources,
-    followUp,
-    follow_up: followUp,
-    cta: followUp,
-
-    // === GROK + FRESHNESS ===
-    grok: grokFinal || null,
-    data_freshness: grokFinal ? "2025" : "Check sources—may be pre-2025",
-    // =========================
-
-    message: grokFinal?.answer || legacyAnswer,
-    answer: grokFinal?.answer || legacyAnswer,
-    answerMarkdown: grokFinal
-      ? `**Answer**\n${grokFinal.answer}\n\n**Next Step**\n${grokFinal.next_step}\n\n**Sources**\n${sourcesMd}${fredLine}`
-      : answerMarkdown,
-
-    suggest: [
-      "Explain PMI for a Conventional loan with 5% down and ~720 credit in California.",
-      "Are 30-year fixed rates trending up this week? Cite two sources.",
-      "What down-payment help is active in Los Angeles County for ~680 credit?",
-    ],
+    fred,
+    topSources,
   });
 }
 
-// ===== Entry points =====
+/* ===== Next.js route exports ===== */
 export async function POST(req: NextRequest) {
   return handle(req);
 }
 
 export async function GET(req: NextRequest) {
-  const intent = (req.nextUrl.searchParams.get("intent") ?? "").trim();
+  const intent = req.nextUrl.searchParams.get("intent") || undefined;
   return handle(req, intent);
 }
