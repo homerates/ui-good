@@ -810,34 +810,6 @@ export default function Page() {
         [setMessages]
     );
 
-    // Quick "I'm on it..." line based on the question
-    function buildPrologue(question: string): string {
-        const q = question.toLowerCase();
-
-        if (q.includes('rate')) {
-            return 'Checking on live mortgage rates for you...';
-        }
-        if (q.includes('payment') || q.includes('p&i') || q.includes('piti')) {
-            return 'Running the numbers on that payment...';
-        }
-        if (
-            q.includes('fha') ||
-            q.includes('conventional') ||
-            q.includes('va loan') ||
-            q.includes('va ') ||
-            q.includes('jumbo')
-        ) {
-            return 'Lining up the guideline details for you...';
-        }
-
-        // Fallback: echo a trimmed version of the question so it feels specific
-        const trimmed =
-            question.length > 140
-                ? question.slice(0, 137) + '...'
-                : question;
-        return `Let me line this up around your question: "${trimmed}"`;
-    }
-
     async function send() {
         const q = input.trim();
         if (!q || loading) return;
@@ -890,14 +862,13 @@ export default function Page() {
             });
         }
 
-        // Create a placeholder assistant bubble immediately
+        // Create a placeholder assistant bubble immediately (no canned text)
         const answerId = uid();
-        const prologue = buildPrologue(q);
 
         setMessages((m) => [
             ...m,
             { id: uid(), role: 'user', content: q },
-            { id: answerId, role: 'assistant', content: prologue },
+            { id: answerId, role: 'assistant', content: '' },
         ]);
 
         setInput('');
@@ -958,10 +929,8 @@ export default function Page() {
                 }
             }
 
-            // Include the prologue at the top of the streamed answer
-            const fullText = prologue ? `${prologue}\n\n${friendly}` : friendly;
-
-            // animate the answer text into the existing assistant bubble
+            // Type out the actual answer text into the existing assistant bubble
+            const fullText = friendly;
             typeOutAssistant(answerId, fullText);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
