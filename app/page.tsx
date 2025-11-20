@@ -984,53 +984,10 @@ export default function Page() {
         setShowLibrary(true);
     }
 
-    // ==== REPLACED FUNCTION: New Project (real Supabase create) ====
+    // === New Project: single, in-app dialog only (no Windows prompt) ===
     async function onNewProject() {
-        // You need a current chat/thread to attach this new project to
-        if (!activeId) {
-            window.alert(
-                'Open or create a chat first, then create a project for it.'
-            );
-            return;
-        }
-
-        const name = window.prompt('Name this project:', '');
-        const projectName = (name || '').trim();
-        if (!projectName) {
-            return; // user cancelled or blank name
-        }
-
-        try {
-            const res = await fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    threadId: activeId,
-                    projectName,
-                }),
-            });
-
-            const json = await res.json().catch(() => ({}));
-
-            if (!res.ok || !json?.ok) {
-                const msg =
-                    json?.message ||
-                    json?.error ||
-                    json?.reason ||
-                    `Project create failed with status ${res.status}`;
-                window.alert(msg);
-                return;
-            }
-
-            // Optional: preserve old UI behavior
-            setShowProject(true);
-        } catch (err) {
-            window.alert(
-                err instanceof Error
-                    ? err.message
-                    : 'Unexpected error creating project.'
-            );
-        }
+        // Just open the overlay; the form inside will handle naming + chat setup.
+        setShowProject(true);
     }
 
     function onMortgageCalc() {
@@ -1371,7 +1328,27 @@ export default function Page() {
                                                     )
                                                     .slice(0, 20)
                                                     .map((h) => (
-                                                        <li key={h.id}>{h.title}</li>
+                                                        <li key={h.id}>
+                                                            <button
+                                                                type="button"
+                                                                className="btn"
+                                                                style={{
+                                                                    padding:
+                                                                        '2px 6px',
+                                                                    fontSize: 13,
+                                                                    width: '100%',
+                                                                    textAlign:
+                                                                        'left',
+                                                                }}
+                                                                onClick={() =>
+                                                                    onSelectHistory(
+                                                                        h.id
+                                                                    )
+                                                                }
+                                                            >
+                                                                {h.title}
+                                                            </button>
+                                                        </li>
                                                     ))}
                                             </ul>
                                         </div>
