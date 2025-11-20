@@ -157,10 +157,13 @@ async function safeJson(r: Response): Promise<ApiResponse> {
     }
 }
 
-/* =========================
-   UI blocks
-========================= */
-function AnswerBlock({ meta }: { meta?: ApiResponse }) {
+function AnswerBlock({
+    meta,
+    friendly,
+}: {
+    meta?: ApiResponse;
+    friendly?: string;
+}) {
     if (!meta) return null;
 
     type NestedMeta = {
@@ -172,8 +175,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
         | '—';
     const headerUsedFRED =
         typeof m.usedFRED === 'boolean' ? m.usedFRED : m.meta?.usedFRED ?? false;
-    const headerAt: string | undefined =
-        m.generatedAt ?? m.meta?.at ?? undefined;
+    const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
 
     if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
         const a = m.answer as CalcAnswer;
@@ -207,12 +209,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 {typeof a.monthlyTotalPITI === 'number' &&
                     a.monthlyTotalPITI > 0 && (
                         <div className="panel">
-                            <div
-                                style={{
-                                    fontWeight: 600,
-                                    marginBottom: 6,
-                                }}
-                            >
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>
                                 PITI breakdown
                             </div>
                             <ul style={{ marginTop: 0 }}>
@@ -221,36 +218,28 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                                 <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
                                 <li>MI: ${fmtMoney(a.monthlyMI)}</li>
                                 <li>
-                                    <b>
-                                        Total PITI: ${fmtMoney(a.monthlyTotalPITI)}
-                                    </b>
+                                    <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
                                 </li>
                             </ul>
                         </div>
                     )}
 
-                {Array.isArray(a.sensitivities) &&
-                    a.sensitivities.length > 0 && (
-                        <div>
-                            <div
-                                style={{
-                                    fontWeight: 600,
-                                    marginBottom: 6,
-                                }}
-                            >
-                                ±0.25% Sensitivity
-                            </div>
-                            <ul style={{ marginTop: 0 }}>
-                                {a.sensitivities.map((s, i) => (
-                                    <li key={i}>
-                                        Rate:{' '}
-                                        {(Number(s.rate) * 100).toFixed(2)}% → P&I $
-                                        {fmtMoney(s.pi)}
-                                    </li>
-                                ))}
-                            </ul>
+                {Array.isArray(a.sensitivities) && a.sensitivities.length > 0 && (
+                    <div>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                            ±0.25% Sensitivity
                         </div>
-                    )}
+                        <ul style={{ marginTop: 0 }}>
+                            {a.sensitivities.map((s, i) => (
+                                <li key={i}>
+                                    Rate:{' '}
+                                    {(Number(s.rate) * 100).toFixed(2)}% → P&I $
+                                    {fmtMoney(s.pi)}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 {typeof m.tldr === 'string' && (
                     <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>
@@ -266,8 +255,7 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
             m.fred.tenYearYield != null &&
             m.fred.mort30Avg != null &&
             m.fred.spread != null
-            ? `As of ${m.fred.asOf ?? 'recent data'
-            }: ${typeof m.fred.tenYearYield === 'number'
+            ? `As of ${m.fred.asOf ?? 'recent data'}: ${typeof m.fred.tenYearYield === 'number'
                 ? m.fred.tenYearYield.toFixed(2)
                 : m.fred.tenYearYield
             }%, 30Y ${typeof m.fred.mort30Avg === 'number'
@@ -284,8 +272,13 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     const lines = (typeof m.answer === 'string' ? m.answer : '')
         .split('\n')
         .map((s) => s.trim());
-    const takeaway = primary || lines[0] || '';
-    const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
+
+    // Use the streaming-friendly text if present, otherwise fall back
+    const takeaway = friendly || primary || lines[0] || '';
+
+    const bullets = lines
+        .filter((l) => l.startsWith('- '))
+        .map((l) => l.slice(2));
     const nexts = lines
         .filter((l) => l.toLowerCase().startsWith('next:'))
         .map((l) => l.slice(5).trim());
@@ -354,14 +347,14 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
             {m.paymentDelta && (
                 <div style={{ fontSize: 13 }}>
-                    Every 0.25% ~{' '}
-                    <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
+                    Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
                     {m.paymentDelta.loanAmount.toLocaleString()}.
                 </div>
             )}
         </div>
     );
 }
+
 
 function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
     const isUser = role === 'user';
@@ -724,6 +717,43 @@ export default function Page() {
             return;
         }
     }
+    // === Typewriter helper for a "streaming" feel ===
+    const typeOutAssistant = React.useCallback(
+        (id: string, full: string) => {
+            if (!full) return;
+
+            // Use Array.from to be safe with emoji / unicode
+            const chars = Array.from(full);
+            const total = chars.length;
+
+            let index = 0;
+
+            const step = () => {
+                index += 24; // chars per tick; tweak for speed
+                if (index >= total) {
+                    // Final update with full string
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === id ? { ...m, content: full } : m,
+                        ),
+                    );
+                    return;
+                }
+
+                const slice = chars.slice(0, index).join('');
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === id ? { ...m, content: slice } : m,
+                    ),
+                );
+
+                window.setTimeout(step, 20); // ms between ticks
+            };
+
+            step();
+        },
+        [setMessages],
+    );
 
     async function send() {
         const q = input.trim();
@@ -830,10 +860,14 @@ export default function Page() {
                 console.error('Library logging error:', err);
             }
 
+            // Create an assistant bubble and "type" the answer into it
+            const answerId = uid();
             setMessages((m) => [
                 ...m,
-                { id: uid(), role: 'assistant', content: friendly, meta },
+                { id: answerId, role: 'assistant', content: '', meta },
             ]);
+            typeOutAssistant(answerId, friendly);
+
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             setMessages((m) => [
@@ -1023,7 +1057,12 @@ export default function Page() {
                                     <Bubble role={m.role}>
                                         {m.role === 'assistant' ? (
                                             m.meta ? (
-                                                <AnswerBlock meta={m.meta} />
+                                                <AnswerBlock
+                                                    meta={m.meta}
+                                                    friendly={
+                                                        typeof m.content === 'string' ? m.content : undefined
+                                                    }
+                                                />
                                             ) : (
                                                 m.content
                                             )
@@ -1033,6 +1072,7 @@ export default function Page() {
                                     </Bubble>
                                 </div>
                             ))}
+
                             {loading && <div className="meta">...thinking</div>}
                         </div>
                     </div>
