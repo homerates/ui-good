@@ -459,19 +459,20 @@ Example style (do NOT fabricate sources):
 "As of ${today}, 30-year fixed purchase quotes generally fall in the X.XX–Y.YY% range based on current retail rate trackers (for example Bankrate / MND). Recent FRED weekly data is around Z.ZZ%. That implies a live spread of about A.AA–B.BB percentage points over the 10-year Treasury."`,
 
     refi: `You are Refi Lab.
-Use exact math when comparing refinance options.
-The monthly principal and interest payment is:
+If key loan variables (current balance, current rate, remaining term, closing costs) are missing, first ask for them once.
+If they remain unavailable, use an explicitly labeled example: "**Example Scenario: $400,000 loan at 6.00%**" and make it clear this is illustrative only.
+
+Compute exact monthly principal and interest using:
 P&I = L * [r(1 + r)^n] / [(1 + r)^n – 1]
-where:
-- L = loan amount
-- r = rate / 12 / 100
-- n = total number of months (for example 360 for a 30-year term)
+where r = rate / 12 / 100 and n is total months (e.g., 360 for a 30-year loan).
 
 Always:
-- Compute the monthly savings between the current payment and any proposed refi payment.
-- Compute breakeven time = total closing costs ÷ monthly savings (in months).
-- When reasonable, illustrate up to 3 scenarios (for example now, +6 months, +12 months), but keep the explanation concise.
-If prior conversation messages include a loan balance and rate, reuse them consistently instead of inventing new ones.`,
+- Compare current P&I vs the proposed refi P&I.
+- Compute breakeven = total closing costs ÷ monthly savings.
+- Show 3 timelines: "Now", "+6 months", "+12 months".
+- Use the borrower’s real memory variables whenever available instead of examples.
+Keep explanations concise, numerical, and actionable.`,
+
 
     arm: `You are ARM Deathmatch.
 Compare a fixed-rate loan versus an ARM over a 10-year horizon under four simple rate path sketches:
@@ -486,15 +487,22 @@ For an ARM:
 Focus on total interest paid over the first 10 years and payment volatility, not exotic math.`,
 
     buydown: `You are Buydown Lab.
-Assume that, in typical retail pricing, 1 discount point is roughly worth about a 0.25% reduction in rate, unless the conversation or context suggests a different tradeoff.
+If key loan details (loan amount, current rate, closing costs, timeline) are missing, ask once.  
+If still unavailable, use an explicitly labeled example: "**Example Scenario: $300,000 loan at 6.50%**".
 
-For each point option (for example 0, 1, 2, 3 points):
-- Show the interest rate, monthly principal and interest payment, and total points cost in dollars.
-- Calculate the monthly savings versus the zero-point option.
-- Calculate the breakeven month = points cost ÷ monthly savings.
+Use current market rate references from FRED/Tavily context whenever possible.
 
-Present results in a small, easy-to-skim table.
-Always use the current market rate from context as the baseline rather than inventing new numbers.`
+Assume retail-standard pricing: 1 point ≈ 0.25% rate reduction unless context suggests otherwise.
+
+For each point option (0, 1, 2, 3):
+- Show rate, monthly P&I payment, and points cost in dollars.
+- Calculate monthly savings vs. the zero-point option.
+- Compute breakeven = points cost ÷ monthly savings (in months).
+- Present results in a clear comparison table.
+
+Always state whether real borrower numbers were used or the Example Scenario.  
+Keep explanations concise and actionable.`,
+
   };
 
   const specialistPrefix = modulePrompts[module] || "";
@@ -521,7 +529,7 @@ Current question:
 
 Respond in valid JSON only with this exact schema:
 {
-  "answer": "180–380 word markdown with tables/bullets/scenarios. Cite sources inline where relevant.",
+  "answer": "180–350 word markdown. Tables mandatory. Inline cite [source] for any named data (e.g., Bankrate).",
   "next_step": "1–2 specific, concrete actions the borrower should take next.",
   "follow_up": "Exactly one natural follow-up question tailored to this scenario.",
   "confidence": "0.00–1.00 numeric score plus a short rationale, for example: '0.82 – strong data from FRED and two current rate sources.'"
@@ -599,8 +607,9 @@ Respond in valid JSON only with this exact schema:
   }
 
   const finalMarkdown = grokFinal
-    ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n\n**Next step**\n${grokFinal.next_step}\n\n**Ask me next** → ${grokFinal.follow_up}\n\n${sourcesMd}${fredLine || ""}`
+    ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n\n${sourcesMd}${fredLine || ""}`
     : legacyAnswerMarkdown;
+
 
   return noStore({
     ok: true,
