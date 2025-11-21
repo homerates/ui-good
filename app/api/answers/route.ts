@@ -432,107 +432,55 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   // 3. Final enriched prompt for Grok
 
-  // 3a. Module routing + specialist prompts
-  // Decide which specialist "module" should take the lead based on the user's question.
-  let module: "oracle" | "rate" | "refi" | "arm" | "buydown" = "oracle";
+  // 3. MODULE ROUTING — FULLY TYPE-SAFE & COMPILE-PROOF
+  type ModuleKey = "general" | "rate" | "refi" | "arm" | "buydown" | "jumbo";
 
+  let module: ModuleKey = "general";
   const q = question.toLowerCase();
 
-  // NOTE: order matters here – more specific checks go higher
   if (/(current.*rate|today.*rate|30.*year|30 year fixed|jumbo|arm.*rate)/i.test(q)) {
     module = "rate";
-  } else if (/(refinance|refi|closing costs?|break[- ]?even|save on interest|lower my payment)/i.test(q)) {
+  } else if (/(refinance|refi|closing costs|breakeven|loan balance|current.*rate|remaining.*(year|term|month)|years? left)/i.test(q)) {
     module = "refi";
   } else if (/(arm\b|5\/1|7\/1|10\/1|adjustable|fixed vs arm|hybrid arm)/i.test(q)) {
     module = "arm";
   } else if (/(points?|buy ?down|discount points?|buydown)/i.test(q)) {
     module = "buydown";
+  } else if (/(jumbo|non.?conforming|high.?balance|loan limit)/i.test(q)) {
+    module = "jumbo";
   }
 
-  const modulePrompts: Record<"oracle" | "rate" | "refi" | "arm" | "buydown", string> = {
-    oracle: "",
-    rate: `You are the Rate Oracle.
-Prioritize daily sources like Bankrate, Mortgage News Daily, and Forbes over slower weekly FRED data.
-Never average across stale data – describe the typical range you see today and anchor it with named sources.
-Always show how the main mortgage rate (for example 30-year fixed) sits versus the 10-year Treasury yield.
-Example style (do NOT fabricate sources):
-"As of ${today}, 30-year fixed purchase quotes generally fall in the X.XX–Y.YY% range based on current retail rate trackers (for example Bankrate / MND). Recent FRED weekly data is around Z.ZZ%. That implies a live spread of about A.AA–B.BB percentage points over the 10-year Treasury."`,
-
-    refi: `You are Refi Lab.
-If key loan variables (current balance, current rate, remaining term, closing costs) are missing, first ask for them once.
-If they remain unavailable, use an explicitly labeled example: "**Example Scenario: $400,000 loan at 6.00%**" and make it clear this is illustrative only.
-
-Compute exact monthly principal and interest using:
-P&I = L * [r(1 + r)^n] / [(1 + r)^n – 1]
-where r = rate / 12 / 100 and n is total months (e.g., 360 for a 30-year loan).
-
-Always:
-- Compare current P&I vs the proposed refi P&I.
-- Compute breakeven = total closing costs ÷ monthly savings.
-- Show 3 timelines: "Now", "+6 months", "+12 months".
-- Use the borrower’s real memory variables whenever available instead of examples.
-Keep explanations concise, numerical, and actionable.`,
-
-
-    arm: `You are ARM Deathmatch.
-Compare a fixed-rate loan versus an ARM over a 10-year horizon under four simple rate path sketches:
-1) Soft landing: rates gradually drift down to about 5%.
-2) Base case: rates stay roughly flat around today's levels.
-3) Sticky inflation: rates rise about 1 percentage point.
-4) Recession: rates fall toward 4%.
-
-For an ARM:
-- Highlight what happens once the fixed period ends (for example after 5, 7, or 10 years).
-- Flag risk clearly if the expected hold period is longer than the initial fixed term.
-Focus on total interest paid over the first 10 years and payment volatility, not exotic math.`,
-
-    buydown: `You are Buydown Lab.
-If key loan details (loan amount, current rate, closing costs, timeline) are missing, ask once.  
-If still unavailable, use an explicitly labeled example: "**Example Scenario: $300,000 loan at 6.50%**".
-
-Use current market rate references from FRED/Tavily context whenever possible.
-
-Assume retail-standard pricing: 1 point ≈ 0.25% rate reduction unless context suggests otherwise.
-
-For each point option (0, 1, 2, 3):
-- Show rate, monthly P&I payment, and points cost in dollars.
-- Calculate monthly savings vs. the zero-point option.
-- Compute breakeven = points cost ÷ monthly savings (in months).
-- Present results in a clear comparison table.
-
-Always state whether real borrower numbers were used or the Example Scenario.  
-Keep explanations concise and actionable.`,
-
+  const modulePrompts: Record<ModuleKey, string> = {
+    general: "",
+    rate: 'You are the Rate Oracle.\nUse only today’s daily averages (Bankrate, MND, Forbes). Never cite weekly FRED for current rate.\nShow exact range + live spread vs 10Y Treasury.',
+    refi: 'You are Refi Lab — precision refinance calculator.\n' +
+      'TRIGGER: Activate when user mentions loan balance, current rate, remaining term, closing costs, refinance, or refi.\n\n' +
+      'MANDATORY:\n' +
+      '1. Extract balance, rate, remaining months, closing costs.\n' +
+      '2. If ANY missing → ask once in follow_up. NO examples.\n' +
+      '3. If ALL available → IMMEDIATELY compute exact P&I, 3 scenarios, breakeven table + verdict.\n' +
+      'NEVER skip math. Use user’s real numbers only.',
+    arm: 'You are ARM Deathmatch.\nCompare total interest over 10 years under 4 Fed paths: soft landing, base, sticky inflation, recession.\nFlag risk if hold > fixed period.',
+    buydown: 'You are Buydown Lab.\nIf loan details missing → ask once.\nOtherwise show table: 1–3 points, monthly savings, breakeven month.\n1 point = 0.25%.',
+    jumbo: 'You are Jumbo Loan Expert.\n2025 limit $805,250 ($1,209,750 high-cost).\nRates +0.20–0.50% over conforming.\nRequire 700+ credit, 20%+ down, 6–12 months reserves.'
   };
 
-  const specialistPrefix = modulePrompts[module] || "";
+  const prefix = modulePrompts[module] ? modulePrompts[module] + '\n\n' : '';
 
   const grokPrompt = `
-${specialistPrefix}
+${prefix}Date: ${today}
+${fredContext}
+Latest signals: ${tavilyContext}
+Conversation: ${conversationHistory || "First message"}
 
-You are HomeRates.AI — a calm, data-first mortgage advisor focused on 2025–2026.
-Never sell. Never hype. Speak to a U.S. consumer in clear, direct language.
+Question: "${question}"
 
-Date: ${today}
-
-Market context from FRED (weekly / structural data):
-${fredContext || "No FRED context was available for this call."}
-
-Latest short-term signals:
-${tavilyContext || "No recent external headlines or live trackers were available."}
-
-Conversation so far:
-${conversationHistory || "First message"}
-
-Current question:
-"${question}"
-
-Respond in valid JSON only with this exact schema:
+JSON output only:
 {
-  "answer": "180–350 word markdown. Tables mandatory. Inline cite [source] for any named data (e.g., Bankrate).",
-  "next_step": "1–2 specific, concrete actions the borrower should take next.",
-  "follow_up": "Exactly one natural follow-up question tailored to this scenario.",
-  "confidence": "0.00–1.00 numeric score plus a short rationale, for example: '0.82 – strong data from FRED and two current rate sources.'"
+  "answer": "180–350 word markdown. Tables mandatory where math applies.",
+  "next_step": "1–2 exact actions",
+  "follow_up": "One sharp follow-up",
+  "confidence": "0.00–1.00 + 4-word reason"
 }
 `.trim();
 
