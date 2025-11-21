@@ -1,4 +1,6 @@
 // components/GrokCard.jsx
+'use client';
+
 import React, { useState } from "react";
 
 export default function GrokCard({ data, onFollowUp }) {
@@ -54,7 +56,7 @@ export default function GrokCard({ data, onFollowUp }) {
         .replace(/\n{2,}/g, "<br/><br/>")
         .replace(/\n/g, "<br/>");
 
-    const handleFollowUpClick = (q) => {
+    const handleFollowUpClick = (q: string) => {
         if (!q || typeof onFollowUp !== "function") return;
         onFollowUp(q);
     };
@@ -68,7 +70,8 @@ export default function GrokCard({ data, onFollowUp }) {
                 background: "#f8faff",
                 overflow: "hidden",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                fontFamily:
+                    "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 width: "100%",
                 maxWidth: "100%",
             }}
@@ -160,7 +163,9 @@ export default function GrokCard({ data, onFollowUp }) {
             >
                 {hasGrok && grok.next_step && (
                     <div style={{ marginBottom: "10px" }}>
-                        <strong style={{ color: "#4f46e5", fontSize: "0.9rem" }}>
+                        <strong
+                            style={{ color: "#4f46e5", fontSize: "0.9rem" }}
+                        >
                             Next step
                         </strong>
                         <div style={{ marginTop: "4px", fontSize: "0.9rem" }}>
@@ -170,7 +175,14 @@ export default function GrokCard({ data, onFollowUp }) {
                 )}
 
                 {(followUp || grok?.follow_up) && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "8px",
+                            alignItems: "center",
+                        }}
+                    >
                         <strong
                             style={{
                                 color: "#4f46e5",
@@ -206,7 +218,9 @@ export default function GrokCard({ data, onFollowUp }) {
                         {grok?.follow_up && (
                             <button
                                 type="button"
-                                onClick={() => handleFollowUpClick(grok.follow_up)}
+                                onClick={() =>
+                                    handleFollowUpClick(grok.follow_up)
+                                }
                                 style={{
                                     padding: "6px 12px",
                                     background: "#4f46e5",
