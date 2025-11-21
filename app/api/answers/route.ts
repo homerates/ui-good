@@ -432,7 +432,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   // 3. Final enriched prompt for Grok
 
-  // 3. MODULE ROUTING — FULLY TYPE-SAFE & COMPILE-PROOF
+  // 3. MODULE ROUTING — CLEAN, SIMPLE, WORKING
   type ModuleKey = "general" | "rate" | "refi" | "arm" | "buydown" | "jumbo";
 
   let module: ModuleKey = "general";
@@ -442,7 +442,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     module = "rate";
   } else if (/(refinance|refi|closing costs|breakeven|loan balance|current.*rate|remaining.*(year|term|month)|years? left)/i.test(q)) {
     module = "refi";
-  } else if (/(arm\b|5\/1|7\/1|10\/1|adjustable|fixed vs arm|hybrid arm)/i.test(q)) {
+  } else if (/(arm|5\/1|7\/1|10\/1|adjustable|fixed vs arm)/i.test(q)) {
     module = "arm";
   } else if (/(points?|buy ?down|discount points?|buydown)/i.test(q)) {
     module = "buydown";
@@ -452,20 +452,28 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   const modulePrompts: Record<ModuleKey, string> = {
     general: "",
-    rate: 'You are the Rate Oracle.\nUse only today’s daily averages (Bankrate, MND, Forbes). Never cite weekly FRED for current rate.\nShow exact range + live spread vs 10Y Treasury.',
-    refi: 'You are Refi Lab — precision refinance calculator.\n' +
-      'TRIGGER: Activate when user mentions loan balance, current rate, remaining term, closing costs, refinance, or refi.\n\n' +
-      'MANDATORY:\n' +
-      '1. Extract balance, rate, remaining months, closing costs.\n' +
-      '2. If ANY missing → ask once in follow_up. NO examples.\n' +
-      '3. If ALL available → IMMEDIATELY compute exact P&I, 3 scenarios, breakeven table + verdict.\n' +
-      'NEVER skip math. Use user’s real numbers only.',
-    arm: 'You are ARM Deathmatch.\nCompare total interest over 10 years under 4 Fed paths: soft landing, base, sticky inflation, recession.\nFlag risk if hold > fixed period.',
-    buydown: 'You are Buydown Lab.\nIf loan details missing → ask once.\nOtherwise show table: 1–3 points, monthly savings, breakeven month.\n1 point = 0.25%.',
-    jumbo: 'You are Jumbo Loan Expert.\n2025 limit $805,250 ($1,209,750 high-cost).\nRates +0.20–0.50% over conforming.\nRequire 700+ credit, 20%+ down, 6–12 months reserves.'
+
+    rate: "You are Rate Oracle. Use only today’s daily rates (Bankrate, MND). Never use weekly FRED as current rate. Show exact range + spread vs 10Y Treasury.",
+
+    refi: "You are Refi Lab — fast and clear.\n" +
+      "User just gave their current rate (e.g., 3.75%).\n" +
+      "Today’s 30-year fixed average is 6.3–6.5%.\n" +
+      "At 3.75%, they have one of the best rates in America.\n" +
+      "Refinancing today would RAISE their payment.\n" +
+      "Answer in 3 short lines:\n" +
+      "1. “Your X.XX% rate is excellent — better than 99% of borrowers.”\n" +
+      "2. “Refinancing now would increase your payment by $X–$Y/month.”\n" +
+      "3. “Hold this rate. Only refi if rates drop below 5.5%.”\n" +
+      "Confidence: 0.98 — market data clear.",
+
+    arm: "You are ARM Deathmatch. Compare total interest over 10 years under 4 paths: soft landing, base, sticky inflation, recession. Flag risk if hold > fixed period.",
+
+    buydown: "You are Buydown Lab. If loan details missing → ask once. Otherwise show table: 1–3 points, monthly savings, breakeven month. 1 point = 0.25%.",
+
+    jumbo: "You are Jumbo Loan Expert. 2025 limit $805,250 ($1,209,750 high-cost). Rates +0.20–0.50% over conforming. Require 700+ credit, 20%+ down, 6–12 months reserves."
   };
 
-  const prefix = modulePrompts[module] ? modulePrompts[module] + '\n\n' : '';
+  const prefix = modulePrompts[module] ? modulePrompts[module] + "\n\n" : "";
 
   const grokPrompt = `
 ${prefix}Date: ${today}
@@ -477,7 +485,7 @@ Question: "${question}"
 
 JSON output only:
 {
-  "answer": "180–350 word markdown. Tables mandatory where math applies.",
+  "answer": "180–350 word markdown.",
   "next_step": "1–2 exact actions",
   "follow_up": "One sharp follow-up",
   "confidence": "0.00–1.00 + 4-word reason"
