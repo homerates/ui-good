@@ -822,8 +822,12 @@ export default function Page() {
         [setMessages]
     );
 
-    async function send() {
-        const q = input.trim();
+    async function send(explicit?: string) {
+        const raw = typeof explicit === 'string' ? explicit : input;
+        const q = raw.trim();
+
+
+
         if (!q || loading) return;
 
         // Enforce simple daily limits before we send anything
@@ -1122,8 +1126,9 @@ export default function Page() {
                                                     onFollowUp={(q: string) => {
                                                         if (!q) return;
                                                         setInput(q);
-                                                        // Then you can review/edit and hit Enter or the Send button
+                                                        send(q); // immediately fire the follow-up question
                                                     }}
+
 
 
                                                 />
@@ -1214,7 +1219,7 @@ export default function Page() {
                             data-testid="ask-pill"
                             aria-label="Send message"
                             title="Send"
-                            onClick={send}
+                            onClick={() => send()}
                             disabled={loading || !input.trim()}
                             style={{
                                 position: 'absolute',
