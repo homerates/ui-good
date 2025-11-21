@@ -14,6 +14,8 @@ import { useMobileComposerPin } from './hooks/useMobileComposerPin';
 import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
 import './chat/styles.css';
 import GrokCard from "@/components/GrokCard";
+import GrokAnswerBlock from '@/components/AnswerBlock';
+
 
 /* =========================
    Small helpers
@@ -898,18 +900,19 @@ export default function Page() {
             });
 
             const meta = await safeJson(r);
-            // Attach Grok metadata to the assistant message
+            // Attach Grok metadata to the assistant message (under m.meta)
             setMessages((prev) =>
                 prev.map((m) =>
-                    m.id === answerId && m.role === "assistant"
+                    m.id === answerId && m.role === 'assistant'
                         ? {
                             ...m,
-                            ...meta,        // <-- THIS is where message.grok, message.answerMarkdown, etc. come from
-                            content: "",    // typewriter will fill summary, not markdown
+                            meta,      // <--- meta now lives under m.meta
+                            content: '', // typewriter will fill summary, not markdown
                         }
                         : m
                 )
             );
+
 
             const friendly =
                 meta.message ??
@@ -1125,8 +1128,8 @@ export default function Page() {
 
                                                 />
                                             ) : m.meta ? (
-                                                // Legacy / calc answers still use AnswerBlock
-                                                <AnswerBlock
+                                                // Legacy / calc answers still use AnswerBlock (Grok card)
+                                                <GrokAnswerBlock
                                                     meta={m.meta}
                                                     friendly={
                                                         typeof m.content === 'string'
@@ -1134,6 +1137,7 @@ export default function Page() {
                                                             : undefined
                                                     }
                                                 />
+
                                             ) : (
                                                 // Bare assistant content fallback
                                                 typeof m.content === 'string' ? m.content : ''
