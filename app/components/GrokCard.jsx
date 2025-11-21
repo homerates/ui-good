@@ -4,7 +4,8 @@
 import React, { useState } from "react";
 
 export default function GrokCard({ data, onFollowUp }) {
-    const [expanded, setExpanded] = useState(false);
+    // Default: card is open (expanded)
+    const [expanded, setExpanded] = useState(true);
 
     const {
         grok,
@@ -26,7 +27,7 @@ export default function GrokCard({ data, onFollowUp }) {
     let heroText = "Your Answer";
     if (rawAnswer) {
         const heroMatch = rawAnswer.match(/\*\*(.*?)\*\*/);
-        if (heroMatch && heroMatch[1]?.trim()) {
+        if (heroMatch && heroMatch[1] && heroMatch[1].trim()) {
             heroText = heroMatch[1].trim();
         } else {
             const firstLine =
@@ -46,7 +47,7 @@ export default function GrokCard({ data, onFollowUp }) {
         const c = Number(grok.confidence);
         if (!Number.isNaN(c)) {
             const pct = c <= 1 ? Math.round(c * 100) : Math.round(c);
-            confidenceLabel = `${pct}% confident`;
+            confidenceLabel = pct + "% confident";
         }
     }
 
@@ -56,10 +57,16 @@ export default function GrokCard({ data, onFollowUp }) {
         .replace(/\n{2,}/g, "<br/><br/>")
         .replace(/\n/g, "<br/>");
 
-    const handleFollowUpClick = (q: string) => {
-        if (!q || typeof onFollowUp !== "function") return;
-        onFollowUp(q);
-    };
+    // Build a de-duplicated list of follow-up questions (no click behaviour)
+    const followups = [];
+    if (followUp && typeof followUp === "string") {
+        followups.push(followUp);
+    }
+    if (grok?.follow_up && typeof grok.follow_up === "string") {
+        if (!followups.includes(grok.follow_up)) {
+            followups.push(grok.follow_up);
+        }
+    }
 
     return (
         <div
@@ -138,7 +145,7 @@ export default function GrokCard({ data, onFollowUp }) {
                 </button>
             </div>
 
-            {/* Deep Dive – only shown when expanded */}
+            {/* Deep Dive – shown when expanded */}
             {expanded && rawAnswer && (
                 <div
                     style={{
@@ -164,7 +171,10 @@ export default function GrokCard({ data, onFollowUp }) {
                 {hasGrok && grok.next_step && (
                     <div style={{ marginBottom: "10px" }}>
                         <strong
-                            style={{ color: "#4f46e5", fontSize: "0.9rem" }}
+                            style={{
+                                color: "#4f46e5",
+                                fontSize: "0.9rem",
+                            }}
                         >
                             Next step
                         </strong>
@@ -174,13 +184,12 @@ export default function GrokCard({ data, onFollowUp }) {
                     </div>
                 )}
 
-                {(followUp || grok?.follow_up) && (
+                {followups.length > 0 && (
                     <div
                         style={{
                             display: "flex",
-                            flexWrap: "wrap",
-                            gap: "8px",
-                            alignItems: "center",
+                            flexDirection: "column",
+                            gap: "4px",
                         }}
                     >
                         <strong
@@ -193,51 +202,25 @@ export default function GrokCard({ data, onFollowUp }) {
                             Ask me next →
                         </strong>
 
-                        {followUp && (
-                            <button
-                                type="button"
-                                onClick={() => handleFollowUpClick(followUp)}
-                                style={{
-                                    padding: "6px 12px",
-                                    background: "#e0e7ff",
-                                    color: "#4f46e5",
-                                    border: "1px solid #c7d2fe",
-                                    borderRadius: "999px",
-                                    cursor: "pointer",
-                                    fontSize: "0.85rem",
-                                    maxWidth: "100%",
-                                    whiteSpace: "nowrap",
-                                    textOverflow: "ellipsis",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                {followUp}
-                            </button>
-                        )}
-
-                        {grok?.follow_up && (
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    handleFollowUpClick(grok.follow_up)
-                                }
-                                style={{
-                                    padding: "6px 12px",
-                                    background: "#4f46e5",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "999px",
-                                    cursor: "pointer",
-                                    fontSize: "0.85rem",
-                                    maxWidth: "100%",
-                                    whiteSpace: "nowrap",
-                                    textOverflow: "ellipsis",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                {grok.follow_up}
-                            </button>
-                        )}
+                        <div
+                            style={{
+                                display: "grid",
+                                gap: "2px",
+                            }}
+                        >
+                            {followups.map((q, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        fontSize: "0.85rem",
+                                        color: "#111827",
+                                        wordWrap: "break-word",
+                                    }}
+                                >
+                                    {q}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
