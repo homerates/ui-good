@@ -14,8 +14,6 @@ import { useMobileComposerPin } from './hooks/useMobileComposerPin';
 import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
 import './chat/styles.css';
 import GrokCard from "@/components/GrokCard";
-import GrokAnswerBlock from '@/components/AnswerBlock';
-
 
 /* =========================
    Small helpers
@@ -822,12 +820,8 @@ export default function Page() {
         [setMessages]
     );
 
-    async function send(explicit?: string) {
-        const raw = typeof explicit === 'string' ? explicit : input;
-        const q = raw.trim();
-
-
-
+    async function send() {
+        const q = input.trim();
         if (!q || loading) return;
 
         // Enforce simple daily limits before we send anything
@@ -904,19 +898,18 @@ export default function Page() {
             });
 
             const meta = await safeJson(r);
-            // Attach Grok metadata to the assistant message (under m.meta)
+            // Attach Grok metadata to the assistant message
             setMessages((prev) =>
                 prev.map((m) =>
-                    m.id === answerId && m.role === 'assistant'
+                    m.id === answerId && m.role === "assistant"
                         ? {
                             ...m,
-                            meta,      // <--- meta now lives under m.meta
-                            content: '', // typewriter will fill summary, not markdown
+                            ...meta,        // <-- THIS is where message.grok, message.answerMarkdown, etc. come from
+                            content: "",    // typewriter will fill summary, not markdown
                         }
                         : m
                 )
             );
-
 
             const friendly =
                 meta.message ??
@@ -1126,15 +1119,14 @@ export default function Page() {
                                                     onFollowUp={(q: string) => {
                                                         if (!q) return;
                                                         setInput(q);
-                                                        send(q); // immediately fire the follow-up question
+                                                        // Then you can review/edit and hit Enter or the Send button
                                                     }}
-
 
 
                                                 />
                                             ) : m.meta ? (
-                                                // Legacy / calc answers still use AnswerBlock (Grok card)
-                                                <GrokAnswerBlock
+                                                // Legacy / calc answers still use AnswerBlock
+                                                <AnswerBlock
                                                     meta={m.meta}
                                                     friendly={
                                                         typeof m.content === 'string'
@@ -1142,7 +1134,6 @@ export default function Page() {
                                                             : undefined
                                                     }
                                                 />
-
                                             ) : (
                                                 // Bare assistant content fallback
                                                 typeof m.content === 'string' ? m.content : ''
@@ -1219,7 +1210,7 @@ export default function Page() {
                             data-testid="ask-pill"
                             aria-label="Send message"
                             title="Send"
-                            onClick={() => send()}
+                            onClick={send}
                             disabled={loading || !input.trim()}
                             style={{
                                 position: 'absolute',

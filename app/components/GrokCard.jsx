@@ -1,6 +1,4 @@
 // components/GrokCard.jsx
-'use client';
-
 import React, { useState } from "react";
 
 export default function GrokCard({ data, onFollowUp }) {
@@ -14,9 +12,6 @@ export default function GrokCard({ data, onFollowUp }) {
     } = data || {};
 
     const hasGrok = !!grok;
-
-    // Default: card is OPEN
-    const [expanded, setExpanded] = useState(true);
 
     // ---- Safe answer markdown handling ----
     const rawAnswer =
@@ -59,16 +54,10 @@ export default function GrokCard({ data, onFollowUp }) {
         .replace(/\n{2,}/g, "<br/><br/>")
         .replace(/\n/g, "<br/>");
 
-    // Build a de-duplicated list of follow-up questions (no click behaviour)
-    const followups = [];
-    if (followUp && typeof followUp === "string") {
-        followups.push(followUp);
-    }
-    if (grok?.follow_up && typeof grok.follow_up === "string") {
-        if (!followups.includes(grok.follow_up)) {
-            followups.push(grok.follow_up);
-        }
-    }
+    const handleFollowUpClick = (q) => {
+        if (!q || typeof onFollowUp !== "function") return;
+        onFollowUp(q);
+    };
 
     return (
         <div
@@ -79,8 +68,7 @@ export default function GrokCard({ data, onFollowUp }) {
                 background: "#f8faff",
                 overflow: "hidden",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                fontFamily:
-                    "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 width: "100%",
                 maxWidth: "100%",
             }}
@@ -172,12 +160,7 @@ export default function GrokCard({ data, onFollowUp }) {
             >
                 {hasGrok && grok.next_step && (
                     <div style={{ marginBottom: "10px" }}>
-                        <strong
-                            style={{
-                                color: "#4f46e5",
-                                fontSize: "0.9rem",
-                            }}
-                        >
+                        <strong style={{ color: "#4f46e5", fontSize: "0.9rem" }}>
                             Next step
                         </strong>
                         <div style={{ marginTop: "4px", fontSize: "0.9rem" }}>
@@ -186,14 +169,8 @@ export default function GrokCard({ data, onFollowUp }) {
                     </div>
                 )}
 
-                {followups.length > 0 && (
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "4px",
-                        }}
-                    >
+                {(followUp || grok?.follow_up) && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
                         <strong
                             style={{
                                 color: "#4f46e5",
@@ -204,25 +181,49 @@ export default function GrokCard({ data, onFollowUp }) {
                             Ask me next →
                         </strong>
 
-                        <div
-                            style={{
-                                display: "grid",
-                                gap: "2px",
-                            }}
-                        >
-                            {followups.map((q, i) => (
-                                <div
-                                    key={i}
-                                    style={{
-                                        fontSize: "0.85rem",
-                                        color: "#111827",
-                                        wordWrap: "break-word",
-                                    }}
-                                >
-                                    {q}
-                                </div>
-                            ))}
-                        </div>
+                        {followUp && (
+                            <button
+                                type="button"
+                                onClick={() => handleFollowUpClick(followUp)}
+                                style={{
+                                    padding: "6px 12px",
+                                    background: "#e0e7ff",
+                                    color: "#4f46e5",
+                                    border: "1px solid #c7d2fe",
+                                    borderRadius: "999px",
+                                    cursor: "pointer",
+                                    fontSize: "0.85rem",
+                                    maxWidth: "100%",
+                                    whiteSpace: "nowrap",
+                                    textOverflow: "ellipsis",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                {followUp}
+                            </button>
+                        )}
+
+                        {grok?.follow_up && (
+                            <button
+                                type="button"
+                                onClick={() => handleFollowUpClick(grok.follow_up)}
+                                style={{
+                                    padding: "6px 12px",
+                                    background: "#4f46e5",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "999px",
+                                    cursor: "pointer",
+                                    fontSize: "0.85rem",
+                                    maxWidth: "100%",
+                                    whiteSpace: "nowrap",
+                                    textOverflow: "ellipsis",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                {grok.follow_up}
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
