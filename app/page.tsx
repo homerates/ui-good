@@ -1124,24 +1124,24 @@ export default function Page() {
 
 
                                                 />
-                                            ) {m.grok || m.answerMarkdown ? (
-                                                <GrokCard
-                                                    data={m}
-                                                    onFollowUp={(q: string) => {
-                                                        if (!q) return;
-                                                        setInput(q);
-                                                        handleSend(q);
-                                                    }}
-                                                />
                                             ) : m.meta ? (
+                                                // Legacy / calc answers still use AnswerBlock
                                                 <AnswerBlock
                                                     meta={m.meta}
-                                                    friendly={typeof m.content === 'string' ? m.content : undefined}
+                                                    friendly={
+                                                        typeof m.content === 'string'
+                                                            ? m.content
+                                                            : undefined
+                                                    }
                                                 />
                                             ) : (
+                                                // Bare assistant content fallback
                                                 typeof m.content === 'string' ? m.content : ''
-                                            )}
-
+                                            )
+                                        ) : (
+                                            // User messages unchanged
+                                            m.content
+                                        )}
 
                                     </Bubble>
                                 </div>
