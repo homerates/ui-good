@@ -102,16 +102,30 @@ export default function Sidebar({
   const [moveDialogThreadId, setMoveDialogThreadId] =
     React.useState<string | null>(null);
 
-  const handleMoveToProject = React.useCallback((threadId: string) => {
-    setMoveDialogThreadId(threadId);
-    setMoveDialogOpen(true);
-    // MoveToProjectDialog will handle API + onMoveChatToProject callback if you wire it
-  }, []);
+  // ===== Move-to-project dialog state + handlers =====
+  const handleMoveToProject = React.useCallback(
+    (threadId: string) => {
+      setMoveDialogThreadId(threadId);
+      setMoveDialogOpen(true);
+    },
+    []
+  );
 
   const handleCloseMoveDialog = React.useCallback(() => {
     setMoveDialogOpen(false);
     setMoveDialogThreadId(null);
   }, []);
+
+  // Wrapper: when dialog fires onMoved(projectId), forward both threadId + projectId to parent
+  const handleMoveDialogMoved = React.useCallback(
+    (projectId: string) => {
+      if (moveDialogThreadId && onMoveChatToProject) {
+        onMoveChatToProject(moveDialogThreadId, projectId);
+      }
+    },
+    [moveDialogThreadId, onMoveChatToProject]
+  );
+
 
   // ===== Project-aware chat filtering =====
   const [activeProjectId, setActiveProjectId] =
@@ -522,9 +536,10 @@ export default function Sidebar({
         open={moveDialogOpen}
         threadId={moveDialogThreadId}
         onClose={handleCloseMoveDialog}
-        onMoved={undefined} // keep UI working; we'll wire this later
+        onMoved={handleMoveDialogMoved}
       />
 
     </>
   );
 }
+
