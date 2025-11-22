@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 // ===== MiniChart ===========================================================
@@ -57,7 +57,6 @@ function injectMiniChartMarkers(text) {
 }
 
 // ===== GrokCard ============================================================
-// Props shape matches your page.tsx usage:
 // <GrokCard
 //   data={{ grok, answerMarkdown, followUp, data_freshness }}
 //   onFollowUp={(q) => ...}
@@ -66,7 +65,54 @@ export default function GrokCard({ data, onFollowUp }) {
     if (!data) return null;
 
     const { grok, answerMarkdown, followUp, data_freshness } = data;
-    const prepared = injectMiniChartMarkers(answerMarkdown || "");
+
+    // Full markdown text with MiniChart markers injected
+    const preparedFull = injectMiniChartMarkers(answerMarkdown || "");
+
+    // Streaming-ish state: we "type out" preparedFull when there's a Grok answer
+    const [displayedText, setDisplayedText] = useState(preparedFull);
+    const [isStreaming, setIsStreaming] = useState(false);
+
+    useEffect(() => {
+        // If there is no Grok object or the text is short, just show immediately
+        if (!grok || !preparedFull || preparedFull.length < 80) {
+            setDisplayedText(preparedFull);
+            setIsStreaming(false);
+            return;
+        }
+
+        // Typewriter effect over the already-computed markdown
+        let cancelled = false;
+        const chars = Array.from(preparedFull);
+        const total = chars.length;
+
+        setDisplayedText("");
+        setIsStreaming(true);
+
+        let index = 0;
+
+        const tick = () => {
+            if (cancelled) return;
+
+            index += 24; // characters per step
+            if (index >= total) {
+                setDisplayedText(preparedFull);
+                setIsStreaming(false);
+                return;
+            }
+
+            const slice = chars.slice(0, index).join("");
+            setDisplayedText(slice);
+
+            window.setTimeout(tick, 20); // ms between steps
+        };
+
+        window.setTimeout(tick, 20);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [preparedFull, grok]);
 
     return (
         <div
@@ -79,7 +125,7 @@ export default function GrokCard({ data, onFollowUp }) {
                 whiteSpace: "pre-wrap",
             }}
         >
-            {/* Simple header row (you can style this more if you like) */}
+            {/* Header row stays the same */}
             <div
                 style={{
                     display: "flex",
@@ -94,7 +140,7 @@ export default function GrokCard({ data, onFollowUp }) {
                 {data_freshness && <span>{data_freshness}</span>}
             </div>
 
-            {/* Main answer body with MiniChart support */}
+            {/* Main answer body with MiniChart support + typewriter text */}
             <ReactMarkdown
                 components={{
                     p({ children }) {
@@ -123,10 +169,10 @@ export default function GrokCard({ data, onFollowUp }) {
                     },
                 }}
             >
-                {prepared}
+                {displayedText}
             </ReactMarkdown>
 
-            {/* Follow-up CTA (optional) */}
+            {/* Follow-up CTA */}
             {followUp && onFollowUp && (
                 <div style={{ marginTop: "12px" }}>
                     <button
@@ -139,6 +185,7 @@ export default function GrokCard({ data, onFollowUp }) {
                             border: "1px solid rgba(0,0,0,0.12)",
                             background: "#f9fafb",
                             cursor: "pointer",
+                            opacity: isStreaming ? 0.7 : 1,
                         }}
                     >
                         Ask: {followUp}
