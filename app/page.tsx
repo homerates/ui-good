@@ -1042,7 +1042,13 @@ export default function Page() {
         <>
             {/* Sidebar */}
             <Sidebar
+                id="hr-sidebar"
                 history={history}
+                activeId={activeId}
+                isOpen={sidebarOpen}
+                onToggle={toggleSidebar}
+                onSelectHistory={onSelectHistory}
+                onHistoryAction={handleHistoryAction}
                 onNewChat={newChat}
                 onSettings={onSettings}
                 onShare={onShare}
@@ -1051,13 +1057,10 @@ export default function Page() {
                 onNewProject={onNewProject}
                 onMortgageCalc={onMortgageCalc}
                 onAskUnderwriting={onAskUnderwriting}
-                activeId={activeId}
-                onSelectHistory={onSelectHistory}
-                isOpen={sidebarOpen}
-                onToggle={toggleSidebar}
-                onProjectAction={handleProjectAction} // NEW
-                onMoveChatToProject={handleMoveChatToProject} // NEW
+                onProjectAction={handleProjectAction}
+                onMoveChatToProject={handleMoveChatToProject}
             />
+
 
 
 
