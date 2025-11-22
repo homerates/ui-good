@@ -338,6 +338,8 @@ async function handle(req: NextRequest, intentParam?: string) {
   // 3) Build a baseline answer (legacy stack)
   let base =
     tav.answer ??
+
+
     (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ??
       "");
 
@@ -426,15 +428,21 @@ async function handle(req: NextRequest, intentParam?: string) {
     Array.isArray(tav.results) && tav.results.length
       ? tav.results
         .slice(0, 4)
-        .map(s => `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`)
+        .map((s) => `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`)
         .join("\n")
       : "No recent sources";
 
-  // 3. Final enriched prompt for Grok
-
   // 3. MODULE ROUTING — CLEAN, SIMPLE, WORKING
 
-  type ModuleKey = "general" | "rate" | "refi" | "arm" | "buydown" | "jumbo" | "qualify";
+  type ModuleKey =
+    | "general"
+    | "rate"
+    | "refi"
+    | "arm"
+    | "buydown"
+    | "jumbo"
+    | "underwriting"
+    | "qualify";
 
   let module: ModuleKey = "general";
   const q = question.toLowerCase();
@@ -443,12 +451,14 @@ async function handle(req: NextRequest, intentParam?: string) {
   if (/(current.*rate|today.*rate|30.*year|30 year fixed|jumbo|arm.*rate)/i.test(q)) {
     module = "rate";
   } else if (
-    /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(q)
+    /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(
+      q
+    )
   ) {
     module = "refi";
   } else if (
     /(how much.*qualify|qualify for|how much.*afford|afford.*home|income.*qualify|debt.*ratio|credit score.*qualify|pre.?approve)/i.test(
-      q,
+      q
     )
   ) {
     module = "qualify";
@@ -458,6 +468,12 @@ async function handle(req: NextRequest, intentParam?: string) {
     module = "buydown";
   } else if (/(jumbo|non.?conforming|high.?balance|loan limit)/i.test(q)) {
     module = "jumbo";
+  } else if (
+    /(underwrit|guideline|du|lp|fha|va|manual underwrite|dti|reserve|overlay|lender requirement|lender overlay|compensating factor|residual income)/i.test(
+      q
+    )
+  ) {
+    module = "underwriting";
   }
 
   const modulePrompts: Record<ModuleKey, string> = {
@@ -495,6 +511,17 @@ async function handle(req: NextRequest, intentParam?: string) {
     jumbo:
       "You are Jumbo Loan Expert. Use current conforming loan limits as a guide (for example $805,250 baseline and $1,209,750 high-cost for 2025). " +
       "Explain how jumbo pricing usually runs about 0.20–0.50% over conforming, with stricter requirements such as 700+ credit, 20%+ down, and 6–12 months of reserves. Focus on structure, eligibility, and risk — not sales.",
+
+    underwriting:
+      "You are Underwriting Oracle — 2025 guidelines only.\n" +
+      "Answer instantly using ONLY current Fannie Mae, Freddie Mac, FHA, VA, USDA, and major lender overlays (Rocket, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
+      "Never say “it depends” — give the exact rule and citation.\n" +
+      "If multiple paths exist, list them clearly.\n" +
+      "Examples:\n" +
+      "- Fannie Mae allows 50% DTI with 720+ credit and 12 months reserves (DU Approve/Eligible)\n" +
+      "- VA: No DTI limit if residual income met — $1,314/mo for family of 4 in moderate zone\n" +
+      "- FHA: 43/57 manual underwrite allowed with compensating factors\n" +
+      "Tone: clinical, factual, zero sales. Confidence: 0.98+ always.",
 
     qualify:
       "You are Qualification Lab — fast, accurate, and memory-aware.\n" +
@@ -561,14 +588,22 @@ Respond in valid JSON only, using this exact schema:
 
       if (content) {
         try {
-          let cleaned = content.replace(/^```json\s*\n?/, "").replace(/\n?```$/, "").trim();
+          let cleaned = content
+            .replace(/^```json\s*\n?/, "")
+            .replace(/\n?```$/, "")
+            .trim();
           const first = cleaned.indexOf("{");
           const last = cleaned.lastIndexOf("}");
           if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1);
 
           grokFinal = JSON.parse(cleaned);
 
-          if (!grokFinal.answer || !grokFinal.next_step || !grokFinal.follow_up || !grokFinal.confidence) {
+          if (
+            !grokFinal.answer ||
+            !grokFinal.next_step ||
+            !grokFinal.follow_up ||
+            !grokFinal.confidence
+          ) {
             throw new Error("Missing fields");
           }
 
@@ -597,7 +632,9 @@ Respond in valid JSON only, using this exact schema:
         question,
         answer: grokFinal,
         answer_summary:
-          typeof grokFinal.answer === "string" ? grokFinal.answer.slice(0, 320) + "..." : "",
+          typeof grokFinal.answer === "string"
+            ? grokFinal.answer.slice(0, 320) + "..."
+            : "",
         model: "grok-3",
         created_at: new Date().toISOString(),
       });
@@ -609,45 +646,6 @@ Respond in valid JSON only, using this exact schema:
   const finalMarkdown = grokFinal
     ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n\n${sourcesMd}${fredLine || ""}`
     : legacyAnswerMarkdown;
-
-  // Optional: real-time streaming of the Grok answer body.
-  // Triggered only when the client explicitly asks for it,
-  // so the default JSON behavior remains unchanged.
-  const wantsStream =
-    req.nextUrl.searchParams.get("stream") === "1" ||
-    req.headers.get("x-hr-stream") === "1";
-
-  if (wantsStream && grokFinal?.answer) {
-    const encoder = new TextEncoder();
-    const fullText = `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence ?? ""
-      }`;
-
-    const stream = new ReadableStream({
-      start(controller) {
-        let i = 0;
-        const chunkSize = 8; // characters per tick
-
-        const timer = setInterval(() => {
-          if (i >= fullText.length) {
-            clearInterval(timer);
-            controller.close();
-            return;
-          }
-
-          const chunk = fullText.slice(i, i + chunkSize);
-          controller.enqueue(encoder.encode(chunk));
-          i += chunkSize;
-        }, 16); // feels “instant” but still chunked
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store",
-      },
-    });
-  }
 
   // Normal non-streaming JSON response (existing behavior)
   return noStore({
