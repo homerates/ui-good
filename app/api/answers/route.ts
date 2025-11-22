@@ -610,6 +610,46 @@ Respond in valid JSON only, using this exact schema:
     ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n\n${sourcesMd}${fredLine || ""}`
     : legacyAnswerMarkdown;
 
+  // Optional: real-time streaming of the Grok answer body.
+  // Triggered only when the client explicitly asks for it,
+  // so the default JSON behavior remains unchanged.
+  const wantsStream =
+    req.nextUrl.searchParams.get("stream") === "1" ||
+    req.headers.get("x-hr-stream") === "1";
+
+  if (wantsStream && grokFinal?.answer) {
+    const encoder = new TextEncoder();
+    const fullText = `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence ?? ""
+      }`;
+
+    const stream = new ReadableStream({
+      start(controller) {
+        let i = 0;
+        const chunkSize = 8; // characters per tick
+
+        const timer = setInterval(() => {
+          if (i >= fullText.length) {
+            clearInterval(timer);
+            controller.close();
+            return;
+          }
+
+          const chunk = fullText.slice(i, i + chunkSize);
+          controller.enqueue(encoder.encode(chunk));
+          i += chunkSize;
+        }, 16); // feels “instant” but still chunked
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  // Normal non-streaming JSON response (existing behavior)
   return noStore({
     ok: true,
     route: "answers",
