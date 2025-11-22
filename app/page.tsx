@@ -1009,14 +1009,23 @@ export default function Page() {
         setShowLibrary(true);
     }
 
-    // === New Project: single, in-app dialog only (no Windows prompt) ===
-    async function onNewProject() {
-        // Just open the overlay; the form inside will handle naming + chat setup.
+    // NEW PROJECT: opens the in-app “New Project” overlay dialog
+    function onNewProject() {
         setShowProject(true);
     }
 
+    // MORTGAGE CALC: opens the calculator overlay
     function onMortgageCalc() {
         setShowMortgageCalc(true);
+    }
+
+    // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
+    function onAskUnderwriting() {
+        const seed =
+            "Underwriting guideline question: Please include borrower income, debts, credit score, property type, occupancy, and target program (Fannie, Freddie, FHA, VA, DSCR).";
+
+        // Just pre-fill the composer – user can edit then hit Enter / Send.
+        setInput(seed);
     }
 
     function closeAllOverlays() {
@@ -1026,6 +1035,8 @@ export default function Page() {
         setShowProject(false);
         setShowMortgageCalc(false);
     }
+
+
 
     return (
         <>
@@ -1039,14 +1050,16 @@ export default function Page() {
                 onLibrary={onLibrary}
                 onNewProject={onNewProject}
                 onMortgageCalc={onMortgageCalc}
+                onAskUnderwriting={onAskUnderwriting}
                 activeId={activeId}
                 onSelectHistory={onSelectHistory}
                 isOpen={sidebarOpen}
                 onToggle={toggleSidebar}
-                onHistoryAction={handleHistoryAction}
                 onProjectAction={handleProjectAction} // NEW
                 onMoveChatToProject={handleMoveChatToProject} // NEW
             />
+
+
 
             {/* Main */}
             <section
