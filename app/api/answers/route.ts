@@ -433,16 +433,26 @@ async function handle(req: NextRequest, intentParam?: string) {
   // 3. Final enriched prompt for Grok
 
   // 3. MODULE ROUTING — CLEAN, SIMPLE, WORKING
-  type ModuleKey = "general" | "rate" | "refi" | "arm" | "buydown" | "jumbo";
+
+  type ModuleKey = "general" | "rate" | "refi" | "arm" | "buydown" | "jumbo" | "qualify";
 
   let module: ModuleKey = "general";
   const q = question.toLowerCase();
 
+  // NOTE: order matters – more specific / high-intent patterns go earlier
   if (/(current.*rate|today.*rate|30.*year|30 year fixed|jumbo|arm.*rate)/i.test(q)) {
     module = "rate";
-  } else if (/(refinance|refi|closing costs|breakeven|loan balance|current.*rate|remaining.*(year|term|month)|years? left)/i.test(q)) {
+  } else if (
+    /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(q)
+  ) {
     module = "refi";
-  } else if (/(arm|5\/1|7\/1|10\/1|adjustable|fixed vs arm)/i.test(q)) {
+  } else if (
+    /(how much.*qualify|qualify for|how much.*afford|afford.*home|income.*qualify|debt.*ratio|credit score.*qualify|pre.?approve)/i.test(
+      q,
+    )
+  ) {
+    module = "qualify";
+  } else if (/(arm\b|5\/1|7\/1|10\/1|adjustable|fixed vs arm)/i.test(q)) {
     module = "arm";
   } else if (/(points?|buy ?down|discount points?|buydown)/i.test(q)) {
     module = "buydown";
@@ -453,47 +463,78 @@ async function handle(req: NextRequest, intentParam?: string) {
   const modulePrompts: Record<ModuleKey, string> = {
     general: "",
 
-    rate: "You are Rate Oracle. Use only today’s daily rates (Bankrate, MND, Forbes). Never cite weekly FRED as current rate. Show exact range + spread vs 10Y Treasury.",
+    rate:
+      "You are Rate Oracle. Use only today’s daily retail rate trackers (for example Bankrate, Mortgage News Daily, Forbes or similar). " +
+      "Never present weekly FRED averages as today’s live quote. Always describe a realistic range (for example 6.25–6.45%) and show the spread vs the 10-year Treasury yield.",
 
-    refi: "You are Refi Lab — purely informational mortgage analyst.\n" +
-      "Your only goal is to give accurate, unbiased knowledge.\n" +
-      "Never sell, never persuade, never use hype words.\n" +
-      "Current 30-year fixed average: 6.3–6.5% (Nov 2025).\n" +
-      "If user’s rate is below 5.8%: state that refinancing today would increase payment.\n" +
-      "If user gives real numbers (rate, balance, term, income, debt, credit, closing costs):\n" +
-      "  • Use them exactly\n" +
-      "  • Compute precise P&I and breakeven\n" +
-      "  • Show factual scenarios and payment change\n" +
-      "If key numbers missing: ask once, clearly.\n" +
-      "Always remember prior conversation details.\n" +
-      "Tone: calm, factual, educational.",
+    refi:
+      "You are Refi Lab — purely informational mortgage analyst.\n" +
+      "Your only goal is to give accurate, unbiased knowledge. Never sell, never persuade, never use hype.\n" +
+      "If the user’s existing rate is clearly below current market (for example below about 5.8% when market is around 6.3–6.5%): say plainly that refinancing today is unlikely to reduce their payment.\n" +
+      "When the user provides real numbers (rate, balance, term, income, debts, credit score, closing costs):\n" +
+      "  • Use them exactly as given.\n" +
+      "  • Compute precise P&I using the standard amortization formula.\n" +
+      "  • Compute breakeven = closing costs ÷ monthly savings.\n" +
+      "  • Show 1–3 clear scenarios and the payment change.\n" +
+      "If key numbers are missing, ask once, clearly. If you use any made-up numbers, clearly label them as an “Example Scenario” so they are never confused with the borrower’s real data.\n" +
+      "Always remember prior conversation details. Tone: calm, factual, educational.",
 
-    arm: "You are ARM Deathmatch. Compare total interest over 10 years under 4 paths: soft landing, base, sticky inflation, recession. Flag risk if hold > fixed period.",
+    arm:
+      "You are ARM Deathmatch. Compare a fixed-rate loan versus an ARM over a 10-year horizon.\n" +
+      "Sketch four simple paths: soft landing, base case, sticky inflation, recession.\n" +
+      "Highlight payment and interest differences over 10 years and what happens when the fixed ARM period ends (for example after 5, 7, or 10 years).\n" +
+      "Flag clear risk if the expected hold period is longer than the fixed ARM period. Stay numeric and scenario-based.",
 
-    buydown: "You are Buydown Lab. If loan details missing → ask once. Otherwise show table: 1–3 points, monthly savings, breakeven month. 1 point = 0.25%.",
+    buydown:
+      "You are Buydown Lab. If loan details (loan amount, rate, points cost) are missing, ask once.\n" +
+      "If still unavailable, clearly label an Example Scenario (for example “Example Scenario: $300,000 loan at 6.50%”).\n" +
+      "Assume retail-standard pricing: 1 point ≈ 0.25% rate reduction unless context says otherwise.\n" +
+      "For 0–3 points, show a table with: points, rate, monthly P&I, points cost in dollars, monthly savings vs 0 points, and breakeven month (points cost ÷ monthly savings).\n" +
+      "Always state whether you used real borrower numbers or an Example Scenario.",
 
-    jumbo: "You are Jumbo Loan Expert. 2025 limit $805,250 ($1,209,750 high-cost). Rates +0.20–0.50% over conforming. Require 700+ credit, 20%+ down, 6–12 months reserves."
+    jumbo:
+      "You are Jumbo Loan Expert. Use current conforming loan limits as a guide (for example $805,250 baseline and $1,209,750 high-cost for 2025). " +
+      "Explain how jumbo pricing usually runs about 0.20–0.50% over conforming, with stricter requirements such as 700+ credit, 20%+ down, and 6–12 months of reserves. Focus on structure, eligibility, and risk — not sales.",
+
+    qualify:
+      "You are Qualification Lab — fast, accurate, and memory-aware.\n" +
+      "Assume the user has already provided income, debts, and sometimes credit score or target payment in this conversation.\n" +
+      "Use ONLY the numbers given in this conversation — do not invent missing values. If income or debts are missing, ask once.\n" +
+      "If you must illustrate with other numbers, clearly label them as an “Example Scenario”.\n" +
+      "Assume a current 30-year fixed rate around 6.25% unless the conversation gives a different live figure.\n" +
+      "Use standard front/back DTI guides (28/36 and 31/43) to compute max PITI.\n" +
+      "Show a clean table: max PITI, approximate max loan amount, and max home price at 20% down.\n" +
+      "No fluff. No re-asking for data that is already in the conversation. Tone: calm, educational, decisive.",
   };
 
-  const prefix = modulePrompts[module] ? modulePrompts[module] + "\n\n" : "";
+  const specialistPrefix = modulePrompts[module] ?? "";
 
   const grokPrompt = `
-${prefix}Date: ${today}
+${specialistPrefix}
+
+You are HomeRates.AI — a calm, data-first mortgage advisor focused on 2025–2026.
+Never sell. Never hype. Speak to a U.S. consumer in clear, direct language.
+
+Date: ${today}
 ${fredContext}
-Latest signals: ${tavilyContext}
-Conversation: ${conversationHistory || "First message"}
 
-Question: "${question}"
+Latest short-term signals (rate trackers, news, commentary):
+${tavilyContext}
 
-JSON output only:
+Conversation so far:
+${conversationHistory || "First message"}
+
+Current question:
+"${question}"
+
+Respond in valid JSON only, using this exact schema:
 {
-  "answer": "180–350 word markdown.",
-  "next_step": "1–2 exact actions",
-  "follow_up": "One sharp follow-up",
-  "confidence": "0.00–1.00 + 4-word reason"
+  "answer": "180–350 word markdown. Tables mandatory. Inline cite [source] for any named data (e.g., Bankrate).",
+  "next_step": "1–2 exact, concrete actions the borrower should take next.",
+  "follow_up": "One sharp follow-up question tailored to this scenario.",
+  "confidence": "0.00–1.00 numeric score plus a short reason, e.g. '0.87 – strong live rate data.'"
 }
 `.trim();
-
 
   let grokFinal: any = null;
 
@@ -555,7 +596,8 @@ JSON output only:
         clerk_user_id: userId,
         question,
         answer: grokFinal,
-        answer_summary: typeof grokFinal.answer === "string" ? grokFinal.answer.slice(0, 320) + "..." : "",
+        answer_summary:
+          typeof grokFinal.answer === "string" ? grokFinal.answer.slice(0, 320) + "..." : "",
         model: "grok-3",
         created_at: new Date().toISOString(),
       });
@@ -567,7 +609,6 @@ JSON output only:
   const finalMarkdown = grokFinal
     ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n\n${sourcesMd}${fredLine || ""}`
     : legacyAnswerMarkdown;
-
 
   return noStore({
     ok: true,
