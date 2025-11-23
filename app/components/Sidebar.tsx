@@ -126,7 +126,6 @@ export default function Sidebar({
     [moveDialogThreadId, onMoveChatToProject]
   );
 
-
   // ===== Project-aware chat filtering =====
   const [activeProjectId, setActiveProjectId] =
     React.useState<string | null>(null);
@@ -170,17 +169,19 @@ export default function Sidebar({
     }
   }, [moveDialogOpen, loadProjectThreadsMap]);
 
+  // IMPORTANT CHANGE: always select the project (no toggle back to "all chats")
   const handleSelectProject = React.useCallback((project: any) => {
     if (!project || !project.id) return;
-    setActiveProjectId((prev) => (prev === project.id ? null : project.id));
+    setActiveProjectId(project.id);
   }, []);
 
+  // IMPORTANT CHANGE: when a project is active and has no threads, show no chats (not all chats)
   const visibleHistory = React.useMemo(() => {
     if (!activeProjectId) return history;
 
     const threadIds = projectThreadsMap[activeProjectId];
     if (!threadIds || threadIds.length === 0) {
-      return history;
+      return [];
     }
 
     const allowed = new Set(threadIds);
@@ -538,8 +539,6 @@ export default function Sidebar({
         onClose={handleCloseMoveDialog}
         onMoved={handleMoveDialogMoved}
       />
-
     </>
   );
 }
-
