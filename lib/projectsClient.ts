@@ -73,17 +73,19 @@ export async function fetchProjects(): Promise<ProjectsApiResponse> {
 }
 
 /**
- * Create a new project for the current signed-in user.
+ * Create a new project *for an existing thread*.
  *
- * Expects a matching POST /api/projects implementation that:
- * - reads the Clerk user from auth
- * - inserts into public.projects
- * - returns { ok: true, project } on success
+ * This matches the server route, which expects:
+ *   { threadId: string, projectName: string }
+ *
+ * and returns { ok: true, ... } on success, or
+ * { ok: false, reason, stage, message, error } on failure.
  */
 export type CreateProjectResponse =
     | {
         ok: true;
-        project: Project;
+        // server may include more fields; we don't depend on them here
+        [key: string]: any;
     }
     | {
         ok: false;
@@ -93,14 +95,18 @@ export type CreateProjectResponse =
         error?: string;
     };
 
-export async function createProject(name: string): Promise<CreateProjectResponse> {
-    const trimmed = name.trim();
-    if (!trimmed) {
+export async function createProject(
+    threadId: string,
+    projectName: string
+): Promise<CreateProjectResponse> {
+    const trimmedName = projectName.trim();
+
+    if (!threadId || !trimmedName) {
         return {
             ok: false,
             reason: "validation",
             stage: "createProject_client",
-            message: "Project name is required.",
+            message: "threadId and projectName are required.",
         };
     }
 
@@ -110,7 +116,10 @@ export async function createProject(name: string): Promise<CreateProjectResponse
             Accept: "application/json",
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: trimmed }),
+        body: JSON.stringify({
+            threadId,
+            projectName: trimmedName,
+        }),
     });
 
     if (!res.ok) {

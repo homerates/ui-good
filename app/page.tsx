@@ -1015,32 +1015,38 @@ export default function Page() {
     }
 
     // NEW PROJECT:
-    // Instead of only opening an overlay, actually create a project via /api/projects.
-    // For now we use a simple prompt to capture the name, then call createProject(name).
+    // Create a project for the *current chat thread* using /api/projects,
+    // which expects { threadId, projectName }.
     function onNewProject() {
-        const raw = window.prompt('Name your project (for grouping related chats):');
-        const name = raw?.trim();
-        if (!name) {
+        if (!activeId) {
+            console.warn('[NewProject] No active chat thread to attach project to.');
+            // optional: alert('Open or select a chat before creating a project.');
             return;
         }
 
-        // Fire-and-forget async flow so the handler still has type () => void
+        const raw = window.prompt('Name your project (for grouping related chats):');
+        const projectName = raw?.trim();
+        if (!projectName) {
+            return;
+        }
+
+        // Fire-and-forget async flow so handler stays () => void
         void (async () => {
             try {
-                const res = await createProject(name);
+                const res = await createProject(activeId, projectName);
                 if (!res.ok) {
                     console.error('[NewProject] Error creating project:', res);
-                    // optional: alert('There was a problem creating the project');
                     return;
                 }
 
-                const project = res.project;
-                console.log('[NewProject] Created project:', project);
-
-                // NOTE:
-                // ProjectsPanel reads from /api/projects, so after creating
-                // you can click "Refresh" in the Projects section to pull it in.
-                // Later we can wire an auto-refresh signal if you want.
+                console.log(
+                    '[NewProject] Created project for thread:',
+                    activeId,
+                    'name:',
+                    projectName
+                );
+                // ProjectsPanel reads from /api/projects; click "Refresh" there
+                // to pull the new project + mapping into the sidebar.
             } catch (err) {
                 console.error('[NewProject] Unexpected error:', err);
             }
@@ -1091,6 +1097,7 @@ export default function Page() {
                 onProjectAction={handleProjectAction}
                 onMoveChatToProject={handleMoveChatToProject}
             />
+
 
             {/* Main */}
             <section
