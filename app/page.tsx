@@ -15,6 +15,7 @@ import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
 import './chat/styles.css';
 import GrokCard from "@/components/GrokCard";
 import GrokAnswerBlock from '@/components/AnswerBlock';
+import { createProject } from '../lib/projectsClient';
 
 
 /* =========================
@@ -493,6 +494,10 @@ export default function Page() {
     const [showMortgageCalc, setShowMortgageCalc] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [projectName, setProjectName] = useState('');
+
+    const [newProjectName, setNewProjectName] = React.useState('');
+    const [isCreatingProject, setIsCreatingProject] = React.useState(false);
+
 
     // restore
     useEffect(() => {
@@ -1009,9 +1014,37 @@ export default function Page() {
         setShowLibrary(true);
     }
 
-    // NEW PROJECT: opens the in-app “New Project” overlay dialog
+    // NEW PROJECT:
+    // Instead of only opening an overlay, actually create a project via /api/projects.
+    // For now we use a simple prompt to capture the name, then call createProject(name).
     function onNewProject() {
-        setShowProject(true);
+        const raw = window.prompt('Name your project (for grouping related chats):');
+        const name = raw?.trim();
+        if (!name) {
+            return;
+        }
+
+        // Fire-and-forget async flow so the handler still has type () => void
+        void (async () => {
+            try {
+                const res = await createProject(name);
+                if (!res.ok) {
+                    console.error('[NewProject] Error creating project:', res);
+                    // optional: alert('There was a problem creating the project');
+                    return;
+                }
+
+                const project = res.project;
+                console.log('[NewProject] Created project:', project);
+
+                // NOTE:
+                // ProjectsPanel reads from /api/projects, so after creating
+                // you can click "Refresh" in the Projects section to pull it in.
+                // Later we can wire an auto-refresh signal if you want.
+            } catch (err) {
+                console.error('[NewProject] Unexpected error:', err);
+            }
+        })();
     }
 
     // MORTGAGE CALC: opens the calculator overlay
@@ -1022,7 +1055,7 @@ export default function Page() {
     // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
     function onAskUnderwriting() {
         const seed =
-            "Underwriting guideline question: Please include borrower income, debts, credit score, property type, occupancy, and target program (Fannie, Freddie, FHA, VA, DSCR).";
+            'Underwriting guideline question: Please include borrower income, debts, credit score, property type, occupancy, and target program (Fannie, Freddie, FHA, VA, DSCR).';
 
         // Just pre-fill the composer – user can edit then hit Enter / Send.
         setInput(seed);
@@ -1035,8 +1068,6 @@ export default function Page() {
         setShowProject(false);
         setShowMortgageCalc(false);
     }
-
-
 
     return (
         <>
@@ -1060,9 +1091,6 @@ export default function Page() {
                 onProjectAction={handleProjectAction}
                 onMoveChatToProject={handleMoveChatToProject}
             />
-
-
-
 
             {/* Main */}
             <section
