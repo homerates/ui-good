@@ -15,7 +15,12 @@ import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
 import './chat/styles.css';
 import GrokCard from "@/components/GrokCard";
 import GrokAnswerBlock from '@/components/AnswerBlock';
-import { createProject } from '../lib/projectsClient';
+import {
+    createProject,
+    renameProject,
+    deleteProject,
+} from '../lib/projectsClient';
+
 
 
 /* =========================
@@ -620,16 +625,65 @@ export default function Page() {
     }
 
     const handleProjectAction = React.useCallback(
-        (action: 'rename' | 'delete', project: any) => {
-            // Sidebar project actions reach here.
-            // Next step: replace this with Supabase rename/delete.
-            console.log('[Project action]', action, {
-                id: project?.id,
-                name: project?.name,
-            });
+        async (action: 'rename' | 'delete', project: any) => {
+            if (!project || !project.id) {
+                console.warn('[ProjectAction] Missing project or id:', project);
+                return;
+            }
+
+            if (action === 'rename') {
+                const raw = window.prompt('Rename project:', project.name || '');
+                const newName = raw?.trim();
+                if (!newName || newName === project.name) {
+                    return;
+                }
+
+                try {
+                    const res = await renameProject(project.id, newName);
+                    if (!res.ok) {
+                        console.error('[ProjectAction] Rename failed:', res);
+                        // later: show toast/UI message if you want
+                        return;
+                    }
+
+                    console.log(
+                        '[ProjectAction] Renamed project:',
+                        project.id,
+                        '->',
+                        newName
+                    );
+                    // ProjectsPanel reads from /api/projects via fetchProjects().
+                    // Click "Refresh" in the Projects list to pull updated names.
+                } catch (err) {
+                    console.error('[ProjectAction] Rename error:', err);
+                }
+
+                return;
+            }
+
+            if (action === 'delete') {
+                const confirmed = window.confirm(
+                    `Delete project "${project.name}" and its chat mappings?\n\nChats themselves will remain in the main list.`
+                );
+                if (!confirmed) return;
+
+                try {
+                    const res = await deleteProject(project.id);
+                    if (!res.ok) {
+                        console.error('[ProjectAction] Delete failed:', res);
+                        return;
+                    }
+
+                    console.log('[ProjectAction] Deleted project:', project.id);
+                    // Same as rename: use "Refresh" in Projects to update the list.
+                } catch (err) {
+                    console.error('[ProjectAction] Delete error:', err);
+                }
+            }
         },
         []
     );
+
 
     const handleMoveChatToProject = React.useCallback(
         async (threadId: string, projectId: string) => {
@@ -1075,6 +1129,8 @@ export default function Page() {
         setShowMortgageCalc(false);
     }
 
+
+
     return (
         <>
             {/* Sidebar */}
@@ -1097,6 +1153,7 @@ export default function Page() {
                 onProjectAction={handleProjectAction}
                 onMoveChatToProject={handleMoveChatToProject}
             />
+
 
 
             {/* Main */}

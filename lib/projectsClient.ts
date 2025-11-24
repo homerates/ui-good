@@ -151,3 +151,131 @@ export async function createProject(
         };
     }
 }
+
+/** Generic shape for rename/delete responses */
+export type ProjectActionResponse =
+    | {
+        ok: true;
+        [key: string]: any;
+    }
+    | {
+        ok: false;
+        reason?: string;
+        stage?: string;
+        message?: string;
+        error?: string;
+    };
+
+/**
+ * Rename an existing project by id.
+ *
+ * Expects a REST-style route:
+ *   PATCH /api/projects/:id  with  { name: string }
+ */
+export async function renameProject(
+    projectId: string,
+    newName: string
+): Promise<ProjectActionResponse> {
+    const trimmed = newName.trim();
+    if (!projectId || !trimmed) {
+        return {
+            ok: false,
+            reason: "validation",
+            stage: "renameProject_client",
+            message: "projectId and name are required.",
+        };
+    }
+
+    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+        method: "PATCH",
+        headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: trimmed }),
+    });
+
+    if (!res.ok) {
+        let text: string | undefined;
+        try {
+            text = await res.text();
+        } catch {
+            // ignore
+        }
+
+        return {
+            ok: false,
+            reason: "http_error",
+            stage: "renameProject_http",
+            message: `HTTP ${res.status}`,
+            error: text,
+        };
+    }
+
+    try {
+        const json = (await res.json()) as ProjectActionResponse;
+        return json;
+    } catch (err) {
+        return {
+            ok: false,
+            reason: "invalid_json",
+            stage: "renameProject_parse",
+            message: err instanceof Error ? err.message : String(err),
+        };
+    }
+}
+
+/**
+ * Delete an existing project by id.
+ *
+ * Expects a REST-style route:
+ *   DELETE /api/projects/:id
+ */
+export async function deleteProject(
+    projectId: string
+): Promise<ProjectActionResponse> {
+    if (!projectId) {
+        return {
+            ok: false,
+            reason: "validation",
+            stage: "deleteProject_client",
+            message: "projectId is required.",
+        };
+    }
+
+    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+        method: "DELETE",
+        headers: {
+            Accept: "application/json",
+        },
+    });
+
+    if (!res.ok) {
+        let text: string | undefined;
+        try {
+            text = await res.text();
+        } catch {
+            // ignore
+        }
+
+        return {
+            ok: false,
+            reason: "http_error",
+            stage: "deleteProject_http",
+            message: `HTTP ${res.status}`,
+            error: text,
+        };
+    }
+
+    try {
+        const json = (await res.json()) as ProjectActionResponse;
+        return json;
+    } catch (err) {
+        return {
+            ok: false,
+            reason: "invalid_json",
+            stage: "deleteProject_parse",
+            message: err instanceof Error ? err.message : String(err),
+        };
+    }
+}
