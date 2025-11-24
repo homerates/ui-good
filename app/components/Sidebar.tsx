@@ -169,13 +169,14 @@ export default function Sidebar({
     }
   }, [moveDialogOpen, loadProjectThreadsMap]);
 
-  // IMPORTANT CHANGE: always select the project (no toggle back to "all chats")
+  // CURRENT BEHAVIOR: click project = select (no toggle off yet)
   const handleSelectProject = React.useCallback((project: any) => {
     if (!project || !project.id) return;
     setActiveProjectId(project.id);
   }, []);
 
-  // IMPORTANT CHANGE: when a project is active and has no threads, show no chats (not all chats)
+  // When a project is active and has no mapped threads, show no chats (project-level empty state).
+  // When no project is active, show all history.
   const visibleHistory = React.useMemo(() => {
     if (!activeProjectId) return history;
 
@@ -240,8 +241,12 @@ export default function Sidebar({
         <div style={{ display: 'grid', gap: 10, padding: '8px 12px' }}>
           <button
             className="btn primary"
-            onClick={onNewChat}
             type="button"
+            onClick={() => {
+              // IMPORTANT: clear project filter so new chat appears in CHATS list
+              setActiveProjectId(null);
+              onNewChat();
+            }}
           >
             New chat
           </button>
