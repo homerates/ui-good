@@ -334,8 +334,10 @@ export default function Sidebar({
           <ProjectsPanel
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
+            onProjectAction={onProjectAction}
           />
         </div>
+
 
         {/* Threads / Chats */}
         <div style={{ padding: '8px 12px' }}>
