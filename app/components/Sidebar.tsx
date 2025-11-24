@@ -49,6 +49,9 @@ export type SidebarProps = {
   // Optional underwriting seed handler from page.tsx
   onAskUnderwriting?: () => void;
 
+  // NEW: optional About HomeRates handler
+  onAboutHomeRates?: () => void;
+
   // Optional intelligence layer hook
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
 
@@ -91,10 +94,12 @@ export default function Sidebar({
   onNewProject,
   onMortgageCalc,
   onAskUnderwriting,
+  onAboutHomeRates,
   onKnowledgeTool,
-  onProjectAction,
-  onMoveChatToProject,
+  onProjectAction,      // not used yet, but accepted so page.tsx compiles
+  onMoveChatToProject,  // used via MoveToProjectDialog internally if you want later
 }: SidebarProps) {
+
   // ===== Knowledge tools wiring =====
   const handleKnowledgeClick = (tool: KnowledgeToolId) => {
     if (onKnowledgeTool) onKnowledgeTool(tool);
@@ -298,6 +303,17 @@ export default function Sidebar({
               Ask Underwriting
             </button>
           )}
+          {/* About HomeRates.ai – only shows if handler is provided from page.tsx */}
+          {onAboutHomeRates && (
+            <button
+              className="btn"
+              onClick={onAboutHomeRates}
+              type="button"
+            >
+              About HomeRates.ai
+            </button>
+          )}
+
         </div>
 
         {/* Knowledge tools section (Mortgage Solutions only for now) */}

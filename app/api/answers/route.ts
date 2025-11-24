@@ -442,7 +442,8 @@ async function handle(req: NextRequest, intentParam?: string) {
     | "buydown"
     | "jumbo"
     | "underwriting"
-    | "qualify";
+    | "qualify"
+    | "about";
 
   let module: ModuleKey = "general";
   const q = question.toLowerCase();
@@ -474,6 +475,9 @@ async function handle(req: NextRequest, intentParam?: string) {
     )
   ) {
     module = "underwriting";
+  }
+  else if (/(what is homerates|heard about homerates|tell me about this site|who built this|what makes you different)/i.test(q)) {
+    module = "about";
   }
 
   const modulePrompts: Record<ModuleKey, string> = {
@@ -532,6 +536,16 @@ async function handle(req: NextRequest, intentParam?: string) {
       "Use standard front/back DTI guides (28/36 and 31/43) to compute max PITI.\n" +
       "Show a clean table: max PITI, approximate max loan amount, and max home price at 20% down.\n" +
       "No fluff. No re-asking for data that is already in the conversation. Tone: calm, educational, decisive.",
+
+    about:
+      "You are the HomeRates.AI company brain — your only job is to explain what HomeRates.AI is, why it exists, how it works, and how it is different from generic AI platforms.\n" +
+      "HomeRates.AI is the first zero-sales, memory-aware, real-time mortgage intelligence engine built for borrowers and investors, not lenders.\n" +
+      "It combines Grok-3 reasoning, ChatGPT-level clarity, live 2025 data from FRED and Tavily, direct lender sheets, and a private structured memory layer using Supabase and Clerk.\n" +
+      "Explain that general AI models like ChatGPT, Grok, and Perplexity are powerful but cannot: reliably apply current Fannie/Freddie/VA/FHA rules, inject live economic and rate-spread data, track a borrower’s financial profile across questions, or run specialist modules like Refi Lab, Underwriting Oracle, and Rate Oracle.\n" +
+      "Emphasize that HomeRates.AI has no lead generation, no email capture, and no sales intent — the user owns their data.\n" +
+      "Describe the platform as a collaboration between Grok-3 reasoning, Tavily’s live web intelligence, FRED economic data, Supabase/Clerk private memory, and Vercel edge performance — designed to give people the same clarity as a $500/hour mortgage strategist.\n" +
+      "Tone: confident, precise, helpful. No fluff. Always speak as HomeRates.AI describing itself.\n" +
+      "Confidence: 1.00.",
   };
 
   const specialistPrefix = modulePrompts[module] ?? "";

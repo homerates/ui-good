@@ -1120,6 +1120,12 @@ export default function Page() {
         // Just pre-fill the composer – user can edit then hit Enter / Send.
         setInput(seed);
     }
+    // ABOUT HOMERATES: seeds the composer to trigger the "about" module
+    function onAboutHomeRates() {
+        const seed =
+            'What is HomeRates.ai and what makes you different from other mortgage AIs and traditional lenders?';
+        setInput(seed);
+    }
 
     function closeAllOverlays() {
         setShowSearch(false);
@@ -1150,9 +1156,11 @@ export default function Page() {
                 onNewProject={onNewProject}
                 onMortgageCalc={onMortgageCalc}
                 onAskUnderwriting={onAskUnderwriting}
+                onAboutHomeRates={onAboutHomeRates}
                 onProjectAction={handleProjectAction}
                 onMoveChatToProject={handleMoveChatToProject}
             />
+
 
 
 
