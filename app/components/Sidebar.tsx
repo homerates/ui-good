@@ -53,7 +53,10 @@ export type SidebarProps = {
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
 
   // Optional hooks for project actions
-  onProjectAction?: (action: 'rename' | 'delete', project: any) => void | Promise<void>;
+  onProjectAction?: (
+    action: 'rename' | 'delete',
+    project: any
+  ) => void | Promise<void>;
   onMoveChatToProject?: (threadId: string, projectId: string) => void | Promise<void>;
 };
 
@@ -89,8 +92,8 @@ export default function Sidebar({
   onMortgageCalc,
   onAskUnderwriting,
   onKnowledgeTool,
-  onProjectAction,      // not used yet, but accepted so page.tsx compiles
-  onMoveChatToProject,  // used via MoveToProjectDialog internally if you want later
+  onProjectAction,
+  onMoveChatToProject,
 }: SidebarProps) {
   // ===== Knowledge tools wiring =====
   const handleKnowledgeClick = (tool: KnowledgeToolId) => {
@@ -102,7 +105,6 @@ export default function Sidebar({
   const [moveDialogThreadId, setMoveDialogThreadId] =
     React.useState<string | null>(null);
 
-  // ===== Move-to-project dialog state + handlers =====
   const handleMoveToProject = React.useCallback(
     (threadId: string) => {
       setMoveDialogThreadId(threadId);
@@ -130,9 +132,9 @@ export default function Sidebar({
   const [activeProjectId, setActiveProjectId] =
     React.useState<string | null>(null);
 
-  const [projectThreadsMap, setProjectThreadsMap] = React.useState<
-    Record<string, string[]>
-  >({});
+  const [projectThreadsMap, setProjectThreadsMap] =
+    React.useState<Record<string, string[]>>({});
+
 
   const loadProjectThreadsMap = React.useCallback(async () => {
     try {
@@ -169,20 +171,33 @@ export default function Sidebar({
     }
   }, [moveDialogOpen, loadProjectThreadsMap]);
 
-  // CURRENT BEHAVIOR: click project = select (no toggle off yet)
   const handleSelectProject = React.useCallback((project: any) => {
     if (!project || !project.id) return;
-    setActiveProjectId(project.id);
+    setActiveProjectId((prev) => (prev === project.id ? null : project.id));
   }, []);
 
-  // When a project is active and has no mapped threads, show no chats (project-level empty state).
-  // When no project is active, show all history.
+  // NEW: wrapper to forward project actions to page.tsx
+  const handleProjectPanelAction = React.useCallback(
+    (action: 'rename' | 'delete', project: any) => {
+      if (onProjectAction) {
+        onProjectAction(action, project);
+      } else {
+        console.log('[Sidebar] project action (no handler wired):', {
+          action,
+          projectId: project?.id,
+          name: project?.name,
+        });
+      }
+    },
+    [onProjectAction]
+  );
+
   const visibleHistory = React.useMemo(() => {
     if (!activeProjectId) return history;
 
     const threadIds = projectThreadsMap[activeProjectId];
     if (!threadIds || threadIds.length === 0) {
-      return [];
+      return history;
     }
 
     const allowed = new Set(threadIds);
@@ -241,12 +256,8 @@ export default function Sidebar({
         <div style={{ display: 'grid', gap: 10, padding: '8px 12px' }}>
           <button
             className="btn primary"
+            onClick={onNewChat}
             type="button"
-            onClick={() => {
-              // IMPORTANT: clear project filter so new chat appears in CHATS list
-              setActiveProjectId(null);
-              onNewChat();
-            }}
           >
             New chat
           </button>
@@ -334,10 +345,9 @@ export default function Sidebar({
           <ProjectsPanel
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
-            onProjectAction={onProjectAction}
+            onProjectAction={handleProjectPanelAction}
           />
         </div>
-
 
         {/* Threads / Chats */}
         <div style={{ padding: '8px 12px' }}>
