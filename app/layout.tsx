@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="footer-meta">
             HomeRates.ai — Powered by OpenAI • {ts} • Version {shortSha}
             <div className="mt-1 text-zinc-500/80">
-              Educational info only • Not personalized advice • Consult an NMLS-licensed loan consultant • Rates as of Nov 25, 2025
+              Educational info only • Not personalized advice • Consult an NMLS-licensed loan consultant
             </div>
           </div>
 
