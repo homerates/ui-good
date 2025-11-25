@@ -33,8 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* Footer meta stays separate and non-interactive */}
           <div className="footer-meta">
-            HomeRates.Ai — Powered by OpenAI • {ts} • Version {shortSha}
+            HomeRates.ai — Powered by OpenAI • {ts} • Version {shortSha}
+            <div className="mt-1 text-zinc-500/80">
+              Educational info only • Not personalized advice • Consult an NMLS-licensed loan consultant • Rates as of Nov 25, 2025
+            </div>
           </div>
+
 
           {/* Hard override: fix composer layout + keep it off the sidebar */}
           <style
