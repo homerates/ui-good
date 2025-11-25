@@ -258,6 +258,13 @@ async function handle(req: NextRequest, intentParam?: string) {
     userId?: string;
   };
 
+  // --- Timing: start ---
+  const t0 = Date.now();
+  const mark = (label: string) => {
+    console.log(`[TIMER] ${label}:`, Date.now() - t0, "ms");
+  };
+  mark("start");
+
   const generatedAt = new Date().toISOString();
   const path = "web";
   const tag = "answers-v2";
@@ -323,6 +330,8 @@ async function handle(req: NextRequest, intentParam?: string) {
     );
   }
 
+  mark("after Tavily");
+
   const usedTavily = tav.ok && (tav.answer !== null || tav.results.length > 0);
 
   // 2) Optional FRED snapshot for rate questions
@@ -335,11 +344,11 @@ async function handle(req: NextRequest, intentParam?: string) {
     wantFred &&
     (fred.tenYearYield !== null || fred.mort30Avg !== null);
 
+  mark("after FRED");
+
   // 3) Build a baseline answer (legacy stack)
   let base =
     tav.answer ??
-
-
     (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ??
       "");
 
@@ -388,6 +397,8 @@ async function handle(req: NextRequest, intentParam?: string) {
   const legacyAnswerMarkdown = answerMarkdown;
   const legacyAnswer = intro || answerMarkdown;
 
+  mark("after baseline answer");
+
   // ===== GROK BRAIN v3.1 – FINAL COMPATIBLE VERSION =====
   console.log("GROK v3.1: Starting for user:", userId);
 
@@ -418,6 +429,8 @@ async function handle(req: NextRequest, intentParam?: string) {
       console.warn("GROK v3.1: history fetch failed", err.message);
     }
   }
+
+  mark("after history fetch");
 
   const today = new Date().toISOString().slice(0, 10);
   const fredContext = usedFRED
@@ -475,9 +488,11 @@ async function handle(req: NextRequest, intentParam?: string) {
     )
   ) {
     module = "underwriting";
-  }
-  else if (
-    /(what is homerates|heard about homerates|tell me about this site|what makes you different|who is the founder|who built homerates|who created homerates|who made homerates|founder of homerates)/i.test(q)) {
+  } else if (
+    /(what is homerates|heard about homerates|tell me about this site|what makes you different|who is the founder|who built homerates|who created homerates|who made homerates|founder of homerates)/i.test(
+      q
+    )
+  ) {
     module = "about";
   }
 
@@ -555,12 +570,10 @@ async function handle(req: NextRequest, intentParam?: string) {
       "   • Explain that HomeRates.ai is his living, breathing example of how AI can transform the traditional mortgage experience when it is designed for clarity and collaboration instead of lead generation.\n" +
       "   • Note that he built it by deeply collaborating with AI — using modern reasoning models, live data, and a private memory layer — and continues to iterate in the same way.\n" +
       "   • Close by pointing back to the product, with a next step like: 'If you want to see what came out of that journey, you can test-drive HomeRates.ai on your own scenario.'\n\n" +
-      'IMPORTANT RULES:\n' +
+      "IMPORTANT RULES:\n" +
       "• Stay focused on HomeRates.ai (product, mission, founder story) — do NOT pivot into generic mortgage topics unless the user explicitly changes the subject.\n" +
       "• Do NOT try to sell or hype; speak calmly, clearly, and precisely, like a product expert who knows the system inside-out.\n" +
       "• Any follow-up questions you suggest should be about HomeRates.ai itself (features, how to test-drive it, how professionals can use it), not generic mortgage education.\n",
-
-
   };
 
   const specialistPrefix = modulePrompts[module] ?? "";
@@ -593,6 +606,8 @@ Respond in valid JSON only, using this exact schema:
 `.trim();
 
   let grokFinal: any = null;
+
+  mark("before Grok call");
 
   if (process.env.XAI_API_KEY && question.trim()) {
     try {
@@ -653,6 +668,8 @@ Respond in valid JSON only, using this exact schema:
     }
   }
 
+  mark("after Grok call");
+
   // Save memory — Supabase v2+ safe
   if (grokFinal && userId && supabase) {
     try {
@@ -672,9 +689,13 @@ Respond in valid JSON only, using this exact schema:
     }
   }
 
+  mark("after Supabase save");
+
   const finalMarkdown = grokFinal
     ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n\n${sourcesMd}${fredLine || ""}`
     : legacyAnswerMarkdown;
+
+  mark("end (before return)");
 
   // Normal non-streaming JSON response (existing behavior)
   return noStore({
