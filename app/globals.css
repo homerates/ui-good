@@ -892,3 +892,14 @@ body {
   padding-bottom: 90px;
   /* adjust 80–110px depending on your pill height */
 }
+
+/* Prevent iOS Safari from zooming on inputs/buttons (minimum 16px font) */
+@media (max-width: 768px) {
+
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px !important;
+  }
+}
