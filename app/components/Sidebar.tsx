@@ -1,5 +1,6 @@
 // ==== REPLACE ENTIRE FILE: app/components/Sidebar.tsx ====
 // Sidebar: Clerk-ready, projects-aware, with Ask Underwriting pill
+// Now with global mobile auto-close for sidebar actions
 
 'use client';
 
@@ -13,6 +14,8 @@ import {
 
 import ProjectsPanel from './ProjectsPanel';
 import MoveToProjectDialog from './MoveToProjectDialog';
+
+// ===== Types =====
 
 export type HistoryItem = {
   id: string;
@@ -49,7 +52,7 @@ export type SidebarProps = {
   // Optional underwriting seed handler from page.tsx
   onAskUnderwriting?: () => void;
 
-  // NEW: optional About HomeRates handler
+  // Optional About HomeRates handler
   onAboutHomeRates?: () => void;
 
   // Optional intelligence layer hook
@@ -60,8 +63,13 @@ export type SidebarProps = {
     action: 'rename' | 'delete',
     project: any
   ) => void | Promise<void>;
-  onMoveChatToProject?: (threadId: string, projectId: string) => void | Promise<void>;
+  onMoveChatToProject?: (
+    threadId: string,
+    projectId: string
+  ) => void | Promise<void>;
 };
+
+// ===== Helpers =====
 
 // Small helper: keep chat titles short
 function truncateChatTitle(raw: string): string {
@@ -78,45 +86,116 @@ type ThreadsMapResponse = {
   map?: Record<string, string[]>;
 };
 
-export default function Sidebar({
-  id,
-  history,
-  activeId,
-  isOpen,
-  onToggle,
-  onSelectHistory,
-  onHistoryAction,
-  onNewChat,
-  onSettings,
-  onShare, // not used in UI (kept for parity)
-  onSearch,
-  onLibrary,
-  onNewProject,
-  onMortgageCalc,
-  onAskUnderwriting,
-  onAboutHomeRates,
-  onKnowledgeTool,
-  onProjectAction,      // not used yet, but accepted so page.tsx compiles
-  onMoveChatToProject,  // used via MoveToProjectDialog internally if you want later
-}: SidebarProps) {
+// ===== Component =====
 
-  // ===== Knowledge tools wiring =====
-  const handleKnowledgeClick = (tool: KnowledgeToolId) => {
-    if (onKnowledgeTool) onKnowledgeTool(tool);
-  };
+export default function Sidebar(props: SidebarProps) {
+  const {
+    id,
+    history,
+    activeId,
+    isOpen,
+    onToggle,
+
+    // Callbacks from page.tsx (raw versions)
+    onSelectHistory: rawOnSelectHistory,
+    onHistoryAction,
+    onNewChat: rawOnNewChat,
+    onSettings: rawOnSettings,
+    onShare, // not used in UI (kept for parity)
+    onSearch: rawOnSearch,
+    onLibrary: rawOnLibrary,
+    onNewProject: rawOnNewProject,
+    onMortgageCalc: rawOnMortgageCalc,
+    onAskUnderwriting: rawOnAskUnderwriting,
+    onAboutHomeRates: rawOnAboutHomeRates,
+    onKnowledgeTool: rawOnKnowledgeTool,
+    onProjectAction,
+    onMoveChatToProject,
+  } = props;
+
+  // ===== Global mobile auto-close wrapper =====
+  //
+  // Any sidebar action that uses this wrapper will:
+  // 1) Run its original callback.
+  // 2) If on a small screen, call onToggle() to close the drawer.
+  //
+  // Desktop behavior is unchanged.
+
+  const autoWrap = React.useCallback(
+    (fn?: (...args: any[]) => void) =>
+      (...args: any[]) => {
+        // Run the original action first
+        fn?.(...args);
+
+        // Auto-close on mobile only
+        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+          onToggle();
+        }
+      },
+    [onToggle]
+  );
+
+  // Wrapped versions of primary actions used in the JSX
+  const onNewChat = autoWrap(rawOnNewChat);
+  const onSearch = autoWrap(rawOnSearch);
+  const onLibrary = autoWrap(rawOnLibrary);
+  const onNewProject = autoWrap(rawOnNewProject);
+  const onMortgageCalc = autoWrap(rawOnMortgageCalc);
+  const onSettings = autoWrap(rawOnSettings);
+  const onAboutHomeRates = rawOnAboutHomeRates
+    ? autoWrap(rawOnAboutHomeRates)
+    : undefined;
+
+  const onKnowledgeTool = rawOnKnowledgeTool;
+
+  // Chat selection: also auto-close on mobile so answers are visible
+  const onSelectHistory = React.useCallback(
+    (chatId: string) => {
+      rawOnSelectHistory(chatId);
+
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        onToggle();
+      }
+    },
+    [rawOnSelectHistory, onToggle]
+  );
+
+  // Ask Underwriting click handler
+  const handleAskUnderwritingClick = React.useCallback(() => {
+    if (rawOnAskUnderwriting) {
+      rawOnAskUnderwriting();
+    } else if (onKnowledgeTool) {
+      onKnowledgeTool('ask-underwriting');
+    }
+
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      onToggle();
+    }
+  }, [rawOnAskUnderwriting, onKnowledgeTool, onToggle]);
+
+  // Mortgage Solutions knowledge tool click
+  const handleKnowledgeClick = React.useCallback(
+    (tool: KnowledgeToolId) => {
+      if (onKnowledgeTool) {
+        onKnowledgeTool(tool);
+      }
+
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        onToggle();
+      }
+    },
+    [onKnowledgeTool, onToggle]
+  );
 
   // ===== Move-to-project dialog state =====
   const [moveDialogOpen, setMoveDialogOpen] = React.useState(false);
   const [moveDialogThreadId, setMoveDialogThreadId] =
     React.useState<string | null>(null);
 
-  const handleMoveToProject = React.useCallback(
-    (threadId: string) => {
-      setMoveDialogThreadId(threadId);
-      setMoveDialogOpen(true);
-    },
-    []
-  );
+  const handleMoveToProject = React.useCallback((threadId: string) => {
+    setMoveDialogThreadId(threadId);
+    setMoveDialogOpen(true);
+  }, []);
 
   const handleCloseMoveDialog = React.useCallback(() => {
     setMoveDialogOpen(false);
@@ -140,7 +219,6 @@ export default function Sidebar({
   const [projectThreadsMap, setProjectThreadsMap] =
     React.useState<Record<string, string[]>>({});
 
-
   const loadProjectThreadsMap = React.useCallback(async () => {
     try {
       const res = await fetch('/api/projects/threads-map', {
@@ -149,7 +227,7 @@ export default function Sidebar({
       if (!res.ok) {
         console.warn(
           '[Sidebar] /api/projects/threads-map responded with status',
-          res.status,
+          res.status
         );
         return;
       }
@@ -161,7 +239,7 @@ export default function Sidebar({
     } catch (err) {
       console.error(
         '[Sidebar] Failed to load project thread map from /api/projects/threads-map',
-        err,
+        err
       );
     }
   }, []);
@@ -176,12 +254,21 @@ export default function Sidebar({
     }
   }, [moveDialogOpen, loadProjectThreadsMap]);
 
-  const handleSelectProject = React.useCallback((project: any) => {
-    if (!project || !project.id) return;
-    setActiveProjectId((prev) => (prev === project.id ? null : project.id));
-  }, []);
+  const handleSelectProject = React.useCallback(
+    (project: any) => {
+      if (!project || !project.id) return;
 
-  // NEW: wrapper to forward project actions to page.tsx
+      setActiveProjectId((prev) => (prev === project.id ? null : project.id));
+
+      // When a project is selected on mobile, also close the drawer
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        onToggle();
+      }
+    },
+    [onToggle]
+  );
+
+  // Forward project actions to page.tsx if provided
   const handleProjectPanelAction = React.useCallback(
     (action: 'rename' | 'delete', project: any) => {
       if (onProjectAction) {
@@ -211,9 +298,7 @@ export default function Sidebar({
 
   // ===== Hover + context menu state for chats =====
   const [hoverChatId, setHoverChatId] = React.useState<string | null>(null);
-  const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(
-    null,
-  );
+  const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(null);
 
   const closeMenu = React.useCallback(() => setMenuOpenForId(null), []);
 
@@ -222,7 +307,7 @@ export default function Sidebar({
       closeMenu();
       onHistoryAction('delete', id);
     },
-    [closeMenu, onHistoryAction],
+    [closeMenu, onHistoryAction]
   );
 
   // ===== Render =====
@@ -259,11 +344,7 @@ export default function Sidebar({
 
         {/* Primary actions */}
         <div style={{ display: 'grid', gap: 10, padding: '8px 12px' }}>
-          <button
-            className="btn primary"
-            onClick={onNewChat}
-            type="button"
-          >
+          <button className="btn primary" onClick={onNewChat} type="button">
             New chat
           </button>
           <button className="btn" onClick={onSearch} type="button">
@@ -272,48 +353,30 @@ export default function Sidebar({
           <button className="btn" onClick={onLibrary} type="button">
             Library
           </button>
-          <button
-            className="btn"
-            onClick={onNewProject}
-            type="button"
-          >
+          <button className="btn" onClick={onNewProject} type="button">
             New Project +
           </button>
-          <button
-            className="btn"
-            onClick={onMortgageCalc}
-            type="button"
-          >
+          <button className="btn" onClick={onMortgageCalc} type="button">
             Mortgage Calculator
           </button>
 
           {/* Ask Underwriting pill – uses onAskUnderwriting if provided, otherwise onKnowledgeTool */}
-          {(onAskUnderwriting || onKnowledgeTool) && (
+          {(rawOnAskUnderwriting || onKnowledgeTool) && (
             <button
               className="btn"
-              onClick={() => {
-                if (onAskUnderwriting) {
-                  onAskUnderwriting();
-                } else if (onKnowledgeTool) {
-                  onKnowledgeTool('ask-underwriting');
-                }
-              }}
+              onClick={handleAskUnderwritingClick}
               type="button"
             >
               Ask Underwriting
             </button>
           )}
+
           {/* About HomeRates.ai – only shows if handler is provided from page.tsx */}
           {onAboutHomeRates && (
-            <button
-              className="btn"
-              onClick={onAboutHomeRates}
-              type="button"
-            >
+            <button className="btn" onClick={onAboutHomeRates} type="button">
               About HomeRates.ai
             </button>
           )}
-
         </div>
 
         {/* Knowledge tools section (Mortgage Solutions only for now) */}
@@ -406,9 +469,7 @@ export default function Sidebar({
                     }}
                     onMouseEnter={() => setHoverChatId(h.id)}
                     onMouseLeave={() => {
-                      setHoverChatId((prev) =>
-                        prev === h.id ? null : prev,
-                      );
+                      setHoverChatId((prev) => (prev === h.id ? null : prev));
                     }}
                   >
                     <button
@@ -443,7 +504,7 @@ export default function Sidebar({
                       title="Chat options"
                       onClick={() =>
                         setMenuOpenForId((prev) =>
-                          prev === h.id ? null : h.id,
+                          prev === h.id ? null : h.id
                         )
                       }
                       style={{
@@ -523,11 +584,7 @@ export default function Sidebar({
         {/* Footer: settings + Clerk */}
         <div style={{ marginTop: 'auto', padding: '12px' }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              className="btn"
-              onClick={onSettings}
-              type="button"
-            >
+            <button className="btn" onClick={onSettings} type="button">
               Settings
             </button>
           </div>
