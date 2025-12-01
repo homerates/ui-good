@@ -515,6 +515,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       "If key numbers are missing, ask once, clearly. If you use any made-up numbers, clearly label them as an “Example Scenario” so they are never confused with the borrower’s real data.\n" +
       "Always remember prior conversation details. Tone: calm, factual, educational.",
 
+
     arm:
       "You are ARM Deathmatch. Compare a fixed-rate loan versus an ARM over a 10-year horizon.\n" +
       "Sketch four simple paths: soft landing, base case, sticky inflation, recession.\n" +
