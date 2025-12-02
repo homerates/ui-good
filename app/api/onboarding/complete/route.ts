@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
 
         const supabase = getSupabaseServerClient();
 
-        // 2️⃣ Parse body containing invite code
+        // 2️⃣ Parse body containing invite code (and optional lender)
         const body = await req.json().catch(() => ({}));
         const inviteCode = body.inviteCode as string | undefined;
+        const lender = body.lender as string | undefined; // NEW: optional lender (e.g. "LoanDepot")
 
         if (!inviteCode) {
             return NextResponse.json(
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
                     name: firstName,
                     user_id: userId,
                     allowed_borrower_slots: allowedBorrowerSlots,
+                    lender: lender ?? (existingLo as any).lender ?? null, // NEW: update lender if provided
                 })
                 .eq("id", existingLo.id);
 
@@ -147,6 +149,7 @@ export async function POST(req: NextRequest) {
                     name: firstName,
                     user_id: userId,
                     allowed_borrower_slots: allowedBorrowerSlots,
+                    lender: lender ?? null, // NEW: set lender on creation
                 });
 
             if (loInsertError) {
