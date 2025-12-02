@@ -78,13 +78,14 @@ export default function BorrowerOnboardingPage() {
     return (
         <div
             style={{
-                minHeight: "100vh",
-                width: "100%",
+                position: "fixed",
+                inset: 0,
+                zIndex: 40,
+                backgroundColor: "#020617",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "2.5rem 1.5rem",
-                backgroundColor: "#020617",
             }}
         >
             <div
@@ -146,6 +147,7 @@ export default function BorrowerOnboardingPage() {
                                 backgroundColor: "#020617",
                                 color: "#e5e7eb",
                                 fontSize: "0.95rem",
+                                width: "100%",
                             }}
                         />
                     </div>
@@ -170,6 +172,7 @@ export default function BorrowerOnboardingPage() {
                                 backgroundColor: "#020617",
                                 color: "#e5e7eb",
                                 fontSize: "0.95rem",
+                                width: "100%",
                             }}
                         />
                     </div>
@@ -194,6 +197,7 @@ export default function BorrowerOnboardingPage() {
                                 backgroundColor: "#020617",
                                 color: "#e5e7eb",
                                 fontSize: "0.95rem",
+                                width: "100%",
                             }}
                         />
                     </div>
@@ -218,6 +222,7 @@ export default function BorrowerOnboardingPage() {
                                 backgroundColor: "#020617",
                                 color: "#e5e7eb",
                                 fontSize: "0.95rem",
+                                width: "100%",
                             }}
                         />
                     </div>
