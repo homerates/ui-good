@@ -62,7 +62,7 @@ export default function BorrowerOnboardingPage() {
             } else {
                 setSuccess(
                     data.message ||
-                    "Your access has been activated. You can now use HomeRates.ai."
+                    "Your HomeRates.ai access has been activated. You can now use HomeRates.ai."
                 );
                 setError(null);
             }
@@ -79,10 +79,7 @@ export default function BorrowerOnboardingPage() {
         <main
             style={{
                 minHeight: "100vh",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "1.5rem",
+                padding: "3rem 1.5rem",
                 backgroundColor: "#020617",
             }}
         >
@@ -90,6 +87,7 @@ export default function BorrowerOnboardingPage() {
                 style={{
                     width: "100%",
                     maxWidth: 480,
+                    margin: "0 auto",
                     backgroundColor: "#020617",
                     borderRadius: "1rem",
                     padding: "1.75rem",
@@ -103,6 +101,7 @@ export default function BorrowerOnboardingPage() {
                         fontWeight: 600,
                         marginBottom: "0.5rem",
                         color: "#e5e7eb",
+                        textAlign: "center",
                     }}
                 >
                     Your HomeRates.ai Access
@@ -113,13 +112,17 @@ export default function BorrowerOnboardingPage() {
                         fontSize: "0.9rem",
                         color: "#9ca3af",
                         marginBottom: "1.5rem",
+                        textAlign: "center",
                     }}
                 >
                     Your loan officer has invited you to use HomeRates.ai. Confirm your
                     details below to activate your access.
                 </p>
 
-                <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
+                <form
+                    onSubmit={handleSubmit}
+                    style={{ display: "grid", gap: "1rem" }}
+                >
                     <div style={{ display: "grid", gap: "0.4rem" }}>
                         <label
                             htmlFor="inviteCode"
