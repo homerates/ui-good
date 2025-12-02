@@ -5,14 +5,37 @@
 
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
 import MenuButton from './components/MenuButton';
+import { useMobileComposerPin } from './hooks/useMobileComposerPin';
+import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
+import './chat/styles.css';
+import GrokCard from "@/components/GrokCard";
+import GrokAnswerBlock from '@/components/AnswerBlock';
+import {
+    createProject,
+    renameProject,
+    deleteProject,
+} from '../lib/projectsClient';
+
+
 
 /* =========================
    Small helpers
 ========================= */
 const LS_KEY = 'hr.chat.v1';
+
+// anonymous, non-signed-in usage meter (per browser, per day)
+const ANON_METER_KEY = 'hr.anon.q.v1';
+const ANON_DAILY_LIMIT = 3;
+
+// signed-in usage meter (per user, per browser, per day)
+const SIGNED_METER_KEY = 'hr.signed.q.v1';
+const SIGNED_DAILY_LIMIT = 50; // signed-in, triggers Upgrade modal
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
     iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
@@ -21,6 +44,104 @@ const fmtMoney = (n: unknown) =>
         undefined,
         { maximumFractionDigits: 2 }
     );
+
+/**
+ * Increment the anonymous (not signed-in) question counter.
+ * Returns true if the user is allowed to ask this question,
+ * false if they've already hit today's limit.
+ */
+function bumpAnonCounterOrBlock(): boolean {
+    try {
+        if (typeof window === 'undefined') return true;
+
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const raw = window.localStorage.getItem(ANON_METER_KEY);
+
+        if (!raw) {
+            window.localStorage.setItem(
+                ANON_METER_KEY,
+                JSON.stringify({ d: today, c: 1 })
+            );
+            return true;
+        }
+
+        const parsed = JSON.parse(raw) as { d?: string; c?: number };
+        const storedDay = parsed?.d;
+        const storedCount = typeof parsed?.c === 'number' ? parsed.c : 0;
+
+        // New day: reset count
+        if (storedDay !== today) {
+            window.localStorage.setItem(
+                ANON_METER_KEY,
+                JSON.stringify({ d: today, c: 1 })
+            );
+            return true;
+        }
+
+        // Same day: enforce limit
+        if (storedCount >= ANON_DAILY_LIMIT) {
+            return false;
+        }
+
+        window.localStorage.setItem(
+            ANON_METER_KEY,
+            JSON.stringify({ d: today, c: storedCount + 1 })
+        );
+        return true;
+    } catch {
+        // If anything goes wrong with localStorage, fail open
+        return true;
+    }
+}
+
+/**
+ * Increment the signed-in question counter (per user, per day).
+ * Returns true if allowed, false if daily limit reached.
+ */
+function bumpSignedCounterOrBlock(userId: string | null | undefined): boolean {
+    try {
+        if (typeof window === 'undefined') return true;
+
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const key = `${SIGNED_METER_KEY}:${userId ?? 'anon'}`;
+        const raw = window.localStorage.getItem(key);
+
+        if (!raw) {
+            window.localStorage.setItem(
+                key,
+                JSON.stringify({ d: today, c: 1 })
+            );
+            return true;
+        }
+
+        const parsed = JSON.parse(raw) as { d?: string; c?: number };
+        const storedDay = parsed?.d;
+        const storedCount = typeof parsed?.c === 'number' ? parsed.c : 0;
+
+        // New day: reset count
+        if (storedDay !== today) {
+            window.localStorage.setItem(
+                key,
+                JSON.stringify({ d: today, c: 1 })
+            );
+            return true;
+        }
+
+        // Same day: enforce limit
+        if (storedCount >= SIGNED_DAILY_LIMIT) {
+            return false;
+        }
+
+        window.localStorage.setItem(
+            key,
+            JSON.stringify({ d: today, c: storedCount + 1 })
+        );
+        return true;
+    } catch {
+        // Fail open if anything breaks
+        return true;
+    }
+}
 
 /* =========================
    Types
@@ -58,7 +179,20 @@ type ApiResponse = {
     confidence?: 'low' | 'med' | 'high';
     status?: number;
     generatedAt?: string;
+
+    // optional flags the backend might return for metering
+    upgradeRequired?: boolean;
+    limitHit?: boolean;
+
+    // ===== New fields for Grok + AnswerCard =====
+    answerMarkdown?: string; // rich markdown answer we render in the card
+    followUp?: string;       // camelCase version from backend
+    follow_up?: string;      // snake_case version if Grok uses it
+    grok?: any;              // full Grok JSON for confidence / next_step / follow_up
+    data_freshness?: string; // e.g. "Live 2025–2026 (Grok-3)"
+    topSources?: Array<{ title: string; url: string }>;
 };
+
 
 type ChatMsg =
     | { id: string; role: 'user'; content: string }
@@ -85,65 +219,105 @@ async function safeJson(r: Response): Promise<ApiResponse> {
     try {
         return JSON.parse(txt) as ApiResponse;
     } catch {
-        return { path: 'error', usedFRED: false, answer: txt, status: r.status } as any;
+        return {
+            path: 'error',
+            usedFRED: false,
+            answer: txt,
+            status: r.status,
+        } as any;
     }
 }
 
 /* =========================
-   UI blocks
+   Answer block
 ========================= */
-function AnswerBlock({ meta }: { meta?: ApiResponse }) {
+function AnswerBlock({
+    meta,
+    friendly,
+}: {
+    meta?: ApiResponse;
+    friendly?: string;
+}) {
     if (!meta) return null;
 
-    type NestedMeta = { meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string } };
+    type NestedMeta = {
+        meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
+    };
     const m = meta as ApiResponse & NestedMeta;
-    const headerPath = (m.path ?? m.meta?.path ?? '—') as ApiResponse['path'] | '—';
+    const headerPath = (m.path ?? m.meta?.path ?? '—') as
+        | ApiResponse['path']
+        | '—';
     const headerUsedFRED =
-        typeof m.usedFRED === 'boolean' ? m.usedFRED : (m.meta?.usedFRED ?? false);
+        typeof m.usedFRED === 'boolean' ? m.usedFRED : m.meta?.usedFRED ?? false;
     const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
 
     if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
         const a = m.answer as CalcAnswer;
         return (
-            <div style={{ display: 'grid', gap: 10 }}>
+            <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
                 <div className="meta">
-                    <span>path: <b>{String(headerPath)}</b></span>
-                    <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-                    {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+                    <span>
+                        path: <b>{String(headerPath)}</b>
+                    </span>
+                    <span>
+                        {' '}
+                        | usedFRED: <b>{String(headerUsedFRED)}</b>
+                    </span>
+                    {headerAt && (
+                        <span>
+                            {' '}
+                            | at: <b>{fmtISOshort(headerAt)}</b>
+                        </span>
+                    )}
                 </div>
 
                 <div>
-                    <div><b>Loan amount:</b> ${fmtMoney(a.loanAmount)}</div>
-                    <div><b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}</div>
+                    <div>
+                        <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
+                    </div>
+                    <div>
+                        <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
+                    </div>
                 </div>
 
-                {typeof a.monthlyTotalPITI === 'number' && a.monthlyTotalPITI > 0 && (
-                    <div className="panel">
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>PITI breakdown</div>
-                        <ul style={{ marginTop: 0 }}>
-                            <li>Taxes: ${fmtMoney(a.monthlyTax)}</li>
-                            <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
-                            <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
-                            <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-                            <li><b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b></li>
-                        </ul>
-                    </div>
-                )}
+                {typeof a.monthlyTotalPITI === 'number' &&
+                    a.monthlyTotalPITI > 0 && (
+                        <div className="panel">
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                                PITI breakdown
+                            </div>
+                            <ul style={{ marginTop: 0 }}>
+                                <li>Taxes: ${fmtMoney(a.monthlyTax)}</li>
+                                <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
+                                <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
+                                <li>MI: ${fmtMoney(a.monthlyMI)}</li>
+                                <li>
+                                    <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
+                                </li>
+                            </ul>
+                        </div>
+                    )}
 
                 {Array.isArray(a.sensitivities) && a.sensitivities.length > 0 && (
                     <div>
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>±0.25% Sensitivity</div>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                            ±0.25% Sensitivity
+                        </div>
                         <ul style={{ marginTop: 0 }}>
                             {a.sensitivities.map((s, i) => (
                                 <li key={i}>
-                                    Rate: {(Number(s.rate) * 100).toFixed(2)}% → P&I ${fmtMoney(s.pi)}
+                                    Rate:{' '}
+                                    {(Number(s.rate) * 100).toFixed(2)}% → P&I $
+                                    {fmtMoney(s.pi)}
                                 </li>
                             ))}
                         </ul>
                     </div>
                 )}
 
-                {typeof m.tldr === 'string' && <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>}
+                {typeof m.tldr === 'string' && (
+                    <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>
+                )}
             </div>
         );
     }
@@ -155,9 +329,15 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
             m.fred.tenYearYield != null &&
             m.fred.mort30Avg != null &&
             m.fred.spread != null
-            ? `As of ${m.fred.asOf ?? 'recent data'}: 10Y ${typeof m.fred.tenYearYield === 'number' ? m.fred.tenYearYield.toFixed(2) : m.fred.tenYearYield
-            }%, 30Y ${typeof m.fred.mort30Avg === 'number' ? m.fred.mort30Avg.toFixed(2) : m.fred.mort30Avg
-            }%, spread ${typeof m.fred.spread === 'number' ? m.fred.spread.toFixed(2) : m.fred.spread
+            ? `As of ${m.fred.asOf ?? 'recent data'}: ${typeof m.fred.tenYearYield === 'number'
+                ? m.fred.tenYearYield.toFixed(2)
+                : m.fred.tenYearYield
+            }%, 30Y ${typeof m.fred.mort30Avg === 'number'
+                ? m.fred.mort30Avg.toFixed(2)
+                : m.fred.mort30Avg
+            }%, spread ${typeof m.fred.spread === 'number'
+                ? m.fred.spread.toFixed(2)
+                : m.fred.spread
             }%.`
             : typeof m.answer === 'string'
                 ? m.answer
@@ -166,18 +346,33 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
     const lines = (typeof m.answer === 'string' ? m.answer : '')
         .split('\n')
         .map((s) => s.trim());
-    const takeaway = primary || lines[0] || '';
-    const bullets = lines.filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
+
+    // Use the streaming-friendly text if present, otherwise fall back
+    const takeaway = friendly || primary || lines[0] || '';
+
+    const bullets = lines
+        .filter((l) => l.startsWith('- '))
+        .map((l) => l.slice(2));
     const nexts = lines
         .filter((l) => l.toLowerCase().startsWith('next:'))
         .map((l) => l.slice(5).trim());
 
     return (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
             <div className="meta">
-                <span>path: <b>{String(m.path ?? '—')}</b></span>
-                <span> | usedFRED: <b>{String(headerUsedFRED)}</b></span>
-                {headerAt && <span> | at: <b>{fmtISOshort(headerAt)}</b></span>}
+                <span>
+                    path: <b>{String(m.path ?? '—')}</b>
+                </span>
+                <span>
+                    {' '}
+                    | usedFRED: <b>{String(headerUsedFRED)}</b>
+                </span>
+                {headerAt && (
+                    <span>
+                        {' '}
+                        | at: <b>{fmtISOshort(headerAt)}</b>
+                    </span>
+                )}
             </div>
 
             {takeaway && <div>{takeaway}</div>}
@@ -186,26 +381,36 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
                 <div>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
                     <ul style={{ marginTop: 0 }}>
-                        {m.tldr.map((t, i) => <li key={i}>{t}</li>)}
+                        {m.tldr.map((t, i) => (
+                            <li key={i}>{t}</li>
+                        ))}
                     </ul>
                 </div>
             )}
 
             {bullets.length > 0 && (
                 <ul style={{ marginTop: 0 }}>
-                    {bullets.map((b, i) => <li key={i}>{b}</li>)}
+                    {bullets.map((b, i) => (
+                        <li key={i}>{b}</li>
+                    ))}
                 </ul>
             )}
 
             {nexts.length > 0 && (
                 <div style={{ display: 'grid', gap: 4 }}>
-                    {nexts.map((n, i) => (<div key={i}><b>Next:</b> {n}</div>))}
+                    {nexts.map((n, i) => (
+                        <div key={i}>
+                            <b>Next:</b> {n}
+                        </div>
+                    ))}
                 </div>
             )}
 
             {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
                 <div className="panel">
-                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Borrower Summary</div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                        Borrower Summary
+                    </div>
                     <ul style={{ marginTop: 0 }}>
                         {m.borrowerSummary.split('\n').map((l, i) => (
                             <li key={i}>{l.replace(/^\s*[-|*]\s*/, '')}</li>
@@ -216,7 +421,8 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 
             {m.paymentDelta && (
                 <div style={{ fontSize: 13 }}>
-                    Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on ${m.paymentDelta.loanAmount.toLocaleString()}.
+                    Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
+                    {m.paymentDelta.loanAmount.toLocaleString()}.
                 </div>
             )}
         </div>
@@ -226,9 +432,13 @@ function AnswerBlock({ meta }: { meta?: ApiResponse }) {
 function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
     const isUser = role === 'user';
     return (
-        <div className="bubble">
-            <div className={`avatar ${isUser ? 'user' : 'bot'}`}>{isUser ? 'U' : 'HR'}</div>
-            <div className={`balloon ${isUser ? 'user' : 'bot'}`}>{children}</div>
+        <div
+            className={`bubble ${isUser ? 'user' : 'assistant'}`}
+            data-role={role}
+        >
+            <div className={`balloon ${isUser ? 'user' : 'assistant'}`}>
+                {children}
+            </div>
         </div>
     );
 }
@@ -237,6 +447,11 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
    Page
 ========================= */
 export default function Page() {
+    useMobileComposerPin();
+
+    const router = useRouter();
+    const { isSignedIn, user } = useUser();
+
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
             id: uid(),
@@ -245,16 +460,30 @@ export default function Page() {
                 'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
         },
     ]);
+
     const [input, setInput] = useState('');
 
     // borrower-only mode fixed
     const mode: 'borrower' = 'borrower';
 
     const [loading, setLoading] = useState(false);
-    const [history, setHistory] = useState<{ id: string; title: string; updatedAt?: number }[]>(
-        []
-    );
+    const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
+    const [showAuthRequired, setShowAuthRequired] = useState(false);
+
+    const [history, setHistory] = useState<
+        { id: string; title: string; updatedAt?: number }[]
+    >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+
+        // run after DOM updates so scrollHeight is correct
+        requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight;
+        });
+    }, [messages, loading]);
+
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const toggleSidebar = () => setSidebarOpen((o) => !o);
 
@@ -270,6 +499,10 @@ export default function Page() {
     const [showMortgageCalc, setShowMortgageCalc] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [projectName, setProjectName] = useState('');
+
+    const [newProjectName, setNewProjectName] = React.useState('');
+    const [isCreatingProject, setIsCreatingProject] = React.useState(false);
+
 
     // restore
     useEffect(() => {
@@ -295,7 +528,10 @@ export default function Page() {
     // persist
     useEffect(() => {
         try {
-            localStorage.setItem(LS_KEY, JSON.stringify({ threads, history, activeId }));
+            localStorage.setItem(
+                LS_KEY,
+                JSON.stringify({ threads, history, activeId })
+            );
         } catch (e) {
             console.warn('hr.chat save failed', e);
         }
@@ -322,7 +558,10 @@ export default function Page() {
 
     // autoscroll
     useEffect(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        scrollRef.current?.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: 'smooth',
+        });
     }, [messages]);
 
     // hotkeys
@@ -377,35 +616,206 @@ export default function Page() {
                 {
                     id: uid(),
                     role: 'assistant',
-                    content: 'Restored chat (no snapshot found). Start typing to continue.',
+                    content:
+                        'Restored chat (no snapshot found). Start typing to continue.',
                 },
             ]);
         }
         setShowLibrary(false);
     }
 
+    const handleProjectAction = React.useCallback(
+        async (action: 'rename' | 'delete', project: any) => {
+            if (!project || !project.id) {
+                console.warn('[ProjectAction] Missing project or id:', project);
+                return;
+            }
+
+            if (action === 'rename') {
+                const raw = window.prompt('Rename project:', project.name || '');
+                const newName = raw?.trim();
+                if (!newName || newName === project.name) {
+                    return;
+                }
+
+                try {
+                    const res = await renameProject(project.id, newName);
+                    if (!res.ok) {
+                        console.error('[ProjectAction] Rename failed:', res);
+                        // later: show toast/UI message if you want
+                        return;
+                    }
+
+                    console.log(
+                        '[ProjectAction] Renamed project:',
+                        project.id,
+                        '->',
+                        newName
+                    );
+                    // ProjectsPanel reads from /api/projects via fetchProjects().
+                    // Click "Refresh" in the Projects list to pull updated names.
+                } catch (err) {
+                    console.error('[ProjectAction] Rename error:', err);
+                }
+
+                return;
+            }
+
+            if (action === 'delete') {
+                const confirmed = window.confirm(
+                    `Delete project "${project.name}" and its chat mappings?\n\nChats themselves will remain in the main list.`
+                );
+                if (!confirmed) return;
+
+                try {
+                    const res = await deleteProject(project.id);
+                    if (!res.ok) {
+                        console.error('[ProjectAction] Delete failed:', res);
+                        return;
+                    }
+
+                    console.log('[ProjectAction] Deleted project:', project.id);
+                    // Same as rename: use "Refresh" in Projects to update the list.
+                } catch (err) {
+                    console.error('[ProjectAction] Delete error:', err);
+                }
+            }
+        },
+        []
+    );
+
+
+    const handleMoveChatToProject = React.useCallback(
+        async (threadId: string, projectId: string) => {
+            try {
+                console.log('[Move chat to project] begin', { threadId, projectId });
+
+                const res = await fetch('/api/projects/move-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ threadId, projectId }),
+                });
+
+                const json: any = await res.json().catch(() => null);
+
+                if (!res.ok || !json?.ok) {
+                    console.error('[Move chat to project] failed', {
+                        status: res.status,
+                        body: json,
+                    });
+                    window.alert(
+                        json?.error ||
+                        'There was a problem moving this chat to the project.'
+                    );
+                    return;
+                }
+
+                console.log('[Move chat to project] success', json);
+
+                const mode = json?.mode || 'unknown';
+                const mapping = json?.mapping;
+
+                window.alert(
+                    `Chat moved to project (${mode}).` +
+                    (mapping?.thread_id
+                        ? `\nthread_id: ${mapping.thread_id}\nproject_id: ${mapping.project_id}`
+                        : '')
+                );
+            } catch (err) {
+                console.error('[Move chat to project] exception', err);
+                window.alert(
+                    'Unexpected error while moving this chat. Please try again.'
+                );
+            }
+        },
+        []
+    );
+
     function newChat() {
         const id = uid();
         setActiveId(id);
-        setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
-        setHistory((h) => [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20));
+        setMessages([
+            {
+                id: uid(),
+                role: 'assistant',
+                content: 'New chat. What do you want to figure out?',
+            },
+        ]);
+        setHistory((h) =>
+            [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20)
+        );
     }
 
-    function handleHistoryAction(action: 'rename' | 'move' | 'archive' | 'delete', id: string) {
+    function handleHistoryAction(
+        action: 'rename' | 'move' | 'archive' | 'delete',
+        id: string
+    ) {
         if (action === 'rename') {
             const current = history.find((h) => h.id === id)?.title ?? '';
             const name = prompt('Rename chat:', current);
             if (name && name.trim()) {
                 setHistory((h) =>
-                    h.map((x) => (x.id === id ? { ...x, title: name.trim(), updatedAt: Date.now() } : x))
+                    h.map((x) =>
+                        x.id === id
+                            ? { ...x, title: name.trim(), updatedAt: Date.now() }
+                            : x
+                    )
                 );
             }
             return;
         }
         if (action === 'move') {
-            alert('Move to project (coming soon)');
+            const rawName = prompt(
+                'Move this chat to which project? (New or existing)'
+            );
+            if (!rawName) return;
+
+            const projectName = rawName.trim();
+            if (!projectName) return;
+
+            // Fire-and-forget async call to Supabase via /api/projects
+            (async () => {
+                try {
+                    const payload = {
+                        threadId: id,
+                        projectName,
+                        // extra aliases in case the API expects a different field name
+                        name: projectName,
+                        title: projectName,
+                    };
+
+                    const res = await fetch('/api/projects', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const json = await res.json().catch(() => ({} as any));
+
+                    console.log('projects POST response', {
+                        status: res.status,
+                        json,
+                    });
+
+                    if (!res.ok || !json?.ok) {
+                        alert(
+                            'Sorry, there was a problem saving this chat to a project.'
+                        );
+                        return;
+                    }
+
+                    // Later: toast + update local project state
+                } catch (err) {
+                    console.error('Project save error:', err);
+                    alert('Network error while saving this chat to a project.');
+                }
+            })();
+
             return;
         }
+
         if (action === 'archive') {
             alert('Archive (coming soon)');
             return;
@@ -433,9 +843,62 @@ export default function Page() {
         }
     }
 
+    // === Typewriter helper for a "streaming" feel ===
+    const typeOutAssistant = React.useCallback(
+        (id: string, full: string) => {
+            if (!full) return;
+
+            // Use Array.from to be safe with emoji / unicode
+            const chars = Array.from(full);
+            const total = chars.length;
+
+            let index = 0;
+
+            const step = () => {
+                index += 24; // chars per tick; tweak for speed
+                if (index >= total) {
+                    // Final update with full string
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === id ? { ...m, content: full } : m
+                        )
+                    );
+                    return;
+                }
+
+                const slice = chars.slice(0, index).join('');
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === id ? { ...m, content: slice } : m
+                    )
+                );
+
+                window.setTimeout(step, 20); // ms between ticks
+            };
+
+            step();
+        },
+        [setMessages]
+    );
+
     async function send() {
         const q = input.trim();
         if (!q || loading) return;
+
+        // Enforce simple daily limits before we send anything
+        if (!isSignedIn) {
+            const allowed = bumpAnonCounterOrBlock();
+            if (!allowed) {
+                setShowAuthRequired(true);
+                return;
+            }
+        } else {
+            const allowed = bumpSignedCounterOrBlock(user?.id);
+            if (!allowed) {
+                setShowUpgradeRequired(true);
+                return;
+            }
+        }
 
         const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
 
@@ -444,7 +907,9 @@ export default function Page() {
         if (!tid) {
             tid = uid();
             setActiveId(tid);
-            setHistory((h) => [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20));
+            setHistory((h) =>
+                [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20)
+            );
         } else {
             setHistory((prev) => {
                 const next = Array.isArray(prev) ? [...prev] : [];
@@ -453,7 +918,8 @@ export default function Page() {
                     const current = next[idx] ?? { id: tid!, title: 'Untitled' };
                     const needsTitle =
                         typeof current.title === 'string' &&
-                        (current.title === 'New chat' || current.title.startsWith('Untitled'));
+                        (current.title === 'New chat' ||
+                            current.title.startsWith('Untitled'));
 
                     next[idx] = {
                         ...current,
@@ -467,13 +933,24 @@ export default function Page() {
             });
         }
 
-        setMessages((m) => [...m, { id: uid(), role: 'user', content: q }]);
+        // Create a placeholder assistant bubble immediately (no canned text)
+        const answerId = uid();
+
+        setMessages((m) => [
+            ...m,
+            { id: uid(), role: 'user', content: q },
+            { id: answerId, role: 'assistant', content: '' },
+        ]);
+
         setInput('');
         setLoading(true);
 
         try {
             // borrower-only body (no intent/loanAmount passthrough)
-            const body: { question: string; mode: 'borrower' } = { question: q, mode };
+            const body: { question: string; mode: 'borrower' } = {
+                question: q,
+                mode,
+            };
 
             const r = await fetch('/api/answers', {
                 method: 'POST',
@@ -482,6 +959,19 @@ export default function Page() {
             });
 
             const meta = await safeJson(r);
+            // Attach Grok metadata to the assistant message (under m.meta)
+            setMessages((prev) =>
+                prev.map((m) =>
+                    m.id === answerId && m.role === 'assistant'
+                        ? {
+                            ...m,
+                            meta,      // <--- meta now lives under m.meta
+                            content: '', // typewriter will fill summary, not markdown
+                        }
+                        : m
+                )
+            );
+
 
             const friendly =
                 meta.message ??
@@ -490,7 +980,8 @@ export default function Page() {
                     meta.fred.tenYearYield != null &&
                     meta.fred.mort30Avg != null &&
                     meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'}: ${typeof meta.fred.tenYearYield === 'number'
+                    ? `As of ${meta.fred.asOf ?? 'recent data'
+                    }: ${typeof meta.fred.tenYearYield === 'number'
                         ? `${meta.fred.tenYearYield.toFixed(2)}%`
                         : meta.fred.tenYearYield
                     } 10Y, ${typeof meta.fred.mort30Avg === 'number'
@@ -502,12 +993,35 @@ export default function Page() {
                     }.`
                     : typeof meta.answer === 'string'
                         ? meta.answer
-                        : `path: ${meta.path} | usedFRED: ${String(meta.usedFRED)} | confidence: ${meta.confidence ?? '-'}`);
+                        : `path: ${meta.path} | usedFRED: ${String(
+                            meta.usedFRED
+                        )} | confidence: ${meta.confidence ?? '-'}`);
 
-            setMessages((m) => [...m, { id: uid(), role: 'assistant', content: friendly, meta }]);
+            // Fire-and-forget: log this Q&A to the user's library
+            try {
+                void logAnswerToLibrary(q, { friendly, meta });
+            } catch (err) {
+                console.error('Library logging error:', err);
+            }
+
+            // If the backend signals that a limit was hit, surface the right modal
+            if (meta.upgradeRequired || meta.limitHit) {
+                if (!isSignedIn) {
+                    setShowAuthRequired(true);
+                } else {
+                    setShowUpgradeRequired(true);
+                }
+            }
+
+            // Type out the actual answer text into the existing assistant bubble
+            const fullText = friendly;
+            typeOutAssistant(answerId, fullText);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
-            setMessages((m) => [...m, { id: uid(), role: 'assistant', content: `Error: ${msg}` }]);
+            setMessages((m) => [
+                ...m,
+                { id: uid(), role: 'assistant', content: `Error: ${msg}` },
+            ]);
         } finally {
             setLoading(false);
         }
@@ -522,7 +1036,10 @@ export default function Page() {
 
     function onShare() {
         const text = messages
-            .map((m) => `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''}`)
+            .map((m) =>
+                `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''
+                }`
+            )
             .join('\n');
         if (navigator.clipboard?.writeText) {
             navigator.clipboard.writeText(text).catch(() => { });
@@ -539,11 +1056,76 @@ export default function Page() {
         }
     }
 
-    function onSettings() { setShowSettings(true); }
-    function onSearch() { setShowSearch(true); }
-    function onLibrary() { setShowLibrary(true); }
-    function onNewProject() { setShowProject(true); }
-    function onMortgageCalc() { setShowMortgageCalc(true); }
+    function onSettings() {
+        setShowSettings(true);
+    }
+
+    function onSearch() {
+        setShowSearch(true);
+    }
+
+    function onLibrary() {
+        setShowLibrary(true);
+    }
+
+    // NEW PROJECT:
+    // Create a project for the *current chat thread* using /api/projects,
+    // which expects { threadId, projectName }.
+    function onNewProject() {
+        if (!activeId) {
+            console.warn('[NewProject] No active chat thread to attach project to.');
+            // optional: alert('Open or select a chat before creating a project.');
+            return;
+        }
+
+        const raw = window.prompt('Name your project (for grouping related chats):');
+        const projectName = raw?.trim();
+        if (!projectName) {
+            return;
+        }
+
+        // Fire-and-forget async flow so handler stays () => void
+        void (async () => {
+            try {
+                const res = await createProject(activeId, projectName);
+                if (!res.ok) {
+                    console.error('[NewProject] Error creating project:', res);
+                    return;
+                }
+
+                console.log(
+                    '[NewProject] Created project for thread:',
+                    activeId,
+                    'name:',
+                    projectName
+                );
+                // ProjectsPanel reads from /api/projects; click "Refresh" there
+                // to pull the new project + mapping into the sidebar.
+            } catch (err) {
+                console.error('[NewProject] Unexpected error:', err);
+            }
+        })();
+    }
+
+    // MORTGAGE CALC: opens the calculator overlay
+    function onMortgageCalc() {
+        setShowMortgageCalc(true);
+    }
+
+    // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
+    function onAskUnderwriting() {
+        const seed =
+            'Underwriting guideline question: Please include borrower income, debts, credit score, property type, occupancy, and target program (Fannie, Freddie, FHA, VA, DSCR).';
+
+        // Just pre-fill the composer – user can edit then hit Enter / Send.
+        setInput(seed);
+    }
+    // ABOUT HOMERATES: seeds the composer to trigger the "about" module
+    function onAboutHomeRates() {
+        const seed =
+            'What is HomeRates.ai and what makes you different from other mortgage AIs and traditional lenders?';
+        setInput(seed);
+    }
 
     function closeAllOverlays() {
         setShowSearch(false);
@@ -553,11 +1135,19 @@ export default function Page() {
         setShowMortgageCalc(false);
     }
 
+
+
     return (
         <>
             {/* Sidebar */}
             <Sidebar
+                id="hr-sidebar"
                 history={history}
+                activeId={activeId}
+                isOpen={sidebarOpen}
+                onToggle={toggleSidebar}
+                onSelectHistory={onSelectHistory}
+                onHistoryAction={handleHistoryAction}
                 onNewChat={newChat}
                 onSettings={onSettings}
                 onShare={onShare}
@@ -565,255 +1155,763 @@ export default function Page() {
                 onLibrary={onLibrary}
                 onNewProject={onNewProject}
                 onMortgageCalc={onMortgageCalc}
-                activeId={activeId}
-                onSelectHistory={onSelectHistory}
-                isOpen={sidebarOpen}
-                onToggle={toggleSidebar}
-                onHistoryAction={handleHistoryAction}
+                onAskUnderwriting={onAskUnderwriting}
+                onAboutHomeRates={onAboutHomeRates}
+                onProjectAction={handleProjectAction}
+                onMoveChatToProject={handleMoveChatToProject}
             />
 
+
+
+
             {/* Main */}
-            <section className="main" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+            <section
+                className="main"
+                style={{
+                    minHeight: '100dvh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
                 <div className="header">
-                    <div className="header-inner" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                        className="header-inner"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            paddingLeft: 8,
+                        }}
+                    >
+                        {/* HomeRates logo */}
+                        <img
+                            src="/assets/homerates-full-logo.png"
+                            alt="HomeRates.ai"
+                            style={{
+                                height: 28,
+                                width: 'auto',
+                                display: 'block',
+                            }}
+                        />
+
+                        {/* Existing hamburger menu */}
                         <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
+
+                        {/* Title */}
                         <div style={{ fontWeight: 700, marginLeft: 8 }}>Chat</div>
+
+                        {/* Right-side spacer / controls */}
                         <div style={{ marginLeft: 'auto' }} />
                     </div>
                 </div>
 
-                <div ref={scrollRef} className="scroll" style={{ flex: 1, overflowY: 'auto' }}>
+                <div
+                    ref={scrollRef}
+                    className="scroll"
+                    style={{
+                        flex: '1 1 auto',
+                        minHeight: 0,
+                        overflowY: 'auto',
+                    }}
+                >
                     <div className="center">
                         <div className="messages">
                             {messages.map((m) => (
                                 <div key={m.id}>
                                     <Bubble role={m.role}>
-                                        {m.role === 'assistant' ? (m.meta ? <AnswerBlock meta={m.meta} /> : m.content) : m.content}
+                                        {m.role === 'assistant' ? (
+                                            // If this is a Grok-style answer with markdown, use GrokCard
+                                            m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
+                                                <GrokCard
+                                                    data={{
+                                                        grok: m.meta.grok,
+                                                        answerMarkdown:
+                                                            m.meta.answerMarkdown ??
+                                                            (typeof m.content === 'string' ? m.content : ''),
+                                                        followUp: m.meta.followUp ?? m.meta.grok?.follow_up,
+                                                        data_freshness:
+                                                            m.meta.data_freshness ??
+                                                            m.meta.fred?.asOf ??
+
+                                                            '',
+                                                    }}
+                                                    onFollowUp={(q: string) => {
+                                                        if (!q) return;
+                                                        setInput(q);
+                                                        // Then you can review/edit and hit Enter or the Send button
+                                                    }}
+
+
+                                                />
+                                            ) : m.meta ? (
+                                                // Legacy / calc answers still use AnswerBlock (Grok card)
+                                                <GrokAnswerBlock
+                                                    meta={m.meta}
+                                                    friendly={
+                                                        typeof m.content === 'string'
+                                                            ? m.content
+                                                            : undefined
+                                                    }
+                                                />
+
+                                            ) : (
+                                                // Bare assistant content fallback
+                                                typeof m.content === 'string' ? m.content : ''
+                                            )
+                                        ) : (
+                                            // User messages unchanged
+                                            m.content
+                                        )}
+
                                     </Bubble>
                                 </div>
                             ))}
-                            {loading && <div className="meta">...thinking</div>}
+
+                            {loading && (
+                                <Bubble role="assistant">
+                                    <div className="typing-dots" aria-label="HomeRates is thinking">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </div>
+                                </Bubble>
+                            )}
+
                         </div>
                     </div>
                 </div>
 
-                <div className="composer" style={{ position: 'sticky', bottom: 0, zIndex: 5 }}>
-                    <div className="composer-inner">
+                {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
+                <div
+                    className="hr-composer"
+                    data-composer="primary"
+                    style={{
+                        // position/bottom now handled in CSS (desktop vs mobile)
+                        zIndex: 900,
+                        borderTop: '1px solid rgba(245, 247, 250, 0.06)',
+                        background: 'transparent',
+                    }}
+                >
+                    <div
+                        className="hr-composer-inner"
+                        style={{
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            // let the inner input flex control width, avoid pill growth on type
+                            maxWidth: 640, // line up with main column
+                            margin: '0 auto',
+                            padding: '8px 12px',
+                            boxSizing: 'border-box',
+                        }}
+                    >
                         <input
-                            className="input"
+                            className="hr-composer-input"
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={onKey}
+                            style={{
+                                flex: '1 1 auto',
+                                minWidth: 0,
+                                height: 36, // compact (about half your old tall pill)
+                                borderRadius: 9999, // true pill
+                                border: '1px solid #E5E7EB',
+                                padding: '6px 40px 6px 12px', // room on the right for the arrow circle
+                                background: '#FFFFFF',
+                                fontSize: 16, // >=16 prevents iOS zoom on focus
+                                lineHeight: 1.3,
+                                boxSizing: 'border-box',
+                            }}
                         />
-                        <button className="btn" onClick={send} disabled={loading || !input.trim()}>
-                            Send
+
+                        <button
+                            className="hr-composer-send"
+                            data-testid="ask-pill"
+                            aria-label="Send message"
+                            title="Send"
+                            onClick={send}
+                            disabled={loading || !input.trim()}
+                            style={{
+                                position: 'absolute',
+                                right: 16,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                width: 24, // small circle
+                                height: 24,
+                                borderRadius: 9999,
+                                padding: 0,
+                                border: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: '#111827',
+                                color: '#FFFFFF',
+                                cursor:
+                                    loading || !input.trim()
+                                        ? 'default'
+                                        : 'pointer',
+                                opacity: loading || !input.trim() ? 0.5 : 1,
+                                zIndex: 2,
+                            }}
+                        >
+                            <svg
+                                width={14}
+                                height={14}
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                style={{ transform: 'rotate(-90deg)' }} // arrow points up
+                            >
+                                <path
+                                    d="M3 12h14.5M13 6l6 6-6 6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
+                            </svg>
                         </button>
                     </div>
                 </div>
 
                 {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
-                {(showSearch || showLibrary || showSettings || showProject || showMortgageCalc) && (
-                    <div
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label="Overlay"
-                        onClick={(e) => { if (e.target === e.currentTarget) closeAllOverlays(); }}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.35)',
-                            display: 'grid',
-                            placeItems: 'center',
-                            zIndex: 5000,
-                        }}
-                    >
+                {(showSearch ||
+                    showLibrary ||
+                    showSettings ||
+                    showProject ||
+                    showMortgageCalc) && (
                         <div
-                            className="panel"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Overlay"
+                            onClick={(e) => {
+                                if (e.target === e.currentTarget) closeAllOverlays();
+                            }}
                             style={{
-                                width: 'min(680px, 92vw)',
-                                maxHeight: '80vh',
-                                overflow: 'auto',
-                                padding: 16,
-                                borderRadius: 12,
-                                background: 'var(--card)',
-                                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                                position: 'fixed',
+                                inset: 0,
+                                background: 'rgba(0,0,0,0.35)',
                                 display: 'grid',
-                                gap: 12,
+                                placeItems: 'center',
+                                zIndex: 5000,
+                                maxWidth: '100vw',
+                                overflowX: 'hidden',
                             }}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ fontWeight: 700 }}>
-                                    {showSearch && 'Search'}
-                                    {showLibrary && 'Library'}
-                                    {showSettings && 'Settings'}
-                                    {showProject && 'New Project'}
-                                    {showMortgageCalc && 'Mortgage Calculator'}
-                                </div>
-                                <button className="btn" onClick={closeAllOverlays} aria-label="Close">Close</button>
-                            </div>
-
-                            {/* SEARCH */}
-                            {showSearch && (
-                                <div style={{ display: 'grid', gap: 10 }}>
-                                    <input
-                                        className="input"
-                                        placeholder="Search your current thread and history..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        autoFocus
-                                    />
-                                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                                        <div style={{ fontWeight: 600 }}>Matches in current thread</div>
-                                        <ul style={{ marginTop: 0 }}>
-                                            {messages
-                                                .filter(
-                                                    (m) =>
-                                                        typeof m.content === 'string' &&
-                                                        m.content.toLowerCase().includes(searchQuery.toLowerCase())
-                                                )
-                                                .slice(0, 12)
-                                                .map((m, i) => (
-                                                    <li key={m.id + i}>
-                                                        <b>{m.role === 'user' ? 'You' : 'HomeRates'}:</b>{' '}
-                                                        <span>{(m.content as string).slice(0, 200)}</span>
-                                                    </li>
-                                                ))}
-                                        </ul>
+                            <div
+                                className="panel"
+                                style={{
+                                    width: '100%', // fill the padded area, not the whole screen
+                                    maxWidth: 520, // hard cap so it doesn't feel like an iPad on phones
+                                    maxHeight: '80vh',
+                                    overflowY: 'auto',
+                                    padding: 16,
+                                    paddingBottom: 32, // gives room under the buttons
+                                    borderRadius: 12,
+                                    background: 'var(--card)',
+                                    boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                                    display: 'grid',
+                                    gap: 12,
+                                    boxSizing: 'border-box',
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 700 }}>
+                                        {showSearch && 'Search'}
+                                        {showLibrary && 'Library'}
+                                        {showSettings && 'Settings'}
+                                        {showProject && 'New Project'}
+                                        {showMortgageCalc && 'Mortgage Calculator'}
                                     </div>
-                                    <div className="panel" style={{ display: 'grid', gap: 6 }}>
-                                        <div style={{ fontWeight: 600 }}>Matches in history titles</div>
-                                        <ul style={{ marginTop: 0 }}>
-                                            {history
-                                                .filter((h) => h.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                                                .slice(0, 20)
-                                                .map((h) => <li key={h.id}>{h.title}</li>)}
-                                        </ul>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* LIBRARY */}
-                            {showLibrary && (
-                                <div style={{ display: 'grid', gap: 10 }}>
-                                    <div style={{ color: 'var(--text-weak)' }}>Your recent chats:</div>
-                                    <div className="chat-list" role="list">
-                                        {history.length === 0 && (
-                                            <div className="chat-item" style={{ opacity: 0.7 }} role="listitem">
-                                                No history yet
-                                            </div>
-                                        )}
-                                        {history.map((h) => (
-                                            <button
-                                                key={h.id}
-                                                className="chat-item"
-                                                role="listitem"
-                                                title={h.title}
-                                                onClick={() => onSelectHistory(h.id)}
-                                                style={{ textAlign: 'left' }}
-                                            >
-                                                {h.title}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* SETTINGS */}
-                            {showSettings && (
-                                <div style={{ display: 'grid', gap: 10 }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <input type="checkbox" onChange={() => { /* next pass */ }} />
-                                        Compact bubbles (coming soon)
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <input type="checkbox" onChange={() => { /* next pass */ }} />
-                                        Prefer dark mode (coming soon)
-                                    </label>
                                     <button
                                         className="btn"
-                                        onClick={() => {
-                                            setHistory([]);
+                                        onClick={closeAllOverlays}
+                                        aria-label="Close"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+
+                                {/* SEARCH */}
+                                {showSearch && (
+                                    <div style={{ display: 'grid', gap: 10 }}>
+                                        <input
+                                            className="input"
+                                            placeholder="Search your current thread and history..."
+                                            value={searchQuery}
+                                            onChange={(e) =>
+                                                setSearchQuery(e.target.value)
+                                            }
+                                            autoFocus
+                                        />
+                                        <div
+                                            className="panel"
+                                            style={{ display: 'grid', gap: 6 }}
+                                        >
+                                            <div style={{ fontWeight: 600 }}>
+                                                Matches in current thread
+                                            </div>
+                                            <ul style={{ marginTop: 0 }}>
+                                                {messages
+                                                    .filter(
+                                                        (m) =>
+                                                            typeof m.content ===
+                                                            'string' &&
+                                                            m.content
+                                                                .toLowerCase()
+                                                                .includes(
+                                                                    searchQuery.toLowerCase()
+                                                                )
+                                                    )
+                                                    .slice(0, 12)
+                                                    .map((m, i) => (
+                                                        <li key={m.id + i}>
+                                                            <b>
+                                                                {m.role === 'user'
+                                                                    ? 'You'
+                                                                    : 'HomeRates'}
+                                                                :
+                                                            </b>{' '}
+                                                            <span>
+                                                                {(
+                                                                    m.content as string
+                                                                ).slice(0, 200)}
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                            </ul>
+                                        </div>
+                                        <div
+                                            className="panel"
+                                            style={{ display: 'grid', gap: 6 }}
+                                        >
+                                            <div style={{ fontWeight: 600 }}>
+                                                Matches in history titles
+                                            </div>
+                                            <ul style={{ marginTop: 0 }}>
+                                                {history
+                                                    .filter((h) =>
+                                                        h.title
+                                                            .toLowerCase()
+                                                            .includes(
+                                                                searchQuery.toLowerCase()
+                                                            )
+                                                    )
+                                                    .slice(0, 20)
+                                                    .map((h) => (
+                                                        <li key={h.id}>
+                                                            <button
+                                                                type="button"
+                                                                className="btn"
+                                                                style={{
+                                                                    padding:
+                                                                        '2px 6px',
+                                                                    fontSize: 13,
+                                                                    width: '100%',
+                                                                    textAlign:
+                                                                        'left',
+                                                                }}
+                                                                onClick={() =>
+                                                                    onSelectHistory(
+                                                                        h.id
+                                                                    )
+                                                                }
+                                                            >
+                                                                {h.title}
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* LIBRARY */}
+                                {showLibrary && (
+                                    <div style={{ display: 'grid', gap: 10 }}>
+                                        <div style={{ color: 'var(--text-weak)' }}>
+                                            Your recent chats:
+                                        </div>
+                                        <div className="chat-list" role="list">
+                                            {history.length === 0 && (
+                                                <div
+                                                    className="chat-item"
+                                                    style={{ opacity: 0.7 }}
+                                                    role="listitem"
+                                                >
+                                                    No history yet
+                                                </div>
+                                            )}
+                                            {history.map((h) => (
+                                                <button
+                                                    key={h.id}
+                                                    className="chat-item"
+                                                    role="listitem"
+                                                    title={h.title}
+                                                    onClick={() =>
+                                                        onSelectHistory(h.id)
+                                                    }
+                                                    style={{ textAlign: 'left' }}
+                                                >
+                                                    {h.title}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* SETTINGS */}
+                                {showSettings && (
+                                    <div style={{ display: 'grid', gap: 10 }}>
+                                        <label
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                onChange={() => {
+                                                    /* next pass */
+                                                }}
+                                            />
+                                            Compact bubbles (coming soon)
+                                        </label>
+                                        <label
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                onChange={() => {
+                                                    /* next pass */
+                                                }}
+                                            />
+                                            Prefer dark mode (coming soon)
+                                        </label>
+                                        <button
+                                            className="btn"
+                                            onClick={() => {
+                                                setHistory([]);
+                                                setMessages([
+                                                    {
+                                                        id: uid(),
+                                                        role: 'assistant',
+                                                        content:
+                                                            'New chat. What do you want to figure out?',
+                                                    },
+                                                ]);
+                                                closeAllOverlays();
+                                            }}
+                                        >
+                                            Clear history & reset chat
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* NEW PROJECT */}
+                                {showProject && (
+                                    <form
+                                        onSubmit={(
+                                            e: React.FormEvent<HTMLFormElement>
+                                        ) => {
+                                            e.preventDefault();
+                                            const name =
+                                                projectName.trim() ||
+                                                'Untitled Project';
+                                            const id = uid();
+                                            setActiveId(id);
+                                            setHistory((h) =>
+                                                [
+                                                    {
+                                                        id,
+                                                        title: `Project: ${name}`,
+                                                        updatedAt: Date.now(),
+                                                    },
+                                                    ...h,
+                                                ].slice(0, 20)
+                                            );
                                             setMessages([
                                                 {
                                                     id: uid(),
                                                     role: 'assistant',
-                                                    content: 'New chat. What do you want to figure out?',
+                                                    content: `New Project "${name}" started. What is the goal?`,
                                                 },
                                             ]);
+                                            setProjectName('');
                                             closeAllOverlays();
                                         }}
+                                        style={{ display: 'grid', gap: 10 }}
                                     >
-                                        Clear history & reset chat
-                                    </button>
-                                </div>
-                            )}
+                                        <input
+                                            className="input"
+                                            placeholder="Project name"
+                                            value={projectName}
+                                            onChange={(e) =>
+                                                setProjectName(e.target.value)
+                                            }
+                                            autoFocus
+                                        />
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                gap: 8,
+                                            }}
+                                        >
+                                            <button
+                                                className="btn primary"
+                                                type="submit"
+                                            >
+                                                Create
+                                            </button>
+                                            <button
+                                                className="btn"
+                                                type="button"
+                                                onClick={closeAllOverlays}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
 
-                            {/* NEW PROJECT */}
-                            {showProject && (
-                                <form
-                                    onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-                                        e.preventDefault();
-                                        const name = projectName.trim() || 'Untitled Project';
-                                        const id = uid();
-                                        setActiveId(id);
-                                        setHistory((h) => [{ id, title: `Project: ${name}`, updatedAt: Date.now() }, ...h].slice(0, 20));
-                                        setMessages([
-                                            {
-                                                id: uid(),
-                                                role: 'assistant',
-                                                content: `New Project "${name}" started. What is the goal?`,
-                                            },
-                                        ]);
-                                        setProjectName('');
-                                        closeAllOverlays();
-                                    }}
-                                    style={{ display: 'grid', gap: 10 }}
-                                >
-                                    <input
-                                        className="input"
-                                        placeholder="Project name"
-                                        value={projectName}
-                                        onChange={(e) => setProjectName(e.target.value)}
-                                        autoFocus
-                                    />
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <button className="btn primary" type="submit">Create</button>
-                                        <button className="btn" type="button" onClick={closeAllOverlays}>Cancel</button>
-                                    </div>
-                                </form>
-                            )}
-
-                            {/* MORTGAGE CALCULATOR (dedicated panel) */}
-                            {showMortgageCalc && (
-                                <MortgageCalcPanel
-                                    onCancel={closeAllOverlays}
-                                    onSubmit={(res: CalcSubmitResult) => {
-                                        closeAllOverlays();
-                                        // echo a clean line + structured calc meta reply
-                                        setMessages((m) => [
-                                            ...m,
-                                            {
-                                                id: uid(),
-                                                role: 'assistant',
-                                                content: `Guided inputs -> $${fmtMoney(res.monthlyPI)} P&I on $${fmtMoney(
-                                                    res.loanAmount
-                                                )} at ${res.ratePct}% for ${res.termYears}y.`,
-                                                meta: {
-                                                    path: 'calc',
-                                                    usedFRED: false,
-                                                    generatedAt: new Date().toISOString(),
-                                                    answer: {
-                                                        loanAmount: res.loanAmount,
-                                                        monthlyPI: res.monthlyPI,
-                                                        sensitivities: res.sensitivities,
+                                {/* MORTGAGE CALCULATOR (dedicated panel) */}
+                                {showMortgageCalc && (
+                                    <MortgageCalcPanel
+                                        onCancel={closeAllOverlays}
+                                        onSubmit={(res: CalcSubmitResult) => {
+                                            closeAllOverlays();
+                                            // echo a clean line + structured calc meta reply
+                                            setMessages((m) => [
+                                                ...m,
+                                                {
+                                                    id: uid(),
+                                                    role: 'assistant',
+                                                    content: `Guided inputs -> $${fmtMoney(
+                                                        res.monthlyPI
+                                                    )} P&I on $${fmtMoney(
+                                                        res.loanAmount
+                                                    )} at ${res.ratePct
+                                                        }% for ${res.termYears}y.`,
+                                                    meta: {
+                                                        path: 'calc',
+                                                        usedFRED: false,
+                                                        generatedAt:
+                                                            new Date().toISOString(),
+                                                        answer: {
+                                                            loanAmount:
+                                                                res.loanAmount,
+                                                            monthlyPI:
+                                                                res.monthlyPI,
+                                                            sensitivities:
+                                                                res.sensitivities,
+                                                        },
                                                     },
                                                 },
-                                            },
-                                        ]);
+                                            ]);
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                {/* -------- Auth-required (sign in for more free questions) modal -------- */}
+                {showAuthRequired && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            backgroundColor: 'rgba(0,0,0,0.45)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 6000,
+                        }}
+                        onClick={() => setShowAuthRequired(false)}
+                    >
+                        <div
+                            style={{
+                                background: 'var(--surface, #111827)',
+                                borderRadius: 16,
+                                padding: 24,
+                                maxWidth: 380,
+                                width: '90%',
+                                boxShadow: '0 18px 45px rgba(0,0,0,0.5)',
+                                color: 'var(--fg, #e5e7eb)',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h2
+                                style={{
+                                    fontSize: 18,
+                                    fontWeight: 600,
+                                    marginBottom: 8,
+                                }}
+                            >
+                                Sign in to keep going
+                            </h2>
+                            <p
+                                style={{
+                                    fontSize: 14,
+                                    lineHeight: 1.5,
+                                    marginBottom: 20,
+                                    opacity: 0.9,
+                                }}
+                            >
+                                You&apos;ve used today&apos;s free guest
+                                questions. Create a free HomeRates.ai account or
+                                sign in to continue asking questions and unlock
+                                more tools.
+                            </p>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    gap: 8,
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAuthRequired(false)}
+                                    style={{
+                                        padding: '6px 12px',
+                                        borderRadius: 999,
+                                        border:
+                                            '1px solid rgba(249,250,251,0.1)',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: 13,
+                                        cursor: 'pointer',
                                     }}
-                                />
-                            )}
+                                >
+                                    Maybe later
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => router.push('/sign-in')}
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        background:
+                                            'var(--accent, #22c55e)',
+                                        color: '#020617',
+                                        fontWeight: 600,
+                                        fontSize: 13,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Continue free
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* -------- Upgrade-required (Pro plan) modal -------- */}
+                {showUpgradeRequired && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            backgroundColor: 'rgba(0,0,0,0.45)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 6000,
+                        }}
+                        onClick={() => setShowUpgradeRequired(false)}
+                    >
+                        <div
+                            style={{
+                                background: 'var(--surface, #111827)',
+                                borderRadius: 16,
+                                padding: 24,
+                                maxWidth: 380,
+                                width: '90%',
+                                boxShadow: '0 18px 45px rgba(0,0,0,0.5)',
+                                color: 'var(--fg, #e5e7eb)',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h2
+                                style={{
+                                    fontSize: 18,
+                                    fontWeight: 600,
+                                    marginBottom: 8,
+                                }}
+                            >
+                                Upgrade to HomeRates.ai Pro
+                            </h2>
+                            <p
+                                style={{
+                                    fontSize: 14,
+                                    lineHeight: 1.5,
+                                    marginBottom: 20,
+                                    opacity: 0.9,
+                                }}
+                            >
+                                You&apos;ve reached today&apos;s free question
+                                limit for your account. Upgrade to
+                                HomeRates.ai&nbsp;Pro for unlimited questions
+                                and full access to advanced mortgage tools and
+                                scenario modeling.
+                            </p>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    gap: 8,
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowUpgradeRequired(false)
+                                    }
+                                    style={{
+                                        padding: '6px 12px',
+                                        borderRadius: 999,
+                                        border:
+                                            '1px solid rgba(249,250,251,0.1)',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: 13,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Maybe later
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => router.push('/upgrade')}
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        background:
+                                            'var(--accent, #22c55e)',
+                                        color: '#020617',
+                                        fontWeight: 600,
+                                        fontSize: 13,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    View plans
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
