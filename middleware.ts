@@ -1,21 +1,11 @@
 // middleware.ts
-import { NextResponse } from "next/server";
+import { clerkMiddleware } from '@clerk/nextjs/server';
 
-// 🚫 Do NOT run middleware on API routes or Next assets.
-// This fully bypasses SSO/redirects/etc for /api/*.
+export default clerkMiddleware();
+
 export const config = {
   matcher: [
-    // everything EXCEPT:
-    // - /api/*
-    // - /_next/*
-    // - /assets/*
-    // - /favicon.ico
-    "/((?!api/|_next/|assets/|favicon.ico).*)",
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
   ],
 };
-
-export default function middleware() {
-  // Keep your existing logic here if you had any (auth, redirects, etc).
-  // It will run for pages, not for /api/*.
-  return NextResponse.next();
-}

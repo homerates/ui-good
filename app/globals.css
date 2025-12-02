@@ -8,6 +8,8 @@
   --border: #e7e9ee;
   --muted: #f3f4f7;
   --accent: #0a66c2;
+  --footer-h: 40px;
+  /* height of your footer-meta bar */
 }
 
 * {
@@ -16,8 +18,13 @@
 
 html,
 body {
-  height: 100%
+  height: 100%;
+  overflow: hidden;
+  /* stop window scrolling */
+  margin: 0;
+  padding: 0;
 }
+
 
 body {
   margin: 0;
@@ -129,7 +136,26 @@ body {
 .scroll {
   /* container that owns the scroll */
   flex: 1;
+  padding-bottom: calc(var(--footer-h, 40px) + 84px);
   overflow-y: auto;
+}
+
+
+
+/* Laptop+ view: slightly smaller, denser type inside the scroll area */
+@media (min-width: 1024px) {
+  .scroll {
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+}
+
+/* HR composer: sticky above footer by default (desktop / larger screens) */
+.hr-composer {
+  position: sticky;
+  bottom: var(--footer-h);
+  z-index: 900;
+  /* matches inline zIndex */
 }
 
 /* Bubbles */
@@ -137,6 +163,62 @@ body {
   display: flex;
   gap: 10px;
   margin: 8px 0;
+}
+
+/* User questions: right-aligned, darker grey pill */
+.bubble.user,
+.bubble[data-role="user"] {
+  justify-content: flex-end;
+}
+
+.bubble.user .balloon.user,
+.bubble[data-role="user"] .balloon.user {
+  background: #e5e7eb;
+  color: #111827;
+  padding: 8px 12px;
+  border-radius: 9999px;
+  max-width: 75%;
+  box-sizing: border-box;
+}
+
+/* Assistant answers: left-aligned, full-width content */
+.bubble.assistant,
+.bubble[data-role="assistant"] {
+  justify-content: flex-start;
+}
+
+.bubble.assistant>.balloon.assistant,
+.bubble[data-role="assistant"]>.balloon.assistant {
+  background: #ffffff !important;
+  padding: 12px 18px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-sizing: border-box !important;
+  font-size: 0.85rem !important;
+  line-height: 1.55 !important;
+  max-width: 100%;
+}
+
+
+/* Assistant answers: a bit wider and centered on larger screens */
+@media (min-width: 1024px) {
+
+  .bubble.assistant,
+  .bubble[data-role="assistant"] {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Assistant answers: add side padding on smaller screens */
+@media (max-width: 1023px) {
+
+  .bubble.assistant,
+  .bubble[data-role="assistant"] {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 }
 
 .avatar {
@@ -162,33 +244,45 @@ body {
 /* Composer */
 .composer {
   border-top: 1px solid var(--border);
-  background: var(--card);
+  background: transparent;
+  /* let the main background show through */
 }
 
+/* Match the main center width (answers column) */
 .composer-inner {
-  max-width: 980px;
+  max-width: 600px;
+  /* align with .center max-width */
+  width: 100%;
   margin: 0 auto;
   display: flex;
+  align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 8px 12px;
 }
 
+/* Ask input: compact pill, room for in-field arrow */
 .input {
-  flex: 1;
-  min-height: 38px;
+  flex: 1 1 auto;
+  min-height: 32px;
+  /* slightly smaller than old 38px */
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 9999px;
+  /* true pill */
+  padding: 6px 38px 6px 12px;
+  /* right padding leaves space for 24px circle */
   background: #fff;
+  box-sizing: border-box;
 }
 
+/* Base .btn stays for other buttons, but we keep it neutral enough */
 .btn {
-  height: 38px;
-  padding: 0 12px;
-  border-radius: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 9999px;
   border: 1px solid var(--border);
   background: var(--card);
   cursor: pointer;
+  font-size: 0.875rem;
 }
 
 .btn.primary {
@@ -196,6 +290,7 @@ body {
   color: #fff;
   border-color: transparent;
 }
+
 
 /* Panels / lists */
 .panel {
@@ -280,245 +375,531 @@ ul {
   padding-left: 18px;
 }
 
-/* === Ask Question Pill (compact, top layer) === */
-.ask-pill {
-  position: fixed;
-  bottom: 18px;
-  right: 18px;
-  z-index: 6000;
-  /* stays above sidebar/menu */
-  background: var(--accent, #0070f3);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 4px 10px;
-  line-height: 1.2;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+/* === Chat composer + Ask pill (scoped to .composer) === */
+
+/* Keep composer bar stuck above the footer, spanning the chat width */
+.composer {
+  position: sticky;
+  bottom: var(--footer-h);
+  z-index: 900;
+  width: 100%;
 }
 
-.ask-pill:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
-}
-
-/* ===== Ask pill sizing & layout (chat composer) ===== */
+/* Row that holds the Ask pill */
 .composer .composer-inner {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  gap: 0;
+  /* no gap between input and in-field button */
 }
 
+/* Ask input pill: full width, compact height, space reserved for circle */
 .composer .input {
   flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
+  height: 36px;
+  /* compact, about half what you had */
+  padding-left: 14px;
+  padding-right: 44px;
+  /* room for 24px circle + breathing room */
+  border-radius: 9999px;
+  /* true pill */
+  box-sizing: border-box;
+  margin: 0;
 }
 
-/* Make the pill compact and not stretch full width */
+/* In-field Send: small circular arrow, inside the pill on the right */
+.composer .ask-pill {
+  all: unset;
+  /* wipe .btn and other inherited styles */
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  /* small circle */
+  height: 24px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+  z-index: 2;
+  /* sit above the input surface */
+}
+
+/* Arrow icon pointing up inside the circle */
+.composer .ask-pill svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  transform: rotate(-90deg);
+  /* turn right-arrow into up-arrow */
+}
+
+/* Neutralize old 160px caps that previously forced a fat pill */
+.composer .composer-inner .btn,
+.composer .composer-inner>.btn,
 .composer .btn.ask-pill {
   flex: 0 0 auto;
-  padding: 8px 14px;
-  border-radius: 9999px;
-  line-height: 1.1;
-  max-width: 160px;
-  /* cap width so it doesn't look like a bar */
-  white-space: nowrap;
-  /* keep "Send" on one line */
+  width: auto;
+  max-width: none;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
-/* If any global .btn styles force width, neutralize here */
-.composer .composer-inner .btn.ask-pill {
-  width: auto !important;
-}
-
-/* Slightly smaller on narrow screens */
-@media (max-width: 640px) {
-  .composer .btn.ask-pill {
-    padding: 8px 12px;
-    max-width: 136px;
-    font-size: 0.95rem;
-  }
-}
-
-/* === Footer meta sits under composer, never intercepts clicks === */
+/* === Footer look on the chat page === */
 .footer-meta {
   position: fixed;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   bottom: 0;
-  height: var(--footer-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  line-height: 1;
-  opacity: 0.85;
-  z-index: 10;
-  /* keep low; composer sits at 900 */
-  background: #fff;
-  /* ← solid: hides scroll behind it */
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  pointer-events: none;
-  /* never steal focus/clicks */
-  user-select: none;
+  padding: 8px 16px;
+  font-size: 0.50rem;
+  text-align: center;
+
+  /* background + text */
+  background: rgba(240, 243, 245, 0.932);
+  /* deep slate, slightly transparent */
+  color: #15161a;
+  /* soft gray text */
+
+  /* subtle styling */
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(148, 163, 184, 0.4);
+
+  /* stacking */
+  z-index: 800;
+  /* composer is at 900 */
 }
 
+/* =========================
+   HR: Chat-style composer pill
+   ========================= */
 
-/* Composer sits just above the footer line */
 .composer {
-  position: sticky !important;
-  /* matches your inline sticky */
-  bottom: var(--footer-h) !important;
-  /* hover just above footer */
-  z-index: 900 !important;
-  /* beat inline z-index:5 */
-}
-
-
-/* Give the scroll area breathing room so footer-meta doesn’t overlap */
-.scroll {
-  padding-bottom: 72px;
-  /* room for composer + footer text */
-}
-
-/* Make sure the send pill never stretches full width */
-.composer .composer-inner>.btn {
-  display: inline-flex !important;
-  width: auto !important;
-  max-width: none !important;
-  flex: 0 0 auto !important;
-  align-self: center;
-}
-
-.composer .btn.ask-pill {
-  padding: 8px 14px;
-  border-radius: 9999px;
-  white-space: nowrap;
-  max-width: 160px;
-}
-
-@media (max-width: 640px) {
-  .composer .btn.ask-pill {
-    padding: 8px 12px;
-    max-width: 136px;
-    font-size: 0.95rem;
-  }
-}
-
-/* ===== HR: composer + footer controls (2025-11-11) ===== */
-
-/* Layout variables */
-:root {
-  --footer-h: 30px;
-  --composer-h: 72px;
-}
-
-/* Ensure page has breathing room beneath content */
-body.app,
-main,
-.scroll,
-.scroll-region,
-.messages {
-  padding-bottom: calc(var(--footer-h) + var(--composer-h) + 24px) !important;
-}
-
-/* Footer line: fixed, low layer, non-blocking */
-.footer-meta {
-  position: fixed;
-  left: 0;
-  right: 0;
+  /* Stick inside the chat column, not the whole viewport */
+  position: sticky;
   bottom: 0;
-  height: var(--footer-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  line-height: 1;
-  opacity: 0.6;
-  z-index: 10;
-  /* keep low */
+  z-index: 9999;
+
+  /* Let the inner pill control the width – this avoids bleeding into drawer */
+  padding: 12px 16px 16px;
+  box-sizing: border-box;
+
   background: linear-gradient(to top, rgba(0, 0, 0, 0.06), transparent);
-  pointer-events: none;
-  user-select: none;
+  backdrop-filter: blur(12px);
 }
 
-/* Composer: your DOM shows inline style "position:sticky; bottom:0; z-index:5"
-   We override bottom + z-index so it sits ABOVE the footer. */
-.composer {
-  position: sticky !important;
-  bottom: var(--footer-h) !important;
-  z-index: 900 !important;
-}
+/* Inner pill shell that holds input + send button */
+.composer-inner {
+  max-width: 720px;
+  /* keep this similar to your main content width */
+  width: 100%;
+  margin: 0 auto;
+  /* center it within the main column */
 
-/* DOM-specific: .composer → .composer-inner → ( .input , .btn ) */
-.composer .composer-inner {
   display: flex;
   align-items: center;
   gap: 8px;
+
+  background: #f4f4f5;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 6px 10px 6px 14px;
+
+  box-sizing: border-box;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.02),
+    0 18px 40px rgba(15, 23, 42, 0.16);
 }
 
-/* Input takes slack */
-.composer .composer-inner .input {
-  flex: 1 1 auto !important;
-  min-width: 0 !important;
+/* Input inside the pill */
+.composer .input,
+.composer input[type="text"],
+.composer input[type="search"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+
+  background: transparent;
+  padding: 8px 4px 8px 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #020617;
 }
 
-/* Pill is your <button class="btn">…</button> — hard-cap it at 160px */
-.composer .composer-inner .btn {
-  flex: 0 1 160px !important;
-  max-width: 160px !important;
-  width: 160px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+.composer .input::placeholder,
+.composer input[type="text"]::placeholder,
+.composer input[type="search"]::placeholder {
+  color: rgba(15, 23, 42, 0.45);
 }
 
-/* ==== DOM-specific composer rules (composer → composer-inner → input/btn) ==== */
-.composer .composer-inner {
-  display: flex;
+/* Round send button – force it to stay circular */
+.composer-send {
+  flex: 0 0 auto;
+
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  aspect-ratio: 1 / 1;
+  /* hard guard against stretching */
+
+  padding: 0;
+  border-radius: 999px;
+  box-sizing: border-box;
+
+  border: none;
+  outline: none;
+
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+
+  background: #10a37f;
+  color: #ffffff;
+  cursor: pointer;
+
+  transition:
+    background 120ms ease-out,
+    transform 80ms ease-out,
+    box-shadow 120ms ease-out;
+
+  box-shadow:
+    0 5px 15px rgba(16, 163, 127, 0.35),
+    0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
-/* Input takes the slack */
-.composer .composer-inner .input {
-  flex: 1 1 auto !important;
-  min-width: 0 !important;
+.composer-send:hover:enabled {
+  background: #0e8c6d;
+  transform: translateY(-0.5px);
 }
 
-/* Pill = <button class="btn">Send</button> — HARD CAP at 160px */
-.composer .composer-inner>.btn {
-  flex: 0 1 160px !important;
-  /* do NOT grow */
-  max-width: 160px !important;
-  width: 160px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+.composer-send:active:enabled {
+  transform: translateY(0.5px) scale(0.97);
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.24),
+    0 0 0 1px rgba(15, 23, 42, 0.06);
 }
 
-/* Guard: if any utility set w-full/flex-1 on the button, neutralize it */
-.composer .composer-inner>.btn.w-full,
-.composer .composer-inner>.btn.flex-1,
-.composer .composer-inner>.btn[style*="flex: 1"],
-.composer .composer-inner>.btn[style*="width: 100%"] {
-  width: 160px !important;
-  max-width: 160px !important;
-  flex: 0 1 160px !important;
+.composer-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
 }
 
-:root {
-  --footer-h: 30px;
-  --composer-h: 72px;
+/* Arrow icon in the button */
+.composer-send svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  /* optional: uncomment if you want a slight upward tilt */
+  /* transform: translateY(0.5px) rotate(-25deg); */
 }
 
-body.app,
-main,
-.scroll,
-.scroll-region,
-.messages {
-  padding-bottom: calc(var(--footer-h) + var(--composer-h) + 24px) !important;
+/* Main answer block: centered card-like layout */
+.answer-block {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 10px;
+}
+
+/* Meta row at top (path, usedFRED, at) */
+.answer-block .meta {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+/* Bullets / TL;DR / borrower summary inside answers */
+.answer-block ul {
+  margin-top: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Small screens: pin composer to bottom and prevent iOS zoom */
+@media (max-width: 640px) {
+
+  /* Make sure the last messages aren't hidden behind the pill */
+  .scroll {
+
+    padding-bottom: calc(var(--footer-h) - 14px);
+
+  }
+
+  /* Override inline sticky on mobile: pin to bottom of viewport */
+  .composer {
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: var(--footer-h);
+    padding-left: 10px;
+    padding-right: 10px;
+    box-sizing: border-box;
+    z-index: 999;
+  }
+
+  .composer-inner {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* iOS Safari: font-size >= 16px stops auto zooming the whole page */
+  .composer-inner .input,
+  .composer .input {
+    font-size: 16px;
+  }
+}
+
+/* Small screens: pin hr-composer to bottom and keep content visible above it */
+@media (max-width: 640px) {
+
+  /* Make sure the last messages aren't hidden behind the pill */
+  .scroll {
+    padding-bottom: calc(var(--footer-h) + 14px);
+  }
+
+  /* Mobile: anchor composer to bottom of viewport, edge-to-edge */
+  .hr-composer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--footer-h);
+    padding-left: 10px;
+    padding-right: 10px;
+    box-sizing: border-box;
+  }
+
+  .hr-composer-inner {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Extra safety: ensure font-size stays 16px+ on mobile too */
+  .hr-composer-input {
+    font-size: 16px;
+  }
+}
+
+/* =========================
+   HR: Composer behavior
+   ========================= */
+
+/* Default / desktop: stick above the footer inside the scroll area */
+.hr-composer[data-composer="primary"] {
+  position: sticky;
+  bottom: var(--footer-h, 14px);
+  z-index: 900;
+}
+
+/* Make sure the main content leaves room so the composer doesn't cover last lines.
+   If your main wrapper class is different, swap .app-main/.hr-main accordingly. */
+.app-main,
+.hr-main {
+  padding-bottom: calc(var(--footer-h, 56px) + 72px);
+}
+
+/* Mobile: pin composer to viewport bottom while scrolling / typing */
+@media (max-width: 768px) {
+  .hr-composer[data-composer="primary"] {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 900;
+  }
+
+  /* Slightly more padding at the bottom so last answer isn't hidden */
+  .app-main,
+  .hr-main {
+    padding-bottom: calc(var(--footer-h, 56px) + 88px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* HR: Assistant answers layout - narrower, centered, consistent spacing */
+.balloon.bot {
+  max-width: 640px !important;
+  /* keep answers centered like desktop */
+  width: 100%;
+  box-sizing: border-box;
+
+  margin: 12px auto !important;
+  /* center answers horizontally */
+  padding: 12px 18px !important;
+  /* add breathing room */
+
+  font-size: 0.95rem !important;
+  line-height: 1.55 !important;
+
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Mobile adjustments: keep answers off screen edges */
+@media (max-width: 768px) {
+  .balloon.bot {
+    max-width: 100% !important;
+    margin: 8px 12px !important;
+    /* keep 12px gap from edges on phones */
+  }
+}
+
+/* HR: Answer content + sources layout */
+
+/* Base typography + wrapping for assistant answers */
+.bubble.assistant .answer-block,
+.bubble[data-role="assistant"] .answer-block {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  word-break: break-word;
+  /* allow long tokens to wrap */
+  overflow-wrap: anywhere;
+  /* modern browsers: wrap long URLs/meta */
+}
+
+/* Sources list: "Sources" heading + smaller text */
+.bubble.assistant .answer-block ul,
+.bubble[data-role="assistant"] .answer-block ul {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  margin: 4px 0 0 0;
+  padding-left: 1.1rem;
+  list-style-type: disc;
+}
+
+/* Inject "Sources" label above the list, ChatGPT-style */
+.bubble.assistant .answer-block ul::before,
+.bubble[data-role="assistant"] .answer-block ul::before {
+  content: "Sources";
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* Visually cap at 3 sources */
+.bubble.assistant .answer-block ul li:nth-child(n + 4),
+.bubble[data-role="assistant"] .answer-block ul li:nth-child(n + 4) {
+  display: none;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#__next {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Global horizontal clamp to avoid "squeeze to size" on mobile */
+html,
+body {
+  margin: 0;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+#__next {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* ===== Mortgage Calculator layout ===== */
+
+.mortgage-calc-panel {
+  width: 100%;
+  max-width: 420px;
+  /* overall card width inside the popup */
+  margin: 0 auto;
+}
+
+.mortgage-calc-form {
+  display: grid;
+  gap: 10px;
+}
+
+/* 2-column rows for desktop / larger screens */
+.mortgage-calc-panel .mortgage-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Prevent inputs from forcing the layout wider than the viewport */
+.mortgage-calc-panel .input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  /* <— important: overrides any global min-width */
+}
+
+/* On small phones: stack the 2-column rows so they can never overflow */
+@media (max-width: 480px) {
+  .mortgage-calc-panel {
+    max-width: 360px;
+  }
+
+  .mortgage-calc-panel .mortgage-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  /* no window scroll */
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  /* inner .scroll manages overflow */
+}
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Prevent messages from hiding behind the Ask composer */
+.scroll {
+  padding-bottom: 90px;
+  /* adjust 80–110px depending on your pill height */
+}
+
+/* Prevent iOS Safari from zooming on inputs/buttons (minimum 16px font) */
+@media (max-width: 768px) {
+
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px !important;
+  }
 }
