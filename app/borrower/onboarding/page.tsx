@@ -85,25 +85,26 @@ export default function BorrowerOnboardingPage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "2.5rem 1.5rem",
+                padding: "1.5rem 1rem",
             }}
         >
             <div
                 style={{
-                    width: "100%",
-                    maxWidth: 420,
+                    width: "min(100%, 420px)",
                     backgroundColor: "#020617",
-                    borderRadius: "1rem",
-                    padding: "1.75rem",
-                    boxShadow: "0 18px 40px rgba(0,0,0,0.45)",
+                    borderRadius: "0.9rem",
+                    padding: "1.25rem",
+                    boxShadow: "0 14px 32px rgba(0,0,0,0.4)",
                     border: "1px solid rgba(148, 163, 184, 0.3)",
+                    maxHeight: "80vh",
+                    overflowY: "auto",
                 }}
             >
                 <h1
                     style={{
-                        fontSize: "1.35rem",
+                        fontSize: "1.15rem",
                         fontWeight: 600,
-                        marginBottom: "0.4rem",
+                        marginBottom: "0.3rem",
                         color: "#e5e7eb",
                         textAlign: "center",
                     }}
@@ -113,10 +114,11 @@ export default function BorrowerOnboardingPage() {
 
                 <p
                     style={{
-                        fontSize: "0.88rem",
+                        fontSize: "0.8rem",
                         color: "#9ca3af",
-                        marginBottom: "1.4rem",
+                        marginBottom: "0.9rem",
                         textAlign: "center",
+                        lineHeight: 1.4,
                     }}
                 >
                     Your loan officer has invited you to use HomeRates.ai. Confirm your
@@ -125,12 +127,12 @@ export default function BorrowerOnboardingPage() {
 
                 <form
                     onSubmit={handleSubmit}
-                    style={{ display: "grid", gap: "0.9rem" }}
+                    style={{ display: "grid", gap: "0.55rem" }}
                 >
-                    <div style={{ display: "grid", gap: "0.35rem" }}>
+                    <div style={{ display: "grid", gap: "0.25rem" }}>
                         <label
                             htmlFor="inviteCode"
-                            style={{ fontSize: "0.82rem", color: "#e5e7eb" }}
+                            style={{ fontSize: "0.78rem", color: "#e5e7eb" }}
                         >
                             Invite Code
                         </label>
@@ -141,21 +143,21 @@ export default function BorrowerOnboardingPage() {
                             onChange={(e) => setInviteCode(e.target.value)}
                             placeholder="Paste your invite code"
                             style={{
-                                padding: "0.55rem 0.75rem",
-                                borderRadius: "0.5rem",
+                                padding: "0.45rem 0.6rem",
+                                borderRadius: "0.45rem",
                                 border: "1px solid #4b5563",
                                 backgroundColor: "#020617",
                                 color: "#e5e7eb",
-                                fontSize: "0.95rem",
+                                fontSize: "0.9rem",
                                 width: "100%",
                             }}
                         />
                     </div>
 
-                    <div style={{ display: "grid", gap: "0.35rem" }}>
+                    <div style={{ display: "grid", gap: "0.25rem" }}>
                         <label
                             htmlFor="name"
-                            style={{ fontSize: "0.82rem", color: "#e5e7eb" }}
+                            style={{ fontSize: "0.78rem", color: "#e5e7eb" }}
                         >
                             Full Name
                         </label>
@@ -166,21 +168,21 @@ export default function BorrowerOnboardingPage() {
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Your full name"
                             style={{
-                                padding: "0.55rem 0.75rem",
-                                borderRadius: "0.5rem",
+                                padding: "0.45rem 0.6rem",
+                                borderRadius: "0.45rem",
                                 border: "1px solid #4b5563",
                                 backgroundColor: "#020617",
                                 color: "#e5e7eb",
-                                fontSize: "0.95rem",
+                                fontSize: "0.9rem",
                                 width: "100%",
                             }}
                         />
                     </div>
 
-                    <div style={{ display: "grid", gap: "0.35rem" }}>
+                    <div style={{ display: "grid", gap: "0.25rem" }}>
                         <label
                             htmlFor="email"
-                            style={{ fontSize: "0.82rem", color: "#e5e7eb" }}
+                            style={{ fontSize: "0.78rem", color: "#e5e7eb" }}
                         >
                             Email
                         </label>
@@ -191,21 +193,21 @@ export default function BorrowerOnboardingPage() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@example.com"
                             style={{
-                                padding: "0.55rem 0.75rem",
-                                borderRadius: "0.5rem",
+                                padding: "0.45rem 0.6rem",
+                                borderRadius: "0.45rem",
                                 border: "1px solid #4b5563",
                                 backgroundColor: "#020617",
                                 color: "#e5e7eb",
-                                fontSize: "0.95rem",
+                                fontSize: "0.9rem",
                                 width: "100%",
                             }}
                         />
                     </div>
 
-                    <div style={{ display: "grid", gap: "0.35rem" }}>
+                    <div style={{ display: "grid", gap: "0.25rem" }}>
                         <label
                             htmlFor="phone"
-                            style={{ fontSize: "0.82rem", color: "#e5e7eb" }}
+                            style={{ fontSize: "0.78rem", color: "#e5e7eb" }}
                         >
                             Mobile (optional)
                         </label>
@@ -216,12 +218,12 @@ export default function BorrowerOnboardingPage() {
                             onChange={(e) => setPhone(e.target.value)}
                             placeholder="Mobile number"
                             style={{
-                                padding: "0.55rem 0.75rem",
-                                borderRadius: "0.5rem",
+                                padding: "0.45rem 0.6rem",
+                                borderRadius: "0.45rem",
                                 border: "1px solid #4b5563",
                                 backgroundColor: "#020617",
                                 color: "#e5e7eb",
-                                fontSize: "0.95rem",
+                                fontSize: "0.9rem",
                                 width: "100%",
                             }}
                         />
@@ -230,12 +232,12 @@ export default function BorrowerOnboardingPage() {
                     {error && (
                         <div
                             style={{
-                                padding: "0.55rem 0.75rem",
-                                borderRadius: "0.5rem",
+                                padding: "0.45rem 0.6rem",
+                                borderRadius: "0.45rem",
                                 backgroundColor: "rgba(248, 113, 113, 0.08)",
                                 border: "1px solid rgba(248, 113, 113, 0.45)",
                                 color: "#fecaca",
-                                fontSize: "0.82rem",
+                                fontSize: "0.78rem",
                             }}
                         >
                             {error}
@@ -245,12 +247,12 @@ export default function BorrowerOnboardingPage() {
                     {success && (
                         <div
                             style={{
-                                padding: "0.55rem 0.75rem",
-                                borderRadius: "0.5rem",
+                                padding: "0.45rem 0.6rem",
+                                borderRadius: "0.45rem",
                                 backgroundColor: "rgba(34, 197, 94, 0.12)",
                                 border: "1px solid rgba(34, 197, 94, 0.5)",
                                 color: "#bbf7d0",
-                                fontSize: "0.82rem",
+                                fontSize: "0.78rem",
                             }}
                         >
                             {success}
@@ -261,11 +263,11 @@ export default function BorrowerOnboardingPage() {
                         type="submit"
                         disabled={loading}
                         style={{
-                            marginTop: "0.35rem",
-                            padding: "0.7rem 0.75rem",
+                            marginTop: "0.25rem",
+                            padding: "0.6rem 0.7rem",
                             borderRadius: "999px",
                             border: "none",
-                            fontSize: "0.95rem",
+                            fontSize: "0.9rem",
                             fontWeight: 500,
                             cursor: loading ? "default" : "pointer",
                             background:
@@ -275,7 +277,7 @@ export default function BorrowerOnboardingPage() {
                             transition: "transform 0.12s ease-out, box-shadow 0.12s ease-out",
                             boxShadow: loading
                                 ? "0 0 0 rgba(0,0,0,0)"
-                                : "0 8px 24px rgba(56,189,248,0.4)",
+                                : "0 6px 18px rgba(56,189,248,0.4)",
                         }}
                     >
                         {loading ? "Activating access..." : "Activate Access"}
