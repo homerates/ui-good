@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(_req: NextRequest) {
     try {
-        // 1) Who is the current Clerk user?
+        // 1) Identify current Clerk user (the LO)
         const { userId } = await auth();
 
         if (!userId) {
@@ -16,10 +16,11 @@ export async function POST(_req: NextRequest) {
             );
         }
 
-        // 2) Env vars – must be set in this project
+        // 2) Env vars – for this app they should be:
+        // NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_APP_BASE_URL=https://chat.homerates.ai
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const appBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL; // should be https://chat.homerates.ai
+        const appBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL;
 
         if (!supabaseUrl || !supabaseServiceKey || !appBaseUrl) {
             console.error(
@@ -34,7 +35,8 @@ export async function POST(_req: NextRequest) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         const baseUrl = appBaseUrl.replace(/\/+$/, "");
 
-        // 3) First, try to find an existing invite_codes row for this LO
+        // 3) One invite_codes row per LO, keyed by user_id
+        // First, see if one already exists for this LO
         const { data: existing, error: existingError } = await supabase
             .from("invite_codes")
             .select("id")
@@ -42,7 +44,7 @@ export async function POST(_req: NextRequest) {
             .maybeSingle();
 
         if (existingError) {
-            console.error("Supabase invite_codes lookup error:", existingError);
+            console.error("invite_codes lookup error:", existingError);
         }
 
         let inviteId: string;
@@ -51,19 +53,22 @@ export async function POST(_req: NextRequest) {
             // Reuse existing invite for this LO
             inviteId = existing.id as string;
         } else {
-            // 4) No existing row – create one new invite_codes row for this LO
+            // 4) No existing invite row – create exactly one for this LO
             const { data: created, error: createError } = await supabase
                 .from("invite_codes")
                 .insert({
-                    user_id: userId,
+                    user_id: userId, // matches your screenshot
                 })
                 .select("id")
                 .single();
 
             if (createError || !created) {
-                console.error("Supabase invite_codes insert error:", createError);
+                console.error("invite_codes insert error:", createError);
                 return NextResponse.json(
-                    { error: "Failed to create invite" },
+                    {
+                        error: "Failed to create invite",
+                        debug: createError?.message ?? null,
+                    },
                     { status: 500 }
                 );
             }
@@ -71,12 +76,11 @@ export async function POST(_req: NextRequest) {
             inviteId = created.id as string;
         }
 
-        // 5) Build onboarding URL for the borrower using the invite_codes.id
+        // 5) Build onboarding URL using invite_codes.id as the token
         const inviteUrl = `${baseUrl}/onboarding?invite=${encodeURIComponent(
             inviteId
         )}`;
 
-        // We return inviteId as "code" so the UI can show something
         return NextResponse.json(
             {
                 ok: true,
