@@ -32,11 +32,10 @@ export default function OnboardingPage() {
 
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
-    const [successBorrowerId, setSuccessBorrowerId] = React.useState<string | null>(
-        null
-    );
+    const [successBorrowerId, setSuccessBorrowerId] =
+        React.useState<string | null>(null);
 
-    // Prefill email and name if we have a Clerk user and form is still empty
+    // Prefill from Clerk user if available and form is untouched
     React.useEffect(() => {
         if (!user) return;
 
@@ -59,18 +58,32 @@ export default function OnboardingPage() {
         });
     }, [user]);
 
-    // Build a redirectUrl that preserves the invite code
+    // Build redirectUrl back to this onboarding page with invite preserved
     const redirectUrl = React.useMemo(() => {
-        const url = new URL(
+        const base =
             typeof window !== "undefined"
-                ? window.location.href
-                : `https://chat.homerates.ai${pathname}`
-        );
+                ? window.location.origin
+                : "https://chat.homerates.ai";
+        const url = new URL(pathname || "/onboarding", base);
         if (inviteCode) {
             url.searchParams.set("invite", inviteCode);
         }
+        // Clerk expects a relative path in redirect_url (starting with /)
         return url.pathname + url.search;
     }, [inviteCode, pathname]);
+
+    function goToSignIn() {
+        const base =
+            typeof window !== "undefined"
+                ? window.location.origin
+                : "https://chat.homerates.ai";
+        const url = new URL("/sign-in", base);
+        url.searchParams.set("redirect_url", redirectUrl);
+        // Full page navigation to Clerk sign-in
+        if (typeof window !== "undefined") {
+            window.location.href = url.toString();
+        }
+    }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -107,6 +120,12 @@ export default function OnboardingPage() {
 
             const data = await res.json().catch(() => null);
 
+            // If API says "Not authenticated", immediately send them to sign in
+            if (res.status === 401) {
+                goToSignIn();
+                return;
+            }
+
             if (!res.ok) {
                 setError(
                     data?.error ||
@@ -139,7 +158,7 @@ export default function OnboardingPage() {
         }
     }
 
-    // Simple render helpers
+    // --- Render helpers ---
 
     const renderSuccess = () => (
         <div
@@ -232,7 +251,8 @@ export default function OnboardingPage() {
                         color: "#64748b",
                     }}
                 >
-                    A few quick details so we can link your questions to your loan officer.
+                    A few quick details so we can link your questions to your loan
+                    officer.
                 </p>
             </div>
 
@@ -512,12 +532,7 @@ export default function OnboardingPage() {
 
             <button
                 type="button"
-                onClick={() => {
-                    const url = new URL("/sign-in", window.location.origin);
-                    url.searchParams.set("redirect_url", redirectUrl);
-                    window.location.href = url.toString();
-                }}
-
+                onClick={goToSignIn}
                 style={{
                     marginTop: "4px",
                     padding: "9px 16px",
