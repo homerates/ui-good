@@ -20,11 +20,14 @@ type OnboardingPayload = {
     firstName: string;
     lastName: string;
     email: string;
+    phone?: string;
+    state?: string;
+    postalCode?: string;
 };
 
 export async function POST(req: NextRequest) {
     try {
-        // 1) Clerk user (borrower)
+        // 1) Clerk user (borrower) – we don't store this yet, just require login
         const { userId } = await auth();
 
         if (!userId) {
@@ -34,9 +37,10 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 2) Parse body
+        // 2) Parse body from onboarding form
         const body = (await req.json()) as Partial<OnboardingPayload>;
-        const { inviteCode, firstName, lastName, email } = body;
+        const { inviteCode, firstName, lastName, email, phone, state, postalCode } =
+            body;
 
         if (!inviteCode) {
             return NextResponse.json(
@@ -52,7 +56,9 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 3) Look up invite in invite_codes
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        // 3) Look up invite in invite_codes using `code`
         const { data: invite, error: inviteError } = await supabase
             .from("invite_codes")
             .select(
@@ -80,7 +86,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // expiry / usage
+        // Basic expiry / usage rules
         if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
             return NextResponse.json(
                 { error: "Invite code has expired" },
@@ -107,15 +113,22 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 4) Create borrower (no more "Error checking existing borrower")
+        // 4) Create borrower row using your actual schema
         const { data: newBorrower, error: insertBorrowerError } = await supabase
             .from("borrowers")
             .insert({
-                clerk_user_id: userId,
-                loan_officer_id: loanOfficerId,
+                loan_officer_id: loanOfficerId, // NOT NULL
+                name: fullName,                 // NOT NULL
+                email,
                 first_name: firstName,
                 last_name: lastName,
-                email,
+                phone: phone ?? null,
+                state: state ?? null,
+                postal_code: postalCode ?? null,
+                source: "invite-link",
+                // status defaults to 'lead'
+                // created_at / updated_at handled by defaults + trigger
+                external_ref: userId, // store Clerk user id here if you like
             })
             .select("id")
             .single();
@@ -152,7 +165,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 6) Done
+        // 6) Done – client can redirect to success/dashboard
         return NextResponse.json(
             {
                 ok: true,
