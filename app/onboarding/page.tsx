@@ -1,58 +1,129 @@
-// app/onboarding/page.tsx
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+
+type FormState = {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    state: string;
+    postalCode: string;
+};
 
 export default function OnboardingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const pathname = usePathname();
+    const { user } = useUser();
 
-    const inviteCodeFromUrl = searchParams.get("invite") ?? "";
+    const inviteCode = searchParams.get("invite") || "";
 
-    const [inviteCode] = React.useState(inviteCodeFromUrl);
-    const [firstName, setFirstName] = React.useState("");
-    const [lastName, setLastName] = React.useState("");
-    const [email, setEmail] = React.useState("");
+    const [form, setForm] = React.useState<FormState>({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        state: "",
+        postalCode: "",
+    });
+
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+    const [successBorrowerId, setSuccessBorrowerId] = React.useState<string | null>(
+        null
+    );
 
-    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    // Prefill email and name if we have a Clerk user and form is still empty
+    React.useEffect(() => {
+        if (!user) return;
+
+        setForm((prev) => {
+            const alreadyTouched =
+                prev.firstName || prev.lastName || prev.email || prev.phone;
+            if (alreadyTouched) return prev;
+
+            const fullName = user.fullName || "";
+            const split = fullName.split(" ");
+            const firstName = split[0] || "";
+            const lastName = split.slice(1).join(" ") || "";
+
+            return {
+                ...prev,
+                firstName,
+                lastName,
+                email: user.primaryEmailAddress?.emailAddress || "",
+            };
+        });
+    }, [user]);
+
+    // Build a redirectUrl that preserves the invite code
+    const redirectUrl = React.useMemo(() => {
+        const url = new URL(
+            typeof window !== "undefined"
+                ? window.location.href
+                : `https://chat.homerates.ai${pathname}`
+        );
+        if (inviteCode) {
+            url.searchParams.set("invite", inviteCode);
+        }
+        return url.pathname + url.search;
+    }, [inviteCode, pathname]);
+
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setError(null);
+
+        if (!inviteCode) {
+            setError("This invite link is missing a valid invite code.");
+            return;
+        }
+
+        if (!form.firstName || !form.lastName || !form.email) {
+            setError("Please complete first name, last name and email.");
+            return;
+        }
+
         setSubmitting(true);
 
         try {
             const res = await fetch("/api/onboarding/complete", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                },
                 body: JSON.stringify({
                     inviteCode,
-                    firstName,
-                    lastName,
-                    email,
+                    firstName: form.firstName.trim(),
+                    lastName: form.lastName.trim(),
+                    email: form.email.trim(),
+                    phone: form.phone.trim() || null,
+                    state: form.state.trim() || null,
+                    postalCode: form.postalCode.trim() || null,
                 }),
             });
 
+            const data = await res.json().catch(() => null);
+
             if (!res.ok) {
-                const data = await res.json().catch(() => null);
-                setError(data?.error || "Something went wrong completing onboarding.");
+                setError(
+                    data?.error ||
+                    "We could not complete your onboarding. Please try again."
+                );
                 setSubmitting(false);
                 return;
             }
 
-            const data = await res.json();
-            const borrowerId = data?.borrowerId as string | undefined;
-
-            if (!borrowerId) {
-                setError("Onboarding completed, but no borrower ID returned.");
+            if (!data?.borrowerId) {
+                setError("Onboarding completed but no borrower id was returned.");
                 setSubmitting(false);
                 return;
             }
 
-            router.push(
-                `/onboarding/success?borrower=${encodeURIComponent(borrowerId)}`
-            );
+            setSuccessBorrowerId(data.borrowerId as string);
+            setSubmitting(false);
         } catch (err) {
             console.error("Onboarding submit error:", err);
             setError("Unexpected error. Please try again.");
@@ -60,197 +131,425 @@ export default function OnboardingPage() {
         }
     }
 
+    function handleEnterApp() {
+        if (successBorrowerId) {
+            router.push(`/?borrower=${encodeURIComponent(successBorrowerId)}`);
+        } else {
+            router.push("/");
+        }
+    }
+
+    // Simple render helpers
+
+    const renderSuccess = () => (
+        <div
+            style={{
+                width: "100%",
+                maxWidth: "480px",
+                padding: "18px 18px 20px",
+                borderRadius: "16px",
+                border: "1px solid rgba(148, 163, 184, 0.6)",
+                background: "#f8fafc",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+            }}
+        >
+            <div>
+                <h1
+                    style={{
+                        margin: 0,
+                        fontSize: "1.25rem",
+                        fontWeight: 600,
+                        color: "#0f172a",
+                    }}
+                >
+                    Your HomeRates.ai access is active
+                </h1>
+                <p
+                    style={{
+                        margin: "6px 0 0 0",
+                        fontSize: "0.9rem",
+                        color: "#475569",
+                    }}
+                >
+                    You are now linked to your loan officer inside HomeRates.ai. You can
+                    start asking questions any time.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                onClick={handleEnterApp}
+                style={{
+                    marginTop: "4px",
+                    padding: "10px 16px",
+                    borderRadius: "999px",
+                    border: "1px solid #0f172a",
+                    background: "#0f172a",
+                    color: "#f9fafb",
+                    fontSize: "0.95rem",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                }}
+            >
+                Enter HomeRates.ai
+            </button>
+        </div>
+    );
+
+    const renderForm = () => (
+        <div
+            style={{
+                width: "100%",
+                maxWidth: "480px",
+                padding: "18px 18px 20px",
+                borderRadius: "16px",
+                border: "1px solid rgba(148, 163, 184, 0.6)",
+                background: "#ffffff",
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                maxHeight: "80vh",
+                overflowY: "auto",
+            }}
+        >
+            <div>
+                <h1
+                    style={{
+                        margin: 0,
+                        fontSize: "1.2rem",
+                        fontWeight: 600,
+                        color: "#0f172a",
+                    }}
+                >
+                    Activate your HomeRates.ai access
+                </h1>
+                <p
+                    style={{
+                        margin: "6px 0 0 0",
+                        fontSize: "0.9rem",
+                        color: "#64748b",
+                    }}
+                >
+                    A few quick details so we can link your questions to your loan officer.
+                </p>
+            </div>
+
+            {error && (
+                <p
+                    style={{
+                        margin: 0,
+                        fontSize: "0.85rem",
+                        color: "#b91c1c",
+                    }}
+                >
+                    {error}
+                </p>
+            )}
+
+            {!inviteCode && (
+                <p
+                    style={{
+                        margin: 0,
+                        fontSize: "0.85rem",
+                        color: "#b91c1c",
+                    }}
+                >
+                    This invite link is missing a valid invite code. Please ask your loan
+                    officer for a new link.
+                </p>
+            )}
+
+            <form
+                onSubmit={handleSubmit}
+                style={{
+                    display: "grid",
+                    gap: "10px",
+                }}
+            >
+                <div
+                    style={{
+                        display: "grid",
+                        gap: "8px",
+                    }}
+                >
+                    <label
+                        style={{
+                            fontSize: "0.8rem",
+                            color: "#475569",
+                        }}
+                    >
+                        First name
+                        <input
+                            type="text"
+                            value={form.firstName}
+                            onChange={(e) =>
+                                setForm((prev) => ({ ...prev, firstName: e.target.value }))
+                            }
+                            style={{
+                                marginTop: "4px",
+                                width: "100%",
+                                padding: "7px 9px",
+                                borderRadius: "8px",
+                                border: "1px solid rgba(148, 163, 184, 0.8)",
+                                fontSize: "0.9rem",
+                            }}
+                            required
+                        />
+                    </label>
+
+                    <label
+                        style={{
+                            fontSize: "0.8rem",
+                            color: "#475569",
+                        }}
+                    >
+                        Last name
+                        <input
+                            type="text"
+                            value={form.lastName}
+                            onChange={(e) =>
+                                setForm((prev) => ({ ...prev, lastName: e.target.value }))
+                            }
+                            style={{
+                                marginTop: "4px",
+                                width: "100%",
+                                padding: "7px 9px",
+                                borderRadius: "8px",
+                                border: "1px solid rgba(148, 163, 184, 0.8)",
+                                fontSize: "0.9rem",
+                            }}
+                            required
+                        />
+                    </label>
+
+                    <label
+                        style={{
+                            fontSize: "0.8rem",
+                            color: "#475569",
+                        }}
+                    >
+                        Email
+                        <input
+                            type="email"
+                            value={form.email}
+                            onChange={(e) =>
+                                setForm((prev) => ({ ...prev, email: e.target.value }))
+                            }
+                            style={{
+                                marginTop: "4px",
+                                width: "100%",
+                                padding: "7px 9px",
+                                borderRadius: "8px",
+                                border: "1px solid rgba(148, 163, 184, 0.8)",
+                                fontSize: "0.9rem",
+                            }}
+                            required
+                        />
+                    </label>
+
+                    <label
+                        style={{
+                            fontSize: "0.8rem",
+                            color: "#475569",
+                        }}
+                    >
+                        Mobile (optional)
+                        <input
+                            type="tel"
+                            value={form.phone}
+                            onChange={(e) =>
+                                setForm((prev) => ({ ...prev, phone: e.target.value }))
+                            }
+                            style={{
+                                marginTop: "4px",
+                                width: "100%",
+                                padding: "7px 9px",
+                                borderRadius: "8px",
+                                border: "1px solid rgba(148, 163, 184, 0.8)",
+                                fontSize: "0.9rem",
+                            }}
+                        />
+                    </label>
+
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "1.2fr 1fr",
+                            gap: "8px",
+                        }}
+                    >
+                        <label
+                            style={{
+                                fontSize: "0.8rem",
+                                color: "#475569",
+                            }}
+                        >
+                            State (optional)
+                            <input
+                                type="text"
+                                value={form.state}
+                                onChange={(e) =>
+                                    setForm((prev) => ({ ...prev, state: e.target.value }))
+                                }
+                                style={{
+                                    marginTop: "4px",
+                                    width: "100%",
+                                    padding: "7px 9px",
+                                    borderRadius: "8px",
+                                    border: "1px solid rgba(148, 163, 184, 0.8)",
+                                    fontSize: "0.9rem",
+                                }}
+                            />
+                        </label>
+
+                        <label
+                            style={{
+                                fontSize: "0.8rem",
+                                color: "#475569",
+                            }}
+                        >
+                            Zip (optional)
+                            <input
+                                type="text"
+                                value={form.postalCode}
+                                onChange={(e) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        postalCode: e.target.value,
+                                    }))
+                                }
+                                style={{
+                                    marginTop: "4px",
+                                    width: "100%",
+                                    padding: "7px 9px",
+                                    borderRadius: "8px",
+                                    border: "1px solid rgba(148, 163, 184, 0.8)",
+                                    fontSize: "0.9rem",
+                                }}
+                            />
+                        </label>
+                    </div>
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={submitting || !inviteCode}
+                    style={{
+                        marginTop: "6px",
+                        padding: "9px 16px",
+                        borderRadius: "999px",
+                        border: "1px solid #0f172a",
+                        background: submitting ? "#e2e8f0" : "#0f172a",
+                        color: submitting ? "#64748b" : "#f9fafb",
+                        fontSize: "0.95rem",
+                        fontWeight: 500,
+                        cursor: submitting || !inviteCode ? "default" : "pointer",
+                    }}
+                >
+                    {submitting ? "Finishing setup..." : "Finish setup"}
+                </button>
+            </form>
+        </div>
+    );
+
+    const renderSignedOut = () => (
+        <div
+            style={{
+                width: "100%",
+                maxWidth: "480px",
+                padding: "18px 18px 20px",
+                borderRadius: "16px",
+                border: "1px solid rgba(148, 163, 184, 0.6)",
+                background: "#ffffff",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+            }}
+        >
+            <div>
+                <h1
+                    style={{
+                        margin: 0,
+                        fontSize: "1.2rem",
+                        fontWeight: 600,
+                        color: "#0f172a",
+                    }}
+                >
+                    Join your loan officer in HomeRates.ai
+                </h1>
+                <p
+                    style={{
+                        margin: "6px 0 0 0",
+                        fontSize: "0.9rem",
+                        color: "#64748b",
+                    }}
+                >
+                    To accept this invite, please sign in or create your free account.
+                </p>
+            </div>
+
+            {inviteCode && (
+                <p
+                    style={{
+                        margin: 0,
+                        fontSize: "0.8rem",
+                        color: "#64748b",
+                    }}
+                >
+                    Invite code:{" "}
+                    <span
+                        style={{
+                            fontFamily:
+                                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                        }}
+                    >
+                        {inviteCode}
+                    </span>
+                </p>
+            )}
+
+            <button
+                type="button"
+                onClick={() => {
+                    const url = new URL("/sign-in", window.location.origin);
+                    url.searchParams.set("redirect_url", redirectUrl);
+                    window.location.href = url.toString();
+                }}
+
+                style={{
+                    marginTop: "4px",
+                    padding: "9px 16px",
+                    borderRadius: "999px",
+                    border: "1px solid #0f172a",
+                    background: "#0f172a",
+                    color: "#f9fafb",
+                    fontSize: "0.95rem",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                }}
+            >
+                Continue to sign in
+            </button>
+        </div>
+    );
+
     return (
         <main
             style={{
                 minHeight: "calc(100vh - 40px)",
+                padding: "24px 16px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "24px",
             }}
         >
-            <section
-                style={{
-                    width: "100%",
-                    maxWidth: "520px",
-                    padding: "24px 20px",
-                    borderRadius: "16px",
-                    border: "1px solid rgba(148, 163, 184, 0.4)",
-                    boxShadow: "0 18px 45px rgba(15, 23, 42, 0.10)",
-                    background: "rgba(255, 255, 255, 0.98)",
-                }}
-            >
-                <header style={{ marginBottom: "16px" }}>
-                    <p
-                        style={{
-                            fontSize: "0.75rem",
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                            color: "#64748b",
-                            marginBottom: "4px",
-                        }}
-                    >
-                        Step 1
-                    </p>
-                    <h1
-                        style={{
-                            fontSize: "1.3rem",
-                            fontWeight: 600,
-                            lineHeight: 1.25,
-                            color: "#0f172a",
-                            margin: 0,
-                        }}
-                    >
-                        Tell HomeRates.ai who you are
-                    </h1>
-                </header>
+            <SignedOut>{renderSignedOut()}</SignedOut>
 
-                <p
-                    style={{
-                        fontSize: "0.9rem",
-                        lineHeight: 1.5,
-                        color: "#475569",
-                        marginBottom: "20px",
-                    }}
-                >
-                    Your answers help your loan officer see the full picture and keep your
-                    questions and scenarios attached to your file.
-                </p>
-
-                <form onSubmit={handleSubmit} style={{ display: "grid", gap: "12px" }}>
-                    {/* Invite (read-only) */}
-                    <div style={{ display: "grid", gap: "4px" }}>
-                        <label
-                            style={{
-                                fontSize: "0.8rem",
-                                fontWeight: 500,
-                                color: "#0f172a",
-                            }}
-                        >
-                            Invite code
-                        </label>
-                        <input
-                            type="text"
-                            value={inviteCode}
-                            readOnly
-                            style={{
-                                fontSize: "0.9rem",
-                                padding: "8px 10px",
-                                borderRadius: "8px",
-                                border: "1px solid rgba(148, 163, 184, 0.8)",
-                                backgroundColor: "#f8fafc",
-                                color: "#0f172a",
-                            }}
-                        />
-                    </div>
-
-                    {/* First name */}
-                    <div style={{ display: "grid", gap: "4px" }}>
-                        <label
-                            style={{
-                                fontSize: "0.8rem",
-                                fontWeight: 500,
-                                color: "#0f172a",
-                            }}
-                        >
-                            First name
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            style={{
-                                fontSize: "0.9rem",
-                                padding: "8px 10px",
-                                borderRadius: "8px",
-                                border: "1px solid rgba(148, 163, 184, 0.8)",
-                            }}
-                        />
-                    </div>
-
-                    {/* Last name */}
-                    <div style={{ display: "grid", gap: "4px" }}>
-                        <label
-                            style={{
-                                fontSize: "0.8rem",
-                                fontWeight: 500,
-                                color: "#0f172a",
-                            }}
-                        >
-                            Last name
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            style={{
-                                fontSize: "0.9rem",
-                                padding: "8px 10px",
-                                borderRadius: "8px",
-                                border: "1px solid rgba(148, 163, 184, 0.8)",
-                            }}
-                        />
-                    </div>
-
-                    {/* Email */}
-                    <div style={{ display: "grid", gap: "4px" }}>
-                        <label
-                            style={{
-                                fontSize: "0.8rem",
-                                fontWeight: 500,
-                                color: "#0f172a",
-                            }}
-                        >
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            style={{
-                                fontSize: "0.9rem",
-                                padding: "8px 10px",
-                                borderRadius: "8px",
-                                border: "1px solid rgba(148, 163, 184, 0.8)",
-                            }}
-                        />
-                    </div>
-
-                    {error && (
-                        <p
-                            style={{
-                                fontSize: "0.8rem",
-                                color: "#b91c1c",
-                                marginTop: "4px",
-                            }}
-                        >
-                            {error}
-                        </p>
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        style={{
-                            marginTop: "12px",
-                            padding: "10px 14px",
-                            borderRadius: "999px",
-                            border: "1px solid #0f172a",
-                            background: submitting ? "#e2e8f0" : "#0f172a",
-                            color: submitting ? "#64748b" : "#f9fafb",
-                            fontSize: "0.9rem",
-                            fontWeight: 500,
-                            cursor: submitting ? "default" : "pointer",
-                        }}
-                    >
-                        {submitting ? "Finishing setup..." : "Continue"}
-                    </button>
-                </form>
-            </section>
+            <SignedIn>
+                {successBorrowerId ? renderSuccess() : renderForm()}
+            </SignedIn>
         </main>
     );
 }
