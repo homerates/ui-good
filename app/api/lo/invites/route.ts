@@ -35,38 +35,15 @@ export async function POST(_req: NextRequest) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         const baseUrl = appBaseUrl.replace(/\/+$/, "");
 
-        // 3) Look up this loan officer by user_id (your actual column)
-        const { data: lo, error: loError } = await supabase
-            .from("loan_officers")
-            .select("id, user_id")
-            .eq("user_id", userId)
-            .single();
-
-        if (loError || !lo) {
-            console.error("Supabase LO lookup error:", loError, {
-                clerkUserId: userId,
-            });
-
-            return NextResponse.json(
-                {
-                    error: "No loan officer record found for this user",
-                    debug: { clerkUserId: userId },
-                },
-                { status: 403 }
-            );
-        }
-
-        const loanOfficerId = lo.id as string;
-
-        // 4) Generate a human-shareable invite code
+        // 3) Generate a human-shareable invite code
         const code = randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
 
-        // 5) Insert invite row for this LO
+        // 4) Insert invite row into your existing invite_codes table
         const { data: invite, error: inviteError } = await supabase
-            .from("borrower_invites")
+            .from("invite_codes") // <-- your actual table
             .insert({
                 code,
-                loan_officer_id: loanOfficerId,
+                user_id: userId, // <-- matches the column name in your screenshot
             })
             .select("code")
             .single();
@@ -74,12 +51,15 @@ export async function POST(_req: NextRequest) {
         if (inviteError || !invite) {
             console.error("Supabase invite insert error:", inviteError);
             return NextResponse.json(
-                { error: "Failed to create invite" },
+                {
+                    error: "Failed to create invite",
+                    debug: inviteError?.message ?? null,
+                },
                 { status: 500 }
             );
         }
 
-        // 6) Build onboarding URL for the borrower
+        // 5) Build onboarding URL for the borrower
         const inviteUrl = `${baseUrl}/onboarding?invite=${encodeURIComponent(
             code
         )}`;
