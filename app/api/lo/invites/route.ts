@@ -3,7 +3,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "crypto";
 
 export async function POST(_req: NextRequest) {
     try {
@@ -35,39 +34,53 @@ export async function POST(_req: NextRequest) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         const baseUrl = appBaseUrl.replace(/\/+$/, "");
 
-        // 3) Generate a human-shareable invite code
-        const code = randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
+        // 3) First, try to find an existing invite_codes row for this LO
+        const { data: existing, error: existingError } = await supabase
+            .from("invite_codes")
+            .select("id")
+            .eq("user_id", userId)
+            .maybeSingle();
 
-        // 4) Insert invite row into your existing invite_codes table
-        const { data: invite, error: inviteError } = await supabase
-            .from("invite_codes") // <-- your actual table
-            .insert({
-                code,
-                user_id: userId, // <-- matches the column name in your screenshot
-            })
-            .select("code")
-            .single();
-
-        if (inviteError || !invite) {
-            console.error("Supabase invite insert error:", inviteError);
-            return NextResponse.json(
-                {
-                    error: "Failed to create invite",
-                    debug: inviteError?.message ?? null,
-                },
-                { status: 500 }
-            );
+        if (existingError) {
+            console.error("Supabase invite_codes lookup error:", existingError);
         }
 
-        // 5) Build onboarding URL for the borrower
+        let inviteId: string;
+
+        if (existing && existing.id) {
+            // Reuse existing invite for this LO
+            inviteId = existing.id as string;
+        } else {
+            // 4) No existing row – create one new invite_codes row for this LO
+            const { data: created, error: createError } = await supabase
+                .from("invite_codes")
+                .insert({
+                    user_id: userId,
+                })
+                .select("id")
+                .single();
+
+            if (createError || !created) {
+                console.error("Supabase invite_codes insert error:", createError);
+                return NextResponse.json(
+                    { error: "Failed to create invite" },
+                    { status: 500 }
+                );
+            }
+
+            inviteId = created.id as string;
+        }
+
+        // 5) Build onboarding URL for the borrower using the invite_codes.id
         const inviteUrl = `${baseUrl}/onboarding?invite=${encodeURIComponent(
-            code
+            inviteId
         )}`;
 
+        // We return inviteId as "code" so the UI can show something
         return NextResponse.json(
             {
                 ok: true,
-                code,
+                code: inviteId,
                 inviteUrl,
             },
             { status: 200 }
