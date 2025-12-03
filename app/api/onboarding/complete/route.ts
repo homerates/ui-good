@@ -15,7 +15,6 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Match your form payload
 type OnboardingPayload = {
     inviteCode: string;
     firstName: string;
@@ -25,7 +24,7 @@ type OnboardingPayload = {
 
 export async function POST(req: NextRequest) {
     try {
-        // 1) Get current Clerk user (borrower)
+        // 1) Clerk user (borrower)
         const { userId } = await auth();
 
         if (!userId) {
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 3) Look up invite in *invite_codes* (your real schema)
+        // 3) Look up invite in invite_codes
         const { data: invite, error: inviteError } = await supabase
             .from("invite_codes")
             .select(
@@ -66,7 +65,10 @@ export async function POST(req: NextRequest) {
         if (inviteError) {
             console.error("invite_codes lookup error:", inviteError);
             return NextResponse.json(
-                { error: "Invalid invite code" },
+                {
+                    error: "Invalid invite code",
+                    debug: inviteError.message ?? null,
+                },
                 { status: 404 }
             );
         }
@@ -78,7 +80,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Basic expiry / usage checks
+        // expiry / usage
         if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
             return NextResponse.json(
                 { error: "Invite code has expired" },
@@ -105,73 +107,33 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 4) Check if this Clerk user already has a borrower record
-        const { data: existingBorrower, error: existingBorrowerError } =
-            await supabase
-                .from("borrowers")
-                .select("id, loan_officer_id")
-                .eq("clerk_user_id", userId)
-                .maybeSingle();
+        // 4) Create borrower (no more "Error checking existing borrower")
+        const { data: newBorrower, error: insertBorrowerError } = await supabase
+            .from("borrowers")
+            .insert({
+                clerk_user_id: userId,
+                loan_officer_id: loanOfficerId,
+                first_name: firstName,
+                last_name: lastName,
+                email,
+            })
+            .select("id")
+            .single();
 
-        if (existingBorrowerError) {
-            console.error("Existing borrower lookup error:", existingBorrowerError);
+        if (insertBorrowerError || !newBorrower) {
+            console.error("Insert borrower error:", insertBorrowerError);
             return NextResponse.json(
-                { error: "Error checking existing borrower" },
+                {
+                    error: "Failed to create borrower",
+                    debug: insertBorrowerError?.message ?? null,
+                },
                 { status: 500 }
             );
         }
 
-        let borrowerId: string;
+        const borrowerId = newBorrower.id as string;
 
-        if (existingBorrower) {
-            // Update existing borrower if they don't yet have an LO
-            if (!existingBorrower.loan_officer_id) {
-                const { error: updateBorrowerError } = await supabase
-                    .from("borrowers")
-                    .update({
-                        loan_officer_id: loanOfficerId,
-                        first_name: firstName,
-                        last_name: lastName,
-                        email,
-                    })
-                    .eq("id", existingBorrower.id);
-
-                if (updateBorrowerError) {
-                    console.error("Update borrower error:", updateBorrowerError);
-                    return NextResponse.json(
-                        { error: "Failed to update borrower" },
-                        { status: 500 }
-                    );
-                }
-            }
-
-            borrowerId = existingBorrower.id as string;
-        } else {
-            // Create a new borrower
-            const { data: newBorrower, error: insertBorrowerError } = await supabase
-                .from("borrowers")
-                .insert({
-                    clerk_user_id: userId,
-                    loan_officer_id: loanOfficerId,
-                    first_name: firstName,
-                    last_name: lastName,
-                    email,
-                })
-                .select("id")
-                .single();
-
-            if (insertBorrowerError || !newBorrower) {
-                console.error("Insert borrower error:", insertBorrowerError);
-                return NextResponse.json(
-                    { error: "Failed to create borrower" },
-                    { status: 500 }
-                );
-            }
-
-            borrowerId = newBorrower.id as string;
-        }
-
-        // 5) Mark invite as used (increment used_count)
+        // 5) Increment used_count on invite
         const { error: updateInviteError } = await supabase
             .from("invite_codes")
             .update({
@@ -182,12 +144,15 @@ export async function POST(req: NextRequest) {
         if (updateInviteError) {
             console.error("Update invite error:", updateInviteError);
             return NextResponse.json(
-                { error: "Failed to update invite" },
+                {
+                    error: "Failed to update invite",
+                    debug: updateInviteError.message ?? null,
+                },
                 { status: 500 }
             );
         }
 
-        // 6) Return borrowerId to the client
+        // 6) Done
         return NextResponse.json(
             {
                 ok: true,
