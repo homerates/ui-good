@@ -54,12 +54,12 @@ export default function LoBorrowersPage() {
         <main
             style={{
                 minHeight: "calc(100vh - 40px)",
-                padding: "24px 20px",
+                padding: "16px 16px 24px",
                 maxWidth: "960px",
                 margin: "0 auto",
                 display: "flex",
                 flexDirection: "column",
-                gap: "16px",
+                gap: "12px",
             }}
         >
             {/* Header row */}
@@ -68,14 +68,14 @@ export default function LoBorrowersPage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    gap: "12px",
+                    gap: "10px",
                     flexWrap: "wrap",
                 }}
             >
                 <div>
                     <h1
                         style={{
-                            fontSize: "1.4rem",
+                            fontSize: "1.35rem",
                             fontWeight: 600,
                             margin: 0,
                             color: "#0f172a",
@@ -85,7 +85,7 @@ export default function LoBorrowersPage() {
                     </h1>
                     <p
                         style={{
-                            margin: "4px 0 0 0",
+                            margin: "3px 0 0 0",
                             fontSize: "0.9rem",
                             color: "#64748b",
                         }}
@@ -100,7 +100,7 @@ export default function LoBorrowersPage() {
                     onClick={handleCreateInvite}
                     disabled={creating}
                     style={{
-                        padding: "9px 16px",
+                        padding: "8px 16px",
                         borderRadius: "999px",
                         border: "1px solid #0f172a",
                         background: creating ? "#e2e8f0" : "#0f172a",
@@ -119,19 +119,19 @@ export default function LoBorrowersPage() {
             {(inviteUrl || error) && (
                 <section
                     style={{
-                        marginTop: "8px",
-                        padding: "16px 14px",
+                        marginTop: "4px",
+                        padding: "12px 12px",
                         borderRadius: "12px",
                         border: "1px solid rgba(148, 163, 184, 0.7)",
                         background: "#f8fafc",
                         display: "grid",
-                        gap: "8px",
+                        gap: "6px",
                     }}
                 >
                     {error && (
                         <p
                             style={{
-                                fontSize: "0.85rem",
+                                fontSize: "0.82rem",
                                 color: "#b91c1c",
                                 margin: 0,
                             }}
@@ -156,9 +156,9 @@ export default function LoBorrowersPage() {
                             {inviteCode && (
                                 <p
                                     style={{
-                                        fontSize: "0.75rem",
+                                        fontSize: "0.78rem",
                                         color: "#64748b",
-                                        margin: "0 0 4px 0",
+                                        margin: "0 0 2px 0",
                                     }}
                                 >
                                     Invite code:{" "}
@@ -181,7 +181,7 @@ export default function LoBorrowersPage() {
                             >
                                 <div
                                     style={{
-                                        padding: "8px 10px",
+                                        padding: "6px 8px",
                                         borderRadius: "8px",
                                         border: "1px solid rgba(148, 163, 184, 0.8)",
                                         fontSize: "0.8rem",
@@ -206,7 +206,7 @@ export default function LoBorrowersPage() {
                                         type="button"
                                         onClick={handleCopy}
                                         style={{
-                                            padding: "7px 14px",
+                                            padding: "6px 12px",
                                             borderRadius: "999px",
                                             border: "1px solid #0f172a",
                                             background: "#ffffff",
@@ -236,8 +236,8 @@ export default function LoBorrowersPage() {
             {/* Borrowers list placeholder */}
             <section
                 style={{
-                    marginTop: "12px",
-                    padding: "16px 14px",
+                    marginTop: "8px",
+                    padding: "14px 12px",
                     borderRadius: "12px",
                     border: "1px solid rgba(148, 163, 184, 0.4)",
                     background: "#ffffff",
