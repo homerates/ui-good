@@ -27,7 +27,8 @@ type OnboardingPayload = {
 export async function POST(req: NextRequest) {
     try {
         // 1) Get current Clerk user
-        const { userId } = auth();
+        const { userId } = await auth();
+
 
         if (!userId) {
             return NextResponse.json(
