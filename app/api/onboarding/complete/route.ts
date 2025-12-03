@@ -1,27 +1,33 @@
 // app/api/onboarding/complete/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Helper to initialize Supabase server client
-function getSupabaseServerClient() {
-    const supabaseUrl =
-        process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey =
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Supabase env vars are missing (URL or key).");
-    }
-
-    return createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error(
+        "Missing SUPABASE env vars: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+    );
 }
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Types for request body – adjust fields to match your form
+type OnboardingPayload = {
+    inviteCode: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    // Add any other onboarding form fields here (phone, goals, etc.)
+};
 
 export async function POST(req: NextRequest) {
     try {
-        // 1️⃣ Verify Clerk session
-        const { userId } = await auth();
+        // 1) Get current Clerk user
+        const { userId } = auth();
 
         if (!userId) {
             return NextResponse.json(
@@ -30,179 +36,145 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const supabase = getSupabaseServerClient();
-
-        // 2️⃣ Parse body containing invite code (and optional lender)
-        const body = await req.json().catch(() => ({}));
-        const inviteCode = body.inviteCode as string | undefined;
-        const lender = body.lender as string | undefined; // NEW: optional lender (e.g. "LoanDepot")
+        // 2) Parse body
+        const body = (await req.json()) as Partial<OnboardingPayload>;
+        const { inviteCode, firstName, lastName, email } = body;
 
         if (!inviteCode) {
             return NextResponse.json(
-                { error: "Missing inviteCode in request body." },
+                { error: "Missing inviteCode" },
                 { status: 400 }
             );
         }
 
-        // 3️⃣ Load Clerk user using correct Clerk v5 API
-        const clerk = await clerkClient();
-        const clerkUser = await clerk.users.getUser(userId);
+        if (!firstName || !lastName || !email) {
+            return NextResponse.json(
+                { error: "Missing required borrower fields" },
+                { status: 400 }
+            );
+        }
 
-        const email =
-            clerkUser.emailAddresses?.[0]?.emailAddress ||
-            (clerkUser as any).email_addresses?.[0]?.email_address ||
-            null;
-
-        const firstName =
-            clerkUser.firstName || (clerkUser as any).first_name || null;
-
-        // 4️⃣ Fetch invite from Supabase
+        // 3) Look up invite and LO
         const { data: invite, error: inviteError } = await supabase
-            .from("invite_codes")
-            .select("*")
+            .from("borrower_invites") // adjust table name if needed
+            .select("id, code, loan_officer_id, used_at, borrower_id")
             .eq("code", inviteCode)
-            .maybeSingle();
+            .single();
 
-        if (inviteError) {
-            console.error("Error fetching invite:", inviteError);
+        if (inviteError || !invite) {
             return NextResponse.json(
-                { error: "Failed to load invite code." },
+                { error: "Invalid invite code" },
+                { status: 404 }
+            );
+        }
+
+        if (invite.used_at || invite.borrower_id) {
+            return NextResponse.json(
+                { error: "Invite code already used" },
+                { status: 409 }
+            );
+        }
+
+        const loanOfficerId = invite.loan_officer_id;
+
+        if (!loanOfficerId) {
+            return NextResponse.json(
+                { error: "Invite is not linked to a loan officer" },
+                { status: 422 }
+            );
+        }
+
+        // 4) Check if this Clerk user already has a borrower record
+        const { data: existingBorrower, error: existingBorrowerError } =
+            await supabase
+                .from("borrowers") // adjust table name if needed
+                .select("id, loan_officer_id")
+                .eq("clerk_user_id", userId)
+                .maybeSingle();
+
+        if (existingBorrowerError) {
+            return NextResponse.json(
+                { error: "Error checking existing borrower" },
                 { status: 500 }
             );
         }
 
-        if (!invite) {
-            return NextResponse.json(
-                { error: "Invalid invite code." },
-                { status: 400 }
-            );
-        }
+        let borrowerId: string;
 
-        // 5️⃣ Basic expiration & usage checks
-        const isUsed = (invite as any).is_used;
-        const expiresAt = (invite as any).expires_at;
+        if (existingBorrower) {
+            // Option A: update existing borrower with LO if not set
+            if (!existingBorrower.loan_officer_id) {
+                const { error: updateBorrowerError } = await supabase
+                    .from("borrowers")
+                    .update({
+                        loan_officer_id: loanOfficerId,
+                        first_name: firstName,
+                        last_name: lastName,
+                        email: email,
+                    })
+                    .eq("id", existingBorrower.id);
 
-        if (isUsed) {
-            return NextResponse.json(
-                { error: "This invite code has already been used." },
-                { status: 400 }
-            );
-        }
-
-        if (expiresAt) {
-            const now = new Date();
-            const exp = new Date(expiresAt);
-            if (exp.getTime() < now.getTime()) {
-                return NextResponse.json(
-                    { error: "This invite code has expired." },
-                    { status: 400 }
-                );
+                if (updateBorrowerError) {
+                    return NextResponse.json(
+                        { error: "Failed to update borrower" },
+                        { status: 500 }
+                    );
+                }
             }
-        }
 
-        // 6️⃣ Determine allowed borrower slots
-        const allowedBorrowerSlots =
-            (invite as any).allowed_borrower_slots ??
-            (invite as any).max_borrowers ??
-            25;
-
-        // 7️⃣ Check if LO record already exists for this Clerk user
-        const { data: existingLo, error: loLookupError } = await supabase
-            .from("loan_officers")
-            .select("*")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-        if (loLookupError) {
-            console.error("Error checking existing LO:", loLookupError);
-            return NextResponse.json(
-                { error: "Failed to check existing loan officer record." },
-                { status: 500 }
-            );
-        }
-
-        // 8️⃣ Upsert LO record
-        if (existingLo) {
-            const { error: loUpdateError } = await supabase
-                .from("loan_officers")
-                .update({
-                    email,
-                    name: firstName,
-                    user_id: userId,
-                    allowed_borrower_slots: allowedBorrowerSlots,
-                    lender: lender ?? (existingLo as any).lender ?? null, // NEW: update lender if provided
-                })
-                .eq("id", existingLo.id);
-
-            if (loUpdateError) {
-                console.error("Error updating loan_officers:", loUpdateError);
-                return NextResponse.json(
-                    { error: "Failed to update loan officer record." },
-                    { status: 500 }
-                );
-            }
+            borrowerId = existingBorrower.id as string;
         } else {
-            const { error: loInsertError } = await supabase
-                .from("loan_officers")
+            // Option B: create new borrower
+            const { data: newBorrower, error: insertBorrowerError } = await supabase
+                .from("borrowers") // adjust to your table name
                 .insert({
-                    email,
-                    name: firstName,
-                    user_id: userId,
-                    allowed_borrower_slots: allowedBorrowerSlots,
-                    lender: lender ?? null, // NEW: set lender on creation
-                });
+                    clerk_user_id: userId,
+                    loan_officer_id: loanOfficerId,
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: email,
+                })
+                .select("id")
+                .single();
 
-            if (loInsertError) {
-                console.error("Error inserting loan officer:", loInsertError);
+            if (insertBorrowerError || !newBorrower) {
                 return NextResponse.json(
-                    { error: "Failed to create loan officer record." },
+                    { error: "Failed to create borrower" },
                     { status: 500 }
                 );
             }
+
+            borrowerId = newBorrower.id as string;
         }
 
-        // 9️⃣ Mark invite code as used
-        const { error: inviteUpdateError } = await supabase
-            .from("invite_codes")
+        // 5) Mark invite as used and attach borrower
+        const { error: updateInviteError } = await supabase
+            .from("borrower_invites")
             .update({
-                is_used: true,
                 used_at: new Date().toISOString(),
-                used_by_user_id: userId,
+                borrower_id: borrowerId,
             })
             .eq("id", invite.id);
 
-        if (inviteUpdateError) {
-            console.error("Error marking invite used:", inviteUpdateError);
+        if (updateInviteError) {
             return NextResponse.json(
-                {
-                    error:
-                        "Loan officer created, but failed to update invite code status.",
-                },
+                { error: "Failed to update invite" },
                 { status: 500 }
             );
         }
 
-        // 🔟 Set Clerk public metadata → "loan_officer"
-        await clerk.users.updateUser(userId, {
-            publicMetadata: {
-                role: "loan_officer",
-            },
-        });
-
-        // 1️⃣1️⃣ Success response
+        // 6) Return borrowerId so the client can redirect to success screen
         return NextResponse.json(
             {
                 ok: true,
-                message: "Loan officer onboarding completed.",
-                roleSet: "loan_officer",
-                allowedBorrowerSlots,
+                borrowerId,
             },
             { status: 200 }
         );
-    } catch (err: any) {
+    } catch (err) {
         console.error("Onboarding complete error:", err);
         return NextResponse.json(
-            { error: "Failed to complete onboarding." },
+            { error: "Unexpected error completing onboarding" },
             { status: 500 }
         );
     }
