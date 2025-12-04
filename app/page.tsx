@@ -15,6 +15,7 @@ import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
 import './chat/styles.css';
 import GrokCard from "@/components/GrokCard";
 import GrokAnswerBlock from '@/components/AnswerBlock';
+import { ShareAnswerButton } from './components/ShareAnswerButton';
 import {
     createProject,
     renameProject,
@@ -270,7 +271,20 @@ function AnswerBlock({
                         </span>
                     )}
                 </div>
-
+                {/* Share link footer – TODO: later wire real question/answer variables */}
+                <div
+                    style={{
+                        marginTop: 4,
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                    }}
+                >
+                    <ShareAnswerButton
+                        question="Question from HomeRates.ai chat"
+                        answer="Answer from this conversation (TODO: wire real text here)."
+                        source="thread"
+                    />
+                </div>
                 <div>
                     <div>
                         <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
