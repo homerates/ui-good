@@ -1259,44 +1259,42 @@ export default function Page() {
                                                 />
                                             ) : m.meta ? (
                                                 // Legacy / calc answers still use AnswerBlock (Grok card)
-                                                <>
-                                                    <GrokAnswerBlock
-                                                        meta={m.meta}
-                                                        friendly={
-                                                            typeof m.content === 'string'
-                                                                ? m.content
-                                                                : undefined
-                                                        }
-                                                    />
+                                                <GrokAnswerBlock
+                                                    meta={m.meta}
+                                                    friendly={
+                                                        typeof m.content === 'string'
+                                                            ? m.content
+                                                            : undefined
+                                                    }
+                                                />
 
-                                                    <div
-                                                        style={{
-                                                            marginTop: 4,
-                                                            display: 'flex',
-                                                            justifyContent: 'flex-end',
-                                                        }}
-                                                    >
-                                                        <ShareAnswerButton
-                                                            question="Question asked in HomeRates.ai"
-                                                            answer={
-                                                                typeof m.content === 'string'
-                                                                    ? m.content
-                                                                    : 'HomeRates.ai answer'
-                                                            }
-                                                            source="thread"
-                                                        />
-                                                    </div>
-                                                </>
                                             ) : (
                                                 // Bare assistant content fallback
                                                 typeof m.content === 'string' ? m.content : ''
                                             )
-
                                         ) : (
                                             // User messages unchanged
                                             m.content
                                         )}
-
+                                        {m.role === 'assistant' && (
+                                            <div
+                                                style={{
+                                                    marginTop: 4,
+                                                    display: 'flex',
+                                                    justifyContent: 'flex-end',
+                                                }}
+                                            >
+                                                <ShareAnswerButton
+                                                    question="Question asked in HomeRates.ai"
+                                                    answer={
+                                                        typeof m.content === 'string'
+                                                            ? m.content
+                                                            : 'HomeRates.ai answer'
+                                                    }
+                                                    source="thread"
+                                                />
+                                            </div>
+                                        )}
                                     </Bubble>
                                 </div>
                             ))}
