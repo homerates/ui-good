@@ -1,260 +1,271 @@
-// app/share/page.tsx
-import React from "react";
-import Link from "next/link";
+import * as React from 'react';
+import Link from 'next/link';
 
 type SharePageProps = {
-    searchParams: Promise<{
-        [key: string]: string | string[] | undefined;
-    }>;
+    searchParams: {
+        q?: string;
+        a?: string;
+        source?: string;
+    };
 };
 
-export default async function SharePage({ searchParams }: SharePageProps) {
-    const resolved = await searchParams;
+function sanitizeQuestion(raw: string | undefined): string {
+    if (!raw) return '';
+    // Strip obvious URLs so the share link itself never shows up as the question text
+    return raw.replace(/https?:\/\/\S+/g, '').trim();
+}
 
-    const rawQ = typeof resolved.q === "string" ? resolved.q : null;
-    const rawA = typeof resolved.a === "string" ? resolved.a : null;
+export default function SharePage({ searchParams }: SharePageProps) {
+    const rawQuestion = searchParams.q ?? '';
+    const rawAnswer = searchParams.a ?? '';
 
-    const question = rawQ?.trim() || null;
-    const answer = rawA?.trim() || null;
-
-    const hasData = !!question && !!answer;
-
-    const appBaseUrl =
-        process.env.NEXT_PUBLIC_APP_BASE_URL || "https://chat.homerates.ai";
+    const question = sanitizeQuestion(rawQuestion) || 'Question asked in HomeRates.ai';
+    const answer =
+        (rawAnswer || '').trim() ||
+        'This shared link did not include an answer body. Please open HomeRates.ai to see the full conversation.';
 
     return (
         <main
-            className="min-h-screen"
             style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "stretch",
-                padding: "32px 16px",
-                background:
-                    "radial-gradient(circle at top, #e5f0ff 0, #f3f4f6 40%, #ffffff 100%)",
+                minHeight: '100vh',
+                background: '#0f172a',
+                padding: '24px 12px',
             }}
         >
             <div
                 style={{
-                    width: "100%",
-                    maxWidth: 720,
-                    margin: "0 auto",
-                    background: "#ffffff",
+                    maxWidth: 840,
+                    margin: '0 auto',
+                    background: '#0b1220',
                     borderRadius: 24,
-                    boxShadow:
-                        "0 18px 45px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(148, 163, 184, 0.12)",
-                    padding: "28px 22px",
-                    display: "grid",
-                    gap: 18,
+                    padding: 1,
                 }}
             >
-                {/* Header / Hero */}
-                <header style={{ display: "grid", gap: 6 }}>
-                    <div
+                <div
+                    style={{
+                        borderRadius: 23,
+                        background: '#f8fafc',
+                        padding: '24px 20px 20px',
+                    }}
+                >
+                    {/* Header */}
+                    <header
                         style={{
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                            color: "#64748b",
+                            marginBottom: 20,
                         }}
                     >
-                        Answer snapshot from
-                    </div>
-                    <h1
-                        style={{
-                            fontSize: "1.5rem",
-                            fontWeight: 700,
-                            letterSpacing: "-0.03em",
-                            color: "#0f172a",
-                        }}
-                    >
-                        HomeRates.ai Mortgage Coach
-                    </h1>
-                    <p
-                        style={{
-                            fontSize: "0.9rem",
-                            color: "#475569",
-                            maxWidth: "52ch",
-                        }}
-                    >
-                        This page shows a real question and answer from a HomeRates.ai
-                        conversation. Use it to review the advice and, if you like it,
-                        continue the conversation directly in the app.
-                    </p>
-                </header>
+                        <div
+                            style={{
+                                fontSize: '0.75rem',
+                                letterSpacing: '0.12em',
+                                textTransform: 'uppercase',
+                                color: '#64748b',
+                                marginBottom: 6,
+                            }}
+                        >
+                            Answer snapshot from
+                        </div>
+                        <h1
+                            style={{
+                                fontSize: '1.35rem',
+                                fontWeight: 700,
+                                color: '#020617',
+                                margin: 0,
+                            }}
+                        >
+                            HomeRates.ai Mortgage Coach
+                        </h1>
+                        <p
+                            style={{
+                                marginTop: 8,
+                                marginBottom: 0,
+                                fontSize: '0.9rem',
+                                color: '#64748b',
+                                maxWidth: 520,
+                            }}
+                        >
+                            This page shows a real question and answer from a HomeRates.ai conversation.
+                            Use it to review the advice and, if you like, continue the conversation
+                            directly in the app.
+                        </p>
+                    </header>
 
-                {/* Content */}
-                {hasData ? (
+                    {/* Borrower question */}
                     <section
                         style={{
-                            display: "grid",
-                            gap: 18,
-                            padding: 16,
-                            borderRadius: 18,
-                            background:
-                                "linear-gradient(135deg, rgba(226, 232, 240, 0.7), rgba(248, 250, 252, 0.9))",
-                            border: "1px solid rgba(148, 163, 184, 0.35)",
+                            marginBottom: 16,
                         }}
                     >
-                        {/* Question */}
                         <div
                             style={{
-                                padding: "10px 12px 12px",
-                                borderRadius: 14,
-                                background: "#0f172a",
-                                color: "#e5e7eb",
-                                display: "grid",
-                                gap: 6,
+                                borderRadius: 12,
+                                background: '#020617',
+                                color: '#f9fafb',
+                                padding: '10px 14px',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                marginBottom: 8,
                             }}
                         >
-                            <div
-                                style={{
-                                    fontSize: "0.72rem",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.14em",
-                                    fontWeight: 600,
-                                    color: "#94a3b8",
-                                }}
-                            >
-                                Borrower question
-                            </div>
-                            <p
-                                style={{
-                                    fontSize: "0.92rem",
-                                    lineHeight: 1.5,
-                                    whiteSpace: "pre-wrap",
-                                }}
-                            >
-                                {question}
-                            </p>
+                            Borrower Question
+                        </div>
+                        <div
+                            style={{
+                                borderRadius: 14,
+                                background: '#020617',
+                                color: '#e5e7eb',
+                                padding: '12px 14px',
+                                fontSize: '0.9rem',
+                            }}
+                        >
+                            {question}
+                        </div>
+                    </section>
+
+                    {/* Answer overview with internal scroll */}
+                    <section
+                        style={{
+                            marginBottom: 18,
+                        }}
+                    >
+                        <div
+                            style={{
+                                borderRadius: 12,
+                                background: '#e5e7eb',
+                                color: '#020617',
+                                padding: '10px 14px',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                marginBottom: 8,
+                            }}
+                        >
+                            Answer Overview
                         </div>
 
-                        {/* Answer */}
                         <div
                             style={{
-                                padding: "12px 12px 14px",
-                                borderRadius: 14,
-                                background: "#ffffff",
-                                border: "1px solid rgba(148, 163, 184, 0.45)",
-                                display: "grid",
-                                gap: 8,
+                                borderRadius: 16,
+                                background: '#ffffff',
+                                padding: '14px 16px',
+                                fontSize: '0.9rem',
+                                color: '#0f172a',
+                                lineHeight: 1.55,
+                                maxHeight: 420,
+                                overflowY: 'auto',
+                                boxShadow: 'inset 0 0 0 1px rgba(15,23,42,0.04)',
                             }}
                         >
                             <div
                                 style={{
-                                    fontSize: "0.78rem",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.12em",
-                                    fontWeight: 600,
-                                    color: "#64748b",
-                                }}
-                            >
-                                Answer overview
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: "0.94rem",
-                                    lineHeight: 1.6,
-                                    color: "#0f172a",
-                                    whiteSpace: "pre-wrap",
+                                    whiteSpace: 'pre-wrap',
+                                    fontFamily:
+                                        '-apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif',
                                 }}
                             >
                                 {answer}
                             </div>
                         </div>
+
+                        <div
+                            style={{
+                                marginTop: 6,
+                                fontSize: '0.75rem',
+                                color: '#6b7280',
+                            }}
+                        >
+                            This is a read-only snapshot. For live updates, calculators, and follow-up
+                            questions, open the original HomeRates.ai conversation.
+                        </div>
                     </section>
-                ) : (
-                    <section
+
+                    {/* Footer CTA */}
+                    <footer
                         style={{
-                            padding: 16,
-                            borderRadius: 16,
-                            border: "1px solid rgba(148, 163, 184, 0.35)",
-                            background: "#f8fafc",
-                            display: "grid",
+                            borderTop: '1px solid #e5e7eb',
+                            marginTop: 10,
+                            paddingTop: 12,
+                            display: 'flex',
+                            flexDirection: 'column',
                             gap: 6,
                         }}
                     >
                         <div
                             style={{
-                                fontSize: "0.95rem",
-                                fontWeight: 600,
-                                color: "#0f172a",
+                                fontSize: '0.75rem',
+                                color: '#6b7280',
                             }}
                         >
-                            Link is missing data
+                            HomeRates.ai gives borrowers and investors a private way to test scenarios,
+                            stress test advice, and ask follow-up questions in plain language.
                         </div>
-                        <p
+
+                        <div
                             style={{
-                                fontSize: "0.9rem",
-                                color: "#475569",
+                                marginTop: 2,
                             }}
                         >
-                            This share link does not include a valid question and answer. It
-                            may have been copied incorrectly or expired from your messaging
-                            app.
-                        </p>
-                    </section>
-                )}
+                            <Link
+                                href="/"
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '8px 14px',
+                                    borderRadius: 999,
+                                    border: '1px solid #0f172a',
+                                    background: '#0f172a',
+                                    color: '#f9fafb',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 500,
+                                    textDecoration: 'none',
+                                    gap: 6,
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                Open HomeRates.ai free app
+                                <span
+                                    aria-hidden="true"
+                                    style={{
+                                        width: 12,
+                                        height: 12,
+                                        display: 'inline-block',
+                                    }}
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        width="12"
+                                        height="12"
+                                        style={{ display: 'block' }}
+                                    >
+                                        <path
+                                            d="M7 11a1 1 0 0 0 0 2h7.586l-2.293 2.293a1 1 0 1 0 1.414 1.414l4-4a1 1 0 0 0 0-1.414l-4-4a1 1 0 0 0-1.414 1.414L14.586 11H7Z"
+                                            fill="currentColor"
+                                        />
+                                        <path
+                                            d="M5 5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-2a1 1 0 1 1 2 0v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v2a1 1 0 1 1-2 0V5Z"
+                                            fill="currentColor"
+                                            opacity={0.8}
+                                        />
+                                    </svg>
+                                </span>
+                            </Link>
+                        </div>
 
-                {/* Call to action */}
-                <section
-                    style={{
-                        paddingTop: 6,
-                        borderTop: "1px dashed rgba(148, 163, 184, 0.5)",
-                        marginTop: 4,
-                        display: "grid",
-                        gap: 10,
-                    }}
-                >
-                    <div
-                        style={{
-                            fontSize: "0.9rem",
-                            color: "#475569",
-                        }}
-                    >
-                        HomeRates.ai gives borrowers and investors a private way to test
-                        scenarios, stress test advice, and ask follow up questions in plain
-                        language.
-                    </div>
-
-                    <div
-                        style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 10,
-                            alignItems: "center",
-                        }}
-                    >
-                        <Link
-                            href={appBaseUrl}
+                        <div
                             style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                padding: "8px 16px",
-                                borderRadius: 999,
-                                border: "1px solid #0f172a",
-                                background: "#0f172a",
-                                color: "#f9fafb",
-                                fontSize: "0.9rem",
-                                fontWeight: 600,
-                                textDecoration: "none",
-                            }}
-                        >
-                            Open HomeRates.ai free app
-                        </Link>
-
-                        <span
-                            style={{
-                                fontSize: "0.8rem",
-                                color: "#64748b",
+                                fontSize: '0.7rem',
+                                color: '#9ca3af',
+                                marginTop: 4,
                             }}
                         >
                             No login required to browse and ask initial questions.
-                        </span>
-                    </div>
-                </section>
+                        </div>
+                    </footer>
+                </div>
             </div>
         </main>
     );
