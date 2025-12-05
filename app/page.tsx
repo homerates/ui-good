@@ -15,7 +15,7 @@ import { logAnswerToLibrary } from '../lib/logAnswerToLibrary';
 import './chat/styles.css';
 import GrokCard from "@/components/GrokCard";
 import GrokAnswerBlock from '@/components/AnswerBlock';
-import { ShareAnswerButton } from './components/ShareAnswerButton';
+import { ShareAnswerButton } from '@/components/ShareAnswerButton';
 import {
     createProject,
     renameProject,
@@ -279,11 +279,7 @@ function AnswerBlock({
                         justifyContent: 'flex-end',
                     }}
                 >
-                    <ShareAnswerButton
-                        question="Question from HomeRates.ai chat"
-                        answer="Answer from this conversation (TODO: wire real text here)."
-                        source="thread"
-                    />
+
                 </div>
                 <div>
                     <div>
@@ -1267,7 +1263,6 @@ export default function Page() {
                                                             : undefined
                                                     }
                                                 />
-
                                             ) : (
                                                 // Bare assistant content fallback
                                                 typeof m.content === 'string' ? m.content : ''
@@ -1276,25 +1271,28 @@ export default function Page() {
                                             // User messages unchanged
                                             m.content
                                         )}
-                                        {m.role === 'assistant' && (
-                                            <div
-                                                style={{
-                                                    marginTop: 4,
-                                                    display: 'flex',
-                                                    justifyContent: 'flex-end',
-                                                }}
-                                            >
-                                                <ShareAnswerButton
-                                                    question="Question asked in HomeRates.ai"
-                                                    answer={
-                                                        typeof m.content === 'string'
-                                                            ? m.content
-                                                            : 'HomeRates.ai answer'
-                                                    }
-                                                    source="thread"
-                                                />
-                                            </div>
-                                        )}
+
+/* Share button – only for real Grok answers, not the dummy "New chat" line */
+                                        {m.role === 'assistant' &&
+                                            m.meta &&
+                                            typeof m.content === 'string' &&
+                                            m.content.trim().length > 40 && (
+                                                <div
+                                                    style={{
+                                                        marginTop: 4,
+                                                        display: 'flex',
+                                                        justifyContent: 'flex-end',
+                                                    }}
+                                                >
+                                                    <ShareAnswerButton
+                                                        question="Question asked in HomeRates.ai"
+                                                        answer={m.content}
+                                                        source="thread"
+                                                    />
+                                                </div>
+                                            )}
+
+
                                     </Bubble>
                                 </div>
                             ))}
