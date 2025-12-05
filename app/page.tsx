@@ -512,8 +512,17 @@ export default function Page() {
         }
     }, [searchParams, input, setInput]);
 
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(() => {
+        if (typeof window === 'undefined') {
+            // On the server we don't know the width, default to open (desktop-ish).
+            return true;
+        }
+        // On the client: keep sidebar open only on larger screens
+        return window.innerWidth >= 1024; // lg breakpoint
+    });
+
     const toggleSidebar = () => setSidebarOpen((o) => !o);
+
 
     // threads + active
     const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
