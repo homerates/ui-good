@@ -82,38 +82,39 @@ export default function SharePage({ searchParams }: any) {
                         </p>
                     </header>
 
-                    {/* Borrower question */}
+                    {/* Top pill: question + link back to app */}
                     <section
                         style={{
                             marginBottom: 16,
                         }}
                     >
-                        <div
+                        <Link
+                            href="/"
                             style={{
-                                borderRadius: 12,
-                                background: '#020617',
-                                color: '#f9fafb',
-                                padding: '10px 14px',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.08em',
-                                marginBottom: 8,
-                            }}
-                        >
-                            Borrower Question
-                        </div>
-                        <div
-                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 8,
                                 borderRadius: 14,
                                 background: '#020617',
                                 color: '#e5e7eb',
                                 padding: '12px 14px',
                                 fontSize: '0.9rem',
+                                textDecoration: 'none',
+                                width: '100%',
                             }}
                         >
-                            {question}
-                        </div>
+                            <span style={{ fontWeight: 600 }}>{question}</span>
+                            <span
+                                style={{
+                                    fontSize: '0.75rem',
+                                    opacity: 0.8,
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                Open in HomeRates.ai
+                            </span>
+                        </Link>
                     </section>
 
                     {/* Answer overview with internal scroll */}
@@ -146,7 +147,7 @@ export default function SharePage({ searchParams }: any) {
                                 fontSize: '0.9rem',
                                 color: '#0f172a',
                                 lineHeight: 1.55,
-                                maxHeight: 420,
+                                maxHeight: 300, // was 420 – shorter so CTA isn't cut off
                                 overflowY: 'auto',
                                 boxShadow: 'inset 0 0 0 1px rgba(15,23,42,0.04)',
                             }}

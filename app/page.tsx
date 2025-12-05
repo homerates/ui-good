@@ -1272,7 +1272,6 @@ export default function Page() {
                                             m.content
                                         )}
 
-/* Share button – only for real Grok answers, not the dummy "New chat" line */
                                         {m.role === 'assistant' &&
                                             m.meta &&
                                             typeof m.content === 'string' &&
@@ -1639,7 +1638,7 @@ export default function Page() {
                                                         id: uid(),
                                                         role: 'assistant',
                                                         content:
-                                                            'New chat. What do you want to figure out?',
+                                                            'New chat. Ask me Anything?',
                                                     },
                                                 ]);
                                                 closeAllOverlays();
