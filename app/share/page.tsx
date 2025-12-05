@@ -1,23 +1,15 @@
 import * as React from 'react';
 import Link from 'next/link';
 
-type SharePageProps = {
-    searchParams: {
-        q?: string;
-        a?: string;
-        source?: string;
-    };
-};
-
 function sanitizeQuestion(raw: string | undefined): string {
     if (!raw) return '';
     // Strip obvious URLs so the share link itself never shows up as the question text
     return raw.replace(/https?:\/\/\S+/g, '').trim();
 }
 
-export default function SharePage({ searchParams }: SharePageProps) {
-    const rawQuestion = searchParams.q ?? '';
-    const rawAnswer = searchParams.a ?? '';
+export default function SharePage({ searchParams }: any) {
+    const rawQuestion = searchParams?.q ?? '';
+    const rawAnswer = searchParams?.a ?? '';
 
     const question = sanitizeQuestion(rawQuestion) || 'Question asked in HomeRates.ai';
     const answer =
