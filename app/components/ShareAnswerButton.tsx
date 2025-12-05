@@ -6,7 +6,7 @@ import { buildAnswerShareUrl } from '../../lib/shareLink';
 type ShareAnswerButtonProps = {
     question: string;
     answer: string;
-    source?: string; // e.g. "sms", "email", "thread"
+    source?: string;
 };
 
 export function ShareAnswerButton({
@@ -14,65 +14,108 @@ export function ShareAnswerButton({
     answer,
     source = 'thread',
 }: ShareAnswerButtonProps) {
+    const [loading, setLoading] = React.useState(false);
     const [copied, setCopied] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
+    const [shortUrl, setShortUrl] = React.useState<string | null>(null);
 
-    const handleClick = async () => {
+    async function ensureShortUrl(longUrl: string): Promise<string> {
+        if (shortUrl) return shortUrl;
+
         try {
-            setError(null);
+            const res = await fetch('/api/shorten', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: longUrl }),
+            });
 
-            const url = buildAnswerShareUrl({
+            const json: any = await res.json().catch(() => null);
+
+            if (!res.ok || !json?.ok || !json?.shortUrl) {
+                console.warn('[ShareAnswerButton] shorten failed, falling back', {
+                    status: res.status,
+                    json,
+                });
+                return longUrl;
+            }
+
+            setShortUrl(json.shortUrl as string);
+            return json.shortUrl as string;
+        } catch (err) {
+            console.error('[ShareAnswerButton] shorten error', err);
+            return longUrl;
+        }
+    }
+
+    async function handleClick() {
+        if (loading) return;
+
+        try {
+            setLoading(true);
+
+            const longUrl = buildAnswerShareUrl({
                 question,
                 answer,
                 source,
             });
 
-            if (navigator?.clipboard?.writeText) {
-                await navigator.clipboard.writeText(url);
+            const urlToCopy = await ensureShortUrl(longUrl);
+
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(urlToCopy);
             } else {
-                // Basic fallback for older browsers
-                window.prompt('Copy this link:', url);
+                const temp = document.createElement('textarea');
+                temp.value = urlToCopy;
+                temp.style.position = 'fixed';
+                temp.style.left = '-9999px';
+                document.body.appendChild(temp);
+                temp.select();
+                try {
+                    document.execCommand('copy');
+                } catch {
+                    // ignore
+                }
+                document.body.removeChild(temp);
             }
 
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1500);
-        } catch (err) {
-            console.error('Failed to copy share link', err);
-            setError('Could not copy link');
-            window.setTimeout(() => setError(null), 2000);
+        } finally {
+            setLoading(false);
         }
-    };
+    }
 
-    const disabled = !question?.trim() || !answer?.trim();
+    const label = loading
+        ? 'Preparing…'
+        : copied
+            ? 'Link copied'
+            : 'Share';
 
     return (
         <button
             type="button"
-            onClick={disabled ? undefined : handleClick}
-            disabled={disabled}
-            className="share-answer-btn"
+            onClick={handleClick}
+            disabled={loading}
             style={{
-                fontSize: '0.75rem',
-                padding: '4px 10px',
-                borderRadius: 999,
-                border: '1px solid rgba(148, 163, 184, 0.6)',
-                background: disabled ? '#f9fafb' : '#ffffff',
-                color: disabled ? '#94a3b8' : '#0f172a',
-                cursor: disabled ? 'default' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                whiteSpace: 'nowrap',
+                padding: '4px 10px',
+                borderRadius: 999,
+                border: '1px solid rgba(148, 163, 184, 0.7)',
+                background: '#0f172a',
+                color: '#e5e7eb',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                cursor: loading ? 'default' : 'pointer',
+                opacity: loading ? 0.7 : 1,
             }}
-            aria-label="Share this answer"
         >
-            {/* Simple share icon (ChatGPT-style export arrow) */}
             <span
                 aria-hidden="true"
                 style={{
+                    display: 'inline-flex',
                     width: 12,
                     height: 12,
-                    display: 'inline-block',
                 }}
             >
                 <svg
@@ -82,30 +125,12 @@ export function ShareAnswerButton({
                     style={{ display: 'block' }}
                 >
                     <path
-                        d="M7 11a1 1 0 0 0 0 2h7.586l-2.293 2.293a1 1 0 1 0 1.414 1.414l4-4a1 1 0 0 0 0-1.414l-4-4a1 1 0 0 0-1.414 1.414L14.586 11H7Z"
+                        d="M17 4a3 3 0 1 1-2.83 4H9.83A3.001 3.001 0 0 1 7 10a3 3 0 0 1 2.83-4h4.34A3.001 3.001 0 0 1 17 4Zm-7.17 8h4.34A3.001 3.001 0 0 1 17 10a3 3 0 1 1-2.83 4H9.83A3.001 3.001 0 0 1 7 16a3 3 0 1 1 2.83-4Z"
                         fill="currentColor"
-                    />
-                    <path
-                        d="M5 5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-2a1 1 0 1 1 2 0v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v2a1 1 0 1 1-2 0V5Z"
-                        fill="currentColor"
-                        opacity={0.8}
                     />
                 </svg>
             </span>
-
-            {copied ? 'Shared' : 'Share'}
-
-            {error && (
-                <span
-                    style={{
-                        marginLeft: 6,
-                        fontSize: '0.7rem',
-                        color: '#b91c1c',
-                    }}
-                >
-                    {error}
-                </span>
-            )}
+            <span>{label}</span>
         </button>
     );
 }
