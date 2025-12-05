@@ -6,7 +6,7 @@
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
 import MenuButton from './components/MenuButton';
@@ -473,6 +473,10 @@ export default function Page() {
 
     const [input, setInput] = useState('');
 
+    // Seed composer once if we came from a shared-link card
+    const hasSeededFromShareRef = React.useRef(false);
+    const searchParams = useSearchParams();
+
     // borrower-only mode fixed
     const mode: 'borrower' = 'borrower';
 
@@ -493,6 +497,20 @@ export default function Page() {
             el.scrollTop = el.scrollHeight;
         });
     }, [messages, loading]);
+
+    // If the user came from a shared answer card, pre-fill the composer with that question
+    useEffect(() => {
+        if (!searchParams) return;
+        if (hasSeededFromShareRef.current) return;
+
+        const from = searchParams.get('fromShare');
+        const sq = searchParams.get('sq');
+
+        if (from === '1' && sq && !input) {
+            setInput(sq);
+            hasSeededFromShareRef.current = true;
+        }
+    }, [searchParams, input, setInput]);
 
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const toggleSidebar = () => setSidebarOpen((o) => !o);

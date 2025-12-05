@@ -16,6 +16,9 @@ export default function SharePage({ searchParams }: any) {
         (rawAnswer || '').trim() ||
         'This shared link did not include an answer body. Please open HomeRates.ai to see the full conversation.';
 
+    // Link back into the main app with share context
+    const appHref = `/?fromShare=1&sq=${encodeURIComponent(question)}`;
+
     return (
         <main
             style={{
@@ -89,7 +92,7 @@ export default function SharePage({ searchParams }: any) {
                         }}
                     >
                         <Link
-                            href="/"
+                            href={appHref}
                             style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -147,7 +150,7 @@ export default function SharePage({ searchParams }: any) {
                                 fontSize: '0.9rem',
                                 color: '#0f172a',
                                 lineHeight: 1.55,
-                                maxHeight: 300, // was 420 – shorter so CTA isn't cut off
+                                maxHeight: 300, // tightened to keep CTA visible at 100% zoom
                                 overflowY: 'auto',
                                 boxShadow: 'inset 0 0 0 1px rgba(15,23,42,0.04)',
                             }}
@@ -202,7 +205,7 @@ export default function SharePage({ searchParams }: any) {
                             }}
                         >
                             <Link
-                                href="/"
+                                href={appHref}
                                 style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
