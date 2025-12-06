@@ -1152,7 +1152,7 @@ export default function Page() {
     // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
     function onAskUnderwriting() {
         const seed =
-            'Underwriting guideline question: Please include borrower income, debts, credit score, property type, occupancy, and target program (Fannie, Freddie, FHA, VA, DSCR).';
+            'Ask Underwriting: ';
 
         // Just pre-fill the composer – user can edit then hit Enter / Send.
         setInput(seed);
@@ -1160,7 +1160,7 @@ export default function Page() {
     // ABOUT HOMERATES: seeds the composer to trigger the "about" module
     function onAboutHomeRates() {
         const seed =
-            'What is HomeRates.ai and what makes you different from other mortgage AIs and traditional lenders?';
+            'What is HomeRates.ai and what makes this different from other mortgage & Ai Apps?';
         setInput(seed);
     }
 
