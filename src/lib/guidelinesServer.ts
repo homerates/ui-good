@@ -5,8 +5,8 @@
  *
  * Phase 1:
  * - No DB, no PDF parsing yet.
- * - Just returns hard-coded, clearly labeled LoanDepot guideline context
- *   for DSCR / Jumbo style questions so we can see how it behaves in answers.
+ * - Returns clearly labeled LoanDepot-style guideline context
+ *   for DSCR / Jumbo questions so Grok can anchor on it.
  *
  * Later we can replace this with Supabase + PDF/RAG without changing callers.
  */
@@ -19,22 +19,28 @@ export async function getGuidelineContextForQuestion(
     const q = rawQuestion.toLowerCase();
     const chunks: string[] = [];
 
-    // Very rough matching for DSCR / investor scenarios
+    // === LoanDepot DSCR (Advantage FLEX DSCR) ===
     if (q.includes("dscr") || q.includes("debt service coverage")) {
         chunks.push(
             [
                 "LoanDepot – Advantage FLEX DSCR (internal-style summary, not a public ad):",
-                "- Designed for investment properties only (no primary / second home).",
-                "- Typical minimum DSCR around 1.0 at ≤ 75% LTV for 1–4 unit investment properties.",
-                "- Minimum FICO often in the 660+ range, with 6–12 months of PITIA reserves depending on LTV and number of properties.",
-                "- Uses property cash flow (rent vs PITIA) instead of personal DTI for qualification.",
+                "- Program is for investment properties only (no primary residence or second home).",
+                "- Typical minimum DSCR is around 1.0 at ≤ 75% LTV for 1–4 unit investment properties.",
+                "- Minimum FICO is usually in the 660+ range, with 6–12 months of PITIA reserves depending on LTV and number of financed properties.",
+                "- QUALIFICATION BASIS:",
+                "  • DSCR is calculated using GROSS RENTAL INCOME (lease or market rent) divided by PITIA.",
+                "  • It is NOT underwritten on full net operating income (NOI) after expenses.",
+                "  • When describing LoanDepot DSCR, avoid saying it uses NOI; explicitly describe it as gross rent ÷ PITIA.",
                 "",
-                "Always verify exact DSCR, FICO, LTV, and reserve requirements against the current LoanDepot Advantage FLEX DSCR guide for the scenario date.",
+                "Industry-wide, some DSCR lenders do use NOI-based ratios, but for LoanDepot’s Advantage FLEX DSCR,",
+                "you MUST treat gross rental income vs PITIA as the governing calculation.",
+                "",
+                "Always verify exact DSCR, FICO, LTV, and reserve grids against the current LoanDepot Advantage FLEX DSCR guide for the lock date.",
             ].join("\n")
         );
     }
 
-    // Very rough matching for Jumbo / Jumbo Advantage style scenarios
+    // === LoanDepot Jumbo / Jumbo Advantage ===
     if (
         q.includes("jumbo advantage") ||
         q.includes("jumbo loan") ||
@@ -46,12 +52,12 @@ export async function getGuidelineContextForQuestion(
                 "LoanDepot – Jumbo Advantage (internal-style summary, not a public ad):",
                 "- Typical max LTV bands (subject to exact product matrix and date):",
                 "  • Around 80% LTV for strong primary residence borrowers.",
-                "  • Around 75% for second homes.",
-                "  • Often 70% or lower for investment properties.",
-                "- Preferred FICO usually 700+, with 6–12 months reserves scaling by loan size and property count.",
-                "- Income documentation follows agency-style full doc first, then overlays for large loan amounts and complex profiles.",
+                "  • Around 75% LTV for second homes.",
+                "  • Often 70% LTV or lower for investment properties.",
+                "- Preferred FICO is usually 700+ with 6–12 months of PITIA reserves, scaling by loan size and number of financed properties.",
+                "- Income documentation follows agency-style full doc first, with overlays for larger loan amounts and complex profiles.",
                 "",
-                "Exact LTV/FICO/reserve grids *must* be pulled from the live LoanDepot Jumbo Advantage lending guide for the lock date.",
+                "Exact LTV/FICO/reserve grids MUST be confirmed from the live LoanDepot Jumbo Advantage lending guide for the scenario/lock date.",
             ].join("\n")
         );
     }
