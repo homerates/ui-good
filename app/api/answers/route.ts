@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
+import { getGuidelineContextForQuestion } from "@/lib/guidelinesServer";
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
   const res = NextResponse.json(json, { status });
@@ -379,6 +379,20 @@ async function handle(req: NextRequest, intentParam?: string) {
   ) {
     module = "about";
   }
+  // Lender guideline context (Phase 1 stub)
+  // For now, we only try to load it for underwriting / jumbo / qualify type questions.
+  let guidelineContext = "";
+
+  if (module === "underwriting" || module === "jumbo" || module === "qualify") {
+    try {
+      guidelineContext = await getGuidelineContextForQuestion(question);
+    } catch (err) {
+      console.warn(
+        "Guideline context error",
+        (err as any)?.message || err
+      );
+    }
+  }
 
   // TAVILY QUERY – MODULE-AWARE, LESS JUNK
   let tavQuery: string;
@@ -619,9 +633,14 @@ ${specialistPrefix}
 
 You are HomeRates.AI — a calm, data-first mortgage advisor focused on 2025–2026.
 Never sell. Never hype. Speak to a U.S. consumer in clear, direct language.
+If lender guideline context is provided below, treat it as primary for that lender
+and use agency/public sources only to supplement or fill gaps — do not contradict it.
 
 Date: ${today}
 ${fredContext}
+
+LENDER GUIDELINE CONTEXT (if any – this overrides generic rules for that lender):
+${guidelineContext || "No lender-specific guidelines matched. Use agency baselines only."}
 
 Latest short-term signals (rate trackers, news, commentary):
 ${tavilyContext}
@@ -640,6 +659,7 @@ Respond in valid JSON only, using this exact schema:
   "confidence": "0.00–1.00 numeric score plus a short reason, e.g. '0.87 – strong live rate data.'"
 }
 `.trim();
+
 
   let grokFinal: any = null;
 
