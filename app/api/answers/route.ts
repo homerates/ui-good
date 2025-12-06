@@ -1,4 +1,4 @@
-﻿// ==== RESTORED WEB-FIRST + GROK v3 + SUPABASE: app/api/answers/route.ts ====
+﻿// ==== WEB-FIRST + GROK v3 + SUPABASE: app/api/answers/route.ts ====
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -315,19 +315,94 @@ async function handle(req: NextRequest, intentParam?: string) {
     });
   }
 
-  // 1) Web-first via Tavily
-  let tav = await askTavily(
-    req,
-    `${question} 2025 mortgage insurance -pmi.org -project -management`,
-    { depth: "basic", max: 6 }
-  );
+  // Topic for follow-ups and FRED
+  const topic = topicFromQuestion(question);
 
+  // MODULE ROUTING
+  type ModuleKey =
+    | "general"
+    | "rate"
+    | "refi"
+    | "arm"
+    | "buydown"
+    | "jumbo"
+    | "underwriting"
+    | "qualify"
+    | "about";
+
+  let module: ModuleKey = "general";
+  const q = question.toLowerCase();
+
+  // NOTE: order matters – more specific / high-intent patterns go earlier
+  if (/(current.*rate|today.*rate|30.*year|30 year fixed|arm.*rate)/i.test(q)) {
+    module = "rate";
+  } else if (
+    /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(
+      q
+    )
+  ) {
+    module = "refi";
+  } else if (
+    /(how much.*qualify|qualify for|how much.*afford|afford.*home|income.*qualify|debt.*ratio|credit score.*qualify|pre.?approve)/i.test(
+      q
+    )
+  ) {
+    module = "qualify";
+  } else if (/(arm\b|5\/1|7\/1|10\/1|adjustable|fixed vs arm)/i.test(q)) {
+    module = "arm";
+  } else if (/(points?|buy ?down|discount points?|buydown)/i.test(q)) {
+    module = "buydown";
+  } else if (/(jumbo|non.?conforming|high.?balance|loan limit)/i.test(q)) {
+    module = "jumbo";
+  } else if (
+    // Core underwriting keywords
+    /(underwrit|guideline|du\b|lp\b|manual underwrite|reserve|overlay|lender requirement|lender overlay|compensating factor|residual income)/i.test(
+      q
+    ) ||
+    // Conventional + W2 + self-employment combo (classic underwriting scenario)
+    (/\b(conventional|conv)\b/i.test(q) &&
+      /\b(w[- ]?2|w2)\b/i.test(q) &&
+      /(self[- ]?employed|self employed|s\/e|se income|1099|schedule c|k-1|k1|side business|sole prop|sole proprietorship)/i.test(
+        q
+      )) ||
+    // Any self-employment / business income + loss/declining pattern
+    (/(self[- ]?employed|self employed|1099|schedule c|k-1|k1|business income|rental income)/i.test(
+      q
+    ) &&
+      /\b(loss|negative|declining|decline)\b/i.test(q))
+  ) {
+    module = "underwriting";
+  } else if (
+    /(what is homerates|heard about homerates|tell me about this site|what makes you different|who is the founder|who built homerates|who created homerates|who made homerates|founder of homerates)/i.test(
+      q
+    )
+  ) {
+    module = "about";
+  }
+
+  // TAVILY QUERY – MODULE-AWARE, LESS JUNK
+  let tavQuery: string;
+
+  if (module === "underwriting" || module === "qualify") {
+    tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
+  } else if (module === "rate") {
+    tavQuery = `${question} 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:forbes.com OR site:nerdwallet.com OR site:freddiemac.com -yahoo -aol -forum -blog -reddit`;
+  } else {
+    tavQuery = `${question} 2025 mortgage -yahoo -aol -forum -blog -reddit`;
+  }
+
+  let tav = await askTavily(req, tavQuery, {
+    depth: module === "underwriting" || module === "qualify" ? "advanced" : "basic",
+    max: 6,
+  });
+
+  // Fallback: relax query if answer is too thin
   if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
-    tav = await askTavily(
-      req,
-      `${question} mortgage insurance -pmi.org`,
-      { depth: "advanced", max: 8 }
-    );
+    const fallbackQuery = `${question} mortgage 2025 -pmi.org`;
+    tav = await askTavily(req, fallbackQuery, {
+      depth: "advanced",
+      max: 8,
+    });
   }
 
   mark("after Tavily");
@@ -335,7 +410,6 @@ async function handle(req: NextRequest, intentParam?: string) {
   const usedTavily = tav.ok && (tav.answer !== null || tav.results.length > 0);
 
   // 2) Optional FRED snapshot for rate questions
-  const topic = topicFromQuestion(question);
   const wantFred = topic === "rates";
   const fred = wantFred
     ? await getFredSnapshot()
@@ -399,7 +473,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   mark("after baseline answer");
 
-  // ===== GROK BRAIN v3.1 – FINAL COMPATIBLE VERSION =====
+  // ===== GROK BRAIN v3.1 =====
   console.log("GROK v3.1: Starting for user:", userId);
 
   let conversationHistory = "";
@@ -441,60 +515,12 @@ async function handle(req: NextRequest, intentParam?: string) {
     Array.isArray(tav.results) && tav.results.length
       ? tav.results
         .slice(0, 4)
-        .map((s) => `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`)
+        .map(
+          (s) =>
+            `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`
+        )
         .join("\n")
       : "No recent sources";
-
-  // 3. MODULE ROUTING — CLEAN, SIMPLE, WORKING
-
-  type ModuleKey =
-    | "general"
-    | "rate"
-    | "refi"
-    | "arm"
-    | "buydown"
-    | "jumbo"
-    | "underwriting"
-    | "qualify"
-    | "about";
-
-  let module: ModuleKey = "general";
-  const q = question.toLowerCase();
-
-  // NOTE: order matters – more specific / high-intent patterns go earlier
-  if (/(current.*rate|today.*rate|30.*year|30 year fixed|jumbo|arm.*rate)/i.test(q)) {
-    module = "rate";
-  } else if (
-    /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(
-      q
-    )
-  ) {
-    module = "refi";
-  } else if (
-    /(how much.*qualify|qualify for|how much.*afford|afford.*home|income.*qualify|debt.*ratio|credit score.*qualify|pre.?approve)/i.test(
-      q
-    )
-  ) {
-    module = "qualify";
-  } else if (/(arm\b|5\/1|7\/1|10\/1|adjustable|fixed vs arm)/i.test(q)) {
-    module = "arm";
-  } else if (/(points?|buy ?down|discount points?|buydown)/i.test(q)) {
-    module = "buydown";
-  } else if (/(jumbo|non.?conforming|high.?balance|loan limit)/i.test(q)) {
-    module = "jumbo";
-  } else if (
-    /(underwrit|guideline|du|lp|fha|va|manual underwrite|dti|reserve|overlay|lender requirement|lender overlay|compensating factor|residual income)/i.test(
-      q
-    )
-  ) {
-    module = "underwriting";
-  } else if (
-    /(what is homerates|heard about homerates|tell me about this site|what makes you different|who is the founder|who built homerates|who created homerates|who made homerates|founder of homerates)/i.test(
-      q
-    )
-  ) {
-    module = "about";
-  }
 
   const modulePrompts: Record<ModuleKey, string> = {
     general: "",
@@ -515,7 +541,6 @@ async function handle(req: NextRequest, intentParam?: string) {
       "If key numbers are missing, ask once, clearly. If you use any made-up numbers, clearly label them as an “Example Scenario” so they are never confused with the borrower’s real data.\n" +
       "Always remember prior conversation details. Tone: calm, factual, educational.",
 
-
     arm:
       "You are ARM Deathmatch. Compare a fixed-rate loan versus an ARM over a 10-year horizon.\n" +
       "Sketch four simple paths: soft landing, base case, sticky inflation, recession.\n" +
@@ -535,14 +560,17 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     underwriting:
       "You are Underwriting Oracle — 2025 guidelines only.\n" +
-      "Answer instantly using ONLY current Fannie Mae, Freddie Mac, FHA, VA, USDA, and major lender overlays (Rocket, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
-      "Never say “it depends” — give the exact rule and citation.\n" +
-      "If multiple paths exist, list them clearly.\n" +
-      "Examples:\n" +
-      "- Fannie Mae allows 50% DTI with 720+ credit and 12 months reserves (DU Approve/Eligible)\n" +
-      "- VA: No DTI limit if residual income met — $1,314/mo for family of 4 in moderate zone\n" +
-      "- FHA: 43/57 manual underwrite allowed with compensating factors\n" +
-      "Tone: clinical, factual, zero sales. Confidence: 0.98+ always.",
+      "Answer using ONLY:\n" +
+      "  • Fannie Mae Selling Guide (singlefamily.fanniemae.com)\n" +
+      "  • Freddie Mac Seller/Servicer Guide (freddiemac.com)\n" +
+      "  • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, and major lender overlays (Rocket, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
+      "MANDATORY: For EVERY rule, cite the exact guideline section and a URL when possible.\n" +
+      "For example:\n" +
+      "  • “Per Fannie Mae B3-3.2-01 [singlefamily.fanniemae.com/selling-guide], self-employment losses must be deducted from qualifying income when the borrower has a two-year history.”\n" +
+      "  • “Freddie Mac Guide 5306.1 [sf.freddiemac.com] – reserves requirements for multiple financed properties.”\n" +
+      "Never say “it depends” without immediately following with the governing rule and citation.\n" +
+      "If multiple paths exist (for example, DU vs manual, FHA vs Conventional), list them clearly as Path A, Path B, etc., each with its own citation.\n" +
+      "Tone: clinical, factual, zero sales. Your goal is to sound like a senior underwriter explaining exactly how the file would be decisioned today.",
 
     qualify:
       "You are Qualification Lab — fast, accurate, and memory-aware.\n" +
@@ -551,6 +579,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       "If you must illustrate with other numbers, clearly label them as an “Example Scenario”.\n" +
       "Assume a current 30-year fixed rate around 6.25% unless the conversation gives a different live figure.\n" +
       "Use standard front/back DTI guides (28/36 and 31/43) to compute max PITI.\n" +
+      "When you reference any external calculator or data (for example Zillow, Bankrate), include an inline [source] label such as [Zillow Affordability] or [Bankrate DTI].\n" +
       "Show a clean table: max PITI, approximate max loan amount, and max home price at 20% down.\n" +
       "No fluff. No re-asking for data that is already in the conversation. Tone: calm, educational, decisive.",
 
@@ -581,8 +610,6 @@ async function handle(req: NextRequest, intentParam?: string) {
       "   • DISCLAIMER: This information is provided for educational purposes only and is not personalized financial advice. " +
       "   • Eligibility, rates, programs, and lending options vary by borrower profile and lender. " +
       "   • Always verify decisions with a licensed NMLS Loan Consultant.\n",
-
-
   };
 
   const specialistPrefix = modulePrompts[module] ?? "";
