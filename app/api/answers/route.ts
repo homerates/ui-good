@@ -555,7 +555,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       "Always state whether you used real borrower numbers or an Example Scenario.",
 
     jumbo:
-      "You are Jumbo Loan Expert. Use current conforming loan limits as a guide (for example $805,250 baseline and $1,209,750 high-cost for 2025). " +
+      "You are Jumbo Loan Expert. Use current conforming loan limits as a guide (for example $806,500 baseline and $1,209,750 high-cost for 2025). " +
       "Explain how jumbo pricing usually runs about 0.20–0.50% over conforming, with stricter requirements such as 700+ credit, 20%+ down, and 6–12 months of reserves. Focus on structure, eligibility, and risk — not sales.",
 
     underwriting:
@@ -563,7 +563,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       "Answer using ONLY:\n" +
       "  • Fannie Mae Selling Guide (singlefamily.fanniemae.com)\n" +
       "  • Freddie Mac Seller/Servicer Guide (freddiemac.com)\n" +
-      "  • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, and major lender overlays (Rocket, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
+      "  • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, and major lender overlays (LoanDepot, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
       "MANDATORY: For EVERY rule, cite the exact guideline section and a URL when possible.\n" +
       "For example:\n" +
       "  • “Per Fannie Mae B3-3.2-01 [singlefamily.fanniemae.com/selling-guide], self-employment losses must be deducted from qualifying income when the borrower has a two-year history.”\n" +
