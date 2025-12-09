@@ -11,6 +11,10 @@
  * Later we can replace this with Supabase + PDF/RAG without changing callers.
  */
 
+/**
+ * Used by the answers route to inject extra guideline context
+ * into the model prompt. This should be SHORTER, high-signal text.
+ */
 export async function getGuidelineContextForQuestion(
     rawQuestion: string
 ): Promise<string> {
@@ -23,32 +27,28 @@ export async function getGuidelineContextForQuestion(
     if (q.includes("dscr") || q.includes("debt service coverage")) {
         chunks.push(
             [
-                "LoanDepot – Advantage FLEX DSCR (internal-style summary, based on the Advantage FLEX Non-QM Lending Guide, not a public ad):",
+                "LoanDepot – Advantage FLEX DSCR (internal-style summary, based on the Advantage FLEX Non-QM Lending Guide; not a public ad):",
                 "",
                 "Program scope:",
-                "- Business-purpose, NON-owner-occupied investment properties only. The subject property may NOT be occupied by the borrower, any member of the borrower’s LLC, or any family member.",
-                "- Borrowers are qualified on the PROPERTY’S REVENUE instead of a standard personal DTI. Personal income is not the focus; the DSCR ratio is.",
+                "- Business-purpose, NON-owner-occupied investment properties only.",
+                "- The subject property may NOT be occupied by the borrower, any member of the borrower’s LLC, or a family member.",
+                "- Borrowers are qualified on the PROPERTY’S REVENUE instead of a standard personal DTI.",
                 "",
-                "How DSCR is actually calculated for LoanDepot Advantage FLEX DSCR:",
+                "How DSCR is calculated for LoanDepot Advantage FLEX DSCR:",
                 "- DSCR = RENTAL INCOME ÷ proposed PITIA/ITIA on the subject property.",
                 "- The numerator is RENTAL INCOME, not a full net operating income (NOI) calculation.",
-                "- When you describe this program, you MUST say that DSCR is based on RENTAL INCOME ÷ PITIA, and you MUST NOT say it uses NOI ÷ debt service.",
+                "- Do NOT describe this program as using NOI ÷ debt service. Use RENTAL INCOME ÷ PITIA instead.",
                 "",
-                "Rental income inputs:",
-                "- Long-term rentals (standard 12-month leases): use the LOWER of:",
-                "  • the executed lease agreement, OR",
-                "  • market rent from the appraisal (Form 1007/1025).",
-                "- Short-term rentals (STRs) where STR use is allowed:",
-                "  • typically use 80% of a third-party short-term rental analysis from an approved AMC, OR",
-                "  • 100% of the most recent 12 months of STR receipts from a third-party platform or manager, MINUS documented monthly operating expenses.",
+                "Rental income inputs (high level):",
+                "- Long-term rentals: use the LOWER of the executed lease agreement or market rent from the appraisal (Form 1007/1025).",
+                "- Short-term rentals (where allowed): use a combination of STR analysis / documented STR receipts per the current Advantage FLEX DSCR guide.",
                 "",
                 "High-level program notes:",
-                "- This is a professional investor product; first-time investors may have additional requirements per the product matrix.",
-                "- Reserves, minimum DSCR ratios, LTV caps, and FICO bands must be taken from the current LoanDepot Advantage FLEX DSCR matrix for the specific lock date.",
+                "- Reserves, min DSCR ratios, LTV caps, and FICO bands must come from the current LoanDepot Advantage FLEX DSCR matrix for the lock date.",
                 "",
-                "Answering rules for this assistant:",
-                "- If a user asks about LoanDepot DSCR or Advantage FLEX DSCR, you MUST anchor to this rental-income ÷ PITIA definition, even if generic web sources talk about NOI.",
-                "- If the user is asking generically about “DSCR loans” but also mentions LoanDepot, clearly explain that LoanDepot’s DSCR calculation is based on RENTAL INCOME ÷ PITIA and call out that some other lenders use NOI-based ratios, but LoanDepot does not in this program.",
+                "Assistant behavior:",
+                "- If the question involves LoanDepot DSCR or Advantage FLEX DSCR, ALWAYS use the RENTAL INCOME ÷ PITIA definition.",
+                "- You may mention that some OTHER lenders use NOI-based DSCR, but clearly state that LoanDepot’s Advantage FLEX DSCR does NOT use NOI.",
             ].join("\n")
         );
     }
@@ -81,4 +81,58 @@ export async function getGuidelineContextForQuestion(
     }
 
     return chunks.join("\n\n");
+}
+
+/**
+ * Used by the answers route as a hard DSCR override.
+ * If the question clearly targets LoanDepot DSCR / Advantage FLEX DSCR,
+ * return a ready-made answer snippet that NEVER talks about NOI.
+ * Otherwise return null so the normal pipeline runs.
+ */
+export async function maybeBuildDscrOverrideAnswer(
+    rawQuestion: string
+): Promise<string | null> {
+    if (!rawQuestion) return null;
+
+    const q = rawQuestion.toLowerCase();
+    const mentionsDscr =
+        q.includes("dscr") || q.includes("debt service coverage");
+    const mentionsLoanDepot =
+        q.includes("loandepot") ||
+        q.includes("loan depot") ||
+        q.includes("advantage flex") ||
+        q.includes("flex dscr");
+
+    if (!mentionsDscr || !mentionsLoanDepot) {
+        return null;
+    }
+
+    // This is a LoanDepot DSCR question – return an authoritative explanation.
+    return [
+        "LoanDepot Advantage FLEX DSCR – How Income Is Calculated",
+        "",
+        "For LoanDepot’s Advantage FLEX DSCR program, the Debt Service Coverage Ratio (DSCR) is NOT based on net operating income (NOI).",
+        "Instead, the lender uses the following definition:",
+        "",
+        "  DSCR = RENTAL INCOME ÷ proposed PITIA/ITIA",
+        "",
+        "Key points:",
+        "- RENTAL INCOME is used directly in the numerator; operating expenses are not deducted to create a separate NOI figure.",
+        "- PITIA/ITIA includes principal, interest, property taxes, insurance, and HOA dues (if applicable) on the subject property.",
+        "- Because of this structure, you should never describe LoanDepot’s Advantage FLEX DSCR as “NOI ÷ debt service.” That is a generic industry definition, not how this specific program works.",
+        "",
+        "Rental income sourcing (high-level summary):",
+        "- For long-term rentals, rental income is generally based on the LOWER of:",
+        "  • the executed lease agreement, or",
+        "  • market rent from the appraisal rent schedule (e.g., Form 1007/1025).",
+        "- For short-term rentals (where permitted), the guide allows use of STR analysis or documented receipts per the current Advantage FLEX DSCR requirements.",
+        "",
+        "Other program characteristics:",
+        "- Business-purpose, non-owner-occupied investment properties only.",
+        "- The subject property may not be occupied by the borrower, any member of the borrower’s LLC, or a family member.",
+        "- Borrowers are qualified primarily on the property’s DSCR rather than a traditional personal DTI calculation.",
+        "- Minimum DSCR ratios, LTV caps, FICO minimums, and reserve requirements must be taken from the current LoanDepot Advantage FLEX DSCR matrix for the specific lock date.",
+        "",
+        "If you compare this to generic DSCR loans from other lenders, be explicit that LoanDepot’s Advantage FLEX DSCR uses RENTAL INCOME ÷ PITIA, not NOI ÷ debt service."
+    ].join("\n");
 }
