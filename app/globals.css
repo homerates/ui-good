@@ -944,7 +944,7 @@ body {
 .legal-page {
   max-width: 960px;
   margin: 0 auto;
-  padding: 24px 16px 120px;
+  padding: 24px 16px 24px;
   /* extra bottom so footer doesn't cover text */
   font-size: 0.95rem;
   line-height: 1.6;
