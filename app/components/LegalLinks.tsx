@@ -15,21 +15,25 @@ async function logLegalClick(type: "disclosures" | "privacy") {
             keepalive: true,
         });
     } catch {
-        // Fail silently – logging is best-effort only
+        // best-effort only
     }
 }
 
 export default function LegalLinks() {
     return (
         <div className="legal-links">
-            <p className="legal-links-text">
-                HomeRates.ai is an independent educational tool and is not a mortgage
-                lender or broker. It does not provide credit decisions, loan approvals,
-                or rate guarantees. All official loan information must be obtained
-                directly from a licensed mortgage lender.
-            </p>
-
+            {/* Line 1 */}
             <div className="legal-links-row">
+                <span>
+                    HomeRates.ai is an independent educational tool and is not a mortgage
+                    lender or broker.
+                </span>
+            </div>
+
+            {/* Line 2 */}
+            <div className="legal-links-row legal-links-row-bottom">
+                <span>Educational only, not financial advice.</span>
+
                 <Link
                     href="/disclosures"
                     className="legal-link"
@@ -37,7 +41,9 @@ export default function LegalLinks() {
                 >
                     Terms &amp; Disclosures
                 </Link>
-                <span className="legal-link-separator">•</span>
+
+                <span className="footer-separator">•</span>
+
                 <Link
                     href="/privacy"
                     className="legal-link"
@@ -45,6 +51,9 @@ export default function LegalLinks() {
                 >
                     Privacy &amp; Data Policy
                 </Link>
+
+                <span className="footer-separator">•</span>
+                <span>Build: Legal-2026.01</span>
             </div>
         </div>
     );

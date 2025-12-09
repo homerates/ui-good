@@ -944,7 +944,8 @@ body {
 .legal-page {
   max-width: 960px;
   margin: 0 auto;
-  padding: 24px 16px 96px;
+  padding: 24px 16px 120px;
+  /* extra bottom so footer doesn't cover text */
   font-size: 0.95rem;
   line-height: 1.6;
 }
@@ -954,6 +955,10 @@ body {
   border-radius: 8px;
   padding: 24px 20px 32px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+
+  /* make the main card scrollable inside the viewport */
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -990,29 +995,34 @@ body {
 .legal-last-updated {
   font-size: 0.8rem;
   color: #6b7280;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
-/* Legal links block (shared footer + sidebar) */
+.legal-back-link {
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Footer legal block (2 lines) */
 .legal-links {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 8px;
-  font-size: 0.75rem;
-  max-width: 640px;
-}
-
-.legal-links-text {
-  margin: 0;
-  color: #4b5563;
+  gap: 2px;
+  font-size: 0.7rem;
+  text-align: center;
 }
 
 .legal-links-row {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.legal-links-row-bottom {
+  font-size: 0.7rem;
 }
 
 .legal-link {
@@ -1021,17 +1031,11 @@ body {
   cursor: pointer;
 }
 
-.legal-link-separator {
-  opacity: 0.5;
+.footer-separator {
+  opacity: 0.6;
 }
 
-@media (prefers-color-scheme: dark) {
-  .legal-links-text {
-    color: #9ca3af;
-  }
-}
-
-/* Sidebar legal section */
+/* Sidebar legal section (unchanged) */
 .sidebar-legal {
   margin-top: 16px;
   padding-top: 8px;
