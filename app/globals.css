@@ -763,6 +763,14 @@ ul {
   }
 }
 
+/* On small screens, lift the composer bar so it doesn't cover the footer */
+@media (max-width: 640px) {
+  .hr-composer {
+    bottom: 48px !important;
+    /* room for the 2-line footer bar */
+  }
+}
+
 /* HR: Assistant answers layout - narrower, centered, consistent spacing */
 .balloon.bot {
   max-width: 640px !important;
