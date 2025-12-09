@@ -1,6 +1,7 @@
 // app/about/page.tsx
 
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
     title: "About HomeRates.ai",
@@ -14,6 +15,12 @@ export default function AboutPage() {
             <div className="legal-page-inner">
                 <h1>About HomeRates.ai</h1>
                 <p className="legal-last-updated">Last Updated: January 2026</p>
+
+                <div style={{ margin: "8px 0 16px" }}>
+                    <Link href="/" className="legal-back-link">
+                        ← Back to Home
+                    </Link>
+                </div>
 
                 <p>
                     HomeRates.ai is an independent educational platform built to help

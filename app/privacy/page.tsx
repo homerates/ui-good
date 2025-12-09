@@ -1,6 +1,7 @@
 // app/privacy/page.tsx
 
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
     title: "Privacy & Data Policy | HomeRates.ai",
@@ -14,6 +15,12 @@ export default function PrivacyPage() {
             <div className="legal-page-inner">
                 <h1>HomeRates.ai – Privacy &amp; Data Policy</h1>
                 <p className="legal-last-updated">Last Updated: January 2026</p>
+
+                <div style={{ margin: "8px 0 16px" }}>
+                    <Link href="/" className="legal-back-link">
+                        ← Back to Home
+                    </Link>
+                </div>
 
                 <p>
                     HomeRates.ai respects the privacy of all users and is committed to

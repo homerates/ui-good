@@ -488,6 +488,30 @@ ul {
   white-space: nowrap;
 }
 
+.footer-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Make legal links fit nicely inside the footer bar */
+.footer-meta .legal-links {
+  font-size: 0.65rem;
+  margin-bottom: 2px;
+}
+
+.footer-meta .legal-links-row {
+  justify-content: center;
+}
+
+.legal-back-link {
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 
 
 /* =========================
