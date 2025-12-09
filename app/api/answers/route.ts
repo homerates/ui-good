@@ -317,6 +317,44 @@ async function handle(req: NextRequest, intentParam?: string) {
       ],
     });
   }
+  // --- LoanDepot DSCR hard override: short-circuit generic DSCR answers ---
+  try {
+    const dscrOverride = await maybeBuildDscrOverrideAnswer(question);
+
+    // If the question mentions DSCR + LoanDepot / Advantage FLEX,
+    // we return a deterministic answer and skip Tavily + Grok.
+    if (dscrOverride) {
+      const followUp =
+        "Want me to model DSCR and max loan using rental income and PITIA for your scenario?";
+
+      return noStore({
+        ok: true,
+        route: "answers",
+        grok: null,
+        data_freshness: "LoanDepot DSCR override",
+        message: dscrOverride,
+        answerMarkdown: dscrOverride,
+        followUp,
+        path,
+        tag,
+        generatedAt,
+        usedFRED: false,
+        usedTavily: false,
+        fred: {
+          tenYearYield: null,
+          mort30Avg: null,
+          spread: null,
+          asOf: null,
+        },
+        topSources: [],
+      });
+    }
+  } catch (err: any) {
+    console.warn(
+      "LoanDepot DSCR override failed",
+      err?.message || err
+    );
+  }
 
   // Topic for follow-ups and FRED
   const topic = topicFromQuestion(question);
