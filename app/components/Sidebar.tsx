@@ -14,6 +14,9 @@ import {
 
 import ProjectsPanel from './ProjectsPanel';
 import MoveToProjectDialog from './MoveToProjectDialog';
+import LegalLinks from "./LegalLinks";
+import SidebarLegal from "./SidebarLegal";
+
 
 // ===== Types =====
 
@@ -620,6 +623,25 @@ export default function Sidebar(props: SidebarProps) {
             </SignedOut>
           </div>
         </div>
+        {/* About & Legal links */}
+        <div style={{ marginTop: 16, padding: "0 12px" }}>
+          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: 6 }}>
+            About & Legal
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <a href="/about" className="sidebar-legal-link">
+              About HomeRates.ai
+            </a>
+            <a href="/disclosures" className="sidebar-legal-link">
+              Terms & Disclosures
+            </a>
+            <a href="/privacy" className="sidebar-legal-link">
+              Privacy & Data Policy
+            </a>
+          </div>
+        </div>
+
       </aside>
 
       {/* Move-to-project dialog lives outside the sidebar */}

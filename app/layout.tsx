@@ -2,6 +2,8 @@
 // app/layout.tsx
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import LegalLinks from "./components/LegalLinks";
+
 
 export const metadata = {
   title: "HomeRates",
@@ -32,12 +34,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
 
           {/* Footer meta stays separate and non-interactive */}
-          <div className="footer-meta">
-            <span>HomeRates.ai</span>
-            <span>Educational info only, not financial advice.</span>
-            <span>Powered by OpenAI.</span>
-          </div>
+          <footer className="app-footer">
 
+            {/* 1. Clickable legal links */}
+            <LegalLinks />
+
+            <div className="footer-meta">
+              <span>HomeRates.ai</span>
+              <span>Educational info only, not financial advice.</span>
+              <span>Powered by OpenAI.</span>
+              <span>Build: Legal-2026.01 • Disclosures &amp; Privacy updated Jan 2026</span>
+            </div>
+
+          </footer>
           {/* Hard override: fix composer layout + keep it off the sidebar */}
           <style
             dangerouslySetInnerHTML={{

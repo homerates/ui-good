@@ -914,3 +914,124 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* === Legal pages & links === */
+
+.legal-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 96px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.legal-page-inner {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 24px 20px 32px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  .legal-page-inner {
+    background: #020617;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.9);
+  }
+}
+
+.legal-page h1 {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.legal-page h2 {
+  font-size: 1.05rem;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.legal-page p {
+  margin: 8px 0;
+}
+
+.legal-page ul {
+  padding-left: 1.2rem;
+  margin: 4px 0 8px;
+}
+
+.legal-page li {
+  margin: 2px 0;
+}
+
+.legal-last-updated {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+/* Legal links block (shared footer + sidebar) */
+.legal-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+  max-width: 640px;
+}
+
+.legal-links-text {
+  margin: 0;
+  color: #4b5563;
+}
+
+.legal-links-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.legal-link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.legal-link-separator {
+  opacity: 0.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .legal-links-text {
+    color: #9ca3af;
+  }
+}
+
+/* Sidebar legal section */
+.sidebar-legal {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.sidebar-legal-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.sidebar-legal-link {
+  display: block;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  margin-bottom: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar-legal-title {
+    color: #9ca3af;
+  }
+}

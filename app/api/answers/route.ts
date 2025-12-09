@@ -4,7 +4,10 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getGuidelineContextForQuestion } from "@/lib/guidelinesServer";
+import {
+  getGuidelineContextForQuestion,
+  maybeBuildDscrOverrideAnswer,
+} from "@/lib/guidelinesServer";
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
   const res = NextResponse.json(json, { status });
