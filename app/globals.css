@@ -484,6 +484,23 @@ ul {
   z-index: 800;
 }
 
+@media (prefers-color-scheme: dark) {
+  .footer-meta {
+    background: rgba(15, 23, 42, 0.96);
+    color: #e5e7eb;
+    border-top: 1px solid rgba(55, 65, 81, 0.9);
+  }
+
+  .footer-meta .legal-links-row,
+  .footer-meta .legal-links-row span {
+    color: #e5e7eb;
+  }
+
+  .footer-meta .legal-link {
+    color: #e5e7eb;
+  }
+}
+
 .footer-meta span {
   white-space: nowrap;
 }
@@ -965,6 +982,14 @@ body {
   .legal-page-inner {
     background: #020617;
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.9);
+  }
+}
+
+/* On small screens, lift footer above the Ask Pill */
+@media (max-width: 640px) {
+  .footer-meta {
+    bottom: 56px;
+    /* adjust if your Ask Pill is taller/shorter */
   }
 }
 
