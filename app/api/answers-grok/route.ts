@@ -16,6 +16,7 @@ function noStore(json: unknown, status = 200) {
 
 // ---------- Env ----------
 const XAI_API_KEY = process.env.XAI_API_KEY || "";
+const XAI_MODEL = (process.env.XAI_MODEL || "grok-4-fast").trim();
 
 // Supabase (service-side client; used for user_answers memory)
 const SUPABASE_URL =
@@ -323,7 +324,7 @@ Return valid JSON only with this exact schema:
     }
 
     mark("before Grok call");
-    console.log("[GROK-ONLY] model=grok-4 prompt_chars=", grokPrompt.length);
+    console.log("[GROK-ONLY] model=", XAI_MODEL, "prompt_chars=", grokPrompt.length);
 
     let grokFinal: any = null;
 
@@ -337,7 +338,7 @@ Return valid JSON only with this exact schema:
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "grok-4",
+                    model: XAI_MODEL,
                     messages: [{ role: "user", content: grokPrompt }],
                     response_format: { type: "json_object" },
                     temperature: 0.15,
