@@ -1,4 +1,4 @@
-// ==== GROK-ONLY answers lane: app/api/answers-grok/route.ts ====
+// ==== SINGLE ENDPOINT GROK LANE: app/api/answers/route.ts ====
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -15,11 +15,9 @@ function noStore(json: unknown, status = 200) {
 }
 
 // ---------- Env ----------
-// Keep only ONE key in Vercel + .env.local: XAI_API_KEY
 const XAI_API_KEY = process.env.XAI_API_KEY || "";
-
-// SAFETY: hard-force Grok-3 here so Grok-4 cannot be called accidentally
-const XAI_MODEL = "grok-3";
+// Default to Grok 4.1 Fast for the speed test (can override via env)
+const XAI_MODEL = (process.env.XAI_MODEL || "grok-4.1-fast").trim();
 
 // Supabase (service-side client; used for user_answers memory)
 const SUPABASE_URL =
@@ -159,7 +157,7 @@ function clampText(s: string, maxChars: number) {
     return x.slice(0, Math.max(0, maxChars - 1)).trimEnd() + "…";
 }
 
-/* ===== Core handler (Grok-only) ===== */
+/* ===== Core handler (single Grok lane) ===== */
 async function handle(req: NextRequest, intentParam?: string) {
     type Body = {
         question?: string;
@@ -168,16 +166,13 @@ async function handle(req: NextRequest, intentParam?: string) {
         userId?: string;
     };
 
-    // --- Timing ---
     const t0 = Date.now();
-    const mark = (label: string) => {
-        console.log(`[GROK-ONLY TIMER] ${label}:`, Date.now() - t0, "ms");
-    };
+    const mark = (label: string) => console.log(`[ANSWERS TIMER] ${label}:`, Date.now() - t0, "ms");
     mark("start");
 
     const generatedAt = new Date().toISOString();
-    const path = "grok-only";
-    const tag = "answers-grok-v1";
+    const path = "answers";
+    const tag = "answers-grok-single";
 
     let body: Body = {};
     let userId: string | undefined;
@@ -200,7 +195,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             "Ask a specific mortgage question. Example: 'Refi break-even on $650k at 3.75% with 25 years left' or 'PMI at 5% down with ~720 credit in CA'.";
         return noStore({
             ok: true,
-            route: "answers-grok",
+            route: "answers",
             intent,
             path,
             tag,
@@ -244,30 +239,21 @@ async function handle(req: NextRequest, intentParam?: string) {
                     .join("\n\n");
             }
         } catch (err: any) {
-            console.warn("GROK-ONLY: memory fetch failed", err?.message || err);
+            console.warn("ANSWERS: memory fetch failed", err?.message || err);
         }
     }
     mark("after memory");
 
     const modulePrompts: Record<ModuleKey, string> = {
-        general:
-            "Answer clearly and concisely. Use only borrower-provided numbers. If key inputs are missing, ask ONE question and stop.",
-        rate:
-            "Rate focus. Do not invent live market rates. If the user asks for today’s rates, ask for state + scenario details (loan type, credit range, down payment).",
-        refi:
-            "Refi Lab. Do not invent market rates or borrower numbers. Use only what the user provides. If missing, ask ONE question and stop.",
-        arm:
-            "Compare fixed vs ARM over a 10-year horizon with simple scenarios, but do not invent numbers unless asked. Ask ONE question if needed.",
-        buydown:
-            "Buydown Lab. Do not invent points, costs, or payment numbers unless asked for an example. Ask ONE question if inputs are missing.",
-        jumbo:
-            "Jumbo structure and eligibility. Ask for missing purchase price, down payment, and credit range. Do not invent numbers unless asked.",
-        underwriting:
-            "Underwriting focus. Avoid guessing rules. Ask for program type and occupancy if missing. Do not invent.",
-        qualify:
-            "Qualification Lab. Use only user-provided income/debt. Ask ONE question if missing.",
-        about:
-            "Explain HomeRates.ai clearly (product + mission). Calm and precise.",
+        general: "Answer clearly and concisely. If key inputs are missing, ask ONE question and stop.",
+        rate: "Do not invent live market rates. Ask for state + scenario details if needed.",
+        refi: "Refi Lab. Do not invent numbers. Ask ONE question if missing inputs.",
+        arm: "Compare fixed vs ARM at a high level. Do not invent numbers unless asked for an example.",
+        buydown: "Do not invent points/costs unless asked for an example.",
+        jumbo: "Ask for purchase price, down payment, and credit range if missing.",
+        underwriting: "Avoid guessing rules. Ask for program type and occupancy if missing.",
+        qualify: "Use only user-provided income/debt. Ask ONE question if missing.",
+        about: "Explain HomeRates.ai clearly (product + mission). Calm and precise.",
     };
 
     const today = new Date().toISOString().slice(0, 10);
@@ -285,15 +271,15 @@ ${convoTrim || "None"}
 Current question:
 "${question}"
 
-ABSOLUTE RULES (must follow):
+ABSOLUTE RULES:
 - Do NOT invent numbers, rates, payments, fees, or example scenarios unless the user explicitly asks for an example.
-- If key inputs are missing, ask ONE short follow-up question and stop. Do not continue with hypotheticals.
+- If key inputs are missing, ask ONE short follow-up question and stop.
 - Markdown only. Never output HTML (no <table>, <div>, etc.).
-- If the user asks for "today's rates" or "market rates", do not quote a number without a cited source. Ask for scenario details instead.
+- If asked for "today's rates" / "market rates", do not quote a number without a cited source; ask for scenario details instead.
 
-Return valid JSON only with this exact schema:
+Return valid JSON only:
 {
-  "answer": "Markdown only. Use sections: **Summary**, **Key Numbers**, **What This Means For You**. Include a **Comparison Table** ONLY if the user provided at least two numeric scenarios. Keep it 70–120 words.",
+  "answer": "Markdown only. Use: **Summary**, **Key Numbers**, **What This Means For You**. Include **Comparison Table** ONLY if the user gave at least two numeric scenarios. Keep it 70–120 words.",
   "next_step": "1–2 concrete actions.",
   "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
@@ -301,37 +287,28 @@ Return valid JSON only with this exact schema:
 `.trim());
 
     if (!XAI_API_KEY) {
-        const msg = "Grok is not configured (missing XAI_API_KEY in this environment).";
-        return noStore({
-            ok: true,
-            route: "answers-grok",
-            intent,
-            path,
-            tag,
-            generatedAt,
-            message: msg,
-            answerMarkdown: `**Answer**\n${msg}\n`,
-            followUp: followUpFor(topic),
-            usedFRED: false,
-            usedTavily: false,
-            fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
-            topSources: [],
-            grok: null,
-        });
+        return noStore(
+            {
+                ok: false,
+                route: "answers",
+                intent,
+                path,
+                tag,
+                generatedAt,
+                error: "Missing XAI_API_KEY",
+                followUp: followUpFor(topic),
+            },
+            500
+        );
     }
 
     mark("before Grok call");
     const grokStart = Date.now();
-
-    console.log("[GROK-ONLY] model=", XAI_MODEL, "prompt_chars=", grokPrompt.length);
+    console.log("[ANSWERS] model=", XAI_MODEL, "prompt_chars=", grokPrompt.length);
 
     let grokFinal: any = null;
-    let grokDebug: any = {
-        requestedModel: XAI_MODEL,
-        servedModel: null,
-        elapsedMs: null,
-        xRequestId: null,
-    };
+    let servedModel: string | null = null;
+    let reqId: string | null = null;
 
     try {
         const res = await fetchWithTimeout(
@@ -347,45 +324,28 @@ Return valid JSON only with this exact schema:
                     messages: [{ role: "user", content: grokPrompt }],
                     response_format: { type: "json_object" },
                     temperature: 0.15,
-                    max_tokens: 200,
+                    max_tokens: 260,
                 }),
-                // IMPORTANT: cache is a top-level fetch option (not inside RequestInit for Node fetch)
-                // Next.js respects this option here:
                 cache: "no-store",
-            } as any,
-            60000 // allow up to 60s so we can observe true Grok latency without aborting
+            },
+            60000
         );
 
-        grokDebug.elapsedMs = Date.now() - grokStart;
-        grokDebug.xRequestId =
-            res.headers.get("x-request-id") ??
-            res.headers.get("request-id") ??
-            res.headers.get("x-vercel-id") ??
-            null;
-
-        if (!res.ok) throw new Error(`Grok ${res.status}`);
-
+        reqId = res.headers.get("x-request-id") ?? res.headers.get("request-id");
+        if (!res.ok) throw new Error(`Grok HTTP ${res.status}`);
         const data = await res.json();
 
-        grokDebug.servedModel =
-            data?.model ?? data?.choices?.[0]?.model ?? data?.choices?.[0]?.message?.model ?? null;
-
-        if (data?.usage) {
-            console.log("[GROK-ONLY] usage=", JSON.stringify(data.usage));
-        }
+        servedModel = data?.model ?? data?.choices?.[0]?.model ?? null;
 
         const content = data?.choices?.[0]?.message?.content?.trim();
         if (!content) throw new Error("Empty Grok response");
 
         let cleaned = content.replace(/^```json\s*\n?/, "").replace(/\n?```$/, "").trim();
-
         const first = cleaned.indexOf("{");
         const last = cleaned.lastIndexOf("}");
         if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1);
 
-        if (cleaned.includes("<table") || cleaned.includes("<div")) {
-            throw new Error("HTML detected");
-        }
+        if (cleaned.includes("<table") || cleaned.includes("<div")) throw new Error("HTML detected");
 
         grokFinal = JSON.parse(cleaned);
 
@@ -393,17 +353,40 @@ Return valid JSON only with this exact schema:
             throw new Error("Missing fields in Grok JSON");
         }
 
-        console.log("[GROK-ONLY] SUCCESS confidence:", grokFinal.confidence);
+        console.log("[ANSWERS] SUCCESS confidence:", grokFinal.confidence);
     } catch (e: any) {
-        console.error("[GROK-ONLY] failed/timeout", e?.name || "", e?.message || e);
+        console.error("[ANSWERS] GROK FAILED", e?.name || "", e?.message || e, "reqId=", reqId);
         grokFinal = null;
-        grokDebug.errorName = e?.name || "Error";
-        grokDebug.errorMessage = e?.message || String(e);
     }
 
     mark("after Grok call");
 
-    if (grokFinal && userId && supabase) {
+    // If Grok failed: NO legacy answer. Return 502 so the UI can show a clean error state.
+    if (!grokFinal) {
+        return noStore(
+            {
+                ok: false,
+                route: "answers",
+                intent,
+                path,
+                tag,
+                generatedAt,
+                error: "Grok failed/timeout",
+                followUp: followUpFor(topic),
+                debug: {
+                    requestedModel: XAI_MODEL,
+                    servedModel,
+                    promptChars: grokPrompt.length,
+                    elapsedMs: Date.now() - grokStart,
+                    requestId: reqId,
+                },
+            },
+            502
+        );
+    }
+
+    // Save memory
+    if (userId && supabase) {
         try {
             await supabase.from("user_answers").insert({
                 clerk_user_id: userId,
@@ -411,40 +394,38 @@ Return valid JSON only with this exact schema:
                 answer: grokFinal,
                 answer_summary:
                     typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
-                model: XAI_MODEL, // "grok-3"
+                model: XAI_MODEL,
                 created_at: new Date().toISOString(),
             });
         } catch (err: any) {
-            console.warn("[GROK-ONLY] save failed", err?.message || err);
+            console.warn("ANSWERS: save failed", err?.message || err);
         }
     }
-    mark("after Supabase save");
 
-    const grokFailedMsg =
-        "Grok-only lane is live, but Grok did not return (timeout/error). Check Vercel function logs for [GROK-ONLY] failed/timeout.";
-
-    const followUp = grokFinal?.follow_up || followUpFor(topic);
-
-    const finalMarkdown = grokFinal
-        ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n`
-        : `**Answer**\n${grokFailedMsg}\n`;
+    const finalMarkdown = `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n`;
 
     return noStore({
         ok: true,
-        route: "answers-grok",
+        route: "answers",
         intent,
         path,
         tag,
         generatedAt,
-        message: grokFinal?.answer || grokFailedMsg,
+        message: grokFinal.answer,
         answerMarkdown: finalMarkdown,
-        followUp,
+        followUp: grokFinal.follow_up || followUpFor(topic),
         usedFRED: false,
         usedTavily: false,
         fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
         topSources: [],
-        grok: grokFinal || null,
-        debug: grokDebug,
+        grok: grokFinal,
+        debug: {
+            requestedModel: XAI_MODEL,
+            servedModel,
+            promptChars: grokPrompt.length,
+            elapsedMs: Date.now() - grokStart,
+            requestId: reqId,
+        },
     });
 }
 
