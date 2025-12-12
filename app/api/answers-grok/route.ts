@@ -15,8 +15,11 @@ function noStore(json: unknown, status = 200) {
 }
 
 // ---------- Env ----------
+// Keep only ONE key in Vercel + .env.local: XAI_API_KEY
 const XAI_API_KEY = process.env.XAI_API_KEY || "";
-const XAI_MODEL = (process.env.XAI_MODEL || "grok-4-fast").trim();
+
+// SAFETY: hard-force Grok-3 here so Grok-4 cannot be called accidentally
+const XAI_MODEL = "grok-3";
 
 // Supabase (service-side client; used for user_answers memory)
 const SUPABASE_URL =
@@ -40,8 +43,7 @@ async function fetchWithTimeout(
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const res = await fetch(input, { ...init, signal: controller.signal });
-        return res;
+        return await fetch(input, { ...init, signal: controller.signal });
     } finally {
         clearTimeout(id);
     }
@@ -190,12 +192,7 @@ async function handle(req: NextRequest, intentParam?: string) {
         }
     }
 
-    const question = (
-        req.nextUrl.searchParams.get("q") ||
-        body.question ||
-        ""
-    ).trim();
-
+    const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
     const intent = (intentParam || body.intent || "web").trim() || "web";
 
     if (!question) {
@@ -329,7 +326,12 @@ Return valid JSON only with this exact schema:
     console.log("[GROK-ONLY] model=", XAI_MODEL, "prompt_chars=", grokPrompt.length);
 
     let grokFinal: any = null;
-    let grokDebug: any = null;
+    let grokDebug: any = {
+        requestedModel: XAI_MODEL,
+        servedModel: null,
+        elapsedMs: null,
+        xRequestId: null,
+    };
 
     try {
         const res = await fetchWithTimeout(
@@ -347,14 +349,26 @@ Return valid JSON only with this exact schema:
                     temperature: 0.15,
                     max_tokens: 200,
                 }),
+                // IMPORTANT: cache is a top-level fetch option (not inside RequestInit for Node fetch)
+                // Next.js respects this option here:
                 cache: "no-store",
-            },
-            60000 // TEMP: allow up to 60s so we can observe true Grok latency without aborting
+            } as any,
+            60000 // allow up to 60s so we can observe true Grok latency without aborting
         );
 
+        grokDebug.elapsedMs = Date.now() - grokStart;
+        grokDebug.xRequestId =
+            res.headers.get("x-request-id") ??
+            res.headers.get("request-id") ??
+            res.headers.get("x-vercel-id") ??
+            null;
+
         if (!res.ok) throw new Error(`Grok ${res.status}`);
+
         const data = await res.json();
-        const grokDebug = { requestedModel: XAI_MODEL, servedModel: data?.model ?? data?.choices?.[0]?.model ?? null, elapsedMs: Date.now() - grokStart, xRequestId: res.headers.get("x-request-id") ?? res.headers.get("request-id") ?? null };
+
+        grokDebug.servedModel =
+            data?.model ?? data?.choices?.[0]?.model ?? data?.choices?.[0]?.message?.model ?? null;
 
         if (data?.usage) {
             console.log("[GROK-ONLY] usage=", JSON.stringify(data.usage));
@@ -363,10 +377,7 @@ Return valid JSON only with this exact schema:
         const content = data?.choices?.[0]?.message?.content?.trim();
         if (!content) throw new Error("Empty Grok response");
 
-        let cleaned = content
-            .replace(/^```json\s*\n?/, "")
-            .replace(/\n?```$/, "")
-            .trim();
+        let cleaned = content.replace(/^```json\s*\n?/, "").replace(/\n?```$/, "").trim();
 
         const first = cleaned.indexOf("{");
         const last = cleaned.lastIndexOf("}");
@@ -386,6 +397,8 @@ Return valid JSON only with this exact schema:
     } catch (e: any) {
         console.error("[GROK-ONLY] failed/timeout", e?.name || "", e?.message || e);
         grokFinal = null;
+        grokDebug.errorName = e?.name || "Error";
+        grokDebug.errorMessage = e?.message || String(e);
     }
 
     mark("after Grok call");
@@ -397,10 +410,8 @@ Return valid JSON only with this exact schema:
                 question,
                 answer: grokFinal,
                 answer_summary:
-                    typeof grokFinal.answer === "string"
-                        ? String(grokFinal.answer).slice(0, 320) + "…"
-                        : "",
-                model: "grok-4",
+                    typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
+                model: XAI_MODEL, // "grok-3"
                 created_at: new Date().toISOString(),
             });
         } catch (err: any) {
@@ -433,7 +444,7 @@ Return valid JSON only with this exact schema:
         fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
         topSources: [],
         grok: grokFinal || null,
-
+        debug: grokDebug,
     });
 }
 
