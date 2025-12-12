@@ -773,7 +773,7 @@ Respond in valid JSON only, using this exact schema:
     usedFRED,
     usedTavily,
     fred,
-    topSources
+    topSources,
   });
 }
 
