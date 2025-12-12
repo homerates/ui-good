@@ -1,4 +1,4 @@
-﻿// ==== WEB-FIRST + GROK v3 + SUPABASE: app/api/answers/route.ts ====
+﻿// ==== WEB-FIRST + GROK v4 + SUPABASE: app/api/answers/route.ts ====
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -491,8 +491,8 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   mark("after baseline answer");
 
-  // ===== GROK BRAIN v3.1 =====
-  console.log("GROK v3.1: Starting for user:", userId);
+  // ===== GROK BRAIN v4 =====
+  console.log("GROK v4: Starting for user:", userId);
 
   let conversationHistory = "";
   if (userId && supabase) {
@@ -518,7 +518,7 @@ async function handle(req: NextRequest, intentParam?: string) {
           .join("\n\n");
       }
     } catch (err: any) {
-      console.warn("GROK v3.1: history fetch failed", err.message);
+      console.warn("GROK v4: history fetch failed", err.message);
     }
   }
 
@@ -608,7 +608,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       "   • Start with a clear 2–3 sentence elevator pitch: HomeRates.ai is a zero-sales, real-time mortgage intelligence engine built to fix the broken lending experience for both borrowers and professionals.\n" +
       "   • Describe the problem: confusion, conflicting quotes, endless sales calls, outdated processes, and no neutral place to get lender-level clarity.\n" +
       "   • Describe the solution: HomeRates.ai gives people a way to get expert-level analysis and explanations on demand, without pressure or lead capture.\n" +
-      "   • Describe how it works at a high level: advanced AI reasoning (Grok-3 style), ChatGPT-class clarity, live 2025–2026 data (rate trackers, economic signals, lender sheets), and a private memory layer (Supabase + Clerk) that remembers the user’s context securely.\n" +
+      "   • Describe how it works at a high level: advanced AI reasoning (Grok-4 style), ChatGPT-class clarity, live 2025–2026 data (rate trackers, economic signals, lender sheets), and a private memory layer (Supabase + Clerk) that remembers the user’s context securely.\n" +
       "   • Emphasize the philosophy: separate advice from sales; empower both borrowers and professionals to make better decisions, then let humans handle relationships and strategy.\n" +
       "   • End with ONE simple next step that is only about HomeRates.ai, such as: 'If you want to see the difference, I can analyze a real scenario or compare a quote you already have using HomeRates.ai.'\n\n" +
       "2) If the user clearly asks about the founder, who built HomeRates.ai, or the story behind it (for example: 'who is the founder', 'who built HomeRates.ai'):\n" +
@@ -679,7 +679,7 @@ Respond in valid JSON only, using this exact schema:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "grok-3",
+          model: "grok-4",
           messages: [{ role: "user", content: grokPrompt }],
           response_format: { type: "json_object" },
           temperature: 0.35,
@@ -712,9 +712,9 @@ Respond in valid JSON only, using this exact schema:
             throw new Error("Missing fields");
           }
 
-          console.log("GROK v3.1 SUCCESS → confidence:", grokFinal.confidence);
+          console.log("GROK v4 SUCCESS → confidence:", grokFinal.confidence);
         } catch (parseErr) {
-          console.warn("GROK v3.1: recovery mode", parseErr);
+          console.warn("GROK v4: recovery mode", parseErr);
           grokFinal = {
             answer: content.slice(0, 1200),
             next_step: "Share your loan amount and rate for exact numbers.",
@@ -724,7 +724,7 @@ Respond in valid JSON only, using this exact schema:
         }
       }
     } catch (e: any) {
-      console.error("GROK v3.1 failed → legacy", e.message || e);
+      console.error("GROK v4 failed → legacy", e.message || e);
       grokFinal = null;
     }
   }
@@ -742,11 +742,11 @@ Respond in valid JSON only, using this exact schema:
           typeof grokFinal.answer === "string"
             ? grokFinal.answer.slice(0, 320) + "..."
             : "",
-        model: "grok-3",
+        model: "grok-4",
         created_at: new Date().toISOString(),
       });
     } catch (err: any) {
-      console.warn("GROK v3.1: save failed", err.message);
+      console.warn("GROK v4: save failed", err.message);
     }
   }
 
@@ -763,7 +763,7 @@ Respond in valid JSON only, using this exact schema:
     ok: true,
     route: "answers",
     grok: grokFinal || null,
-    data_freshness: grokFinal ? "Live 2025–2026 (Grok-3)" : "Legacy stack",
+    data_freshness: grokFinal ? "Live 2025–2026 (Grok-4)" : "Legacy stack",
     message: grokFinal?.answer || legacyAnswer,
     answerMarkdown: finalMarkdown,
     followUp: grokFinal?.follow_up || followUpFor(topic),
@@ -773,7 +773,7 @@ Respond in valid JSON only, using this exact schema:
     usedFRED,
     usedTavily,
     fred,
-    topSources,
+    topSources, grok
   });
 }
 
