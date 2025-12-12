@@ -296,7 +296,7 @@ ABSOLUTE RULES (must follow):
 
 Return valid JSON only with this exact schema:
 {
-  "answer": "Markdown only. Use sections: **Summary**, **Key Numbers**, **Comparison Table** (ONLY if you have real borrower numbers; otherwise omit), **What This Means For You**. Keep it 120–220 words.",
+  "answer": "Markdown only. Use sections: **Summary**, **Key Numbers**, **What This Means For You**. Include a **Comparison Table** ONLY if the user provided at least two numeric scenarios. Keep it 70–120 words.",
   "next_step": "1–2 concrete actions.",
   "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
@@ -345,7 +345,7 @@ Return valid JSON only with this exact schema:
                     messages: [{ role: "user", content: grokPrompt }],
                     response_format: { type: "json_object" },
                     temperature: 0.15,
-                    max_tokens: 300,
+                    max_tokens: 200,
                 }),
                 cache: "no-store",
             },
