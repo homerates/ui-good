@@ -81,7 +81,7 @@ function followUpFor(topic: Topic): string {
         case "pmi":
             return "Want me to estimate PMI based on down payment and credit tier, or compare lender-paid vs borrower-paid?";
         case "rates":
-            return "Are you asking about the market generally, or your specific rate quote scenario (loan amount, credit, down payment)?";
+            return "Are you asking about the market generally, or your specific scenario (state, loan type, credit range, down payment)?";
         case "fha":
             return "Do you want a 5-year cost comparison of FHA vs Conventional for your down payment and credit score?";
         case "va":
@@ -99,7 +99,7 @@ function followUpFor(topic: Topic): string {
     }
 }
 
-/* ===== Minimal “module” prompts (keep tiny for speed) ===== */
+/* ===== Minimal “module” prompts (tiny by design for speed) ===== */
 type ModuleKey =
     | "general"
     | "rate"
@@ -199,7 +199,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     if (!question) {
         const followUp =
-            "Ask a specific mortgage question. Example: 'Refi break-even on 650k balance at 3.75% with 25 years left' or 'PMI at 5% down and 720 credit in CA'.";
+            "Ask a specific mortgage question. Example: 'Refi break-even on $650k at 3.75% with 25 years left' or 'PMI at 5% down with ~720 credit in CA'.";
         return noStore({
             ok: true,
             route: "answers-grok",
@@ -221,7 +221,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     const topic = topicFromQuestion(question);
     const module = moduleFromQuestion(question);
 
-    // Load minimal memory (optional, kept small)
+    // Minimal memory (optional)
     let conversationHistory = "";
     if (userId && supabase) {
         try {
@@ -251,29 +251,29 @@ async function handle(req: NextRequest, intentParam?: string) {
     }
     mark("after memory");
 
-    // Minimal module prefixes (tiny on purpose)
     const modulePrompts: Record<ModuleKey, string> = {
-        general: "Answer clearly and concisely. Use borrower-provided numbers. Ask once for missing key inputs.",
+        general:
+            "Answer clearly and concisely. Use only borrower-provided numbers. If key inputs are missing, ask ONE question and stop.",
         rate:
-            "Rate focus. Do not invent live market rates. If the user wants today's rates, ask their state and scenario. Keep it practical and cautious.",
+            "Rate focus. Do not invent live market rates. If the user asks for today’s rates, ask for state + scenario details (loan type, credit range, down payment).",
         refi:
-            "Refi Lab. Do not invent market rates or borrower numbers. Use only what user gives. Compute P&I and breakeven when inputs exist. If missing, ask once.",
-        arm: "Compare fixed vs ARM over a 10-year horizon with simple scenarios. Ask for missing inputs once.",
+            "Refi Lab. Do not invent market rates or borrower numbers. Use only what the user provides. If missing, ask ONE question and stop.",
+        arm:
+            "Compare fixed vs ARM over a 10-year horizon with simple scenarios, but do not invent numbers unless asked. Ask ONE question if needed.",
         buydown:
-            "Buydown Lab. If points cost or base rate is missing, ask once. Any examples must be labeled 'Example Scenario'.",
-        jumbo: "Jumbo eligibility and structure. Ask for missing LTV/credit/reserves inputs once.",
+            "Buydown Lab. Do not invent points, costs, or payment numbers unless asked for an example. Ask ONE question if inputs are missing.",
+        jumbo:
+            "Jumbo structure and eligibility. Ask for missing purchase price, down payment, and credit range. Do not invent numbers unless asked.",
         underwriting:
-            "Underwriting focus. If citing rules, avoid guessing. Ask for program, occupancy, and doc type if missing.",
+            "Underwriting focus. Avoid guessing rules. Ask for program type and occupancy if missing. Do not invent.",
         qualify:
-            "Qualification Lab. Use only user numbers. Ask once for income, debts, taxes/insurance assumptions if missing.",
+            "Qualification Lab. Use only user-provided income/debt. Ask ONE question if missing.",
         about:
-            "Explain what HomeRates.ai is and how it works. Calm, precise, no hype. Keep to product and founder story if asked.",
+            "Explain HomeRates.ai clearly (product + mission). Calm and precise.",
     };
 
     const today = new Date().toISOString().slice(0, 10);
-
-    // Hard-trim everything to keep prompt tiny and consistent
-    const specialist = clampText(compactWhitespace(modulePrompts[module] ?? ""), 380);
+    const specialist = clampText(compactWhitespace(modulePrompts[module] ?? ""), 420);
     const convoTrim = clampText(compactWhitespace(conversationHistory || ""), 340);
 
     const grokPrompt = compactWhitespace(`
@@ -287,18 +287,23 @@ ${convoTrim || "None"}
 Current question:
 "${question}"
 
+ABSOLUTE RULES (must follow):
+- Do NOT invent numbers, rates, payments, fees, or example scenarios unless the user explicitly asks for an example.
+- If key inputs are missing, ask ONE short follow-up question and stop. Do not continue with hypotheticals.
+- Markdown only. Never output HTML (no <table>, <div>, etc.).
+- If the user asks for "today's rates" or "market rates", do not quote a number without a cited source. Ask for scenario details instead.
+
 Return valid JSON only with this exact schema:
 {
-  "answer": "Markdown only. Include sections: **Summary**, **Key Numbers**, **Comparison Table** (markdown table), **What This Means For You**. Keep it 180–350 words. Do not output HTML tables.",
+  "answer": "Markdown only. Use sections: **Summary**, **Key Numbers**, **Comparison Table** (ONLY if you have real borrower numbers; otherwise omit), **What This Means For You**. Keep it 120–220 words.",
   "next_step": "1–2 concrete actions.",
   "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
 }
 `.trim());
 
-    // If no key, return legacy-style helpful response
     if (!XAI_API_KEY) {
-        const followUp = followUpFor(topic);
+        const msg = "Grok is not configured (missing XAI_API_KEY in this environment).";
         return noStore({
             ok: true,
             route: "answers-grok",
@@ -306,10 +311,9 @@ Return valid JSON only with this exact schema:
             path,
             tag,
             generatedAt,
-            message:
-                "Grok is not configured (missing XAI_API_KEY). Add the key in Vercel env and retry.",
-            answerMarkdown: "",
-            followUp,
+            message: msg,
+            answerMarkdown: `**Answer**\n${msg}\n`,
+            followUp: followUpFor(topic),
             usedFRED: false,
             usedTavily: false,
             fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
@@ -336,25 +340,22 @@ Return valid JSON only with this exact schema:
                     model: "grok-4",
                     messages: [{ role: "user", content: grokPrompt }],
                     response_format: { type: "json_object" },
-                    temperature: 0.25,
-                    max_tokens: 650,
+                    temperature: 0.15,
+                    max_tokens: 300,
                 }),
                 cache: "no-store",
             },
-            60000 // TEMP: allow up to 60s so we can measure true Grok latency without aborting
-
+            60000 // TEMP: allow up to 60s so we can observe true Grok latency without aborting
         );
 
         if (!res.ok) throw new Error(`Grok ${res.status}`);
         const data = await res.json();
 
-        // Usage logs if xAI returns them
         if (data?.usage) {
             console.log("[GROK-ONLY] usage=", JSON.stringify(data.usage));
         }
 
         const content = data?.choices?.[0]?.message?.content?.trim();
-
         if (!content) throw new Error("Empty Grok response");
 
         let cleaned = content
@@ -362,13 +363,13 @@ Return valid JSON only with this exact schema:
             .replace(/\n?```$/, "")
             .trim();
 
-        // Strict JSON gate: first {...} only
         const first = cleaned.indexOf("{");
         const last = cleaned.lastIndexOf("}");
         if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1);
 
-        // Reject HTML tables if they leak
-        if (cleaned.includes("<table")) throw new Error("HTML detected");
+        if (cleaned.includes("<table") || cleaned.includes("<div")) {
+            throw new Error("HTML detected");
+        }
 
         grokFinal = JSON.parse(cleaned);
 
@@ -384,7 +385,6 @@ Return valid JSON only with this exact schema:
 
     mark("after Grok call");
 
-    // Save memory (optional)
     if (grokFinal && userId && supabase) {
         try {
             await supabase.from("user_answers").insert({
@@ -404,12 +404,14 @@ Return valid JSON only with this exact schema:
     }
     mark("after Supabase save");
 
+    const grokFailedMsg =
+        "Grok-only lane is live, but Grok did not return (timeout/error). Check Vercel function logs for [GROK-ONLY] failed/timeout.";
+
     const followUp = grokFinal?.follow_up || followUpFor(topic);
 
-    // Keep response shape similar to /api/answers so UI stays unchanged
     const finalMarkdown = grokFinal
         ? `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n`
-        : "";
+        : `**Answer**\n${grokFailedMsg}\n`;
 
     return noStore({
         ok: true,
@@ -418,7 +420,7 @@ Return valid JSON only with this exact schema:
         path,
         tag,
         generatedAt,
-        message: grokFinal?.answer || "",
+        message: grokFinal?.answer || grokFailedMsg,
         answerMarkdown: finalMarkdown,
         followUp,
         usedFRED: false,
