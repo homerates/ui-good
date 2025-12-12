@@ -8,6 +8,7 @@ import {
   getGuidelineContextForQuestion,
   maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
+
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
   const res = NextResponse.json(json, { status });
@@ -88,6 +89,21 @@ function bulletsFrom(text: string, max = 4): string[] {
   }
 
   return out;
+}
+
+function clampText(s: string, maxChars: number) {
+  const x = (s ?? "").trim();
+  if (!x) return "";
+  if (x.length <= maxChars) return x;
+  return x.slice(0, Math.max(0, maxChars - 1)).trimEnd() + "…";
+}
+
+function compactWhitespace(s: string) {
+  return (s ?? "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /* ===== Topic handling ===== */
@@ -318,7 +334,6 @@ async function handle(req: NextRequest, intentParam?: string) {
     });
   }
 
-
   // Topic for follow-ups and FRED
   const topic = topicFromQuestion(question);
 
@@ -359,17 +374,14 @@ async function handle(req: NextRequest, intentParam?: string) {
   } else if (/(jumbo|non.?conforming|high.?balance|loan limit)/i.test(q)) {
     module = "jumbo";
   } else if (
-    // Core underwriting keywords
     /(underwrit|guideline|du\b|lp\b|manual underwrite|reserve|overlay|lender requirement|lender overlay|compensating factor|residual income)/i.test(
       q
     ) ||
-    // Conventional + W2 + self-employment combo (classic underwriting scenario)
     (/\b(conventional|conv)\b/i.test(q) &&
       /\b(w[- ]?2|w2)\b/i.test(q) &&
       /(self[- ]?employed|self employed|s\/e|se income|1099|schedule c|k-1|k1|side business|sole prop|sole proprietorship)/i.test(
         q
       )) ||
-    // Any self-employment / business income + loss/declining pattern
     (/(self[- ]?employed|self employed|1099|schedule c|k-1|k1|business income|rental income)/i.test(
       q
     ) &&
@@ -383,6 +395,7 @@ async function handle(req: NextRequest, intentParam?: string) {
   ) {
     module = "about";
   }
+
   // Lender guideline context (Phase 1 stub)
   // For now, we only try to load it for underwriting / jumbo / qualify type questions.
   let guidelineContext = "";
@@ -391,10 +404,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     try {
       guidelineContext = await getGuidelineContextForQuestion(question);
     } catch (err) {
-      console.warn(
-        "Guideline context error",
-        (err as any)?.message || err
-      );
+      console.warn("Guideline context error", (err as any)?.message || err);
     }
   }
 
@@ -410,7 +420,8 @@ async function handle(req: NextRequest, intentParam?: string) {
   }
 
   let tav = await askTavily(req, tavQuery, {
-    depth: module === "underwriting" || module === "qualify" ? "advanced" : "basic",
+    depth:
+      module === "underwriting" || module === "qualify" ? "advanced" : "basic",
     max: 6,
   });
 
@@ -432,9 +443,7 @@ async function handle(req: NextRequest, intentParam?: string) {
   const fred = wantFred
     ? await getFredSnapshot()
     : { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
-  const usedFRED =
-    wantFred &&
-    (fred.tenYearYield !== null || fred.mort30Avg !== null);
+  const usedFRED = wantFred && (fred.tenYearYield !== null || fred.mort30Avg !== null);
 
   mark("after FRED");
 
@@ -467,21 +476,13 @@ async function handle(req: NextRequest, intentParam?: string) {
     .slice(0, 3)
     .map((s) => ({ title: s.title, url: s.url }));
 
-  const sourcesMd = topSources
-    .map((s) => `- [${s.title}](${s.url})`)
-    .join("\n");
+  const sourcesMd = topSources.map((s) => `- [${s.title}](${s.url})`).join("\n");
 
   const fredLine = usedFRED
-    ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"
-    }%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
+    ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"}%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
     : "";
 
-  const answerMarkdown = [
-    intro,
-    bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
-    topSources.length ? `\n**Sources**\n${sourcesMd}` : "",
-    fredLine,
-  ]
+  const answerMarkdown = [intro, bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "", topSources.length ? `\n**Sources**\n${sourcesMd}` : "", fredLine]
     .filter(Boolean)
     .join("\n\n");
 
@@ -529,142 +530,101 @@ async function handle(req: NextRequest, intentParam?: string) {
     ? `FRED (${fred.asOf || today}): 30Y fixed = ${fred.mort30Avg}%, 10Y yield = ${fred.tenYearYield}%, spread = ${fred.spread}%`
     : "FRED data unavailable";
 
-  const tavilyContext =
+  const tavilyContextRaw =
     Array.isArray(tav.results) && tav.results.length
       ? tav.results
         .slice(0, 4)
-        .map(
-          (s) =>
-            `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`
-        )
+        .map((s) => `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`)
         .join("\n")
       : "No recent sources";
+
+  // ===== HARD TRIM (primary latency fix) =====
+  const specialistPrefixRaw = modulePrompts[module] ?? "";
+  const specialistPrefix = clampText(compactWhitespace(specialistPrefixRaw), 450);
+
+  const guidelineCtxTrim = clampText(
+    compactWhitespace(guidelineContext || ""),
+    260
+  );
+
+  const tavilyCtxTrim = clampText(compactWhitespace(tavilyContextRaw), 220);
+
+  const conversationTrim = clampText(
+    compactWhitespace(conversationHistory || ""),
+    320
+  );
 
   const modulePrompts: Record<ModuleKey, string> = {
     general: "",
 
     rate:
-      "You are Rate Oracle. Use only today’s daily retail rate trackers (for example Bankrate, Mortgage News Daily, Forbes or similar). " +
-      "Never present weekly FRED averages as today’s live quote. Always describe a realistic range (for example 6.25–6.45%) and show the spread vs the 10-year Treasury yield.",
+      "You are Rate Oracle. Use only current retail rate trackers (e.g., Bankrate, Mortgage News Daily, Freddie Mac PMMS). " +
+      "Never present FRED weekly averages as a live retail quote. If you provide a range, label it as a range and cite sources. " +
+      "Use markdown only. No HTML. JSON-only output.",
 
     refi:
       "You are Refi Lab — purely informational mortgage analyst.\n" +
-      "Your only goal is to give accurate, unbiased knowledge. Never sell, never persuade, never use hype.\n" +
-      "If the user’s existing rate is clearly below current market (for example below about 5.8% when market is around 6.3–6.5%): say plainly that refinancing today is unlikely to reduce their payment.\n" +
-      "When the user provides real numbers (rate, balance, term, income, debts, credit score, closing costs):\n" +
-      "  • Use them exactly as given.\n" +
-      "  • Compute precise P&I using the standard amortization formula.\n" +
-      "  • Compute breakeven = closing costs ÷ monthly savings.\n" +
-      "  • Show 1–3 clear scenarios and the payment change.\n" +
-      "If key numbers are missing, ask once, clearly. If you use any made-up numbers, clearly label them as an “Example Scenario” so they are never confused with the borrower’s real data.\n" +
-      "Always remember prior conversation details. Tone: calm, factual, educational.",
+      "ABSOLUTE RULE: Do not invent market rates or borrower numbers. If missing, ask once. Any made-up example must be labeled “Example Scenario”.\n" +
+      "Never sell. Never persuade. Calm, factual, educational.\n" +
+      "If user provides rate/balance/term/closing costs: compute P&I using standard amortization and breakeven = costs ÷ monthly savings.\n" +
+      "Use markdown tables only. No HTML. JSON-only output.",
 
     arm:
-      "You are ARM Deathmatch. Compare a fixed-rate loan versus an ARM over a 10-year horizon.\n" +
-      "Sketch four simple paths: soft landing, base case, sticky inflation, recession.\n" +
-      "Highlight payment and interest differences over 10 years and what happens when the fixed ARM period ends (for example after 5, 7, or 10 years).\n" +
-      "Flag clear risk if the expected hold period is longer than the fixed ARM period. Stay numeric and scenario-based.",
+      "You are ARM Deathmatch. Compare fixed vs ARM over 10 years with a few simple rate paths. " +
+      "Use markdown only. No HTML. JSON-only output.",
 
     buydown:
-      "You are Buydown Lab. If loan details (loan amount, rate, points cost) are missing, ask once.\n" +
-      "If still unavailable, clearly label an Example Scenario (for example “Example Scenario: $300,000 loan at 6.50%”).\n" +
-      "Assume retail-standard pricing: 1 point ≈ 0.25% rate reduction unless context says otherwise.\n" +
-      "For 0–3 points, show a table with: points, rate, monthly P&I, points cost in dollars, monthly savings vs 0 points, and breakeven month (points cost ÷ monthly savings).\n" +
-      "Always state whether you used real borrower numbers or an Example Scenario.",
+      "You are Buydown Lab. If details are missing, ask once. Any example must be labeled “Example Scenario”. " +
+      "Use markdown tables only. No HTML. JSON-only output.",
 
     jumbo:
-      "You are Jumbo Loan Expert. Use current conforming loan limits as a guide (for example $806,500 baseline and $1,209,750 high-cost for 2025). " +
-      "Explain how jumbo pricing usually runs about 0.20–0.50% over conforming, with stricter requirements such as 700+ credit, 20%+ down, and 6–12 months of reserves. Focus on structure, eligibility, and risk — not sales.",
+      "You are Jumbo Loan Expert. Focus on structure and eligibility. Use markdown only. No HTML. JSON-only output.",
 
     underwriting:
-      "You are Underwriting Oracle — 2025 guidelines only.\n" +
-      "Answer using ONLY:\n" +
-      "  • Fannie Mae Selling Guide (singlefamily.fanniemae.com)\n" +
-      "  • Freddie Mac Seller/Servicer Guide (freddiemac.com)\n" +
-      "  • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, and major lender overlays (LoanDepot, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
-      "MANDATORY: For EVERY rule, cite the exact guideline section and a URL when possible.\n" +
-      "For example:\n" +
-      "  • “Per Fannie Mae B3-3.2-01 [singlefamily.fanniemae.com/selling-guide], self-employment losses must be deducted from qualifying income when the borrower has a two-year history.”\n" +
-      "  • “Freddie Mac Guide 5306.1 [sf.freddiemac.com] – reserves requirements for multiple financed properties.”\n" +
-      "Never say “it depends” without immediately following with the governing rule and citation.\n" +
-      "If multiple paths exist (for example, DU vs manual, FHA vs Conventional), list them clearly as Path A, Path B, etc., each with its own citation.\n" +
-      "Tone: clinical, factual, zero sales. Your goal is to sound like a senior underwriter explaining exactly how the file would be decisioned today.",
+      "You are Underwriting Oracle — answer with governing rules and cite sources. " +
+      "Use markdown only. No HTML. JSON-only output.",
 
     qualify:
-      "You are Qualification Lab — fast, accurate, and memory-aware.\n" +
-      "Assume the user has already provided income, debts, and sometimes credit score or target payment in this conversation.\n" +
-      "Use ONLY the numbers given in this conversation — do not invent missing values. If income or debts are missing, ask once.\n" +
-      "If you must illustrate with other numbers, clearly label them as an “Example Scenario”.\n" +
-      "Assume a current 30-year fixed rate around 6.25% unless the conversation gives a different live figure.\n" +
-      "Use standard front/back DTI guides (28/36 and 31/43) to compute max PITI.\n" +
-      "When you reference any external calculator or data (for example Zillow, Bankrate), include an inline [source] label such as [Zillow Affordability] or [Bankrate DTI].\n" +
-      "Show a clean table: max PITI, approximate max loan amount, and max home price at 20% down.\n" +
-      "No fluff. No re-asking for data that is already in the conversation. Tone: calm, educational, decisive.",
+      "You are Qualification Lab — use only user-provided numbers; ask once if missing. " +
+      "Use markdown tables only. No HTML. JSON-only output.",
 
     about:
-      "You are the dedicated About HomeRates.ai module. Your job is to explain what HomeRates.ai is, what problem it solves, and how it works — and, when asked, to also explain the founder story. Do NOT drift into generic mortgage education; that belongs to other modules.\n\n" +
-      "You have two main modes, depending on the user’s question:\n\n" +
-      "1) If the user asks about HomeRates.ai itself (for example: what it is, how it works, what makes it different):\n" +
-      "   • Start with a clear 2–3 sentence elevator pitch: HomeRates.ai is a zero-sales, real-time mortgage intelligence engine built to fix the broken lending experience for both borrowers and professionals.\n" +
-      "   • Describe the problem: confusion, conflicting quotes, endless sales calls, outdated processes, and no neutral place to get lender-level clarity.\n" +
-      "   • Describe the solution: HomeRates.ai gives people a way to get expert-level analysis and explanations on demand, without pressure or lead capture.\n" +
-      "   • Describe how it works at a high level: advanced AI reasoning (Grok-4 style), ChatGPT-class clarity, live 2025–2026 data (rate trackers, economic signals, lender sheets), and a private memory layer (Supabase + Clerk) that remembers the user’s context securely.\n" +
-      "   • Emphasize the philosophy: separate advice from sales; empower both borrowers and professionals to make better decisions, then let humans handle relationships and strategy.\n" +
-      "   • End with ONE simple next step that is only about HomeRates.ai, such as: 'If you want to see the difference, I can analyze a real scenario or compare a quote you already have using HomeRates.ai.'\n\n" +
-      "2) If the user clearly asks about the founder, who built HomeRates.ai, or the story behind it (for example: 'who is the founder', 'who built HomeRates.ai'):\n" +
-      "   • Focus on the founder story instead of re-explaining the whole product.\n" +
-      "   • Explain that the founder is Rayaan Arif, a serial entrepreneur and licensed mortgage professional (NMLS #366082) who worked directly with borrowers and saw that, despite all the so-called tech advances, the real experience had barely changed.\n" +
-      "   • Highlight the pain he saw: borrowers drowning in noise, myths, and sales calls; professionals frustrated by borrower resistance and distrust.\n" +
-      "   • Explain that HomeRates.ai is his living, breathing example of how AI can transform the traditional mortgage experience when it is designed for clarity and collaboration instead of lead generation.\n" +
-      "   • Note that he built it by deeply collaborating with AI — using modern reasoning models, live data, and a private memory layer — and continues to iterate in the same way.\n" +
-      "   • Close by pointing back to the product, with a next step like: 'If you want to see what came out of that journey, you can test-drive HomeRates.ai on your own scenario.'\n\n" +
-      "IMPORTANT RULES:\n" +
-      "   • Stay focused on HomeRates.ai (product, mission, founder story) — do NOT pivot into generic mortgage topics unless the user explicitly changes the subject.\n" +
-      "   • Do NOT try to sell or hype; speak calmly, clearly, and precisely, like a product expert who knows the system inside-out.\n" +
-      "   • Any follow-up questions you suggest should be about HomeRates.ai itself (features, how to test-drive it, how professionals can use it), not generic mortgage education.\n\n" +
-      "   • Any follow-up questions you suggest should be about HomeRates.ai itself (features, how to test-drive it, how professionals can use it), not generic mortgage education.\n\n" +
-      "FINAL FORMAT REQUIREMENT:\n" +
-      "   • At the very end of EVERY answer you give as the About HomeRates.ai module, you MUST append the following disclaimer block, exactly as written, on its own at the bottom of the answer:\n\n" +
-      "   • DISCLAIMER: This information is provided for educational purposes only and is not personalized financial advice. " +
-      "   • Eligibility, rates, programs, and lending options vary by borrower profile and lender. " +
-      "   • Always verify decisions with a licensed NMLS Loan Consultant.\n",
+      "You explain HomeRates.ai (product/mission/founder story when asked). Keep it concise. No hype. " +
+      "Use markdown only. No HTML. JSON-only output.",
   };
 
-  const specialistPrefix = modulePrompts[module] ?? "";
-
-  const grokPrompt = `
+  // IMPORTANT: keep Grok prompt compact; do not include unbounded blocks.
+  const grokPrompt = compactWhitespace(
+    `
 ${specialistPrefix}
 
 You are HomeRates.AI — a calm, data-first mortgage advisor focused on 2025–2026.
-Never sell. Never hype. Speak to a U.S. consumer in clear, direct language.
-If lender guideline context is provided below, treat it as primary for that lender
-and use agency/public sources only to supplement or fill gaps — do not contradict it.
+Never sell. Never hype. Speak clearly. If lender guideline context is provided, treat it as primary for that lender.
 
 Date: ${today}
 ${fredContext}
 
-LENDER GUIDELINE CONTEXT (if any – this overrides generic rules for that lender):
-${guidelineContext || "No lender-specific guidelines matched. Use agency baselines only."}
+LENDER GUIDELINE CONTEXT (trimmed):
+${guidelineCtxTrim || "None"}
 
-Latest short-term signals (rate trackers, news, commentary):
-${tavilyContext}
+Latest signals (trimmed):
+${tavilyCtxTrim || "None"}
 
-Conversation so far:
-${conversationHistory || "First message"}
+Conversation (trimmed):
+${conversationTrim || "First message"}
 
 Current question:
 "${question}"
 
 Respond in valid JSON only, using this exact schema:
 {
-  "answer": "Use this exact markdown structure:\n\n**Summary** (2–3 sentences, plain English, no jargon)\n\n**Key Numbers** (2–6 bullets with real dollar amounts and percentages)\n\n**Comparison Table** (at least one markdown table comparing 2–4 options or scenarios)\n\n**What This Means For You** (2–5 sentences tying the numbers back to the borrower's situation). Keep total length around 180–350 words. Inline cite [source] for any named data (e.g., Bankrate).",
-  "next_step": "1–2 exact, concrete actions the borrower should take next.",
+  "answer": "Use this exact markdown structure:\\n\\n**Summary** (2–3 sentences)\\n\\n**Key Numbers** (2–6 bullets)\\n\\n**Comparison Table** (at least one markdown table comparing 2–4 options)\\n\\n**What This Means For You** (2–5 sentences). Keep total length around 180–350 words. Inline cite [source] for any named data.",
+  "next_step": "1–2 concrete actions the borrower should take next.",
   "follow_up": "One sharp follow-up question tailored to this scenario.",
-  "confidence": "0.00–1.00 numeric score plus a short reason, e.g. '0.87 – strong live rate data.'"
+  "confidence": "0.00–1.00 numeric score plus a short reason."
 }
-`.trim();
-
-
+`.trim()
+  );
 
   let grokFinal: any = null;
 
@@ -683,7 +643,7 @@ Respond in valid JSON only, using this exact schema:
           messages: [{ role: "user", content: grokPrompt }],
           response_format: { type: "json_object" },
           temperature: 0.35,
-          max_tokens: 1400,
+          max_tokens: 900,
         }),
       });
 
@@ -703,12 +663,7 @@ Respond in valid JSON only, using this exact schema:
 
           grokFinal = JSON.parse(cleaned);
 
-          if (
-            !grokFinal.answer ||
-            !grokFinal.next_step ||
-            !grokFinal.follow_up ||
-            !grokFinal.confidence
-          ) {
+          if (!grokFinal.answer || !grokFinal.next_step || !grokFinal.follow_up || !grokFinal.confidence) {
             throw new Error("Missing fields");
           }
 
