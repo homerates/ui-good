@@ -529,16 +529,18 @@ async function handle(req: NextRequest, intentParam?: string) {
     ? `FRED (${fred.asOf || today}): 30Y fixed = ${fred.mort30Avg}%, 10Y yield = ${fred.tenYearYield}%, spread = ${fred.spread}%`
     : "FRED data unavailable";
 
+  // FAST + RELEVANT Tavily context (2 sources max)
   const tavilyContext =
-    Array.isArray(tav.results) && tav.results.length
+    Array.isArray(tav.results) && tav.results.length > 0
       ? tav.results
-        .slice(0, 4)
-        .map(
-          (s) =>
-            `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`
-        )
+        .slice(0, 2)
+        .map((s) => {
+          const text = (s.snippet || s.content || "").slice(0, 140).trim();
+          return `• ${s.title}: ${text}...`;
+        })
         .join("\n")
       : "No recent sources";
+
 
   const modulePrompts: Record<ModuleKey, string> = {
     general: "",
@@ -684,7 +686,7 @@ Respond in valid JSON only, using this exact schema:
           messages: [{ role: "user", content: grokPrompt }],
           response_format: { type: "json_object" },
           temperature: 0.25,
-          max_tokens: 1400,
+          max_tokens: 800,
         }),
       });
 
@@ -764,7 +766,7 @@ Respond in valid JSON only, using this exact schema:
     ok: true,
     route: "answers",
     grok: grokFinal || null,
-    data_freshness: grokFinal ? "Live 2025–2026 (Grok-3)" : "Legacy stack",
+    data_freshness: grokFinal ? "Live 2025–2026 (Grok-4)" : "Legacy stack",
     message: grokFinal?.answer || legacyAnswer,
     answerMarkdown: finalMarkdown,
     followUp: grokFinal?.follow_up || followUpFor(topic),
