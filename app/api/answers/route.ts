@@ -617,36 +617,30 @@ async function handle(req: NextRequest, intentParam?: string) {
   const specialistPrefix = modulePrompts[module] ?? "";
 
   const grokPrompt = `
-${specialistPrefix}
+${specialistPrefix}Date: ${today}
+FRED: 30Y ${fred.mort30Avg ?? "—"}% (spread ${fred.spread ?? "—"}%).
 
-You are HomeRates.AI — a calm, data-first mortgage advisor focused on 2025–2026.
-Never sell. Never hype. Speak to a U.S. consumer in clear, direct language.
-Use any lender guideline context as primary for that lender; use public sources only to fill gaps.
+Memory: Use the user's exact numbers from this conversation — no assumptions.
+If a number you need is missing, either:
+- Ask for it once, clearly, OR
+- Use a clearly labeled "Example Scenario" and never mix example numbers with the user's real data.
 
-Date: ${today}
-FRED: ${usedFRED
-      ? `30Y ${fred.mort30Avg}% vs 10Y ${fred.tenYearYield}%, spread ${fred.spread}%.`
-      : "not used for this question."
-    }
+Signals:
+${tavilyContext.slice(0, 200)}...
 
-Signals (trimmed from Tavily, 250 chars max):
-${(tavilyContext || "No recent sources").slice(0, 250)}...
+Conversation so far:
+${conversationHistory || "First message."}
 
-Memory (last few Q&A, 350 chars max):
-${(conversationHistory || "First message").slice(0, 350)}...
+Question: "${question}"
 
-Lender guideline context (overrides generic rules for that lender if present):
-${guidelineContext || "No lender-specific guidelines matched. Use agency baselines only."}
-
-Current question:
-"${question}"
-
-Respond in valid JSON only, using this exact schema:
+/*
+  JSON only — MANDATORY. No prose outside this object.
+*/
 {
-  "answer": "150–300 word markdown. Structure: **Key Numbers** (bullets), then **Table** (Markdown | header | header |), then **Verdict** (one clear sentence). No HTML, no <table> tags. Use memory numbers exactly. Cite any named rate or stat with a short [source] tag, e.g. [Bankrate].",
-  "next_step": "1 concrete action the user should take next.",
-  "follow_up": "1 sharp follow-up question tailored to this scenario.",
-  "confidence": "0.95+ plus a short reason, e.g. '0.97 – live rate data + clear inputs.'"
+  "answer": "**Key Numbers** (2–6 bullets using the user's real numbers: balances, rates, terms, income, DSCR, etc.). Then a **Comparison Table** using Markdown pipe format only (no HTML) with clear columns like | Scenario | Rate | Monthly P&I | Payment Change | or | Scenario | DSCR | LTV | Qualifies? |. Finish with a short **Verdict** paragraph (2–4 sentences) that explains what this means for the borrower in plain English. No HTML. No code fences.",
+  "next_step": "Exactly one concrete action the borrower should take next (for example, 'Share your credit score range so I can refine the options.').",
+  "follow_up": "Exactly one sharp follow-up question tailored to this scenario (not generic).",
+  "confidence": "0.95+ plus a brief reason, e.g. '0.96 – used exact borrower numbers and current 2025 rate data.'"
 }
 `.trim();
 
@@ -666,11 +660,11 @@ Respond in valid JSON only, using this exact schema:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "grok-4",
+          model: "grok-4-fast-non-reasoning",  // From "grok-4" — cuts "thinking" delays
           messages: [{ role: "user", content: grokPrompt }],
           response_format: { type: "json_object" },
-          temperature: 0.2,
-          max_tokens: 600,
+          temperature: 0.1,
+          max_tokens: 400,
         }),
       });
 
