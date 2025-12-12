@@ -680,10 +680,10 @@ Respond in valid JSON only, using this exact schema:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "grok-3",
+          model: "grok-4",
           messages: [{ role: "user", content: grokPrompt }],
           response_format: { type: "json_object" },
-          temperature: 0.35,
+          temperature: 0.25,
           max_tokens: 1400,
         }),
       });
@@ -713,9 +713,9 @@ Respond in valid JSON only, using this exact schema:
             throw new Error("Missing fields");
           }
 
-          console.log("GROK v3.1 SUCCESS → confidence:", grokFinal.confidence);
+          console.log("GROK v4 SUCCESS → confidence:", grokFinal.confidence);
         } catch (parseErr) {
-          console.warn("GROK v3.1: recovery mode", parseErr);
+          console.warn("GROK v4: recovery mode", parseErr);
           grokFinal = {
             answer: content.slice(0, 1200),
             next_step: "Share your loan amount and rate for exact numbers.",
@@ -725,7 +725,7 @@ Respond in valid JSON only, using this exact schema:
         }
       }
     } catch (e: any) {
-      console.error("GROK v3.1 failed → legacy", e.message || e);
+      console.error("GROK v4 failed → legacy", e.message || e);
       grokFinal = null;
     }
   }
