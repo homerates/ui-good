@@ -396,6 +396,46 @@ async function handle(req: NextRequest, intentParam?: string) {
     module = "about";
   }
 
+  // --- Module prompts (MUST be declared before use) ---
+  const modulePrompts: Record<ModuleKey, string> = {
+    general: "",
+
+    rate:
+      "You are Rate Oracle. Use only current retail rate trackers (e.g., Bankrate, Mortgage News Daily, Freddie Mac PMMS). " +
+      "Never present FRED weekly averages as a live retail quote. If you provide a range, label it as a range and cite sources. " +
+      "Use markdown only. No HTML. JSON-only output.",
+
+    refi:
+      "You are Refi Lab — purely informational mortgage analyst.\n" +
+      "ABSOLUTE RULE: Do not invent market rates or borrower numbers. If missing, ask once. Any made-up example must be labeled “Example Scenario”.\n" +
+      "Never sell. Never persuade. Calm, factual, educational.\n" +
+      "If user provides rate/balance/term/closing costs: compute P&I using standard amortization and breakeven = costs ÷ monthly savings.\n" +
+      "Use markdown tables only. No HTML. JSON-only output.",
+
+    arm:
+      "You are ARM Deathmatch. Compare fixed vs ARM over 10 years with a few simple rate paths. " +
+      "Use markdown only. No HTML. JSON-only output.",
+
+    buydown:
+      "You are Buydown Lab. If details are missing, ask once. Any example must be labeled “Example Scenario”. " +
+      "Use markdown tables only. No HTML. JSON-only output.",
+
+    jumbo:
+      "You are Jumbo Loan Expert. Focus on structure and eligibility. Use markdown only. No HTML. JSON-only output.",
+
+    underwriting:
+      "You are Underwriting Oracle — answer with governing rules and cite sources. " +
+      "Use markdown only. No HTML. JSON-only output.",
+
+    qualify:
+      "You are Qualification Lab — use only user-provided numbers; ask once if missing. " +
+      "Use markdown tables only. No HTML. JSON-only output.",
+
+    about:
+      "You explain HomeRates.ai (product/mission/founder story when asked). Keep it concise. No hype. " +
+      "Use markdown only. No HTML. JSON-only output.",
+  };
+
   // Lender guideline context (Phase 1 stub)
   // For now, we only try to load it for underwriting / jumbo / qualify type questions.
   let guidelineContext = "";
@@ -482,7 +522,12 @@ async function handle(req: NextRequest, intentParam?: string) {
     ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield ?? "—"}%, 30y mtg avg=${fred.mort30Avg ?? "—"}%, spread=${fred.spread ?? "—"} (${fred.asOf ?? "latest"})`
     : "";
 
-  const answerMarkdown = [intro, bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "", topSources.length ? `\n**Sources**\n${sourcesMd}` : "", fredLine]
+  const answerMarkdown = [
+    intro,
+    bullets.length ? bullets.map((b) => `- ${b}`).join("\n") : "",
+    topSources.length ? `\n**Sources**\n${sourcesMd}` : "",
+    fredLine,
+  ]
     .filter(Boolean)
     .join("\n\n");
 
@@ -534,7 +579,10 @@ async function handle(req: NextRequest, intentParam?: string) {
     Array.isArray(tav.results) && tav.results.length
       ? tav.results
         .slice(0, 4)
-        .map((s) => `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`)
+        .map(
+          (s) =>
+            `• ${s.title}: ${(s.snippet || s.content || "").slice(0, 140)}...`
+        )
         .join("\n")
       : "No recent sources";
 
@@ -553,45 +601,6 @@ async function handle(req: NextRequest, intentParam?: string) {
     compactWhitespace(conversationHistory || ""),
     320
   );
-
-  const modulePrompts: Record<ModuleKey, string> = {
-    general: "",
-
-    rate:
-      "You are Rate Oracle. Use only current retail rate trackers (e.g., Bankrate, Mortgage News Daily, Freddie Mac PMMS). " +
-      "Never present FRED weekly averages as a live retail quote. If you provide a range, label it as a range and cite sources. " +
-      "Use markdown only. No HTML. JSON-only output.",
-
-    refi:
-      "You are Refi Lab — purely informational mortgage analyst.\n" +
-      "ABSOLUTE RULE: Do not invent market rates or borrower numbers. If missing, ask once. Any made-up example must be labeled “Example Scenario”.\n" +
-      "Never sell. Never persuade. Calm, factual, educational.\n" +
-      "If user provides rate/balance/term/closing costs: compute P&I using standard amortization and breakeven = costs ÷ monthly savings.\n" +
-      "Use markdown tables only. No HTML. JSON-only output.",
-
-    arm:
-      "You are ARM Deathmatch. Compare fixed vs ARM over 10 years with a few simple rate paths. " +
-      "Use markdown only. No HTML. JSON-only output.",
-
-    buydown:
-      "You are Buydown Lab. If details are missing, ask once. Any example must be labeled “Example Scenario”. " +
-      "Use markdown tables only. No HTML. JSON-only output.",
-
-    jumbo:
-      "You are Jumbo Loan Expert. Focus on structure and eligibility. Use markdown only. No HTML. JSON-only output.",
-
-    underwriting:
-      "You are Underwriting Oracle — answer with governing rules and cite sources. " +
-      "Use markdown only. No HTML. JSON-only output.",
-
-    qualify:
-      "You are Qualification Lab — use only user-provided numbers; ask once if missing. " +
-      "Use markdown tables only. No HTML. JSON-only output.",
-
-    about:
-      "You explain HomeRates.ai (product/mission/founder story when asked). Keep it concise. No hype. " +
-      "Use markdown only. No HTML. JSON-only output.",
-  };
 
   // IMPORTANT: keep Grok prompt compact; do not include unbounded blocks.
   const grokPrompt = compactWhitespace(
