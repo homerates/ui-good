@@ -324,9 +324,12 @@ Return valid JSON only with this exact schema:
     }
 
     mark("before Grok call");
+    const grokStart = Date.now();
+
     console.log("[GROK-ONLY] model=", XAI_MODEL, "prompt_chars=", grokPrompt.length);
 
     let grokFinal: any = null;
+    let grokDebug: any = null;
 
     try {
         const res = await fetchWithTimeout(
@@ -351,6 +354,7 @@ Return valid JSON only with this exact schema:
 
         if (!res.ok) throw new Error(`Grok ${res.status}`);
         const data = await res.json();
+        const grokDebug = { requestedModel: XAI_MODEL, servedModel: data?.model ?? data?.choices?.[0]?.model ?? null, elapsedMs: Date.now() - grokStart, xRequestId: res.headers.get("x-request-id") ?? res.headers.get("request-id") ?? null };
 
         if (data?.usage) {
             console.log("[GROK-ONLY] usage=", JSON.stringify(data.usage));
@@ -429,6 +433,7 @@ Return valid JSON only with this exact schema:
         fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
         topSources: [],
         grok: grokFinal || null,
+
     });
 }
 
