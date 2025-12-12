@@ -397,13 +397,31 @@ async function handle(req: NextRequest, intentParam?: string) {
       );
     }
   }
-  // TAVILY QUERY – trimmed, high-signal domains only
-  const tavQuery = `${question} 2025 site:bankrate.com OR site:freddiemac.com OR site:fanniemae.com OR site:zillow.com OR site:rocketmortgage.com`;
+
+  // TAVILY QUERY – MODULE-AWARE, LESS JUNK
+  let tavQuery: string;
+
+  if (module === "underwriting" || module === "qualify") {
+    tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
+  } else if (module === "rate") {
+    tavQuery = `${question} 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:forbes.com OR site:nerdwallet.com OR site:freddiemac.com -yahoo -aol -forum -blog -reddit`;
+  } else {
+    tavQuery = `${question} 2025 mortgage -yahoo -aol -forum -blog -reddit`;
+  }
 
   let tav = await askTavily(req, tavQuery, {
-    depth: "advanced",
-    max: 3,
+    depth: module === "underwriting" || module === "qualify" ? "advanced" : "basic",
+    max: 6,
   });
+
+  // Fallback: relax query if answer is too thin
+  if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
+    const fallbackQuery = `${question} mortgage 2025 -pmi.org`;
+    tav = await askTavily(req, fallbackQuery, {
+      depth: "advanced",
+      max: 8,
+    });
+  }
 
   mark("after Tavily");
 
@@ -532,9 +550,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       "Never present weekly FRED averages as today’s live quote. Always describe a realistic range (for example 6.25–6.45%) and show the spread vs the 10-year Treasury yield.",
 
     refi:
-
       "You are Refi Lab — purely informational mortgage analyst.\n" +
-      "ABSOLUTE RULE: Do NOT invent market rates. If a live retail rate is not explicitly provided in memory or cited sources, say 'current market rates are materially higher than your rate' without stating a number.\n" +
       "Your only goal is to give accurate, unbiased knowledge. Never sell, never persuade, never use hype.\n" +
       "If the user’s existing rate is clearly below current market (for example below about 5.8% when market is around 6.3–6.5%): say plainly that refinancing today is unlikely to reduce their payment.\n" +
       "When the user provides real numbers (rate, balance, term, income, debts, credit score, closing costs):\n" +
@@ -594,7 +610,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       "   • Start with a clear 2–3 sentence elevator pitch: HomeRates.ai is a zero-sales, real-time mortgage intelligence engine built to fix the broken lending experience for both borrowers and professionals.\n" +
       "   • Describe the problem: confusion, conflicting quotes, endless sales calls, outdated processes, and no neutral place to get lender-level clarity.\n" +
       "   • Describe the solution: HomeRates.ai gives people a way to get expert-level analysis and explanations on demand, without pressure or lead capture.\n" +
-      "   • Describe how it works at a high level: advanced AI reasoning (Grok-3 style), ChatGPT-class clarity, live 2025–2026 data (rate trackers, economic signals, lender sheets), and a private memory layer (Supabase + Clerk) that remembers the user’s context securely.\n" +
+      "   • Describe how it works at a high level: advanced AI reasoning (Grok-4 style), ChatGPT-class clarity, live 2025–2026 data (rate trackers, economic signals, lender sheets), and a private memory layer (Supabase + Clerk) that remembers the user’s context securely.\n" +
       "   • Emphasize the philosophy: separate advice from sales; empower both borrowers and professionals to make better decisions, then let humans handle relationships and strategy.\n" +
       "   • End with ONE simple next step that is only about HomeRates.ai, such as: 'If you want to see the difference, I can analyze a real scenario or compare a quote you already have using HomeRates.ai.'\n\n" +
       "2) If the user clearly asks about the founder, who built HomeRates.ai, or the story behind it (for example: 'who is the founder', 'who built HomeRates.ai'):\n" +
@@ -619,38 +635,34 @@ async function handle(req: NextRequest, intentParam?: string) {
   const specialistPrefix = modulePrompts[module] ?? "";
 
   const grokPrompt = `
-${specialistPrefix}Date: ${today}
-OUTPUT RULES:
-- Do NOT show formulas, equations, or math derivations.
-- Do NOT explain how calculations work.
-- Show only final numbers the borrower cares about.
-- Use clean Markdown only (no HTML).
-- Tables must be simple Markdown pipes.
+${specialistPrefix}
 
+You are HomeRates.AI — a calm, data-first mortgage advisor focused on 2025–2026.
+Never sell. Never hype. Speak to a U.S. consumer in clear, direct language.
+If lender guideline context is provided below, treat it as primary for that lender
+and use agency/public sources only to supplement or fill gaps — do not contradict it.
 
-FRED: 30Y ${fred.mort30Avg ?? "—"}% (spread ${fred.spread ?? "—"}%).
+Date: ${today}
+${fredContext}
 
-Memory: Use the user's exact numbers from this conversation — no assumptions.
-If a number you need is missing, either:
-- Ask for it once, clearly, OR
-- Use a clearly labeled "Example Scenario" and never mix example numbers with the user's real data.
+LENDER GUIDELINE CONTEXT (if any – this overrides generic rules for that lender):
+${guidelineContext || "No lender-specific guidelines matched. Use agency baselines only."}
 
-Signals:
-${tavilyContext.slice(0, 200)}...
+Latest short-term signals (rate trackers, news, commentary):
+${tavilyContext}
 
-Memory (last 1 turn, condensed):
-${conversationHistory.slice(0, 220) || "None"}
+Conversation so far:
+${conversationHistory || "First message"}
 
-Question: "${question}"
+Current question:
+"${question}"
 
-/*
-  JSON only — MANDATORY. No prose outside this object.
-*/
+Respond in valid JSON only, using this exact schema:
 {
-  "answer": "**Key Numbers** (2–6 bullets using the user's real numbers: balances, rates, terms, income, DSCR, etc.). Then a **Comparison Table** using Markdown pipe format only (no HTML) with clear columns like | Scenario | Rate | Monthly P&I | Payment Change | or | Scenario | DSCR | LTV | Qualifies? |. Finish with a short **Verdict** paragraph (2–4 sentences) that explains what this means for the borrower in plain English. No HTML. No code fences.",
-  "next_step": "Exactly one concrete action the borrower should take next (for example, 'Share your credit score range so I can refine the options.').",
-  "follow_up": "Exactly one sharp follow-up question tailored to this scenario (not generic).",
-  "confidence": "0.95+ plus a brief reason, e.g. '0.96 – used exact borrower numbers and current 2025 rate data.'"
+  "answer": "Use this exact markdown structure:\n\n**Summary** (2–3 sentences, plain English, no jargon)\n\n**Key Numbers** (2–6 bullets with real dollar amounts and percentages)\n\n**Comparison Section**:\n- If you have at least two clearly comparable scenarios, options, or time periods (for example: different down payments, different rates, different DSCR bands, different loan structures), render ONE HTML table using <table>, <thead>, <tbody>, <tr>, <th>, <td> tags. Align money and percentages to the right using align=\"right\" and keep labels clear. Example pattern:\n\n<table>\n  <thead>\n    <tr>\n      <th align=\"left\">Scenario</th>\n      <th align=\"right\">Monthly PITI</th>\n      <th align=\"right\">Approx. Max Loan</th>\n      <th align=\"right\">Approx. Home Price</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>Conservative</td>\n      <td align=\"right\">$5,833</td>\n      <td align=\"right\">$950,000</td>\n      <td align=\"right\">$1,187,500</td>\n    </tr>\n    <tr>\n      <td>Aggressive</td>\n      <td align=\"right\">$6,458</td>\n      <td align=\"right\">$1,050,000</td>\n      <td align=\"right\">$1,312,500</td>\n    </tr>\n  </tbody>\n</table>\n\n- If you do NOT have enough structured data for a meaningful comparison table, skip the table entirely and instead add a short \"Comparison\" subsection with 3–5 bullets explaining the tradeoffs in plain English.\n\n**What This Means For You** (2–5 sentences tying the numbers back to the borrower's situation: comfort vs stretch, risk, and next logical move). Keep total length around 180–350 words. Inline cite [source] for any named data (for example, Bankrate, Mortgage News Daily, FHA, Fannie Mae).",
+  "next_step": "1–2 exact, concrete actions the borrower should take next.",
+  "follow_up": "One sharp follow-up question tailored to this scenario.",
+  "confidence": "0.00–1.00 numeric score plus a short reason, e.g. '0.87 – strong live rate data.'"
 }
 `.trim();
 
@@ -670,11 +682,11 @@ Question: "${question}"
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "grok-4-fast-non-reasoning",  // From "grok-4" — cuts "thinking" delays
+          model: "grok-4",
           messages: [{ role: "user", content: grokPrompt }],
           response_format: { type: "json_object" },
-          temperature: 0.1,
-          max_tokens: 400,
+          temperature: 0.2,
+          max_tokens: 600,
         }),
       });
 
@@ -692,20 +704,16 @@ Question: "${question}"
           const last = cleaned.lastIndexOf("}");
           if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1);
 
-          const parsed = JSON.parse(cleaned);
+          grokFinal = JSON.parse(cleaned);
 
-          const isValid =
-            typeof parsed.answer === "string" &&
-            typeof parsed.next_step === "string" &&
-            typeof parsed.follow_up === "string" &&
-            typeof parsed.confidence === "string";
-
-          if (!isValid) {
-            throw new Error("Invalid Grok JSON schema");
+          if (
+            !grokFinal.answer ||
+            !grokFinal.next_step ||
+            !grokFinal.follow_up ||
+            !grokFinal.confidence
+          ) {
+            throw new Error("Missing fields");
           }
-
-          grokFinal = parsed;
-
 
           console.log("GROK v4 SUCCESS → confidence:", grokFinal.confidence);
         } catch (parseErr) {
