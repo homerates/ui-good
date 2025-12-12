@@ -989,10 +989,8 @@ export default function Page() {
                 mode,
             };
 
-            const answersEndpoint =
-                process.env.NEXT_PUBLIC_ANSWERS_ENGINE === 'grok_only'
-                    ? '/api/answers-grok'
-                    : '/api/answers';
+            const answersEndpoint = '/api/answers';
+
 
             const r = await fetch(answersEndpoint, {
 
