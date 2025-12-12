@@ -317,44 +317,7 @@ async function handle(req: NextRequest, intentParam?: string) {
       ],
     });
   }
-  // --- LoanDepot DSCR hard override: short-circuit generic DSCR answers ---
-  try {
-    const dscrOverride = await maybeBuildDscrOverrideAnswer(question);
 
-    // If the question mentions DSCR + LoanDepot / Advantage FLEX,
-    // we return a deterministic answer and skip Tavily + Grok.
-    if (dscrOverride) {
-      const followUp =
-        "Want me to model DSCR and max loan using rental income and PITIA for your scenario?";
-
-      return noStore({
-        ok: true,
-        route: "answers",
-        grok: null,
-        data_freshness: "LoanDepot DSCR override",
-        message: dscrOverride,
-        answerMarkdown: dscrOverride,
-        followUp,
-        path,
-        tag,
-        generatedAt,
-        usedFRED: false,
-        usedTavily: false,
-        fred: {
-          tenYearYield: null,
-          mort30Avg: null,
-          spread: null,
-          asOf: null,
-        },
-        topSources: [],
-      });
-    }
-  } catch (err: any) {
-    console.warn(
-      "LoanDepot DSCR override failed",
-      err?.message || err
-    );
-  }
 
   // Topic for follow-ups and FRED
   const topic = topicFromQuestion(question);
@@ -694,12 +657,13 @@ Current question:
 
 Respond in valid JSON only, using this exact schema:
 {
-  "answer": "180–350 word markdown. Tables mandatory. Inline cite [source] for any named data (e.g., Bankrate).",
+  "answer": "Use this exact markdown structure:\n\n**Summary** (2–3 sentences, plain English, no jargon)\n\n**Key Numbers** (2–6 bullets with real dollar amounts and percentages)\n\n**Comparison Table** (at least one markdown table comparing 2–4 options or scenarios)\n\n**What This Means For You** (2–5 sentences tying the numbers back to the borrower's situation). Keep total length around 180–350 words. Inline cite [source] for any named data (e.g., Bankrate).",
   "next_step": "1–2 exact, concrete actions the borrower should take next.",
   "follow_up": "One sharp follow-up question tailored to this scenario.",
   "confidence": "0.00–1.00 numeric score plus a short reason, e.g. '0.87 – strong live rate data.'"
 }
 `.trim();
+
 
 
   let grokFinal: any = null;
