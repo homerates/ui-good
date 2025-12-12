@@ -1,4 +1,4 @@
-﻿// ==== WEB-FIRST + GROK v3 + SUPABASE: app/api/answers/route.ts ====
+﻿// ==== WEB-FIRST + GROK v4 + SUPABASE: app/api/answers/route.ts ====
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -532,7 +532,9 @@ async function handle(req: NextRequest, intentParam?: string) {
       "Never present weekly FRED averages as today’s live quote. Always describe a realistic range (for example 6.25–6.45%) and show the spread vs the 10-year Treasury yield.",
 
     refi:
+
       "You are Refi Lab — purely informational mortgage analyst.\n" +
+      "ABSOLUTE RULE: Do NOT invent market rates. If a live retail rate is not explicitly provided in memory or cited sources, say 'current market rates are materially higher than your rate' without stating a number.\n" +
       "Your only goal is to give accurate, unbiased knowledge. Never sell, never persuade, never use hype.\n" +
       "If the user’s existing rate is clearly below current market (for example below about 5.8% when market is around 6.3–6.5%): say plainly that refinancing today is unlikely to reduce their payment.\n" +
       "When the user provides real numbers (rate, balance, term, income, debts, credit score, closing costs):\n" +
@@ -618,6 +620,14 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   const grokPrompt = `
 ${specialistPrefix}Date: ${today}
+OUTPUT RULES:
+- Do NOT show formulas, equations, or math derivations.
+- Do NOT explain how calculations work.
+- Show only final numbers the borrower cares about.
+- Use clean Markdown only (no HTML).
+- Tables must be simple Markdown pipes.
+
+
 FRED: 30Y ${fred.mort30Avg ?? "—"}% (spread ${fred.spread ?? "—"}%).
 
 Memory: Use the user's exact numbers from this conversation — no assumptions.
@@ -628,8 +638,8 @@ If a number you need is missing, either:
 Signals:
 ${tavilyContext.slice(0, 200)}...
 
-Conversation so far:
-${conversationHistory || "First message."}
+Memory (last 1 turn, condensed):
+${conversationHistory.slice(0, 220) || "None"}
 
 Question: "${question}"
 
@@ -682,16 +692,20 @@ Question: "${question}"
           const last = cleaned.lastIndexOf("}");
           if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1);
 
-          grokFinal = JSON.parse(cleaned);
+          const parsed = JSON.parse(cleaned);
 
-          if (
-            !grokFinal.answer ||
-            !grokFinal.next_step ||
-            !grokFinal.follow_up ||
-            !grokFinal.confidence
-          ) {
-            throw new Error("Missing fields");
+          const isValid =
+            typeof parsed.answer === "string" &&
+            typeof parsed.next_step === "string" &&
+            typeof parsed.follow_up === "string" &&
+            typeof parsed.confidence === "string";
+
+          if (!isValid) {
+            throw new Error("Invalid Grok JSON schema");
           }
+
+          grokFinal = parsed;
+
 
           console.log("GROK v4 SUCCESS → confidence:", grokFinal.confidence);
         } catch (parseErr) {
