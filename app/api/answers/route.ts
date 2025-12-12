@@ -4,10 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import {
-  getGuidelineContextForQuestion,
-  maybeBuildDscrOverrideAnswer,
-} from "@/lib/guidelinesServer";
+import { getGuidelineContextForQuestion } from "@/lib/guidelinesServer";
 
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
@@ -41,7 +38,7 @@ type TavilyResult = {
   title: string;
   url: string;
   content?: string;
-  snippet?: string; // allow snippet if present
+  snippet?: string;
 };
 type TavilyMini = { ok: boolean; answer: string | null; results: TavilyResult[] };
 
@@ -76,9 +73,9 @@ function bulletsFrom(text: string, max = 4): string[] {
     .split(/(?:\n+|(?<=\.)\s+)/)
     .map((t) => t.replace(/^[-•]\s*/, "").trim())
     .filter(Boolean);
+
   const seen = new Set<string>();
   const out: string[] = [];
-
   for (const line of raw) {
     const key = line.toLowerCase();
     if (!seen.has(key)) {
@@ -87,7 +84,6 @@ function bulletsFrom(text: string, max = 4): string[] {
     }
     if (out.length >= max) break;
   }
-
   return out;
 }
 
@@ -104,6 +100,22 @@ function compactWhitespace(s: string) {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+// --- fetch with timeout (hard cap) ---
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number
+) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(input, { ...init, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 /* ===== Topic handling ===== */
@@ -352,7 +364,6 @@ async function handle(req: NextRequest, intentParam?: string) {
   let module: ModuleKey = "general";
   const q = question.toLowerCase();
 
-  // NOTE: order matters – more specific / high-intent patterns go earlier
   if (/(current.*rate|today.*rate|30.*year|30 year fixed|arm.*rate)/i.test(q)) {
     module = "rate";
   } else if (
@@ -376,16 +387,7 @@ async function handle(req: NextRequest, intentParam?: string) {
   } else if (
     /(underwrit|guideline|du\b|lp\b|manual underwrite|reserve|overlay|lender requirement|lender overlay|compensating factor|residual income)/i.test(
       q
-    ) ||
-    (/\b(conventional|conv)\b/i.test(q) &&
-      /\b(w[- ]?2|w2)\b/i.test(q) &&
-      /(self[- ]?employed|self employed|s\/e|se income|1099|schedule c|k-1|k1|side business|sole prop|sole proprietorship)/i.test(
-        q
-      )) ||
-    (/(self[- ]?employed|self employed|1099|schedule c|k-1|k1|business income|rental income)/i.test(
-      q
-    ) &&
-      /\b(loss|negative|declining|decline)\b/i.test(q))
+    )
   ) {
     module = "underwriting";
   } else if (
@@ -396,50 +398,30 @@ async function handle(req: NextRequest, intentParam?: string) {
     module = "about";
   }
 
-  // --- Module prompts (MUST be declared before use) ---
+  // Module prompts (declared before any use)
   const modulePrompts: Record<ModuleKey, string> = {
     general: "",
-
     rate:
-      "You are Rate Oracle. Use only current retail rate trackers (e.g., Bankrate, Mortgage News Daily, Freddie Mac PMMS). " +
-      "Never present FRED weekly averages as a live retail quote. If you provide a range, label it as a range and cite sources. " +
-      "Use markdown only. No HTML. JSON-only output.",
-
+      "You are Rate Oracle. Use current retail rate trackers. Never treat FRED weekly average as a live quote. Use markdown only. JSON only.",
     refi:
       "You are Refi Lab — purely informational mortgage analyst.\n" +
       "ABSOLUTE RULE: Do not invent market rates or borrower numbers. If missing, ask once. Any made-up example must be labeled “Example Scenario”.\n" +
-      "Never sell. Never persuade. Calm, factual, educational.\n" +
-      "If user provides rate/balance/term/closing costs: compute P&I using standard amortization and breakeven = costs ÷ monthly savings.\n" +
-      "Use markdown tables only. No HTML. JSON-only output.",
-
-    arm:
-      "You are ARM Deathmatch. Compare fixed vs ARM over 10 years with a few simple rate paths. " +
-      "Use markdown only. No HTML. JSON-only output.",
-
+      "Compute P&I using standard amortization when numbers are provided. Use markdown tables only. JSON only.",
+    arm: "You compare fixed versus ARM over 10 years. Use markdown only. JSON only.",
     buydown:
-      "You are Buydown Lab. If details are missing, ask once. Any example must be labeled “Example Scenario”. " +
-      "Use markdown tables only. No HTML. JSON-only output.",
-
+      "You are Buydown Lab. Ask once if missing. Any made-up example must be labeled “Example Scenario”. Use markdown tables only. JSON only.",
     jumbo:
-      "You are Jumbo Loan Expert. Focus on structure and eligibility. Use markdown only. No HTML. JSON-only output.",
-
+      "You are Jumbo Loan Expert. Focus on structure and eligibility. Use markdown only. JSON only.",
     underwriting:
-      "You are Underwriting Oracle — answer with governing rules and cite sources. " +
-      "Use markdown only. No HTML. JSON-only output.",
-
+      "You are Underwriting Oracle. Cite governing rules when possible. Use markdown only. JSON only.",
     qualify:
-      "You are Qualification Lab — use only user-provided numbers; ask once if missing. " +
-      "Use markdown tables only. No HTML. JSON-only output.",
-
+      "You are Qualification Lab. Use only user numbers. Ask once if missing. Use markdown tables only. JSON only.",
     about:
-      "You explain HomeRates.ai (product/mission/founder story when asked). Keep it concise. No hype. " +
-      "Use markdown only. No HTML. JSON-only output.",
+      "You explain HomeRates.ai (product/mission/founder story when asked). Calm and precise. Use markdown only. JSON only.",
   };
 
-  // Lender guideline context (Phase 1 stub)
-  // For now, we only try to load it for underwriting / jumbo / qualify type questions.
+  // Lender guideline context
   let guidelineContext = "";
-
   if (module === "underwriting" || module === "jumbo" || module === "qualify") {
     try {
       guidelineContext = await getGuidelineContextForQuestion(question);
@@ -448,11 +430,10 @@ async function handle(req: NextRequest, intentParam?: string) {
     }
   }
 
-  // TAVILY QUERY – MODULE-AWARE, LESS JUNK
+  // TAVILY QUERY
   let tavQuery: string;
-
   if (module === "underwriting" || module === "qualify") {
-    tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
+    tavQuery = `${question} 2025 mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
   } else if (module === "rate") {
     tavQuery = `${question} 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:forbes.com OR site:nerdwallet.com OR site:freddiemac.com -yahoo -aol -forum -blog -reddit`;
   } else {
@@ -460,38 +441,32 @@ async function handle(req: NextRequest, intentParam?: string) {
   }
 
   let tav = await askTavily(req, tavQuery, {
-    depth:
-      module === "underwriting" || module === "qualify" ? "advanced" : "basic",
+    depth: module === "underwriting" || module === "qualify" ? "advanced" : "basic",
     max: 6,
   });
 
-  // Fallback: relax query if answer is too thin
   if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
-    const fallbackQuery = `${question} mortgage 2025 -pmi.org`;
-    tav = await askTavily(req, fallbackQuery, {
-      depth: "advanced",
-      max: 8,
-    });
+    const fallbackQuery = `${question} mortgage 2025`;
+    tav = await askTavily(req, fallbackQuery, { depth: "advanced", max: 8 });
   }
 
   mark("after Tavily");
 
   const usedTavily = tav.ok && (tav.answer !== null || tav.results.length > 0);
 
-  // 2) Optional FRED snapshot for rate questions
+  // FRED snapshot for rate questions
   const wantFred = topic === "rates";
   const fred = wantFred
     ? await getFredSnapshot()
     : { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
-  const usedFRED = wantFred && (fred.tenYearYield !== null || fred.mort30Avg !== null);
 
+  const usedFRED = wantFred && (fred.tenYearYield !== null || fred.mort30Avg !== null);
   mark("after FRED");
 
-  // 3) Build a baseline answer (legacy stack)
+  // Baseline answer (legacy)
   let base =
     tav.answer ??
-    (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ??
-      "");
+    (tav.results.find((r) => typeof r.content === "string")?.content?.trim() ?? "");
 
   if (!base && tav.results.length > 0) {
     const concat = tav.results
@@ -504,14 +479,13 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   if (!base) {
     base =
-      "Here’s a concise baseline while I gather details: mortgage pricing reflects the 10-year Treasury benchmark plus risk spreads (credit/liquidity/convexity). " +
+      "Here’s a concise baseline while I gather details: mortgage pricing reflects the 10-year Treasury benchmark plus risk spreads (credit, liquidity, volatility). " +
       "Spreads widen when volatility or risk aversion picks up, and compress when markets stabilize.";
   }
 
   const intro = firstParagraph(base, 800);
   const bullets = bulletsFrom(base, 4);
 
-  // topSources for markdown (titles+urls only)
   const topSources = (tav.results || [])
     .slice(0, 3)
     .map((s) => ({ title: s.title, url: s.url }));
@@ -531,13 +505,12 @@ async function handle(req: NextRequest, intentParam?: string) {
     .filter(Boolean)
     .join("\n\n");
 
-  // Legacy fields used as fallback if Grok is unavailable
   const legacyAnswerMarkdown = answerMarkdown;
   const legacyAnswer = intro || answerMarkdown;
 
   mark("after baseline answer");
 
-  // ===== GROK BRAIN v4 =====
+  // ===== GROK v4 =====
   console.log("GROK v4: Starting for user:", userId);
 
   let conversationHistory = "";
@@ -586,29 +559,18 @@ async function handle(req: NextRequest, intentParam?: string) {
         .join("\n")
       : "No recent sources";
 
-  // ===== HARD TRIM (primary latency fix) =====
-  const specialistPrefixRaw = modulePrompts[module] ?? "";
-  const specialistPrefix = clampText(compactWhitespace(specialistPrefixRaw), 450);
-
-  const guidelineCtxTrim = clampText(
-    compactWhitespace(guidelineContext || ""),
-    260
-  );
-
+  // Keep prompt compact and predictable
+  const specialistPrefix = clampText(compactWhitespace(modulePrompts[module] ?? ""), 450);
+  const guidelineCtxTrim = clampText(compactWhitespace(guidelineContext || ""), 260);
   const tavilyCtxTrim = clampText(compactWhitespace(tavilyContextRaw), 220);
+  const conversationTrim = clampText(compactWhitespace(conversationHistory || ""), 320);
 
-  const conversationTrim = clampText(
-    compactWhitespace(conversationHistory || ""),
-    320
-  );
-
-  // IMPORTANT: keep Grok prompt compact; do not include unbounded blocks.
   const grokPrompt = compactWhitespace(
     `
 ${specialistPrefix}
 
 You are HomeRates.AI — a calm, data-first mortgage advisor focused on 2025–2026.
-Never sell. Never hype. Speak clearly. If lender guideline context is provided, treat it as primary for that lender.
+Never sell. Never hype. Speak clearly.
 
 Date: ${today}
 ${fredContext}
@@ -627,9 +589,9 @@ Current question:
 
 Respond in valid JSON only, using this exact schema:
 {
-  "answer": "Use this exact markdown structure:\\n\\n**Summary** (2–3 sentences)\\n\\n**Key Numbers** (2–6 bullets)\\n\\n**Comparison Table** (at least one markdown table comparing 2–4 options)\\n\\n**What This Means For You** (2–5 sentences). Keep total length around 180–350 words. Inline cite [source] for any named data.",
-  "next_step": "1–2 concrete actions the borrower should take next.",
-  "follow_up": "One sharp follow-up question tailored to this scenario.",
+  "answer": "Use markdown only. Use this structure: Summary, Key Numbers, Comparison Table (markdown), What This Means For You.",
+  "next_step": "1–2 concrete actions.",
+  "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
 }
 `.trim()
@@ -641,20 +603,24 @@ Respond in valid JSON only, using this exact schema:
 
   if (process.env.XAI_API_KEY && question.trim()) {
     try {
-      const res = await fetch("https://api.x.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.XAI_API_KEY}`,
-          "Content-Type": "application/json",
+      const res = await fetchWithTimeout(
+        "https://api.x.ai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "grok-4",
+            messages: [{ role: "user", content: grokPrompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.25,
+            max_tokens: 850,
+          }),
         },
-        body: JSON.stringify({
-          model: "grok-4",
-          messages: [{ role: "user", content: grokPrompt }],
-          response_format: { type: "json_object" },
-          temperature: 0.35,
-          max_tokens: 900,
-        }),
-      });
+        12000 // HARD CAP: 12s
+      );
 
       if (!res.ok) throw new Error(`Grok ${res.status}`);
       const data = await res.json();
@@ -666,9 +632,16 @@ Respond in valid JSON only, using this exact schema:
             .replace(/^```json\s*\n?/, "")
             .replace(/\n?```$/, "")
             .trim();
+
+          // Strict JSON gate: extract first {...} only
           const first = cleaned.indexOf("{");
           const last = cleaned.lastIndexOf("}");
           if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1);
+
+          // Hard reject HTML tables if they leak
+          if (cleaned.includes("<table")) {
+            throw new Error("HTML detected");
+          }
 
           grokFinal = JSON.parse(cleaned);
 
@@ -681,21 +654,21 @@ Respond in valid JSON only, using this exact schema:
           console.warn("GROK v4: recovery mode", parseErr);
           grokFinal = {
             answer: content.slice(0, 1200),
-            next_step: "Share your loan amount and rate for exact numbers.",
-            follow_up: "What’s your timeline or location?",
+            next_step: "Share your loan amount and current rate for exact numbers.",
+            follow_up: "What are your estimated closing costs and your timeline?",
             confidence: "0.71 — recovered",
           };
         }
       }
     } catch (e: any) {
-      console.error("GROK v4 failed → legacy", e.message || e);
-      grokFinal = null;
+      console.error("GROK v4 failed/timeout → legacy", e?.name || "", e?.message || e);
+      grokFinal = null; // fall back to legacy baseline
     }
   }
 
   mark("after Grok call");
 
-  // Save memory — Supabase v2+ safe
+  // Save memory (should not block response in normal use)
   if (grokFinal && userId && supabase) {
     try {
       await supabase.from("user_answers").insert({
@@ -722,7 +695,6 @@ Respond in valid JSON only, using this exact schema:
 
   mark("end (before return)");
 
-  // Normal non-streaming JSON response (existing behavior)
   return noStore({
     ok: true,
     route: "answers",
