@@ -397,31 +397,13 @@ async function handle(req: NextRequest, intentParam?: string) {
       );
     }
   }
-
-  // TAVILY QUERY – MODULE-AWARE, LESS JUNK
-  let tavQuery: string;
-
-  if (module === "underwriting" || module === "qualify") {
-    tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
-  } else if (module === "rate") {
-    tavQuery = `${question} 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:forbes.com OR site:nerdwallet.com OR site:freddiemac.com -yahoo -aol -forum -blog -reddit`;
-  } else {
-    tavQuery = `${question} 2025 mortgage -yahoo -aol -forum -blog -reddit`;
-  }
+  // TAVILY QUERY – trimmed, high-signal domains only
+  const tavQuery = `${question} 2025 site:bankrate.com OR site:freddiemac.com OR site:fanniemae.com OR site:zillow.com OR site:rocketmortgage.com`;
 
   let tav = await askTavily(req, tavQuery, {
-    depth: module === "underwriting" || module === "qualify" ? "advanced" : "basic",
-    max: 6,
+    depth: "advanced",
+    max: 3,
   });
-
-  // Fallback: relax query if answer is too thin
-  if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
-    const fallbackQuery = `${question} mortgage 2025 -pmi.org`;
-    tav = await askTavily(req, fallbackQuery, {
-      depth: "advanced",
-      max: 8,
-    });
-  }
 
   mark("after Tavily");
 
@@ -491,8 +473,8 @@ async function handle(req: NextRequest, intentParam?: string) {
 
   mark("after baseline answer");
 
-  // ===== GROK BRAIN v3.1 =====
-  console.log("GROK v3.1: Starting for user:", userId);
+  // ===== GROK BRAIN v4 =====
+  console.log("GROK v4: Starting for user:", userId);
 
   let conversationHistory = "";
   if (userId && supabase) {
@@ -518,7 +500,7 @@ async function handle(req: NextRequest, intentParam?: string) {
           .join("\n\n");
       }
     } catch (err: any) {
-      console.warn("GROK v3.1: history fetch failed", err.message);
+      console.warn("GROK v4: history fetch failed", err.message);
     }
   }
 
@@ -639,30 +621,32 @@ ${specialistPrefix}
 
 You are HomeRates.AI — a calm, data-first mortgage advisor focused on 2025–2026.
 Never sell. Never hype. Speak to a U.S. consumer in clear, direct language.
-If lender guideline context is provided below, treat it as primary for that lender
-and use agency/public sources only to supplement or fill gaps — do not contradict it.
+Use any lender guideline context as primary for that lender; use public sources only to fill gaps.
 
 Date: ${today}
-${fredContext}
+FRED: ${usedFRED
+      ? `30Y ${fred.mort30Avg}% vs 10Y ${fred.tenYearYield}%, spread ${fred.spread}%.`
+      : "not used for this question."
+    }
 
-LENDER GUIDELINE CONTEXT (if any – this overrides generic rules for that lender):
+Signals (trimmed from Tavily, 250 chars max):
+${(tavilyContext || "No recent sources").slice(0, 250)}...
+
+Memory (last few Q&A, 350 chars max):
+${(conversationHistory || "First message").slice(0, 350)}...
+
+Lender guideline context (overrides generic rules for that lender if present):
 ${guidelineContext || "No lender-specific guidelines matched. Use agency baselines only."}
-
-Latest short-term signals (rate trackers, news, commentary):
-${tavilyContext}
-
-Conversation so far:
-${conversationHistory || "First message"}
 
 Current question:
 "${question}"
 
 Respond in valid JSON only, using this exact schema:
 {
-  "answer": "Use this exact markdown structure:\n\n**Summary** (2–3 sentences, plain English, no jargon)\n\n**Key Numbers** (2–6 bullets with real dollar amounts and percentages)\n\n**Comparison Section**:\n- If you have at least two clearly comparable scenarios, options, or time periods (for example: different down payments, different rates, different DSCR bands, different loan structures), render ONE HTML table using <table>, <thead>, <tbody>, <tr>, <th>, <td> tags. Align money and percentages to the right using align=\"right\" and keep labels clear. Example pattern:\n\n<table>\n  <thead>\n    <tr>\n      <th align=\"left\">Scenario</th>\n      <th align=\"right\">Monthly PITI</th>\n      <th align=\"right\">Approx. Max Loan</th>\n      <th align=\"right\">Approx. Home Price</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>Conservative</td>\n      <td align=\"right\">$5,833</td>\n      <td align=\"right\">$950,000</td>\n      <td align=\"right\">$1,187,500</td>\n    </tr>\n    <tr>\n      <td>Aggressive</td>\n      <td align=\"right\">$6,458</td>\n      <td align=\"right\">$1,050,000</td>\n      <td align=\"right\">$1,312,500</td>\n    </tr>\n  </tbody>\n</table>\n\n- If you do NOT have enough structured data for a meaningful comparison table, skip the table entirely and instead add a short \"Comparison\" subsection with 3–5 bullets explaining the tradeoffs in plain English.\n\n**What This Means For You** (2–5 sentences tying the numbers back to the borrower's situation: comfort vs stretch, risk, and next logical move). Keep total length around 180–350 words. Inline cite [source] for any named data (for example, Bankrate, Mortgage News Daily, FHA, Fannie Mae).",
-  "next_step": "1–2 exact, concrete actions the borrower should take next.",
-  "follow_up": "One sharp follow-up question tailored to this scenario.",
-  "confidence": "0.00–1.00 numeric score plus a short reason, e.g. '0.87 – strong live rate data.'"
+  "answer": "150–300 word markdown. Structure: **Key Numbers** (bullets), then **Table** (Markdown | header | header |), then **Verdict** (one clear sentence). No HTML, no <table> tags. Use memory numbers exactly. Cite any named rate or stat with a short [source] tag, e.g. [Bankrate].",
+  "next_step": "1 concrete action the user should take next.",
+  "follow_up": "1 sharp follow-up question tailored to this scenario.",
+  "confidence": "0.95+ plus a short reason, e.g. '0.97 – live rate data + clear inputs.'"
 }
 `.trim();
 
@@ -685,8 +669,8 @@ Respond in valid JSON only, using this exact schema:
           model: "grok-4",
           messages: [{ role: "user", content: grokPrompt }],
           response_format: { type: "json_object" },
-          temperature: 0.25,
-          max_tokens: 800,
+          temperature: 0.2,
+          max_tokens: 600,
         }),
       });
 
@@ -745,11 +729,11 @@ Respond in valid JSON only, using this exact schema:
           typeof grokFinal.answer === "string"
             ? grokFinal.answer.slice(0, 320) + "..."
             : "",
-        model: "grok-3",
+        model: "grok-4",
         created_at: new Date().toISOString(),
       });
     } catch (err: any) {
-      console.warn("GROK v3.1: save failed", err.message);
+      console.warn("GROK v4: save failed", err.message);
     }
   }
 
@@ -766,7 +750,7 @@ Respond in valid JSON only, using this exact schema:
     ok: true,
     route: "answers",
     grok: grokFinal || null,
-    data_freshness: grokFinal ? "Live 2025–2026 (Grok-4)" : "Legacy stack",
+    data_freshness: grokFinal ? "Live 2025–2026 (Grok-4 Fast)" : "Legacy stack",
     message: grokFinal?.answer || legacyAnswer,
     answerMarkdown: finalMarkdown,
     followUp: grokFinal?.follow_up || followUpFor(topic),
