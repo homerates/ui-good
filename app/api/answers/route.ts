@@ -657,12 +657,13 @@ Current question:
 
 Respond in valid JSON only, using this exact schema:
 {
-  "answer": "Use this exact markdown structure:\n\n**Summary** (2–3 sentences, plain English, no jargon)\n\n**Key Numbers** (2–6 bullets with real dollar amounts and percentages)\n\n**Comparison Table** (at least one markdown table comparing 2–4 options or scenarios)\n\n**What This Means For You** (2–5 sentences tying the numbers back to the borrower's situation). Keep total length around 180–350 words. Inline cite [source] for any named data (e.g., Bankrate).",
+  "answer": "Use this exact markdown structure:\n\n**Summary** (2–3 sentences, plain English, no jargon)\n\n**Key Numbers** (2–6 bullets with real dollar amounts and percentages)\n\n**Comparison Section**:\n- If you have at least two clearly comparable scenarios, options, or time periods (for example: different down payments, different rates, different DSCR bands, different loan structures), render ONE HTML table using <table>, <thead>, <tbody>, <tr>, <th>, <td> tags. Align money and percentages to the right using align=\"right\" and keep labels clear. Example pattern:\n\n<table>\n  <thead>\n    <tr>\n      <th align=\"left\">Scenario</th>\n      <th align=\"right\">Monthly PITI</th>\n      <th align=\"right\">Approx. Max Loan</th>\n      <th align=\"right\">Approx. Home Price</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>Conservative</td>\n      <td align=\"right\">$5,833</td>\n      <td align=\"right\">$950,000</td>\n      <td align=\"right\">$1,187,500</td>\n    </tr>\n    <tr>\n      <td>Aggressive</td>\n      <td align=\"right\">$6,458</td>\n      <td align=\"right\">$1,050,000</td>\n      <td align=\"right\">$1,312,500</td>\n    </tr>\n  </tbody>\n</table>\n\n- If you do NOT have enough structured data for a meaningful comparison table, skip the table entirely and instead add a short \"Comparison\" subsection with 3–5 bullets explaining the tradeoffs in plain English.\n\n**What This Means For You** (2–5 sentences tying the numbers back to the borrower's situation: comfort vs stretch, risk, and next logical move). Keep total length around 180–350 words. Inline cite [source] for any named data (for example, Bankrate, Mortgage News Daily, FHA, Fannie Mae).",
   "next_step": "1–2 exact, concrete actions the borrower should take next.",
   "follow_up": "One sharp follow-up question tailored to this scenario.",
   "confidence": "0.00–1.00 numeric score plus a short reason, e.g. '0.87 – strong live rate data.'"
 }
 `.trim();
+
 
 
 
