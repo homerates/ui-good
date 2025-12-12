@@ -341,7 +341,8 @@ Return valid JSON only with this exact schema:
                 }),
                 cache: "no-store",
             },
-            12000 // hard cap: 12s (keeps UX stable while we measure)
+            60000 // TEMP: allow up to 60s so we can measure true Grok latency without aborting
+
         );
 
         if (!res.ok) throw new Error(`Grok ${res.status}`);
