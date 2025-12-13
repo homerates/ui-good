@@ -1,4 +1,4 @@
-// ==== SINGLE ENDPOINT GROK LANE: app/api/answers/route.ts ====
+// ==== SINGLE ENDPOINT (UI-SAFE) GROK LANE: app/api/answers/route.ts ====
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,6 @@ function noStore(json: unknown, status = 200) {
 
 // ---------- Env ----------
 const XAI_API_KEY = process.env.XAI_API_KEY || "";
-// Default to Grok 4.1 Fast for the speed test (can override via env)
 const XAI_MODEL = (process.env.XAI_MODEL || "grok-4.1-fast").trim();
 
 // Supabase (service-side client; used for user_answers memory)
@@ -58,10 +57,13 @@ type Topic =
     | "jumbo"
     | "dscr"
     | "refi"
+    | "underwriting"
     | "general";
 
 function topicFromQuestion(q: string): Topic {
     const s = q.toLowerCase();
+    if (/(underwrit|guideline|appraisal review|review process|valuation|cu|uad|reconsideration of value|rov)/.test(s))
+        return "underwriting";
     if (/\brefi\b|refinance|break[- ]?even|closing costs?|term|years? left/.test(s))
         return "refi";
     if (/\bpmi\b|mortgage insurance/.test(s)) return "pmi";
@@ -77,12 +79,14 @@ function topicFromQuestion(q: string): Topic {
 
 function followUpFor(topic: Topic): string {
     switch (topic) {
+        case "underwriting":
+            return "Which program is this for (Conventional / FHA / VA / Jumbo) and is the appraisal already completed?";
         case "refi":
-            return "What’s your current rate, loan balance, and years left (or original term and start date)?";
+            return "What’s your current rate, loan balance, and years left (or original term + start date)?";
         case "pmi":
             return "Want me to estimate PMI based on down payment and credit tier, or compare lender-paid vs borrower-paid?";
         case "rates":
-            return "Are you asking about the market generally, or your specific scenario (state, loan type, credit range, down payment)?";
+            return "Are you asking generally, or your exact scenario (state, loan type, credit range, down payment)?";
         case "fha":
             return "Do you want a 5-year cost comparison of FHA vs Conventional for your down payment and credit score?";
         case "va":
@@ -100,20 +104,19 @@ function followUpFor(topic: Topic): string {
     }
 }
 
-/* ===== Minimal “module” prompts (tiny by design for speed) ===== */
+/* ===== Minimal “module” prompts ===== */
 type ModuleKey =
     | "general"
     | "rate"
     | "refi"
-    | "arm"
-    | "buydown"
-    | "jumbo"
     | "underwriting"
     | "qualify"
     | "about";
 
 function moduleFromQuestion(q: string): ModuleKey {
     const s = q.toLowerCase();
+    if (/(underwrit|guideline|appraisal review|review process|valuation|cu|uad|reconsideration of value|rov)/.test(s))
+        return "underwriting";
     if (/(current.*rate|today.*rate|30.*year|30 year fixed|arm.*rate)/i.test(s))
         return "rate";
     if (
@@ -128,11 +131,6 @@ function moduleFromQuestion(q: string): ModuleKey {
         )
     )
         return "qualify";
-    if (/(arm\b|5\/1|7\/1|10\/1|adjustable|fixed vs arm)/i.test(s)) return "arm";
-    if (/(points?|buy ?down|discount points?|buydown)/i.test(s)) return "buydown";
-    if (/(jumbo|non.?conforming|high.?balance|loan limit)/i.test(s)) return "jumbo";
-    if (/(underwrit|guideline|du\b|lp\b|manual underwrite|reserve|overlay)/i.test(s))
-        return "underwriting";
     if (
         /(what is homerates|tell me about this site|what makes you different|who is the founder|who built homerates)/i.test(
             s
@@ -157,7 +155,7 @@ function clampText(s: string, maxChars: number) {
     return x.slice(0, Math.max(0, maxChars - 1)).trimEnd() + "…";
 }
 
-/* ===== Core handler (single Grok lane) ===== */
+/* ===== Core handler ===== */
 async function handle(req: NextRequest, intentParam?: string) {
     type Body = {
         question?: string;
@@ -167,7 +165,8 @@ async function handle(req: NextRequest, intentParam?: string) {
     };
 
     const t0 = Date.now();
-    const mark = (label: string) => console.log(`[ANSWERS TIMER] ${label}:`, Date.now() - t0, "ms");
+    const mark = (label: string) =>
+        console.log(`[ANSWERS TIMER] ${label}:`, Date.now() - t0, "ms");
     mark("start");
 
     const generatedAt = new Date().toISOString();
@@ -190,9 +189,15 @@ async function handle(req: NextRequest, intentParam?: string) {
     const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
     const intent = (intentParam || body.intent || "web").trim() || "web";
 
+    // Always present for UI contract
+    const usedFRED = false;
+    const usedTavily = false;
+    const fred = { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
+    const topSources: Array<{ title: string; url: string }> = [];
+
     if (!question) {
-        const followUp =
-            "Ask a specific mortgage question. Example: 'Refi break-even on $650k at 3.75% with 25 years left' or 'PMI at 5% down with ~720 credit in CA'.";
+        const msg =
+            "Ask a specific mortgage question. Example: 'Explain appraisal review process on Conventional loans' or 'Refi break-even on $650k at 3.75% with 25 years left'.";
         return noStore({
             ok: true,
             route: "answers",
@@ -200,14 +205,14 @@ async function handle(req: NextRequest, intentParam?: string) {
             path,
             tag,
             generatedAt,
-            message: followUp,
-            answerMarkdown: "",
-            followUp,
-            usedFRED: false,
-            usedTavily: false,
-            fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
-            topSources: [],
+            usedFRED,
+            usedTavily,
+            fred,
+            topSources,
             grok: null,
+            message: msg,
+            answerMarkdown: "",
+            followUp: msg,
         });
     }
 
@@ -220,7 +225,7 @@ async function handle(req: NextRequest, intentParam?: string) {
         try {
             const { data: history } = await supabase
                 .from("user_answers")
-                .select("question, answer_summary, answer")
+                .select("question, answer_summary")
                 .eq("clerk_user_id", userId)
                 .order("created_at", { ascending: false })
                 .limit(2);
@@ -229,11 +234,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 conversationHistory = history
                     .reverse()
                     .map((entry: any) => {
-                        const prev =
-                            entry.answer_summary ||
-                            (typeof entry.answer === "object" && entry.answer?.answer
-                                ? String(entry.answer.answer).slice(0, 220) + "…"
-                                : "Previous answer");
+                        const prev = entry.answer_summary ? String(entry.answer_summary).slice(0, 220) + "…" : "Previous answer";
                         return `User: ${entry.question}\nAssistant: ${prev}`;
                     })
                     .join("\n\n");
@@ -245,15 +246,18 @@ async function handle(req: NextRequest, intentParam?: string) {
     mark("after memory");
 
     const modulePrompts: Record<ModuleKey, string> = {
-        general: "Answer clearly and concisely. If key inputs are missing, ask ONE question and stop.",
-        rate: "Do not invent live market rates. Ask for state + scenario details if needed.",
-        refi: "Refi Lab. Do not invent numbers. Ask ONE question if missing inputs.",
-        arm: "Compare fixed vs ARM at a high level. Do not invent numbers unless asked for an example.",
-        buydown: "Do not invent points/costs unless asked for an example.",
-        jumbo: "Ask for purchase price, down payment, and credit range if missing.",
-        underwriting: "Avoid guessing rules. Ask for program type and occupancy if missing.",
-        qualify: "Use only user-provided income/debt. Ask ONE question if missing.",
-        about: "Explain HomeRates.ai clearly (product + mission). Calm and precise.",
+        general:
+            "Answer clearly. If key inputs are missing, ask ONE question and stop.",
+        rate:
+            "Do not invent live rates. If the user asks for today’s rates, ask for state + scenario details.",
+        refi:
+            "Refi Lab. Do not invent borrower numbers or market rates. Ask ONE question if missing inputs.",
+        underwriting:
+            "Underwriting Oracle (high level). Explain process steps and decision points. Do not invent lender overlays or quote exact guideline sections unless the user provides the lender/program. Ask ONE question if needed.",
+        qualify:
+            "Qualification Lab. Use only user-provided income/debt. Ask ONE question if missing.",
+        about:
+            "Explain HomeRates.ai clearly (product + mission). Calm and precise.",
     };
 
     const today = new Date().toISOString().slice(0, 10);
@@ -275,11 +279,11 @@ ABSOLUTE RULES:
 - Do NOT invent numbers, rates, payments, fees, or example scenarios unless the user explicitly asks for an example.
 - If key inputs are missing, ask ONE short follow-up question and stop.
 - Markdown only. Never output HTML (no <table>, <div>, etc.).
-- If asked for "today's rates" / "market rates", do not quote a number without a cited source; ask for scenario details instead.
+- Keep it 120–220 words unless the user asks for more.
 
 Return valid JSON only:
 {
-  "answer": "Markdown only. Use: **Summary**, **Key Numbers**, **What This Means For You**. Include **Comparison Table** ONLY if the user gave at least two numeric scenarios. Keep it 70–120 words.",
+  "answer": "Markdown only. Use: **Summary**, **Key Numbers** (only if numbers were provided), **What This Means For You**. Include **Comparison Table** ONLY if the user provided at least two numeric scenarios.",
   "next_step": "1–2 concrete actions.",
   "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
@@ -287,28 +291,39 @@ Return valid JSON only:
 `.trim());
 
     if (!XAI_API_KEY) {
-        return noStore(
-            {
-                ok: false,
-                route: "answers",
-                intent,
-                path,
-                tag,
-                generatedAt,
-                error: "Missing XAI_API_KEY",
-                followUp: followUpFor(topic),
-            },
-            500
-        );
+        const msg = "Grok is not configured in this environment (missing XAI_API_KEY).";
+        return noStore({
+            ok: true,
+            route: "answers",
+            intent,
+            path,
+            tag,
+            generatedAt,
+            usedFRED,
+            usedTavily,
+            fred,
+            topSources,
+            grok: null,
+            message: msg,
+            answerMarkdown: `**Answer**\n${msg}\n`,
+            followUp: followUpFor(topic),
+        });
     }
 
     mark("before Grok call");
     const grokStart = Date.now();
-    console.log("[ANSWERS] model=", XAI_MODEL, "prompt_chars=", grokPrompt.length);
+
+    console.log("[ANSWERS] requestedModel=", XAI_MODEL, "promptChars=", grokPrompt.length);
 
     let grokFinal: any = null;
-    let servedModel: string | null = null;
-    let reqId: string | null = null;
+    let debug: any = {
+        requestedModel: XAI_MODEL,
+        servedModel: null as string | null,
+        promptChars: grokPrompt.length,
+        elapsedMs: null as number | null,
+        requestId: null as string | null,
+        error: null as string | null,
+    };
 
     try {
         const res = await fetchWithTimeout(
@@ -324,18 +339,19 @@ Return valid JSON only:
                     messages: [{ role: "user", content: grokPrompt }],
                     response_format: { type: "json_object" },
                     temperature: 0.15,
-                    max_tokens: 260,
+                    max_tokens: 400,
                 }),
                 cache: "no-store",
             },
             60000
         );
 
-        reqId = res.headers.get("x-request-id") ?? res.headers.get("request-id");
+        debug.requestId = res.headers.get("x-request-id") ?? res.headers.get("request-id");
+
         if (!res.ok) throw new Error(`Grok HTTP ${res.status}`);
         const data = await res.json();
 
-        servedModel = data?.model ?? data?.choices?.[0]?.model ?? null;
+        debug.servedModel = data?.model ?? data?.choices?.[0]?.model ?? null;
 
         const content = data?.choices?.[0]?.message?.content?.trim();
         if (!content) throw new Error("Empty Grok response");
@@ -352,41 +368,17 @@ Return valid JSON only:
         if (!grokFinal.answer || !grokFinal.next_step || !grokFinal.follow_up || !grokFinal.confidence) {
             throw new Error("Missing fields in Grok JSON");
         }
-
-        console.log("[ANSWERS] SUCCESS confidence:", grokFinal.confidence);
     } catch (e: any) {
-        console.error("[ANSWERS] GROK FAILED", e?.name || "", e?.message || e, "reqId=", reqId);
+        debug.error = `${e?.name || "Error"}: ${e?.message || String(e)}`;
         grokFinal = null;
+    } finally {
+        debug.elapsedMs = Date.now() - grokStart;
     }
 
     mark("after Grok call");
 
-    // If Grok failed: NO legacy answer. Return 502 so the UI can show a clean error state.
-    if (!grokFinal) {
-        return noStore(
-            {
-                ok: false,
-                route: "answers",
-                intent,
-                path,
-                tag,
-                generatedAt,
-                error: "Grok failed/timeout",
-                followUp: followUpFor(topic),
-                debug: {
-                    requestedModel: XAI_MODEL,
-                    servedModel,
-                    promptChars: grokPrompt.length,
-                    elapsedMs: Date.now() - grokStart,
-                    requestId: reqId,
-                },
-            },
-            502
-        );
-    }
-
-    // Save memory
-    if (userId && supabase) {
+    // Save memory only on success
+    if (grokFinal && userId && supabase) {
         try {
             await supabase.from("user_answers").insert({
                 clerk_user_id: userId,
@@ -402,6 +394,29 @@ Return valid JSON only:
         }
     }
 
+    // UI-safe failure: show a real message (not blank), keep same schema
+    if (!grokFinal) {
+        const msg =
+            "Grok did not return for this request. Check Vercel function logs for [ANSWERS] and confirm XAI_MODEL + key are correct. If you paste the debug block below, we can pinpoint whether this is model routing vs. provider latency.";
+        return noStore({
+            ok: true,
+            route: "answers",
+            intent,
+            path,
+            tag,
+            generatedAt,
+            usedFRED,
+            usedTavily,
+            fred,
+            topSources,
+            grok: null,
+            debug,
+            message: msg,
+            answerMarkdown: `**Answer**\n${msg}\n\n**Debug**\n\`\`\`json\n${JSON.stringify(debug, null, 2)}\n\`\`\`\n`,
+            followUp: followUpFor(topic),
+        });
+    }
+
     const finalMarkdown = `**Answer**\n${grokFinal.answer}\n\n**Confidence**: ${grokFinal.confidence}\n`;
 
     return noStore({
@@ -411,21 +426,15 @@ Return valid JSON only:
         path,
         tag,
         generatedAt,
+        usedFRED,
+        usedTavily,
+        fred,
+        topSources,
+        grok: grokFinal,
+        debug,
         message: grokFinal.answer,
         answerMarkdown: finalMarkdown,
         followUp: grokFinal.follow_up || followUpFor(topic),
-        usedFRED: false,
-        usedTavily: false,
-        fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
-        topSources: [],
-        grok: grokFinal,
-        debug: {
-            requestedModel: XAI_MODEL,
-            servedModel,
-            promptChars: grokPrompt.length,
-            elapsedMs: Date.now() - grokStart,
-            requestId: reqId,
-        },
     });
 }
 
