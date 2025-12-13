@@ -452,6 +452,19 @@ function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
         </div>
     );
 }
+// --- HR helper: tighten markdown spacing & remove empty sections ---
+function sanitizeMarkdown(md?: string): string {
+    if (!md || typeof md !== 'string') return '';
+
+    return md
+        // Remove empty "Key Numbers" sections
+        .replace(/\*\*Key Numbers\*\*\s*(\n\s*)+(?=\*\*|$)/gi, '')
+        // Remove empty "Comparison Table" sections
+        .replace(/\*\*Comparison Table\*\*\s*(\n\s*)+(?=\*\*|$)/gi, '')
+        // Collapse excessive blank lines
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
 
 /* =========================
    Page
@@ -1266,9 +1279,11 @@ export default function Page() {
                                                 <GrokCard
                                                     data={{
                                                         grok: m.meta.grok,
-                                                        answerMarkdown:
+                                                        answerMarkdown: sanitizeMarkdown(
                                                             m.meta.answerMarkdown ??
-                                                            (typeof m.content === 'string' ? m.content : ''),
+                                                            (typeof m.content === 'string' ? m.content : '')
+                                                        ),
+
                                                         followUp: m.meta.followUp ?? m.meta.grok?.follow_up,
                                                         data_freshness:
                                                             m.meta.data_freshness ??

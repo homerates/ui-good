@@ -279,11 +279,11 @@ ABSOLUTE RULES:
 - Do NOT invent numbers, rates, payments, fees, or example scenarios unless the user explicitly asks for an example.
 - If key inputs are missing, ask ONE short follow-up question and stop.
 - Markdown only. Never output HTML (no <table>, <div>, etc.).
-- Keep it 120–220 words unless the user asks for more.
+- Target 220–360 words total unless the user asks for more. Keep **Summary** ~120–180 words.
 
 Return valid JSON only:
 {
-  "answer": "Markdown only. Use: **Summary**, **Key Numbers** (only if numbers were provided), **What This Means For You**. Include **Comparison Table** ONLY if the user provided at least two numeric scenarios.",
+  "answer": "Markdown only. Use sections: **Summary**, **Key Numbers**, **What This Means For You**. Keep the **Summary** ~120–180 words. Keep the full answer concise and under 300 words total.",
   "next_step": "1–2 concrete actions.",
   "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
