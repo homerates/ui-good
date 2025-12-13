@@ -261,7 +261,8 @@ async function handle(req: NextRequest, intentParam?: string) {
      - No Grok call
      - Ask once for missing inputs
    ============================ */
-    if (module === "refi") {
+    if (moduleFromQuestion(question) === "refi") {
+
         const followUp =
             "Reply with: current balance, current rate, years (or months) remaining, estimated closing costs, and the new rate you’re considering.";
 
