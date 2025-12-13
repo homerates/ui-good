@@ -218,6 +218,77 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     const topic = topicFromQuestion(question);
     const module = moduleFromQuestion(question);
+    /* ============================
+   REFI LAB — SAFE EARLY EXIT (NO GROK)
+   Guardrails:
+     - Only triggers when module === "refi"
+     - No Grok call (prevents truncation / hallucinated math)
+     - Asks once for required inputs
+   ============================ */
+    if (module === "refi") {
+        const followUp =
+            "Reply with: current balance, current rate, years (or months) remaining, estimated closing costs, and the new rate you’re considering.";
+
+        return noStore({
+            ok: true,
+            route: "answers",
+            intent,
+            path,
+            tag,
+            generatedAt,
+            usedFRED,
+            usedTavily,
+            fred,
+            topSources,
+            grok: null,
+            message: followUp,
+            answerMarkdown:
+                "**Refi Lab needs 5 inputs**\n\n" +
+                "- Current loan balance\n" +
+                "- Current interest rate\n" +
+                "- Remaining term (years or months left)\n" +
+                "- Estimated closing costs (or lender credit)\n" +
+                "- New interest rate you’re considering\n\n" +
+                "Once you send those, I’ll calculate current vs new P&I, monthly savings, breakeven, and the payment change per 0.25%.",
+            followUp,
+        });
+    }
+
+    /* ============================
+   REFI LAB — HARD EARLY EXIT (NO GROK)
+   Guardrails:
+     - Only triggers when module === "refi"
+     - No Grok call
+     - Ask once for missing inputs
+   ============================ */
+    if (module === "refi") {
+        const followUp =
+            "Reply with: current balance, current rate, years (or months) remaining, estimated closing costs, and the new rate you’re considering.";
+
+        return noStore({
+            ok: true,
+            route: "answers",
+            intent,
+            path,
+            tag,
+            generatedAt,
+            usedFRED,
+            usedTavily,
+            fred,
+            topSources,
+            grok: null,
+            message: followUp,
+            answerMarkdown:
+                "**Refi Lab needs 5 inputs**\n\n" +
+                "- Current loan balance\n" +
+                "- Current interest rate\n" +
+                "- Remaining term (years or months left)\n" +
+                "- Estimated closing costs (or lender credit)\n" +
+                "- New interest rate you’re considering\n\n" +
+                "Once you send those, I’ll calculate current vs new P&I, monthly savings, breakeven, and the payment change per 0.25%.",
+            followUp,
+        });
+    }
 
     // Minimal memory (optional)
     let conversationHistory = "";
@@ -253,7 +324,17 @@ async function handle(req: NextRequest, intentParam?: string) {
         refi:
             "Refi Lab. Do not invent borrower numbers or market rates. Ask ONE question if missing inputs.",
         underwriting:
-            "Underwriting Oracle (high level). Explain process steps and decision points. Do not invent lender overlays or quote exact guideline sections unless the user provides the lender/program. Ask ONE question if needed.",
+
+            "You are Underwriting Oracle — 2025 guidelines only.\n" +
+            "MANDATORY CITATION RULES:\n" +
+            "  • Always cite the exact section AND provide a direct PDF or guide link.\n" +
+            "  • Preferred format: 'Fannie Mae B3-5.3-07 (Waiting Periods After Foreclosure) [PDF: singlefamily.fanniemae.com/selling-guide-pdf]'\n" +
+            "  • For FHA: Use HUD Handbook 4000.1 sections [PDF: hud.gov/4000.1]\n" +
+            "  • For VA: Cite Pamphlet 26-7 Chapter/Section [PDF: benefits.va.gov/WARMS/pam26_7.pdf]\n" +
+            "  • For lender overlays: Cite source if public (e.g., UWM Bulletin, Rocket Matrix)\n" +
+            "  • If guideline is behind login, say 'Per lender matrix (e.g., UWM requires 660 min for FHA)' and note 'publicly available on request'\n" +
+            "Never use vague 'per guidelines' — always name the document and link.",
+
         qualify:
             "Qualification Lab. Use only user-provided income/debt. Ask ONE question if missing.",
         about:
