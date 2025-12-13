@@ -8,6 +8,7 @@ import {
     getGuidelineContextForQuestion,
     maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
+import { generateSourcesBundle } from "@/lib/sources-generator";
 
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
@@ -1041,6 +1042,32 @@ Return valid JSON only:
         } catch (err: any) {
             console.warn("ANSWERS: save failed", err?.message || err);
         }
+    }
+    // --- SOURCE GENERATION (post-Grok, pre-response) ---
+
+    if (grokFinal) {
+        const bundle = await generateSourcesBundle({
+            topic: `${question} ${module}`,
+            tavily: { mode: "proxy", baseUrl: req.url },
+            includeCore: true,
+            includeTavily: true,
+            tavilyDepth: module === "underwriting" ? "advanced" : "basic",
+            maxTotal: 6,
+        });
+
+        if (bundle.markdown) {
+            grokFinal.answer += `\n\n${bundle.markdown}`;
+        }
+
+        // Keep UI contract aligned
+        if (bundle.sources?.length) {
+            topSources = bundle.sources.map((s) => ({
+                title: s.title,
+                url: s.url,
+            }));
+        }
+
+        usedTavily = bundle.usedTavily;
     }
 
     // Final markdown (always include sources/fred at bottom if present)
