@@ -13,6 +13,7 @@ export async function logAnswerToLibrary(
     try {
         await fetch("/api/library", {
             method: "POST",
+            credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ question, answer }),
         });

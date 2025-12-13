@@ -349,7 +349,20 @@ Return valid JSON only:
         debug.requestId = res.headers.get("x-request-id") ?? res.headers.get("request-id");
 
         if (!res.ok) throw new Error(`Grok HTTP ${res.status}`);
-        const data = await res.json();
+        const raw = await res.text();
+
+        let data: any = null;
+        try {
+            data = JSON.parse(raw);
+        } catch (err) {
+            console.error("[ANSWERS] Grok raw response not valid JSON", {
+                status: res.status,
+                rawLen: raw?.length ?? 0,
+                rawHead: String(raw).slice(0, 200),
+                rawTail: String(raw).slice(Math.max(0, String(raw).length - 200)),
+            });
+            throw new Error("Grok response JSON was truncated (provider body incomplete)");
+        }
 
         debug.servedModel = data?.model ?? data?.choices?.[0]?.model ?? null;
 

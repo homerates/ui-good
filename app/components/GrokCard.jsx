@@ -136,7 +136,7 @@ export default function GrokCard({ data, onFollowUp }) {
                     color: "rgba(0,0,0,0.55)",
                 }}
             >
-                <span>{grok ? "Live 2025–2026 (Grok-3)" : "Legacy stack"}</span>
+                <span>{grok ? "Live 2025–2026 (Grok 4.1)" : "Legacy stack"}</span>
                 {data_freshness && <span>{data_freshness}</span>}
             </div>
 

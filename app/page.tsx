@@ -190,7 +190,7 @@ type ApiResponse = {
     followUp?: string;       // camelCase version from backend
     follow_up?: string;      // snake_case version if Grok uses it
     grok?: any;              // full Grok JSON for confidence / next_step / follow_up
-    data_freshness?: string; // e.g. "Live 2025–2026 (Grok-3)"
+    data_freshness?: string; // e.g. "Live 2025–2026 (Grok 4.1)"
     topSources?: Array<{ title: string; url: string }>;
 };
 
@@ -1051,12 +1051,15 @@ export default function Page() {
                             meta.usedFRED
                         )} | confidence: ${meta.confidence ?? '-'}`);
 
-            // Fire-and-forget: log this Q&A to the user's library
+            // Fire-and-forget: log this Q&A to the user's library (signed-in only)
             try {
-                void logAnswerToLibrary(q, { friendly, meta });
+                if (isSignedIn) {
+                    void logAnswerToLibrary(q, { friendly, meta });
+                }
             } catch (err) {
                 console.error('Library logging error:', err);
             }
+
 
             // If the backend signals that a limit was hit, surface the right modal
             if (meta.upgradeRequired || meta.limitHit) {
