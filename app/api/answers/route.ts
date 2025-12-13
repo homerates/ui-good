@@ -1061,7 +1061,7 @@ Return valid JSON only:
 
         // Keep UI contract aligned
         if (bundle.sources?.length) {
-            topSources = bundle.sources.map((s) => ({
+            topSources = bundle.sources.map((s: { title: string; url: string }) => ({
                 title: s.title,
                 url: s.url,
             }));
