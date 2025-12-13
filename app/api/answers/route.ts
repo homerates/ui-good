@@ -754,10 +754,170 @@ async function handle(req: NextRequest, intentParam?: string) {
     const tavilyCtxTrim = clampText(compactWhitespace(tavilyContextRaw), 240);
     const conversationTrim = clampText(compactWhitespace(conversationHistory || ""), 320);
 
-    // Refi guardrail: no math without inputs
+    // Refi guardrail: ask for inputs only if missing; otherwise compute locally (no Grok)
     if (module === "refi") {
+        // ---- helpers (scoped only to refi, so we don’t impact the rest of the file) ----
+        const parseMoney = (s: string) => {
+            const cleaned = s.replace(/[, ]/g, "").replace(/\$/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : null;
+        };
+
+        const parsePercent = (s: string) => {
+            const cleaned = s.replace(/[% ]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : null;
+        };
+
+        const parseYearsLeft = (text: string) => {
+            const s = text.toLowerCase();
+
+            // Examples:
+            // "25 years left"
+            // "years left 25"
+            // "remaining term 25 years"
+            const m1 = s.match(/(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\s*(?:left|remaining)?/i);
+            if (m1?.[1]) {
+                const y = Number(m1[1]);
+                return Number.isFinite(y) ? Math.round(y * 12) : null;
+            }
+
+            // Examples:
+            // "300 months left"
+            // "months remaining 240"
+            const m2 = s.match(/(\d+)\s*(?:months?|mos?)\s*(?:left|remaining)?/i);
+            if (m2?.[1]) {
+                const mo = Number(m2[1]);
+                return Number.isFinite(mo) ? Math.round(mo) : null;
+            }
+
+            return null;
+        };
+
+        const monthlyPI = (principal: number, annualRatePct: number, months: number) => {
+            const r = (annualRatePct / 100) / 12;
+            if (months <= 0) return null;
+            if (r === 0) return principal / months;
+            const pow = Math.pow(1 + r, months);
+            return principal * (r * pow) / (pow - 1);
+        };
+
+        const qText = question;
+
+        // Try to infer the 5 inputs from a single prompt.
+        // We accept loose phrasing like:
+        // "balance $650,000 at 3.75%, 25 years left, $6,000 costs, new rate 6.25%"
+        const balanceMatch = qText.match(/\b(balance|loan balance|principal)\b[^0-9$]*\$?\s*([\d,]+(?:\.\d+)?)/i) ?? qText.match(/\$\s*([\d,]+(?:\.\d+)?)/);
+        const currentRateMatch = qText.match(/\b(?:current\s*rate|at)\b[^0-9]*([\d.]+)\s*%/i);
+        const newRateMatch =
+            qText.match(/\b(?:new\s*rate|to|refi\s*to|considering)\b[^0-9]*([\d.]+)\s*%/i) ??
+            (() => {
+                // fallback: if two % appear, treat first as current and second as new
+                const all = Array.from(qText.matchAll(/([\d.]+)\s*%/g)).map((m) => m[1]);
+                return all.length >= 2 ? ({ 1: all[all.length - 1] } as any) : null;
+            })();
+
+        const costsMatch =
+            qText.match(/\b(?:costs?|closing costs?|fees?)\b[^0-9$]*\$?\s*([\d,]+(?:\.\d+)?)/i) ??
+            qText.match(/\b\$?\s*([\d,]+(?:\.\d+)?)\s*(?:costs?|fees?)\b/i);
+
+        const monthsLeft = parseYearsLeft(qText);
+
+        const balance =
+            balanceMatch
+                ? parseMoney(balanceMatch[2] ?? balanceMatch[1] ?? "")
+                : null;
+
+        const currentRate =
+            currentRateMatch?.[1] ? parsePercent(currentRateMatch[1]) : null;
+
+        const newRate =
+            (newRateMatch as any)?.[1] ? parsePercent((newRateMatch as any)[1]) : null;
+
+        const closingCosts =
+            costsMatch?.[1] ? parseMoney(costsMatch[1]) : null;
+
+        const missing: string[] = [];
+        if (!balance) missing.push("current loan balance");
+        if (!currentRate) missing.push("current interest rate");
+        if (!monthsLeft) missing.push("remaining term (years or months left)");
+        if (closingCosts === null) missing.push("estimated closing costs (or lender credit)");
+        if (!newRate) missing.push("new interest rate you’re considering");
+
+        // If any are missing, keep your existing “ask for 5 inputs” behavior.
+        if (missing.length > 0) {
+            const followUp =
+                "Reply with: current loan balance, current interest rate, remaining term (years or months), estimated closing costs (or lender credit), and the new rate you’re considering.";
+
+            return noStore({
+                ok: true,
+                route: "answers",
+                intent,
+                path,
+                tag,
+                generatedAt,
+                usedFRED,
+                usedTavily,
+                fred,
+                topSources,
+                grok: null,
+                debug: { bypass: "refi_missing_inputs_guardrail", missing },
+                message: followUp,
+                answerMarkdown:
+                    "**Refi Lab needs 5 inputs**\n\n" +
+                    "- Current loan balance\n" +
+                    "- Current interest rate\n" +
+                    "- Remaining term (years or months left)\n" +
+                    "- Estimated closing costs (or lender credit)\n" +
+                    "- New interest rate you’re considering\n\n" +
+                    "Once you send those, I’ll calculate current vs new P&I, monthly savings, breakeven, and payment sensitivity.",
+                followUp,
+            });
+        }
+
+        // Otherwise compute locally (NO Grok).
+        const curPI = monthlyPI(balance!, currentRate!, monthsLeft!);
+        const newPI = monthlyPI(balance!, newRate!, monthsLeft!);
+
+        // Safety
+        if (curPI == null || newPI == null) {
+            const followUp =
+                "Quick check: confirm your balance, current rate, years/months left, costs/credit, and the new rate you’re considering.";
+            return noStore({
+                ok: true,
+                route: "answers",
+                intent,
+                path,
+                tag,
+                generatedAt,
+                usedFRED,
+                usedTavily,
+                fred,
+                topSources,
+                grok: null,
+                debug: { bypass: "refi_calc_failed" },
+                message: followUp,
+                answerMarkdown: `**Answer**\nI couldn’t safely compute the payment from what I parsed. ${followUp}\n`,
+                followUp,
+            });
+        }
+
+        const monthlyChange = newPI - curPI;
+        const monthlySavings = curPI - newPI;
+        const breakevenMonths =
+            closingCosts! > 0 && monthlySavings > 0 ? (closingCosts! / monthlySavings) : null;
+
+        const fmt = (n: number) =>
+            n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const beLine =
+            breakevenMonths == null
+                ? "Breakeven: not applicable (either costs are $0, or the new payment is not lower)."
+                : `Breakeven: ~${Math.ceil(breakevenMonths)} months (~${fmt(Math.ceil(breakevenMonths) / 12)} years)`;
+
         const followUp =
-            "Reply with: current loan balance, current interest rate, remaining term (years or months), estimated closing costs (or lender credit), and the new rate you’re considering.";
+            "Do you want this as (A) payment-only P&I or (B) full PITI with taxes/insurance/HOA and any PMI?";
+
         return noStore({
             ok: true,
             route: "answers",
@@ -770,16 +930,26 @@ async function handle(req: NextRequest, intentParam?: string) {
             fred,
             topSources,
             grok: null,
-            debug: { bypass: "refi_missing_inputs_guardrail" },
-            message: followUp,
+            debug: { bypass: "refi_local_math", parsed: { balance, currentRate, monthsLeft, closingCosts, newRate } },
+            message: "Refi comparison computed.",
             answerMarkdown:
-                "**Refi Lab needs 5 inputs**\n\n" +
-                "- Current loan balance\n" +
-                "- Current interest rate\n" +
-                "- Remaining term (years or months left)\n" +
-                "- Estimated closing costs (or lender credit)\n" +
-                "- New interest rate you’re considering\n\n" +
-                "Once you send those, I’ll calculate current vs new P&I, monthly savings, breakeven, and payment sensitivity.",
+                `**Answer**\n` +
+                `**Summary**\n` +
+                `Here’s the payment impact using your provided inputs (principal + interest only).\n\n` +
+                `**Key Numbers**\n` +
+                `- Current P&I: $${fmt(curPI)}\n` +
+                `- New P&I: $${fmt(newPI)}\n` +
+                `- Monthly change (new - current): $${fmt(monthlyChange)}\n` +
+                `- Closing costs assumed: $${fmt(closingCosts!)}\n` +
+                `- ${beLine}\n\n` +
+                `**Comparison Table**\n` +
+                `| Item | Current | New |\n` +
+                `|---|---:|---:|\n` +
+                `| Rate | ${fmt(currentRate!)}% | ${fmt(newRate!)}% |\n` +
+                `| Term remaining | ${monthsLeft!} months | ${monthsLeft!} months |\n` +
+                `| P&I payment | $${fmt(curPI)} | $${fmt(newPI)} |\n\n` +
+                `**What This Means For You**\n` +
+                `If the new rate is higher, the payment rises and breakeven typically won’t exist unless the refinance accomplishes something else (cash-out, term reset, removing MI, etc.). If you want the full picture, I can add taxes, insurance, HOA, and any MI.\n`,
             followUp,
         });
     }
