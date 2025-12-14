@@ -996,6 +996,8 @@ Return valid JSON only:
     let grokFinal: any = null;
     let debug: any = null;
 
+    // Track whether we already injected a **Sources** block into grokFinal.answer
+    let sourcesInjected = false;
     mark("before Grok call");
 
     if (XAI_API_KEY) {
@@ -1095,8 +1097,9 @@ Return valid JSON only:
     const finalMarkdown = grokFinal
         ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
             grokFinal.confidence
-        )}\n${topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
+        )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
         : legacyAnswerMarkdown;
+
 
     const message = grokFinal?.answer || legacyAnswer;
 
