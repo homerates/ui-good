@@ -8,7 +8,8 @@ import {
     getGuidelineContextForQuestion,
     maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
-import { generateSourcesBundle } from "@/lib/sources-generator";
+import { generateSourcesBundle } from "../../lib/sources-generator";
+
 
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
@@ -1026,6 +1027,26 @@ Return valid JSON only:
     }
 
     mark("after Grok call");
+    // --- SOURCE GENERATION (core overrides; US-only; no duplicates) ---
+    if (grokFinal) {
+        try {
+            const bundle = await generateSourcesBundle({
+                topic: `${question} ${module}`,
+                reqUrl: req.url,
+            });
+
+            // If core matched, REPLACE topSources entirely (single source).
+            // If not core, leave Tavily topSources intact (prevents “two sources” behavior).
+            if (bundle.mode === "core") {
+                topSources = bundle.sources.map((s: { title: string; url: string }) => ({
+                    title: s.title,
+                    url: s.url,
+                }));
+            }
+        } catch (e: any) {
+            console.warn("Sources bundle failed", e?.message || e);
+        }
+    }
 
     // Save memory only on success
     if (grokFinal && userId && supabase) {
@@ -1043,32 +1064,32 @@ Return valid JSON only:
             console.warn("ANSWERS: save failed", err?.message || err);
         }
     }
-    // --- SOURCE GENERATION (post-Grok, pre-response) ---
-
+    // --- SOURCE GENERATION (core overrides; US-only; no duplicates) ---
     if (grokFinal) {
-        const bundle = await generateSourcesBundle({
-            topic: `${question} ${module}`,
-            tavily: { mode: "proxy", baseUrl: req.url },
-            includeCore: true,
-            includeTavily: true,
-            tavilyDepth: module === "underwriting" ? "advanced" : "basic",
-            maxTotal: 6,
-        });
+        try {
+            const bundle = await generateSourcesBundle({
+                topic: `${question} ${module}`,
+                reqUrl: req.url,
+            });
 
-        if (bundle.markdown) {
-            grokFinal.answer += `\n\n${bundle.markdown}`;
+            // If our core map matched, set exactly ONE source and do NOT add extra markdown.
+            if (bundle.mode === "core") {
+                topSources = bundle.sources.map((s: { title: string; url: string }) => ({
+
+                    title: s.title,
+                    url: s.url,
+                }));
+            }
+
+            // If not core, do nothing here:
+            // - keep existing Tavily-derived topSources (already built earlier)
+            // - keep usedTavily as-is
+            // - avoid duplicates and avoid drifting sources behavior
+        } catch (e: any) {
+            console.warn("Sources bundle failed", e?.message || e);
         }
-
-        // Keep UI contract aligned
-        if (bundle.sources?.length) {
-            topSources = bundle.sources.map((s: { title: string; url: string }) => ({
-                title: s.title,
-                url: s.url,
-            }));
-        }
-
-        usedTavily = bundle.usedTavily;
     }
+
 
     // Final markdown (always include sources/fred at bottom if present)
     const finalMarkdown = grokFinal
