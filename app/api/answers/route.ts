@@ -746,6 +746,63 @@ async function handle(req: NextRequest, intentParam?: string) {
     const bullets = bulletsFrom(base, 4);
 
     topSources = (tav.results || []).slice(0, 3).map((s) => ({ title: s.title, url: s.url }));
+    // --- Source hygiene: US + mortgage-only allowlist (prevents junk like sports rankings) ---
+    function isValidMortgageSource(s: { title: string; url: string }): boolean {
+        const u = (s.url || "").toLowerCase();
+        const t = (s.title || "").toLowerCase();
+
+        const allowedDomains = [
+            ".gov",
+            "fanniemae.com",
+            "freddiemac.com",
+            "hud.gov",
+            "va.gov",
+            "benefits.va.gov",
+            "fhfa.gov",
+            "bankrate.com",
+            "mortgagenewsdaily.com",
+            "nerdwallet.com",
+            "forbes.com",
+            "consumerfinance.gov",
+            "cfpb.gov",
+            "loandepot.com",
+        ];
+
+        const mortgageKeywords = [
+            "mortgage",
+            "refinance",
+            "refi",
+            "loan",
+            "home loan",
+            "interest rate",
+            "apr",
+            "underwriting",
+            "selling guide",
+            "seller/servicer",
+            "fannie",
+            "freddie",
+            "fha",
+            "hud",
+            "va",
+            "fhfa",
+            "dti",
+            "pmi",
+            "closing costs",
+            "arm",
+            "buydown",
+            "points",
+            "dscr",
+            "rental",
+            "pitia",
+        ];
+
+        const domainOk = allowedDomains.some((d) => u.includes(d));
+        const topicOk = mortgageKeywords.some((k) => t.includes(k) || u.includes(k));
+
+        return domainOk && topicOk;
+    }
+
+    topSources = topSources.filter(isValidMortgageSource).slice(0, 3);
 
     const sourcesMd = topSources.map((s) => `- [${s.title}](${s.url})`).join("\n");
 
