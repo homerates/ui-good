@@ -12,7 +12,13 @@ const MiniChart = ({ values }) => {
     const range = max - min || 1;
 
     return (
-        <span style={{ display: "inline-block", marginLeft: "8px", verticalAlign: "middle" }}>
+        <span
+            style={{
+                display: "inline-block",
+                marginLeft: "8px",
+                verticalAlign: "middle",
+            }}
+        >
             {values.map((v, i) => (
                 <span
                     key={i}
@@ -36,7 +42,7 @@ function injectMiniChartMarkers(text) {
     if (!text) return "";
     const chartRegex = /<MiniChart\s+values=\{\s*\[([^\]]+)\]\s*\}\s*\/>/g;
 
-    return text.replace(chartRegex, (match, inner) => {
+    return text.replace(chartRegex, (_match, inner) => {
         try {
             const values = inner
                 .split(",")
@@ -49,6 +55,221 @@ function injectMiniChartMarkers(text) {
             return "";
         }
     });
+}
+
+// ===== Modern Table Renderer ==============================================
+// Goal: render markdown tables as a modern “grid card table” with:
+// - consistent column sizing
+// - striped rows
+// - better wrapping
+// - horizontal scroll on small screens
+// - no ugly markdown spacing
+//
+// We parse react-markdown table children into a simple structure and render divs.
+function extractText(node) {
+    if (node == null) return "";
+    if (typeof node === "string" || typeof node === "number") return String(node);
+    if (Array.isArray(node)) return node.map(extractText).join("");
+    if (typeof node === "object" && node.props && node.props.children != null) {
+        return extractText(node.props.children);
+    }
+    return "";
+}
+
+function normalizeRowCells(cells) {
+    return cells.map((c) => {
+        const t = extractText(c).replace(/\s+/g, " ").trim();
+        return t;
+    });
+}
+
+function parseMarkdownTable(children) {
+    // children in table() is usually [thead, tbody] or just [tbody] depending on markdown.
+    const all = React.Children.toArray(children);
+
+    let thead = null;
+    let tbody = null;
+
+    for (const el of all) {
+        if (!React.isValidElement(el)) continue;
+        const type = el.type;
+        if (type === "thead") thead = el;
+        if (type === "tbody") tbody = el;
+    }
+
+    // Some markdown tables might not emit thead; first row in tbody becomes header.
+    const bodyRows = [];
+    const headRowCells = [];
+
+    const tbodyChildren = tbody ? React.Children.toArray(tbody.props.children) : [];
+    const theadChildren = thead ? React.Children.toArray(thead.props.children) : [];
+
+    // Parse header row
+    if (theadChildren.length) {
+        const tr = theadChildren.find((x) => React.isValidElement(x) && x.type === "tr");
+        if (tr && React.isValidElement(tr)) {
+            const ths = React.Children.toArray(tr.props.children).filter(
+                (c) => React.isValidElement(c) && (c.type === "th" || c.type === "td")
+            );
+            headRowCells.push(...normalizeRowCells(ths));
+        }
+    }
+
+    // Parse body rows
+    for (const r of tbodyChildren) {
+        if (!React.isValidElement(r) || r.type !== "tr") continue;
+        const tds = React.Children.toArray(r.props.children).filter(
+            (c) => React.isValidElement(c) && (c.type === "td" || c.type === "th")
+        );
+        bodyRows.push(normalizeRowCells(tds));
+    }
+
+    // If no explicit thead, promote first body row to header (common markdown behavior)
+    let headers = headRowCells;
+    let rows = bodyRows;
+
+    if (!headers.length && bodyRows.length) {
+        headers = bodyRows[0];
+        rows = bodyRows.slice(1);
+    }
+
+    // Validate
+    const colCount = headers.length || (rows[0] ? rows[0].length : 0);
+    if (!colCount) return null;
+
+    // Normalize all rows to same column count
+    const fixedHeaders = headers.length ? headers : Array.from({ length: colCount }).map((_, i) => `Col ${i + 1}`);
+    const fixedRows = rows.map((r) => {
+        const rr = r.slice(0, colCount);
+        while (rr.length < colCount) rr.push("");
+        return rr;
+    });
+
+    return {
+        headers: fixedHeaders.slice(0, colCount),
+        rows: fixedRows,
+        colCount,
+    };
+}
+
+function isMostlyNumericColumn(table, colIndex) {
+    let scored = 0;
+    let checked = 0;
+    for (const row of table.rows) {
+        const v = (row[colIndex] || "").trim();
+        if (!v) continue;
+        checked += 1;
+        // numeric-ish: contains digits and not too many letters
+        const hasDigits = /\d/.test(v);
+        const letters = (v.match(/[a-z]/gi) || []).length;
+        if (hasDigits && letters <= 3) scored += 1;
+        if (checked >= 8) break; // cap work
+    }
+    if (checked === 0) return false;
+    return scored / checked >= 0.6;
+}
+
+function ModernTable({ table }) {
+    const { headers, rows, colCount } = table;
+
+    // Column sizing: first column wider; others even. Works well for “Agency/Lender + numbers”.
+    const gridTemplateColumns =
+        colCount === 1
+            ? "1fr"
+            : `minmax(180px, 1.4fr) ${Array.from({ length: colCount - 1 })
+                .map(() => "minmax(120px, 1fr)")
+                .join(" ")}`;
+
+    // Decide numeric alignment per column
+    const numericCols = new Set();
+    for (let i = 1; i < colCount; i++) {
+        if (isMostlyNumericColumn(table, i)) numericCols.add(i);
+    }
+
+    return (
+        <div
+            style={{
+                margin: "12px 0",
+                border: "1px solid rgba(0,0,0,0.10)",
+                borderRadius: "14px",
+                overflow: "hidden",
+                background: "#fff",
+            }}
+        >
+            <div style={{ overflowX: "auto" }}>
+                <div style={{ minWidth: Math.max(520, colCount * 140) }}>
+                    {/* Header */}
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns,
+                            gap: 0,
+                            background: "rgba(0,0,0,0.035)",
+                            borderBottom: "1px solid rgba(0,0,0,0.10)",
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 1,
+                        }}
+                    >
+                        {headers.map((h, i) => (
+                            <div
+                                key={`h-${i}`}
+                                style={{
+                                    padding: "10px 12px",
+                                    fontSize: "12px",
+                                    fontWeight: 700,
+                                    color: "rgba(0,0,0,0.72)",
+                                    whiteSpace: "nowrap",
+                                    textAlign: i === 0 ? "left" : numericCols.has(i) ? "right" : "left",
+                                    borderRight: i === colCount - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
+                                }}
+                            >
+                                {h}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Rows */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
+                        {rows.map((r, rowIdx) => {
+                            const bg = rowIdx % 2 === 0 ? "#fff" : "rgba(0,0,0,0.015)";
+                            return (
+                                <div
+                                    key={`r-${rowIdx}`}
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns,
+                                        background: bg,
+                                        borderBottom: rowIdx === rows.length - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
+                                    }}
+                                >
+                                    {r.map((cell, colIdx) => (
+                                        <div
+                                            key={`c-${rowIdx}-${colIdx}`}
+                                            style={{
+                                                padding: "10px 12px",
+                                                fontSize: "13px",
+                                                lineHeight: 1.35,
+                                                color: "rgba(0,0,0,0.88)",
+                                                whiteSpace: "normal",
+                                                wordBreak: "break-word",
+                                                overflowWrap: "anywhere",
+                                                textAlign: colIdx === 0 ? "left" : numericCols.has(colIdx) ? "right" : "left",
+                                                borderRight:
+                                                    colIdx === colCount - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
+                                            }}
+                                        >
+                                            {cell || "\u00A0"}
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 // ===== GrokCard ============================================================
@@ -145,7 +366,9 @@ export default function GrokCard({ data, onFollowUp }) {
 
                         if (raw.includes("[[MINICHART:")) {
                             const match = raw.match(/\[\[MINICHART:(.*?)\]\]/);
-                            if (!match) return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
+                            if (!match) {
+                                return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
+                            }
 
                             const nums = match[1]
                                 .split(",")
@@ -187,75 +410,37 @@ export default function GrokCard({ data, onFollowUp }) {
                         return <li style={{ margin: "4px 0" }}>{children}</li>;
                     },
 
-                    // Tables: better container + borders + mobile scroll
+                    // ✅ Tables: render as modern grid cards (fallback to basic table if parsing fails)
                     table({ children }) {
-                        return (
-                            <div
-                                style={{
-                                    overflowX: "auto",
-                                    margin: "10px 0",
-                                    border: "1px solid rgba(0,0,0,0.08)",
-                                    borderRadius: "10px",
-                                    background: "#fff",
-                                }}
-                            >
-                                <table
+                        const parsed = parseMarkdownTable(children);
+                        if (!parsed) {
+                            // Fallback – still safe
+                            return (
+                                <div
                                     style={{
-                                        width: "100%",
-                                        borderCollapse: "separate",
-                                        borderSpacing: 0,
-                                        fontSize: "13px",
-                                        lineHeight: 1.35,
-                                        // Smaller minWidth so it looks better on typical questions
-                                        minWidth: "460px",
+                                        overflowX: "auto",
+                                        margin: "10px 0",
+                                        border: "1px solid rgba(0,0,0,0.08)",
+                                        borderRadius: "10px",
+                                        background: "#fff",
                                     }}
                                 >
-                                    {children}
-                                </table>
-                            </div>
-                        );
-                    },
-                    thead({ children }) {
-                        return <thead>{children}</thead>;
-                    },
-                    tbody({ children }) {
-                        return <tbody>{children}</tbody>;
-                    },
-                    tr({ children }) {
-                        return <tr>{children}</tr>;
-                    },
-                    th({ children }) {
-                        return (
-                            <th
-                                style={{
-                                    textAlign: "left",
-                                    padding: "10px 12px",
-                                    borderBottom: "1px solid rgba(0,0,0,0.12)",
-                                    whiteSpace: "nowrap",
-                                    background: "rgba(0,0,0,0.03)",
-                                    fontWeight: 600,
-                                }}
-                            >
-                                {children}
-                            </th>
-                        );
-                    },
-                    td({ children }) {
-                        return (
-                            <td
-                                style={{
-                                    padding: "10px 12px",
-                                    borderBottom: "1px solid rgba(0,0,0,0.08)",
-                                    verticalAlign: "top",
-                                    // Helps long “Key Citation” text not destroy the table
-                                    wordBreak: "break-word",
-                                    overflowWrap: "anywhere",
-                                    whiteSpace: "normal",
-                                }}
-                            >
-                                {children}
-                            </td>
-                        );
+                                    <table
+                                        style={{
+                                            width: "100%",
+                                            borderCollapse: "separate",
+                                            borderSpacing: 0,
+                                            fontSize: "13px",
+                                            lineHeight: 1.35,
+                                            minWidth: "460px",
+                                        }}
+                                    >
+                                        {children}
+                                    </table>
+                                </div>
+                            );
+                        }
+                        return <ModernTable table={parsed} />;
                     },
 
                     // Inline code and code blocks stay readable
