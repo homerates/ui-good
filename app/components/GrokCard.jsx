@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 // ===== MiniChart ===========================================================
@@ -32,11 +32,6 @@ const MiniChart = ({ values }) => {
 };
 
 // ===== Helper: encode inline MiniChart tags safely =========================
-// We let Grok output something like:
-//   Payment change: +$202 → +$72 → -$108
-//   <MiniChart values={[202, 72, -108]} />
-//
-// This helper converts that into a marker token we can interpret in ReactMarkdown.
 function injectMiniChartMarkers(text) {
     if (!text) return "";
     const chartRegex = /<MiniChart\s+values=\{\s*\[([^\]]+)\]\s*\}\s*\/>/g;
@@ -57,19 +52,14 @@ function injectMiniChartMarkers(text) {
 }
 
 // ===== GrokCard ============================================================
-// <GrokCard
-//   data={{ grok, answerMarkdown, followUp, data_freshness }}
-//   onFollowUp={(q) => ...}
-// />
 export default function GrokCard({ data, onFollowUp }) {
     if (!data) return null;
 
     const { grok, answerMarkdown, followUp, data_freshness } = data;
 
-    // Full markdown text with MiniChart markers injected
-    const preparedFull = injectMiniChartMarkers(answerMarkdown || "");
+    // Inject MiniChart markers once per answerMarkdown change
+    const preparedFull = useMemo(() => injectMiniChartMarkers(answerMarkdown || ""), [answerMarkdown]);
 
-    // Streaming-ish state: we "type out" preparedFull when there's a Grok answer
     const [displayedText, setDisplayedText] = useState(preparedFull);
     const [isStreaming, setIsStreaming] = useState(false);
 
@@ -104,7 +94,7 @@ export default function GrokCard({ data, onFollowUp }) {
             const slice = chars.slice(0, index).join("");
             setDisplayedText(slice);
 
-            window.setTimeout(tick, 20); // ms between steps
+            window.setTimeout(tick, 20);
         };
 
         window.setTimeout(tick, 20);
@@ -116,13 +106,15 @@ export default function GrokCard({ data, onFollowUp }) {
 
     return (
         <div
+            className="grok-card"
             style={{
                 padding: "16px",
                 background: "var(--card-bg, #ffffff)",
                 borderRadius: "12px",
                 border: "1px solid rgba(0,0,0,0.08)",
                 marginTop: "12px",
-                whiteSpace: "pre-wrap",
+                // IMPORTANT: do NOT force pre-wrap on the whole card (breaks tables/lists).
+                whiteSpace: "normal",
             }}
         >
             {/* Header row stays the same */}
@@ -142,13 +134,15 @@ export default function GrokCard({ data, onFollowUp }) {
 
             {/* Main answer body with MiniChart support + typewriter text */}
             <ReactMarkdown
+                className="grok-markdown"
                 components={{
+                    // Tighten paragraph spacing + preserve line breaks without breaking tables
                     p({ children }) {
                         const raw = String(children ?? "");
 
                         if (raw.includes("[[MINICHART:")) {
                             const match = raw.match(/\[\[MINICHART:(.*?)\]\]/);
-                            if (!match) return <p>{children}</p>;
+                            if (!match) return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
 
                             const nums = match[1]
                                 .split(",")
@@ -158,14 +152,113 @@ export default function GrokCard({ data, onFollowUp }) {
                             const cleaned = raw.replace(match[0], "").trim();
 
                             return (
-                                <p>
+                                <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>
                                     {cleaned}
                                     <MiniChart values={nums} />
                                 </p>
                             );
                         }
 
-                        return <p>{children}</p>;
+                        return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
+                    },
+
+                    // Headings: tighter
+                    h1({ children }) {
+                        return <h1 style={{ margin: "10px 0 6px", fontSize: "18px" }}>{children}</h1>;
+                    },
+                    h2({ children }) {
+                        return <h2 style={{ margin: "10px 0 6px", fontSize: "16px" }}>{children}</h2>;
+                    },
+                    h3({ children }) {
+                        return <h3 style={{ margin: "10px 0 6px", fontSize: "14px" }}>{children}</h3>;
+                    },
+
+                    // Lists: tighter and readable
+                    ul({ children }) {
+                        return <ul style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ul>;
+                    },
+                    ol({ children }) {
+                        return <ol style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ol>;
+                    },
+                    li({ children }) {
+                        return <li style={{ margin: "4px 0" }}>{children}</li>;
+                    },
+
+                    // Tables: wrap for mobile + consistent borders
+                    table({ children }) {
+                        return (
+                            <div style={{ overflowX: "auto", margin: "10px 0" }}>
+                                <table
+                                    style={{
+                                        width: "100%",
+                                        borderCollapse: "collapse",
+                                        fontSize: "13px",
+                                        minWidth: "520px",
+                                    }}
+                                >
+                                    {children}
+                                </table>
+                            </div>
+                        );
+                    },
+                    th({ children }) {
+                        return (
+                            <th
+                                style={{
+                                    textAlign: "left",
+                                    padding: "8px 10px",
+                                    borderBottom: "1px solid rgba(0,0,0,0.12)",
+                                    whiteSpace: "nowrap",
+                                    background: "rgba(0,0,0,0.02)",
+                                }}
+                            >
+                                {children}
+                            </th>
+                        );
+                    },
+                    td({ children }) {
+                        return (
+                            <td
+                                style={{
+                                    padding: "8px 10px",
+                                    borderBottom: "1px solid rgba(0,0,0,0.08)",
+                                    verticalAlign: "top",
+                                }}
+                            >
+                                {children}
+                            </td>
+                        );
+                    },
+
+                    // Inline code and code blocks stay readable
+                    code({ inline, children }) {
+                        if (inline) {
+                            return (
+                                <code
+                                    style={{
+                                        fontSize: "0.95em",
+                                        background: "rgba(0,0,0,0.04)",
+                                        padding: "1px 6px",
+                                        borderRadius: "6px",
+                                    }}
+                                >
+                                    {children}
+                                </code>
+                            );
+                        }
+                        return (
+                            <pre
+                                style={{
+                                    margin: "10px 0",
+                                    padding: "10px 12px",
+                                    background: "rgba(0,0,0,0.04)",
+                                    borderRadius: "10px",
+                                    overflowX: "auto",
+                                }}
+                            >
+                                <code>{children}</code>
+                            </pre>
+                        );
                     },
                 }}
             >
@@ -174,7 +267,7 @@ export default function GrokCard({ data, onFollowUp }) {
 
             {/* Follow-up CTA */}
             {followUp && onFollowUp && (
-                <div style={{ marginTop: "12px" }}>
+                <div style={{ marginTop: "6px" }}>
                     <button
                         type="button"
                         onClick={() => onFollowUp(followUp)}
