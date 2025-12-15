@@ -58,7 +58,10 @@ export default function GrokCard({ data, onFollowUp }) {
     const { grok, answerMarkdown, followUp, data_freshness } = data;
 
     // Inject MiniChart markers once per answerMarkdown change
-    const preparedFull = useMemo(() => injectMiniChartMarkers(answerMarkdown || ""), [answerMarkdown]);
+    const preparedFull = useMemo(
+        () => injectMiniChartMarkers(answerMarkdown || ""),
+        [answerMarkdown]
+    );
 
     const [displayedText, setDisplayedText] = useState(preparedFull);
     const [isStreaming, setIsStreaming] = useState(false);
@@ -138,7 +141,7 @@ export default function GrokCard({ data, onFollowUp }) {
                 components={{
                     // Tighten paragraph spacing + preserve line breaks without breaking tables
                     p({ children }) {
-                        const raw = String(children ?? "");
+                        const raw = Array.isArray(children) ? children.join("") : String(children ?? "");
 
                         if (raw.includes("[[MINICHART:")) {
                             const match = raw.match(/\[\[MINICHART:(.*?)\]\]/);
@@ -184,16 +187,27 @@ export default function GrokCard({ data, onFollowUp }) {
                         return <li style={{ margin: "4px 0" }}>{children}</li>;
                     },
 
-                    // Tables: wrap for mobile + consistent borders
+                    // Tables: better container + borders + mobile scroll
                     table({ children }) {
                         return (
-                            <div style={{ overflowX: "auto", margin: "10px 0" }}>
+                            <div
+                                style={{
+                                    overflowX: "auto",
+                                    margin: "10px 0",
+                                    border: "1px solid rgba(0,0,0,0.08)",
+                                    borderRadius: "10px",
+                                    background: "#fff",
+                                }}
+                            >
                                 <table
                                     style={{
                                         width: "100%",
-                                        borderCollapse: "collapse",
+                                        borderCollapse: "separate",
+                                        borderSpacing: 0,
                                         fontSize: "13px",
-                                        minWidth: "520px",
+                                        lineHeight: 1.35,
+                                        // Smaller minWidth so it looks better on typical questions
+                                        minWidth: "460px",
                                     }}
                                 >
                                     {children}
@@ -201,15 +215,25 @@ export default function GrokCard({ data, onFollowUp }) {
                             </div>
                         );
                     },
+                    thead({ children }) {
+                        return <thead>{children}</thead>;
+                    },
+                    tbody({ children }) {
+                        return <tbody>{children}</tbody>;
+                    },
+                    tr({ children }) {
+                        return <tr>{children}</tr>;
+                    },
                     th({ children }) {
                         return (
                             <th
                                 style={{
                                     textAlign: "left",
-                                    padding: "8px 10px",
+                                    padding: "10px 12px",
                                     borderBottom: "1px solid rgba(0,0,0,0.12)",
                                     whiteSpace: "nowrap",
-                                    background: "rgba(0,0,0,0.02)",
+                                    background: "rgba(0,0,0,0.03)",
+                                    fontWeight: 600,
                                 }}
                             >
                                 {children}
@@ -220,9 +244,13 @@ export default function GrokCard({ data, onFollowUp }) {
                         return (
                             <td
                                 style={{
-                                    padding: "8px 10px",
+                                    padding: "10px 12px",
                                     borderBottom: "1px solid rgba(0,0,0,0.08)",
                                     verticalAlign: "top",
+                                    // Helps long “Key Citation” text not destroy the table
+                                    wordBreak: "break-word",
+                                    overflowWrap: "anywhere",
+                                    whiteSpace: "normal",
                                 }}
                             >
                                 {children}
