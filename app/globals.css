@@ -162,7 +162,8 @@ body {
 .bubble {
   display: flex;
   gap: 10px;
-  margin: 8px 0;
+  margin: 4px 0;
+  /* was 8px 0: tighter chat rhythm */
 }
 
 /* User questions: right-aligned, darker grey pill */
@@ -195,7 +196,7 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.05) !important;
   box-sizing: border-box !important;
   font-size: 0.85rem !important;
-  line-height: 1.55 !important;
+  line-height: 1.45 !important;
   max-width: 100%;
 }
 
@@ -784,7 +785,7 @@ ul {
   /* add breathing room */
 
   font-size: 0.95rem !important;
-  line-height: 1.55 !important;
+  line-height: 1.45 !important;
 
   border-radius: 16px !important;
   background: #ffffff !important;
