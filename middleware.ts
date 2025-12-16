@@ -1,7 +1,7 @@
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// These routes must work for signed-out users (public share links)
+// Public routes (must work signed-out)
 const isPublicRoute = createRouteMatcher([
   "/",
   "/s(.*)",
@@ -10,11 +10,10 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware((auth, req) => {
-  // Allow public routes without auth
   if (isPublicRoute(req)) return;
 
-  // Everything else requires auth
-  auth().protect();
+  // Protect everything else
+  auth.protect();
 });
 
 export const config = {
