@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // ===== MiniChart ===========================================================
 const MiniChart = ({ values }) => {
@@ -58,8 +59,6 @@ function injectMiniChartMarkers(text) {
 }
 
 // ===== Modern Table Renderer ==============================================
-// Key fix: this renderer is fine, but ReactMarkdown must only run on COMPLETE markdown,
-// not streamed partial slices (partial tables can crash the parser).
 function extractText(node) {
     if (node == null) return "";
     if (typeof node === "string" || typeof node === "number") return String(node);
@@ -92,6 +91,7 @@ function parseMarkdownTable(children) {
     const tbodyChildren = tbody ? React.Children.toArray(tbody.props.children) : [];
     const theadChildren = thead ? React.Children.toArray(thead.props.children) : [];
 
+    // header row from thead if present
     if (theadChildren.length) {
         const tr = theadChildren.find((x) => React.isValidElement(x) && x.type === "tr");
         if (tr && React.isValidElement(tr)) {
@@ -102,6 +102,7 @@ function parseMarkdownTable(children) {
         }
     }
 
+    // body rows
     for (const r of tbodyChildren) {
         if (!React.isValidElement(r) || r.type !== "tr") continue;
         const tds = React.Children.toArray(r.props.children).filter(
@@ -110,9 +111,9 @@ function parseMarkdownTable(children) {
         bodyRows.push(normalizeRowCells(tds));
     }
 
+    // if no thead, promote first body row to header
     let headers = headRowCells;
     let rows = bodyRows;
-
     if (!headers.length && bodyRows.length) {
         headers = bodyRows[0];
         rows = bodyRows.slice(1);
@@ -164,7 +165,7 @@ function ModernTable({ table }) {
     const gridTemplateColumns =
         colCount === 1
             ? "1fr"
-            : `minmax(220px, 1.6fr) ${Array.from({ length: colCount - 1 })
+            : `minmax(240px, 1.8fr) ${Array.from({ length: colCount - 1 })
                 .map(() => "minmax(140px, 1fr)")
                 .join(" ")}`;
 
@@ -185,7 +186,8 @@ function ModernTable({ table }) {
             }}
         >
             <div style={{ overflowX: "auto" }}>
-                <div style={{ minWidth: Math.max(640, colCount * 170) }}>
+                <div style={{ minWidth: Math.max(720, colCount * 180) }}>
+                    {/* Header */}
                     <div
                         style={{
                             display: "grid",
@@ -216,6 +218,7 @@ function ModernTable({ table }) {
                         ))}
                     </div>
 
+                    {/* Rows */}
                     {rows.map((r, rowIdx) => {
                         const bg = rowIdx % 2 === 0 ? "#fff" : "rgba(0,0,0,0.015)";
                         return (
@@ -277,30 +280,19 @@ export default function GrokCard({ data, onFollowUp }) {
         [answerMarkdown]
     );
 
-    // If the answer contains a markdown table, DO NOT typewriter-stream it.
-    // Streaming partial tables is what can crash the markdown parser.
-    const containsTable = useMemo(() => {
-        // common markdown table signatures
-        return /\n\|(.+)\|\n\|[-:\s|]+\|/m.test(preparedFull) || preparedFull.includes("\n|---");
-    }, [preparedFull]);
-
+    // STREAMING STATE (always available)
     const [displayedText, setDisplayedText] = useState(preparedFull);
     const [isStreaming, setIsStreaming] = useState(false);
 
     useEffect(() => {
-        // Never stream tables; show immediately
-        if (containsTable) {
-            setDisplayedText(preparedFull);
-            setIsStreaming(false);
-            return;
-        }
-
+        // If there is no Grok object or the text is short, just show immediately
         if (!grok || !preparedFull || preparedFull.length < 80) {
             setDisplayedText(preparedFull);
             setIsStreaming(false);
             return;
         }
 
+        // Typewriter effect over raw text (SAFE)
         let cancelled = false;
         const chars = Array.from(preparedFull);
         const total = chars.length;
@@ -329,7 +321,7 @@ export default function GrokCard({ data, onFollowUp }) {
         return () => {
             cancelled = true;
         };
-    }, [preparedFull, grok, containsTable]);
+    }, [preparedFull, grok]);
 
     return (
         <div
@@ -343,6 +335,7 @@ export default function GrokCard({ data, onFollowUp }) {
                 whiteSpace: "normal",
             }}
         >
+            {/* Header row */}
             <div
                 style={{
                     display: "flex",
@@ -357,10 +350,8 @@ export default function GrokCard({ data, onFollowUp }) {
                 {data_freshness && <span>{data_freshness}</span>}
             </div>
 
-            {/* CRITICAL SAFETY:
-                - While streaming: render plain text (no markdown parsing).
-                - When done: render ReactMarkdown with modern table support.
-            */}
+            {/* While streaming: show plain text (so tables don't crash parser mid-stream).
+                Once done: render final markdown with modern tables. */}
             {isStreaming ? (
                 <div style={{ whiteSpace: "pre-wrap", fontSize: "13px", lineHeight: 1.55 }}>
                     {displayedText}
@@ -368,6 +359,7 @@ export default function GrokCard({ data, onFollowUp }) {
             ) : (
                 <ReactMarkdown
                     className="grok-markdown"
+                    remarkPlugins={[remarkGfm]}
                     components={{
                         p({ children }) {
                             const raw = Array.isArray(children)
@@ -438,11 +430,12 @@ export default function GrokCard({ data, onFollowUp }) {
                             return <li style={{ margin: "4px 0" }}>{children}</li>;
                         },
 
-                        // ✅ Modern tables
+                        // ✅ Tables: modern grid renderer
                         table({ children }) {
                             const parsed = parseMarkdownTable(children);
                             if (parsed) return <ModernTable table={parsed} />;
 
+                            // Fallback (rare)
                             return (
                                 <div style={{ overflowX: "auto", margin: "10px 0" }}>
                                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -487,6 +480,7 @@ export default function GrokCard({ data, onFollowUp }) {
                 </ReactMarkdown>
             )}
 
+            {/* Follow-up CTA */}
             {followUp && onFollowUp && (
                 <div style={{ marginTop: "6px" }}>
                     <button
