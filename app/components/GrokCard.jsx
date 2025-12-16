@@ -57,28 +57,18 @@ function injectMiniChartMarkers(text) {
 // Instead we detect markdown table blocks from raw text and render them ourselves.
 
 function isTableSeparatorLine(line) {
-    // Examples:
-    // |---|---|
-    // |:--|--:|
-    // ---|---|---
     const s = line.trim();
     if (!s.includes("-") || !s.includes("|")) return false;
-
-    // Must be made of pipes, dashes, colons, and spaces
     if (!/^[\s\|\-:]+$/.test(s)) return false;
-
-    // Must contain at least one dash group
     return /\-+/.test(s);
 }
 
 function splitRow(line) {
-    // Trim outer pipes, then split
     const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
     return trimmed.split("|").map((c) => c.trim());
 }
 
 function parseTableAt(lines, startIdx) {
-    // Needs: header line + separator line
     const headerLine = lines[startIdx];
     const sepLine = lines[startIdx + 1];
 
@@ -94,14 +84,11 @@ function parseTableAt(lines, startIdx) {
 
     while (i < lines.length) {
         const line = lines[i];
-
-        // Stop table on blank line or on a non-pipe line
         if (!line || line.trim() === "") break;
         if (!line.includes("|")) break;
 
         const row = splitRow(line);
 
-        // Normalize row length to header length
         const fixed = row.slice(0, headers.length);
         while (fixed.length < headers.length) fixed.push("");
         rows.push(fixed);
@@ -142,7 +129,6 @@ function splitMarkdownIntoBlocks(markdown) {
 }
 
 function isMostlyNumericColumn(headers, rows, colIndex) {
-    // Skip col 0 usually label column
     let scored = 0;
     let checked = 0;
 
@@ -162,21 +148,63 @@ function isMostlyNumericColumn(headers, rows, colIndex) {
     return scored / checked >= 0.6;
 }
 
-function ModernTable({ headers, rows }) {
+function clamp(n, a, b) {
+    return Math.max(a, Math.min(b, n));
+}
+
+function computeColumnMeta(headers, rows) {
     const colCount = headers.length;
+    const maxLens = Array.from({ length: colCount }).map(() => 0);
 
-    // Wider first col; others even
-    const gridTemplateColumns =
-        colCount === 1
-            ? "1fr"
-            : `minmax(220px, 1.8fr) ${Array.from({ length: colCount - 1 })
-                .map(() => "minmax(140px, 1fr)")
-                .join(" ")}`;
+    const consider = (s, colIdx) => {
+        const t = String(s || "");
+        // Count “display-ish” length, cap to prevent one long cell from dominating
+        const len = clamp(t.length, 0, 40);
+        maxLens[colIdx] = Math.max(maxLens[colIdx], len);
+    };
 
-    const numericCols = new Set();
-    for (let i = 1; i < colCount; i++) {
-        if (isMostlyNumericColumn(headers, rows, i)) numericCols.add(i);
-    }
+    headers.forEach((h, i) => consider(h, i));
+    rows.forEach((r) => r.forEach((cell, i) => consider(cell, i)));
+
+    // Convert length to a weight (fr). Small text -> smaller fr.
+    // First column usually label column: give it a baseline bump.
+    const weights = maxLens.map((len, i) => {
+        const base = i === 0 ? 10 : 6;
+        return clamp(base + Math.floor(len / 4), 6, i === 0 ? 18 : 14);
+    });
+
+    // Minimum pixel widths per column (to avoid crushing on mobile)
+    const minPx = maxLens.map((_len, i) => (i === 0 ? 160 : 110));
+
+    // Total min width for the scroller; keep it reasonable (not a giant 720+ always)
+    const totalMin = minPx.reduce((a, b) => a + b, 0);
+
+    return { colCount, weights, minPx, totalMin };
+}
+
+function ModernTable({ headers, rows }) {
+    const { colCount, weights, minPx, totalMin } = useMemo(
+        () => computeColumnMeta(headers, rows),
+        [headers, rows]
+    );
+
+    const numericCols = useMemo(() => {
+        const set = new Set();
+        for (let i = 1; i < colCount; i++) {
+            if (isMostlyNumericColumn(headers, rows, i)) set.add(i);
+        }
+        return set;
+    }, [headers, rows, colCount]);
+
+    // Build dynamic grid columns:
+    // minmax(0, …fr) allows shrinking; minPx prevents total collapse.
+    const gridTemplateColumns = useMemo(() => {
+        const parts = [];
+        for (let i = 0; i < colCount; i++) {
+            parts.push(`minmax(${minPx[i]}px, ${weights[i]}fr)`);
+        }
+        return parts.join(" ");
+    }, [colCount, minPx, weights]);
 
     return (
         <div
@@ -190,7 +218,8 @@ function ModernTable({ headers, rows }) {
             }}
         >
             <div style={{ overflowX: "auto" }}>
-                <div style={{ minWidth: Math.max(720, colCount * 180) }}>
+                {/* key change: don’t force 720px+ always. Use computed minimum instead. */}
+                <div style={{ minWidth: totalMin }}>
                     {/* Header */}
                     <div
                         style={{
@@ -204,7 +233,7 @@ function ModernTable({ headers, rows }) {
                             <div
                                 key={`h-${i}`}
                                 style={{
-                                    padding: "12px 14px",
+                                    padding: "10px 12px",
                                     fontSize: "12px",
                                     fontWeight: 700,
                                     color: "rgba(0,0,0,0.72)",
@@ -235,7 +264,7 @@ function ModernTable({ headers, rows }) {
                                     <div
                                         key={`c-${rowIdx}-${colIdx}`}
                                         style={{
-                                            padding: "12px 14px",
+                                            padding: "10px 12px",
                                             fontSize: "13px",
                                             lineHeight: 1.35,
                                             color: "rgba(0,0,0,0.88)",
@@ -356,7 +385,6 @@ export default function GrokCard({ data, onFollowUp }) {
                             return <ModernTable key={`t-${idx}`} headers={headers} rows={rows || []} />;
                         }
 
-                        // markdown block
                         return (
                             <ReactMarkdown
                                 key={`m-${idx}`}
