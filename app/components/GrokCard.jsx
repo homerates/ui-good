@@ -2,8 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-
 
 // ===== MiniChart ===========================================================
 const MiniChart = ({ values }) => {
@@ -60,14 +58,8 @@ function injectMiniChartMarkers(text) {
 }
 
 // ===== Modern Table Renderer ==============================================
-// Goal: render markdown tables as a modern “grid card table” with:
-// - consistent column sizing
-// - striped rows
-// - better wrapping
-// - horizontal scroll on small screens
-// - no ugly markdown spacing
-//
-// We parse react-markdown table children into a simple structure and render divs.
+// Key fix: this renderer is fine, but ReactMarkdown must only run on COMPLETE markdown,
+// not streamed partial slices (partial tables can crash the parser).
 function extractText(node) {
     if (node == null) return "";
     if (typeof node === "string" || typeof node === "number") return String(node);
@@ -79,14 +71,10 @@ function extractText(node) {
 }
 
 function normalizeRowCells(cells) {
-    return cells.map((c) => {
-        const t = extractText(c).replace(/\s+/g, " ").trim();
-        return t;
-    });
+    return cells.map((c) => extractText(c).replace(/\s+/g, " ").trim());
 }
 
 function parseMarkdownTable(children) {
-    // children in table() is usually [thead, tbody] or just [tbody] depending on markdown.
     const all = React.Children.toArray(children);
 
     let thead = null;
@@ -94,19 +82,16 @@ function parseMarkdownTable(children) {
 
     for (const el of all) {
         if (!React.isValidElement(el)) continue;
-        const type = el.type;
-        if (type === "thead") thead = el;
-        if (type === "tbody") tbody = el;
+        if (el.type === "thead") thead = el;
+        if (el.type === "tbody") tbody = el;
     }
 
-    // Some markdown tables might not emit thead; first row in tbody becomes header.
     const bodyRows = [];
     const headRowCells = [];
 
     const tbodyChildren = tbody ? React.Children.toArray(tbody.props.children) : [];
     const theadChildren = thead ? React.Children.toArray(thead.props.children) : [];
 
-    // Parse header row
     if (theadChildren.length) {
         const tr = theadChildren.find((x) => React.isValidElement(x) && x.type === "tr");
         if (tr && React.isValidElement(tr)) {
@@ -117,7 +102,6 @@ function parseMarkdownTable(children) {
         }
     }
 
-    // Parse body rows
     for (const r of tbodyChildren) {
         if (!React.isValidElement(r) || r.type !== "tr") continue;
         const tds = React.Children.toArray(r.props.children).filter(
@@ -126,7 +110,6 @@ function parseMarkdownTable(children) {
         bodyRows.push(normalizeRowCells(tds));
     }
 
-    // If no explicit thead, promote first body row to header (common markdown behavior)
     let headers = headRowCells;
     let rows = bodyRows;
 
@@ -135,12 +118,13 @@ function parseMarkdownTable(children) {
         rows = bodyRows.slice(1);
     }
 
-    // Validate
     const colCount = headers.length || (rows[0] ? rows[0].length : 0);
     if (!colCount) return null;
 
-    // Normalize all rows to same column count
-    const fixedHeaders = headers.length ? headers : Array.from({ length: colCount }).map((_, i) => `Col ${i + 1}`);
+    const fixedHeaders = headers.length
+        ? headers
+        : Array.from({ length: colCount }).map((_, i) => `Col ${i + 1}`);
+
     const fixedRows = rows.map((r) => {
         const rr = r.slice(0, colCount);
         while (rr.length < colCount) rr.push("");
@@ -157,16 +141,19 @@ function parseMarkdownTable(children) {
 function isMostlyNumericColumn(table, colIndex) {
     let scored = 0;
     let checked = 0;
+
     for (const row of table.rows) {
         const v = (row[colIndex] || "").trim();
         if (!v) continue;
+
         checked += 1;
-        // numeric-ish: contains digits and not too many letters
         const hasDigits = /\d/.test(v);
         const letters = (v.match(/[a-z]/gi) || []).length;
+
         if (hasDigits && letters <= 3) scored += 1;
-        if (checked >= 8) break; // cap work
+        if (checked >= 8) break;
     }
+
     if (checked === 0) return false;
     return scored / checked >= 0.6;
 }
@@ -174,15 +161,13 @@ function isMostlyNumericColumn(table, colIndex) {
 function ModernTable({ table }) {
     const { headers, rows, colCount } = table;
 
-    // Column sizing: first column wider; others even. Works well for “Agency/Lender + numbers”.
     const gridTemplateColumns =
         colCount === 1
             ? "1fr"
-            : `minmax(180px, 1.4fr) ${Array.from({ length: colCount - 1 })
-                .map(() => "minmax(120px, 1fr)")
+            : `minmax(220px, 1.6fr) ${Array.from({ length: colCount - 1 })
+                .map(() => "minmax(140px, 1fr)")
                 .join(" ")}`;
 
-    // Decide numeric alignment per column
     const numericCols = new Set();
     for (let i = 1; i < colCount; i++) {
         if (isMostlyNumericColumn(table, i)) numericCols.add(i);
@@ -196,34 +181,34 @@ function ModernTable({ table }) {
                 borderRadius: "14px",
                 overflow: "hidden",
                 background: "#fff",
+                boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
             }}
         >
             <div style={{ overflowX: "auto" }}>
-                <div style={{ minWidth: Math.max(520, colCount * 140) }}>
-                    {/* Header */}
+                <div style={{ minWidth: Math.max(640, colCount * 170) }}>
                     <div
                         style={{
                             display: "grid",
                             gridTemplateColumns,
-                            gap: 0,
                             background: "rgba(0,0,0,0.035)",
                             borderBottom: "1px solid rgba(0,0,0,0.10)",
-                            position: "sticky",
-                            top: 0,
-                            zIndex: 1,
                         }}
                     >
                         {headers.map((h, i) => (
                             <div
                                 key={`h-${i}`}
                                 style={{
-                                    padding: "10px 12px",
+                                    padding: "12px 14px",
                                     fontSize: "12px",
                                     fontWeight: 700,
                                     color: "rgba(0,0,0,0.72)",
                                     whiteSpace: "nowrap",
-                                    textAlign: i === 0 ? "left" : numericCols.has(i) ? "right" : "left",
-                                    borderRight: i === colCount - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
+                                    textAlign:
+                                        i === 0 ? "left" : numericCols.has(i) ? "right" : "left",
+                                    borderRight:
+                                        i === colCount - 1
+                                            ? "none"
+                                            : "1px solid rgba(0,0,0,0.06)",
                                 }}
                             >
                                 {h}
@@ -231,43 +216,50 @@ function ModernTable({ table }) {
                         ))}
                     </div>
 
-                    {/* Rows */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr" }}>
-                        {rows.map((r, rowIdx) => {
-                            const bg = rowIdx % 2 === 0 ? "#fff" : "rgba(0,0,0,0.015)";
-                            return (
-                                <div
-                                    key={`r-${rowIdx}`}
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns,
-                                        background: bg,
-                                        borderBottom: rowIdx === rows.length - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
-                                    }}
-                                >
-                                    {r.map((cell, colIdx) => (
-                                        <div
-                                            key={`c-${rowIdx}-${colIdx}`}
-                                            style={{
-                                                padding: "10px 12px",
-                                                fontSize: "13px",
-                                                lineHeight: 1.35,
-                                                color: "rgba(0,0,0,0.88)",
-                                                whiteSpace: "normal",
-                                                wordBreak: "break-word",
-                                                overflowWrap: "anywhere",
-                                                textAlign: colIdx === 0 ? "left" : numericCols.has(colIdx) ? "right" : "left",
-                                                borderRight:
-                                                    colIdx === colCount - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
-                                            }}
-                                        >
-                                            {cell || "\u00A0"}
-                                        </div>
-                                    ))}
-                                </div>
-                            );
-                        })}
-                    </div>
+                    {rows.map((r, rowIdx) => {
+                        const bg = rowIdx % 2 === 0 ? "#fff" : "rgba(0,0,0,0.015)";
+                        return (
+                            <div
+                                key={`r-${rowIdx}`}
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns,
+                                    background: bg,
+                                    borderBottom:
+                                        rowIdx === rows.length - 1
+                                            ? "none"
+                                            : "1px solid rgba(0,0,0,0.06)",
+                                }}
+                            >
+                                {r.map((cell, colIdx) => (
+                                    <div
+                                        key={`c-${rowIdx}-${colIdx}`}
+                                        style={{
+                                            padding: "12px 14px",
+                                            fontSize: "13px",
+                                            lineHeight: 1.35,
+                                            color: "rgba(0,0,0,0.88)",
+                                            whiteSpace: "normal",
+                                            wordBreak: "break-word",
+                                            overflowWrap: "anywhere",
+                                            textAlign:
+                                                colIdx === 0
+                                                    ? "left"
+                                                    : numericCols.has(colIdx)
+                                                        ? "right"
+                                                        : "left",
+                                            borderRight:
+                                                colIdx === colCount - 1
+                                                    ? "none"
+                                                    : "1px solid rgba(0,0,0,0.06)",
+                                        }}
+                                    >
+                                        {cell || "\u00A0"}
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>
@@ -280,24 +272,35 @@ export default function GrokCard({ data, onFollowUp }) {
 
     const { grok, answerMarkdown, followUp, data_freshness } = data;
 
-    // Inject MiniChart markers once per answerMarkdown change
     const preparedFull = useMemo(
         () => injectMiniChartMarkers(answerMarkdown || ""),
         [answerMarkdown]
     );
 
+    // If the answer contains a markdown table, DO NOT typewriter-stream it.
+    // Streaming partial tables is what can crash the markdown parser.
+    const containsTable = useMemo(() => {
+        // common markdown table signatures
+        return /\n\|(.+)\|\n\|[-:\s|]+\|/m.test(preparedFull) || preparedFull.includes("\n|---");
+    }, [preparedFull]);
+
     const [displayedText, setDisplayedText] = useState(preparedFull);
     const [isStreaming, setIsStreaming] = useState(false);
 
     useEffect(() => {
-        // If there is no Grok object or the text is short, just show immediately
+        // Never stream tables; show immediately
+        if (containsTable) {
+            setDisplayedText(preparedFull);
+            setIsStreaming(false);
+            return;
+        }
+
         if (!grok || !preparedFull || preparedFull.length < 80) {
             setDisplayedText(preparedFull);
             setIsStreaming(false);
             return;
         }
 
-        // Typewriter effect over the already-computed markdown
         let cancelled = false;
         const chars = Array.from(preparedFull);
         const total = chars.length;
@@ -310,16 +313,14 @@ export default function GrokCard({ data, onFollowUp }) {
         const tick = () => {
             if (cancelled) return;
 
-            index += 24; // characters per step
+            index += 24;
             if (index >= total) {
                 setDisplayedText(preparedFull);
                 setIsStreaming(false);
                 return;
             }
 
-            const slice = chars.slice(0, index).join("");
-            setDisplayedText(slice);
-
+            setDisplayedText(chars.slice(0, index).join(""));
             window.setTimeout(tick, 20);
         };
 
@@ -328,7 +329,7 @@ export default function GrokCard({ data, onFollowUp }) {
         return () => {
             cancelled = true;
         };
-    }, [preparedFull, grok]);
+    }, [preparedFull, grok, containsTable]);
 
     return (
         <div
@@ -339,11 +340,9 @@ export default function GrokCard({ data, onFollowUp }) {
                 borderRadius: "12px",
                 border: "1px solid rgba(0,0,0,0.08)",
                 marginTop: "12px",
-                // IMPORTANT: do NOT force pre-wrap on the whole card (breaks tables/lists).
                 whiteSpace: "normal",
             }}
         >
-            {/* Header row stays the same */}
             <div
                 style={{
                     display: "flex",
@@ -358,130 +357,136 @@ export default function GrokCard({ data, onFollowUp }) {
                 {data_freshness && <span>{data_freshness}</span>}
             </div>
 
-            {/* Main answer body with MiniChart support + typewriter text */}
-            <ReactMarkdown
-                className="grok-markdown"
-                remarkPlugins={[remarkGfm]}
-                components={{
-                    // Tighten paragraph spacing + preserve line breaks without breaking tables
-                    p({ children }) {
-                        const raw = Array.isArray(children) ? children.join("") : String(children ?? "");
+            {/* CRITICAL SAFETY:
+                - While streaming: render plain text (no markdown parsing).
+                - When done: render ReactMarkdown with modern table support.
+            */}
+            {isStreaming ? (
+                <div style={{ whiteSpace: "pre-wrap", fontSize: "13px", lineHeight: 1.55 }}>
+                    {displayedText}
+                </div>
+            ) : (
+                <ReactMarkdown
+                    className="grok-markdown"
+                    components={{
+                        p({ children }) {
+                            const raw = Array.isArray(children)
+                                ? children.join("")
+                                : String(children ?? "");
 
-                        if (raw.includes("[[MINICHART:")) {
-                            const match = raw.match(/\[\[MINICHART:(.*?)\]\]/);
-                            if (!match) {
-                                return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
+                            if (raw.includes("[[MINICHART:")) {
+                                const match = raw.match(/\[\[MINICHART:(.*?)\]\]/);
+                                if (!match) {
+                                    return (
+                                        <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>
+                                            {children}
+                                        </p>
+                                    );
+                                }
+
+                                const nums = match[1]
+                                    .split(",")
+                                    .map((v) => parseFloat(v.trim()))
+                                    .filter((v) => !isNaN(v));
+
+                                const cleaned = raw.replace(match[0], "").trim();
+
+                                return (
+                                    <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>
+                                        {cleaned}
+                                        <MiniChart values={nums} />
+                                    </p>
+                                );
                             }
-
-                            const nums = match[1]
-                                .split(",")
-                                .map((v) => parseFloat(v.trim()))
-                                .filter((v) => !isNaN(v));
-
-                            const cleaned = raw.replace(match[0], "").trim();
 
                             return (
                                 <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>
-                                    {cleaned}
-                                    <MiniChart values={nums} />
+                                    {children}
                                 </p>
                             );
-                        }
+                        },
 
-                        return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
-                    },
-
-                    // Headings: tighter
-                    h1({ children }) {
-                        return <h1 style={{ margin: "10px 0 6px", fontSize: "18px" }}>{children}</h1>;
-                    },
-                    h2({ children }) {
-                        return <h2 style={{ margin: "10px 0 6px", fontSize: "16px" }}>{children}</h2>;
-                    },
-                    h3({ children }) {
-                        return <h3 style={{ margin: "10px 0 6px", fontSize: "14px" }}>{children}</h3>;
-                    },
-
-                    // Lists: tighter and readable
-                    ul({ children }) {
-                        return <ul style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ul>;
-                    },
-                    ol({ children }) {
-                        return <ol style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ol>;
-                    },
-                    li({ children }) {
-                        return <li style={{ margin: "4px 0" }}>{children}</li>;
-                    },
-
-                    // ✅ Tables: render as modern grid cards (fallback to basic table if parsing fails)
-                    table({ children }) {
-                        const parsed = parseMarkdownTable(children);
-                        if (!parsed) {
-                            // Fallback – still safe
+                        h1({ children }) {
                             return (
-                                <div
-                                    style={{
-                                        overflowX: "auto",
-                                        margin: "10px 0",
-                                        border: "1px solid rgba(0,0,0,0.08)",
-                                        borderRadius: "10px",
-                                        background: "#fff",
-                                    }}
-                                >
-                                    <table
-                                        style={{
-                                            width: "100%",
-                                            borderCollapse: "separate",
-                                            borderSpacing: 0,
-                                            fontSize: "13px",
-                                            lineHeight: 1.35,
-                                            minWidth: "460px",
-                                        }}
-                                    >
+                                <h1 style={{ margin: "10px 0 6px", fontSize: "18px" }}>
+                                    {children}
+                                </h1>
+                            );
+                        },
+                        h2({ children }) {
+                            return (
+                                <h2 style={{ margin: "10px 0 6px", fontSize: "16px" }}>
+                                    {children}
+                                </h2>
+                            );
+                        },
+                        h3({ children }) {
+                            return (
+                                <h3 style={{ margin: "10px 0 6px", fontSize: "14px" }}>
+                                    {children}
+                                </h3>
+                            );
+                        },
+
+                        ul({ children }) {
+                            return <ul style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ul>;
+                        },
+                        ol({ children }) {
+                            return <ol style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ol>;
+                        },
+                        li({ children }) {
+                            return <li style={{ margin: "4px 0" }}>{children}</li>;
+                        },
+
+                        // ✅ Modern tables
+                        table({ children }) {
+                            const parsed = parseMarkdownTable(children);
+                            if (parsed) return <ModernTable table={parsed} />;
+
+                            return (
+                                <div style={{ overflowX: "auto", margin: "10px 0" }}>
+                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
                                         {children}
                                     </table>
                                 </div>
                             );
-                        }
-                        return <ModernTable table={parsed} />;
-                    },
+                        },
 
-                    // Inline code and code blocks stay readable
-                    code({ inline, children }) {
-                        if (inline) {
+                        code({ inline, children }) {
+                            if (inline) {
+                                return (
+                                    <code
+                                        style={{
+                                            fontSize: "0.95em",
+                                            background: "rgba(0,0,0,0.04)",
+                                            padding: "1px 6px",
+                                            borderRadius: "6px",
+                                        }}
+                                    >
+                                        {children}
+                                    </code>
+                                );
+                            }
                             return (
-                                <code
+                                <pre
                                     style={{
-                                        fontSize: "0.95em",
+                                        margin: "10px 0",
+                                        padding: "10px 12px",
                                         background: "rgba(0,0,0,0.04)",
-                                        padding: "1px 6px",
-                                        borderRadius: "6px",
+                                        borderRadius: "10px",
+                                        overflowX: "auto",
                                     }}
                                 >
-                                    {children}
-                                </code>
+                                    <code>{children}</code>
+                                </pre>
                             );
-                        }
-                        return (
-                            <pre
-                                style={{
-                                    margin: "10px 0",
-                                    padding: "10px 12px",
-                                    background: "rgba(0,0,0,0.04)",
-                                    borderRadius: "10px",
-                                    overflowX: "auto",
-                                }}
-                            >
-                                <code>{children}</code>
-                            </pre>
-                        );
-                    },
-                }}
-            >
-                {displayedText}
-            </ReactMarkdown>
+                        },
+                    }}
+                >
+                    {preparedFull}
+                </ReactMarkdown>
+            )}
 
-            {/* Follow-up CTA */}
             {followUp && onFollowUp && (
                 <div style={{ marginTop: "6px" }}>
                     <button
