@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 
 // ===== MiniChart ===========================================================
 const MiniChart = ({ values }) => {
@@ -359,6 +361,7 @@ export default function GrokCard({ data, onFollowUp }) {
             {/* Main answer body with MiniChart support + typewriter text */}
             <ReactMarkdown
                 className="grok-markdown"
+                remarkPlugins={[remarkGfm]}
                 components={{
                     // Tighten paragraph spacing + preserve line breaks without breaking tables
                     p({ children }) {
