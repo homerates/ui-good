@@ -1,20 +1,18 @@
 // middleware.ts
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-
-/**
- * PUBLIC ROUTES (must work signed-out)
- * - Short links: /s/[slug]
- * - Share snapshot: /share
- * - Public APIs required by signed-out sharing
- */
-const isPublicRoute = createRouteMatcher([
-  "/share(.*)",
-  "/s(.*)",
-  "/api/shorten(.*)",
-]);
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
 export default clerkMiddleware((auth, req) => {
-  if (isPublicRoute(req)) return;
+  const pathname = req.nextUrl.pathname;
+
+  // Public share routes MUST work signed-out
+  const isPublic =
+    pathname === "/share" ||
+    pathname.startsWith("/s/") ||
+    pathname === "/s" ||
+    pathname.startsWith("/api/shorten");
+
+  if (isPublic) return;
+
   auth.protect();
 });
 
