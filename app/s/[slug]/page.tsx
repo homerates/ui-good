@@ -2,16 +2,17 @@
 // Short-link redirect for HomeRates share URLs.
 // Given a slug, look up the long URL and redirect (302) to it.
 
-import { redirect } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { redirect } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 // Reuse the same env logic as other server-side Supabase clients
 const SUPABASE_URL =
-    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+
 const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
 
 const supabase =
     SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
@@ -23,33 +24,30 @@ const supabase =
 // NOTE: we deliberately type props as any so we don't fight Next's generated PageProps,
 // which currently treats params as a Promise<any> in .next/types.
 export default async function ShortRedirectPage(props: any) {
-    // Next 15 sometimes models params as a Promise in its generated types,
-    // so we use await here to be compatible either way.
     const params = (await props.params) as { slug?: string } | undefined;
-    const slug = params?.slug ?? '';
+    const slug = params?.slug ?? "";
 
     if (!slug || !supabase) {
-        // If we can't resolve the slug or Supabase isn't configured, go home.
-        redirect('/');
+        redirect("/");
     }
 
-    // Look up the long URL from your short_links table
+    // Backward/forward compatible:
+    // - newer rows: target_url
+    // - older rows (if any): url
     const { data, error } = await supabase
-        .from('short_links')
-        .select('url')
-        .eq('slug', slug)
+        .from("short_links")
+        .select("target_url, url")
+        .eq("slug", slug)
         .maybeSingle();
 
-    if (error || !data?.url) {
-        // On any failure, just send them to the main app
-        redirect('/');
+    if (error || !data) {
+        redirect("/");
     }
 
-    const target = String(data.url);
+    const target = String((data as any).target_url || (data as any).url || "");
 
-    // If for some reason it's empty, also fall back
     if (!target) {
-        redirect('/');
+        redirect("/");
     }
 
     redirect(target);
