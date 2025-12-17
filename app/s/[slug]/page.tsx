@@ -36,16 +36,17 @@ export default async function ShortRedirectPage(props: any) {
     // Look up the long URL from your short_links table
     const { data, error } = await supabase
         .from('short_links')
-        .select('url')
+        .select('target_url')
         .eq('slug', slug)
         .maybeSingle();
 
-    if (error || !data?.url) {
+    if (error || !data?.target_url) {
+
         // On any failure, just send them to the main app
         redirect('/');
     }
 
-    const target = String(data.url);
+    const target = String(data.target_url);
 
     // If for some reason it's empty, also fall back
     if (!target) {
