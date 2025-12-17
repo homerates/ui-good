@@ -1,266 +1,152 @@
-import * as React from 'react';
-import Link from 'next/link';
+// app/share/page.tsx
+// Public share snapshot page (no auth required).
+// Renders a read-only view from ?q=...&a=... and never redirects to "/".
 
-function sanitizeQuestion(raw: string | undefined): string {
-    if (!raw) return '';
-    // Strip obvious URLs so the share link itself never shows up as the question text
-    return raw.replace(/https?:\/\/\S+/g, '').trim();
+import React from "react";
+
+export const dynamic = "force-dynamic";
+
+function pickOne(v: any): string {
+    if (!v) return "";
+    if (Array.isArray(v)) return String(v[0] ?? "");
+    return String(v);
 }
 
-export default function SharePage({ searchParams }: any) {
-    const rawQuestion = searchParams?.q ?? '';
-    const rawAnswer = searchParams?.a ?? '';
+export default async function SharePage(props: {
+    searchParams?: Promise<any>;
+}) {
+    const sp = props.searchParams ? await props.searchParams : {};
 
-    const question = sanitizeQuestion(rawQuestion) || 'Question asked in HomeRates.ai';
-    const answer =
-        (rawAnswer || '').trim() ||
-        'This shared link did not include an answer body. Please open HomeRates.ai to see the full conversation.';
+    const question = pickOne(sp.q).trim();
+    const answer = pickOne(sp.a).trim();
 
-    // Link back into the main app with share context
-    const appHref = `/?fromShare=1&sq=${encodeURIComponent(question)}`;
+    // Some older links may pass placeholders like "*" or omit fields.
+    const hasQuestion = question.length > 0 && question !== "*";
+    const hasAnswer = answer.length > 0 && answer !== "*";
+
+    const title = hasQuestion ? question : "Shared answer";
 
     return (
         <main
             style={{
-                minHeight: '100vh',
-                background: '#0f172a',
-                padding: '24px 12px',
+                minHeight: "100dvh",
+                background: "#0b1220",
+                color: "#e5e7eb",
+                padding: "24px 14px 64px",
             }}
         >
-            <div
-                style={{
-                    maxWidth: 840,
-                    margin: '0 auto',
-                    background: '#0b1220',
-                    borderRadius: 24,
-                    padding: 1,
-                }}
-            >
+            <div style={{ maxWidth: 920, margin: "0 auto" }}>
                 <div
                     style={{
-                        borderRadius: 23,
-                        background: '#f8fafc',
-                        padding: '24px 20px 20px',
+                        display: "inline-flex",
+                        alignItems: "center",
+                        border: "1px solid rgba(148, 163, 184, 0.35)",
+                        background: "rgba(15, 23, 42, 0.75)",
+                        borderRadius: 999,
+                        padding: "6px 10px",
+                        fontSize: 12,
+                        color: "rgba(226, 232, 240, 0.92)",
+                        marginBottom: 14,
                     }}
                 >
-                    {/* Header */}
-                    <header
+                    HomeRates.ai shared snapshot
+                </div>
+
+                <h1
+                    style={{
+                        fontSize: 18,
+                        lineHeight: 1.35,
+                        margin: "0 0 12px",
+                        fontWeight: 650,
+                    }}
+                >
+                    {title}
+                </h1>
+
+                <div
+                    style={{
+                        border: "1px solid rgba(148, 163, 184, 0.35)",
+                        background: "rgba(15, 23, 42, 0.6)",
+                        borderRadius: 16,
+                        padding: 14,
+                    }}
+                >
+                    <div
                         style={{
-                            marginBottom: 20,
+                            fontSize: 12,
+                            color: "rgba(203, 213, 225, 0.9)",
+                            marginBottom: 8,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
                         }}
                     >
-                        <div
-                            style={{
-                                fontSize: '0.75rem',
-                                letterSpacing: '0.12em',
-                                textTransform: 'uppercase',
-                                color: '#64748b',
-                                marginBottom: 6,
-                            }}
-                        >
-                            Answer snapshot from
-                        </div>
-                        <h1
-                            style={{
-                                fontSize: '1.35rem',
-                                fontWeight: 700,
-                                color: '#020617',
-                                margin: 0,
-                            }}
-                        >
-                            HomeRates.ai Mortgage Coach
-                        </h1>
-                        <p
-                            style={{
-                                marginTop: 8,
-                                marginBottom: 0,
-                                fontSize: '0.9rem',
-                                color: '#64748b',
-                                maxWidth: 520,
-                            }}
-                        >
-                            This page shows a real question and answer from a HomeRates.ai conversation.
-                            Use it to review the advice and, if you like, continue the conversation
-                            directly in the app.
-                        </p>
-                    </header>
+                        Question
+                    </div>
 
-                    {/* Top pill: question + link back to app */}
-                    <section
+                    <div
                         style={{
+                            whiteSpace: "pre-wrap",
+                            fontSize: 14,
+                            lineHeight: 1.55,
                             marginBottom: 16,
+                            color: hasQuestion ? "#e5e7eb" : "rgba(226, 232, 240, 0.75)",
                         }}
                     >
-                        <Link
-                            href={appHref}
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: 8,
-                                borderRadius: 14,
-                                background: '#020617',
-                                color: '#e5e7eb',
-                                padding: '12px 14px',
-                                fontSize: '0.9rem',
-                                textDecoration: 'none',
-                                width: '100%',
-                            }}
-                        >
-                            <span style={{ fontWeight: 600 }}>{question}</span>
-                            <span
-                                style={{
-                                    fontSize: '0.75rem',
-                                    opacity: 0.8,
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                Open in HomeRates.ai
-                            </span>
-                        </Link>
-                    </section>
+                        {hasQuestion ? question : "Question not included in this link."}
+                    </div>
 
-                    {/* Answer overview with internal scroll */}
-                    <section
+                    <div
                         style={{
-                            marginBottom: 18,
+                            fontSize: 12,
+                            color: "rgba(203, 213, 225, 0.9)",
+                            marginBottom: 8,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
                         }}
                     >
-                        <div
-                            style={{
-                                borderRadius: 12,
-                                background: '#e5e7eb',
-                                color: '#020617',
-                                padding: '10px 14px',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.08em',
-                                marginBottom: 8,
-                            }}
-                        >
-                            Answer Overview
-                        </div>
+                        Answer
+                    </div>
 
-                        <div
-                            style={{
-                                borderRadius: 16,
-                                background: '#ffffff',
-                                padding: '14px 16px',
-                                fontSize: '0.9rem',
-                                color: '#0f172a',
-                                lineHeight: 1.55,
-                                maxHeight: 300, // tightened to keep CTA visible at 100% zoom
-                                overflowY: 'auto',
-                                boxShadow: 'inset 0 0 0 1px rgba(15,23,42,0.04)',
-                            }}
-                        >
-                            <div
-                                style={{
-                                    whiteSpace: 'pre-wrap',
-                                    fontFamily:
-                                        '-apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif',
-                                }}
-                            >
-                                {answer}
-                            </div>
-                        </div>
-
-                        <div
-                            style={{
-                                marginTop: 6,
-                                fontSize: '0.75rem',
-                                color: '#6b7280',
-                            }}
-                        >
-                            This is a read-only snapshot. For live updates, calculators, and follow-up
-                            questions, open the original HomeRates.ai conversation.
-                        </div>
-                    </section>
-
-                    {/* Footer CTA */}
-                    <footer
+                    <div
                         style={{
-                            borderTop: '1px solid #e5e7eb',
-                            marginTop: 10,
-                            paddingTop: 12,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 6,
+                            whiteSpace: "pre-wrap",
+                            fontSize: 14,
+                            lineHeight: 1.55,
+                            color: hasAnswer ? "#e5e7eb" : "rgba(226, 232, 240, 0.75)",
                         }}
                     >
-                        <div
-                            style={{
-                                fontSize: '0.75rem',
-                                color: '#6b7280',
-                            }}
-                        >
-                            HomeRates.ai gives borrowers and investors a private way to test scenarios,
-                            stress test advice, and ask follow-up questions in plain language.
-                        </div>
+                        {hasAnswer ? answer : "Answer not included in this link."}
+                    </div>
+                </div>
 
-                        <div
-                            style={{
-                                marginTop: 2,
-                            }}
-                        >
-                            <Link
-                                href={appHref}
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    padding: '8px 14px',
-                                    borderRadius: 999,
-                                    border: '1px solid #0f172a',
-                                    background: '#0f172a',
-                                    color: '#f9fafb',
-                                    fontSize: '0.85rem',
-                                    fontWeight: 500,
-                                    textDecoration: 'none',
-                                    gap: 6,
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                Open HomeRates.ai free app
-                                <span
-                                    aria-hidden="true"
-                                    style={{
-                                        width: 12,
-                                        height: 12,
-                                        display: 'inline-block',
-                                    }}
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        width="12"
-                                        height="12"
-                                        style={{ display: 'block' }}
-                                    >
-                                        <path
-                                            d="M7 11a1 1 0 0 0 0 2h7.586l-2.293 2.293a1 1 0 1 0 1.414 1.414l4-4a1 1 0 0 0 0-1.414l-4-4a1 1 0 0 0-1.414 1.414L14.586 11H7Z"
-                                            fill="currentColor"
-                                        />
-                                        <path
-                                            d="M5 5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-2a1 1 0 1 1 2 0v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v2a1 1 0 1 1-2 0V5Z"
-                                            fill="currentColor"
-                                            opacity={0.8}
-                                        />
-                                    </svg>
-                                </span>
-                            </Link>
-                        </div>
+                <div
+                    style={{
+                        marginTop: 14,
+                        fontSize: 12,
+                        color: "rgba(203, 213, 225, 0.75)",
+                        lineHeight: 1.5,
+                    }}
+                >
+                    This is a read-only snapshot. To ask follow-up questions, open HomeRates.ai and start a new chat.
+                </div>
 
-                        <div
-                            style={{
-                                fontSize: '0.7rem',
-                                color: '#9ca3af',
-                                marginTop: 4,
-                            }}
-                        >
-                            No login required to browse and ask initial questions.
-                        </div>
-                    </footer>
+                <div style={{ marginTop: 18 }}>
+                    <a
+                        href="/"
+                        style={{
+                            display: "inline-block",
+                            padding: "10px 12px",
+                            borderRadius: 12,
+                            border: "1px solid rgba(148, 163, 184, 0.45)",
+                            background: "rgba(15, 23, 42, 0.9)",
+                            color: "#e5e7eb",
+                            textDecoration: "none",
+                            fontSize: 13,
+                            fontWeight: 600,
+                        }}
+                    >
+                        Open HomeRates.ai
+                    </a>
                 </div>
             </div>
         </main>
