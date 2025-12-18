@@ -229,6 +229,100 @@ async function safeJson(r: Response): Promise<ApiResponse> {
     }
 }
 
+
+/* =========================
+   Smart Scenario routing (client-side only)
+   - Keeps /api/answers stable (TRID-safe)
+   - Routes to /api/answers/scenario only when the prompt clearly requests a multi-input scenario
+========================= */
+
+/** Heuristic: route to scenario engine for "full scenario" prompts (projections, cash flow, stress tests, etc.) */
+function shouldUseScenarioEngine(q: string): boolean {
+    const s = (q || '').toLowerCase();
+
+    // Strong projection / modeling keywords
+    const strong =
+        s.includes('cash flow') ||
+        s.includes('pro forma') ||
+        s.includes('amortization') ||
+        s.includes('sensitivity') ||
+        s.includes('stress test') ||
+        s.includes('monte carlo') ||
+        s.includes('irr') ||
+        s.includes('cap rate') ||
+        s.includes('dscr') ||
+        s.includes('vacancy') ||
+        s.includes('maintenance') ||
+        s.includes('capex') ||
+        s.includes('appreciation') ||
+        s.includes('net worth') ||
+        s.includes('portfolio') ||
+        s.includes('what if') ||
+        s.includes('vs ') ||
+        s.includes(' compare ');
+
+    // Numeric-heavy scenario indicators
+    const hasNumbers = /\d/.test(s);
+    const mentionsMortgageAction =
+        s.includes('refi') ||
+        s.includes('refinance') ||
+        s.includes('cash-out') ||
+        s.includes('cash out') ||
+        s.includes('heloc') ||
+        s.includes('buy') ||
+        s.includes('purchase') ||
+        s.includes('rental') ||
+        s.includes('investment');
+
+    // Explicit user intent marker (optional)
+    const explicit =
+        s.startsWith('scenario:') ||
+        s.startsWith('smart scenario:') ||
+        s.includes('[scenario]');
+
+    // Require at least 2 numbers for auto-switch unless explicit/strong + action
+    const numberCount = (s.match(/\d+(?:\.\d+)?/g) || []).length;
+
+    if (explicit) return true;
+    if (strong && mentionsMortgageAction && hasNumbers) return true;
+    if (mentionsMortgageAction && numberCount >= 2 && (strong || s.includes('year'))) return true;
+
+    return false;
+}
+
+/** Convert Scenario API payload into our existing ApiResponse shape (so the UI stays stable). */
+function scenarioToApiResponse(payload: any): ApiResponse {
+    const result = payload?.result || payload?.data || payload;
+
+    const summary = typeof result?.plain_english_summary === 'string'
+        ? result.plain_english_summary.trim()
+        : '';
+
+    const risksArr: string[] = Array.isArray(result?.key_risks) ? result.key_risks : [];
+    const risks = risksArr.length
+        ? '\n\nKey risks:\n' + risksArr.map((r) => `- ${String(r)}`).join('\n')
+        : '';
+
+    const cashFlow = Array.isArray(result?.cash_flow_table) ? result.cash_flow_table : [];
+    const mc = result?.monte_carlo_summary ?? null;
+
+    const extra =
+        (cashFlow.length ? `\n\nCash flow years provided: ${cashFlow.length}` : '') +
+        (mc ? `\nMonte Carlo: probability_positive_cashflow=${mc.probability_positive_cashflow ?? 'n/a'}` : '');
+
+    return {
+        path: 'dynamic',
+        usedFRED: true,
+        message: summary || 'Scenario generated.',
+        answer: (summary || 'Scenario generated.') + risks + extra,
+        generatedAt: new Date().toISOString(),
+        confidence: 'med',
+        grok: payload,
+        data_freshness: payload?.marketData?.date ? `Live (FRED) as of ${payload.marketData.date}` : undefined,
+    } as any;
+}
+
+
 /* =========================
    Answer block
 ========================= */
@@ -492,6 +586,36 @@ export default function Page() {
 
     // borrower-only mode fixed
     const mode: 'borrower' = 'borrower';
+
+    // Scenario override (manual): can be toggled by a future sidebar button.
+    // Also supports URL param: ?scenario=1
+    const [forceScenario, setForceScenario] = useState(false);
+
+    useEffect(() => {
+        try {
+            if (typeof window === 'undefined') return;
+
+            const sp = new URLSearchParams(window.location.search);
+            if (sp.get('scenario') === '1') {
+                setForceScenario(true);
+            }
+
+            const onEvt = (e: Event) => {
+                const ce = e as CustomEvent<{ on?: boolean }>;
+                if (typeof ce?.detail?.on === 'boolean') {
+                    setForceScenario(ce.detail.on);
+                }
+            };
+
+            // Future sidebar button can do:
+            // window.dispatchEvent(new CustomEvent('hr:setScenarioMode', { detail: { on: true } }));
+            window.addEventListener('hr:setScenarioMode', onEvt as any);
+            return () => window.removeEventListener('hr:setScenarioMode', onEvt as any);
+        } catch {
+            // ignore
+        }
+    }, []);
+
 
     const [loading, setLoading] = useState(false);
     const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
@@ -1002,17 +1126,22 @@ export default function Page() {
                 mode,
             };
 
-            const answersEndpoint = '/api/answers';
+            // Default endpoint stays /api/answers (stable).
+            // Route to /api/answers/scenario only for clearly multi-input scenario prompts,
+            // or when forceScenario is enabled (via ?scenario=1 or hr:setScenarioMode event).
+            const useScenario = forceScenario || shouldUseScenarioEngine(q);
 
-
-            const r = await fetch(answersEndpoint, {
-
+            const r = await fetch(useScenario ? '/api/answers/scenario' : '/api/answers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify(
+                    useScenario
+                        ? { message: q, userId: user?.id ?? null }
+                        : body
+                ),
             });
 
-            const meta = await safeJson(r);
+            const meta = useScenario ? scenarioToApiResponse(await r.json()) : await safeJson(r);
             // Attach Grok metadata to the assistant message (under m.meta)
             setMessages((prev) =>
                 prev.map((m) =>
