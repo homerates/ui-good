@@ -9,6 +9,8 @@ import {
     maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
 import { generateSourcesBundle } from "../../lib/sources-generator";
+import { maybeBuildTridCureOverride } from "./modules/tridCures";
+
 
 
 // ---------- noStore helper ----------
@@ -675,6 +677,32 @@ async function handle(req: NextRequest, intentParam?: string) {
         }
     } catch (e) {
         console.warn("DSCR override failed", (e as any)?.message || e);
+    }
+    // TRID fee cures override (prevents "cure" being misread as appraisal repair)
+    try {
+        const trid = maybeBuildTridCureOverride(question);
+        if (trid?.ok) {
+            return noStore({
+                ok: true,
+                route: "answers",
+                intent,
+                path,
+                tag: trid.tag,
+                generatedAt,
+                usedFRED: false,
+                usedTavily: false,
+                fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
+                topSources: [],
+                grok: null,
+                debug: { bypass: "tridCuresOverride" },
+                message: trid.message,
+                answerMarkdown: trid.answerMarkdown,
+                followUp:
+                    "If you want, paste a screenshot of your Loan Estimate (LE) fees section and I’ll explain which bucket each fee falls into and what can legally change.",
+            });
+        }
+    } catch (e) {
+        console.warn("TRID cures override failed", (e as any)?.message || e);
     }
 
     // Lender guideline context
