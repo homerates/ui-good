@@ -4,6 +4,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const BUILD_TAG = "scenario-proof-12-18-25-v1";
+
 type MarketData = {
     date: string;
     thirtyYearFixed: number;
@@ -12,12 +14,21 @@ type MarketData = {
     fallbackNotes: string[];
 };
 
+function ms() {
+    return Date.now();
+}
+
 function todayISO(): string {
     return new Date().toISOString().split("T")[0];
 }
 
-function ms() {
-    return Date.now();
+function uuid(): string {
+    try {
+        // @ts-ignore
+        return globalThis.crypto?.randomUUID?.() || `hr_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    } catch {
+        return `hr_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    }
 }
 
 function setNoStore(res: NextResponse) {
@@ -30,13 +41,19 @@ function attachServerTiming(
     res: NextResponse,
     timing: { fredMs?: number; xaiMs?: number; parseMs?: number; totalMs: number }
 ) {
-    // Server-Timing header format: metric;dur=123.4
     const parts: string[] = [];
     if (typeof timing.fredMs === "number") parts.push(`fred;dur=${timing.fredMs}`);
     if (typeof timing.xaiMs === "number") parts.push(`xai;dur=${timing.xaiMs}`);
     if (typeof timing.parseMs === "number") parts.push(`parse;dur=${timing.parseMs}`);
     parts.push(`total;dur=${timing.totalMs}`);
     res.headers.set("Server-Timing", parts.join(", "));
+}
+
+function decorateHeaders(res: NextResponse, requestId: string) {
+    res.headers.set("x-hr-build-tag", BUILD_TAG);
+    res.headers.set("x-hr-request-id", requestId);
+    res.headers.set("x-hr-matched-path", "/api/answers/scenario");
+    setNoStore(res);
 }
 
 async function getCurrentMortgageData(): Promise<MarketData> {
@@ -78,9 +95,7 @@ async function getCurrentMortgageData(): Promise<MarketData> {
             thirtyYearFixed: Number.isFinite(thirtyYearFixed) ? thirtyYearFixed : fallback.thirtyYearFixed,
             tenYearTreasury: Number.isFinite(tenYearTreasury) ? tenYearTreasury : fallback.tenYearTreasury,
             usedFallbacks,
-            fallbackNotes: usedFallbacks
-                ? ["FRED returned non-numeric values; default rate(s) used."]
-                : [],
+            fallbackNotes: usedFallbacks ? ["FRED returned non-numeric values; default rate(s) used."] : [],
         };
     } catch (e) {
         console.error("FRED fetch error:", e);
@@ -88,7 +103,6 @@ async function getCurrentMortgageData(): Promise<MarketData> {
     }
 }
 
-// Minimal shape guard (keeps drift visible)
 function assertScenarioResultShape(obj: any) {
     const requiredNumber = (k: string) =>
         typeof obj?.[k] === "number" && Number.isFinite(obj[k]);
@@ -110,8 +124,6 @@ function buildSystemPrompt(marketData: MarketData) {
         ? `\nNOTE: Some market data used fallbacks: ${marketData.fallbackNotes.join(" ")}`
         : "";
 
-    // IMPORTANT: this prompt still asks for structured JSON, but we’re not changing
-    // your business logic yet — only measuring where time is spent.
     return `
 You are HomeRates.AI — a privacy-first mortgage scenario engine.
 Current date: ${marketData.date}
@@ -178,16 +190,13 @@ async function callXaiChatCompletions(params: {
     const data = await res.json();
     const raw = data?.choices?.[0]?.message?.content?.trim();
     if (!raw) throw new Error("Empty response from xAI.");
-
     return JSON.parse(raw);
 }
 
 export async function POST(req: NextRequest) {
-    const requestId =
-        (globalThis.crypto as any)?.randomUUID?.() ||
-        `hr_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-
+    const requestId = uuid();
     const t0 = ms();
+
     let fredMs: number | undefined;
     let xaiMs: number | undefined;
     let parseMs: number | undefined;
@@ -198,9 +207,19 @@ export async function POST(req: NextRequest) {
         const userId = body?.userId ? String(body.userId) : null;
 
         if (!message) {
-            const res = NextResponse.json({ error: "Message is required" }, { status: 400 });
-            res.headers.set("x-hr-request-id", requestId);
-            setNoStore(res);
+            const res = NextResponse.json(
+                {
+                    success: false,
+                    error: "Message is required",
+                    meta: {
+                        build_tag: BUILD_TAG,
+                        requestId,
+                        timing_ms: { fred_ms: null, xai_ms: null, parse_ms: null, total_ms: ms() - t0 },
+                    },
+                },
+                { status: 400 }
+            );
+            decorateHeaders(res, requestId);
             attachServerTiming(res, { totalMs: ms() - t0 });
             return res;
         }
@@ -234,6 +253,7 @@ export async function POST(req: NextRequest) {
             result,
             marketData,
             meta: {
+                build_tag: BUILD_TAG,
                 requestId,
                 userIdPresent: Boolean(userId),
                 model,
@@ -247,17 +267,18 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        res.headers.set("x-hr-request-id", requestId);
-        setNoStore(res);
+        decorateHeaders(res, requestId);
         attachServerTiming(res, { fredMs, xaiMs, parseMs, totalMs: ms() - t0 });
         return res;
     } catch (err: any) {
         const res = NextResponse.json(
             {
+                success: false,
                 error: "Scenario engine failed.",
                 code: "SCENARIO_FAILED",
                 detail: err instanceof Error ? err.message : String(err),
                 meta: {
+                    build_tag: BUILD_TAG,
                     requestId,
                     timing_ms: {
                         fred_ms: fredMs ?? null,
@@ -270,8 +291,7 @@ export async function POST(req: NextRequest) {
             { status: 502 }
         );
 
-        res.headers.set("x-hr-request-id", requestId);
-        setNoStore(res);
+        decorateHeaders(res, requestId);
         attachServerTiming(res, { fredMs, xaiMs, parseMs, totalMs: ms() - t0 });
         return res;
     }
