@@ -1,4 +1,4 @@
-// HR-Build: scenario-proof-12-19-25-v4
+// HR-Build: scenario-proof-12-19-25-v5
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -53,9 +53,45 @@ function hasAny(text: string, terms: string[]) {
     return terms.some((k) => t.includes(k));
 }
 
+function formatUSD(n: number, decimals = 0) {
+    try {
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: decimals,
+            minimumFractionDigits: decimals,
+        }).format(n);
+    } catch {
+        // Fallback if Intl is unavailable
+        const fixed = n.toFixed(decimals);
+        return `$${fixed.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+    }
+}
+
+function formatPct(n: number, decimals = 2) {
+    return `${n.toFixed(decimals)}%`;
+}
+
+/**
+ * Parse dollar amounts like "$650,000" "$3,600" "650k" "1.2m"
+ * Returns a number or null.
+ */
+function parseMoneyLike(s: string) {
+    if (!s) return null;
+    const raw = s.toLowerCase().replace(/,/g, "").trim();
+    const m = raw.match(/^\$?\s*(\d+(\.\d+)?)\s*([km])?$/i);
+    if (!m) return null;
+    const base = Number(m[1]);
+    if (!Number.isFinite(base)) return null;
+    const suffix = m[3];
+    if (suffix === "k") return base * 1000;
+    if (suffix === "m") return base * 1_000_000;
+    return base;
+}
+
 /**
  * Only treat a percent as a USER-PROVIDED MORTGAGE RATE if it appears in a rate context.
- * This prevents accidental capture of "tax 1.10%" or "vacancy 7%".
+ * Prevents capture of "tax 1.10%" / "vacancy 7%" etc.
  */
 function detectUserProvidedRate(message: string) {
     const m = message || "";
@@ -101,13 +137,11 @@ function detectUserProvidedRate(message: string) {
 }
 
 /**
- * Rate sensitivity should ONLY appear when borrower explicitly asks for rate comparisons.
- * This is intentionally strict to reduce clutter and avoid unwanted tables.
+ * Rate sensitivity ONLY when borrower explicitly asks for rate comparisons.
  */
 function wantsRateSensitivity(message: string) {
     const m = (message || "").toLowerCase();
 
-    // Explicit “rates up/down / compare rates”
     const explicitPhrases = [
         "rate comparison",
         "compare rates",
@@ -123,17 +157,165 @@ function wantsRateSensitivity(message: string) {
         "stress test",
         "rate stress",
         "rate sensitivity",
-        "sensitivity",
+        "show cash flow under current rate vs",
     ];
     if (explicitPhrases.some((p) => m.includes(p))) return true;
 
     // Explicit deltas
-    const deltaPatterns = [/(\+|\-)\s*0\.?5\s*%/, /(\+|\-)\s*1(\.0)?\s*%/, /\bplus\s*0\.?5\b/, /\bplus\s*1\b/, /\bminus\s*0\.?5\b/];
+    const deltaPatterns = [
+        /(\+|\-)\s*0\.?5\s*%/i,
+        /(\+|\-)\s*1(\.0)?\s*%/i,
+        /\bplus\s*0\.?5\b/i,
+        /\bplus\s*1\b/i,
+        /\bminus\s*0\.?5\b/i,
+    ];
     if (deltaPatterns.some((re) => re.test(m))) return true;
 
     return false;
 }
 
+/* =========================
+   Inputs summary extraction (borrower-visible)
+========================= */
+function extractScenarioInputs(message: string) {
+    const m = message || "";
+
+    const inputs: any = {};
+
+    // Price / balance: first large $ figure (> $50k) is typically price or balance.
+    const dollarMatches = Array.from(m.matchAll(/\$?\s*[\d,.]+(?:\s*[km])?/gi))
+        .map(x => x[0])
+        .map(x => x.trim());
+
+    const moneyValues = dollarMatches
+        .map(v => ({ raw: v, val: parseMoneyLike(v) }))
+        .filter(x => x.val != null) as { raw: string; val: number }[];
+
+    // Rent detection
+    const rentMatch = m.match(/rent\s*(?:is|=|:)?\s*\$?\s*([\d,.]+)\s*(?:\/?\s*mo|month|monthly)?/i);
+    if (rentMatch) {
+        const rentVal = parseMoneyLike(rentMatch[1]);
+        if (rentVal != null) inputs.rent_monthly = rentVal;
+    }
+
+    // Purchase price / balance selection
+    const largeMoney = moneyValues.filter(x => x.val >= 50_000);
+    if (largeMoney.length) {
+        // Prefer explicit "buying a $X home" / "purchase $X"
+        const buyMatch = m.match(/buy(?:ing)?\s*(?:a|an)?\s*\$?\s*([\d,.]+)\s*(?:home|house|property)?/i);
+        const ppMatch = m.match(/\b(?:purchase\s*price|price|pp)\s*(?:is|=|:)?\s*\$?\s*([\d,.]+)\b/i);
+        const balMatch = m.match(/\b(?:balance|loan\s*balance)\s*(?:is|=|:)?\s*\$?\s*([\d,.]+)\b/i);
+
+        const pick = (mm: RegExpMatchArray | null) => (mm ? parseMoneyLike(mm[1]) : null);
+
+        const buyVal = pick(buyMatch);
+        const ppVal = pick(ppMatch);
+        const balVal = pick(balMatch);
+
+        if (buyVal != null) inputs.price = buyVal;
+        else if (ppVal != null) inputs.price = ppVal;
+        else if (balVal != null) inputs.balance = balVal;
+        else inputs.price = largeMoney[0].val;
+    }
+
+    // Down payment percent
+    const downPct = m.match(/(\d{1,2}(?:\.\d+)?)\s*%\s*down/i);
+    if (downPct) {
+        const dp = Number(downPct[1]);
+        if (Number.isFinite(dp) && dp > 0 && dp < 100) inputs.down_payment_pct = dp;
+    }
+
+    // Vacancy
+    const vac = m.match(/vacancy\s*(?:is|=|:)?\s*(\d{1,2}(?:\.\d+)?)\s*%/i);
+    if (vac) {
+        const v = Number(vac[1]);
+        if (Number.isFinite(v)) inputs.vacancy_pct = v;
+    }
+
+    // Maintenance
+    const maint = m.match(/maintenance\s*(?:is|=|:)?\s*(\d{1,2}(?:\.\d+)?)\s*%/i);
+    if (maint) {
+        const v = Number(maint[1]);
+        if (Number.isFinite(v)) inputs.maintenance_pct = v;
+    }
+
+    // Property tax
+    const tax = m.match(/property\s*tax(?:es)?\s*(?:is|=|:)?\s*(\d{1,2}(?:\.\d+)?)\s*%/i);
+    if (tax) {
+        const v = Number(tax[1]);
+        if (Number.isFinite(v)) inputs.property_tax_pct = v;
+    }
+
+    // Insurance
+    const ins = m.match(/insurance\s*(?:is|=|:)?\s*(\d{1,2}(?:\.\d+)?)\s*%/i);
+    if (ins) {
+        const v = Number(ins[1]);
+        if (Number.isFinite(v)) inputs.insurance_pct = v;
+    }
+
+    // Extra payment / invest return
+    const extra = m.match(/extra\s*\$?\s*([\d,.]+)\s*\/?\s*(?:mo|month|monthly)/i);
+    if (extra) {
+        const v = parseMoneyLike(extra[1]);
+        if (v != null) inputs.extra_payment_monthly = v;
+    }
+
+    const invest = m.match(/invest(?:ing)?\s*(?:it\s*)?at\s*(\d{1,2}(?:\.\d+)?)\s*%/i);
+    if (invest) {
+        const v = Number(invest[1]);
+        if (Number.isFinite(v)) inputs.invest_return_pct = v;
+    }
+
+    // Term / years left
+    const yrsLeft = m.match(/(\d{1,2})\s*years?\s*left/i);
+    if (yrsLeft) {
+        const v = Number(yrsLeft[1]);
+        if (Number.isFinite(v)) inputs.years_left = v;
+    }
+
+    return inputs;
+}
+
+function buildInputsSummary(inputs: any, rate_context: any) {
+    const lines: string[] = [];
+    lines.push("Scenario inputs");
+
+    if (inputs.price != null) lines.push(`- Purchase price: ${formatUSD(inputs.price)}`);
+    if (inputs.balance != null) lines.push(`- Loan balance: ${formatUSD(inputs.balance)}`);
+
+    if (inputs.down_payment_pct != null && inputs.price != null) {
+        const dpPct = inputs.down_payment_pct;
+        const dpAmt = (inputs.price * dpPct) / 100;
+        const loanAmt = inputs.price - dpAmt;
+        lines.push(`- Down payment: ${formatPct(dpPct, 2)} (${formatUSD(dpAmt)})`);
+        lines.push(`- Loan amount: ${formatUSD(loanAmt)}`);
+    } else if (inputs.down_payment_pct != null) {
+        lines.push(`- Down payment: ${formatPct(inputs.down_payment_pct, 2)}`);
+    }
+
+    if (inputs.rent_monthly != null) lines.push(`- Rent: ${formatUSD(inputs.rent_monthly)}/mo`);
+
+    if (inputs.vacancy_pct != null) lines.push(`- Vacancy: ${formatPct(inputs.vacancy_pct, 2)}`);
+    if (inputs.maintenance_pct != null) lines.push(`- Maintenance: ${formatPct(inputs.maintenance_pct, 2)} (annual assumption)`);
+    if (inputs.property_tax_pct != null) lines.push(`- Property tax: ${formatPct(inputs.property_tax_pct, 2)} (annual assumption)`);
+    if (inputs.insurance_pct != null) lines.push(`- Insurance: ${formatPct(inputs.insurance_pct, 2)} (annual assumption)`);
+
+    if (inputs.extra_payment_monthly != null) lines.push(`- Extra payment: ${formatUSD(inputs.extra_payment_monthly)}/mo`);
+    if (inputs.invest_return_pct != null) lines.push(`- Investment return: ${formatPct(inputs.invest_return_pct, 2)} (assumed)`);
+
+    if (inputs.years_left != null) lines.push(`- Term remaining: ${inputs.years_left} years`);
+
+    if (rate_context?.rate_used != null) {
+        const rateLine = `- Rate used: ${formatPct(Number(rate_context.rate_used), 2)} (${rate_context.source}${rate_context.as_of ? `, ${rate_context.as_of}` : ""})`;
+        lines.push(rateLine);
+    }
+
+    return lines.join("\n");
+}
+
+/* =========================
+   Scenario normalizer
+========================= */
 function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const out = { ...(result || {}) };
 
@@ -156,7 +338,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         }
     }
 
-    // Rate provenance: add rate_context + prepend a line to summary
+    // Rate provenance: add rate_context + prepend to summary
     const userRate = detectUserProvidedRate(message);
     const rateUsed = userRate ?? marketData?.thirtyYearFixed ?? null;
 
@@ -168,19 +350,24 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     };
     out.rate_context = rate_context;
 
-    const provenanceLine =
-        rate_context.rate_used != null
-            ? `Rate used: ${Number(rate_context.rate_used).toFixed(2)}% (${rate_context.source}${rate_context.as_of ? `, ${rate_context.as_of}` : ""
-            })`
-            : `Rate used: unavailable`;
+    // Inputs summary (borrower-visible + structured)
+    const extractedInputs = extractScenarioInputs(message);
+    out.scenario_inputs = extractedInputs;
+    const inputsBlock = buildInputsSummary(extractedInputs, rate_context);
 
-    if (typeof out.plain_english_summary === "string" && out.plain_english_summary.trim()) {
-        const s = out.plain_english_summary.trim();
-        out.plain_english_summary = s.toLowerCase().startsWith("rate used:")
-            ? s
-            : `${provenanceLine}\n\n${s}`;
+    // Summary: ensure Inputs block appears first, then the model narrative (no duplication)
+    const narrative =
+        typeof out.plain_english_summary === "string" && out.plain_english_summary.trim()
+            ? out.plain_english_summary.trim()
+            : "";
+
+    // If narrative already starts with "Scenario inputs", don't double-insert.
+    if (narrative.toLowerCase().startsWith("scenario inputs")) {
+        out.plain_english_summary = narrative;
     } else {
-        out.plain_english_summary = provenanceLine;
+        out.plain_english_summary = narrative
+            ? `${inputsBlock}\n\n${narrative}`
+            : inputsBlock;
     }
 
     // GrokCard-friendly tables with short headers (prevents header overlap)
@@ -189,7 +376,12 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     if (Array.isArray(out.amortization_summary) && out.amortization_summary.length) {
         grokcard_tables.amortization_snapshot = {
             headers: ["Yr", "Prin", "Int", "Bal"],
-            rows: out.amortization_summary.map((r: any) => [r.year, r.principal_paid, r.interest_paid, r.ending_balance]),
+            rows: out.amortization_summary.map((r: any) => [
+                r.year,
+                r.principal_paid,
+                r.interest_paid,
+                r.ending_balance,
+            ]),
         };
     }
 
@@ -201,17 +393,16 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         };
     }
 
-    // Only build a rate_sensitivity table if borrower requested it AND sensitivity_table exists
+    // Only build rate sensitivity table if borrower requested it AND sensitivity_table exists
     if (includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
         const rows: any[] = [];
-        const order = ["minus_0_5pct", "current_rate", "plus_0_5pct", "plus_1pct"];
+        const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
         const keys = Array.from(new Set([...order, ...Object.keys(out.sensitivity_table)]));
 
         for (const k of keys) {
             const v: any = (out.sensitivity_table as any)[k];
             if (!v || typeof v !== "object") continue;
 
-            // Only include rows that actually represent rate stress cases
             const hasRateMetrics =
                 isFiniteNumber(v.monthly_payment) || isFiniteNumber(v.monthly_cash_flow) || isFiniteNumber(v.dscr);
             if (!hasRateMetrics) continue;
@@ -221,10 +412,10 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
                     ? "Current"
                     : k === "plus_0_5pct"
                         ? "+0.5%"
-                        : k === "minus_0_5pct"
-                            ? "-0.5%"
-                            : k === "plus_1pct"
-                                ? "+1.0%"
+                        : k === "plus_1pct"
+                            ? "+1.0%"
+                            : k === "minus_0_5pct"
+                                ? "-0.5%"
                                 : k.replace(/_/g, " ");
 
             rows.push([label, safeAbsMoney(v.monthly_payment), v.monthly_cash_flow ?? null, v.dscr ?? null]);
@@ -367,9 +558,8 @@ async function callXaiJson(systemPrompt: string, userPrompt: string, maxTokens: 
    Route
 ========================= */
 export async function POST(req: NextRequest) {
-    // DEPLOY_MARKER_SCENARIO_2025_12_19
     const t0 = Date.now();
-    const buildTag = "scenario-proof-12-19-25-v4";
+    const buildTag = "scenario-proof-12-19-25-v5";
     const requestId =
         (globalThis.crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
 
@@ -394,12 +584,13 @@ export async function POST(req: NextRequest) {
         const marketData = await getCurrentMortgageData();
         fred_ms = Date.now() - tFred;
 
-        // 2) System prompt (sensitivity is OPTIONAL + only if borrower asks)
+        // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
         const systemPrompt = compactWhitespace(`
 You are HomeRates.AI Smart Scenario Engine.
 Return ONLY valid JSON. No markdown. No extra keys.
 
 CRITICAL:
+- Always include a short "plain_english_summary" that restates the key scenario inputs (price/balance, down payment, rent, vacancy, taxes, insurance, maintenance, rate source/date).
 - Never output negative values for "monthly_payment". If savings exist, express as a separate delta, not a negative payment.
 - Do NOT include any rate sensitivity table unless the user explicitly asks for a rate comparison (rates up/down, +0.5%, stress test, etc).
 - Keep labels short for table headers.
@@ -460,7 +651,7 @@ Schema:
             );
         }
 
-        // Normalize for GrokCard + provenance + on-demand sensitivity only
+        // Normalize for GrokCard + Inputs block + on-demand sensitivity only
         result = normalizeForGrokCard(result, message, marketData);
 
         const total_ms = Date.now() - t0;
