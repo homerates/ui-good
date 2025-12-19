@@ -215,7 +215,7 @@ export type CalcSubmitResult = {
 /* =========================
    API helpers
 ========================= */
-async function safeJson(r: Response): Promise<ApiResponse> {
+async function safeJson(r: Response): Promise<any> {
     const txt = await r.text();
     try {
         return JSON.parse(txt) as ApiResponse;
@@ -229,6 +229,101 @@ async function safeJson(r: Response): Promise<ApiResponse> {
     }
 }
 
+
+/* =========================
+   Scenario normalization (Scenario API → ApiResponse)
+   This keeps the existing AnswerCard/GrokCard renderer working.
+========================= */
+function scenarioToApiResponse(s: any): ApiResponse {
+    const result = s?.result || {};
+    const marketData = s?.marketData || {};
+    const meta = s?.meta || {};
+
+    const summary =
+        typeof result?.plain_english_summary === 'string' && result.plain_english_summary.trim()
+            ? result.plain_english_summary.trim()
+            : (typeof result?.summary === 'string' ? result.summary : 'Scenario analysis completed.');
+
+    const md: string[] = [];
+    md.push('## Smart Scenario');
+    md.push('');
+    md.push(summary);
+    md.push('');
+
+    // Sensitivity table (monthly payment)
+    const sens = result?.sensitivity_table;
+    if (sens && typeof sens === 'object') {
+        md.push('### Rate Sensitivity (monthly payment)');
+        md.push('');
+        md.push('| Case | Payment |');
+        md.push('|---|---:|');
+        for (const [k, v] of Object.entries(sens)) {
+            const p = (v as any)?.monthly_payment;
+            md.push(`| ${k} | ${typeof p === 'number' ? p.toFixed(2) : '—'} |`);
+        }
+        md.push('');
+    }
+
+    // Amortization summary
+    if (Array.isArray(result?.amortization_summary) && result.amortization_summary.length) {
+        md.push('### Amortization Snapshot');
+        md.push('');
+        md.push('| Year | Principal Paid | Interest Paid | Ending Balance |');
+        md.push('|---:|---:|---:|---:|');
+        for (const row of result.amortization_summary) {
+            md.push(
+                `| ${row?.year ?? '—'} | ${row?.principal_paid ?? '—'} | ${row?.interest_paid ?? '—'} | ${row?.ending_balance ?? '—'} |`
+            );
+        }
+        md.push('');
+    }
+
+    // Cash flow table (optional)
+    if (Array.isArray(result?.cash_flow_table) && result.cash_flow_table.length) {
+        md.push('### Cash Flow (net)');
+        md.push('');
+        md.push('| Year | Net Cash Flow |');
+        md.push('|---:|---:|');
+        for (const row of result.cash_flow_table) {
+            md.push(`| ${row?.year ?? '—'} | ${row?.net_cash_flow ?? '—'} |`);
+        }
+        md.push('');
+    }
+
+    // Key risks
+    if (Array.isArray(result?.key_risks) && result.key_risks.length) {
+        md.push('### Key Risks');
+        md.push('');
+        for (const r of result.key_risks) md.push(`- ${r}`);
+        md.push('');
+    }
+
+    // Confidence mapping
+    const conf: ApiResponse['confidence'] =
+        typeof meta?.confidence === 'string'
+            ? (meta.confidence === 'high' ? 'high' : meta.confidence === 'low' ? 'low' : 'med')
+            : 'med';
+
+    return {
+        path: 'dynamic',
+        usedFRED: marketData?.usedFallbacks === false || Boolean(marketData?.date),
+        confidence: conf,
+        message: summary,
+        summary,
+        answer: summary,
+        answerMarkdown: md.join('\n'),
+        data_freshness: marketData?.date ? `Live (FRED) as of ${marketData.date}` : undefined,
+        grok: {
+            scenario: true,
+            provider: s?.provider,
+            model: meta?.model,
+            build_tag: meta?.build_tag,
+            marketData,
+            meta,
+            result,
+        },
+    };
+}
 /* =========================
    Answer block
 ========================= */
@@ -1052,7 +1147,8 @@ export default function Page() {
                 body: JSON.stringify(payload),
             });
 
-            const meta = await safeJson(r);
+            const raw = await safeJson(r);
+            const meta: ApiResponse = useScenario ? scenarioToApiResponse(raw) : (raw as ApiResponse);
             // Attach Grok metadata to the assistant message (under m.meta)
             setMessages((prev) =>
                 prev.map((m) =>
