@@ -35,7 +35,7 @@ const ANON_DAILY_LIMIT = 3;
 
 // signed-in usage meter (per user, per browser, per day)
 const SIGNED_METER_KEY = 'hr.signed.q.v1';
-const SIGNED_DAILY_LIMIT = 50; // signed-in, triggers Upgrade modal
+const SIGNED_DAILY_LIMIT = 100; // signed-in, triggers Upgrade modal
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
