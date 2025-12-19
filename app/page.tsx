@@ -238,11 +238,33 @@ function scenarioToApiResponse(s: any): ApiResponse {
     const result = s?.result || {};
     const marketData = s?.marketData || {};
     const meta = s?.meta || {};
+    // TEMP: debug the scenario payload shape (remove after confirming)
+    console.log('[scenarioToApiResponse] keys:', Object.keys(result || {}), 'top:', Object.keys(s || {}));
 
     const summary =
-        typeof result?.plain_english_summary === 'string' && result.plain_english_summary.trim()
+        // Common: result.plain_english_summary is a string
+        (typeof result?.plain_english_summary === 'string' && result.plain_english_summary.trim())
             ? result.plain_english_summary.trim()
-            : (typeof result?.summary === 'string' ? result.summary : 'Scenario analysis completed.');
+
+            // Sometimes: result.plain_english_summary is an object like { content: "..." }
+            : (typeof result?.plain_english_summary?.content === 'string' && result.plain_english_summary.content.trim())
+                ? result.plain_english_summary.content.trim()
+
+                // Sometimes: result.summary is a string
+                : (typeof result?.summary === 'string' && result.summary.trim())
+                    ? result.summary.trim()
+
+                    // Sometimes: result.answer is a string
+                    : (typeof result?.answer === 'string' && result.answer.trim())
+                        ? result.answer.trim()
+
+                        // Sometimes: top-level answer/summary
+                        : (typeof s?.answer === 'string' && s.answer.trim())
+                            ? s.answer.trim()
+                            : (typeof s?.summary === 'string' && s.summary.trim())
+                                ? s.summary.trim()
+                                : 'Scenario analysis completed.';
+
 
     const md: string[] = [];
     md.push('## Smart Scenario');
