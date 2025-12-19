@@ -367,6 +367,7 @@ async function callXaiJson(systemPrompt: string, userPrompt: string, maxTokens: 
    Route
 ========================= */
 export async function POST(req: NextRequest) {
+    // DEPLOY_MARKER_SCENARIO_2025_12_19
     const t0 = Date.now();
     const buildTag = "scenario-proof-12-19-25-v4";
     const requestId =
