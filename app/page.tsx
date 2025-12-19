@@ -1002,14 +1002,54 @@ export default function Page() {
                 mode,
             };
 
-            const answersEndpoint = '/api/answers';
+            // === Scenario routing (12-18-25) ===
+            // Force mode: if URL has ?scenario=1 (your sidebar button can add this)
+            const sp =
+                typeof window !== 'undefined'
+                    ? new URLSearchParams(window.location.search)
+                    : null;
+
+            const forceScenario = sp?.get('scenario') === '1';
+
+            // Smart detection: only flip to scenario when it smells like compare/projection + has numbers
+            const t = q.toLowerCase();
+
+            const looksLikeScenario =
+                t.includes('scenario') ||
+                t.includes('compare') ||
+                t.includes(' vs ') ||
+                t.includes('cash out') ||
+                t.includes('cash-out') ||
+                t.includes('equity') ||
+                t.includes('projection') ||
+                t.includes('stress test') ||
+                t.includes('10-year') ||
+                t.includes('10 year') ||
+                t.includes('5-year') ||
+                t.includes('5 year');
+
+            const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
+
+            const useScenario = forceScenario || (looksLikeScenario && hasNumbersContext);
+
+            // Endpoint + payload
+            const answersEndpoint = useScenario ? '/api/answers/scenario' : '/api/answers';
+
+            const payload = useScenario
+                ? {
+                    message: q,
+                    userId: user?.id || 'anon',
+                }
+                : body;
+            // === End scenario routing ===
+
 
 
             const r = await fetch(answersEndpoint, {
 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify(payload),
             });
 
             const meta = await safeJson(r);
