@@ -441,10 +441,8 @@ function postParseValidateScenario(result: any, message: string, marketData: any
     };
 
     // Borrower must explicitly ask for stress/compare (or the model already returned those keys)
-    const promptWantsStress =
-        /\+\s*0\.5%|\+\s*1%|\brate\s*stress\b|\brates\s*(rise|rising|increase|higher|up)\b|\brates\s*(drop|lower|down)\b/i.test(
-            message
-        );
+    const promptWantsStress = wantsRateSensitivity(message);
+
 
     // 1) monthly_payment must equal computed P&I (strict)
     const modelPmt = Number(out.monthly_payment);
