@@ -794,7 +794,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
             const label =
                 k === "current_rate"
-                    ? "Current"
+                    ? "Current Rate"
                     : k === "plus_0_5pct"
                         ? "+0.5%"
                         : k === "plus_1pct"
@@ -803,7 +803,13 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
                                 ? "-0.5%"
                                 : k.replace(/_/g, " ");
 
-            rows.push([label, safeAbsMoney(v.monthly_payment), v.monthly_cash_flow ?? null, v.dscr ?? null]);
+
+            rows.push([
+                label,
+                fmtMoney(v.monthly_payment),
+                fmtCF(v.monthly_cash_flow),
+                fmtDSCR(v.dscr),
+            ]);
         }
         // rate_sensitivity is built in postParseValidateScenario() (single source of truth)
         // Intentionally do not build it here to avoid raw-table overwrites.
