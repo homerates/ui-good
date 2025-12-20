@@ -805,13 +805,12 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
             rows.push([label, safeAbsMoney(v.monthly_payment), v.monthly_cash_flow ?? null, v.dscr ?? null]);
         }
-
+        // rate_sensitivity is built in postParseValidateScenario() (single source of truth)
+        // Intentionally do not build it here to avoid raw-table overwrites.
         if (rows.length >= 2) {
-            grokcard_tables.rate_sensitivity = {
-                headers: ["Case", "Pmt", "CF", "DSCR"],
-                rows,
-            };
+            // no-op
         }
+
     }
 
     out.grokcard_tables = grokcard_tables;
