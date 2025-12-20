@@ -590,42 +590,60 @@ function postParseValidateScenario(result: any, message: string, marketData: any
     if (promptWantsStress) {
         const s = out.sensitivity_table || {};
         const rows: any[] = [];
+
+        const fmtMoney = (v: any) =>
+            Number.isFinite(Number(v))
+                ? `$${Math.round(Number(v)).toLocaleString()}`
+                : null;
+
+        const fmtCF = (v: any) =>
+            Number.isFinite(Number(v))
+                ? `${Number(v) < 0 ? "-" : ""}$${Math.abs(Math.round(Number(v))).toLocaleString()}`
+                : null;
+
+        const fmtDSCR = (v: any) =>
+            Number.isFinite(Number(v)) ? `${round2(Number(v))}x` : null;
+
         if (s.minus_0_5pct)
             rows.push([
                 "-0.5%",
-                s.minus_0_5pct.monthly_payment,
-                s.minus_0_5pct.monthly_cash_flow,
-                s.minus_0_5pct.dscr,
+                fmtMoney(s.minus_0_5pct.monthly_payment),
+                fmtCF(s.minus_0_5pct.monthly_cash_flow),
+                fmtDSCR(s.minus_0_5pct.dscr),
             ]);
+
         if (s.current_rate)
             rows.push([
-                "Current",
-                s.current_rate.monthly_payment,
-                s.current_rate.monthly_cash_flow,
-                s.current_rate.dscr,
+                "Current Rate",
+                fmtMoney(s.current_rate.monthly_payment),
+                fmtCF(s.current_rate.monthly_cash_flow),
+                fmtDSCR(s.current_rate.dscr),
             ]);
+
         if (s.plus_0_5pct)
             rows.push([
                 "+0.5%",
-                s.plus_0_5pct.monthly_payment,
-                s.plus_0_5pct.monthly_cash_flow,
-                s.plus_0_5pct.dscr,
+                fmtMoney(s.plus_0_5pct.monthly_payment),
+                fmtCF(s.plus_0_5pct.monthly_cash_flow),
+                fmtDSCR(s.plus_0_5pct.dscr),
             ]);
+
         if (s.plus_1pct)
             rows.push([
                 "+1.0%",
-                s.plus_1pct.monthly_payment,
-                s.plus_1pct.monthly_cash_flow,
-                s.plus_1pct.dscr,
+                fmtMoney(s.plus_1pct.monthly_payment),
+                fmtCF(s.plus_1pct.monthly_cash_flow),
+                fmtDSCR(s.plus_1pct.dscr),
             ]);
 
         out.grokcard_tables.rate_sensitivity = {
-            headers: ["Case", "Pmt", "CF", "DSCR"],
+            headers: ["Scenario", "Payment", "Cash Flow", "DSCR"],
             rows,
         };
     } else {
         if (out.grokcard_tables?.rate_sensitivity) delete out.grokcard_tables.rate_sensitivity;
     }
+
 
     // 6) Regenerate summary from computed baseline (prevents P&I hallucinations)
     const effRent = base.effectiveRent;
