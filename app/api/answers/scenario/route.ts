@@ -804,12 +804,35 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
                                 : k.replace(/_/g, " ");
 
 
+            const fmtMoneyLocal = (n: any) => {
+                const x = typeof n === "number" ? n : Number(n);
+                if (!isFinite(x)) return null;
+                const abs = Math.abs(x);
+                const s = abs.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                return `$${s}`;
+            };
+
+            const fmtCFLocal = (n: any) => {
+                const x = typeof n === "number" ? n : Number(n);
+                if (!isFinite(x)) return null;
+                const sign = x < 0 ? "-" : "";
+                return `${sign}${fmtMoneyLocal(x)}`;
+            };
+
+            const fmtDSCRLocal = (n: any) => {
+                const x = typeof n === "number" ? n : Number(n);
+                if (!isFinite(x)) return null;
+                return `${x.toFixed(2)}x`;
+            };
+
             rows.push([
                 label,
-                fmtMoney(v.monthly_payment),
-                fmtCF(v.monthly_cash_flow),
-                fmtDSCR(v.dscr),
+                fmtMoneyLocal(v.monthly_payment),
+                fmtCFLocal(v.monthly_cash_flow),
+                fmtDSCRLocal(v.dscr),
             ]);
+
+
         }
         // rate_sensitivity is built in postParseValidateScenario() (single source of truth)
         // Intentionally do not build it here to avoid raw-table overwrites.
