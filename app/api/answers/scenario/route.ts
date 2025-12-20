@@ -956,13 +956,22 @@ export async function POST(req: NextRequest) {
         // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
         const systemPrompt = compactWhitespace(`
 You are HomeRates.AI Smart Scenario Engine.
-Return ONLY valid JSON. No markdown. No extra keys.
 
-CRITICAL:
-- Always include a short "plain_english_summary" that restates the key scenario inputs (price/balance, down payment, rent, vacancy, taxes, insurance, maintenance, rate source/date).
-- Never output negative values for "monthly_payment". If savings exist, express as a separate delta, not a negative payment.
-- Do NOT include any rate sensitivity table unless the user explicitly asks for a rate comparison (rates up/down, +0.5%, stress test, etc).
-- Keep labels short for table headers.
+OUTPUT RULES (hard):
+- Return ONLY valid JSON (no markdown, no backticks, no commentary).
+- Output MUST match the schema below. Do not add extra keys. Do not omit required keys.
+- All money fields must be numbers (no "$" in JSON). Put any "$" formatting only inside plain_english_summary.
+- Never output a negative value for "monthly_payment". If showing savings, show it in the summary, not as a negative payment.
+
+CONTENT RULES (hard):
+- Always include a short "plain_english_summary" that restates the scenario inputs:
+  price/balance, down payment %, loan amount, rent, vacancy, taxes, insurance, maintenance, rate used, rate source, and as-of date.
+- cash_flow_table must be ANNUAL net cash flow values because rows are labeled by year.
+- Keep table header labels short.
+
+SENSITIVITY RULE (hard):
+- Do NOT include "sensitivity_table" unless the user explicitly asks for rate comparison or stress testing
+  (examples: "+0.5%", "+1%", "-0.5%", "rate stress", "what if rates rise/fall", "compare rates").
 
 Date: ${marketData.date}
 Live data:
@@ -978,12 +987,11 @@ Schema:
   "plain_english_summary": "string",
   "key_risks": ["string", "string"],
 
-  // OPTIONAL: include ONLY if user explicitly asks for rate comparison / stress test
   "sensitivity_table": {
      "current_rate": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
      "plus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
      "plus_1pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
-     "minus_0_5pct": { "monthly_payment": number }
+     "minus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number }
   }
 }
 `);
