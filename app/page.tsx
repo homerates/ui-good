@@ -330,7 +330,15 @@ function scenarioToApiResponse(s: any): ApiResponse {
 
     // Amortization summary (render as cumulative totals)
     if (Array.isArray(result?.amortization_summary) && result.amortization_summary.length) {
-        const loanAmt = Number(result?.scenario_inputs?.loan_amount);
+        const loanAmtRaw =
+            (result as any)?.scenario_inputs?.loan_amount ??
+            (result as any)?.scenario_inputs?.loanAmount ??
+            (result as any)?.loan_amount ??
+            (result as any)?.loanAmount ??
+            (result as any)?.scenario?.loan_amount ??
+            (result as any)?.scenario?.loanAmount;
+
+        const loanAmt = Number(loanAmtRaw);
 
         const fmtMoney0 = (n: any) => {
             const x = typeof n === "number" ? n : Number(n);
