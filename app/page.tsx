@@ -328,17 +328,31 @@ function scenarioToApiResponse(s: any): ApiResponse {
     }
 
 
-    // Amortization summary (render as cumulative totals)
-    if (Array.isArray(result?.amortization_summary) && result.amortization_summary.length) {
+    // Amortization Snapshot (computed locally from scenario inputs)
+    {
         const loanAmtRaw =
             (result as any)?.scenario_inputs?.loan_amount ??
             (result as any)?.scenario_inputs?.loanAmount ??
-            (result as any)?.loan_amount ??
-            (result as any)?.loanAmount ??
             (result as any)?.scenario?.loan_amount ??
-            (result as any)?.scenario?.loanAmount;
+            (result as any)?.loan_amount ??
+            (result as any)?.loanAmount;
+
+        const rateRaw =
+            (result as any)?.rate_context?.rate ??
+            (result as any)?.scenario_inputs?.rate ??
+            (result as any)?.scenario_inputs?.rate_used ??
+            (result as any)?.scenario?.rate ??
+            (result as any)?.rate_used;
+
+        const termYearsRaw =
+            (result as any)?.scenario_inputs?.term_years ??
+            (result as any)?.scenario_inputs?.termYears ??
+            (result as any)?.scenario?.term_years ??
+            30;
 
         const loanAmt = Number(loanAmtRaw);
+        const ratePct = Number(rateRaw); // expects percent, e.g. 6.21
+        const termYears = Number(termYearsRaw);
 
         const fmtMoney0 = (n: any) => {
             const x = typeof n === "number" ? n : Number(n);
@@ -347,34 +361,57 @@ function scenarioToApiResponse(s: any): ApiResponse {
             return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
         };
 
-        let cumPrin = 0;
-        let cumInt = 0;
+        const isInputsValid =
+            Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0 && Number.isFinite(termYears) && termYears > 0;
 
-        md.push("### Amortization Snapshot");
-        md.push("");
-        md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
-        md.push("| - | -: | -: | -: |");
+        if (isInputsValid) {
+            const r = ratePct / 100 / 12;
+            const n = Math.round(termYears * 12);
 
-        for (const row of result.amortization_summary) {
-            const y = Number((row as any)?.year);
-            const pDelta = Number((row as any)?.principal_paid);
-            const iDelta = Number((row as any)?.interest_paid);
+            // Monthly P&I payment
+            const pow = Math.pow(1 + r, n);
+            const pmt = (loanAmt * r * pow) / (pow - 1);
 
-            if (Number.isFinite(pDelta)) cumPrin += pDelta;
-            if (Number.isFinite(iDelta)) cumInt += iDelta;
+            let bal = loanAmt;
+            let cumPrin = 0;
+            let cumInt = 0;
 
-            const bal =
-                Number.isFinite(loanAmt) && Number.isFinite(cumPrin)
-                    ? Math.max(loanAmt - cumPrin, 0)
-                    : NaN;
+            const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
 
-            md.push(
-                `| ${Number.isFinite(y) ? y : "-"} | ${fmtMoney0(cumPrin)} | ${fmtMoney0(cumInt)} | ${fmtMoney0(bal)} |`
-            );
+            md.push("### Amortization Snapshot");
+            md.push("");
+            md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
+            md.push("| - | -: | -: | -: |");
+
+            for (let m = 1; m <= n; m++) {
+                const interest = bal * r;
+                let principal = pmt - interest;
+
+                // Guard for final month rounding
+                if (principal > bal) principal = bal;
+
+                bal = bal - principal;
+                cumPrin += principal;
+                cumInt += interest;
+
+                if (m % 12 === 0) {
+                    const y = m / 12;
+                    if (yearsToShow.has(y)) {
+                        md.push(`| ${y} | ${fmtMoney0(cumPrin)} | ${fmtMoney0(cumInt)} | ${fmtMoney0(bal)} |`);
+                    }
+                }
+            }
+
+            md.push("");
+        } else {
+            // If scenario inputs are missing, don't show a misleading table
+            md.push("### Amortization Snapshot");
+            md.push("");
+            md.push("Amortization inputs missing from scenario response (loan amount / rate / term).");
+            md.push("");
         }
-
-        md.push("");
     }
+
 
 
     // Cash flow table (optional)
