@@ -328,19 +328,46 @@ function scenarioToApiResponse(s: any): ApiResponse {
     }
 
 
-    // Amortization summary
+    // Amortization summary (render as cumulative totals)
     if (Array.isArray(result?.amortization_summary) && result.amortization_summary.length) {
-        md.push('### Amortization Snapshot');
-        md.push('');
-        md.push('| Year | Principal Paid | Interest Paid | Ending Balance |');
-        md.push('|---:|---:|---:|---:|');
+        const loanAmt = Number(result?.scenario_inputs?.loan_amount);
+
+        const fmtMoney0 = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            const abs = Math.abs(x);
+            return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+        };
+
+        let cumPrin = 0;
+        let cumInt = 0;
+
+        md.push("### Amortization Snapshot");
+        md.push("");
+        md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
+        md.push("| - | -: | -: | -: |");
+
         for (const row of result.amortization_summary) {
+            const y = Number((row as any)?.year);
+            const pDelta = Number((row as any)?.principal_paid);
+            const iDelta = Number((row as any)?.interest_paid);
+
+            if (Number.isFinite(pDelta)) cumPrin += pDelta;
+            if (Number.isFinite(iDelta)) cumInt += iDelta;
+
+            const bal =
+                Number.isFinite(loanAmt) && Number.isFinite(cumPrin)
+                    ? Math.max(loanAmt - cumPrin, 0)
+                    : NaN;
+
             md.push(
-                `| ${row?.year ?? '—'} | ${row?.principal_paid ?? '—'} | ${row?.interest_paid ?? '—'} | ${row?.ending_balance ?? '—'} |`
+                `| ${Number.isFinite(y) ? y : "-"} | ${fmtMoney0(cumPrin)} | ${fmtMoney0(cumInt)} | ${fmtMoney0(bal)} |`
             );
         }
-        md.push('');
+
+        md.push("");
     }
+
 
     // Cash flow table (optional)
     if (Array.isArray(result?.cash_flow_table) && result.cash_flow_table.length) {
