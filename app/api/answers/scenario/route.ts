@@ -782,7 +782,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
     if (Array.isArray(out.amortization_summary) && out.amortization_summary.length) {
         grokcard_tables.amortization_snapshot = {
-            headers: ["Yr", "Prin", "Int", "Bal"],
+            headers: ["Yr", "Prin (CUM)", "Int (CUM)", "Bal (DERIVED)"],
             rows: out.amortization_summary.map((r: any) => [
                 r.year,
                 r.principal_paid,
