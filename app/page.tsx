@@ -334,13 +334,16 @@ function scenarioToApiResponse(s: any): ApiResponse {
             (result as any)?.scenario_inputs?.loan_amount ??
             (result as any)?.scenario_inputs?.loanAmount ??
             (result as any)?.scenario?.loan_amount ??
+            (result as any)?.scenario?.loanAmount ??
             (result as any)?.loan_amount ??
             (result as any)?.loanAmount;
 
         const rateRaw =
             (result as any)?.rate_context?.rate ??
+            (result as any)?.rate_context?.current_rate ??
             (result as any)?.scenario_inputs?.rate ??
             (result as any)?.scenario_inputs?.rate_used ??
+            (result as any)?.scenario_inputs?.rateUsed ??
             (result as any)?.scenario?.rate ??
             (result as any)?.rate_used;
 
@@ -348,11 +351,39 @@ function scenarioToApiResponse(s: any): ApiResponse {
             (result as any)?.scenario_inputs?.term_years ??
             (result as any)?.scenario_inputs?.termYears ??
             (result as any)?.scenario?.term_years ??
+            (result as any)?.scenario?.termYears ??
             30;
 
-        const loanAmt = Number(loanAmtRaw);
-        const ratePct = Number(rateRaw); // expects percent, e.g. 6.21
-        const termYears = Number(termYearsRaw);
+        const parseMoney = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            // "$680,000" -> "680000"
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
+        const parsePercent = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            // "6.21%" -> "6.21"
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
+        const parseYears = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            // "30y" -> "30"
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
+        const loanAmt = parseMoney(loanAmtRaw);
+        const ratePct = parsePercent(rateRaw); // percent, e.g. 6.21
+        const termYears = parseYears(termYearsRaw);
 
         const fmtMoney0 = (n: any) => {
             const x = typeof n === "number" ? n : Number(n);
@@ -362,7 +393,12 @@ function scenarioToApiResponse(s: any): ApiResponse {
         };
 
         const isInputsValid =
-            Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0 && Number.isFinite(termYears) && termYears > 0;
+            Number.isFinite(loanAmt) &&
+            loanAmt > 0 &&
+            Number.isFinite(ratePct) &&
+            ratePct > 0 &&
+            Number.isFinite(termYears) &&
+            termYears > 0;
 
         if (isInputsValid) {
             const r = ratePct / 100 / 12;
@@ -404,13 +440,13 @@ function scenarioToApiResponse(s: any): ApiResponse {
 
             md.push("");
         } else {
-            // If scenario inputs are missing, don't show a misleading table
             md.push("### Amortization Snapshot");
             md.push("");
             md.push("Amortization inputs missing from scenario response (loan amount / rate / term).");
             md.push("");
         }
     }
+
 
 
 
