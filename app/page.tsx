@@ -328,8 +328,40 @@ function scenarioToApiResponse(s: any): ApiResponse {
     }
 
 
-    // Amortization Snapshot (computed locally from scenario inputs)
+    // Amortization Snapshot (computed locally from scenario text / scenario inputs)
     {
+        const fmtMoney0 = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            const abs = Math.abs(x);
+            return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+        };
+
+        const parseMoney = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
+        const parsePercent = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
+        const parseYears = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
+        // 1) Try structured fields first (fine if missing)
         const loanAmtRaw =
             (result as any)?.scenario_inputs?.loan_amount ??
             (result as any)?.scenario_inputs?.loanAmount ??
@@ -354,43 +386,29 @@ function scenarioToApiResponse(s: any): ApiResponse {
             (result as any)?.scenario?.termYears ??
             30;
 
-        const parseMoney = (v: any): number => {
-            if (typeof v === "number") return v;
-            if (typeof v !== "string") return NaN;
-            // "$680,000" -> "680000"
-            const cleaned = v.replace(/[^0-9.-]/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : NaN;
-        };
+        let loanAmt = parseMoney(loanAmtRaw);
+        let ratePct = parsePercent(rateRaw); // percent, e.g. 6.21
+        let termYears = parseYears(termYearsRaw);
 
-        const parsePercent = (v: any): number => {
-            if (typeof v === "number") return v;
-            if (typeof v !== "string") return NaN;
-            // "6.21%" -> "6.21"
-            const cleaned = v.replace(/[^0-9.-]/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : NaN;
-        };
+        // 2) Fallback: parse from already-rendered Smart Scenario text in md[]
+        // This is the most reliable source in your current UI flow.
+        const mdText = md.join("\n");
 
-        const parseYears = (v: any): number => {
-            if (typeof v === "number") return v;
-            if (typeof v !== "string") return NaN;
-            // "30y" -> "30"
-            const cleaned = v.replace(/[^0-9.-]/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : NaN;
-        };
+        if (!Number.isFinite(loanAmt)) {
+            const m = mdText.match(/Loan amount:\s*\$?\s*([\d,]+)/i);
+            if (m?.[1]) loanAmt = Number(m[1].replace(/,/g, ""));
+        }
 
-        const loanAmt = parseMoney(loanAmtRaw);
-        const ratePct = parsePercent(rateRaw); // percent, e.g. 6.21
-        const termYears = parseYears(termYearsRaw);
+        if (!Number.isFinite(ratePct)) {
+            const m = mdText.match(/Rate used:\s*([0-9.]+)\s*%/i);
+            if (m?.[1]) ratePct = Number(m[1]);
+        }
 
-        const fmtMoney0 = (n: any) => {
-            const x = typeof n === "number" ? n : Number(n);
-            if (!isFinite(x)) return "-";
-            const abs = Math.abs(x);
-            return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-        };
+        if (!Number.isFinite(termYears)) {
+            const m = mdText.match(/term\s*\(?\s*([0-9]+)\s*y/i);
+            if (m?.[1]) termYears = Number(m[1]);
+            if (!Number.isFinite(termYears)) termYears = 30;
+        }
 
         const isInputsValid =
             Number.isFinite(loanAmt) &&
@@ -426,7 +444,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
                 // Guard for final month rounding
                 if (principal > bal) principal = bal;
 
-                bal = bal - principal;
+                bal -= principal;
                 cumPrin += principal;
                 cumInt += interest;
 
@@ -446,9 +464,6 @@ function scenarioToApiResponse(s: any): ApiResponse {
             md.push("");
         }
     }
-
-
-
 
     // Cash flow table (optional)
     if (Array.isArray(result?.cash_flow_table) && result.cash_flow_table.length) {
