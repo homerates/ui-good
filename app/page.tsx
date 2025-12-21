@@ -272,19 +272,61 @@ function scenarioToApiResponse(s: any): ApiResponse {
     md.push(summary);
     md.push('');
 
-    // Sensitivity table (monthly payment)
+    // Sensitivity table (monthly payment / cash flow / DSCR)
     const sens = result?.sensitivity_table;
-    if (sens && typeof sens === 'object') {
-        md.push('### Rate Sensitivity (monthly payment)');
-        md.push('');
-        md.push('| Case | Payment |');
-        md.push('|---|---:|');
-        for (const [k, v] of Object.entries(sens)) {
-            const p = (v as any)?.monthly_payment;
-            md.push(`| ${k} | ${typeof p === 'number' ? p.toFixed(2) : '—'} |`);
+    if (sens && typeof sens === "object") {
+        const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
+
+        const labelFor = (k: string) =>
+            k === "current_rate"
+                ? "Current Rate"
+                : k === "plus_0_5pct"
+                    ? "+0.5%"
+                    : k === "plus_1pct"
+                        ? "+1.0%"
+                        : k === "minus_0_5pct"
+                            ? "-0.5%"
+                            : k.replace(/_/g, " ");
+
+        const fmtMoney0 = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            const abs = Math.abs(x);
+            return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+        };
+
+        const fmtCF0 = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            const sign = x < 0 ? "-" : "";
+            return `${sign}${fmtMoney0(x)}`;
+        };
+
+        const fmtDSCR = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            return `${x.toFixed(2)}x`;
+        };
+
+        md.push("### Rate Sensitivity (monthly payment)");
+        md.push("");
+        md.push("| Scenario | Payment | Cash Flow | DSCR |");
+        md.push("| --- | ---: | ---: | ---: |");
+
+        for (const k of order) {
+            const v: any = (sens as any)[k];
+            if (!v || typeof v !== "object") continue;
+
+            const p = v.monthly_payment;
+            const cf = v.monthly_cash_flow;
+            const d = v.dscr;
+
+            md.push(`| ${labelFor(k)} | ${fmtMoney0(p)} | ${fmtCF0(cf)} | ${fmtDSCR(d)} |`);
         }
-        md.push('');
+
+        md.push("");
     }
+
 
     // Amortization summary
     if (Array.isArray(result?.amortization_summary) && result.amortization_summary.length) {
