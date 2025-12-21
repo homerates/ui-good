@@ -559,22 +559,22 @@ function postParseValidateScenario(result: any, message: string, marketData: any
         out.grokcard_tables = {};
     }
 
-    // Amortization snapshot table
-    // Compute cumulative principal/interest and derive balance from loan amount
+    // Amortization snapshot table (cumulative totals)
     if (Array.isArray(out.amortization_summary) && out.amortization_summary.length) {
         let cumPrin = 0;
         let cumInt = 0;
+
         const loanAmt = Number(out?.scenario_inputs?.loan_amount);
 
         out.grokcard_tables.amortization_snapshot = {
-            headers: ["Yr", "Prin", "Int", "Bal"],
+            headers: ["Yr", "Principal Paid", "Interest Paid", "Ending Balance"],
             rows: out.amortization_summary.map((r: any) => {
                 const y = Number(r?.year);
-                const p = Number(r?.principal_paid);
-                const i = Number(r?.interest_paid);
+                const pDelta = Number(r?.principal_paid);
+                const iDelta = Number(r?.interest_paid);
 
-                if (Number.isFinite(p)) cumPrin += p;
-                if (Number.isFinite(i)) cumInt += i;
+                if (Number.isFinite(pDelta)) cumPrin += pDelta;
+                if (Number.isFinite(iDelta)) cumInt += iDelta;
 
                 const bal =
                     Number.isFinite(loanAmt) && Number.isFinite(cumPrin)
@@ -586,11 +586,11 @@ function postParseValidateScenario(result: any, message: string, marketData: any
                     Number.isFinite(cumPrin) ? Math.round(cumPrin) : null,
                     Number.isFinite(cumInt) ? Math.round(cumInt) : null,
                     bal !== null ? Math.round(bal) : null,
-
                 ];
             }),
         };
     }
+
 
 
 
