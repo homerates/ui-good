@@ -779,7 +779,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     }
 
     // Only build rate sensitivity table if borrower requested it AND sensitivity_table exists
-    if (includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
+    if (false && includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
         const rows: any[] = [];
         const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
         const keys = Array.from(new Set([...order, ...Object.keys(out.sensitivity_table)]));
