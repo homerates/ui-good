@@ -709,7 +709,21 @@ function postParseValidateScenario(result: any, message: string, marketData: any
     lines.push(`- PITIA (P&I + tax + insurance): $${pitia.toLocaleString()}/mo`);
     lines.push(`- Maintenance (modeled): $${maint.toLocaleString()}/mo`);
     lines.push(`- Net cash flow: $${mcf.toLocaleString()}/mo (${acf.toLocaleString()}/yr)`);
-    if (dscr != null) lines.push(`- DSCR-like coverage (effective rent ÷ PITIA): ${dscr}x`);
+    {
+        const dscrLd = (base as any)?.dscrLoanDepot ?? null;
+        const dscrEcon = (base as any)?.dscrEconomic ?? (base as any)?.dscr ?? null;
+
+        const fmtDSCRLocal = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!Number.isFinite(x)) return "-";
+            return `${x.toFixed(2)}x`;
+        };
+
+        lines.push(`- DSCR (LoanDepot, gross rent ÷ PITIA): ${fmtDSCRLocal(dscrLd)}`);
+        lines.push(`- DSCR-like (economic, effective rent ÷ PITIA): ${fmtDSCRLocal(dscrEcon)}`);
+
+    }
+
 
     if (promptWantsStress) {
         const s = out.sensitivity_table;
