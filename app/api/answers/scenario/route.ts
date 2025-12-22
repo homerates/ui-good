@@ -357,7 +357,7 @@ function calcBaselineFromInputs(inputs: ScenarioInputs, annualRatePct: number) {
     const loanAmount = inputs.price * (1 - downPct);
 
     const effectiveRent = inputs.rent_monthly * (1 - clamp(inputs.vacancy_pct / 100, 0, 0.9));
-
+    const grossRent = inputs.rent_monthly;
     const maintMonthly = (inputs.price * (inputs.maintenance_pct / 100)) / 12;
     const taxMonthly = (inputs.price * (inputs.property_tax_pct / 100)) / 12;
     const insMonthly = (inputs.price * (inputs.insurance_pct / 100)) / 12;
@@ -370,12 +370,23 @@ function calcBaselineFromInputs(inputs: ScenarioInputs, annualRatePct: number) {
 
     const monthlyCashFlow = effectiveRent - operating - PITIA;
 
-    const dscr = PITIA > 0 ? (effectiveRent / PITIA) : null;
+    // LoanDepot DSCR (underwriting) — GROSS rent only
+    const dscrLoanDepot = PITIA > 0 ? (grossRent / PITIA) : null;
+
+    // Economic DSCR (informational only)
+    const dscrEconomic = PITIA > 0 ? (effectiveRent / PITIA) : null;
+
+    // Back-compat: keep dscr as economic DSCR for now (rename later in outputs)
+    const dscr = dscrEconomic;
 
     return {
         termYears,
         loanAmount: round2(loanAmount),
         effectiveRent: round2(effectiveRent),
+        grossRent: round2(grossRent),
+        dscrLoanDepot: dscrLoanDepot == null ? null : round2(dscrLoanDepot),
+        dscrEconomic: dscrEconomic == null ? null : round2(dscrEconomic),
+
         monthlyPI: round2(monthlyPI),
         taxMonthly: round2(taxMonthly),
         insMonthly: round2(insMonthly),
