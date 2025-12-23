@@ -804,6 +804,95 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
     // GrokCard-friendly tables with short headers (prevents header overlap)
     const grokcard_tables: any = {};
+    // ---- Amortization guardrail: force build when user asks ----
+    const promptWantsAmortization =
+        /\bamort\b|\bamortization\b|\bamortisation\b|\bschedule\b|\bprincipal\b|\binterest\b|\bpayoff\b/i.test(message);
+
+    if (
+        promptWantsAmortization &&
+        (!Array.isArray(out.amortization_summary) || !out.amortization_summary.length)
+    ) {
+        const loanAmtRaw =
+            (out as any)?.baseline?.loanAmount ??
+            (out as any)?.scenario_inputs?.loan_amount ??
+            (out as any)?.scenario_inputs?.loanAmount ??
+            (out as any)?.loan_amount ??
+            (out as any)?.loanAmount;
+
+        const rateRaw =
+            (out as any)?.rate_context?.rate ??
+            (out as any)?.scenario_inputs?.rate ??
+            (out as any)?.scenario_inputs?.rate_used ??
+            (out as any)?.rate_used ??
+            (out as any)?.rate;
+
+        const termYearsRaw =
+            (out as any)?.scenario_inputs?.term_years ??
+            (out as any)?.scenario_inputs?.termYears ??
+            30;
+
+        const loanAmt = Number(loanAmtRaw);
+        const ratePct = Number(rateRaw);
+        const termYears = Number(termYearsRaw);
+
+        if (Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0) {
+            const buildAmortLocal = (loanAmount: number, aprPct: number, years: number) => {
+                const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+
+                const r = aprPct / 100 / 12;
+                const n = Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12);
+
+                if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(n) || n <= 0) return [];
+
+                const pow = Math.pow(1 + r, n);
+                const pmt = (loanAmount * r * pow) / (pow - 1);
+
+                let bal = loanAmount;
+                let cumPrin = 0;
+                let cumInt = 0;
+
+                const rows: any[] = [];
+
+                for (let m = 1; m <= n; m++) {
+                    const interest = bal * r;
+                    let principal = pmt - interest;
+
+                    if (principal > bal) principal = bal;
+
+                    bal -= principal;
+                    cumPrin += principal;
+                    cumInt += interest;
+
+                    if (m % 12 === 0) {
+                        const y = m / 12;
+                        if (yearsToShow.has(y)) {
+                            rows.push({
+                                year: y,
+                                principal_paid: Math.round(cumPrin),
+                                interest_paid: Math.round(cumInt),
+                                ending_balance: Math.max(Math.round(bal), 0),
+                            });
+                        }
+                    }
+                }
+
+                if (!rows.some((rr) => rr.year === 30)) {
+                    rows.push({
+                        year: 30,
+                        principal_paid: Math.round(cumPrin),
+                        interest_paid: Math.round(cumInt),
+                        ending_balance: 0,
+                    });
+                }
+
+                return rows;
+            };
+
+            out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
+        }
+    }
+    // ---- end amortization guardrail ----
+
 
     if (Array.isArray(out.amortization_summary) && out.amortization_summary.length) {
         grokcard_tables.amortization_snapshot = {
