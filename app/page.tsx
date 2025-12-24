@@ -1308,7 +1308,21 @@ export default function Page() {
                 t.includes('10-year') ||
                 t.includes('10 year') ||
                 t.includes('5-year') ||
-                t.includes('5 year');
+                t.includes('5 year') ||
+
+                // Investment / DSCR / rental math should always use Smart Scenario (single numeric authority)
+                t.includes('dscr') ||
+                t.includes('pitia') ||
+                t.includes('amortization') ||
+                t.includes('amortisation') ||
+                t.includes('cash flow') ||
+                t.includes('rental') ||
+                t.includes('rent ') ||
+                t.includes('investment property') ||
+                t.includes('vacancy') ||
+                t.includes('maintenance') ||
+                t.includes('property tax') ||
+                t.includes('insurance');
 
             const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
 
