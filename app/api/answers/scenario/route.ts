@@ -402,21 +402,33 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
     const si = result?.scenario_inputs;
     if (!si || typeof si !== "object") return null;
 
-    const required = ["rent_monthly", "price", "down_payment_pct", "vacancy_pct", "maintenance_pct", "property_tax_pct", "insurance_pct"];
+    const required: (keyof ScenarioInputs)[] = [
+        "rent_monthly",
+        "price",
+        "down_payment_pct",
+        "vacancy_pct",
+        "maintenance_pct",
+        "property_tax_pct",
+        "insurance_pct",
+    ];
+
     for (const k of required) {
-        if (!Number.isFinite(Number(si[k]))) return null;
+        const v = (si as any)[k];
+        if (!Number.isFinite(Number(v))) return null;
     }
+
     return {
-        rent_monthly: Number(si.rent_monthly),
-        price: Number(si.price),
-        down_payment_pct: Number(si.down_payment_pct),
-        vacancy_pct: Number(si.vacancy_pct),
-        maintenance_pct: Number(si.maintenance_pct),
-        property_tax_pct: Number(si.property_tax_pct),
-        insurance_pct: Number(si.insurance_pct),
-        term_years: si.term_years != null ? Number(si.term_years) : undefined,
+        rent_monthly: Number((si as any).rent_monthly),
+        price: Number((si as any).price),
+        down_payment_pct: Number((si as any).down_payment_pct),
+        vacancy_pct: Number((si as any).vacancy_pct),
+        maintenance_pct: Number((si as any).maintenance_pct),
+        property_tax_pct: Number((si as any).property_tax_pct),
+        insurance_pct: Number((si as any).insurance_pct),
+        term_years: (si as any).term_years != null ? Number((si as any).term_years) : undefined,
     };
 }
+
 
 function postParseValidateScenario(result: any, message: string, marketData: any) {
     const out = { ...(result || {}) };
