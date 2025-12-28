@@ -402,7 +402,8 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
     const si = result?.scenario_inputs;
     if (!si || typeof si !== "object") return null;
 
-    const required: (keyof ScenarioInputs)[] = [
+    // IMPORTANT: these keys must be literal and exact (no truncation / ellipses)
+    const required = [
         "rent_monthly",
         "price",
         "down_payment_pct",
@@ -413,9 +414,12 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
     ];
 
     for (const k of required) {
-        const v = (si as any)[k];
-        if (!Number.isFinite(Number(v))) return null;
+        const v = Number((si as any)[k]);
+        if (!Number.isFinite(v)) return null;
     }
+
+    const termYears =
+        (si as any).term_years == null ? undefined : Number((si as any).term_years);
 
     return {
         rent_monthly: Number((si as any).rent_monthly),
@@ -425,9 +429,10 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
         maintenance_pct: Number((si as any).maintenance_pct),
         property_tax_pct: Number((si as any).property_tax_pct),
         insurance_pct: Number((si as any).insurance_pct),
-        term_years: (si as any).term_years != null ? Number((si as any).term_years) : undefined,
+        term_years: Number.isFinite(termYears as number) ? termYears : undefined,
     };
 }
+
 
 
 function postParseValidateScenario(result: any, message: string, marketData: any) {
@@ -796,23 +801,60 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
     // Inputs summary (borrower-visible + structured)
     const extractedInputs = extractScenarioInputs(message);
-    out.scenario_inputs = extractedInputs;
-    const inputsBlock = buildInputsSummary(extractedInputs, rate_context);
 
-    // Summary: ensure Inputs block appears first, then the model narrative (no duplication)
-    const narrative =
+    // Merge: keep any model-provided scenario_inputs, but prefer parsed user inputs
+    const mergedSI: any = {
+        ...(typeof (out as any)?.scenario_inputs === "object" && (out as any)?.scenario_inputs ? (out as any).scenario_inputs : {}),
+        ...extractedInputs,
+    };
+
+    // Derive loan_amount deterministically (fixes “Amortization inputs missing…”)
+    {
+        const price = Number(mergedSI.price);
+        const dpPct = Number(mergedSI.down_payment_pct);
+
+        if (Number.isFinite(price) && price > 0 && Number.isFinite(dpPct) && dpPct >= 0 && dpPct < 100) {
+            mergedSI.loan_amount = price * (1 - dpPct / 100);
+        }
+
+        // Default term
+        if (mergedSI.term_years == null || !Number.isFinite(Number(mergedSI.term_years))) {
+            mergedSI.term_years = 30;
+        }
+
+        // Stamp rate_used if available from rate_context (helps repeatability)
+        if (mergedSI.rate_used == null || !Number.isFinite(Number(mergedSI.rate_used))) {
+            const rc: any = (out as any)?.rate_context;
+            if (rc && Number.isFinite(Number(rc.rate_used))) mergedSI.rate_used = Number(rc.rate_used);
+            else if (rc && Number.isFinite(Number(rc.rate))) mergedSI.rate_used = Number(rc.rate);
+        }
+    }
+
+    out.scenario_inputs = mergedSI;
+
+    // IMPORTANT: build the visible inputs block from the stabilized scenario_inputs
+    const inputsBlock = buildInputsSummary(out.scenario_inputs, rate_context);
+
+
+    // Summary: COMPUTED summary is authoritative; model narrative is secondary
+    // This prevents invented assumptions (e.g. % of rent) from leaking into results
+
+    // Build a computed, deterministic summary from scenario inputs + calculations
+    const computedSummary = inputsBlock;
+
+    // Preserve any model narrative ONLY as secondary commentary
+    const modelNarrative =
         typeof out.plain_english_summary === "string" && out.plain_english_summary.trim()
             ? out.plain_english_summary.trim()
             : "";
 
-    // If narrative already starts with "Scenario inputs", don't double-insert.
-    if (narrative.toLowerCase().startsWith("scenario inputs")) {
-        out.plain_english_summary = narrative;
-    } else {
-        out.plain_english_summary = narrative
-            ? `${inputsBlock}\n\n${narrative}`
-            : inputsBlock;
-    }
+    // Final plain-English summary:
+    // 1) Always show computed inputs first
+    // 2) Append model narrative only if it adds commentary (not calculations)
+    out.plain_english_summary = modelNarrative
+        ? `${computedSummary}\n\nNotes:\n${modelNarrative}`
+        : computedSummary;
+
 
     // GrokCard-friendly tables with short headers (prevents header overlap)
     const grokcard_tables: any = {};
@@ -1160,6 +1202,8 @@ CONTENT RULES (hard):
   price/balance, down payment %, loan amount, rent, vacancy, taxes, insurance, maintenance, rate used, rate source, and as-of date.
 - cash_flow_table must be ANNUAL net cash flow values because rows are labeled by year.
 - Keep table header labels short.
+- NEVER invent rent, vacancy, taxes, insurance, or maintenance. If any are missing from the user input, leave them null and explicitly state what’s missing in plain_english_summary.
+- Do NOT use generic shortcuts like "35% of rent" unless the user explicitly provided that assumption.
 
 SENSITIVITY RULE (hard):
 - Do NOT include "sensitivity_table" unless the user explicitly asks for rate comparison or stress testing
