@@ -946,11 +946,12 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
             (out as any)?.loanAmount;
 
         const rateRaw =
-            (out as any)?.rate_context?.rate ??
-            (out as any)?.scenario_inputs?.rate ??
             (out as any)?.scenario_inputs?.rate_used ??
+            (out as any)?.scenario_inputs?.rateUsed ??
+            (out as any)?.rate_context?.rate_used ??
             (out as any)?.rate_used ??
             (out as any)?.rate;
+
 
         const termYearsRaw =
             (out as any)?.scenario_inputs?.term_years ??
@@ -961,7 +962,11 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         const ratePct = Number(rateRaw);
         const termYears = Number(termYearsRaw);
 
-        if (Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0) {
+        if (
+            Number.isFinite(loanAmt) && loanAmt > 0 &&
+            Number.isFinite(ratePct) && ratePct > 0 &&
+            Number.isFinite(termYears) && termYears > 0
+        ) {
             const buildAmortLocal = (loanAmount: number, aprPct: number, years: number) => {
                 const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
 
@@ -1002,112 +1007,112 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
                     }
                 }
 
-                if (!rows.some((rr) => rr.year === 30)) {
+                const lastYear = Math.round(Number.isFinite(years) && years > 0 ? years : 30);
+
+                if (!rows.some((rr) => rr.year === lastYear)) {
                     rows.push({
-                        year: 30,
+                        year: lastYear,
                         principal_paid: Math.round(cumPrin),
                         interest_paid: Math.round(cumInt),
                         ending_balance: 0,
                     });
                 }
 
-                return rows;
-            };
 
-            out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
+                out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
+            }
         }
-    }
-    // ---- end amortization guardrail ----
+        // ---- end amortization guardrail ----
 
 
-    if (Array.isArray(out.amortization_summary) && out.amortization_summary.length) {
-        grokcard_tables.amortization_snapshot = {
-            headers: ["Yr", "Prin (CUM)", "Int (CUM)", "Bal (DERIVED)"],
-            rows: out.amortization_summary.map((r: any) => [
-                r.year,
-                r.principal_paid,
-                r.interest_paid,
-                r.ending_balance,
-            ]),
-        };
-    }
-
-    if (Array.isArray(out.cash_flow_table) && out.cash_flow_table.length) {
-        grokcard_tables.cash_flow = {
-            headers: ["Yr", "Net CF"],
-            rows: out.cash_flow_table.map((r: any) => [r.year, r.net_cash_flow]),
-            unit: "annual_or_periodic",
-        };
-    }
-
-    // Only build rate sensitivity table if borrower requested it AND sensitivity_table exists
-    if (false && includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
-        const rows: any[] = [];
-        const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
-        const keys = Array.from(new Set([...order, ...Object.keys(out.sensitivity_table)]));
-
-        for (const k of keys) {
-            const v: any = (out.sensitivity_table as any)[k];
-            if (!v || typeof v !== "object") continue;
-
-            const hasRateMetrics =
-                isFiniteNumber(v.monthly_payment) || isFiniteNumber(v.monthly_cash_flow) || isFiniteNumber(v.dscr);
-            if (!hasRateMetrics) continue;
-
-            const label =
-                k === "current_rate"
-                    ? "Current Rate"
-                    : k === "plus_0_5pct"
-                        ? "+0.5%"
-                        : k === "plus_1pct"
-                            ? "+1.0%"
-                            : k === "minus_0_5pct"
-                                ? "-0.5%"
-                                : k.replace(/_/g, " ");
-
-
-            const fmtMoneyLocal = (n: any) => {
-                const x = typeof n === "number" ? n : Number(n);
-                if (!isFinite(x)) return null;
-                const abs = Math.abs(x);
-                const s = abs.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                return `$${s}`;
+        if (Array.isArray(out.amortization_summary) && out.amortization_summary.length) {
+            grokcard_tables.amortization_snapshot = {
+                headers: ["Yr", "Prin (CUM)", "Int (CUM)", "Bal (DERIVED)"],
+                rows: out.amortization_summary.map((r: any) => [
+                    r.year,
+                    r.principal_paid,
+                    r.interest_paid,
+                    r.ending_balance,
+                ]),
             };
-
-            const fmtCFLocal = (n: any) => {
-                const x = typeof n === "number" ? n : Number(n);
-                if (!isFinite(x)) return null;
-                const sign = x < 0 ? "-" : "";
-                return `${sign}${fmtMoneyLocal(x)}`;
-            };
-
-            const fmtDSCRLocal = (n: any) => {
-                const x = typeof n === "number" ? n : Number(n);
-                if (!isFinite(x)) return null;
-                return `${x.toFixed(2)}x`;
-            };
-
-            rows.push([
-                label,
-                fmtMoneyLocal(v.monthly_payment),
-                fmtCFLocal(v.monthly_cash_flow),
-                fmtDSCRLocal(v.dscr),
-            ]);
-
-
-        }
-        // rate_sensitivity is built in postParseValidateScenario() (single source of truth)
-        // Intentionally do not build it here to avoid raw-table overwrites.
-        if (rows.length >= 2) {
-            // no-op
         }
 
-    }
+        if (Array.isArray(out.cash_flow_table) && out.cash_flow_table.length) {
+            grokcard_tables.cash_flow = {
+                headers: ["Yr", "Net CF"],
+                rows: out.cash_flow_table.map((r: any) => [r.year, r.net_cash_flow]),
+                unit: "annual_or_periodic",
+            };
+        }
 
-    out.grokcard_tables = grokcard_tables;
-    return out;
+        // Only build rate sensitivity table if borrower requested it AND sensitivity_table exists
+        if (false && includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
+            const rows: any[] = [];
+            const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
+            const keys = Array.from(new Set([...order, ...Object.keys(out.sensitivity_table)]));
+
+            for (const k of keys) {
+                const v: any = (out.sensitivity_table as any)[k];
+                if (!v || typeof v !== "object") continue;
+
+                const hasRateMetrics =
+                    isFiniteNumber(v.monthly_payment) || isFiniteNumber(v.monthly_cash_flow) || isFiniteNumber(v.dscr);
+                if (!hasRateMetrics) continue;
+
+                const label =
+                    k === "current_rate"
+                        ? "Current Rate"
+                        : k === "plus_0_5pct"
+                            ? "+0.5%"
+                            : k === "plus_1pct"
+                                ? "+1.0%"
+                                : k === "minus_0_5pct"
+                                    ? "-0.5%"
+                                    : k.replace(/_/g, " ");
+
+
+                const fmtMoneyLocal = (n: any) => {
+                    const x = typeof n === "number" ? n : Number(n);
+                    if (!isFinite(x)) return null;
+                    const abs = Math.abs(x);
+                    const s = abs.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                    return `$${s}`;
+                };
+
+                const fmtCFLocal = (n: any) => {
+                    const x = typeof n === "number" ? n : Number(n);
+                    if (!isFinite(x)) return null;
+                    const sign = x < 0 ? "-" : "";
+                    return `${sign}${fmtMoneyLocal(x)}`;
+                };
+
+                const fmtDSCRLocal = (n: any) => {
+                    const x = typeof n === "number" ? n : Number(n);
+                    if (!isFinite(x)) return null;
+                    return `${x.toFixed(2)}x`;
+                };
+
+                rows.push([
+                    label,
+                    fmtMoneyLocal(v.monthly_payment),
+                    fmtCFLocal(v.monthly_cash_flow),
+                    fmtDSCRLocal(v.dscr),
+                ]);
+
+
+            }
+            // rate_sensitivity is built in postParseValidateScenario() (single source of truth)
+            // Intentionally do not build it here to avoid raw-table overwrites.
+            if (rows.length >= 2) {
+                // no-op
+            }
+
+        }
+
+        out.grokcard_tables = grokcard_tables;
+        return out;
+    }
 }
-
 /* =========================
    FRED market data (parallel, fast)
 ========================= */
@@ -1227,12 +1232,16 @@ async function callXaiJson(systemPrompt: string, userPrompt: string, maxTokens: 
         if (!salvaged) throw new Error("Model content was not valid JSON");
         return { model, raw: content, parsed: JSON.parse(salvaged) };
     }
-}
 
+}
 /* =========================
-   Route
+  Route
 ========================= */
 export async function POST(req: NextRequest) {
+
+
+
+
     const t0 = Date.now();
     const buildTag = "scenario-proof-12-19-25-v5";
     const requestId =
