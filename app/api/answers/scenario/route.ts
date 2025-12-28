@@ -836,24 +836,96 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const inputsBlock = buildInputsSummary(out.scenario_inputs, rate_context);
 
 
-    // Summary: COMPUTED summary is authoritative; model narrative is secondary
-    // This prevents invented assumptions (e.g. % of rent) from leaking into results
+    // Summary: deterministic notes (do NOT trust model math in narrative)
+    {
+        const si = out.scenario_inputs as any;
 
-    // Build a computed, deterministic summary from scenario inputs + calculations
-    const computedSummary = inputsBlock;
+        // Pull stabilized inputs
+        const price = Number(si?.price);
+        const rent = Number(si?.rent_monthly);
+        const vacancyPct = Number(si?.vacancy_pct);
+        const maintPct = Number(si?.maintenance_pct);
+        const taxPct = Number(si?.property_tax_pct);
+        const insPct = Number(si?.insurance_pct);
 
-    // Preserve any model narrative ONLY as secondary commentary
-    const modelNarrative =
-        typeof out.plain_english_summary === "string" && out.plain_english_summary.trim()
-            ? out.plain_english_summary.trim()
-            : "";
+        const loanAmt =
+            Number(si?.loan_amount) ||
+            (Number.isFinite(price) && Number.isFinite(si?.down_payment_pct)
+                ? price * (1 - Number(si.down_payment_pct) / 100)
+                : NaN);
 
-    // Final plain-English summary:
-    // 1) Always show computed inputs first
-    // 2) Append model narrative only if it adds commentary (not calculations)
-    out.plain_english_summary = modelNarrative
-        ? `${computedSummary}\n\nNotes:\n${modelNarrative}`
-        : computedSummary;
+        // Rate: prefer user-provided if present, else live
+        const rateUsed = Number(si?.rate_used ?? rate_context?.rate_used);
+
+
+        const termYears = Number(si?.term_years ?? 30);
+
+        const hasCore =
+            Number.isFinite(price) &&
+            Number.isFinite(loanAmt) &&
+            Number.isFinite(rateUsed) &&
+            rateUsed > 0 &&
+            Number.isFinite(termYears) &&
+            termYears > 0;
+
+        let notes = "";
+
+        if (hasCore) {
+            // Monthly P&I
+            const r = rateUsed / 100 / 12;
+            const n = Math.round(termYears * 12);
+            const pow = Math.pow(1 + r, n);
+            const monthlyPI = (loanAmt * r * pow) / (pow - 1);
+
+            const taxMonthly = Number.isFinite(taxPct) ? (price * (taxPct / 100)) / 12 : 0;
+            const insMonthly = Number.isFinite(insPct) ? (price * (insPct / 100)) / 12 : 0;
+            const maintMonthly = Number.isFinite(maintPct) ? (price * (maintPct / 100)) / 12 : 0;
+
+            const pitia = monthlyPI + taxMonthly + insMonthly;
+
+            const grossRent = Number.isFinite(rent) ? rent : NaN;
+            const effRent =
+                Number.isFinite(rent) && Number.isFinite(vacancyPct)
+                    ? rent * (1 - Math.min(Math.max(vacancyPct / 100, 0), 0.9))
+                    : NaN;
+
+            const dscrLD = Number.isFinite(grossRent) && pitia > 0 ? grossRent / pitia : null;
+            const cashFlow =
+                Number.isFinite(effRent) ? effRent - maintMonthly - pitia : null;
+
+            const fmtUSD0 = (x: number) =>
+                `$${Math.round(x).toLocaleString("en-US")}`;
+
+            const fmt2 = (x: number) => (Math.round(x * 100) / 100).toFixed(2);
+
+            notes =
+                `Notes:\n` +
+                `Monthly P&I (derived): ${fmtUSD0(monthlyPI)}\n` +
+                `PITIA (P&I + tax + ins): ${fmtUSD0(pitia)}\n` +
+                (Number.isFinite(grossRent)
+                    ? `DSCR (LoanDepot, gross rent ÷ PITIA): ${fmt2(dscrLD as number)}\n`
+                    : `DSCR (LoanDepot): cannot compute without gross rent\n`) +
+                (cashFlow != null
+                    ? `Avg monthly cash flow (after vacancy, maint, PITIA): ${fmtUSD0(cashFlow)}\n`
+                    : `Cash flow: cannot compute without rent + vacancy\n`);
+        }
+
+        // If the model returned a narrative, keep it ONLY as prose — do not rely on its numbers.
+        const modelNarrative =
+            typeof out.plain_english_summary === "string" ? out.plain_english_summary.trim() : "";
+
+        // Always lead with InputsBlock. Then deterministic Notes. Then optional model prose.
+        const combined = [
+            inputsBlock?.trim(),
+            notes.trim(),
+            modelNarrative ? modelNarrative : "",
+        ]
+            .filter(Boolean)
+            .join("\n\n");
+
+        out.plain_english_summary = combined;
+    }
+
 
 
     // GrokCard-friendly tables with short headers (prevents header overlap)
