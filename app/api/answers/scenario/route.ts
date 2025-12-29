@@ -890,6 +890,99 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         }
     }
     // ---- end amortization guardrail ----
+    /* =========================
+       HARD LOCK: monthly_payment must match amortization math
+       Derive from Year-1 principal+interest so payment cannot drift.
+    ========================= */
+    try {
+        const y1 =
+            Array.isArray(out.amortization_summary) && out.amortization_summary.length
+                ? out.amortization_summary[0]
+                : null;
+
+        const p1 = y1 && typeof y1.principal_paid === "number" ? y1.principal_paid : NaN;
+        const i1 = y1 && typeof y1.interest_paid === "number" ? y1.interest_paid : NaN;
+
+        if (Number.isFinite(p1) && Number.isFinite(i1)) {
+            const derivedMonthlyPI = (p1 + i1) / 12;
+
+            // Overwrite any model/base value; this is the canonical number (P&I only)
+            out.monthly_payment = derivedMonthlyPI;
+        }
+    } catch { }
+
+    /* =========================
+       Recompute PITIA / DSCR / Cash Flow from deterministic values
+       (Flat cash flow table unless growth assumptions exist elsewhere)
+    ========================= */
+    try {
+        const si: any = (out as any).scenario_inputs || (out as any).scenarioInputs || null;
+
+        const price = Number(si?.purchase_price);
+        const rent = Number(si?.rent_monthly);
+
+        const vacancyPct = Number(si?.vacancy_pct ?? 0);
+        const maintPct = Number(si?.maintenance_pct ?? 0);
+        const taxPct = Number(si?.tax_pct ?? 0);
+        const insPct = Number(si?.insurance_pct ?? 0);
+        const hoa = Number(si?.hoa_monthly ?? 0);
+
+
+        const monthlyPI = Number(out.monthly_payment); // now locked to amort math
+
+        const monthlyTax =
+            Number.isFinite(price) && Number.isFinite(taxPct) ? (price * (taxPct / 100)) / 12 : 0;
+
+        const monthlyIns =
+            Number.isFinite(price) && Number.isFinite(insPct) ? (price * (insPct / 100)) / 12 : 0;
+
+        const pitia =
+            (Number.isFinite(monthlyPI) ? monthlyPI : 0) +
+            monthlyTax +
+            monthlyIns +
+            (Number.isFinite(hoa) ? hoa : 0);
+
+        // DSCR: gross rent / PITIA (LoanDepot style)
+        const dscrGross =
+            Number.isFinite(rent) && rent > 0 && pitia > 0 ? rent / pitia : null;
+
+        // Economic DSCR-like: effective rent after vacancy / PITIA
+        const effectiveRent =
+            (Number.isFinite(rent) ? rent : 0) *
+            (1 - (Number.isFinite(vacancyPct) ? vacancyPct / 100 : 0));
+
+        const dscrEffective = effectiveRent > 0 && pitia > 0 ? effectiveRent / pitia : null;
+
+        // Maintenance monthly (based on purchase price)
+        const monthlyMaint =
+            Number.isFinite(price) && Number.isFinite(maintPct) ? (price * (maintPct / 100)) / 12 : 0;
+
+        // Cash flow uses effective rent minus PITIA minus maintenance
+        const monthlyCashFlow = effectiveRent - pitia - monthlyMaint;
+        const annualCashFlow = monthlyCashFlow * 12;
+
+        // Store deterministic computed values for downstream formatting
+        (out as any).computed_financials = {
+            ...(out as any).computed_financials,
+            monthly_pi: monthlyPI,
+            monthly_pitia: pitia,
+            dscr_gross: dscrGross,
+            dscr_effective: dscrEffective,
+            monthly_cash_flow: monthlyCashFlow,
+            annual_cash_flow: annualCashFlow,
+        };
+
+        // If the model provided these fields, overwrite with deterministic values
+        if (dscrGross !== null) (out as any).dscr = dscrGross;
+
+        // Force flat cash flow table (no growth assumed)
+        if (Array.isArray(out.cash_flow_table) && out.cash_flow_table.length) {
+            out.cash_flow_table = out.cash_flow_table.map((row: any) => ({
+                year: row.year,
+                net_cash_flow: annualCashFlow,
+            }));
+        }
+    } catch { }
 
 
     if (Array.isArray(out.amortization_summary) && out.amortization_summary.length) {
