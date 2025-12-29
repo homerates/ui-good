@@ -455,18 +455,16 @@ function postParseValidateScenario(result: any, message: string, marketData: any
     const promptWantsStress = wantsRateSensitivity(message);
 
 
-    // 1) monthly_payment must equal computed P&I (strict)
+    // 1) monthly_payment must equal computed P&I (strict, deterministic)
+    // Never trust model-authored monthly_payment.
     const modelPmt = Number(out.monthly_payment);
-    const strictTol = Math.max(50, base.monthlyPI * 0.02); // $50 or 2%
-    if (!Number.isFinite(modelPmt) || Math.abs(modelPmt - base.monthlyPI) > strictTol) {
+    if (!Number.isFinite(modelPmt) || Math.abs(modelPmt - base.monthlyPI) > 0) {
         warnings.push(
-            `monthly_payment adjusted from ${Number.isFinite(modelPmt) ? round2(modelPmt) : "null"
-            } to ${base.monthlyPI} (computed).`
+            `monthly_payment forced to computed value ${base.monthlyPI} (model was ${Number.isFinite(modelPmt) ? round2(modelPmt) : "null"}).`
         );
-        out.monthly_payment = base.monthlyPI;
-    } else {
-        out.monthly_payment = Math.abs(modelPmt);
     }
+    out.monthly_payment = base.monthlyPI;
+
 
     // 2) Sensitivity: only generate/overwrite when borrower asked for rate comparison/stress
     if (promptWantsStress) {
