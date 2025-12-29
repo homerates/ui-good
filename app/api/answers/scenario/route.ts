@@ -1143,11 +1143,34 @@ OUTPUT RULES (hard):
 - All money fields must be numbers (no "$" in JSON). Put any "$" formatting only inside plain_english_summary.
 - Never output a negative value for "monthly_payment". If showing savings, show it in the summary, not as a negative payment.
 
+MATH DEFINITIONS (hard):
+- "monthly_payment" MUST mean MONTHLY P&I ONLY (principal + interest). It is NOT PITIA.
+- Use standard fully-amortizing fixed-rate mortgage formula:
+  M = P * [ r * (1+r)^n ] / [ (1+r)^n - 1 ]
+  Where:
+  - P = loan amount
+  - r = (annual_rate_percent / 100) / 12
+  - n = term_years * 12  (default term_years = 30 unless explicitly provided)
+- total_interest_over_term MUST be (monthly_payment * n) - P (rounded reasonably).
+- amortization_summary MUST be consistent with the same mortgage math (no alternate payment calculators).
+
+ASSUMPTIONS (hard):
+- Use the user-provided rate if explicitly stated in the user prompt.
+- Only use live FRED 30-year rate if the user did NOT provide a rate.
+- If taxes/insurance/maintenance/vacancy are not provided by the user, treat them as 0 for calculation BUT explicitly state "not provided" in plain_english_summary.
+- Do NOT invent rent growth, expense growth, refinancing, or any changing cash flow assumptions unless the user explicitly provides growth assumptions.
+- cash_flow_table MUST be flat annual net cash flow values (same number each year) unless user explicitly provides growth assumptions. If no growth assumptions are provided, all years MUST match.
+
+DSCR RULE (hard):
+- If you mention DSCR anywhere, define it explicitly as:
+  DSCR = gross_monthly_rent / (monthly_payment + monthly_tax + monthly_insurance + monthly_HOA)
+  If tax/insurance/HOA are missing, they are treated as 0 in the denominator, and you MUST say "tax/insurance/HOA not provided" in plain_english_summary.
+- Do NOT reduce rent for vacancy for DSCR unless the user explicitly asks for an "effective rent" view.
+
 CONTENT RULES (hard):
 - Always include a short "plain_english_summary" that restates the scenario inputs:
   price/balance, down payment %, loan amount, rent, vacancy, taxes, insurance, maintenance, rate used, rate source, and as-of date.
-- cash_flow_table must be ANNUAL net cash flow values because rows are labeled by year.
-- Keep table header labels short.
+- Keep table headers short.
 
 SENSITIVITY RULE (hard):
 - Do NOT include "sensitivity_table" unless the user explicitly asks for rate comparison or stress testing
@@ -1164,17 +1187,18 @@ Schema:
   "total_interest_over_term": number,
   "amortization_summary": [{ "year": number, "principal_paid": number, "interest_paid": number, "ending_balance": number }],
   "cash_flow_table": [{ "year": number, "net_cash_flow": number }],
-  "plain_english_summary": "string",
+  "plain_english_summary": string,
   "key_risks": ["string", "string"],
 
   "sensitivity_table": {
-     "current_rate": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
-     "plus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
-     "plus_1pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
-     "minus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number }
+    "current_rate": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
+    "plus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
+    "plus_1pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
+    "minus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number }
   }
 }
 `);
+
 
         // 3) xAI
         const tXai = Date.now();
