@@ -921,11 +921,26 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         const price = Number(si?.purchase_price);
         const rent = Number(si?.rent_monthly);
 
-        const vacancyPct = Number(si?.vacancy_pct ?? 0);
-        const maintPct = Number(si?.maintenance_pct ?? 0);
-        const taxPct = Number(si?.tax_pct ?? 0);
-        const insPct = Number(si?.insurance_pct ?? 0);
-        const hoa = Number(si?.hoa_monthly ?? 0);
+        // ---- normalize percent-style inputs (handles 5 vs 0.05 safely) ----
+        const toPct = (v: any) => {
+            const n = Number(v);
+            if (!Number.isFinite(n) || n < 0) return 0;
+            // If value looks like a decimal (0.05), treat as 5%
+            // If value looks like a percent already (5 or 1.25), keep as-is
+            return n > 0 && n < 1 ? n * 100 : n;
+        };
+
+        // Percent-based assumptions (stored as PERCENT, not fraction)
+        const vacancyPct = toPct(si?.vacancy_pct);        // e.g. 5
+        const maintPct = toPct(si?.maintenance_pct);    // e.g. 1
+        const taxPct = toPct(si?.tax_pct);             // e.g. 1.25
+        const insPct = toPct(si?.insurance_pct);       // e.g. 0.5
+
+        // HOA is ALWAYS a monthly dollar amount, never a percent
+        const hoa = Number.isFinite(Number(si?.hoa_monthly))
+            ? Number(si.hoa_monthly)
+            : 0;
+
 
 
         const monthlyPI = Number(out.monthly_payment); // now locked to amort math
