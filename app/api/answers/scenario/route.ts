@@ -323,16 +323,6 @@ function buildInputsSummary(inputs: any, rate_context: any) {
    - Keeps output deterministic for GrokCard
 ========================= */
 
-type ScenarioInputs = {
-    rent_monthly: number;
-    price: number;
-    down_payment_pct: number;
-    vacancy_pct: number;
-    maintenance_pct: number;
-    property_tax_pct: number;
-    insurance_pct: number;
-    term_years?: number; // default 30
-};
 
 function clamp(n: number, lo: number, hi: number) {
     return Math.max(lo, Math.min(hi, n));
@@ -363,7 +353,9 @@ function calcBaselineFromInputs(inputs: ScenarioInputs, annualRatePct: number) {
     const insMonthly = (inputs.price * (inputs.insurance_pct / 100)) / 12;
 
     const monthlyPI = calcMonthlyPI(loanAmount, annualRatePct, termYears);
-    const PITIA = monthlyPI + taxMonthly + insMonthly;
+    const hoaMonthly = Number.isFinite(inputs.hoa_monthly) ? inputs.hoa_monthly : 0;
+    const PITIA = monthlyPI + taxMonthly + insMonthly + hoaMonthly;
+
 
     // Operating expenses in this prompt = maintenance (you can extend later)
     const operating = maintMonthly;
@@ -376,8 +368,9 @@ function calcBaselineFromInputs(inputs: ScenarioInputs, annualRatePct: number) {
     // Economic DSCR (informational only)
     const dscrEconomic = PITIA > 0 ? (effectiveRent / PITIA) : null;
 
-    // Back-compat: keep dscr as economic DSCR for now (rename later in outputs)
-    const dscr = dscrEconomic;
+    // Default DSCR = lender-style (gross rent ÷ PITIA). Economic DSCR kept separately for reference.
+
+    const dscr = dscrLoanDepot;
 
     return {
         termYears,
@@ -398,25 +391,55 @@ function calcBaselineFromInputs(inputs: ScenarioInputs, annualRatePct: number) {
     };
 }
 
+type ScenarioInputs = {
+    price: number;
+    down_payment_pct: number;
+    rent_monthly: number;
+
+    vacancy_pct: number;        // default 0
+    maintenance_pct: number;    // default 0
+    property_tax_pct: number;   // default 0
+    insurance_pct: number;      // default 0
+    hoa_monthly: number;        // default 0
+
+    term_years?: number;        // optional, default handled elsewhere (e.g. 30)
+};
+
 function ensureScenarioInputs(result: any): ScenarioInputs | null {
-    const si = result?.scenario_inputs;
+    const si = result?.scenario_inputs || result?.scenarioInputs;
     if (!si || typeof si !== "object") return null;
 
-    const required = ["rent_monthly", "price", "down_payment_pct", "vacancy_pct", "maintenance_pct", "property_tax_pct", "insurance_pct"];
-    for (const k of required) {
-        if (!Number.isFinite(Number(si[k]))) return null;
-    }
+    // Only require the *core three* so validation can run on typical DSCR questions.
+    const price = Number(si.price ?? si.purchase_price);
+    const down = Number(si.down_payment_pct ?? si.downPaymentPct ?? si.down_payment_percent);
+    const rent = Number(si.rent_monthly ?? si.rent ?? si.monthly_rent);
+
+    if (!Number.isFinite(price) || !Number.isFinite(down) || !Number.isFinite(rent)) return null;
+
+    // Default any missing assumptions to 0 (matches your prompt: "treat as 0 if not provided").
+    const numOrZero = (v: any) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    const termYearsRaw = Number(si.term_years ?? si.termYears ?? si.term);
+    const term_years = Number.isFinite(termYearsRaw) && termYearsRaw > 0 ? termYearsRaw : undefined;
+
     return {
-        rent_monthly: Number(si.rent_monthly),
-        price: Number(si.price),
-        down_payment_pct: Number(si.down_payment_pct),
-        vacancy_pct: Number(si.vacancy_pct),
-        maintenance_pct: Number(si.maintenance_pct),
-        property_tax_pct: Number(si.property_tax_pct),
-        insurance_pct: Number(si.insurance_pct),
-        term_years: si.term_years != null ? Number(si.term_years) : undefined,
+        price,
+        down_payment_pct: down,
+        rent_monthly: rent,
+
+        vacancy_pct: numOrZero(si.vacancy_pct),
+        maintenance_pct: numOrZero(si.maintenance_pct),
+        property_tax_pct: numOrZero(si.property_tax_pct ?? si.tax_pct),
+        insurance_pct: numOrZero(si.insurance_pct),
+        hoa_monthly: numOrZero(si.hoa_monthly),
+
+        term_years,
     };
 }
+
 
 function postParseValidateScenario(result: any, message: string, marketData: any) {
     const out = { ...(result || {}) };
