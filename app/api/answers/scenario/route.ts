@@ -1077,13 +1077,31 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         };
     }
 
-    if (Array.isArray(out.cash_flow_table) && out.cash_flow_table.length) {
+    /* =========================
+   Plan B Canonical Cash Flow Table
+   Source of truth: monthly_cash_flow only
+========================= */
+
+    const cfMonthly =
+        typeof (out as any)?.computed_financials?.monthly_cash_flow === "number"
+            ? (out as any).computed_financials.monthly_cash_flow
+            : null;
+
+    if (Number.isFinite(cfMonthly)) {
+        const annualCF = cfMonthly * 12;
+
+        out.cash_flow_table = Array.from({ length: 30 }, (_, i) => ({
+            year: i + 1,
+            net_cash_flow: annualCF,
+        }));
+
         grokcard_tables.cash_flow = {
             headers: ["Yr", "Net CF"],
             rows: out.cash_flow_table.map((r: any) => [r.year, r.net_cash_flow]),
-            unit: "annual_or_periodic",
+            unit: "annual",
         };
     }
+
 
     // Only build rate sensitivity table if borrower requested it AND sensitivity_table exists
     if (false && includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
