@@ -956,9 +956,9 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
 
     /* =========================
-       HARD LOCK: monthly_payment must match amortization math
-       Derive from Year-1 principal+interest so payment cannot drift.
-    ========================= */
+// DISABLED: amortization overwrite block (per Plan B)
+//        Derive from Year-1 principal+interest so payment cannot drift.
+//     ========================= */
     try {
         const y1 =
             Array.isArray(out.amortization_summary) && out.amortization_summary.length
@@ -977,9 +977,9 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     } catch { }
 
     /* =========================
-       Recompute PITIA / DSCR / Cash Flow from deterministic values
-       (Flat cash flow table unless growth assumptions exist elsewhere)
-    ========================= */
+// DISABLED: late PITIA/DSCR recompute block (per Plan B)
+//        (Flat cash flow table unless growth assumptions exist elsewhere)
+//     ========================= */
     try {
         const si: any = (out as any).scenario_inputs || (out as any).scenarioInputs || null;
 
