@@ -779,7 +779,6 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         series: userRate != null ? null : "MORTGAGE30US",
     };
     out.rate_context = rate_context;
-
     // Inputs summary (borrower-visible + structured)
     const extractedInputs = extractScenarioInputs(message);
     out.scenario_inputs = extractedInputs;
@@ -795,101 +794,167 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     if (narrative.toLowerCase().startsWith("scenario inputs")) {
         out.plain_english_summary = narrative;
     } else {
-        out.plain_english_summary = narrative
-            ? `${inputsBlock}\n\n${narrative}`
-            : inputsBlock;
+        out.plain_english_summary = narrative ? `${inputsBlock}\n\n${narrative}` : inputsBlock;
     }
 
     // GrokCard-friendly tables with short headers (prevents header overlap)
     const grokcard_tables: any = {};
+
     // ---- Amortization guardrail: force build when user asks ----
     const promptWantsAmortization =
-        /\bamort\b|\bamortization\b|\bamortisation\b|\bschedule\b|\bprincipal\b|\binterest\b|\bpayoff\b/i.test(message);
+        /\bamort\b|\bamortization\b|\bschedule\b|\bprincipal\b|\binterest\b|\bpayoff\b/i.test(message);
 
-    if (
-        promptWantsAmortization &&
-        (!Array.isArray(out.amortization_summary) || !out.amortization_summary.length)
-    ) {
-        const loanAmtRaw =
-            (out as any)?.baseline?.loanAmount ??
-            (out as any)?.scenario_inputs?.loan_amount ??
-            (out as any)?.scenario_inputs?.loanAmount ??
-            (out as any)?.loan_amount ??
-            (out as any)?.loanAmount;
+    // Deterministic helpers (NO try/catch, NO IIFE: keep brace balance stable)
+    const pickNum = (obj: any, keys: string[], fallback: number) => {
+        for (const k of keys) {
+            const v = Number(obj?.[k]);
+            if (Number.isFinite(v)) return v;
+        }
+        return fallback;
+    };
 
-        const rateRaw =
-            (out as any)?.rate_context?.rate ??
-            (out as any)?.scenario_inputs?.rate ??
-            (out as any)?.scenario_inputs?.rate_used ??
-            (out as any)?.rate_used ??
-            (out as any)?.rate;
+    // Percent normalizer: accepts 5 or 0.05; returns PERCENT (5)
+    const toPct = (v: any) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) return 0;
+        return n > 0 && n < 1 ? n * 100 : n;
+    };
 
-        const termYearsRaw =
-            (out as any)?.scenario_inputs?.term_years ??
-            (out as any)?.scenario_inputs?.termYears ??
-            30;
+    // Standard fully-amortizing fixed-rate monthly P&I
+    const calcMonthlyPI = (principal: number, ratePct: number, termYears: number) => {
+        if (!Number.isFinite(principal) || principal <= 0) return NaN;
+        const n = Math.max(1, Math.round((Number.isFinite(termYears) && termYears > 0 ? termYears : 30) * 12));
+        const r = (Number.isFinite(ratePct) ? ratePct : 0) / 100 / 12;
+        if (!Number.isFinite(r) || r <= 0) return principal / n;
+        const pow = Math.pow(1 + r, n);
+        return principal * (r * pow) / (pow - 1);
+    };
 
-        const loanAmt = Number(loanAmtRaw);
-        const ratePct = Number(rateRaw);
-        const termYears = Number(termYearsRaw);
+    // Pull scenario inputs from extractedInputs (this is the correct scope)
+    const si: any = extractedInputs || {};
 
-        if (Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0) {
-            const buildAmortLocal = (loanAmount: number, aprPct: number, years: number) => {
-                const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+    // --- Determine loan amount / rate / term with deterministic fallbacks ---
+    const price = pickNum(si, ["purchase_price", "purchasePrice", "price", "property_value"], NaN);
 
-                const r = aprPct / 100 / 12;
-                const n = Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12);
+    // Down payment can be % or $, try both
+    const downPct = toPct(pickNum(si, ["down_payment_pct", "downPaymentPct", "down_pct"], NaN));
+    const downAmt = pickNum(si, ["down_payment_amount", "downPayment", "down_amount"], NaN);
 
-                if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(n) || n <= 0) return [];
+    const derivedLoanAmount =
+        Number.isFinite(price) && price > 0
+            ? Number.isFinite(downAmt)
+                ? Math.max(0, price - downAmt)
+                : Number.isFinite(downPct)
+                    ? Math.max(0, price * (1 - downPct / 100))
+                    : NaN
+            : NaN;
 
-                const pow = Math.pow(1 + r, n);
-                const pmt = (loanAmount * r * pow) / (pow - 1);
+    // IMPORTANT: keep your original raw variables shape so later code still works
+    const loanAmtRaw =
+        (out as any)?.baseline?.loanAmount ??
+        (out as any)?.scenario_inputs?.loan_amount ??
+        (out as any)?.scenario_inputs?.loanAmount ??
+        (out as any)?.loan_amount ??
+        (out as any)?.loanAmount ??
+        (Number.isFinite(pickNum(si, ["loan_amount", "loanAmount"], NaN)) ? pickNum(si, ["loan_amount", "loanAmount"], NaN) : undefined) ??
+        (Number.isFinite(derivedLoanAmount) ? derivedLoanAmount : undefined);
 
-                let bal = loanAmount;
-                let cumPrin = 0;
-                let cumInt = 0;
+    const rateRaw =
+        (out as any)?.rate_context?.rate ??
+        (out as any)?.scenario_inputs?.rate ??
+        (out as any)?.scenario_inputs?.rate_used ??
+        (out as any)?.rate_used ??
+        (out as any)?.rate ??
+        (Number.isFinite(pickNum(si, ["rate_used", "rate", "interest_rate", "ratePct"], NaN))
+            ? pickNum(si, ["rate_used", "rate", "interest_rate", "ratePct"], NaN)
+            : undefined) ??
+        (Number.isFinite((rate_context as any)?.rate) ? (rate_context as any).rate : undefined);
 
-                const rows: any[] = [];
+    const termYearsRaw =
+        (out as any)?.scenario_inputs?.term_years ??
+        (out as any)?.scenario_inputs?.termYears ??
+        (Number.isFinite(pickNum(si, ["term_years", "termYears"], 30)) ? pickNum(si, ["term_years", "termYears"], 30) : 30) ??
+        30;
 
-                for (let m = 1; m <= n; m++) {
-                    const interest = bal * r;
-                    let principal = pmt - interest;
+    const loanAmt = Number(loanAmtRaw);
+    const ratePct = Number(rateRaw);
+    const termYears = Number(termYearsRaw);
 
-                    if (principal > bal) principal = bal;
+    // Deterministic monthly P&I (source of truth)
+    const monthlyPI = calcMonthlyPI(loanAmt, ratePct, termYears);
 
-                    bal -= principal;
-                    cumPrin += principal;
-                    cumInt += interest;
+    // Set monthly_payment to deterministic P&I ONLY (this field is used everywhere)
+    if (Number.isFinite(monthlyPI)) {
+        out.monthly_payment = monthlyPI;
+    }
 
-                    if (m % 12 === 0) {
-                        const y = m / 12;
-                        if (yearsToShow.has(y)) {
-                            rows.push({
-                                year: y,
-                                principal_paid: Math.round(cumPrin),
-                                interest_paid: Math.round(cumInt),
-                                ending_balance: Math.max(Math.round(bal), 0),
-                            });
-                        }
+    // Optional: store deterministic core values for later DSCR/cashflow code paths
+    (out as any).computed_financials = {
+        ...(out as any).computed_financials,
+        loan_amount: Number.isFinite(loanAmt) ? loanAmt : null,
+        rate_used_pct: Number.isFinite(ratePct) ? ratePct : null,
+        term_years: Number.isFinite(termYears) ? termYears : 30,
+        monthly_pi: Number.isFinite(monthlyPI) ? monthlyPI : null,
+    };
+
+    if (Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0) {
+        const buildAmortLocal = (loanAmount: number, aprPct: number, years: number) => {
+            const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+
+            const r = aprPct / 100 / 12;
+            const n = Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12);
+
+            if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(n) || n <= 0) return [];
+
+            const pow = Math.pow(1 + r, n);
+            const pmt = (loanAmount * r * pow) / (pow - 1);
+
+            let bal = loanAmount;
+            let cumPrin = 0;
+            let cumInt = 0;
+
+            const rows: any[] = [];
+
+            for (let m = 1; m <= n; m++) {
+                const interest = bal * r;
+                let principal = pmt - interest;
+
+                if (principal > bal) principal = bal;
+
+                bal -= principal;
+                cumPrin += principal;
+                cumInt += interest;
+
+                if (m % 12 === 0) {
+                    const y = m / 12;
+                    if (yearsToShow.has(y)) {
+                        rows.push({
+                            year: y,
+                            principal_paid: Math.round(cumPrin),
+                            interest_paid: Math.round(cumInt),
+                            ending_balance: Math.max(Math.round(bal), 0),
+                        });
                     }
                 }
+            }
 
-                if (!rows.some((rr) => rr.year === 30)) {
-                    rows.push({
-                        year: 30,
-                        principal_paid: Math.round(cumPrin),
-                        interest_paid: Math.round(cumInt),
-                        ending_balance: 0,
-                    });
-                }
+            if (!rows.some((rr) => rr.year === 30)) {
+                rows.push({
+                    year: 30,
+                    principal_paid: Math.round(cumPrin),
+                    interest_paid: Math.round(cumInt),
+                    ending_balance: 0,
+                });
+            }
 
-                return rows;
-            };
+            return rows;
+        };
 
-            out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
-        }
+        out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
     }
     // ---- end amortization guardrail ----
+
+
     /* =========================
        HARD LOCK: monthly_payment must match amortization math
        Derive from Year-1 principal+interest so payment cannot drift.
