@@ -1240,6 +1240,61 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         }
 
     }
+    /* =========================
+   P+I HARD LOCK (Phase 1)
+   Canonicalize monthly P&I and force Smart Scenario text to match.
+   Source of truth priority:
+   1) out.computed_financials.monthly_pi
+   2) grok.result.monthly_payment
+   3) out.monthly_payment
+========================= */
+    try {
+        const cf: any = (out as any).computed_financials || {};
+        const grokMonthly = Number((out as any)?.grok?.result?.monthly_payment);
+        const cfMonthly = Number(cf?.monthly_pi);
+        const outMonthly = Number((out as any).monthly_payment);
+
+        const canonicalPI =
+            Number.isFinite(cfMonthly) && cfMonthly > 0
+                ? cfMonthly
+                : Number.isFinite(grokMonthly) && grokMonthly > 0
+                    ? grokMonthly
+                    : Number.isFinite(outMonthly) && outMonthly > 0
+                        ? outMonthly
+                        : null;
+
+        if (canonicalPI !== null) {
+            // Hard lock numeric fields
+            (out as any).monthly_payment = canonicalPI;
+            (out as any).computed_financials = {
+                ...cf,
+                monthly_pi: canonicalPI,
+            };
+
+            // Force Smart Scenario narrative to display the canonical number
+            const fmtMoney = (n: number) =>
+                n.toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
+
+            const piStr = fmtMoney(canonicalPI);
+
+            const s = typeof (out as any).plain_english_summary === "string"
+                ? (out as any).plain_english_summary
+                : "";
+
+            // Replace any "Monthly P&I: $X" or "Monthly P&I $X" occurrences
+            const replaced = s.replace(
+                /Monthly\s+P&I\s*[:=]?\s*\$[\d,]+(?:\.\d{1,2})?/gi,
+                `Monthly P&I: ${piStr}`
+            );
+
+            (out as any).plain_english_summary = replaced;
+        }
+    } catch { }
 
     out.grokcard_tables = grokcard_tables;
     return out;
