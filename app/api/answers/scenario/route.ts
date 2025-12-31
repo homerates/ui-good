@@ -1351,6 +1351,30 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
             (out as any).plain_english_summary = replaced;
         }
     } catch { }
+    // =========================
+    // Cash Flow table: ALWAYS deterministic
+    // Do NOT trust Grok cash_flow_table (it has been the source of repeated wild values)
+    // =========================
+    const cf = (out as any).computed_financials || {};
+    const annualCF =
+        Number.isFinite(Number(cf.annual_cash_flow)) ? Number(cf.annual_cash_flow) :
+            (Number.isFinite(Number(cf.monthly_cash_flow)) ? Number(cf.monthly_cash_flow) * 12 : NaN);
+
+    if (Number.isFinite(annualCF)) {
+        const years = 30;
+        const cfRows: any[] = [];
+        for (let y = 1; y <= years; y++) cfRows.push([y, round2(annualCF)]);
+        grokcard_tables.cash_flow = {
+            headers: ["Yr", "Net CF"],
+            rows: cfRows,
+            unit: "annual",
+        };
+
+        // Also hard override any model-provided cash_flow_table so it can’t leak back in
+        if (Array.isArray((out as any).cash_flow_table)) {
+            (out as any).cash_flow_table = cfRows.map(([year, net]) => ({ year, net_cash_flow: net }));
+        }
+    }
 
     out.grokcard_tables = grokcard_tables;
     return out;
