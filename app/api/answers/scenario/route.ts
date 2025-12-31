@@ -450,7 +450,21 @@ function postParseValidateScenario(result: any, message: string, marketData: any
         : [];
 
     const inputs = ensureScenarioInputs(out);
-    const rateUsed = Number(out?.rate_context?.rate_used ?? marketData?.thirtyYearFixed);
+
+    // Rate should NOT come from ScenarioInputs (it isn't part of that type).
+    // Pull it from rate_context (or scenario_inputs fallback) deterministically.
+    const rawRate = Number(
+        (out as any)?.rate_context?.rate_used ??
+        (out as any)?.rate_context?.rate ??
+        (out as any)?.scenario_inputs?.rate_used ??
+        (out as any)?.scenario_inputs?.rate ??
+        NaN
+    );
+
+    // Normalize: accept 6.25 or 0.0625
+    const rateUsed = rawRate > 1 ? rawRate : rawRate * 100;
+
+
 
     // Guard: if inputs/rate missing, do not attempt computed overrides.
     if (!inputs || !Number.isFinite(rateUsed) || rateUsed <= 0) {
