@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { runScenarioMath } from "../../../../lib/scenarioMath";
+
 
 /* =========================
    Helpers
@@ -323,16 +325,6 @@ function buildInputsSummary(inputs: any, rate_context: any) {
    - Keeps output deterministic for GrokCard
 ========================= */
 
-type ScenarioInputs = {
-    rent_monthly: number;
-    price: number;
-    down_payment_pct: number;
-    vacancy_pct: number;
-    maintenance_pct: number;
-    property_tax_pct: number;
-    insurance_pct: number;
-    term_years?: number; // default 30
-};
 
 function clamp(n: number, lo: number, hi: number) {
     return Math.max(lo, Math.min(hi, n));
@@ -363,7 +355,9 @@ function calcBaselineFromInputs(inputs: ScenarioInputs, annualRatePct: number) {
     const insMonthly = (inputs.price * (inputs.insurance_pct / 100)) / 12;
 
     const monthlyPI = calcMonthlyPI(loanAmount, annualRatePct, termYears);
-    const PITIA = monthlyPI + taxMonthly + insMonthly;
+    const hoaMonthly = Number.isFinite(inputs.hoa_monthly) ? inputs.hoa_monthly : 0;
+    const PITIA = monthlyPI + taxMonthly + insMonthly + hoaMonthly;
+
 
     // Operating expenses in this prompt = maintenance (you can extend later)
     const operating = maintMonthly;
@@ -376,8 +370,9 @@ function calcBaselineFromInputs(inputs: ScenarioInputs, annualRatePct: number) {
     // Economic DSCR (informational only)
     const dscrEconomic = PITIA > 0 ? (effectiveRent / PITIA) : null;
 
-    // Back-compat: keep dscr as economic DSCR for now (rename later in outputs)
-    const dscr = dscrEconomic;
+    // Default DSCR = lender-style (gross rent ÷ PITIA). Economic DSCR kept separately for reference.
+
+    const dscr = dscrLoanDepot;
 
     return {
         termYears,
@@ -398,25 +393,55 @@ function calcBaselineFromInputs(inputs: ScenarioInputs, annualRatePct: number) {
     };
 }
 
+type ScenarioInputs = {
+    price: number;
+    down_payment_pct: number;
+    rent_monthly: number;
+
+    vacancy_pct: number;        // default 0
+    maintenance_pct: number;    // default 0
+    property_tax_pct: number;   // default 0
+    insurance_pct: number;      // default 0
+    hoa_monthly: number;        // default 0
+
+    term_years?: number;        // optional, default handled elsewhere (e.g. 30)
+};
+
 function ensureScenarioInputs(result: any): ScenarioInputs | null {
-    const si = result?.scenario_inputs;
+    const si = result?.scenario_inputs || result?.scenarioInputs;
     if (!si || typeof si !== "object") return null;
 
-    const required = ["rent_monthly", "price", "down_payment_pct", "vacancy_pct", "maintenance_pct", "property_tax_pct", "insurance_pct"];
-    for (const k of required) {
-        if (!Number.isFinite(Number(si[k]))) return null;
-    }
+    // Only require the *core three* so validation can run on typical DSCR questions.
+    const price = Number(si.price ?? si.purchase_price);
+    const down = Number(si.down_payment_pct ?? si.downPaymentPct ?? si.down_payment_percent);
+    const rent = Number(si.rent_monthly ?? si.rent ?? si.monthly_rent);
+
+    if (!Number.isFinite(price) || !Number.isFinite(down) || !Number.isFinite(rent)) return null;
+
+    // Default any missing assumptions to 0 (matches your prompt: "treat as 0 if not provided").
+    const numOrZero = (v: any) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    const termYearsRaw = Number(si.term_years ?? si.termYears ?? si.term);
+    const term_years = Number.isFinite(termYearsRaw) && termYearsRaw > 0 ? termYearsRaw : undefined;
+
     return {
-        rent_monthly: Number(si.rent_monthly),
-        price: Number(si.price),
-        down_payment_pct: Number(si.down_payment_pct),
-        vacancy_pct: Number(si.vacancy_pct),
-        maintenance_pct: Number(si.maintenance_pct),
-        property_tax_pct: Number(si.property_tax_pct),
-        insurance_pct: Number(si.insurance_pct),
-        term_years: si.term_years != null ? Number(si.term_years) : undefined,
+        price,
+        down_payment_pct: down,
+        rent_monthly: rent,
+
+        vacancy_pct: numOrZero(si.vacancy_pct),
+        maintenance_pct: numOrZero(si.maintenance_pct),
+        property_tax_pct: numOrZero(si.property_tax_pct ?? si.tax_pct),
+        insurance_pct: numOrZero(si.insurance_pct),
+        hoa_monthly: numOrZero(si.hoa_monthly),
+
+        term_years,
     };
 }
+
 
 function postParseValidateScenario(result: any, message: string, marketData: any) {
     const out = { ...(result || {}) };
@@ -425,7 +450,21 @@ function postParseValidateScenario(result: any, message: string, marketData: any
         : [];
 
     const inputs = ensureScenarioInputs(out);
-    const rateUsed = Number(out?.rate_context?.rate_used ?? marketData?.thirtyYearFixed);
+
+    // Rate should NOT come from ScenarioInputs (it isn't part of that type).
+    // Pull it from rate_context (or scenario_inputs fallback) deterministically.
+    const rawRate = Number(
+        (out as any)?.rate_context?.rate_used ??
+        (out as any)?.rate_context?.rate ??
+        (out as any)?.scenario_inputs?.rate_used ??
+        (out as any)?.scenario_inputs?.rate ??
+        NaN
+    );
+
+    // Normalize: accept 6.25 or 0.0625
+    const rateUsed = rawRate > 1 ? rawRate : rawRate * 100;
+
+
 
     // Guard: if inputs/rate missing, do not attempt computed overrides.
     if (!inputs || !Number.isFinite(rateUsed) || rateUsed <= 0) {
@@ -455,18 +494,16 @@ function postParseValidateScenario(result: any, message: string, marketData: any
     const promptWantsStress = wantsRateSensitivity(message);
 
 
-    // 1) monthly_payment must equal computed P&I (strict)
+    // 1) monthly_payment must equal computed P&I (strict, deterministic)
+    // Never trust model-authored monthly_payment.
     const modelPmt = Number(out.monthly_payment);
-    const strictTol = Math.max(50, base.monthlyPI * 0.02); // $50 or 2%
-    if (!Number.isFinite(modelPmt) || Math.abs(modelPmt - base.monthlyPI) > strictTol) {
+    if (!Number.isFinite(modelPmt) || Math.abs(modelPmt - base.monthlyPI) > 0) {
         warnings.push(
-            `monthly_payment adjusted from ${Number.isFinite(modelPmt) ? round2(modelPmt) : "null"
-            } to ${base.monthlyPI} (computed).`
+            `monthly_payment forced to computed value ${base.monthlyPI} (model was ${Number.isFinite(modelPmt) ? round2(modelPmt) : "null"}).`
         );
-        out.monthly_payment = base.monthlyPI;
-    } else {
-        out.monthly_payment = Math.abs(modelPmt);
     }
+    out.monthly_payment = base.monthlyPI;
+
 
     // 2) Sensitivity: only generate/overwrite when borrower asked for rate comparison/stress
     if (promptWantsStress) {
@@ -781,11 +818,52 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         series: userRate != null ? null : "MORTGAGE30US",
     };
     out.rate_context = rate_context;
-
     // Inputs summary (borrower-visible + structured)
     const extractedInputs = extractScenarioInputs(message);
     out.scenario_inputs = extractedInputs;
     const inputsBlock = buildInputsSummary(extractedInputs, rate_context);
+    /* =========================
+   Deterministic Scenario Math (single source of truth)
+   ========================= */
+
+    const scenarioMathResult = runScenarioMath({
+        scenario_inputs: extractedInputs,
+        rate_used_pct: Number((rate_context as any)?.rate_used ?? (rate_context as any)?.rate),
+    });
+
+    // Only apply if math successfully ran
+    if (scenarioMathResult) {
+        // Canonical monthly P&I
+        out.monthly_payment = scenarioMathResult.monthly_pi;
+
+        // Canonical DSCR (LoanDepot = GROSS rent / PITIA)
+        (out as any).dscr = scenarioMathResult.dscr_gross;
+
+        // Canonical computed financials (single source of truth)
+        (out as any).computed_financials = {
+            ...(out as any).computed_financials,
+
+            loan_amount: scenarioMathResult.loan_amount,
+            rate_used_pct: scenarioMathResult.rate_used_pct,
+            term_years: scenarioMathResult.term_years,
+
+            monthly_pi: scenarioMathResult.monthly_pi,
+            monthly_tax: scenarioMathResult.monthly_tax,
+            monthly_ins: scenarioMathResult.monthly_ins,
+            monthly_hoa: scenarioMathResult.monthly_hoa,
+
+            monthly_pitia: scenarioMathResult.monthly_pitia,
+
+            dscr_gross: scenarioMathResult.dscr_gross,
+            dscr_economic: scenarioMathResult.dscr_economic,
+
+            monthly_cash_flow: scenarioMathResult.monthly_cash_flow,
+            annual_cash_flow: scenarioMathResult.annual_cash_flow,
+        };
+
+        // Flat cash flow table (keeps GrokCard plumbing intact)
+        out.cash_flow_table = scenarioMathResult.cash_flow_table;
+    }
 
     // Summary: ensure Inputs block appears first, then the model narrative (no duplication)
     const narrative =
@@ -797,122 +875,307 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     if (narrative.toLowerCase().startsWith("scenario inputs")) {
         out.plain_english_summary = narrative;
     } else {
-        out.plain_english_summary = narrative
-            ? `${inputsBlock}\n\n${narrative}`
-            : inputsBlock;
+        out.plain_english_summary = narrative ? `${inputsBlock}\n\n${narrative}` : inputsBlock;
     }
 
     // GrokCard-friendly tables with short headers (prevents header overlap)
     const grokcard_tables: any = {};
+
     // ---- Amortization guardrail: force build when user asks ----
     const promptWantsAmortization =
-        /\bamort\b|\bamortization\b|\bamortisation\b|\bschedule\b|\bprincipal\b|\binterest\b|\bpayoff\b/i.test(message);
+        /\bamort\b|\bamortization\b|\bschedule\b|\bprincipal\b|\binterest\b|\bpayoff\b/i.test(message);
 
-    if (
-        promptWantsAmortization &&
-        (!Array.isArray(out.amortization_summary) || !out.amortization_summary.length)
-    ) {
-        const loanAmtRaw =
-            (out as any)?.baseline?.loanAmount ??
-            (out as any)?.scenario_inputs?.loan_amount ??
-            (out as any)?.scenario_inputs?.loanAmount ??
-            (out as any)?.loan_amount ??
-            (out as any)?.loanAmount;
+    // Deterministic helpers (NO try/catch, NO IIFE: keep brace balance stable)
+    const pickNum = (obj: any, keys: string[], fallback: number) => {
+        for (const k of keys) {
+            const v = Number(obj?.[k]);
+            if (Number.isFinite(v)) return v;
+        }
+        return fallback;
+    };
 
-        const rateRaw =
-            (out as any)?.rate_context?.rate ??
-            (out as any)?.scenario_inputs?.rate ??
-            (out as any)?.scenario_inputs?.rate_used ??
-            (out as any)?.rate_used ??
-            (out as any)?.rate;
+    // Percent normalizer: accepts 5 or 0.05; returns PERCENT (5)
+    const toPct = (v: any) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) return 0;
+        return n > 0 && n < 1 ? n * 100 : n;
+    };
 
-        const termYearsRaw =
-            (out as any)?.scenario_inputs?.term_years ??
-            (out as any)?.scenario_inputs?.termYears ??
-            30;
+    // Standard fully-amortizing fixed-rate monthly P&I
+    const calcMonthlyPI = (principal: number, ratePct: number, termYears: number) => {
+        if (!Number.isFinite(principal) || principal <= 0) return NaN;
+        const n = Math.max(1, Math.round((Number.isFinite(termYears) && termYears > 0 ? termYears : 30) * 12));
+        const r = (Number.isFinite(ratePct) ? ratePct : 0) / 100 / 12;
+        if (!Number.isFinite(r) || r <= 0) return principal / n;
+        const pow = Math.pow(1 + r, n);
+        return principal * (r * pow) / (pow - 1);
+    };
 
-        const loanAmt = Number(loanAmtRaw);
-        const ratePct = Number(rateRaw);
-        const termYears = Number(termYearsRaw);
+    // Pull scenario inputs from extractedInputs (this is the correct scope)
+    const si: any = extractedInputs || {};
 
-        if (Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0) {
-            const buildAmortLocal = (loanAmount: number, aprPct: number, years: number) => {
-                const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+    // --- Determine loan amount / rate / term with deterministic fallbacks ---
+    const price = pickNum(si, ["purchase_price", "purchasePrice", "price", "property_value"], NaN);
 
-                const r = aprPct / 100 / 12;
-                const n = Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12);
+    // Down payment can be % or $, try both
+    const downPct = toPct(pickNum(si, ["down_payment_pct", "downPaymentPct", "down_pct"], NaN));
+    const downAmt = pickNum(si, ["down_payment_amount", "downPayment", "down_amount"], NaN);
 
-                if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(n) || n <= 0) return [];
+    const derivedLoanAmount =
+        Number.isFinite(price) && price > 0
+            ? Number.isFinite(downAmt)
+                ? Math.max(0, price - downAmt)
+                : Number.isFinite(downPct)
+                    ? Math.max(0, price * (1 - downPct / 100))
+                    : NaN
+            : NaN;
 
-                const pow = Math.pow(1 + r, n);
-                const pmt = (loanAmount * r * pow) / (pow - 1);
+    // IMPORTANT: keep your original raw variables shape so later code still works
+    const loanAmtRaw =
+        (out as any)?.baseline?.loanAmount ??
+        (out as any)?.scenario_inputs?.loan_amount ??
+        (out as any)?.scenario_inputs?.loanAmount ??
+        (out as any)?.loan_amount ??
+        (out as any)?.loanAmount ??
+        (Number.isFinite(pickNum(si, ["loan_amount", "loanAmount"], NaN)) ? pickNum(si, ["loan_amount", "loanAmount"], NaN) : undefined) ??
+        (Number.isFinite(derivedLoanAmount) ? derivedLoanAmount : undefined);
 
-                let bal = loanAmount;
-                let cumPrin = 0;
-                let cumInt = 0;
+    const rateRaw =
+        (out as any)?.rate_context?.rate ??
+        (out as any)?.scenario_inputs?.rate ??
+        (out as any)?.scenario_inputs?.rate_used ??
+        (out as any)?.rate_used ??
+        (out as any)?.rate ??
+        (Number.isFinite(pickNum(si, ["rate_used", "rate", "interest_rate", "ratePct"], NaN))
+            ? pickNum(si, ["rate_used", "rate", "interest_rate", "ratePct"], NaN)
+            : undefined) ??
+        (Number.isFinite((rate_context as any)?.rate) ? (rate_context as any).rate : undefined);
 
-                const rows: any[] = [];
+    const termYearsRaw =
+        (out as any)?.scenario_inputs?.term_years ??
+        (out as any)?.scenario_inputs?.termYears ??
+        (Number.isFinite(pickNum(si, ["term_years", "termYears"], 30)) ? pickNum(si, ["term_years", "termYears"], 30) : 30) ??
+        30;
 
-                for (let m = 1; m <= n; m++) {
-                    const interest = bal * r;
-                    let principal = pmt - interest;
+    const loanAmt = Number(loanAmtRaw);
+    const ratePct = Number(rateRaw);
+    const termYears = Number(termYearsRaw);
 
-                    if (principal > bal) principal = bal;
+    // Deterministic monthly P&I (source of truth)
+    const monthlyPI = calcMonthlyPI(loanAmt, ratePct, termYears);
 
-                    bal -= principal;
-                    cumPrin += principal;
-                    cumInt += interest;
+    // Set monthly_payment to deterministic P&I ONLY (this field is used everywhere)
+    if (Number.isFinite(monthlyPI)) {
+        out.monthly_payment = monthlyPI;
+    }
 
-                    if (m % 12 === 0) {
-                        const y = m / 12;
-                        if (yearsToShow.has(y)) {
-                            rows.push({
-                                year: y,
-                                principal_paid: Math.round(cumPrin),
-                                interest_paid: Math.round(cumInt),
-                                ending_balance: Math.max(Math.round(bal), 0),
-                            });
-                        }
+    // Optional: store deterministic core values for later DSCR/cashflow code paths
+    (out as any).computed_financials = {
+        ...(out as any).computed_financials,
+        loan_amount: Number.isFinite(loanAmt) ? loanAmt : null,
+        rate_used_pct: Number.isFinite(ratePct) ? ratePct : null,
+        term_years: Number.isFinite(termYears) ? termYears : 30,
+        monthly_pi: Number.isFinite(monthlyPI) ? monthlyPI : null,
+    };
+
+    if (Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0) {
+        const buildAmortLocal = (loanAmount: number, aprPct: number, years: number) => {
+            const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+
+            const r = aprPct / 100 / 12;
+            const n = Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12);
+
+            if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(n) || n <= 0) return [];
+
+            const pow = Math.pow(1 + r, n);
+            const pmt = (loanAmount * r * pow) / (pow - 1);
+
+            let bal = loanAmount;
+            let cumPrin = 0;
+            let cumInt = 0;
+
+            const rows: any[] = [];
+
+            for (let m = 1; m <= n; m++) {
+                const interest = bal * r;
+                let principal = pmt - interest;
+
+                if (principal > bal) principal = bal;
+
+                bal -= principal;
+                cumPrin += principal;
+                cumInt += interest;
+
+                if (m % 12 === 0) {
+                    const y = m / 12;
+                    if (yearsToShow.has(y)) {
+                        rows.push({
+                            year: y,
+                            principal_paid: Math.round(cumPrin),
+                            interest_paid: Math.round(cumInt),
+                            ending_balance: Math.max(Math.round(bal), 0),
+                        });
                     }
                 }
+            }
 
-                if (!rows.some((rr) => rr.year === 30)) {
-                    rows.push({
-                        year: 30,
-                        principal_paid: Math.round(cumPrin),
-                        interest_paid: Math.round(cumInt),
-                        ending_balance: 0,
-                    });
-                }
+            if (!rows.some((rr) => rr.year === 30)) {
+                rows.push({
+                    year: 30,
+                    principal_paid: Math.round(cumPrin),
+                    interest_paid: Math.round(cumInt),
+                    ending_balance: 0,
+                });
+            }
 
-                return rows;
-            };
+            return rows;
+        };
 
-            out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
-        }
+        out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
     }
     // ---- end amortization guardrail ----
 
 
-    if (Array.isArray(out.amortization_summary) && out.amortization_summary.length) {
-        grokcard_tables.amortization_snapshot = {
-            headers: ["Yr", "Prin (CUM)", "Int (CUM)", "Bal (DERIVED)"],
-            rows: out.amortization_summary.map((r: any) => [
-                r.year,
-                r.principal_paid,
-                r.interest_paid,
-                r.ending_balance,
-            ]),
-        };
+    /* =========================
+       Deterministic Scenario Math (Single Source of Truth)
+       - Do NOT derive payment from amortization (LLM-contaminated)
+       - Compute P&I / PITIA / DSCR / Cash Flow from extracted inputs + rate_context
+    ========================= */
+
+    // NOTE: extractedInputs is already defined above and assigned to out.scenario_inputs
+    const siDet: any = extractedInputs || {};
+    const rateUsedPct = Number(out?.rate_context?.rate_used ?? marketData?.thirtyYearFixed ?? NaN);
+
+    // Helpers
+    const toPctDet = (v: any) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) return 0;
+        return n > 0 && n < 1 ? n * 100 : n;
+    };
+
+    const termYearsDet =
+        Number(siDet?.term_years) ||
+        Number(siDet?.termYears) ||
+        30;
+
+    const priceDet = Number.isFinite(Number(siDet?.price)) ? Number(siDet.price) : NaN;
+    const rentDet = Number.isFinite(Number(siDet?.rent_monthly)) ? Number(siDet.rent_monthly) : NaN;
+
+    const downPctDet = Number.isFinite(Number(siDet?.down_payment_pct)) ? toPctDet(siDet.down_payment_pct) : NaN;
+
+    // If loan amount was already explicitly provided somewhere, respect it, else derive.
+    const explicitLoanDet =
+        Number.isFinite(Number(siDet?.loan_amount)) ? Number(siDet.loan_amount) :
+            Number.isFinite(Number((out as any)?.computed_financials?.loan_amount)) ? Number((out as any).computed_financials.loan_amount) :
+                NaN;
+
+    const loanAmountDet =
+        Number.isFinite(explicitLoanDet) ? explicitLoanDet :
+            (Number.isFinite(priceDet) && Number.isFinite(downPctDet))
+                ? priceDet * (1 - (downPctDet / 100))
+                : NaN;
+
+    // Percent assumptions (these are already extracted correctly by your extractor)
+    const vacancyPctDet = Number.isFinite(Number(siDet?.vacancy_pct)) ? toPctDet(siDet.vacancy_pct) : 0;
+    const maintPctDet = Number.isFinite(Number(siDet?.maintenance_pct)) ? toPctDet(siDet.maintenance_pct) : 0;
+    const taxPctDet = Number.isFinite(Number(siDet?.property_tax_pct)) ? toPctDet(siDet.property_tax_pct) : 0;
+    const insPctDet = Number.isFinite(Number(siDet?.insurance_pct)) ? toPctDet(siDet.insurance_pct) : 0;
+
+    // HOA monthly (if you later extract it). For now default 0.
+    const hoaMonthlyDet = Number.isFinite(Number(siDet?.hoa_monthly)) ? Number(siDet.hoa_monthly) : 0;
+
+    // Deterministic P&I
+    const calcMonthlyPI_Det = (principal: number, ratePct: number, years: number) => {
+        if (!Number.isFinite(principal) || principal <= 0) return NaN;
+        const n = Math.max(1, Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12));
+        const r = (Number.isFinite(ratePct) ? ratePct : 0) / 100 / 12;
+        if (!Number.isFinite(r) || r <= 0) return principal / n;
+        const pow = Math.pow(1 + r, n);
+        return principal * (r * pow) / (pow - 1);
+    };
+
+    const monthlyPI_Det =
+        (Number.isFinite(loanAmountDet) && Number.isFinite(rateUsedPct) && rateUsedPct > 0)
+            ? calcMonthlyPI_Det(loanAmountDet, rateUsedPct, termYearsDet)
+            : NaN;
+
+    if (Number.isFinite(monthlyPI_Det)) {
+        out.monthly_payment = monthlyPI_Det; // canonical P&I number
     }
 
-    if (Array.isArray(out.cash_flow_table) && out.cash_flow_table.length) {
-        grokcard_tables.cash_flow = {
-            headers: ["Yr", "Net CF"],
-            rows: out.cash_flow_table.map((r: any) => [r.year, r.net_cash_flow]),
-            unit: "annual_or_periodic",
-        };
-    }
+    // Monthly tax/ins based on purchase price
+    const monthlyTaxDet =
+        (Number.isFinite(priceDet) && taxPctDet > 0)
+            ? (priceDet * (taxPctDet / 100)) / 12
+            : 0;
+
+    const monthlyInsDet =
+        (Number.isFinite(priceDet) && insPctDet > 0)
+            ? (priceDet * (insPctDet / 100)) / 12
+            : 0;
+
+    const pitiaDet =
+        (Number.isFinite(monthlyPI_Det) ? monthlyPI_Det : 0) +
+        monthlyTaxDet +
+        monthlyInsDet +
+        (Number.isFinite(hoaMonthlyDet) ? hoaMonthlyDet : 0);
+
+    // DSCR (LoanDepot style): gross rent / PITIA
+    const dscrGrossDet =
+        (Number.isFinite(rentDet) && rentDet > 0 && pitiaDet > 0)
+            ? rentDet / pitiaDet
+            : null;
+
+    // Cash flow (economic): effective rent after vacancy - PITIA - maintenance
+    const effectiveRentDet =
+        (Number.isFinite(rentDet) ? rentDet : 0) * (1 - (vacancyPctDet / 100));
+
+    const monthlyMaintDet =
+        (Number.isFinite(priceDet) && maintPctDet > 0)
+            ? (priceDet * (maintPctDet / 100)) / 12
+            : 0;
+
+    const monthlyCashFlowDet =
+        effectiveRentDet - pitiaDet - monthlyMaintDet;
+
+    const annualCashFlowDet = monthlyCashFlowDet * 12;
+
+    // Store deterministic computed values
+    (out as any).computed_financials = {
+        ...(out as any).computed_financials,
+        loan_amount: Number.isFinite(loanAmountDet) ? loanAmountDet : null,
+        rate_used_pct: Number.isFinite(rateUsedPct) ? rateUsedPct : null,
+        term_years: termYearsDet,
+        monthly_pi: Number.isFinite(monthlyPI_Det) ? monthlyPI_Det : null,
+        monthly_tax: monthlyTaxDet,
+        monthly_ins: monthlyInsDet,
+        monthly_hoa: hoaMonthlyDet,
+        monthly_pitia: pitiaDet,
+        dscr_gross: dscrGrossDet,
+        monthly_cash_flow: monthlyCashFlowDet,
+        annual_cash_flow: annualCashFlowDet,
+    };
+
+    // If you expose a top-level dscr field, make it the lender-style dscr
+    if (dscrGrossDet !== null) (out as any).dscr = dscrGrossDet;
+
+    // Build flat annual cash flow table (no growth assumptions)
+    out.cash_flow_table = Array.from({ length: 30 }, (_, i) => ({
+        year: i + 1,
+        net_cash_flow: annualCashFlowDet,
+    }));
+
+    grokcard_tables.cash_flow = {
+        headers: ["Yr", "Net CF"],
+        rows: out.cash_flow_table.map((r: any) => [r.year, r.net_cash_flow]),
+        unit: "annual",
+    };
+
+    // Amortization snapshot is already built deterministically above in your guardrail section.
+    // Keep it, but do NOT back-drive payment from it.
+
+
+
 
     // Only build rate sensitivity table if borrower requested it AND sensitivity_table exists
     if (false && includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
@@ -981,6 +1244,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     out.grokcard_tables = grokcard_tables;
     return out;
 }
+
 
 /* =========================
    FRED market data (parallel, fast)
@@ -1143,11 +1407,34 @@ OUTPUT RULES (hard):
 - All money fields must be numbers (no "$" in JSON). Put any "$" formatting only inside plain_english_summary.
 - Never output a negative value for "monthly_payment". If showing savings, show it in the summary, not as a negative payment.
 
+MATH DEFINITIONS (hard):
+- "monthly_payment" MUST mean MONTHLY P&I ONLY (principal + interest). It is NOT PITIA.
+- Use standard fully-amortizing fixed-rate mortgage formula:
+  M = P * [ r * (1+r)^n ] / [ (1+r)^n - 1 ]
+  Where:
+  - P = loan amount
+  - r = (annual_rate_percent / 100) / 12
+  - n = term_years * 12  (default term_years = 30 unless explicitly provided)
+- total_interest_over_term MUST be (monthly_payment * n) - P (rounded reasonably).
+- amortization_summary MUST be consistent with the same mortgage math (no alternate payment calculators).
+
+ASSUMPTIONS (hard):
+- Use the user-provided rate if explicitly stated in the user prompt.
+- Only use live FRED 30-year rate if the user did NOT provide a rate.
+- If taxes/insurance/maintenance/vacancy are not provided by the user, treat them as 0 for calculation BUT explicitly state "not provided" in plain_english_summary.
+- Do NOT invent rent growth, expense growth, refinancing, or any changing cash flow assumptions unless the user explicitly provides growth assumptions.
+- cash_flow_table MUST be flat annual net cash flow values (same number each year) unless user explicitly provides growth assumptions. If no growth assumptions are provided, all years MUST match.
+
+DSCR RULE (hard):
+- If you mention DSCR anywhere, define it explicitly as:
+  DSCR = gross_monthly_rent / (monthly_payment + monthly_tax + monthly_insurance + monthly_HOA)
+  If tax/insurance/HOA are missing, they are treated as 0 in the denominator, and you MUST say "tax/insurance/HOA not provided" in plain_english_summary.
+- Do NOT reduce rent for vacancy for DSCR unless the user explicitly asks for an "effective rent" view.
+
 CONTENT RULES (hard):
 - Always include a short "plain_english_summary" that restates the scenario inputs:
   price/balance, down payment %, loan amount, rent, vacancy, taxes, insurance, maintenance, rate used, rate source, and as-of date.
-- cash_flow_table must be ANNUAL net cash flow values because rows are labeled by year.
-- Keep table header labels short.
+- Keep table headers short.
 
 SENSITIVITY RULE (hard):
 - Do NOT include "sensitivity_table" unless the user explicitly asks for rate comparison or stress testing
@@ -1164,17 +1451,18 @@ Schema:
   "total_interest_over_term": number,
   "amortization_summary": [{ "year": number, "principal_paid": number, "interest_paid": number, "ending_balance": number }],
   "cash_flow_table": [{ "year": number, "net_cash_flow": number }],
-  "plain_english_summary": "string",
+  "plain_english_summary": string,
   "key_risks": ["string", "string"],
 
   "sensitivity_table": {
-     "current_rate": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
-     "plus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
-     "plus_1pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
-     "minus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number }
+    "current_rate": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
+    "plus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
+    "plus_1pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number },
+    "minus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number }
   }
 }
 `);
+
 
         // 3) xAI
         const tXai = Date.now();
