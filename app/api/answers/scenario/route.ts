@@ -1155,6 +1155,59 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         monthly_cash_flow: monthlyCashFlowDet,
         annual_cash_flow: annualCashFlowDet,
     };
+    // =========================
+    // CANONICAL OVERRIDE (single source of truth)
+    // Force all downstream narrative + DSCR + tables to use computed_financials values.
+    // This prevents any later “det math” variables from overwriting Grok’s correct numbers.
+    // =========================
+    {
+        const cf = (out as any).computed_financials || {};
+
+        const canonMonthlyPI = Number(cf.monthly_pi);
+        const canonMonthlyTax = Number(cf.monthly_tax);
+        const canonMonthlyIns = Number(cf.monthly_ins);
+        const canonMonthlyHOA = Number(cf.monthly_hoa);
+        const canonMonthlyPITIA = Number(cf.monthly_pitia);
+
+        // 1) Monthly P&I: always use computed_financials.monthly_pi if valid
+        if (Number.isFinite(canonMonthlyPI) && canonMonthlyPI > 0) {
+            // Keep BOTH keys since different renderers reference different ones
+            (out as any).monthly_payment = canonMonthlyPI;
+            (out as any).monthly_pi = canonMonthlyPI;
+        }
+
+        // 2) Monthly PITIA: if provided, make it the canonical housing payment
+        // (some code paths call it PITIA, others call it PITI)
+        if (Number.isFinite(canonMonthlyPITIA) && canonMonthlyPITIA > 0) {
+            (out as any).monthly_pitia = canonMonthlyPITIA;
+            (out as any).monthly_piti = canonMonthlyPITIA;
+        } else {
+            // If PITIA wasn't provided, compute it from the canonical pieces (only when pieces are sane)
+            const pitiaFallback =
+                (Number.isFinite(canonMonthlyPI) ? canonMonthlyPI : 0) +
+                (Number.isFinite(canonMonthlyTax) ? canonMonthlyTax : 0) +
+                (Number.isFinite(canonMonthlyIns) ? canonMonthlyIns : 0) +
+                (Number.isFinite(canonMonthlyHOA) ? canonMonthlyHOA : 0);
+
+            if (pitiaFallback > 0) {
+                (out as any).computed_financials.monthly_pitia = pitiaFallback;
+                (out as any).monthly_pitia = pitiaFallback;
+                (out as any).monthly_piti = pitiaFallback;
+            }
+        }
+
+        // 3) DSCR: if your scenario output is using DSCR, recompute it deterministically from canonical values.
+        // IMPORTANT: you previously wanted LoanDepot DSCR = GROSS rent / PITIA.
+        const rentMonthly = Number((out as any)?.scenario_inputs?.rent_monthly);
+        const pitia = Number((out as any)?.computed_financials?.monthly_pitia);
+
+        if (Number.isFinite(rentMonthly) && rentMonthly > 0 && Number.isFinite(pitia) && pitia > 0) {
+            // LoanDepot DSCR (gross)
+            const dscrGross = rentMonthly / pitia;
+            (out as any).dscr = dscrGross;
+            (out as any).computed_financials.dscr_gross = dscrGross;
+        }
+    }
 
     // If you expose a top-level dscr field, make it the lender-style dscr
     if (dscrGrossDet !== null) (out as any).dscr = dscrGrossDet;
