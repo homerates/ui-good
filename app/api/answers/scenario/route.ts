@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { runScenarioMath } from "../../../../lib/scenarioMath";
+
 
 /* =========================
    Helpers
@@ -806,6 +808,48 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const extractedInputs = extractScenarioInputs(message);
     out.scenario_inputs = extractedInputs;
     const inputsBlock = buildInputsSummary(extractedInputs, rate_context);
+    /* =========================
+   Deterministic Scenario Math (single source of truth)
+   ========================= */
+
+    const scenarioMathResult = runScenarioMath({
+        scenario_inputs: extractedInputs,
+        rate_used_pct: Number((rate_context as any)?.rate_used ?? (rate_context as any)?.rate),
+    });
+
+    // Only apply if math successfully ran
+    if (scenarioMathResult) {
+        // Canonical monthly P&I
+        out.monthly_payment = scenarioMathResult.monthly_pi;
+
+        // Canonical DSCR (LoanDepot = GROSS rent / PITIA)
+        (out as any).dscr = scenarioMathResult.dscr_gross;
+
+        // Canonical computed financials (single source of truth)
+        (out as any).computed_financials = {
+            ...(out as any).computed_financials,
+
+            loan_amount: scenarioMathResult.loan_amount,
+            rate_used_pct: scenarioMathResult.rate_used_pct,
+            term_years: scenarioMathResult.term_years,
+
+            monthly_pi: scenarioMathResult.monthly_pi,
+            monthly_tax: scenarioMathResult.monthly_tax,
+            monthly_ins: scenarioMathResult.monthly_ins,
+            monthly_hoa: scenarioMathResult.monthly_hoa,
+
+            monthly_pitia: scenarioMathResult.monthly_pitia,
+
+            dscr_gross: scenarioMathResult.dscr_gross,
+            dscr_economic: scenarioMathResult.dscr_economic,
+
+            monthly_cash_flow: scenarioMathResult.monthly_cash_flow,
+            annual_cash_flow: scenarioMathResult.annual_cash_flow,
+        };
+
+        // Flat cash flow table (keeps GrokCard plumbing intact)
+        out.cash_flow_table = scenarioMathResult.cash_flow_table;
+    }
 
     // Summary: ensure Inputs block appears first, then the model narrative (no duplication)
     const narrative =

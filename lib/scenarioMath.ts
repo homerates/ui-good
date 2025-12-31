@@ -1,256 +1,187 @@
 // lib/scenarioMath.ts
-// Deterministic mortgage math for HomeRates.ai scenarios.
-// Single source of truth. No LLM math allowed.
-
-export type AmortPoint = {
-    year: number;
-    principalPaid: number; // cumulative
-    interestPaid: number;  // cumulative
-    endingBalance: number;
-};
+// Deterministic scenario math (single source of truth)
 
 export type ScenarioMathInputs = {
-    loanAmount: number;              // e.g. 630000
-    annualRatePct: number;           // e.g. 6.18 (percent)
-    termYears?: number;              // default 30
-    grossRentMonthly?: number;       // e.g. 6000
-    pitiaMonthly?: number;           // optional full PITIA if you have it
+    scenario_inputs: any;      // extractedInputs from your extractor
+    rate_used_pct: number;     // annual rate % (e.g., 6.25)
 };
 
-export type ScenarioMathResults = {
-    monthlyRate: number;
-    termMonths: number;
-    monthlyPI: number;
-    monthlyInterestOnly: number;
-    dscr: number | null;
-    dscrBasis: "PITIA" | "PI_ONLY" | "NONE";
-    monthlyCashFlow: number | null;
-    annualCashFlow: number | null;
-    amortizationSnapshot: AmortPoint[];
+export type CashFlowRow = { year: number; net_cash_flow: number };
+
+export type ScenarioMathResult = {
+    // Canonical core
+    loan_amount: number | null;
+    rate_used_pct: number | null;
+    term_years: number;
+
+    // Monthly components
+    monthly_pi: number | null;
+    monthly_tax: number;
+    monthly_ins: number;
+    monthly_hoa: number;
+    monthly_pitia: number;
+
+    // Income + ops
+    rent_used: number | null;
+    effective_rent: number;
+    monthly_maint: number;
+
+    // DSCR (LoanDepot = gross / PITIA)
+    dscr_gross: number | null;
+    dscr_economic: number | null;
+
+    // Cash flow (effective rent - PITIA - maint)
+    monthly_cash_flow: number;
+    annual_cash_flow: number;
+
+    // GrokCard-friendly
+    cash_flow_table: CashFlowRow[];
 };
 
-function assertFinite(name: string, v: number) {
-    if (!Number.isFinite(v)) throw new Error(`scenarioMath: ${name} is not finite`);
-}
-
-function round2(n: number) {
+function round2(n: number): number {
     return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-function pow(base: number, exp: number) {
-    // Tiny wrapper so we can clamp weirdness if needed later
-    return Math.pow(base, exp);
+function clamp(n: number, lo: number, hi: number): number {
+    return Math.min(Math.max(n, lo), hi);
 }
 
-/**
- * Standard fully-amortizing mortgage payment (P&I).
- * Formula: M = P * r(1+r)^n / ((1+r)^n - 1)
- */
-export function calcMonthlyPI(loanAmount: number, annualRatePct: number, termYears = 30): number {
-    assertFinite("loanAmount", loanAmount);
-    assertFinite("annualRatePct", annualRatePct);
-
-    const n = Math.round(termYears * 12);
-    if (loanAmount <= 0) return 0;
-    if (n <= 0) throw new Error("scenarioMath: termYears must be > 0");
-
-    const r = (annualRatePct / 100) / 12;
-
-    // Handle true 0% rate edge case
-    if (r === 0) return round2(loanAmount / n);
-
-    const onePlusR = 1 + r;
-    const factor = pow(onePlusR, n);
-
-    const payment = loanAmount * (r * factor) / (factor - 1);
-
-    assertFinite("monthlyPI", payment);
-    return round2(payment);
+// Accepts 5 or 0.05; returns percent (5)
+function normalizePct(v: any): number {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return n > 0 && n < 1 ? n * 100 : n;
 }
 
-/**
- * Interest-only payment (not used for 30Y fixed P&I, but useful for checks/alt scenarios)
- */
-export function calcMonthlyInterestOnly(loanAmount: number, annualRatePct: number): number {
-    assertFinite("loanAmount", loanAmount);
-    assertFinite("annualRatePct", annualRatePct);
-    const r = (annualRatePct / 100) / 12;
-    const pmt = loanAmount * r;
-    assertFinite("monthlyInterestOnly", pmt);
-    return round2(pmt);
-}
-
-/**
- * Build amortization snapshot at selected years.
- * Returns cumulative principal/interest paid and ending balance at each year mark.
- */
-export function amortizationSnapshot(
-    loanAmount: number,
-    annualRatePct: number,
-    termYears = 30,
-    years: number[] = [1, 2, 3, 4, 5, 10, 15, 20, 25, 30]
-): AmortPoint[] {
-    const monthlyPI = calcMonthlyPI(loanAmount, annualRatePct, termYears);
-    const r = (annualRatePct / 100) / 12;
-    const termMonths = Math.round(termYears * 12);
-
-    // If payment is 0 (loanAmount=0), return zeros
-    if (monthlyPI === 0) {
-        return years.map((y) => ({
-            year: y,
-            principalPaid: 0,
-            interestPaid: 0,
-            endingBalance: 0
-        }));
+function pickNum(obj: any, keys: string[], fallback: number): number {
+    for (const k of keys) {
+        const v = Number(obj?.[k]);
+        if (Number.isFinite(v)) return v;
     }
-
-    let balance = loanAmount;
-    let cumPrincipal = 0;
-    let cumInterest = 0;
-
-    const targets = new Set(years.map((y) => Math.min(Math.max(y, 0), termYears)));
-    const out: AmortPoint[] = [];
-
-    for (let m = 1; m <= termMonths; m++) {
-        const interest = round2(balance * r);
-        let principal = round2(monthlyPI - interest);
-
-        // Clamp final month so we don't go negative due to rounding
-        if (principal > balance) principal = round2(balance);
-
-        balance = round2(balance - principal);
-        cumPrincipal = round2(cumPrincipal + principal);
-        cumInterest = round2(cumInterest + interest);
-
-        const yearNow = m / 12;
-
-        // Capture at exact year boundaries (month 12,24,...)
-        if (Number.isInteger(yearNow) && targets.has(yearNow)) {
-            out.push({
-                year: yearNow,
-                principalPaid: cumPrincipal,
-                interestPaid: cumInterest,
-                endingBalance: balance
-            });
-        }
-
-        if (balance <= 0) break;
-    }
-
-    // Ensure we include year 30 if requested, even if rounding ended early
-    // (rare but safe)
-    const requested30 = years.includes(termYears);
-    const has30 = out.some((p) => p.year === termYears);
-    if (requested30 && !has30) {
-        out.push({
-            year: termYears,
-            principalPaid: round2(loanAmount),
-            interestPaid: round2(out.length ? out[out.length - 1].interestPaid : 0),
-            endingBalance: 0
-        });
-    }
-
-    return out;
+    return fallback;
 }
 
-/**
- * DSCR: gross monthly rent / monthly PITIA (preferred).
- * If PITIA is not provided, fall back to PI-only DSCR and label basis.
- */
-export function calcDSCR(
-    grossRentMonthly: number | undefined,
-    monthlyPI: number,
-    pitiaMonthly?: number
-): { dscr: number | null; basis: "PITIA" | "PI_ONLY" | "NONE" } {
-    if (!grossRentMonthly || grossRentMonthly <= 0) return { dscr: null, basis: "NONE" };
+// Standard fixed-rate fully amortizing monthly P&I
+function calcMonthlyPI(principal: number, ratePct: number, termYears: number): number {
+    if (!Number.isFinite(principal) || principal <= 0) return NaN;
 
-    const denom = (pitiaMonthly && pitiaMonthly > 0) ? pitiaMonthly : monthlyPI;
+    const years = Number.isFinite(termYears) && termYears > 0 ? termYears : 30;
+    const n = Math.max(1, Math.round(years * 12));
 
-    if (denom <= 0) return { dscr: null, basis: "NONE" };
+    const apr = Number(ratePct);
+    if (!Number.isFinite(apr) || apr <= 0) return principal / n;
 
-    const dscr = round2(grossRentMonthly / denom);
-    return { dscr, basis: (pitiaMonthly && pitiaMonthly > 0) ? "PITIA" : "PI_ONLY" };
+    const r = apr / 100 / 12;
+    const pow = Math.pow(1 + r, n);
+    return principal * (r * pow) / (pow - 1);
 }
 
-/**
- * Cash flow: gross rent - PITIA (preferred), otherwise rent - PI only.
- */
-export function calcCashFlow(
-    grossRentMonthly: number | undefined,
-    monthlyPI: number,
-    pitiaMonthly?: number
-): { monthly: number | null; annual: number | null } {
-    if (!grossRentMonthly || grossRentMonthly <= 0) return { monthly: null, annual: null };
-    const outflow = (pitiaMonthly && pitiaMonthly > 0) ? pitiaMonthly : monthlyPI;
-    const monthly = round2(grossRentMonthly - outflow);
-    return { monthly, annual: round2(monthly * 12) };
+function deriveLoanAmountFromPriceDown(si: any): number {
+    const price = pickNum(si, ["purchase_price", "purchasePrice", "price", "property_value"], NaN);
+
+    const downPct = normalizePct(pickNum(si, ["down_payment_pct", "downPaymentPct", "down_pct"], NaN));
+    const downAmt = pickNum(si, ["down_payment_amount", "downPayment", "down_amount"], NaN);
+
+    if (!Number.isFinite(price) || price <= 0) return NaN;
+
+    if (Number.isFinite(downAmt)) return Math.max(0, price - downAmt);
+    if (Number.isFinite(downPct)) return Math.max(0, price * (1 - downPct / 100));
+
+    return NaN;
 }
 
-/**
- * Invariant validator to prevent “garbage tables”.
- * Throw if anything violates basic identities.
- */
-export function validateInvariants(res: ScenarioMathResults, inputs: ScenarioMathInputs) {
-    // If we have cash flow and rent, enforce identity
-    if (inputs.grossRentMonthly && res.monthlyCashFlow !== null) {
-        const outflow = (inputs.pitiaMonthly && inputs.pitiaMonthly > 0) ? inputs.pitiaMonthly : res.monthlyPI;
-        const expected = round2(inputs.grossRentMonthly - outflow);
-        if (round2(res.monthlyCashFlow) !== expected) {
-            throw new Error(
-                `scenarioMath invariant failed: cashflow_monthly mismatch (got ${res.monthlyCashFlow}, expected ${expected})`
-            );
-        }
-    }
+export function runScenarioMath(input: ScenarioMathInputs): ScenarioMathResult | null {
+    const si: any = input?.scenario_inputs ?? {};
+    const rateUsed = Number(input?.rate_used_pct);
 
-    if (res.annualCashFlow !== null && res.monthlyCashFlow !== null) {
-        const expectedAnnual = round2(res.monthlyCashFlow * 12);
-        if (round2(res.annualCashFlow) !== expectedAnnual) {
-            throw new Error(
-                `scenarioMath invariant failed: cashflow_annual mismatch (got ${res.annualCashFlow}, expected ${expectedAnnual})`
-            );
-        }
-    }
+    // Core inputs
+    const price = pickNum(si, ["purchase_price", "purchasePrice", "price", "property_value"], NaN);
 
-    if (res.dscr !== null && inputs.grossRentMonthly) {
-        const denom = (inputs.pitiaMonthly && inputs.pitiaMonthly > 0) ? inputs.pitiaMonthly : res.monthlyPI;
-        const expected = round2(inputs.grossRentMonthly / denom);
-        if (round2(res.dscr) !== expected) {
-            throw new Error(
-                `scenarioMath invariant failed: dscr mismatch (got ${res.dscr}, expected ${expected})`
-            );
-        }
-    }
-}
+    const rent = pickNum(
+        si,
+        [
+            "rent_monthly",
+            "monthly_rent",
+            "gross_rent_monthly",
+            "gross_monthly_rent",
+            "grossRentMonthly",
+            "rent",
+            "gross_rent",
+        ],
+        NaN
+    );
 
-/**
- * One-shot scenario math: compute everything deterministically.
- */
-export function computeScenarioMath(inputs: ScenarioMathInputs): ScenarioMathResults {
-    const termYears = inputs.termYears ?? 30;
+    const termYears = Number(
+        pickNum(si, ["term_years", "termYears"], 30)
+    ) || 30;
 
-    const monthlyPI = calcMonthlyPI(inputs.loanAmount, inputs.annualRatePct, termYears);
-    const monthlyInterestOnly = calcMonthlyInterestOnly(inputs.loanAmount, inputs.annualRatePct);
+    // Percents
+    const vacancyPct = normalizePct(pickNum(si, ["vacancy_pct", "vacancy", "vacancyPct"], 0));
+    const maintPct = normalizePct(pickNum(si, ["maintenance_pct", "maintenance", "maintenancePct"], 0));
+    const taxPct = normalizePct(pickNum(si, ["property_tax_pct", "tax_pct", "property_tax", "taxPct"], 0));
+    const insPct = normalizePct(pickNum(si, ["insurance_pct", "insurance", "insurancePct"], 0));
 
-    const monthlyRate = round2((inputs.annualRatePct / 100) / 12);
-    const termMonths = Math.round(termYears * 12);
+    // HOA monthly dollars
+    const hoa = pickNum(si, ["hoa_monthly", "hoa_monthly_amount", "hoa", "monthly_hoa"], 0);
 
-    const { dscr, basis } = calcDSCR(inputs.grossRentMonthly, monthlyPI, inputs.pitiaMonthly);
-    const cf = calcCashFlow(inputs.grossRentMonthly, monthlyPI, inputs.pitiaMonthly);
+    // Loan amount: explicit wins, else derive from price/down
+    const explicitLoan = pickNum(si, ["loan_amount", "loanAmount"], NaN);
+    const derivedLoan = deriveLoanAmountFromPriceDown(si);
+    const loanAmount = Number.isFinite(explicitLoan) ? explicitLoan : derivedLoan;
 
-    const amort = amortizationSnapshot(inputs.loanAmount, inputs.annualRatePct, termYears);
+    // If the *core* pieces aren't there, don't run (prevents nonsense)
+    if (!Number.isFinite(price) || price <= 0) return null;
+    if (!Number.isFinite(loanAmount) || loanAmount <= 0) return null;
+    if (!Number.isFinite(rateUsed) || rateUsed <= 0) return null;
 
-    const res: ScenarioMathResults = {
-        monthlyRate,
-        termMonths,
-        monthlyPI,
-        monthlyInterestOnly,
-        dscr,
-        dscrBasis: basis,
-        monthlyCashFlow: cf.monthly,
-        annualCashFlow: cf.annual,
-        amortizationSnapshot: amort
+    // Monthly components
+    const monthlyPI = calcMonthlyPI(loanAmount, rateUsed, termYears);
+    const monthlyTax = (price * (taxPct / 100)) / 12;
+    const monthlyIns = (price * (insPct / 100)) / 12;
+    const monthlyHOA = Number.isFinite(hoa) ? hoa : 0;
+
+    const pitia = (Number.isFinite(monthlyPI) ? monthlyPI : 0) + monthlyTax + monthlyIns + monthlyHOA;
+
+    const grossRent = Number.isFinite(rent) ? rent : NaN;
+    const effectiveRent = (Number.isFinite(grossRent) ? grossRent : 0) * (1 - clamp(vacancyPct / 100, 0, 0.9));
+
+    const monthlyMaint = (price * (maintPct / 100)) / 12;
+
+    // DSCR
+    const dscrGross = Number.isFinite(grossRent) && grossRent > 0 && pitia > 0 ? grossRent / pitia : null;
+    const dscrEconomic = effectiveRent > 0 && pitia > 0 ? effectiveRent / pitia : null;
+
+    // Cash flow
+    const monthlyCashFlow = effectiveRent - pitia - monthlyMaint;
+    const annualCashFlow = monthlyCashFlow * 12;
+
+    const years = [1, 2, 3, 4, 5, 10, 15, 20, 25, 30];
+    const cashFlowTable: CashFlowRow[] = years.map((y) => ({
+        year: y,
+        net_cash_flow: round2(annualCashFlow),
+    }));
+
+    return {
+        loan_amount: round2(loanAmount),
+        rate_used_pct: round2(rateUsed),
+        term_years: termYears,
+
+        monthly_pi: Number.isFinite(monthlyPI) ? round2(monthlyPI) : null,
+        monthly_tax: round2(monthlyTax),
+        monthly_ins: round2(monthlyIns),
+        monthly_hoa: round2(monthlyHOA),
+        monthly_pitia: round2(pitia),
+
+        rent_used: Number.isFinite(grossRent) ? round2(grossRent) : null,
+        effective_rent: round2(effectiveRent),
+        monthly_maint: round2(monthlyMaint),
+
+        dscr_gross: dscrGross === null ? null : round2(dscrGross),
+        dscr_economic: dscrEconomic === null ? null : round2(dscrEconomic),
+
+        monthly_cash_flow: round2(monthlyCashFlow),
+        annual_cash_flow: round2(annualCashFlow),
+
+        cash_flow_table: cashFlowTable,
     };
-
-    validateInvariants(res, inputs);
-    return res;
 }
