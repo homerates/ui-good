@@ -894,12 +894,15 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         return fallback;
     };
 
-    // Percent normalizer: accepts 5 or 0.05; returns PERCENT (5)
+    // Percent normalizer: treat extracted inputs as percent points already.
+    // Example: "0.5%" is expected to arrive as 0.5 (NOT 0.005).
+    // Do NOT multiply values < 1 by 100 or you turn 0.5 into 50.
     const toPct = (v: any) => {
         const n = Number(v);
         if (!Number.isFinite(n) || n < 0) return 0;
-        return n > 0 && n < 1 ? n * 100 : n;
+        return n;
     };
+
 
     // Standard fully-amortizing fixed-rate monthly P&I
     const calcMonthlyPI = (principal: number, ratePct: number, termYears: number) => {
