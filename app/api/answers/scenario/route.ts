@@ -247,6 +247,20 @@ function extractScenarioInputs(message: string) {
         const v = Number(tax[1]);
         if (Number.isFinite(v)) inputs.property_tax_pct = v;
     }
+    // Rent (monthly) — capture "$6,000", "Rent 6000", "rent: 6k", "$6k rent"
+    {
+        const rentMatch =
+            m.match(/\brent\b\s*[:=]?\s*\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\b/i) ||
+            m.match(/\b\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\s*\b(?:\/\s*mo|per\s*month|monthly)\b.*\brent\b/i) ||
+            m.match(/\b(?:gross\s+rent|monthly\s+rent|rent)\b.*?\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\b/i) ||
+            m.match(/\b\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\s*\brent\b/i);
+
+        if (rentMatch) {
+            let v = Number(String(rentMatch[1]).replace(/,/g, ""));
+            if (rentMatch[2] && String(rentMatch[2]).toLowerCase().includes("k")) v *= 1000;
+            if (Number.isFinite(v) && v > 0) inputs.rent_monthly = v;
+        }
+    }
 
     // Insurance
     const ins = m.match(/insurance\s*(?:is|=|:)?\s*(\d{1,2}(?:\.\d+)?)\s*%/i);
@@ -300,6 +314,8 @@ function buildInputsSummary(inputs: any, rate_context: any) {
     if (inputs.vacancy_pct != null) lines.push(`- Vacancy: ${formatPct(inputs.vacancy_pct, 2)}`);
     if (inputs.maintenance_pct != null) lines.push(`- Maintenance: ${formatPct(inputs.maintenance_pct, 2)} (annual assumption)`);
     if (inputs.property_tax_pct != null) lines.push(`- Property tax: ${formatPct(inputs.property_tax_pct, 2)} (annual assumption)`);
+    if (inputs.rent_monthly != null) lines.push(`- Rent: ${formatUSD(inputs.rent_monthly)}/mo`);
+
     if (inputs.insurance_pct != null) lines.push(`- Insurance: ${formatPct(inputs.insurance_pct, 2)} (annual assumption)`);
 
     if (inputs.extra_payment_monthly != null) lines.push(`- Extra payment: ${formatUSD(inputs.extra_payment_monthly)}/mo`);
