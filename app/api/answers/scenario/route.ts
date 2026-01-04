@@ -1062,7 +1062,22 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         30;
 
     const priceDet = Number.isFinite(Number(siDet?.price)) ? Number(siDet.price) : NaN;
-    const rentDet = Number.isFinite(Number(siDet?.rent_monthly)) ? Number(siDet.rent_monthly) : NaN;
+    const rawRentDet = Number.isFinite(Number(siDet?.rent_monthly))
+        ? Number(siDet.rent_monthly)
+        : NaN;
+
+    // Normalize to MONTHLY rent (defensive against upstream annual bleed)
+    const rentDet = Number.isFinite(rawRentDet)
+        ? (rawRentDet > 20000 ? rawRentDet / 12 : rawRentDet)
+        : NaN;
+    if (Number.isFinite(rawRentDet) && rawRentDet > 20000) {
+        (out as any)._diagnostics = (out as any)._diagnostics || [];
+        (out as any)._diagnostics.push(
+            `rent_monthly normalized (raw=${rawRentDet}, monthly=${rentDet})`
+        );
+    }
+
+
 
     const downPctDet = Number.isFinite(Number(siDet?.down_payment_pct)) ? toPctDet(siDet.down_payment_pct) : NaN;
 
