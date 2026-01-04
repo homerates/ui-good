@@ -893,15 +893,30 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         }
         return fallback;
     };
-
-    // Percent normalizer: treat extracted inputs as percent points already.
-    // Example: "0.5%" is expected to arrive as 0.5 (NOT 0.005).
-    // Do NOT multiply values < 1 by 100 or you turn 0.5 into 50.
-    const toPct = (v: any) => {
+    // Percent normalizers (domain-safe)
+    // - For tax/ins/maint/vacancy: values like 0.5 mean 0.5% (NOT 50%)
+    //   but values like 0.0125 mean 1.25% (fraction form).
+    // - For down payment: 0.27 means 27%.
+    // - For rate: 0.0625 means 6.25%.
+    const pctDomain = (v: any) => {
         const n = Number(v);
         if (!Number.isFinite(n) || n < 0) return 0;
-        return n;
+        // Treat "tiny decimals" as fractions (0.0125 => 1.25%), but allow 0.5 => 0.5%
+        return n > 0 && n < 0.2 ? n * 100 : n;
     };
+
+    const pctDownPayment = (v: any) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) return 0;
+        return n > 0 && n <= 1 ? n * 100 : n;
+    };
+
+    const pctRate = (v: any) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) return 0;
+        return n > 0 && n <= 1 ? n * 100 : n;
+    };
+
 
 
     // Standard fully-amortizing fixed-rate monthly P&I
@@ -921,7 +936,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const price = pickNum(si, ["purchase_price", "purchasePrice", "price", "property_value"], NaN);
 
     // Down payment can be % or $, try both
-    const downPct = toPct(pickNum(si, ["down_payment_pct", "downPaymentPct", "down_pct"], NaN));
+    const downPct = pctDownPayment(pickNum(si, ["down_payment_pct", "downPaymentPct", "down_pct"], NaN));
     const downAmt = pickNum(si, ["down_payment_amount", "downPayment", "down_amount"], NaN);
 
     const derivedLoanAmount =
@@ -1079,7 +1094,10 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
 
 
-    const downPctDet = Number.isFinite(Number(siDet?.down_payment_pct)) ? toPctDet(siDet.down_payment_pct) : NaN;
+    const downPctDet = Number.isFinite(Number(siDet?.down_payment_pct))
+        ? pctDownPayment(siDet.down_payment_pct)
+        : NaN;
+
 
     // If loan amount was already explicitly provided somewhere, respect it, else derive.
     const explicitLoanDet =
@@ -1094,10 +1112,11 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
                 : NaN;
 
     // Percent assumptions (these are already extracted correctly by your extractor)
-    const vacancyPctDet = Number.isFinite(Number(siDet?.vacancy_pct)) ? toPctDet(siDet.vacancy_pct) : 0;
-    const maintPctDet = Number.isFinite(Number(siDet?.maintenance_pct)) ? toPctDet(siDet.maintenance_pct) : 0;
-    const taxPctDet = Number.isFinite(Number(siDet?.property_tax_pct)) ? toPctDet(siDet.property_tax_pct) : 0;
-    const insPctDet = Number.isFinite(Number(siDet?.insurance_pct)) ? toPctDet(siDet.insurance_pct) : 0;
+    const vacancyPctDet = Number.isFinite(Number(siDet?.vacancy_pct)) ? pctDomain(siDet.vacancy_pct) : 0;
+    const maintPctDet = Number.isFinite(Number(siDet?.maintenance_pct)) ? pctDomain(siDet.maintenance_pct) : 0;
+    const taxPctDet = Number.isFinite(Number(siDet?.property_tax_pct)) ? pctDomain(siDet.property_tax_pct) : 0;
+    const insPctDet = Number.isFinite(Number(siDet?.insurance_pct)) ? pctDomain(siDet.insurance_pct) : 0;
+
 
     // HOA monthly (if you later extract it). For now default 0.
     const hoaMonthlyDet = Number.isFinite(Number(siDet?.hoa_monthly)) ? Number(siDet.hoa_monthly) : 0;
