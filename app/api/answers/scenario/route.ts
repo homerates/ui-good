@@ -450,16 +450,23 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
 
         vacancy_pct: numOrZero(si.vacancy_pct),
         maintenance_pct: numOrZero(si.maintenance_pct),
-        property_tax_pct: numOrZero(
-            si.property_tax_pct ??
-            si.propertyTaxPct ??
-            si.tax_pct ??
-            si.taxPct ??
-            si.property_tax ??
-            si.propertyTax ??
-            si.taxes_pct ??
-            si.taxesPct
-        ),
+        // IMPORTANT: Do NOT coerce missing tax to 0 here.
+        // Keep NaN when missing so we can apply a default later (e.g., 1.25%) in the canonical PITIA block.
+        property_tax_pct: (() => {
+            const v =
+                si.property_tax_pct ??
+                si.propertyTaxPct ??
+                si.tax_pct ??
+                si.taxPct ??
+                si.property_tax ??
+                si.propertyTax ??
+                si.taxes_pct ??
+                si.taxesPct;
+
+            const n = Number(v);
+            return Number.isFinite(n) ? n : NaN;
+        })(),
+
         insurance_pct: numOrZero(si.insurance_pct),
         hoa_monthly: numOrZero(si.hoa_monthly),
 
@@ -1165,7 +1172,9 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     // Default any missing to 0 (whole percent)
     const vacancyPct = Number.isFinite(vacancyPctDet) ? vacancyPctDet : 0;
     const maintPct = Number.isFinite(maintPctDet) ? maintPctDet : 0;
-    const taxPct = Number.isFinite(taxPctDet) ? taxPctDet : 0;
+    // Default property tax only when missing. If user explicitly provides 0, keep 0.
+    const taxPct = Number.isFinite(taxPctDet) ? taxPctDet : 1.25;
+
     const insPct = Number.isFinite(insPctDet) ? insPctDet : 0;
 
     // HOA monthly (if you later extract it). For now default 0.
