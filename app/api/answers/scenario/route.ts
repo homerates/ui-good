@@ -1174,6 +1174,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const maintPct = Number.isFinite(maintPctDet) ? maintPctDet : 0;
     // Default property tax only when missing. If user explicitly provides 0, keep 0.
     const taxPct = Number.isFinite(taxPctDet) ? taxPctDet : 1.25;
+    (siDet as any).property_tax_pct = taxPct;
 
     const insPct = Number.isFinite(insPctDet) ? insPctDet : 0;
 
