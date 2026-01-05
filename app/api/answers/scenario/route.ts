@@ -910,6 +910,46 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         out.plain_english_summary = narrative ? `${inputsBlock}\n\n${narrative}` : inputsBlock;
     }
 
+    // =========================
+    // Key Risks guardrail: prevent stale/LLM DSCR numbers leaking into UI
+    // If Grok returns key_risks, sanitize DSCR mentions to match deterministic computed_financials.
+    // =========================
+    try {
+        const cfKR = (out as any).computed_financials || {};
+        const dscrGross = Number(cfKR.dscr_gross);
+        const dscrEcon = Number(cfKR.dscr_economic);
+
+        if (Array.isArray((out as any).key_risks)) {
+            (out as any).key_risks = (out as any).key_risks.map((r: any) => {
+                if (typeof r !== "string") return r;
+
+                let rr = r;
+
+                // Replace any "DSCR 0.99" / "DSCR 1.16" / "DSCR: 1.16x" with the current lender DSCR
+                if (Number.isFinite(dscrGross)) {
+                    rr = rr.replace(
+                        /\bDSCR\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                        `DSCR ${dscrGross.toFixed(2)}x`
+                    );
+                }
+
+                // Replace any "DSCR-like ..." or "Economic DSCR ..." numbers with current economic DSCR
+                if (Number.isFinite(dscrEcon)) {
+                    rr = rr.replace(
+                        /\bDSCR-?like\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                        `DSCR-like ${dscrEcon.toFixed(2)}x`
+                    );
+                    rr = rr.replace(
+                        /\bEconomic\s+DSCR\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                        `Economic DSCR ${dscrEcon.toFixed(2)}x`
+                    );
+                }
+
+                return rr;
+            });
+        }
+    } catch { }
+
     // GrokCard-friendly tables with short headers (prevents header overlap)
     const grokcard_tables: any = {};
 
