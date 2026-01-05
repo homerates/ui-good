@@ -313,7 +313,7 @@ function buildInputsSummary(inputs: any, rate_context: any) {
 
     if (inputs.vacancy_pct != null) lines.push(`- Vacancy: ${formatPct(inputs.vacancy_pct, 2)}`);
     if (inputs.maintenance_pct != null) lines.push(`- Maintenance: ${formatPct(inputs.maintenance_pct, 2)} (annual assumption)`);
-    if (inputs.property_tax_pct != null) lines.push(`- Property tax: ${formatPct(inputs.property_tax_pct, 2)} (annual assumption)`);
+    if (inputs.property_tax_pct != null) lines.push(`- Property tax: ${formatPct(inputs, 2)} (annual assumption)`);
     if (inputs.rent_monthly != null) lines.push(`- Rent: ${formatUSD(inputs.rent_monthly)}/mo`);
 
     if (inputs.insurance_pct != null) lines.push(`- Insurance: ${formatPct(inputs.insurance_pct, 2)} (annual assumption)`);
@@ -450,7 +450,16 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
 
         vacancy_pct: numOrZero(si.vacancy_pct),
         maintenance_pct: numOrZero(si.maintenance_pct),
-        property_tax_pct: numOrZero(si.property_tax_pct ?? si.tax_pct),
+        property_tax_pct: numOrZero(
+            si.property_tax_pct ??
+            si.propertyTaxPct ??
+            si.tax_pct ??
+            si.taxPct ??
+            si.property_tax ??
+            si.propertyTax ??
+            si.taxes_pct ??
+            si.taxesPct
+        ),
         insurance_pct: numOrZero(si.insurance_pct),
         hoa_monthly: numOrZero(si.hoa_monthly),
 
