@@ -1446,7 +1446,48 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
                 `Monthly P&I: ${piStr}`
             );
 
-            (out as any).plain_english_summary = replaced;
+            // Also pin DSCR numbers in the narrative to the deterministic computed values
+            // (Prevents Grok from inventing a DSCR like "0.99" in Key Risks.)
+            let replaced2 = replaced;
+
+            try {
+                const cf2 = (out as any).computed_financials || {};
+                const dscrLoanDepot = Number.isFinite(Number(cf2.dscr_loan_depot)) ? Number(cf2.dscr_loan_depot) : NaN;
+                const dscrEconomic = Number.isFinite(Number(cf2.dscr_economic)) ? Number(cf2.dscr_economic) : NaN;
+
+                // Format like "1.16x"
+                const fmtX = (v: number) => `${v.toFixed(2)}x`;
+
+                // Replace lender-style DSCR mentions with canonical lender DSCR
+                // Keep it simple (no callback) to avoid TS/Next build issues.
+                if (Number.isFinite(dscrLoanDepot)) {
+                    replaced2 = replaced2.replace(
+                        /\bDSCR(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                        `DSCR: ${fmtX(dscrLoanDepot)}`
+                    );
+                }
+                if (Number.isFinite(dscrEconomic)) {
+                    replaced2 = replaced2.replace(
+                        /\bDSCR-?like(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                        `DSCR-like: ${fmtX(dscrEconomic)}`
+                    );
+                }
+
+
+                // Replace "DSCR-like" / economic DSCR mentions
+                if (Number.isFinite(dscrEconomic)) {
+                    replaced2 = replaced2.replace(
+                        /DSCR-?like(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?/gi,
+                        `DSCR-like: ${fmtX(dscrEconomic)}`
+                    );
+                    replaced2 = replaced2.replace(
+                        /Economic\s+DSCR(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?/gi,
+                        `Economic DSCR: ${fmtX(dscrEconomic)}`
+                    );
+                }
+            } catch { }
+
+            (out as any).plain_english_summary = replaced2;
         }
     } catch { }
     // =========================
