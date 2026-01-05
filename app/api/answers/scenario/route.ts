@@ -1136,12 +1136,37 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
                 ? priceDet * (1 - (downPctDet / 100))
                 : NaN;
 
-    // Percent assumptions (these are already extracted correctly by your extractor)
-    const vacancyPctDet = Number.isFinite(Number(siDet?.vacancy_pct)) ? pctDomain(siDet.vacancy_pct) : 0;
-    const maintPctDet = Number.isFinite(Number(siDet?.maintenance_pct)) ? pctDomain(siDet.maintenance_pct) : 0;
-    const taxPctDet = Number.isFinite(Number(siDet?.property_tax_pct)) ? pctDomain(siDet.property_tax_pct) : 0;
-    const insPctDet = Number.isFinite(Number(siDet?.insurance_pct)) ? pctDomain(siDet.insurance_pct) : 0;
+    // Percent assumptions (canonical units)
+    // RULE: keep *_pct as WHOLE percent (e.g. 1.25 means 1.25%), never decimal.
+    // Convert to decimal exactly once at the math edge.
 
+    const firstFinite = (...vals: any[]) => {
+        for (const v of vals) {
+            const n = Number(v);
+            if (Number.isFinite(n)) return n;
+        }
+        return NaN;
+    };
+
+    // Pull from multiple possible keys to avoid silent 0s
+    // (We’ve seen both property_tax_pct and property_tax_pct variants across paths)
+    const vacancyPctDet = firstFinite(siDet?.vacancy_pct, (siDet as any)?.vacancyPct, (siDet as any)?.vacancy);
+    const maintPctDet = firstFinite(siDet?.maintenance_pct, (siDet as any)?.maint_pct, (siDet as any)?.maintenancePct, (siDet as any)?.maintenance);
+    const taxPctDet = firstFinite(
+        siDet?.property_tax_pct,
+        (siDet as any)?.property_tax,
+        (siDet as any)?.tax_pct,
+        (siDet as any)?.taxPct,
+        (siDet as any)?.propertyTax,
+        (siDet as any)?.propertyTaxPct
+    );
+    const insPctDet = firstFinite(siDet?.insurance_pct, (siDet as any)?.ins_pct, (siDet as any)?.insurancePct, (siDet as any)?.insurance);
+
+    // Default any missing to 0 (whole percent)
+    const vacancyPct = Number.isFinite(vacancyPctDet) ? vacancyPctDet : 0;
+    const maintPct = Number.isFinite(maintPctDet) ? maintPctDet : 0;
+    const taxPct = Number.isFinite(taxPctDet) ? taxPctDet : 0;
+    const insPct = Number.isFinite(insPctDet) ? insPctDet : 0;
 
     // HOA monthly (if you later extract it). For now default 0.
     const hoaMonthlyDet = Number.isFinite(Number(siDet?.hoa_monthly)) ? Number(siDet.hoa_monthly) : 0;
@@ -1166,14 +1191,17 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     }
 
     // Monthly tax/ins based on purchase price
+    // Validation targets:
+    //  - taxPct=1.25, price=900000 => 937.50/mo
+    //  - insPct=0.50, price=900000 => 375.00/mo
     const monthlyTaxDet =
-        (Number.isFinite(priceDet) && taxPctDet > 0)
-            ? (priceDet * (taxPctDet / 100)) / 12
+        (Number.isFinite(priceDet) && taxPct > 0)
+            ? (priceDet * (taxPct / 100)) / 12
             : 0;
 
     const monthlyInsDet =
-        (Number.isFinite(priceDet) && insPctDet > 0)
-            ? (priceDet * (insPctDet / 100)) / 12
+        (Number.isFinite(priceDet) && insPct > 0)
+            ? (priceDet * (insPct / 100)) / 12
             : 0;
 
     const pitiaDet =
@@ -1181,6 +1209,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         monthlyTaxDet +
         monthlyInsDet +
         (Number.isFinite(hoaMonthlyDet) ? hoaMonthlyDet : 0);
+
 
     // DSCR (LoanDepot style): gross rent / PITIA
     const dscrGrossDet =
