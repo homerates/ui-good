@@ -1531,6 +1531,54 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         }
     } catch { }
     // =========================
+    // Key Risks: ALWAYS deterministic
+    // Do NOT trust Grok key_risks (it may invent DSCR math and stale numbers)
+    // =========================
+    try {
+        const cfKR = (out as any).computed_financials || {};
+
+        const dscrLoanDepot =
+            Number.isFinite(Number(cfKR.dscr_loan_depot)) ? Number(cfKR.dscr_loan_depot) :
+                (Number.isFinite(Number(cfKR.dscr_gross)) ? Number(cfKR.dscr_gross) : NaN);
+
+        const dscrEconomic =
+            Number.isFinite(Number(cfKR.dscr_economic)) ? Number(cfKR.dscr_economic) : NaN;
+
+        const monthlyCF =
+            Number.isFinite(Number(cfKR.monthly_cash_flow)) ? Number(cfKR.monthly_cash_flow) : NaN;
+
+        const fmtX = (v: number) => `${v.toFixed(2)}x`;
+        const fmtMoney0 = (v: number) =>
+            v.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+        const risks: string[] = [];
+
+        if (Number.isFinite(dscrLoanDepot)) {
+            if (dscrLoanDepot < 1.0) {
+                risks.push(`DSCR ${fmtX(dscrLoanDepot)} is below 1.00x. This is typically not eligible for DSCR financing without compensating factors.`);
+            } else if (dscrLoanDepot < 1.2) {
+                risks.push(`DSCR ${fmtX(dscrLoanDepot)} is tight. The deal is vulnerable to small rent declines or payment increases (tax, insurance, rate).`);
+            } else {
+                risks.push(`DSCR ${fmtX(dscrLoanDepot)} is healthy relative to common DSCR thresholds, but still sensitive to vacancy and expense shocks.`);
+            }
+        }
+
+        if (Number.isFinite(dscrEconomic)) {
+            risks.push(`Economic DSCR ${fmtX(dscrEconomic)} reflects vacancy-adjusted rent. If this trends near 1.00x, cash flow pressure is likely even if lender DSCR passes.`);
+        }
+
+        if (Number.isFinite(monthlyCF)) {
+            const direction = monthlyCF >= 0 ? "positive" : "negative";
+            risks.push(`Flat assumptions: cash flow is ${direction} at ${fmtMoney0(monthlyCF)}/mo with no modeled rent growth, capex, or reserve planning.`);
+        } else {
+            risks.push(`Flat assumptions: no rent/expense growth modeled; real-world vacancy, maintenance, and capex can exceed estimates.`);
+        }
+
+        (out as any).key_risks = risks;
+    } catch { }
+
+
+    // =========================
     // Cash Flow table: ALWAYS deterministic
     // Do NOT trust Grok cash_flow_table (it has been the source of repeated wild values)
     // =========================
