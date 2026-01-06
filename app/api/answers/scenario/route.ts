@@ -645,33 +645,42 @@ function postParseValidateScenario(result: any, message: string, marketData: any
         let cumInt = 0;
 
         const loanAmt = Number(out?.scenario_inputs?.loan_amount);
+        // Fail-soft: if amortization inputs are missing, skip snapshot but keep the rest of the scenario output.
+        const rateUsedPct = Number((out as any)?.computed_financials?.rate_used_pct ?? (out as any)?.scenario_inputs?.rate_used_pct);
+        const termYears = Number((out as any)?.scenario_inputs?.term_years ?? 30);
 
-        out.grokcard_tables.amortization_snapshot = {
-            headers: ["Yr", "Principal Paid", "Interest Paid", "Ending Balance"],
-            rows: out.amortization_summary.map((r: any) => {
-                const y = Number(r?.year);
-                const pDelta = Number(r?.principal_paid);
-                const iDelta = Number(r?.interest_paid);
+        if (!Number.isFinite(loanAmt) || loanAmt <= 0 || !Number.isFinite(rateUsedPct) || rateUsedPct <= 0 || !Number.isFinite(termYears) || termYears <= 0) {
+            // Optional note for debugging/UI (harmless if unused)
+            (out as any).amortization_note = "Amortization snapshot skipped: missing loan amount, rate, or term.";
+            // IMPORTANT: do not set grokcard_tables.amortization_snapshot at all
+        } else {
 
-                if (Number.isFinite(pDelta)) cumPrin += pDelta;
-                if (Number.isFinite(iDelta)) cumInt += iDelta;
+            out.grokcard_tables.amortization_snapshot = {
+                headers: ["Yr", "Principal Paid", "Interest Paid", "Ending Balance"],
+                rows: out.amortization_summary.map((r: any) => {
+                    const y = Number(r?.year);
+                    const pDelta = Number(r?.principal_paid);
+                    const iDelta = Number(r?.interest_paid);
 
-                const bal =
-                    Number.isFinite(loanAmt) && Number.isFinite(cumPrin)
-                        ? Math.max(loanAmt - cumPrin, 0)
-                        : null;
+                    if (Number.isFinite(pDelta)) cumPrin += pDelta;
+                    if (Number.isFinite(iDelta)) cumInt += iDelta;
 
-                return [
-                    Number.isFinite(y) ? y : null,
-                    Number.isFinite(cumPrin) ? Math.round(cumPrin) : null,
-                    Number.isFinite(cumInt) ? Math.round(cumInt) : null,
-                    bal !== null ? Math.round(bal) : null,
-                ];
-            }),
-        };
+                    const bal =
+                        Number.isFinite(loanAmt) && Number.isFinite(cumPrin)
+                            ? Math.max(loanAmt - cumPrin, 0)
+                            : null;
+
+                    return [
+                        Number.isFinite(y) ? y : null,
+                        Number.isFinite(cumPrin) ? Math.round(cumPrin) : null,
+                        Number.isFinite(cumInt) ? Math.round(cumInt) : null,
+                        bal !== null ? Math.round(bal) : null,
+                    ];
+                }),
+            };
+        }
+
     }
-
-
 
 
     // Cash flow table (ANNUAL)
