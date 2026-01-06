@@ -1493,7 +1493,32 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
             try {
                 const cf2 = (out as any).computed_financials || {};
                 const dscrLoanDepot = Number.isFinite(Number(cf2.dscr_loan_depot)) ? Number(cf2.dscr_loan_depot) : NaN;
-                const dscrEconomic = Number.isFinite(Number(cf2.dscr_economic)) ? Number(cf2.dscr_economic) : NaN;
+                // Economic DSCR must be computed deterministically from rent/vacancy and monthly PITIA.
+                // Do NOT trust cf2.dscr_economic (it can be wrong/stale).
+                const rentM =
+                    Number.isFinite(Number((out as any)?.scenario_inputs?.rent_monthly))
+                        ? Number((out as any).scenario_inputs.rent_monthly)
+                        : NaN;
+
+                const vacPct =
+                    Number.isFinite(Number((out as any)?.scenario_inputs?.vacancy_pct))
+                        ? Number((out as any).scenario_inputs.vacancy_pct)
+                        : NaN;
+
+                const pitiaM =
+                    Number.isFinite(Number(cf2.monthly_pitia))
+                        ? Number(cf2.monthly_pitia)
+                        : NaN;
+
+                const effRentM =
+                    Number.isFinite(rentM) && Number.isFinite(vacPct)
+                        ? rentM * (1 - Math.max(0, Math.min(0.9, vacPct / 100)))
+                        : NaN;
+
+                const dscrEconomic =
+                    Number.isFinite(effRentM) && Number.isFinite(pitiaM) && pitiaM > 0
+                        ? effRentM / pitiaM
+                        : NaN;
 
                 // Format like "1.16x"
                 const fmtX = (v: number) => `${v.toFixed(2)}x`;
@@ -1541,8 +1566,33 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
             Number.isFinite(Number(cfKR.dscr_loan_depot)) ? Number(cfKR.dscr_loan_depot) :
                 (Number.isFinite(Number(cfKR.dscr_gross)) ? Number(cfKR.dscr_gross) : NaN);
 
+        // Economic DSCR must be computed deterministically from rent/vacancy and monthly PITIA.
+        // Do NOT trust cfKR.dscr_economic (it can be wrong/stale).
+        const rentM =
+            Number.isFinite(Number((out as any)?.scenario_inputs?.rent_monthly))
+                ? Number((out as any).scenario_inputs.rent_monthly)
+                : NaN;
+
+        const vacPct =
+            Number.isFinite(Number((out as any)?.scenario_inputs?.vacancy_pct))
+                ? Number((out as any).scenario_inputs.vacancy_pct)
+                : NaN;
+
+        const pitiaM =
+            Number.isFinite(Number(cfKR.monthly_pitia))
+                ? Number(cfKR.monthly_pitia)
+                : NaN;
+
+        const effRentM =
+            Number.isFinite(rentM) && Number.isFinite(vacPct)
+                ? rentM * (1 - Math.max(0, Math.min(0.9, vacPct / 100)))
+                : NaN;
+
         const dscrEconomic =
-            Number.isFinite(Number(cfKR.dscr_economic)) ? Number(cfKR.dscr_economic) : NaN;
+            Number.isFinite(effRentM) && Number.isFinite(pitiaM) && pitiaM > 0
+                ? effRentM / pitiaM
+                : NaN;
+
 
         const monthlyCF =
             Number.isFinite(Number(cfKR.monthly_cash_flow)) ? Number(cfKR.monthly_cash_flow) : NaN;
