@@ -650,1176 +650,1179 @@ function postParseValidateScenario(result: any, message: string, marketData: any
         const termYears = Number((out as any)?.scenario_inputs?.term_years ?? 30);
 
         if (!Number.isFinite(loanAmt) || loanAmt <= 0 || !Number.isFinite(rateUsedPct) || rateUsedPct <= 0 || !Number.isFinite(termYears) || termYears <= 0) {
-            // Optional note for debugging/UI (harmless if unused)
+            // Fail-soft: skip amortization snapshot but keep the rest of the scenario output.
             (out as any).amortization_note = "Amortization snapshot skipped: missing loan amount, rate, or term.";
-            // IMPORTANT: do not set grokcard_tables.amortization_snapshot at all
-        } else {
 
-            out.grokcard_tables.amortization_snapshot = {
-                headers: ["Yr", "Principal Paid", "Interest Paid", "Ending Balance"],
-                rows: out.amortization_summary.map((r: any) => {
-                    const y = Number(r?.year);
-                    const pDelta = Number(r?.principal_paid);
-                    const iDelta = Number(r?.interest_paid);
+            // IMPORTANT: remove triggers so the UI does not attempt to render amortization at all
+            if (Array.isArray((out as any).amortization_summary)) (out as any).amortization_summary = [];
+            if ((out as any).grokcard_tables?.amortization_snapshot) delete (out as any).grokcard_tables.amortization_snapshot;
+            {
 
-                    if (Number.isFinite(pDelta)) cumPrin += pDelta;
-                    if (Number.isFinite(iDelta)) cumInt += iDelta;
+                out.grokcard_tables.amortization_snapshot = {
+                    headers: ["Yr", "Principal Paid", "Interest Paid", "Ending Balance"],
+                    rows: out.amortization_summary.map((r: any) => {
+                        const y = Number(r?.year);
+                        const pDelta = Number(r?.principal_paid);
+                        const iDelta = Number(r?.interest_paid);
 
-                    const bal =
-                        Number.isFinite(loanAmt) && Number.isFinite(cumPrin)
-                            ? Math.max(loanAmt - cumPrin, 0)
-                            : null;
+                        if (Number.isFinite(pDelta)) cumPrin += pDelta;
+                        if (Number.isFinite(iDelta)) cumInt += iDelta;
 
-                    return [
-                        Number.isFinite(y) ? y : null,
-                        Number.isFinite(cumPrin) ? Math.round(cumPrin) : null,
-                        Number.isFinite(cumInt) ? Math.round(cumInt) : null,
-                        bal !== null ? Math.round(bal) : null,
-                    ];
-                }),
+                        const bal =
+                            Number.isFinite(loanAmt) && Number.isFinite(cumPrin)
+                                ? Math.max(loanAmt - cumPrin, 0)
+                                : null;
+
+                        return [
+                            Number.isFinite(y) ? y : null,
+                            Number.isFinite(cumPrin) ? Math.round(cumPrin) : null,
+                            Number.isFinite(cumInt) ? Math.round(cumInt) : null,
+                            bal !== null ? Math.round(bal) : null,
+                        ];
+                    }),
+                };
+            }
+
+        }
+
+
+        // Cash flow table (ANNUAL)
+        if (Array.isArray(out.cash_flow_table) && out.cash_flow_table.length) {
+            out.grokcard_tables.cash_flow = {
+                headers: ["Yr", "Net CF"],
+                rows: out.cash_flow_table.map((r: any) => [
+                    Number(r?.year),
+                    Number(r?.net_cash_flow),
+                ]),
+                unit: "annual",
             };
         }
 
-    }
-
-
-    // Cash flow table (ANNUAL)
-    if (Array.isArray(out.cash_flow_table) && out.cash_flow_table.length) {
-        out.grokcard_tables.cash_flow = {
-            headers: ["Yr", "Net CF"],
-            rows: out.cash_flow_table.map((r: any) => [
-                Number(r?.year),
-                Number(r?.net_cash_flow),
-            ]),
-            unit: "annual",
-        };
-    }
-
-    // Rate sensitivity table (ONLY if borrower asked)
-    if (promptWantsStress) {
-        const s = out.sensitivity_table || {};
-        const rows: any[] = [];
-
-        const fmtMoney = (v: any) =>
-            Number.isFinite(Number(v))
-                ? `$${Math.round(Number(v)).toLocaleString()}`
-                : null;
-
-        const fmtCF = (v: any) =>
-            Number.isFinite(Number(v))
-                ? `${Number(v) < 0 ? "-" : ""}$${Math.abs(Math.round(Number(v))).toLocaleString()}`
-                : null;
-
-        const fmtDSCR = (v: any) =>
-            Number.isFinite(Number(v)) ? `${round2(Number(v))}x` : null;
-
-        if (s.minus_0_5pct)
-            rows.push([
-                "-0.5%",
-                fmtMoney(s.minus_0_5pct.monthly_payment),
-                fmtCF(s.minus_0_5pct.monthly_cash_flow),
-                fmtDSCR(s.minus_0_5pct.dscr),
-            ]);
-
-        if (s.current_rate)
-            rows.push([
-                "Current Rate",
-                fmtMoney(s.current_rate.monthly_payment),
-                fmtCF(s.current_rate.monthly_cash_flow),
-                fmtDSCR(s.current_rate.dscr),
-            ]);
-
-        if (s.plus_0_5pct)
-            rows.push([
-                "+0.5%",
-                fmtMoney(s.plus_0_5pct.monthly_payment),
-                fmtCF(s.plus_0_5pct.monthly_cash_flow),
-                fmtDSCR(s.plus_0_5pct.dscr),
-            ]);
-
-        if (s.plus_1pct)
-            rows.push([
-                "+1.0%",
-                fmtMoney(s.plus_1pct.monthly_payment),
-                fmtCF(s.plus_1pct.monthly_cash_flow),
-                fmtDSCR(s.plus_1pct.dscr),
-            ]);
-
-        out.grokcard_tables.rate_sensitivity = {
-            headers: ["Scenario", "Payment", "Cash Flow", "DSCR"],
-            rows,
-        };
-    } else {
-        if (out.grokcard_tables?.rate_sensitivity) delete out.grokcard_tables.rate_sensitivity;
-    }
-
-
-    // 6) Regenerate summary from computed baseline (prevents P&I hallucinations)
-    const effRent = base.effectiveRent;
-    const maint = base.operating;
-    const pitia = base.PITIA;
-    const mcf = base.monthlyCashFlow;
-    const acf = base.annualCashFlow;
-    const dscr = base.dscr;
-
-    const lines: string[] = [];
-    lines.push("Scenario inputs");
-    lines.push(`- Purchase price: $${Math.round(inputs.price).toLocaleString()}`);
-    lines.push(
-        `- Down payment: ${round2(inputs.down_payment_pct)}% ($${Math.round(
-            inputs.price * (inputs.down_payment_pct / 100)
-        ).toLocaleString()})`
-    );
-    lines.push(`- Loan amount: $${Math.round(base.loanAmount).toLocaleString()}`);
-    lines.push(`- Rent: $${Math.round(inputs.rent_monthly).toLocaleString()}/mo`);
-    lines.push(`- Vacancy: ${round2(inputs.vacancy_pct)}%`);
-    lines.push(`- Maintenance: ${round2(inputs.maintenance_pct)}% (annual assumption)`);
-    lines.push(`- Property tax: ${round2(inputs.property_tax_pct)}% (annual assumption)`);
-    lines.push(`- Insurance: ${round2(inputs.insurance_pct)}% (annual assumption)`);
-    lines.push(
-        `- Rate used: ${round2(rateUsed)}% (${out?.rate_context?.source || "market"}, ${out?.rate_context?.as_of || marketData?.date || "as of"
-        })`
-    );
-    lines.push("");
-    lines.push(`Computed baseline (term ${termYears}y)`);
-    lines.push(`- Effective rent (after vacancy): $${effRent.toLocaleString()}/mo`);
-    lines.push(`- P&I: $${base.monthlyPI.toLocaleString()}/mo`);
-    lines.push(`- PITIA (P&I + tax + insurance): $${pitia.toLocaleString()}/mo`);
-    lines.push(`- Maintenance (modeled): $${maint.toLocaleString()}/mo`);
-    lines.push(`- Net cash flow: $${mcf.toLocaleString()}/mo (${acf.toLocaleString()}/yr)`);
-    {
-        const dscrLd = (base as any)?.dscrLoanDepot ?? null;
-        const dscrEcon = (base as any)?.dscrEconomic ?? (base as any)?.dscr ?? null;
-
-        const fmtDSCRLocal = (n: any) => {
-            const x = typeof n === "number" ? n : Number(n);
-            if (!Number.isFinite(x)) return "-";
-            return `${x.toFixed(2)}x`;
-        };
-
-        lines.push(`- DSCR (LoanDepot, gross rent ÷ PITIA): ${fmtDSCRLocal(dscrLd)}`);
-        lines.push(`- DSCR-like (economic, effective rent ÷ PITIA): ${fmtDSCRLocal(dscrEcon)}`);
-
-    }
-
-
-    if (promptWantsStress) {
-        const s = out.sensitivity_table;
-        lines.push("");
-        lines.push("Rate stress (monthly cash flow / DSCR)");
-        if (s?.plus_0_5pct)
-            lines.push(
-                `- +0.5%: $${Number(s.plus_0_5pct.monthly_cash_flow).toLocaleString()}/mo, DSCR ${s.plus_0_5pct.dscr
-                }x`
-            );
-        if (s?.plus_1pct)
-            lines.push(
-                `- +1.0%: $${Number(s.plus_1pct.monthly_cash_flow).toLocaleString()}/mo, DSCR ${s.plus_1pct.dscr
-                }x`
-            );
-    }
-
-    out.plain_english_summary = lines.join("\n");
-
-    out.validation_warnings = warnings;
-    return out;
-}
-
-
-function normalizeForGrokCard(result: any, message: string, marketData: any) {
-    const out = { ...(result || {}) };
-
-    // Always protect against negative payments being rendered as negative “payment”
-    out.monthly_payment = safeAbsMoney(out.monthly_payment);
-
-    // Decide if borrower requested rate comparison
-    const includeRateSensitivity = wantsRateSensitivity(message);
-
-    // If NOT explicitly requested, remove sensitivity_table entirely (even if model returns it)
-    if (!includeRateSensitivity) {
-        delete out.sensitivity_table;
-    } else if (out.sensitivity_table && typeof out.sensitivity_table === "object") {
-        // sanitize within sensitivity rows
-        for (const key of Object.keys(out.sensitivity_table)) {
-            const row = out.sensitivity_table[key];
-            if (row && typeof row === "object" && "monthly_payment" in row) {
-                row.monthly_payment = safeAbsMoney((row as any).monthly_payment);
-            }
-        }
-    }
-
-    // Rate provenance: add rate_context + prepend to summary
-    const userRate = detectUserProvidedRate(message);
-    const rateUsed = userRate ?? marketData?.thirtyYearFixed ?? null;
-
-    const rate_context = {
-        rate_used: rateUsed,
-        source: userRate != null ? "user" : "FRED",
-        as_of: marketData?.date ?? null,
-        series: userRate != null ? null : "MORTGAGE30US",
-    };
-    out.rate_context = rate_context;
-    // Inputs summary (borrower-visible + structured)
-    const extractedInputs = extractScenarioInputs(message);
-    out.scenario_inputs = extractedInputs;
-    const inputsBlock = buildInputsSummary(extractedInputs, rate_context);
-    /* =========================
-   Deterministic Scenario Math (single source of truth)
-   ========================= */
-
-    const scenarioMathResult = runScenarioMath({
-        scenario_inputs: extractedInputs,
-        rate_used_pct: Number((rate_context as any)?.rate_used ?? (rate_context as any)?.rate),
-    });
-
-    // Only apply if math successfully ran
-    if (scenarioMathResult) {
-        // Canonical monthly P&I
-        out.monthly_payment = scenarioMathResult.monthly_pi;
-
-        // Canonical DSCR (LoanDepot = GROSS rent / PITIA)
-        (out as any).dscr = scenarioMathResult.dscr_gross;
-
-        // Canonical computed financials (single source of truth)
-        (out as any).computed_financials = {
-            ...(out as any).computed_financials,
-
-            loan_amount: scenarioMathResult.loan_amount,
-            rate_used_pct: scenarioMathResult.rate_used_pct,
-            term_years: scenarioMathResult.term_years,
-
-            monthly_pi: scenarioMathResult.monthly_pi,
-            monthly_tax: scenarioMathResult.monthly_tax,
-            monthly_ins: scenarioMathResult.monthly_ins,
-            monthly_hoa: scenarioMathResult.monthly_hoa,
-
-            monthly_pitia: scenarioMathResult.monthly_pitia,
-
-            dscr_gross: scenarioMathResult.dscr_gross,
-            dscr_economic: scenarioMathResult.dscr_economic,
-
-            monthly_cash_flow: scenarioMathResult.monthly_cash_flow,
-            annual_cash_flow: scenarioMathResult.annual_cash_flow,
-        };
-
-        // Flat cash flow table (keeps GrokCard plumbing intact)
-        out.cash_flow_table = scenarioMathResult.cash_flow_table;
-    }
-
-    // Summary: ensure Inputs block appears first, then the model narrative (no duplication)
-    const narrative =
-        typeof out.plain_english_summary === "string" && out.plain_english_summary.trim()
-            ? out.plain_english_summary.trim()
-            : "";
-
-    // If narrative already starts with "Scenario inputs", don't double-insert.
-    if (narrative.toLowerCase().startsWith("scenario inputs")) {
-        out.plain_english_summary = narrative;
-    } else {
-        out.plain_english_summary = narrative ? `${inputsBlock}\n\n${narrative}` : inputsBlock;
-    }
-
-    // =========================
-    // Key Risks guardrail: prevent stale/LLM DSCR numbers leaking into UI
-    // If Grok returns key_risks, sanitize DSCR mentions to match deterministic computed_financials.
-    // =========================
-    try {
-        const cfKR = (out as any).computed_financials || {};
-        const dscrGross = Number(cfKR.dscr_gross);
-        const dscrEcon = Number(cfKR.dscr_economic);
-
-        if (Array.isArray((out as any).key_risks)) {
-            (out as any).key_risks = (out as any).key_risks.map((r: any) => {
-                if (typeof r !== "string") return r;
-
-                let rr = r;
-
-                // Replace any "DSCR 0.99" / "DSCR 1.16" / "DSCR: 1.16x" with the current lender DSCR
-                if (Number.isFinite(dscrGross)) {
-                    rr = rr.replace(
-                        /\bDSCR\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
-                        `DSCR ${dscrGross.toFixed(2)}x`
-                    );
-                }
-
-                // Replace any "DSCR-like ..." or "Economic DSCR ..." numbers with current economic DSCR
-                if (Number.isFinite(dscrEcon)) {
-                    rr = rr.replace(
-                        /\bDSCR-?like\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
-                        `DSCR-like ${dscrEcon.toFixed(2)}x`
-                    );
-                    rr = rr.replace(
-                        /\bEconomic\s+DSCR\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
-                        `Economic DSCR ${dscrEcon.toFixed(2)}x`
-                    );
-                }
-
-                return rr;
-            });
-        }
-    } catch { }
-
-    // GrokCard-friendly tables with short headers (prevents header overlap)
-    const grokcard_tables: any = {};
-
-    // ---- Amortization guardrail: force build when user asks ----
-    const promptWantsAmortization =
-        /\bamort\b|\bamortization\b|\bschedule\b|\bprincipal\b|\binterest\b|\bpayoff\b/i.test(message);
-
-    // Deterministic helpers (NO try/catch, NO IIFE: keep brace balance stable)
-    const pickNum = (obj: any, keys: string[], fallback: number) => {
-        for (const k of keys) {
-            const v = Number(obj?.[k]);
-            if (Number.isFinite(v)) return v;
-        }
-        return fallback;
-    };
-    // Percent normalizers (domain-safe)
-    // - For tax/ins/maint/vacancy: values like 0.5 mean 0.5% (NOT 50%)
-    //   but values like 0.0125 mean 1.25% (fraction form).
-    // - For down payment: 0.27 means 27%.
-    // - For rate: 0.0625 means 6.25%.
-    const pctDomain = (v: any) => {
-        const n = Number(v);
-        if (!Number.isFinite(n) || n < 0) return 0;
-        // Treat "tiny decimals" as fractions (0.0125 => 1.25%), but allow 0.5 => 0.5%
-        return n > 0 && n < 0.2 ? n * 100 : n;
-    };
-
-    const pctDownPayment = (v: any) => {
-        const n = Number(v);
-        if (!Number.isFinite(n) || n < 0) return 0;
-        return n > 0 && n <= 1 ? n * 100 : n;
-    };
-
-    const pctRate = (v: any) => {
-        const n = Number(v);
-        if (!Number.isFinite(n) || n < 0) return 0;
-        return n > 0 && n <= 1 ? n * 100 : n;
-    };
-
-
-
-    // Standard fully-amortizing fixed-rate monthly P&I
-    const calcMonthlyPI = (principal: number, ratePct: number, termYears: number) => {
-        if (!Number.isFinite(principal) || principal <= 0) return NaN;
-        const n = Math.max(1, Math.round((Number.isFinite(termYears) && termYears > 0 ? termYears : 30) * 12));
-        const r = (Number.isFinite(ratePct) ? ratePct : 0) / 100 / 12;
-        if (!Number.isFinite(r) || r <= 0) return principal / n;
-        const pow = Math.pow(1 + r, n);
-        return principal * (r * pow) / (pow - 1);
-    };
-
-    // Pull scenario inputs from extractedInputs (this is the correct scope)
-    const si: any = extractedInputs || {};
-
-    // --- Determine loan amount / rate / term with deterministic fallbacks ---
-    const price = pickNum(si, ["purchase_price", "purchasePrice", "price", "property_value"], NaN);
-
-    // Down payment can be % or $, try both
-    const downPct = pctDownPayment(pickNum(si, ["down_payment_pct", "downPaymentPct", "down_pct"], NaN));
-    const downAmt = pickNum(si, ["down_payment_amount", "downPayment", "down_amount"], NaN);
-
-    const derivedLoanAmount =
-        Number.isFinite(price) && price > 0
-            ? Number.isFinite(downAmt)
-                ? Math.max(0, price - downAmt)
-                : Number.isFinite(downPct)
-                    ? Math.max(0, price * (1 - downPct / 100))
-                    : NaN
-            : NaN;
-
-    // IMPORTANT: keep your original raw variables shape so later code still works
-    const loanAmtRaw =
-        (out as any)?.baseline?.loanAmount ??
-        (out as any)?.scenario_inputs?.loan_amount ??
-        (out as any)?.scenario_inputs?.loanAmount ??
-        (out as any)?.loan_amount ??
-        (out as any)?.loanAmount ??
-        (Number.isFinite(pickNum(si, ["loan_amount", "loanAmount"], NaN)) ? pickNum(si, ["loan_amount", "loanAmount"], NaN) : undefined) ??
-        (Number.isFinite(derivedLoanAmount) ? derivedLoanAmount : undefined);
-
-    const rateRaw =
-        (out as any)?.rate_context?.rate ??
-        (out as any)?.scenario_inputs?.rate ??
-        (out as any)?.scenario_inputs?.rate_used ??
-        (out as any)?.rate_used ??
-        (out as any)?.rate ??
-        (Number.isFinite(pickNum(si, ["rate_used", "rate", "interest_rate", "ratePct"], NaN))
-            ? pickNum(si, ["rate_used", "rate", "interest_rate", "ratePct"], NaN)
-            : undefined) ??
-        (Number.isFinite((rate_context as any)?.rate) ? (rate_context as any).rate : undefined);
-
-    const termYearsRaw =
-        (out as any)?.scenario_inputs?.term_years ??
-        (out as any)?.scenario_inputs?.termYears ??
-        (Number.isFinite(pickNum(si, ["term_years", "termYears"], 30)) ? pickNum(si, ["term_years", "termYears"], 30) : 30) ??
-        30;
-
-    const loanAmt = Number(loanAmtRaw);
-    const ratePct = Number(rateRaw);
-    const termYears = Number(termYearsRaw);
-
-    // Deterministic monthly P&I (source of truth)
-    const monthlyPI = calcMonthlyPI(loanAmt, ratePct, termYears);
-
-    // Set monthly_payment to deterministic P&I ONLY (this field is used everywhere)
-    if (Number.isFinite(monthlyPI)) {
-        out.monthly_payment = monthlyPI;
-    }
-
-    // Optional: store deterministic core values for later DSCR/cashflow code paths
-    (out as any).computed_financials = {
-        ...(out as any).computed_financials,
-        loan_amount: Number.isFinite(loanAmt) ? loanAmt : null,
-        rate_used_pct: Number.isFinite(ratePct) ? ratePct : null,
-        term_years: Number.isFinite(termYears) ? termYears : 30,
-        monthly_pi: Number.isFinite(monthlyPI) ? monthlyPI : null,
-    };
-
-    if (Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0) {
-        const buildAmortLocal = (loanAmount: number, aprPct: number, years: number) => {
-            const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
-
-            const r = aprPct / 100 / 12;
-            const n = Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12);
-
-            if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(n) || n <= 0) return [];
-
-            const pow = Math.pow(1 + r, n);
-            const pmt = (loanAmount * r * pow) / (pow - 1);
-
-            let bal = loanAmount;
-            let cumPrin = 0;
-            let cumInt = 0;
-
+        // Rate sensitivity table (ONLY if borrower asked)
+        if (promptWantsStress) {
+            const s = out.sensitivity_table || {};
             const rows: any[] = [];
 
-            for (let m = 1; m <= n; m++) {
-                const interest = bal * r;
-                let principal = pmt - interest;
+            const fmtMoney = (v: any) =>
+                Number.isFinite(Number(v))
+                    ? `$${Math.round(Number(v)).toLocaleString()}`
+                    : null;
 
-                if (principal > bal) principal = bal;
+            const fmtCF = (v: any) =>
+                Number.isFinite(Number(v))
+                    ? `${Number(v) < 0 ? "-" : ""}$${Math.abs(Math.round(Number(v))).toLocaleString()}`
+                    : null;
 
-                bal -= principal;
-                cumPrin += principal;
-                cumInt += interest;
+            const fmtDSCR = (v: any) =>
+                Number.isFinite(Number(v)) ? `${round2(Number(v))}x` : null;
 
-                if (m % 12 === 0) {
-                    const y = m / 12;
-                    if (yearsToShow.has(y)) {
-                        rows.push({
-                            year: y,
-                            principal_paid: Math.round(cumPrin),
-                            interest_paid: Math.round(cumInt),
-                            ending_balance: Math.max(Math.round(bal), 0),
-                        });
-                    }
-                }
-            }
+            if (s.minus_0_5pct)
+                rows.push([
+                    "-0.5%",
+                    fmtMoney(s.minus_0_5pct.monthly_payment),
+                    fmtCF(s.minus_0_5pct.monthly_cash_flow),
+                    fmtDSCR(s.minus_0_5pct.dscr),
+                ]);
 
-            if (!rows.some((rr) => rr.year === 30)) {
-                rows.push({
-                    year: 30,
-                    principal_paid: Math.round(cumPrin),
-                    interest_paid: Math.round(cumInt),
-                    ending_balance: 0,
-                });
-            }
+            if (s.current_rate)
+                rows.push([
+                    "Current Rate",
+                    fmtMoney(s.current_rate.monthly_payment),
+                    fmtCF(s.current_rate.monthly_cash_flow),
+                    fmtDSCR(s.current_rate.dscr),
+                ]);
 
-            return rows;
-        };
+            if (s.plus_0_5pct)
+                rows.push([
+                    "+0.5%",
+                    fmtMoney(s.plus_0_5pct.monthly_payment),
+                    fmtCF(s.plus_0_5pct.monthly_cash_flow),
+                    fmtDSCR(s.plus_0_5pct.dscr),
+                ]);
 
-        out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
-    }
-    // ---- end amortization guardrail ----
+            if (s.plus_1pct)
+                rows.push([
+                    "+1.0%",
+                    fmtMoney(s.plus_1pct.monthly_payment),
+                    fmtCF(s.plus_1pct.monthly_cash_flow),
+                    fmtDSCR(s.plus_1pct.dscr),
+                ]);
 
-
-    /* =========================
-       Deterministic Scenario Math (Single Source of Truth)
-       - Do NOT derive payment from amortization (LLM-contaminated)
-       - Compute P&I / PITIA / DSCR / Cash Flow from extracted inputs + rate_context
-    ========================= */
-
-    // NOTE: extractedInputs is already defined above and assigned to out.scenario_inputs
-    const siDet: any = extractedInputs || {};
-    const rateUsedPct = Number(out?.rate_context?.rate_used ?? marketData?.thirtyYearFixed ?? NaN);
-
-    // Helpers
-    const toPctDet = (v: any) => {
-        const n = Number(v);
-        if (!Number.isFinite(n) || n < 0) return 0;
-        return n > 0 && n < 1 ? n * 100 : n;
-    };
-
-    const termYearsDet =
-        Number(siDet?.term_years) ||
-        Number(siDet?.termYears) ||
-        30;
-
-    const priceDet = Number.isFinite(Number(siDet?.price)) ? Number(siDet.price) : NaN;
-    const rawRentDet = Number.isFinite(Number(siDet?.rent_monthly))
-        ? Number(siDet.rent_monthly)
-        : NaN;
-
-    // Normalize to MONTHLY rent (defensive against upstream annual bleed)
-    const rentDet = Number.isFinite(rawRentDet)
-        ? (rawRentDet > 20000 ? rawRentDet / 12 : rawRentDet)
-        : NaN;
-    if (Number.isFinite(rawRentDet) && rawRentDet > 20000) {
-        (out as any)._diagnostics = (out as any)._diagnostics || [];
-        (out as any)._diagnostics.push(
-            `rent_monthly normalized (raw=${rawRentDet}, monthly=${rentDet})`
-        );
-    }
-
-
-
-    const downPctDet = Number.isFinite(Number(siDet?.down_payment_pct))
-        ? pctDownPayment(siDet.down_payment_pct)
-        : NaN;
-
-
-    // If loan amount was already explicitly provided somewhere, respect it, else derive.
-    const explicitLoanDet =
-        Number.isFinite(Number(siDet?.loan_amount)) ? Number(siDet.loan_amount) :
-            Number.isFinite(Number((out as any)?.computed_financials?.loan_amount)) ? Number((out as any).computed_financials.loan_amount) :
-                NaN;
-
-    const loanAmountDet =
-        Number.isFinite(explicitLoanDet) ? explicitLoanDet :
-            (Number.isFinite(priceDet) && Number.isFinite(downPctDet))
-                ? priceDet * (1 - (downPctDet / 100))
-                : NaN;
-
-    // Percent assumptions (canonical units)
-    // RULE: keep *_pct as WHOLE percent (e.g. 1.25 means 1.25%), never decimal.
-    // Convert to decimal exactly once at the math edge.
-
-    const firstFinite = (...vals: any[]) => {
-        for (const v of vals) {
-            const n = Number(v);
-            if (Number.isFinite(n)) return n;
-        }
-        return NaN;
-    };
-
-    // Pull from multiple possible keys to avoid silent 0s
-    // (We’ve seen both property_tax_pct and property_tax_pct variants across paths)
-    const vacancyPctDet = firstFinite(siDet?.vacancy_pct, (siDet as any)?.vacancyPct, (siDet as any)?.vacancy);
-    const maintPctDet = firstFinite(siDet?.maintenance_pct, (siDet as any)?.maint_pct, (siDet as any)?.maintenancePct, (siDet as any)?.maintenance);
-    const taxPctDet = firstFinite(
-        siDet?.property_tax_pct,
-        (siDet as any)?.property_tax,
-        (siDet as any)?.tax_pct,
-        (siDet as any)?.taxPct,
-        (siDet as any)?.propertyTax,
-        (siDet as any)?.propertyTaxPct
-    );
-    const insPctDet = firstFinite(siDet?.insurance_pct, (siDet as any)?.ins_pct, (siDet as any)?.insurancePct, (siDet as any)?.insurance);
-
-    // Default any missing to 0 (whole percent)
-    const vacancyPct = Number.isFinite(vacancyPctDet) ? vacancyPctDet : 0;
-    const maintPct = Number.isFinite(maintPctDet) ? maintPctDet : 0;
-    // Default property tax only when missing. If user explicitly provides 0, keep 0.
-    const taxPct = Number.isFinite(taxPctDet) ? taxPctDet : 1.25;
-    (siDet as any).property_tax_pct = taxPct;
-
-    const insPct = Number.isFinite(insPctDet) ? insPctDet : 0;
-
-    // HOA monthly (if you later extract it). For now default 0.
-    const hoaMonthlyDet = Number.isFinite(Number(siDet?.hoa_monthly)) ? Number(siDet.hoa_monthly) : 0;
-
-    // Deterministic P&I
-    const calcMonthlyPI_Det = (principal: number, ratePct: number, years: number) => {
-        if (!Number.isFinite(principal) || principal <= 0) return NaN;
-        const n = Math.max(1, Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12));
-        const r = (Number.isFinite(ratePct) ? ratePct : 0) / 100 / 12;
-        if (!Number.isFinite(r) || r <= 0) return principal / n;
-        const pow = Math.pow(1 + r, n);
-        return principal * (r * pow) / (pow - 1);
-    };
-
-    const monthlyPI_Det =
-        (Number.isFinite(loanAmountDet) && Number.isFinite(rateUsedPct) && rateUsedPct > 0)
-            ? calcMonthlyPI_Det(loanAmountDet, rateUsedPct, termYearsDet)
-            : NaN;
-
-    if (Number.isFinite(monthlyPI_Det)) {
-        out.monthly_payment = monthlyPI_Det; // canonical P&I number
-    }
-
-    // Monthly tax/ins based on purchase price
-    // Validation targets:
-    //  - taxPct=1.25, price=900000 => 937.50/mo
-    //  - insPct=0.50, price=900000 => 375.00/mo
-    const monthlyTaxDet =
-        (Number.isFinite(priceDet) && taxPct > 0)
-            ? (priceDet * (taxPct / 100)) / 12
-            : 0;
-
-    const monthlyInsDet =
-        (Number.isFinite(priceDet) && insPct > 0)
-            ? (priceDet * (insPct / 100)) / 12
-            : 0;
-
-    const pitiaDet =
-        (Number.isFinite(monthlyPI_Det) ? monthlyPI_Det : 0) +
-        monthlyTaxDet +
-        monthlyInsDet +
-        (Number.isFinite(hoaMonthlyDet) ? hoaMonthlyDet : 0);
-
-
-    // DSCR (LoanDepot style): gross rent / PITIA
-    const dscrGrossDet =
-        (Number.isFinite(rentDet) && rentDet > 0 && pitiaDet > 0)
-            ? rentDet / pitiaDet
-            : null;
-
-    // Cash flow (economic): effective rent after vacancy - PITIA - maintenance
-    const effectiveRentDet =
-        (Number.isFinite(rentDet) ? rentDet : 0) * (1 - (vacancyPctDet / 100));
-
-    const monthlyMaintDet =
-        (Number.isFinite(priceDet) && maintPctDet > 0)
-            ? (priceDet * (maintPctDet / 100)) / 12
-            : 0;
-
-    const monthlyCashFlowDet =
-        effectiveRentDet - pitiaDet - monthlyMaintDet;
-
-    const annualCashFlowDet = monthlyCashFlowDet * 12;
-
-    // Store deterministic computed values
-    (out as any).computed_financials = {
-        ...(out as any).computed_financials,
-        loan_amount: Number.isFinite(loanAmountDet) ? loanAmountDet : null,
-        rate_used_pct: Number.isFinite(rateUsedPct) ? rateUsedPct : null,
-        term_years: termYearsDet,
-        monthly_pi: Number.isFinite(monthlyPI_Det) ? monthlyPI_Det : null,
-        monthly_tax: monthlyTaxDet,
-        monthly_ins: monthlyInsDet,
-        monthly_hoa: hoaMonthlyDet,
-        monthly_pitia: pitiaDet,
-        dscr_gross: dscrGrossDet,
-        monthly_cash_flow: monthlyCashFlowDet,
-        annual_cash_flow: annualCashFlowDet,
-    };
-    // =========================
-    // CANONICAL OVERRIDE (single source of truth)
-    // Force all downstream narrative + DSCR + tables to use computed_financials values.
-    // This prevents any later “det math” variables from overwriting Grok’s correct numbers.
-    // =========================
-    {
-        const cf = (out as any).computed_financials || {};
-
-        const canonMonthlyPI = Number(cf.monthly_pi);
-        const canonMonthlyTax = Number(cf.monthly_tax);
-        const canonMonthlyIns = Number(cf.monthly_ins);
-        const canonMonthlyHOA = Number(cf.monthly_hoa);
-        const canonMonthlyPITIA = Number(cf.monthly_pitia);
-
-        // 1) Monthly P&I: always use computed_financials.monthly_pi if valid
-        if (Number.isFinite(canonMonthlyPI) && canonMonthlyPI > 0) {
-            // Keep BOTH keys since different renderers reference different ones
-            (out as any).monthly_payment = canonMonthlyPI;
-            (out as any).monthly_pi = canonMonthlyPI;
-        }
-
-        // 2) Monthly PITIA: if provided, make it the canonical housing payment
-        // (some code paths call it PITIA, others call it PITI)
-        if (Number.isFinite(canonMonthlyPITIA) && canonMonthlyPITIA > 0) {
-            (out as any).monthly_pitia = canonMonthlyPITIA;
-            (out as any).monthly_piti = canonMonthlyPITIA;
+            out.grokcard_tables.rate_sensitivity = {
+                headers: ["Scenario", "Payment", "Cash Flow", "DSCR"],
+                rows,
+            };
         } else {
-            // If PITIA wasn't provided, compute it from the canonical pieces (only when pieces are sane)
-            const pitiaFallback =
-                (Number.isFinite(canonMonthlyPI) ? canonMonthlyPI : 0) +
-                (Number.isFinite(canonMonthlyTax) ? canonMonthlyTax : 0) +
-                (Number.isFinite(canonMonthlyIns) ? canonMonthlyIns : 0) +
-                (Number.isFinite(canonMonthlyHOA) ? canonMonthlyHOA : 0);
-
-            if (pitiaFallback > 0) {
-                (out as any).computed_financials.monthly_pitia = pitiaFallback;
-                (out as any).monthly_pitia = pitiaFallback;
-                (out as any).monthly_piti = pitiaFallback;
-            }
+            if (out.grokcard_tables?.rate_sensitivity) delete out.grokcard_tables.rate_sensitivity;
         }
 
-        // 3) DSCR: if your scenario output is using DSCR, recompute it deterministically from canonical values.
-        // IMPORTANT: you previously wanted LoanDepot DSCR = GROSS rent / PITIA.
-        const rentMonthly = Number((out as any)?.scenario_inputs?.rent_monthly);
-        const pitia = Number((out as any)?.computed_financials?.monthly_pitia);
 
-        if (Number.isFinite(rentMonthly) && rentMonthly > 0 && Number.isFinite(pitia) && pitia > 0) {
-            // LoanDepot DSCR (gross)
-            const dscrGross = rentMonthly / pitia;
-            (out as any).dscr = dscrGross;
-            (out as any).computed_financials.dscr_gross = dscrGross;
-        }
-    }
+        // 6) Regenerate summary from computed baseline (prevents P&I hallucinations)
+        const effRent = base.effectiveRent;
+        const maint = base.operating;
+        const pitia = base.PITIA;
+        const mcf = base.monthlyCashFlow;
+        const acf = base.annualCashFlow;
+        const dscr = base.dscr;
 
-    // If you expose a top-level dscr field, make it the lender-style dscr
-    if (dscrGrossDet !== null) (out as any).dscr = dscrGrossDet;
-
-    // Build flat annual cash flow table (no growth assumptions)
-    out.cash_flow_table = Array.from({ length: 30 }, (_, i) => ({
-        year: i + 1,
-        net_cash_flow: annualCashFlowDet,
-    }));
-
-    grokcard_tables.cash_flow = {
-        headers: ["Yr", "Net CF"],
-        rows: out.cash_flow_table.map((r: any) => [r.year, r.net_cash_flow]),
-        unit: "annual",
-    };
-
-    // Amortization snapshot is already built deterministically above in your guardrail section.
-    // Keep it, but do NOT back-drive payment from it.
-
-
-
-
-    // Only build rate sensitivity table if borrower requested it AND sensitivity_table exists
-    if (false && includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
-        const rows: any[] = [];
-        const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
-        const keys = Array.from(new Set([...order, ...Object.keys(out.sensitivity_table)]));
-
-        for (const k of keys) {
-            const v: any = (out.sensitivity_table as any)[k];
-            if (!v || typeof v !== "object") continue;
-
-            const hasRateMetrics =
-                isFiniteNumber(v.monthly_payment) || isFiniteNumber(v.monthly_cash_flow) || isFiniteNumber(v.dscr);
-            if (!hasRateMetrics) continue;
-
-            const label =
-                k === "current_rate"
-                    ? "Current Rate"
-                    : k === "plus_0_5pct"
-                        ? "+0.5%"
-                        : k === "plus_1pct"
-                            ? "+1.0%"
-                            : k === "minus_0_5pct"
-                                ? "-0.5%"
-                                : k.replace(/_/g, " ");
-
-
-            const fmtMoneyLocal = (n: any) => {
-                const x = typeof n === "number" ? n : Number(n);
-                if (!isFinite(x)) return null;
-                const abs = Math.abs(x);
-                const s = abs.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                return `$${s}`;
-            };
-
-            const fmtCFLocal = (n: any) => {
-                const x = typeof n === "number" ? n : Number(n);
-                if (!isFinite(x)) return null;
-                const sign = x < 0 ? "-" : "";
-                return `${sign}${fmtMoneyLocal(x)}`;
-            };
+        const lines: string[] = [];
+        lines.push("Scenario inputs");
+        lines.push(`- Purchase price: $${Math.round(inputs.price).toLocaleString()}`);
+        lines.push(
+            `- Down payment: ${round2(inputs.down_payment_pct)}% ($${Math.round(
+                inputs.price * (inputs.down_payment_pct / 100)
+            ).toLocaleString()})`
+        );
+        lines.push(`- Loan amount: $${Math.round(base.loanAmount).toLocaleString()}`);
+        lines.push(`- Rent: $${Math.round(inputs.rent_monthly).toLocaleString()}/mo`);
+        lines.push(`- Vacancy: ${round2(inputs.vacancy_pct)}%`);
+        lines.push(`- Maintenance: ${round2(inputs.maintenance_pct)}% (annual assumption)`);
+        lines.push(`- Property tax: ${round2(inputs.property_tax_pct)}% (annual assumption)`);
+        lines.push(`- Insurance: ${round2(inputs.insurance_pct)}% (annual assumption)`);
+        lines.push(
+            `- Rate used: ${round2(rateUsed)}% (${out?.rate_context?.source || "market"}, ${out?.rate_context?.as_of || marketData?.date || "as of"
+            })`
+        );
+        lines.push("");
+        lines.push(`Computed baseline (term ${termYears}y)`);
+        lines.push(`- Effective rent (after vacancy): $${effRent.toLocaleString()}/mo`);
+        lines.push(`- P&I: $${base.monthlyPI.toLocaleString()}/mo`);
+        lines.push(`- PITIA (P&I + tax + insurance): $${pitia.toLocaleString()}/mo`);
+        lines.push(`- Maintenance (modeled): $${maint.toLocaleString()}/mo`);
+        lines.push(`- Net cash flow: $${mcf.toLocaleString()}/mo (${acf.toLocaleString()}/yr)`);
+        {
+            const dscrLd = (base as any)?.dscrLoanDepot ?? null;
+            const dscrEcon = (base as any)?.dscrEconomic ?? (base as any)?.dscr ?? null;
 
             const fmtDSCRLocal = (n: any) => {
                 const x = typeof n === "number" ? n : Number(n);
-                if (!isFinite(x)) return null;
+                if (!Number.isFinite(x)) return "-";
                 return `${x.toFixed(2)}x`;
             };
 
-            rows.push([
-                label,
-                fmtMoneyLocal(v.monthly_payment),
-                fmtCFLocal(v.monthly_cash_flow),
-                fmtDSCRLocal(v.dscr),
-            ]);
-
+            lines.push(`- DSCR (LoanDepot, gross rent ÷ PITIA): ${fmtDSCRLocal(dscrLd)}`);
+            lines.push(`- DSCR-like (economic, effective rent ÷ PITIA): ${fmtDSCRLocal(dscrEcon)}`);
 
         }
-        // rate_sensitivity is built in postParseValidateScenario() (single source of truth)
-        // Intentionally do not build it here to avoid raw-table overwrites.
-        if (rows.length >= 2) {
-            // no-op
+
+
+        if (promptWantsStress) {
+            const s = out.sensitivity_table;
+            lines.push("");
+            lines.push("Rate stress (monthly cash flow / DSCR)");
+            if (s?.plus_0_5pct)
+                lines.push(
+                    `- +0.5%: $${Number(s.plus_0_5pct.monthly_cash_flow).toLocaleString()}/mo, DSCR ${s.plus_0_5pct.dscr
+                    }x`
+                );
+            if (s?.plus_1pct)
+                lines.push(
+                    `- +1.0%: $${Number(s.plus_1pct.monthly_cash_flow).toLocaleString()}/mo, DSCR ${s.plus_1pct.dscr
+                    }x`
+                );
         }
 
+        out.plain_english_summary = lines.join("\n");
+
+        out.validation_warnings = warnings;
+        return out;
     }
-    /* =========================
-   P+I HARD LOCK (Phase 1)
-   Canonicalize monthly P&I and force Smart Scenario text to match.
-   Source of truth priority:
-   1) out.computed_financials.monthly_pi
-   2) grok.result.monthly_payment
-   3) out.monthly_payment
-========================= */
-    try {
-        const cf: any = (out as any).computed_financials || {};
-        const grokMonthly = Number((out as any)?.grok?.result?.monthly_payment);
-        const cfMonthly = Number(cf?.monthly_pi);
-        const outMonthly = Number((out as any).monthly_payment);
 
-        const canonicalPI =
-            Number.isFinite(cfMonthly) && cfMonthly > 0
-                ? cfMonthly
-                : Number.isFinite(grokMonthly) && grokMonthly > 0
-                    ? grokMonthly
-                    : Number.isFinite(outMonthly) && outMonthly > 0
-                        ? outMonthly
-                        : null;
 
-        if (canonicalPI !== null) {
-            // Hard lock numeric fields
-            (out as any).monthly_payment = canonicalPI;
-            (out as any).computed_financials = {
-                ...cf,
-                monthly_pi: canonicalPI,
-            };
+    function normalizeForGrokCard(result: any, message: string, marketData: any) {
+        const out = { ...(result || {}) };
 
-            // Force Smart Scenario narrative to display the canonical number
-            const fmtMoney = (n: number) =>
-                n.toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                });
+        // Always protect against negative payments being rendered as negative “payment”
+        out.monthly_payment = safeAbsMoney(out.monthly_payment);
 
-            const piStr = fmtMoney(canonicalPI);
+        // Decide if borrower requested rate comparison
+        const includeRateSensitivity = wantsRateSensitivity(message);
 
-            const s = typeof (out as any).plain_english_summary === "string"
-                ? (out as any).plain_english_summary
-                : "";
-
-            // Replace any "Monthly P&I: $X" or "Monthly P&I $X" occurrences
-            const replaced = s.replace(
-                /Monthly\s+P&I\s*[:=]?\s*\$[\d,]+(?:\.\d{1,2})?/gi,
-                `Monthly P&I: ${piStr}`
-            );
-
-            // Also pin DSCR numbers in the narrative to the deterministic computed values
-            // (Prevents Grok from inventing a DSCR like "0.99" in Key Risks.)
-            let replaced2 = replaced;
-
-            try {
-                const cf2 = (out as any).computed_financials || {};
-                const dscrLoanDepot = Number.isFinite(Number(cf2.dscr_loan_depot)) ? Number(cf2.dscr_loan_depot) : NaN;
-                // Economic DSCR must be computed deterministically from rent/vacancy and monthly PITIA.
-                // Do NOT trust cf2.dscr_economic (it can be wrong/stale).
-                const rentM =
-                    Number.isFinite(Number((out as any)?.scenario_inputs?.rent_monthly))
-                        ? Number((out as any).scenario_inputs.rent_monthly)
-                        : NaN;
-
-                const vacPct =
-                    Number.isFinite(Number((out as any)?.scenario_inputs?.vacancy_pct))
-                        ? Number((out as any).scenario_inputs.vacancy_pct)
-                        : NaN;
-
-                const pitiaM =
-                    Number.isFinite(Number(cf2.monthly_pitia))
-                        ? Number(cf2.monthly_pitia)
-                        : NaN;
-
-                const effRentM =
-                    Number.isFinite(rentM) && Number.isFinite(vacPct)
-                        ? rentM * (1 - Math.max(0, Math.min(0.9, vacPct / 100)))
-                        : NaN;
-
-                const dscrEconomic =
-                    Number.isFinite(effRentM) && Number.isFinite(pitiaM) && pitiaM > 0
-                        ? effRentM / pitiaM
-                        : NaN;
-
-                // Format like "1.16x"
-                const fmtX = (v: number) => `${v.toFixed(2)}x`;
-
-                // Replace lender-style DSCR mentions with canonical lender DSCR
-                // Keep it simple (no callback) to avoid TS/Next build issues.
-                if (Number.isFinite(dscrLoanDepot)) {
-                    replaced2 = replaced2.replace(
-                        /\bDSCR(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
-                        `DSCR: ${fmtX(dscrLoanDepot)}`
-                    );
+        // If NOT explicitly requested, remove sensitivity_table entirely (even if model returns it)
+        if (!includeRateSensitivity) {
+            delete out.sensitivity_table;
+        } else if (out.sensitivity_table && typeof out.sensitivity_table === "object") {
+            // sanitize within sensitivity rows
+            for (const key of Object.keys(out.sensitivity_table)) {
+                const row = out.sensitivity_table[key];
+                if (row && typeof row === "object" && "monthly_payment" in row) {
+                    row.monthly_payment = safeAbsMoney((row as any).monthly_payment);
                 }
-                if (Number.isFinite(dscrEconomic)) {
-                    replaced2 = replaced2.replace(
-                        /\bDSCR-?like(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
-                        `DSCR-like: ${fmtX(dscrEconomic)}`
-                    );
-                }
-
-
-                // Replace "DSCR-like" / economic DSCR mentions
-                if (Number.isFinite(dscrEconomic)) {
-                    replaced2 = replaced2.replace(
-                        /DSCR-?like(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?/gi,
-                        `DSCR-like: ${fmtX(dscrEconomic)}`
-                    );
-                    replaced2 = replaced2.replace(
-                        /Economic\s+DSCR(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?/gi,
-                        `Economic DSCR: ${fmtX(dscrEconomic)}`
-                    );
-                }
-            } catch { }
-
-            (out as any).plain_english_summary = replaced2;
-        }
-    } catch { }
-    // =========================
-    // Key Risks: ALWAYS deterministic
-    // Do NOT trust Grok key_risks (it may invent DSCR math and stale numbers)
-    // =========================
-    try {
-        const cfKR = (out as any).computed_financials || {};
-
-        const dscrLoanDepot =
-            Number.isFinite(Number(cfKR.dscr_loan_depot)) ? Number(cfKR.dscr_loan_depot) :
-                (Number.isFinite(Number(cfKR.dscr_gross)) ? Number(cfKR.dscr_gross) : NaN);
-
-        // Economic DSCR must be computed deterministically from rent/vacancy and monthly PITIA.
-        // Do NOT trust cfKR.dscr_economic (it can be wrong/stale).
-        const rentM =
-            Number.isFinite(Number((out as any)?.scenario_inputs?.rent_monthly))
-                ? Number((out as any).scenario_inputs.rent_monthly)
-                : NaN;
-
-        const vacPct =
-            Number.isFinite(Number((out as any)?.scenario_inputs?.vacancy_pct))
-                ? Number((out as any).scenario_inputs.vacancy_pct)
-                : NaN;
-
-        const pitiaM =
-            Number.isFinite(Number(cfKR.monthly_pitia))
-                ? Number(cfKR.monthly_pitia)
-                : NaN;
-
-        const effRentM =
-            Number.isFinite(rentM) && Number.isFinite(vacPct)
-                ? rentM * (1 - Math.max(0, Math.min(0.9, vacPct / 100)))
-                : NaN;
-
-        const dscrEconomic =
-            Number.isFinite(effRentM) && Number.isFinite(pitiaM) && pitiaM > 0
-                ? effRentM / pitiaM
-                : NaN;
-
-
-        const monthlyCF =
-            Number.isFinite(Number(cfKR.monthly_cash_flow)) ? Number(cfKR.monthly_cash_flow) : NaN;
-
-        const fmtX = (v: number) => `${v.toFixed(2)}x`;
-        const fmtMoney0 = (v: number) =>
-            v.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-
-        const risks: string[] = [];
-
-        if (Number.isFinite(dscrLoanDepot)) {
-            if (dscrLoanDepot < 1.0) {
-                risks.push(`DSCR ${fmtX(dscrLoanDepot)} is below 1.00x. This is typically not eligible for DSCR financing without compensating factors.`);
-            } else if (dscrLoanDepot < 1.2) {
-                risks.push(`DSCR ${fmtX(dscrLoanDepot)} is tight. The deal is vulnerable to small rent declines or payment increases (tax, insurance, rate).`);
-            } else {
-                risks.push(`DSCR ${fmtX(dscrLoanDepot)} is healthy relative to common DSCR thresholds, but still sensitive to vacancy and expense shocks.`);
             }
         }
 
-        if (Number.isFinite(dscrEconomic)) {
-            risks.push(`Economic DSCR ${fmtX(dscrEconomic)} reflects vacancy-adjusted rent. If this trends near 1.00x, cash flow pressure is likely even if lender DSCR passes.`);
+        // Rate provenance: add rate_context + prepend to summary
+        const userRate = detectUserProvidedRate(message);
+        const rateUsed = userRate ?? marketData?.thirtyYearFixed ?? null;
+
+        const rate_context = {
+            rate_used: rateUsed,
+            source: userRate != null ? "user" : "FRED",
+            as_of: marketData?.date ?? null,
+            series: userRate != null ? null : "MORTGAGE30US",
+        };
+        out.rate_context = rate_context;
+        // Inputs summary (borrower-visible + structured)
+        const extractedInputs = extractScenarioInputs(message);
+        out.scenario_inputs = extractedInputs;
+        const inputsBlock = buildInputsSummary(extractedInputs, rate_context);
+        /* =========================
+       Deterministic Scenario Math (single source of truth)
+       ========================= */
+
+        const scenarioMathResult = runScenarioMath({
+            scenario_inputs: extractedInputs,
+            rate_used_pct: Number((rate_context as any)?.rate_used ?? (rate_context as any)?.rate),
+        });
+
+        // Only apply if math successfully ran
+        if (scenarioMathResult) {
+            // Canonical monthly P&I
+            out.monthly_payment = scenarioMathResult.monthly_pi;
+
+            // Canonical DSCR (LoanDepot = GROSS rent / PITIA)
+            (out as any).dscr = scenarioMathResult.dscr_gross;
+
+            // Canonical computed financials (single source of truth)
+            (out as any).computed_financials = {
+                ...(out as any).computed_financials,
+
+                loan_amount: scenarioMathResult.loan_amount,
+                rate_used_pct: scenarioMathResult.rate_used_pct,
+                term_years: scenarioMathResult.term_years,
+
+                monthly_pi: scenarioMathResult.monthly_pi,
+                monthly_tax: scenarioMathResult.monthly_tax,
+                monthly_ins: scenarioMathResult.monthly_ins,
+                monthly_hoa: scenarioMathResult.monthly_hoa,
+
+                monthly_pitia: scenarioMathResult.monthly_pitia,
+
+                dscr_gross: scenarioMathResult.dscr_gross,
+                dscr_economic: scenarioMathResult.dscr_economic,
+
+                monthly_cash_flow: scenarioMathResult.monthly_cash_flow,
+                annual_cash_flow: scenarioMathResult.annual_cash_flow,
+            };
+
+            // Flat cash flow table (keeps GrokCard plumbing intact)
+            out.cash_flow_table = scenarioMathResult.cash_flow_table;
         }
 
-        if (Number.isFinite(monthlyCF)) {
-            const direction = monthlyCF >= 0 ? "positive" : "negative";
-            risks.push(`Flat assumptions: cash flow is ${direction} at ${fmtMoney0(monthlyCF)}/mo with no modeled rent growth, capex, or reserve planning.`);
+        // Summary: ensure Inputs block appears first, then the model narrative (no duplication)
+        const narrative =
+            typeof out.plain_english_summary === "string" && out.plain_english_summary.trim()
+                ? out.plain_english_summary.trim()
+                : "";
+
+        // If narrative already starts with "Scenario inputs", don't double-insert.
+        if (narrative.toLowerCase().startsWith("scenario inputs")) {
+            out.plain_english_summary = narrative;
         } else {
-            risks.push(`Flat assumptions: no rent/expense growth modeled; real-world vacancy, maintenance, and capex can exceed estimates.`);
+            out.plain_english_summary = narrative ? `${inputsBlock}\n\n${narrative}` : inputsBlock;
         }
 
-        (out as any).key_risks = risks;
-    } catch { }
+        // =========================
+        // Key Risks guardrail: prevent stale/LLM DSCR numbers leaking into UI
+        // If Grok returns key_risks, sanitize DSCR mentions to match deterministic computed_financials.
+        // =========================
+        try {
+            const cfKR = (out as any).computed_financials || {};
+            const dscrGross = Number(cfKR.dscr_gross);
+            const dscrEcon = Number(cfKR.dscr_economic);
 
+            if (Array.isArray((out as any).key_risks)) {
+                (out as any).key_risks = (out as any).key_risks.map((r: any) => {
+                    if (typeof r !== "string") return r;
 
-    // =========================
-    // Cash Flow table: ALWAYS deterministic
-    // Do NOT trust Grok cash_flow_table (it has been the source of repeated wild values)
-    // =========================
-    const cf = (out as any).computed_financials || {};
-    const annualCF =
-        Number.isFinite(Number(cf.annual_cash_flow)) ? Number(cf.annual_cash_flow) :
-            (Number.isFinite(Number(cf.monthly_cash_flow)) ? Number(cf.monthly_cash_flow) * 12 : NaN);
+                    let rr = r;
 
-    if (Number.isFinite(annualCF)) {
-        const years = 30;
-        const cfRows: any[] = [];
-        for (let y = 1; y <= years; y++) cfRows.push([y, round2(annualCF)]);
-        grokcard_tables.cash_flow = {
-            headers: ["Yr", "Net CF"],
-            rows: cfRows,
-            unit: "annual",
+                    // Replace any "DSCR 0.99" / "DSCR 1.16" / "DSCR: 1.16x" with the current lender DSCR
+                    if (Number.isFinite(dscrGross)) {
+                        rr = rr.replace(
+                            /\bDSCR\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                            `DSCR ${dscrGross.toFixed(2)}x`
+                        );
+                    }
+
+                    // Replace any "DSCR-like ..." or "Economic DSCR ..." numbers with current economic DSCR
+                    if (Number.isFinite(dscrEcon)) {
+                        rr = rr.replace(
+                            /\bDSCR-?like\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                            `DSCR-like ${dscrEcon.toFixed(2)}x`
+                        );
+                        rr = rr.replace(
+                            /\bEconomic\s+DSCR\b\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                            `Economic DSCR ${dscrEcon.toFixed(2)}x`
+                        );
+                    }
+
+                    return rr;
+                });
+            }
+        } catch { }
+
+        // GrokCard-friendly tables with short headers (prevents header overlap)
+        const grokcard_tables: any = {};
+
+        // ---- Amortization guardrail: force build when user asks ----
+        const promptWantsAmortization =
+            /\bamort\b|\bamortization\b|\bschedule\b|\bprincipal\b|\binterest\b|\bpayoff\b/i.test(message);
+
+        // Deterministic helpers (NO try/catch, NO IIFE: keep brace balance stable)
+        const pickNum = (obj: any, keys: string[], fallback: number) => {
+            for (const k of keys) {
+                const v = Number(obj?.[k]);
+                if (Number.isFinite(v)) return v;
+            }
+            return fallback;
         };
-
-        // Also hard override any model-provided cash_flow_table so it can’t leak back in
-        if (Array.isArray((out as any).cash_flow_table)) {
-            (out as any).cash_flow_table = cfRows.map(([year, net]) => ({ year, net_cash_flow: net }));
-        }
-    }
-
-    out.grokcard_tables = grokcard_tables;
-    return out;
-}
-
-
-/* =========================
-   FRED market data (parallel, fast)
-========================= */
-async function getCurrentMortgageData() {
-    const fredApiKey = process.env.FRED_API_KEY;
-    const today = new Date().toISOString().slice(0, 10);
-
-    if (!fredApiKey) {
-        return {
-            date: today,
-            thirtyYearFixed: 6.27,
-            tenYearTreasury: 4.16,
-            usedFallbacks: true,
-            fallbackNotes: ["FRED_API_KEY missing; used hardcoded defaults."],
-        };
-    }
-
-    const base =
-        "https://api.stlouisfed.org/fred/series/observations?file_type=json&sort_order=desc&limit=1";
-    const u30 = `${base}&series_id=MORTGAGE30US&api_key=${encodeURIComponent(fredApiKey)}`;
-    const dgs10 = `${base}&series_id=DGS10&api_key=${encodeURIComponent(fredApiKey)}`;
-
-    try {
-        const [u30Res, dgs10Res] = await Promise.all([
-            fetch(u30, { cache: "no-store" }),
-            fetch(dgs10, { cache: "no-store" }),
-        ]);
-
-        const [u30Json, dgs10Json] = await Promise.all([u30Res.json(), dgs10Res.json()]);
-
-        const parseLatest = (j: any) => {
-            const v = j?.observations?.[0]?.value;
+        // Percent normalizers (domain-safe)
+        // - For tax/ins/maint/vacancy: values like 0.5 mean 0.5% (NOT 50%)
+        //   but values like 0.0125 mean 1.25% (fraction form).
+        // - For down payment: 0.27 means 27%.
+        // - For rate: 0.0625 means 6.25%.
+        const pctDomain = (v: any) => {
             const n = Number(v);
-            return Number.isFinite(n) ? n : null;
+            if (!Number.isFinite(n) || n < 0) return 0;
+            // Treat "tiny decimals" as fractions (0.0125 => 1.25%), but allow 0.5 => 0.5%
+            return n > 0 && n < 0.2 ? n * 100 : n;
         };
 
-        const thirty = parseLatest(u30Json);
-        const ten = parseLatest(dgs10Json);
+        const pctDownPayment = (v: any) => {
+            const n = Number(v);
+            if (!Number.isFinite(n) || n < 0) return 0;
+            return n > 0 && n <= 1 ? n * 100 : n;
+        };
 
-        let usedFallbacks = false;
-        const notes: string[] = [];
+        const pctRate = (v: any) => {
+            const n = Number(v);
+            if (!Number.isFinite(n) || n < 0) return 0;
+            return n > 0 && n <= 1 ? n * 100 : n;
+        };
 
-        if (thirty == null) {
-            usedFallbacks = true;
-            notes.push("FRED MORTGAGE30US missing/invalid; defaulted to 6.27.");
+
+
+        // Standard fully-amortizing fixed-rate monthly P&I
+        const calcMonthlyPI = (principal: number, ratePct: number, termYears: number) => {
+            if (!Number.isFinite(principal) || principal <= 0) return NaN;
+            const n = Math.max(1, Math.round((Number.isFinite(termYears) && termYears > 0 ? termYears : 30) * 12));
+            const r = (Number.isFinite(ratePct) ? ratePct : 0) / 100 / 12;
+            if (!Number.isFinite(r) || r <= 0) return principal / n;
+            const pow = Math.pow(1 + r, n);
+            return principal * (r * pow) / (pow - 1);
+        };
+
+        // Pull scenario inputs from extractedInputs (this is the correct scope)
+        const si: any = extractedInputs || {};
+
+        // --- Determine loan amount / rate / term with deterministic fallbacks ---
+        const price = pickNum(si, ["purchase_price", "purchasePrice", "price", "property_value"], NaN);
+
+        // Down payment can be % or $, try both
+        const downPct = pctDownPayment(pickNum(si, ["down_payment_pct", "downPaymentPct", "down_pct"], NaN));
+        const downAmt = pickNum(si, ["down_payment_amount", "downPayment", "down_amount"], NaN);
+
+        const derivedLoanAmount =
+            Number.isFinite(price) && price > 0
+                ? Number.isFinite(downAmt)
+                    ? Math.max(0, price - downAmt)
+                    : Number.isFinite(downPct)
+                        ? Math.max(0, price * (1 - downPct / 100))
+                        : NaN
+                : NaN;
+
+        // IMPORTANT: keep your original raw variables shape so later code still works
+        const loanAmtRaw =
+            (out as any)?.baseline?.loanAmount ??
+            (out as any)?.scenario_inputs?.loan_amount ??
+            (out as any)?.scenario_inputs?.loanAmount ??
+            (out as any)?.loan_amount ??
+            (out as any)?.loanAmount ??
+            (Number.isFinite(pickNum(si, ["loan_amount", "loanAmount"], NaN)) ? pickNum(si, ["loan_amount", "loanAmount"], NaN) : undefined) ??
+            (Number.isFinite(derivedLoanAmount) ? derivedLoanAmount : undefined);
+
+        const rateRaw =
+            (out as any)?.rate_context?.rate ??
+            (out as any)?.scenario_inputs?.rate ??
+            (out as any)?.scenario_inputs?.rate_used ??
+            (out as any)?.rate_used ??
+            (out as any)?.rate ??
+            (Number.isFinite(pickNum(si, ["rate_used", "rate", "interest_rate", "ratePct"], NaN))
+                ? pickNum(si, ["rate_used", "rate", "interest_rate", "ratePct"], NaN)
+                : undefined) ??
+            (Number.isFinite((rate_context as any)?.rate) ? (rate_context as any).rate : undefined);
+
+        const termYearsRaw =
+            (out as any)?.scenario_inputs?.term_years ??
+            (out as any)?.scenario_inputs?.termYears ??
+            (Number.isFinite(pickNum(si, ["term_years", "termYears"], 30)) ? pickNum(si, ["term_years", "termYears"], 30) : 30) ??
+            30;
+
+        const loanAmt = Number(loanAmtRaw);
+        const ratePct = Number(rateRaw);
+        const termYears = Number(termYearsRaw);
+
+        // Deterministic monthly P&I (source of truth)
+        const monthlyPI = calcMonthlyPI(loanAmt, ratePct, termYears);
+
+        // Set monthly_payment to deterministic P&I ONLY (this field is used everywhere)
+        if (Number.isFinite(monthlyPI)) {
+            out.monthly_payment = monthlyPI;
         }
-        if (ten == null) {
-            usedFallbacks = true;
-            notes.push("FRED DGS10 missing/invalid; defaulted to 4.16.");
+
+        // Optional: store deterministic core values for later DSCR/cashflow code paths
+        (out as any).computed_financials = {
+            ...(out as any).computed_financials,
+            loan_amount: Number.isFinite(loanAmt) ? loanAmt : null,
+            rate_used_pct: Number.isFinite(ratePct) ? ratePct : null,
+            term_years: Number.isFinite(termYears) ? termYears : 30,
+            monthly_pi: Number.isFinite(monthlyPI) ? monthlyPI : null,
+        };
+
+        if (Number.isFinite(loanAmt) && loanAmt > 0 && Number.isFinite(ratePct) && ratePct > 0) {
+            const buildAmortLocal = (loanAmount: number, aprPct: number, years: number) => {
+                const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+
+                const r = aprPct / 100 / 12;
+                const n = Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12);
+
+                if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(n) || n <= 0) return [];
+
+                const pow = Math.pow(1 + r, n);
+                const pmt = (loanAmount * r * pow) / (pow - 1);
+
+                let bal = loanAmount;
+                let cumPrin = 0;
+                let cumInt = 0;
+
+                const rows: any[] = [];
+
+                for (let m = 1; m <= n; m++) {
+                    const interest = bal * r;
+                    let principal = pmt - interest;
+
+                    if (principal > bal) principal = bal;
+
+                    bal -= principal;
+                    cumPrin += principal;
+                    cumInt += interest;
+
+                    if (m % 12 === 0) {
+                        const y = m / 12;
+                        if (yearsToShow.has(y)) {
+                            rows.push({
+                                year: y,
+                                principal_paid: Math.round(cumPrin),
+                                interest_paid: Math.round(cumInt),
+                                ending_balance: Math.max(Math.round(bal), 0),
+                            });
+                        }
+                    }
+                }
+
+                if (!rows.some((rr) => rr.year === 30)) {
+                    rows.push({
+                        year: 30,
+                        principal_paid: Math.round(cumPrin),
+                        interest_paid: Math.round(cumInt),
+                        ending_balance: 0,
+                    });
+                }
+
+                return rows;
+            };
+
+            out.amortization_summary = buildAmortLocal(loanAmt, ratePct, termYears);
         }
+        // ---- end amortization guardrail ----
 
-        return {
-            date: today,
-            thirtyYearFixed: thirty ?? 6.27,
-            tenYearTreasury: ten ?? 4.16,
-            usedFallbacks,
-            fallbackNotes: notes,
+
+        /* =========================
+           Deterministic Scenario Math (Single Source of Truth)
+           - Do NOT derive payment from amortization (LLM-contaminated)
+           - Compute P&I / PITIA / DSCR / Cash Flow from extracted inputs + rate_context
+        ========================= */
+
+        // NOTE: extractedInputs is already defined above and assigned to out.scenario_inputs
+        const siDet: any = extractedInputs || {};
+        const rateUsedPct = Number(out?.rate_context?.rate_used ?? marketData?.thirtyYearFixed ?? NaN);
+
+        // Helpers
+        const toPctDet = (v: any) => {
+            const n = Number(v);
+            if (!Number.isFinite(n) || n < 0) return 0;
+            return n > 0 && n < 1 ? n * 100 : n;
         };
-    } catch (err: any) {
-        return {
-            date: today,
-            thirtyYearFixed: 6.27,
-            tenYearTreasury: 4.16,
-            usedFallbacks: true,
-            fallbackNotes: [`FRED fetch error: ${err?.message || String(err)}`],
-        };
-    }
-}
 
-/* =========================
-   xAI chat call
-========================= */
-async function callXaiJson(systemPrompt: string, userPrompt: string, maxTokens: number) {
-    const XAI_API_KEY = process.env.XAI_API_KEY;
-    const model = process.env.XAI_MODEL_SCENARIO || process.env.XAI_MODEL || "grok-4";
+        const termYearsDet =
+            Number(siDet?.term_years) ||
+            Number(siDet?.termYears) ||
+            30;
 
-    if (!XAI_API_KEY) throw new Error("Missing XAI_API_KEY");
+        const priceDet = Number.isFinite(Number(siDet?.price)) ? Number(siDet.price) : NaN;
+        const rawRentDet = Number.isFinite(Number(siDet?.rent_monthly))
+            ? Number(siDet.rent_monthly)
+            : NaN;
 
-    const url = "https://api.x.ai/v1/chat/completions";
-    const payload = {
-        model,
-        messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-        ],
-        temperature: 0.2,
-        max_tokens: maxTokens,
-        response_format: { type: "json_object" },
-    };
-
-    const res = await withTimeout(
-        fetch(url, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${XAI_API_KEY}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        }),
-        15000,
-        "xAI chat.completions"
-    );
-
-    if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(`xAI HTTP ${res.status}: ${errText.slice(0, 400)}`);
-    }
-
-    const json = await res.json();
-    const content = json?.choices?.[0]?.message?.content;
-    if (!content) throw new Error("Empty content from xAI");
-
-    try {
-        return { model, raw: content, parsed: JSON.parse(content) };
-    } catch {
-        const salvaged = extractLikelyJsonObject(content);
-        if (!salvaged) throw new Error("Model content was not valid JSON");
-        return { model, raw: content, parsed: JSON.parse(salvaged) };
-    }
-}
-
-/* =========================
-   Route
-========================= */
-export async function POST(req: NextRequest) {
-    const t0 = Date.now();
-    const buildTag = "scenario-proof-12-19-25-v5";
-    const requestId =
-        (globalThis.crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
-
-    let fred_ms = 0;
-    let xai_ms = 0;
-    let parse_ms = 0;
-
-    try {
-        const body = (await req.json().catch(() => ({}))) as { message?: string; userId?: string };
-        const message = (body?.message || "").trim();
-        const userId = body?.userId;
-
-        if (!message) {
-            return noStore(
-                { error: "Message is required" },
-                { status: 400, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+        // Normalize to MONTHLY rent (defensive against upstream annual bleed)
+        const rentDet = Number.isFinite(rawRentDet)
+            ? (rawRentDet > 20000 ? rawRentDet / 12 : rawRentDet)
+            : NaN;
+        if (Number.isFinite(rawRentDet) && rawRentDet > 20000) {
+            (out as any)._diagnostics = (out as any)._diagnostics || [];
+            (out as any)._diagnostics.push(
+                `rent_monthly normalized (raw=${rawRentDet}, monthly=${rentDet})`
             );
         }
 
-        // 1) FRED
-        const tFred = Date.now();
-        const marketData = await getCurrentMortgageData();
-        fred_ms = Date.now() - tFred;
 
-        // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
-        const systemPrompt = compactWhitespace(`
+
+        const downPctDet = Number.isFinite(Number(siDet?.down_payment_pct))
+            ? pctDownPayment(siDet.down_payment_pct)
+            : NaN;
+
+
+        // If loan amount was already explicitly provided somewhere, respect it, else derive.
+        const explicitLoanDet =
+            Number.isFinite(Number(siDet?.loan_amount)) ? Number(siDet.loan_amount) :
+                Number.isFinite(Number((out as any)?.computed_financials?.loan_amount)) ? Number((out as any).computed_financials.loan_amount) :
+                    NaN;
+
+        const loanAmountDet =
+            Number.isFinite(explicitLoanDet) ? explicitLoanDet :
+                (Number.isFinite(priceDet) && Number.isFinite(downPctDet))
+                    ? priceDet * (1 - (downPctDet / 100))
+                    : NaN;
+
+        // Percent assumptions (canonical units)
+        // RULE: keep *_pct as WHOLE percent (e.g. 1.25 means 1.25%), never decimal.
+        // Convert to decimal exactly once at the math edge.
+
+        const firstFinite = (...vals: any[]) => {
+            for (const v of vals) {
+                const n = Number(v);
+                if (Number.isFinite(n)) return n;
+            }
+            return NaN;
+        };
+
+        // Pull from multiple possible keys to avoid silent 0s
+        // (We’ve seen both property_tax_pct and property_tax_pct variants across paths)
+        const vacancyPctDet = firstFinite(siDet?.vacancy_pct, (siDet as any)?.vacancyPct, (siDet as any)?.vacancy);
+        const maintPctDet = firstFinite(siDet?.maintenance_pct, (siDet as any)?.maint_pct, (siDet as any)?.maintenancePct, (siDet as any)?.maintenance);
+        const taxPctDet = firstFinite(
+            siDet?.property_tax_pct,
+            (siDet as any)?.property_tax,
+            (siDet as any)?.tax_pct,
+            (siDet as any)?.taxPct,
+            (siDet as any)?.propertyTax,
+            (siDet as any)?.propertyTaxPct
+        );
+        const insPctDet = firstFinite(siDet?.insurance_pct, (siDet as any)?.ins_pct, (siDet as any)?.insurancePct, (siDet as any)?.insurance);
+
+        // Default any missing to 0 (whole percent)
+        const vacancyPct = Number.isFinite(vacancyPctDet) ? vacancyPctDet : 0;
+        const maintPct = Number.isFinite(maintPctDet) ? maintPctDet : 0;
+        // Default property tax only when missing. If user explicitly provides 0, keep 0.
+        const taxPct = Number.isFinite(taxPctDet) ? taxPctDet : 1.25;
+        (siDet as any).property_tax_pct = taxPct;
+
+        const insPct = Number.isFinite(insPctDet) ? insPctDet : 0;
+
+        // HOA monthly (if you later extract it). For now default 0.
+        const hoaMonthlyDet = Number.isFinite(Number(siDet?.hoa_monthly)) ? Number(siDet.hoa_monthly) : 0;
+
+        // Deterministic P&I
+        const calcMonthlyPI_Det = (principal: number, ratePct: number, years: number) => {
+            if (!Number.isFinite(principal) || principal <= 0) return NaN;
+            const n = Math.max(1, Math.round((Number.isFinite(years) && years > 0 ? years : 30) * 12));
+            const r = (Number.isFinite(ratePct) ? ratePct : 0) / 100 / 12;
+            if (!Number.isFinite(r) || r <= 0) return principal / n;
+            const pow = Math.pow(1 + r, n);
+            return principal * (r * pow) / (pow - 1);
+        };
+
+        const monthlyPI_Det =
+            (Number.isFinite(loanAmountDet) && Number.isFinite(rateUsedPct) && rateUsedPct > 0)
+                ? calcMonthlyPI_Det(loanAmountDet, rateUsedPct, termYearsDet)
+                : NaN;
+
+        if (Number.isFinite(monthlyPI_Det)) {
+            out.monthly_payment = monthlyPI_Det; // canonical P&I number
+        }
+
+        // Monthly tax/ins based on purchase price
+        // Validation targets:
+        //  - taxPct=1.25, price=900000 => 937.50/mo
+        //  - insPct=0.50, price=900000 => 375.00/mo
+        const monthlyTaxDet =
+            (Number.isFinite(priceDet) && taxPct > 0)
+                ? (priceDet * (taxPct / 100)) / 12
+                : 0;
+
+        const monthlyInsDet =
+            (Number.isFinite(priceDet) && insPct > 0)
+                ? (priceDet * (insPct / 100)) / 12
+                : 0;
+
+        const pitiaDet =
+            (Number.isFinite(monthlyPI_Det) ? monthlyPI_Det : 0) +
+            monthlyTaxDet +
+            monthlyInsDet +
+            (Number.isFinite(hoaMonthlyDet) ? hoaMonthlyDet : 0);
+
+
+        // DSCR (LoanDepot style): gross rent / PITIA
+        const dscrGrossDet =
+            (Number.isFinite(rentDet) && rentDet > 0 && pitiaDet > 0)
+                ? rentDet / pitiaDet
+                : null;
+
+        // Cash flow (economic): effective rent after vacancy - PITIA - maintenance
+        const effectiveRentDet =
+            (Number.isFinite(rentDet) ? rentDet : 0) * (1 - (vacancyPctDet / 100));
+
+        const monthlyMaintDet =
+            (Number.isFinite(priceDet) && maintPctDet > 0)
+                ? (priceDet * (maintPctDet / 100)) / 12
+                : 0;
+
+        const monthlyCashFlowDet =
+            effectiveRentDet - pitiaDet - monthlyMaintDet;
+
+        const annualCashFlowDet = monthlyCashFlowDet * 12;
+
+        // Store deterministic computed values
+        (out as any).computed_financials = {
+            ...(out as any).computed_financials,
+            loan_amount: Number.isFinite(loanAmountDet) ? loanAmountDet : null,
+            rate_used_pct: Number.isFinite(rateUsedPct) ? rateUsedPct : null,
+            term_years: termYearsDet,
+            monthly_pi: Number.isFinite(monthlyPI_Det) ? monthlyPI_Det : null,
+            monthly_tax: monthlyTaxDet,
+            monthly_ins: monthlyInsDet,
+            monthly_hoa: hoaMonthlyDet,
+            monthly_pitia: pitiaDet,
+            dscr_gross: dscrGrossDet,
+            monthly_cash_flow: monthlyCashFlowDet,
+            annual_cash_flow: annualCashFlowDet,
+        };
+        // =========================
+        // CANONICAL OVERRIDE (single source of truth)
+        // Force all downstream narrative + DSCR + tables to use computed_financials values.
+        // This prevents any later “det math” variables from overwriting Grok’s correct numbers.
+        // =========================
+        {
+            const cf = (out as any).computed_financials || {};
+
+            const canonMonthlyPI = Number(cf.monthly_pi);
+            const canonMonthlyTax = Number(cf.monthly_tax);
+            const canonMonthlyIns = Number(cf.monthly_ins);
+            const canonMonthlyHOA = Number(cf.monthly_hoa);
+            const canonMonthlyPITIA = Number(cf.monthly_pitia);
+
+            // 1) Monthly P&I: always use computed_financials.monthly_pi if valid
+            if (Number.isFinite(canonMonthlyPI) && canonMonthlyPI > 0) {
+                // Keep BOTH keys since different renderers reference different ones
+                (out as any).monthly_payment = canonMonthlyPI;
+                (out as any).monthly_pi = canonMonthlyPI;
+            }
+
+            // 2) Monthly PITIA: if provided, make it the canonical housing payment
+            // (some code paths call it PITIA, others call it PITI)
+            if (Number.isFinite(canonMonthlyPITIA) && canonMonthlyPITIA > 0) {
+                (out as any).monthly_pitia = canonMonthlyPITIA;
+                (out as any).monthly_piti = canonMonthlyPITIA;
+            } else {
+                // If PITIA wasn't provided, compute it from the canonical pieces (only when pieces are sane)
+                const pitiaFallback =
+                    (Number.isFinite(canonMonthlyPI) ? canonMonthlyPI : 0) +
+                    (Number.isFinite(canonMonthlyTax) ? canonMonthlyTax : 0) +
+                    (Number.isFinite(canonMonthlyIns) ? canonMonthlyIns : 0) +
+                    (Number.isFinite(canonMonthlyHOA) ? canonMonthlyHOA : 0);
+
+                if (pitiaFallback > 0) {
+                    (out as any).computed_financials.monthly_pitia = pitiaFallback;
+                    (out as any).monthly_pitia = pitiaFallback;
+                    (out as any).monthly_piti = pitiaFallback;
+                }
+            }
+
+            // 3) DSCR: if your scenario output is using DSCR, recompute it deterministically from canonical values.
+            // IMPORTANT: you previously wanted LoanDepot DSCR = GROSS rent / PITIA.
+            const rentMonthly = Number((out as any)?.scenario_inputs?.rent_monthly);
+            const pitia = Number((out as any)?.computed_financials?.monthly_pitia);
+
+            if (Number.isFinite(rentMonthly) && rentMonthly > 0 && Number.isFinite(pitia) && pitia > 0) {
+                // LoanDepot DSCR (gross)
+                const dscrGross = rentMonthly / pitia;
+                (out as any).dscr = dscrGross;
+                (out as any).computed_financials.dscr_gross = dscrGross;
+            }
+        }
+
+        // If you expose a top-level dscr field, make it the lender-style dscr
+        if (dscrGrossDet !== null) (out as any).dscr = dscrGrossDet;
+
+        // Build flat annual cash flow table (no growth assumptions)
+        out.cash_flow_table = Array.from({ length: 30 }, (_, i) => ({
+            year: i + 1,
+            net_cash_flow: annualCashFlowDet,
+        }));
+
+        grokcard_tables.cash_flow = {
+            headers: ["Yr", "Net CF"],
+            rows: out.cash_flow_table.map((r: any) => [r.year, r.net_cash_flow]),
+            unit: "annual",
+        };
+
+        // Amortization snapshot is already built deterministically above in your guardrail section.
+        // Keep it, but do NOT back-drive payment from it.
+
+
+
+
+        // Only build rate sensitivity table if borrower requested it AND sensitivity_table exists
+        if (false && includeRateSensitivity && out.sensitivity_table && typeof out.sensitivity_table === "object") {
+            const rows: any[] = [];
+            const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
+            const keys = Array.from(new Set([...order, ...Object.keys(out.sensitivity_table)]));
+
+            for (const k of keys) {
+                const v: any = (out.sensitivity_table as any)[k];
+                if (!v || typeof v !== "object") continue;
+
+                const hasRateMetrics =
+                    isFiniteNumber(v.monthly_payment) || isFiniteNumber(v.monthly_cash_flow) || isFiniteNumber(v.dscr);
+                if (!hasRateMetrics) continue;
+
+                const label =
+                    k === "current_rate"
+                        ? "Current Rate"
+                        : k === "plus_0_5pct"
+                            ? "+0.5%"
+                            : k === "plus_1pct"
+                                ? "+1.0%"
+                                : k === "minus_0_5pct"
+                                    ? "-0.5%"
+                                    : k.replace(/_/g, " ");
+
+
+                const fmtMoneyLocal = (n: any) => {
+                    const x = typeof n === "number" ? n : Number(n);
+                    if (!isFinite(x)) return null;
+                    const abs = Math.abs(x);
+                    const s = abs.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                    return `$${s}`;
+                };
+
+                const fmtCFLocal = (n: any) => {
+                    const x = typeof n === "number" ? n : Number(n);
+                    if (!isFinite(x)) return null;
+                    const sign = x < 0 ? "-" : "";
+                    return `${sign}${fmtMoneyLocal(x)}`;
+                };
+
+                const fmtDSCRLocal = (n: any) => {
+                    const x = typeof n === "number" ? n : Number(n);
+                    if (!isFinite(x)) return null;
+                    return `${x.toFixed(2)}x`;
+                };
+
+                rows.push([
+                    label,
+                    fmtMoneyLocal(v.monthly_payment),
+                    fmtCFLocal(v.monthly_cash_flow),
+                    fmtDSCRLocal(v.dscr),
+                ]);
+
+
+            }
+            // rate_sensitivity is built in postParseValidateScenario() (single source of truth)
+            // Intentionally do not build it here to avoid raw-table overwrites.
+            if (rows.length >= 2) {
+                // no-op
+            }
+
+        }
+        /* =========================
+       P+I HARD LOCK (Phase 1)
+       Canonicalize monthly P&I and force Smart Scenario text to match.
+       Source of truth priority:
+       1) out.computed_financials.monthly_pi
+       2) grok.result.monthly_payment
+       3) out.monthly_payment
+    ========================= */
+        try {
+            const cf: any = (out as any).computed_financials || {};
+            const grokMonthly = Number((out as any)?.grok?.result?.monthly_payment);
+            const cfMonthly = Number(cf?.monthly_pi);
+            const outMonthly = Number((out as any).monthly_payment);
+
+            const canonicalPI =
+                Number.isFinite(cfMonthly) && cfMonthly > 0
+                    ? cfMonthly
+                    : Number.isFinite(grokMonthly) && grokMonthly > 0
+                        ? grokMonthly
+                        : Number.isFinite(outMonthly) && outMonthly > 0
+                            ? outMonthly
+                            : null;
+
+            if (canonicalPI !== null) {
+                // Hard lock numeric fields
+                (out as any).monthly_payment = canonicalPI;
+                (out as any).computed_financials = {
+                    ...cf,
+                    monthly_pi: canonicalPI,
+                };
+
+                // Force Smart Scenario narrative to display the canonical number
+                const fmtMoney = (n: number) =>
+                    n.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    });
+
+                const piStr = fmtMoney(canonicalPI);
+
+                const s = typeof (out as any).plain_english_summary === "string"
+                    ? (out as any).plain_english_summary
+                    : "";
+
+                // Replace any "Monthly P&I: $X" or "Monthly P&I $X" occurrences
+                const replaced = s.replace(
+                    /Monthly\s+P&I\s*[:=]?\s*\$[\d,]+(?:\.\d{1,2})?/gi,
+                    `Monthly P&I: ${piStr}`
+                );
+
+                // Also pin DSCR numbers in the narrative to the deterministic computed values
+                // (Prevents Grok from inventing a DSCR like "0.99" in Key Risks.)
+                let replaced2 = replaced;
+
+                try {
+                    const cf2 = (out as any).computed_financials || {};
+                    const dscrLoanDepot = Number.isFinite(Number(cf2.dscr_loan_depot)) ? Number(cf2.dscr_loan_depot) : NaN;
+                    // Economic DSCR must be computed deterministically from rent/vacancy and monthly PITIA.
+                    // Do NOT trust cf2.dscr_economic (it can be wrong/stale).
+                    const rentM =
+                        Number.isFinite(Number((out as any)?.scenario_inputs?.rent_monthly))
+                            ? Number((out as any).scenario_inputs.rent_monthly)
+                            : NaN;
+
+                    const vacPct =
+                        Number.isFinite(Number((out as any)?.scenario_inputs?.vacancy_pct))
+                            ? Number((out as any).scenario_inputs.vacancy_pct)
+                            : NaN;
+
+                    const pitiaM =
+                        Number.isFinite(Number(cf2.monthly_pitia))
+                            ? Number(cf2.monthly_pitia)
+                            : NaN;
+
+                    const effRentM =
+                        Number.isFinite(rentM) && Number.isFinite(vacPct)
+                            ? rentM * (1 - Math.max(0, Math.min(0.9, vacPct / 100)))
+                            : NaN;
+
+                    const dscrEconomic =
+                        Number.isFinite(effRentM) && Number.isFinite(pitiaM) && pitiaM > 0
+                            ? effRentM / pitiaM
+                            : NaN;
+
+                    // Format like "1.16x"
+                    const fmtX = (v: number) => `${v.toFixed(2)}x`;
+
+                    // Replace lender-style DSCR mentions with canonical lender DSCR
+                    // Keep it simple (no callback) to avoid TS/Next build issues.
+                    if (Number.isFinite(dscrLoanDepot)) {
+                        replaced2 = replaced2.replace(
+                            /\bDSCR(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                            `DSCR: ${fmtX(dscrLoanDepot)}`
+                        );
+                    }
+                    if (Number.isFinite(dscrEconomic)) {
+                        replaced2 = replaced2.replace(
+                            /\bDSCR-?like(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?\b/gi,
+                            `DSCR-like: ${fmtX(dscrEconomic)}`
+                        );
+                    }
+
+
+                    // Replace "DSCR-like" / economic DSCR mentions
+                    if (Number.isFinite(dscrEconomic)) {
+                        replaced2 = replaced2.replace(
+                            /DSCR-?like(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?/gi,
+                            `DSCR-like: ${fmtX(dscrEconomic)}`
+                        );
+                        replaced2 = replaced2.replace(
+                            /Economic\s+DSCR(\s*\(.*?\))?\s*[:=]?\s*\d+(?:\.\d+)?\s*x?/gi,
+                            `Economic DSCR: ${fmtX(dscrEconomic)}`
+                        );
+                    }
+                } catch { }
+
+                (out as any).plain_english_summary = replaced2;
+            }
+        } catch { }
+        // =========================
+        // Key Risks: ALWAYS deterministic
+        // Do NOT trust Grok key_risks (it may invent DSCR math and stale numbers)
+        // =========================
+        try {
+            const cfKR = (out as any).computed_financials || {};
+
+            const dscrLoanDepot =
+                Number.isFinite(Number(cfKR.dscr_loan_depot)) ? Number(cfKR.dscr_loan_depot) :
+                    (Number.isFinite(Number(cfKR.dscr_gross)) ? Number(cfKR.dscr_gross) : NaN);
+
+            // Economic DSCR must be computed deterministically from rent/vacancy and monthly PITIA.
+            // Do NOT trust cfKR.dscr_economic (it can be wrong/stale).
+            const rentM =
+                Number.isFinite(Number((out as any)?.scenario_inputs?.rent_monthly))
+                    ? Number((out as any).scenario_inputs.rent_monthly)
+                    : NaN;
+
+            const vacPct =
+                Number.isFinite(Number((out as any)?.scenario_inputs?.vacancy_pct))
+                    ? Number((out as any).scenario_inputs.vacancy_pct)
+                    : NaN;
+
+            const pitiaM =
+                Number.isFinite(Number(cfKR.monthly_pitia))
+                    ? Number(cfKR.monthly_pitia)
+                    : NaN;
+
+            const effRentM =
+                Number.isFinite(rentM) && Number.isFinite(vacPct)
+                    ? rentM * (1 - Math.max(0, Math.min(0.9, vacPct / 100)))
+                    : NaN;
+
+            const dscrEconomic =
+                Number.isFinite(effRentM) && Number.isFinite(pitiaM) && pitiaM > 0
+                    ? effRentM / pitiaM
+                    : NaN;
+
+
+            const monthlyCF =
+                Number.isFinite(Number(cfKR.monthly_cash_flow)) ? Number(cfKR.monthly_cash_flow) : NaN;
+
+            const fmtX = (v: number) => `${v.toFixed(2)}x`;
+            const fmtMoney0 = (v: number) =>
+                v.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+            const risks: string[] = [];
+
+            if (Number.isFinite(dscrLoanDepot)) {
+                if (dscrLoanDepot < 1.0) {
+                    risks.push(`DSCR ${fmtX(dscrLoanDepot)} is below 1.00x. This is typically not eligible for DSCR financing without compensating factors.`);
+                } else if (dscrLoanDepot < 1.2) {
+                    risks.push(`DSCR ${fmtX(dscrLoanDepot)} is tight. The deal is vulnerable to small rent declines or payment increases (tax, insurance, rate).`);
+                } else {
+                    risks.push(`DSCR ${fmtX(dscrLoanDepot)} is healthy relative to common DSCR thresholds, but still sensitive to vacancy and expense shocks.`);
+                }
+            }
+
+            if (Number.isFinite(dscrEconomic)) {
+                risks.push(`Economic DSCR ${fmtX(dscrEconomic)} reflects vacancy-adjusted rent. If this trends near 1.00x, cash flow pressure is likely even if lender DSCR passes.`);
+            }
+
+            if (Number.isFinite(monthlyCF)) {
+                const direction = monthlyCF >= 0 ? "positive" : "negative";
+                risks.push(`Flat assumptions: cash flow is ${direction} at ${fmtMoney0(monthlyCF)}/mo with no modeled rent growth, capex, or reserve planning.`);
+            } else {
+                risks.push(`Flat assumptions: no rent/expense growth modeled; real-world vacancy, maintenance, and capex can exceed estimates.`);
+            }
+
+            (out as any).key_risks = risks;
+        } catch { }
+
+
+        // =========================
+        // Cash Flow table: ALWAYS deterministic
+        // Do NOT trust Grok cash_flow_table (it has been the source of repeated wild values)
+        // =========================
+        const cf = (out as any).computed_financials || {};
+        const annualCF =
+            Number.isFinite(Number(cf.annual_cash_flow)) ? Number(cf.annual_cash_flow) :
+                (Number.isFinite(Number(cf.monthly_cash_flow)) ? Number(cf.monthly_cash_flow) * 12 : NaN);
+
+        if (Number.isFinite(annualCF)) {
+            const years = 30;
+            const cfRows: any[] = [];
+            for (let y = 1; y <= years; y++) cfRows.push([y, round2(annualCF)]);
+            grokcard_tables.cash_flow = {
+                headers: ["Yr", "Net CF"],
+                rows: cfRows,
+                unit: "annual",
+            };
+
+            // Also hard override any model-provided cash_flow_table so it can’t leak back in
+            if (Array.isArray((out as any).cash_flow_table)) {
+                (out as any).cash_flow_table = cfRows.map(([year, net]) => ({ year, net_cash_flow: net }));
+            }
+        }
+
+        out.grokcard_tables = grokcard_tables;
+        return out;
+    }
+
+
+    /* =========================
+       FRED market data (parallel, fast)
+    ========================= */
+    async function getCurrentMortgageData() {
+        const fredApiKey = process.env.FRED_API_KEY;
+        const today = new Date().toISOString().slice(0, 10);
+
+        if (!fredApiKey) {
+            return {
+                date: today,
+                thirtyYearFixed: 6.27,
+                tenYearTreasury: 4.16,
+                usedFallbacks: true,
+                fallbackNotes: ["FRED_API_KEY missing; used hardcoded defaults."],
+            };
+        }
+
+        const base =
+            "https://api.stlouisfed.org/fred/series/observations?file_type=json&sort_order=desc&limit=1";
+        const u30 = `${base}&series_id=MORTGAGE30US&api_key=${encodeURIComponent(fredApiKey)}`;
+        const dgs10 = `${base}&series_id=DGS10&api_key=${encodeURIComponent(fredApiKey)}`;
+
+        try {
+            const [u30Res, dgs10Res] = await Promise.all([
+                fetch(u30, { cache: "no-store" }),
+                fetch(dgs10, { cache: "no-store" }),
+            ]);
+
+            const [u30Json, dgs10Json] = await Promise.all([u30Res.json(), dgs10Res.json()]);
+
+            const parseLatest = (j: any) => {
+                const v = j?.observations?.[0]?.value;
+                const n = Number(v);
+                return Number.isFinite(n) ? n : null;
+            };
+
+            const thirty = parseLatest(u30Json);
+            const ten = parseLatest(dgs10Json);
+
+            let usedFallbacks = false;
+            const notes: string[] = [];
+
+            if (thirty == null) {
+                usedFallbacks = true;
+                notes.push("FRED MORTGAGE30US missing/invalid; defaulted to 6.27.");
+            }
+            if (ten == null) {
+                usedFallbacks = true;
+                notes.push("FRED DGS10 missing/invalid; defaulted to 4.16.");
+            }
+
+            return {
+                date: today,
+                thirtyYearFixed: thirty ?? 6.27,
+                tenYearTreasury: ten ?? 4.16,
+                usedFallbacks,
+                fallbackNotes: notes,
+            };
+        } catch (err: any) {
+            return {
+                date: today,
+                thirtyYearFixed: 6.27,
+                tenYearTreasury: 4.16,
+                usedFallbacks: true,
+                fallbackNotes: [`FRED fetch error: ${err?.message || String(err)}`],
+            };
+        }
+    }
+
+    /* =========================
+       xAI chat call
+    ========================= */
+    async function callXaiJson(systemPrompt: string, userPrompt: string, maxTokens: number) {
+        const XAI_API_KEY = process.env.XAI_API_KEY;
+        const model = process.env.XAI_MODEL_SCENARIO || process.env.XAI_MODEL || "grok-4";
+
+        if (!XAI_API_KEY) throw new Error("Missing XAI_API_KEY");
+
+        const url = "https://api.x.ai/v1/chat/completions";
+        const payload = {
+            model,
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+            ],
+            temperature: 0.2,
+            max_tokens: maxTokens,
+            response_format: { type: "json_object" },
+        };
+
+        const res = await withTimeout(
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${XAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            }),
+            15000,
+            "xAI chat.completions"
+        );
+
+        if (!res.ok) {
+            const errText = await res.text().catch(() => "");
+            throw new Error(`xAI HTTP ${res.status}: ${errText.slice(0, 400)}`);
+        }
+
+        const json = await res.json();
+        const content = json?.choices?.[0]?.message?.content;
+        if (!content) throw new Error("Empty content from xAI");
+
+        try {
+            return { model, raw: content, parsed: JSON.parse(content) };
+        } catch {
+            const salvaged = extractLikelyJsonObject(content);
+            if (!salvaged) throw new Error("Model content was not valid JSON");
+            return { model, raw: content, parsed: JSON.parse(salvaged) };
+        }
+    }
+
+    /* =========================
+       Route
+    ========================= */
+    export async function POST(req: NextRequest) {
+        const t0 = Date.now();
+        const buildTag = "scenario-proof-12-19-25-v5";
+        const requestId =
+            (globalThis.crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
+
+        let fred_ms = 0;
+        let xai_ms = 0;
+        let parse_ms = 0;
+
+        try {
+            const body = (await req.json().catch(() => ({}))) as { message?: string; userId?: string };
+            const message = (body?.message || "").trim();
+            const userId = body?.userId;
+
+            if (!message) {
+                return noStore(
+                    { error: "Message is required" },
+                    { status: 400, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+                );
+            }
+
+            // 1) FRED
+            const tFred = Date.now();
+            const marketData = await getCurrentMortgageData();
+            fred_ms = Date.now() - tFred;
+
+            // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
+            const systemPrompt = compactWhitespace(`
 You are HomeRates.AI Smart Scenario Engine.
 
 OUTPUT RULES (hard):
@@ -1885,24 +1888,110 @@ Schema:
 `);
 
 
-        // 3) xAI
-        const tXai = Date.now();
-        const maxTokens = 900;
-        const xai = await callXaiJson(systemPrompt, message, maxTokens);
-        xai_ms = Date.now() - tXai;
+            // 3) xAI
+            const tXai = Date.now();
+            const maxTokens = 900;
+            const xai = await callXaiJson(systemPrompt, message, maxTokens);
+            xai_ms = Date.now() - tXai;
 
-        // 4) parse timing
-        const tParse = Date.now();
-        let result = xai.parsed;
-        parse_ms = Date.now() - tParse;
+            // 4) parse timing
+            const tParse = Date.now();
+            let result = xai.parsed;
+            parse_ms = Date.now() - tParse;
 
-        // Validation gate
-        if (!result || typeof result !== "object" || typeof result.plain_english_summary !== "string") {
+            // Validation gate
+            if (!result || typeof result !== "object" || typeof result.plain_english_summary !== "string") {
+                return noStore(
+                    {
+                        success: false,
+                        provider: "xai",
+                        error: { message: "Scenario payload missing required fields", requestId },
+                        marketData,
+                        meta: {
+                            build_tag: buildTag,
+                            requestId,
+                            userIdPresent: Boolean(userId),
+                            model: xai.model,
+                            maxTokens,
+                            timing_ms: { fred_ms, xai_ms, parse_ms, total_ms: Date.now() - t0 },
+                        },
+                    },
+                    { status: 502, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+                );
+            }
+
+            // Normalize for GrokCard + Inputs block + on-demand sensitivity only
+            result = normalizeForGrokCard(result, message, marketData);
+            result = postParseValidateScenario(result, message, marketData);
+
+            // === Final hard guards (deterministic) ===
+            // 1) Enforce default 30Y term unless user explicitly asked otherwise.
+            //    If model hallucinated an early payoff (e.g., 15Y), the validator should already correct payment,
+            //    but we also remove any amortization rows showing payoff before 30.
+            try {
+                const termYears =
+                    Number((result as any)?.scenario_inputs?.term_years) ||
+                    Number((result as any)?.term_years) ||
+                    30;
+
+                if (Array.isArray((result as any)?.amortization_summary) && termYears === 30) {
+                    const cleaned = (result as any).amortization_summary.filter((r: any) => {
+                        const y = Number(r?.year);
+                        const bal = Number(r?.ending_balance);
+                        if (!Number.isFinite(y)) return false;
+                        if (Number.isFinite(bal) && bal === 0 && y < 30) return false; // remove premature payoff rows
+                        return true;
+                    });
+                    (result as any).amortization_summary = cleaned;
+                }
+
+                // 2) Cash flow table unit normalization:
+                //    If cash_flow_table values appear to be MONTHLY (and match sensitivity monthly_cash_flow),
+                //    convert to ANNUAL so GrokCard is consistent.
+                const cashTable = (result as any)?.cash_flow_table;
+                const curMCF = Number((result as any)?.sensitivity_table?.current_rate?.monthly_cash_flow);
+
+                if (Array.isArray(cashTable) && cashTable.length) {
+                    const row1 = cashTable.find((r: any) => Number(r?.year) === 1) ?? cashTable[0];
+                    const cf1 = Number(row1?.net_cash_flow);
+
+                    const looksMonthly =
+                        Number.isFinite(cf1) &&
+                        Math.abs(cf1) < 20000 && // annual CF often exceeds this; monthly usually within a few thousand
+                        Number.isFinite(curMCF) &&
+                        Math.abs(cf1 - curMCF) <= Math.max(50, Math.abs(curMCF) * 0.25);
+
+                    if (looksMonthly) {
+                        (result as any).cash_flow_table = cashTable.map((r: any) => ({
+                            year: Number(r?.year),
+                            net_cash_flow: Math.round(Number(r?.net_cash_flow) * 12),
+                        }));
+                        // Ensure GrokCard unit reflects annual
+                        if ((result as any)?.grokcard_tables?.cash_flow) {
+                            (result as any).grokcard_tables.cash_flow.unit = "annual";
+                        }
+                        if (Array.isArray((result as any)?.validation_warnings)) {
+                            (result as any).validation_warnings.push(
+                                "cash_flow_table appeared monthly; converted to annual for consistency."
+                            );
+                        } else {
+                            (result as any).validation_warnings = [
+                                "cash_flow_table appeared monthly; converted to annual for consistency.",
+                            ];
+                        }
+                    }
+                }
+            } catch {
+                // swallow; never fail the request due to guardrails
+            }
+
+            const total_ms = Date.now() - t0;
+
             return noStore(
                 {
-                    success: false,
+                    success: true,
                     provider: "xai",
-                    error: { message: "Scenario payload missing required fields", requestId },
+                    result,
                     marketData,
                     meta: {
                         build_tag: buildTag,
@@ -1910,111 +1999,25 @@ Schema:
                         userIdPresent: Boolean(userId),
                         model: xai.model,
                         maxTokens,
-                        timing_ms: { fred_ms, xai_ms, parse_ms, total_ms: Date.now() - t0 },
+                        timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
                     },
                 },
-                { status: 502, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+                { headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+            );
+        } catch (err: any) {
+            const total_ms = Date.now() - t0;
+            return noStore(
+                {
+                    success: false,
+                    provider: "xai",
+                    error: {
+                        message: "Scenario engine failed",
+                        requestId,
+                        timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
+                        detail: err?.message || String(err),
+                    },
+                },
+                { status: 500, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
             );
         }
-
-        // Normalize for GrokCard + Inputs block + on-demand sensitivity only
-        result = normalizeForGrokCard(result, message, marketData);
-        result = postParseValidateScenario(result, message, marketData);
-
-        // === Final hard guards (deterministic) ===
-        // 1) Enforce default 30Y term unless user explicitly asked otherwise.
-        //    If model hallucinated an early payoff (e.g., 15Y), the validator should already correct payment,
-        //    but we also remove any amortization rows showing payoff before 30.
-        try {
-            const termYears =
-                Number((result as any)?.scenario_inputs?.term_years) ||
-                Number((result as any)?.term_years) ||
-                30;
-
-            if (Array.isArray((result as any)?.amortization_summary) && termYears === 30) {
-                const cleaned = (result as any).amortization_summary.filter((r: any) => {
-                    const y = Number(r?.year);
-                    const bal = Number(r?.ending_balance);
-                    if (!Number.isFinite(y)) return false;
-                    if (Number.isFinite(bal) && bal === 0 && y < 30) return false; // remove premature payoff rows
-                    return true;
-                });
-                (result as any).amortization_summary = cleaned;
-            }
-
-            // 2) Cash flow table unit normalization:
-            //    If cash_flow_table values appear to be MONTHLY (and match sensitivity monthly_cash_flow),
-            //    convert to ANNUAL so GrokCard is consistent.
-            const cashTable = (result as any)?.cash_flow_table;
-            const curMCF = Number((result as any)?.sensitivity_table?.current_rate?.monthly_cash_flow);
-
-            if (Array.isArray(cashTable) && cashTable.length) {
-                const row1 = cashTable.find((r: any) => Number(r?.year) === 1) ?? cashTable[0];
-                const cf1 = Number(row1?.net_cash_flow);
-
-                const looksMonthly =
-                    Number.isFinite(cf1) &&
-                    Math.abs(cf1) < 20000 && // annual CF often exceeds this; monthly usually within a few thousand
-                    Number.isFinite(curMCF) &&
-                    Math.abs(cf1 - curMCF) <= Math.max(50, Math.abs(curMCF) * 0.25);
-
-                if (looksMonthly) {
-                    (result as any).cash_flow_table = cashTable.map((r: any) => ({
-                        year: Number(r?.year),
-                        net_cash_flow: Math.round(Number(r?.net_cash_flow) * 12),
-                    }));
-                    // Ensure GrokCard unit reflects annual
-                    if ((result as any)?.grokcard_tables?.cash_flow) {
-                        (result as any).grokcard_tables.cash_flow.unit = "annual";
-                    }
-                    if (Array.isArray((result as any)?.validation_warnings)) {
-                        (result as any).validation_warnings.push(
-                            "cash_flow_table appeared monthly; converted to annual for consistency."
-                        );
-                    } else {
-                        (result as any).validation_warnings = [
-                            "cash_flow_table appeared monthly; converted to annual for consistency.",
-                        ];
-                    }
-                }
-            }
-        } catch {
-            // swallow; never fail the request due to guardrails
-        }
-
-        const total_ms = Date.now() - t0;
-
-        return noStore(
-            {
-                success: true,
-                provider: "xai",
-                result,
-                marketData,
-                meta: {
-                    build_tag: buildTag,
-                    requestId,
-                    userIdPresent: Boolean(userId),
-                    model: xai.model,
-                    maxTokens,
-                    timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
-                },
-            },
-            { headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
-        );
-    } catch (err: any) {
-        const total_ms = Date.now() - t0;
-        return noStore(
-            {
-                success: false,
-                provider: "xai",
-                error: {
-                    message: "Scenario engine failed",
-                    requestId,
-                    timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
-                    detail: err?.message || String(err),
-                },
-            },
-            { status: 500, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
-        );
     }
-}
