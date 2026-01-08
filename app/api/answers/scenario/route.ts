@@ -1692,6 +1692,46 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     }
 
     out.grokcard_tables = grokcard_tables;
+    // =========================
+    // Canonical amortization inputs (ALWAYS present)
+    // Ensures UI can build amortization snapshot deterministically
+    // =========================
+    try {
+        (out as any).scenario_inputs = (out as any).scenario_inputs || {};
+        const si = (out as any).scenario_inputs;
+        const cf = (out as any).computed_financials || {};
+
+        const loanAmt =
+            Number.isFinite(Number(si.loan_amount)) ? Number(si.loan_amount) :
+                Number.isFinite(Number(cf.loan_amount)) ? Number(cf.loan_amount) :
+                    Number.isFinite(Number((cf as any).loanAmount)) ? Number((cf as any).loanAmount) :
+                        NaN;
+
+        const rateUsedPct =
+            Number.isFinite(Number(si.rate_used_pct)) ? Number(si.rate_used_pct) :
+                Number.isFinite(Number(cf.rate_used_pct)) ? Number(cf.rate_used_pct) :
+                    Number.isFinite(Number((cf as any).rate_used)) ? Number((cf as any).rate_used) :
+                        NaN;
+
+        const termYears =
+            Number.isFinite(Number(si.term_years)) ? Number(si.term_years) :
+                Number.isFinite(Number(cf.term_years)) ? Number(cf.term_years) :
+                    30;
+
+        if (Number.isFinite(loanAmt)) si.loan_amount = loanAmt;
+        if (Number.isFinite(rateUsedPct)) si.rate_used_pct = rateUsedPct;
+        if (Number.isFinite(termYears)) si.term_years = termYears;
+
+        // Mirror into result wrapper if present
+        if ((out as any).result && typeof (out as any).result === "object") {
+            (out as any).result.scenario_inputs = (out as any).result.scenario_inputs || {};
+            const rsi = (out as any).result.scenario_inputs;
+            if (Number.isFinite(loanAmt)) rsi.loan_amount = loanAmt;
+            if (Number.isFinite(rateUsedPct)) rsi.rate_used_pct = rateUsedPct;
+            if (Number.isFinite(termYears)) rsi.term_years = termYears;
+        }
+    } catch { }
+
     return out;
 }
 
