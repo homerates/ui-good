@@ -678,8 +678,8 @@ function postParseValidateScenario(result: any, message: string, marketData: any
             // Fail-soft: skip amortization snapshot but keep the rest of the scenario output.
             (out as any).amortization_note = "Amortization snapshot skipped: missing loan amount, rate, or term.";
 
-            // IMPORTANT: remove triggers so the UI does not attempt to render amortization at all
-            if (Array.isArray((out as any).amortization_summary)) (out as any).amortization_summary = [];
+            // IMPORTANT: do not clear amortization_summary here.
+            // It may be valid data that the UI can render once canonical inputs are backfilled.
             if ((out as any).grokcard_tables?.amortization_snapshot) delete (out as any).grokcard_tables.amortization_snapshot;
         } else {
 
