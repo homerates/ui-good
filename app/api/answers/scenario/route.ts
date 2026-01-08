@@ -644,10 +644,35 @@ function postParseValidateScenario(result: any, message: string, marketData: any
         let cumPrin = 0;
         let cumInt = 0;
 
-        const loanAmt = Number(out?.scenario_inputs?.loan_amount);
-        // Fail-soft: if amortization inputs are missing, skip snapshot but keep the rest of the scenario output.
-        const rateUsedPct = Number((out as any)?.computed_financials?.rate_used_pct ?? (out as any)?.scenario_inputs?.rate_used_pct);
-        const termYears = Number((out as any)?.scenario_inputs?.term_years ?? 30);
+        // Backfill amortization inputs deterministically so the UI never sees them as "missing".
+        const cf = (out as any)?.computed_financials || {};
+        (out as any).scenario_inputs = (out as any).scenario_inputs || {};
+
+        const loanAmtDet =
+            Number.isFinite(Number((out as any).scenario_inputs.loan_amount)) ? Number((out as any).scenario_inputs.loan_amount) :
+                Number.isFinite(Number(cf.loan_amount)) ? Number(cf.loan_amount) :
+                    NaN;
+
+        const rateUsedPctDet =
+            Number.isFinite(Number((out as any).scenario_inputs.rate_used_pct)) ? Number((out as any).scenario_inputs.rate_used_pct) :
+                Number.isFinite(Number(cf.rate_used_pct)) ? Number(cf.rate_used_pct) :
+                    NaN;
+
+        const termYearsDet =
+            Number.isFinite(Number((out as any).scenario_inputs.term_years)) ? Number((out as any).scenario_inputs.term_years) :
+                Number.isFinite(Number(cf.term_years)) ? Number(cf.term_years) :
+                    30;
+
+        // Write back so the renderer sees them and doesn't throw "inputs missing"
+        if (Number.isFinite(loanAmtDet)) (out as any).scenario_inputs.loan_amount = loanAmtDet;
+        if (Number.isFinite(rateUsedPctDet)) (out as any).scenario_inputs.rate_used_pct = rateUsedPctDet;
+        if (Number.isFinite(termYearsDet)) (out as any).scenario_inputs.term_years = termYearsDet;
+
+        // Use these canonical values below
+        const loanAmt = loanAmtDet;
+        const rateUsedPct = rateUsedPctDet;
+        const termYears = termYearsDet;
+
 
         if (!Number.isFinite(loanAmt) || loanAmt <= 0 || !Number.isFinite(rateUsedPct) || rateUsedPct <= 0 || !Number.isFinite(termYears) || termYears <= 0) {
             // Fail-soft: skip amortization snapshot but keep the rest of the scenario output.
