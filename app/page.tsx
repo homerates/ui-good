@@ -460,7 +460,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
         } else {
             md.push("### Amortization Snapshot");
             md.push("");
-            md.push("Amortization inputs missing from scenario response (loan amount / rate / term).");
+            md.push("Amortization snapshot unavailable for this scenario.");
             md.push("");
         }
     }
