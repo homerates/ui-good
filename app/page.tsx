@@ -1348,37 +1348,9 @@ export default function Page() {
                 body: JSON.stringify(payload),
             });
 
-            let raw = await safeJson(r);
-
-            // If we intended to hit /api/answers/scenario but got the WRONG shape back (ApiResponse-style),
-            // immediately retry the scenario endpoint once. This prevents "Scenario analysis completed"
-            // from being rendered when the UI accidentally received the /api/answers shape.
-            if (
-                useScenario &&
-                raw &&
-                typeof raw === 'object' &&
-                // Scenario route returns { success, provider, result, marketData, meta }
-                // ApiResponse returns { path, usedFRED, answerMarkdown, ... }
-                ('path' in (raw as any) || 'answerMarkdown' in (raw as any) || 'usedFRED' in (raw as any)) &&
-                !('success' in (raw as any) && 'result' in (raw as any))
-            ) {
-                try {
-                    const r2 = await fetch('/api/answers/scenario', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: q,
-                            userId: user?.id || 'anon',
-                        }),
-                    });
-
-                    raw = await safeJson(r2);
-                } catch {
-                    // fail open: we'll render whatever we got
-                }
-            }
-
+            const raw = await safeJson(r);
             const meta: ApiResponse = useScenario ? scenarioToApiResponse(raw) : (raw as ApiResponse);
+
 
             // Attach Grok metadata to the assistant message (under m.meta)
             setMessages((prev) =>
