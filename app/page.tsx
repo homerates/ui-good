@@ -352,6 +352,21 @@ function scenarioToApiResponse(s: any): ApiResponse {
             const n = Number(cleaned);
             return Number.isFinite(n) ? n : NaN;
         };
+        // -------------------------------
+        // Normalize scenario result shape
+        // Some scenario responses place structured data under meta.grok.result
+        // instead of `result`. Do NOT mutate `result`; use a normalized alias.
+        // -------------------------------
+        const scenarioResult =
+            (result &&
+                typeof result === "object" &&
+                Object.keys(result).length > 0)
+                ? result
+                : ((meta as any)?.grok?.result &&
+                    typeof (meta as any).grok.result === "object" &&
+                    Object.keys((meta as any).grok.result).length > 0)
+                    ? (meta as any).grok.result
+                    : null;
 
         const parseYears = (v: any): number => {
             if (typeof v === "number") return v;
@@ -362,28 +377,33 @@ function scenarioToApiResponse(s: any): ApiResponse {
         };
 
         // 1) Try structured fields first (fine if missing)
+        const base =
+            (result && Object.keys(result).length > 0)
+                ? result
+                : (meta as any)?.grok?.result;
+
         const loanAmtRaw =
-            (result as any)?.scenario_inputs?.loan_amount ??
-            (result as any)?.scenario_inputs?.loanAmount ??
-            (result as any)?.scenario?.loan_amount ??
-            (result as any)?.scenario?.loanAmount ??
-            (result as any)?.loan_amount ??
-            (result as any)?.loanAmount;
+            base?.scenario_inputs?.loan_amount ??
+            base?.scenario_inputs?.loanAmount ??
+            base?.scenario?.loan_amount ??
+            base?.scenario?.loanAmount ??
+            base?.loan_amount ??
+            base?.loanAmount;
 
         const rateRaw =
-            (result as any)?.rate_context?.rate ??
-            (result as any)?.rate_context?.current_rate ??
-            (result as any)?.scenario_inputs?.rate ??
-            (result as any)?.scenario_inputs?.rate_used ??
-            (result as any)?.scenario_inputs?.rateUsed ??
-            (result as any)?.scenario?.rate ??
-            (result as any)?.rate_used;
+            base?.rate_context?.rate ??
+            base?.rate_context?.current_rate ??
+            base?.scenario_inputs?.rate ??
+            base?.scenario_inputs?.rate_used ??
+            base?.scenario_inputs?.rateUsed ??
+            base?.scenario?.rate ??
+            base?.rate_used;
 
         const termYearsRaw =
-            (result as any)?.scenario_inputs?.term_years ??
-            (result as any)?.scenario_inputs?.termYears ??
-            (result as any)?.scenario?.term_years ??
-            (result as any)?.scenario?.termYears ??
+            base?.scenario_inputs?.term_years ??
+            base?.scenario_inputs?.termYears ??
+            base?.scenario?.term_years ??
+            base?.scenario?.termYears ??
             30;
 
         let loanAmt = parseMoney(loanAmtRaw);
