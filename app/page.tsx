@@ -1369,7 +1369,10 @@ export default function Page() {
             });
 
             const raw = await safeJson(r);
-            const meta: ApiResponse = useScenario ? scenarioToApiResponse(raw) : (raw as ApiResponse);
+            const meta: ApiResponse = useScenario
+                ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.grok ?? raw)
+                : (raw as ApiResponse);
+
 
 
             // Attach Grok metadata to the assistant message (under m.meta)
