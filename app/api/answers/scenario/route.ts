@@ -1690,6 +1690,9 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
             (out as any).cash_flow_table = cfRows.map(([year, net]) => ({ year, net_cash_flow: net }));
         }
     }
+    console.log("SCENARIO RESULT KEYS:", Object.keys((out as any).result || {}));
+    console.log("HAS amortization_summary:", Array.isArray((out as any).amortization_summary), "len:", (out as any).amortization_summary?.length);
+    console.log("HAS computed_financials:", Object.keys((out as any).computed_financials || {}));
 
     out.grokcard_tables = grokcard_tables;
     // =========================
