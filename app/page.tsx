@@ -368,6 +368,8 @@ function scenarioToApiResponse(s: any): ApiResponse {
                     ? (meta as any).grok.result
                     : null;
 
+        // NOTE: parseMoney and parsePercent already exist above in this file.
+        // Only define the missing helper here.
         const parseYears = (v: any): number => {
             if (typeof v === "number") return v;
             if (typeof v !== "string") return NaN;
@@ -377,10 +379,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
         };
 
         // 1) Try structured fields first (fine if missing)
-        const base =
-            (result && Object.keys(result).length > 0)
-                ? result
-                : (meta as any)?.grok?.result;
+        const base: any = scenarioResult;
 
         const loanAmtRaw =
             base?.scenario_inputs?.loan_amount ??
@@ -405,6 +404,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
             base?.scenario?.term_years ??
             base?.scenario?.termYears ??
             30;
+
 
         let loanAmt = parseMoney(loanAmtRaw);
         let ratePct = parsePercent(rateRaw); // percent, e.g. 6.21
