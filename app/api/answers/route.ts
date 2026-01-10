@@ -455,7 +455,12 @@ async function handle(req: NextRequest, intentParam?: string) {
         intent?: string;
         mode?: "borrower" | "public";
         userId?: string;
+
+        // NEW: memory thread key for follow-up context
+        memory_thread_id?: string;
+        memoryThreadId?: string; // allow camelCase from client
     };
+
 
     // --- Timing: start ---
     const t0 = Date.now();
@@ -480,6 +485,38 @@ async function handle(req: NextRequest, intentParam?: string) {
             body = {};
         }
     }
+    // ===== MEMORY THREAD (separate from chat_threads) =====
+    function isUuid(v: string) {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+    }
+
+    const memoryThreadIdRaw =
+        (body as any)?.memory_thread_id ||
+        (body as any)?.memoryThreadId ||
+        req.headers.get("x-memory-thread-id") ||
+        req.nextUrl.searchParams.get("memory_thread_id") ||
+        null;
+
+    let memoryThreadId: string | null =
+        typeof memoryThreadIdRaw === "string" && isUuid(memoryThreadIdRaw)
+            ? memoryThreadIdRaw
+            : null;
+
+    // If none was provided, create a new memory thread row.
+    // This makes the endpoint self-healing and ensures every session can have a stable id.
+    if (!memoryThreadId && supabase && userId) {
+        try {
+            const { data: created, error } = await supabase
+                .from("memory_threads")
+                .insert({ clerk_user_id: userId })
+                .select("id")
+                .single();
+
+            if (!error && created?.id) memoryThreadId = created.id;
+        } catch (e: any) {
+            console.warn("ANSWERS: memory thread create failed", e?.message || e);
+        }
+    }
 
     const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
     const intent = (intentParam || body.intent || "web").trim() || "web";
@@ -495,6 +532,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             "Ask a specific mortgage question (example: PMI at 5% down, DTI basics, or what drives today’s rates). I’ll include sources when available.";
         return noStore({
             ok: true,
+            memory_thread_id: memoryThreadId,
             route: "answers",
             intent,
             path,
@@ -658,6 +696,7 @@ async function handle(req: NextRequest, intentParam?: string) {
         if (dscrOverride) {
             return noStore({
                 ok: true,
+                memory_thread_id: memoryThreadId,
                 route: "answers",
                 intent,
                 path,
@@ -832,6 +871,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .from("user_answers")
                 .select("question, answer_summary, answer")
                 .eq("clerk_user_id", userId)
+                .eq("memory_thread_id", memoryThreadId)
                 .order("created_at", { ascending: false })
                 .limit(3);
 
@@ -972,6 +1012,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
             return noStore({
                 ok: true,
+                memory_thread_id: memoryThreadId,
                 route: "answers",
                 intent,
                 path,
@@ -1006,6 +1047,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 "Quick check: confirm your balance, current rate, years/months left, costs/credit, and the new rate you’re considering.";
             return noStore({
                 ok: true,
+                memory_thread_id: memoryThreadId,
                 route: "answers",
                 intent,
                 path,
@@ -1041,6 +1083,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
         return noStore({
             ok: true,
+            memory_thread_id: memoryThreadId,
             route: "answers",
             intent,
             path,
@@ -1174,6 +1217,7 @@ Return valid JSON only:
         try {
             await supabase.from("user_answers").insert({
                 clerk_user_id: userId,
+                memory_thread_id: memoryThreadId,
                 question,
                 answer: grokFinal,
                 answer_summary:
@@ -1226,6 +1270,7 @@ Return valid JSON only:
 
     return noStore({
         ok: true,
+        memory_thread_id: memoryThreadId,
         route: "answers",
         intent,
         path,
