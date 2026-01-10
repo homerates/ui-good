@@ -485,7 +485,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             body = {};
         }
     }
-    // ===== MEMORY THREAD (separate from chat_threads) =====
+    // ===== MEMORY THREAD (separate from chat threads) =====
     function isUuid(v: string) {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
     }
@@ -512,12 +512,18 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .select("id")
                 .single();
 
-            if (!error && created?.id) memoryThreadId = created.id;
-
+            if (!error && created?.id) {
+                memoryThreadId = created.id;
+            } else if (error) {
+                console.warn("ANSWERS: memory thread insert error", error.message || error);
+            } else {
+                console.warn("ANSWERS: memory thread insert returned no id");
+            }
         } catch (e: any) {
             console.warn("ANSWERS: memory thread create failed", e?.message || e);
         }
     }
+
 
     const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
     const intent = (intentParam || body.intent || "web").trim() || "web";
