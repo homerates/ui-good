@@ -234,88 +234,265 @@ async function safeJson(r: Response): Promise<any> {
    Scenario normalization (Scenario API → ApiResponse)
    This keeps the existing AnswerCard/GrokCard renderer working.
 ========================= */
-function scenarioToApiResponse(input: any): ApiResponse {
-    // Unwrap common envelope shapes:
-    // - { answer: { ... } }
-    // - { answer: { meta: { grok: { ... } } } }
-    // - { answer: { grok: { ... } } }
-    // - { grok: { ... } }
-    const a =
-        input && typeof input === 'object' && 'answer' in input
-            ? (input as any).answer
-            : input;
+function scenarioToApiResponse(s: any): ApiResponse {
+    const result = s?.result || {};
+    const marketData = s?.marketData || {};
+    const meta = s?.meta || {};
+    // TEMP: debug the scenario payload shape (remove after confirming)
+    console.log('[scenarioToApiResponse] keys:', Object.keys(result || {}), 'top:', Object.keys(s || {}));
 
-    const grok =
-        a?.grok ??
-        a?.meta?.grok ??
-        (input && typeof input === 'object' ? (input as any).grok : null) ??
-        a;
-
-    const result = grok?.result ?? a?.result ?? {};
-    const marketData = grok?.marketData ?? a?.marketData ?? {};
-    const meta = grok?.meta ?? a?.meta ?? {};
-
-    // Prefer whatever the API already provided as the main narrative
     const summary =
-        (typeof a?.friendly === 'string' && a.friendly.trim()) ? a.friendly :
-            (typeof a?.summary === 'string' && a.summary.trim()) ? a.summary :
-                (typeof a?.answer === 'string' && a.answer.trim()) ? a.answer :
-                    (typeof meta?.message === 'string' && meta.message.trim()) ? meta.message :
-                        'Scenario analysis completed.';
+        // Common: result.plain_english_summary is a string
+        (typeof result?.plain_english_summary === 'string' && result.plain_english_summary.trim())
+            ? result.plain_english_summary.trim()
+
+            // Sometimes: result.plain_english_summary is an object like { content: "..." }
+            : (typeof result?.plain_english_summary?.content === 'string' && result.plain_english_summary.content.trim())
+                ? result.plain_english_summary.content.trim()
+
+                // Sometimes: result.summary is a string
+                : (typeof result?.summary === 'string' && result.summary.trim())
+                    ? result.summary.trim()
+
+                    // Sometimes: result.answer is a string
+                    : (typeof result?.answer === 'string' && result.answer.trim())
+                        ? result.answer.trim()
+
+                        // Sometimes: top-level answer/summary
+                        : (typeof s?.answer === 'string' && s.answer.trim())
+                            ? s.answer.trim()
+                            : (typeof s?.summary === 'string' && s.summary.trim())
+                                ? s.summary.trim()
+                                : 'Scenario analysis completed.';
+
 
     const md: string[] = [];
     md.push('## Smart Scenario');
     md.push('');
     md.push(summary);
+    md.push('');
 
-    // Helper formatters
-    const fmtMoney0 = (n: any) => {
-        const x = typeof n === "number" ? n : Number(n);
-        if (!isFinite(x)) return "—";
-        const abs = Math.abs(x);
-        return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-    };
+    // Sensitivity table (monthly payment / cash flow / DSCR)
+    const sens = result?.sensitivity_table;
+    if (sens && typeof sens === "object") {
+        const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
 
-    // Amortization Snapshot (use structured amortization_summary if present)
-    if (Array.isArray(result?.amortization_summary) && result.amortization_summary.length) {
-        md.push('');
-        md.push('### Amortization Snapshot');
-        md.push('');
-        md.push('| Year | Principal Paid | Interest Paid | Ending Balance |');
-        md.push('| - | -: | -: | -: |');
+        const labelFor = (k: string) =>
+            k === "current_rate"
+                ? "Current Rate"
+                : k === "plus_0_5pct"
+                    ? "+0.5%"
+                    : k === "plus_1pct"
+                        ? "+1.0%"
+                        : k === "minus_0_5pct"
+                            ? "-0.5%"
+                            : k.replace(/_/g, " ");
 
-        for (const r of result.amortization_summary) {
-            const y = Number(r?.year);
-            const p = Number(r?.principal_paid);
-            const i = Number(r?.interest_paid);
-            const b = Number(r?.ending_balance);
+        const fmtMoney0 = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            const abs = Math.abs(x);
+            return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+        };
 
-            md.push(
-                `| ${Number.isFinite(y) ? y : '—'} | ${Number.isFinite(p) ? fmtMoney0(p) : '—'} | ${Number.isFinite(i) ? fmtMoney0(i) : '—'} | ${Number.isFinite(b) ? fmtMoney0(b) : '—'} |`
-            );
+        const fmtCF0 = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            const sign = x < 0 ? "-" : "";
+            return `${sign}${fmtMoney0(x)}`;
+        };
+
+        const fmtDSCR = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            return `${x.toFixed(2)}x`;
+        };
+
+        md.push("### Rate Sensitivity (monthly payment)");
+        md.push("");
+        md.push("| Scenario | Payment | Cash Flow | DSCR |");
+        md.push("| --- | ---: | ---: | ---: |");
+
+        for (const k of order) {
+            const v: any = (sens as any)[k];
+            if (!v || typeof v !== "object") continue;
+
+            const p = v.monthly_payment;
+            const cf = v.monthly_cash_flow;
+            const d = v.dscr;
+
+            md.push(`| ${labelFor(k)} | ${fmtMoney0(p)} | ${fmtCF0(cf)} | ${fmtDSCR(d)} |`);
         }
-        md.push('');
-    } else {
-        // IMPORTANT: If missing, do NOT pretend it is a scenario failure.
-        // Just note it and continue rendering other sections.
-        md.push('');
-        md.push('### Amortization Snapshot');
-        md.push('');
-        md.push('Amortization snapshot unavailable for this scenario.');
-        md.push('');
+
+        md.push("");
     }
 
-    // Cash Flow table (optional)
+
+    // Amortization Snapshot (computed locally from scenario text / scenario inputs)
+    {
+        const fmtMoney0 = (n: any) => {
+            const x = typeof n === "number" ? n : Number(n);
+            if (!isFinite(x)) return "-";
+            const abs = Math.abs(x);
+            return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+        };
+
+        const parseMoney = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
+        const parsePercent = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+        // -------------------------------
+        // Normalize scenario result shape
+        // Some scenario responses place structured data under meta.grok.result
+        // instead of `result`. Do NOT mutate `result`; use a normalized alias.
+        // -------------------------------
+        const scenarioResult =
+            (result &&
+                typeof result === "object" &&
+                Object.keys(result).length > 0)
+                ? result
+                : ((meta as any)?.grok?.result &&
+                    typeof (meta as any).grok.result === "object" &&
+                    Object.keys((meta as any).grok.result).length > 0)
+                    ? (meta as any).grok.result
+                    : null;
+
+        // NOTE: parseMoney and parsePercent already exist above in this file.
+        // Only define the missing helper here.
+        const parseYears = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
+        // 1) Try structured fields first (fine if missing)
+        const base: any = scenarioResult;
+
+        const loanAmtRaw =
+            base?.scenario_inputs?.loan_amount ??
+            base?.scenario_inputs?.loanAmount ??
+            base?.scenario?.loan_amount ??
+            base?.scenario?.loanAmount ??
+            base?.loan_amount ??
+            base?.loanAmount;
+
+        const rateRaw =
+            base?.rate_context?.rate ??
+            base?.rate_context?.current_rate ??
+            base?.scenario_inputs?.rate ??
+            base?.scenario_inputs?.rate_used ??
+            base?.scenario_inputs?.rateUsed ??
+            base?.scenario?.rate ??
+            base?.rate_used;
+
+        const termYearsRaw =
+            base?.scenario_inputs?.term_years ??
+            base?.scenario_inputs?.termYears ??
+            base?.scenario?.term_years ??
+            base?.scenario?.termYears ??
+            30;
+
+
+        let loanAmt = parseMoney(loanAmtRaw);
+        let ratePct = parsePercent(rateRaw); // percent, e.g. 6.21
+        let termYears = parseYears(termYearsRaw);
+
+        // 2) Fallback: parse from already-rendered Smart Scenario text in md[]
+        // This is the most reliable source in your current UI flow.
+        const mdText = md.join("\n");
+
+        if (!Number.isFinite(loanAmt)) {
+            const m = mdText.match(/Loan amount:\s*\$?\s*([\d,]+)/i);
+            if (m?.[1]) loanAmt = Number(m[1].replace(/,/g, ""));
+        }
+
+        if (!Number.isFinite(ratePct)) {
+            const m = mdText.match(/Rate used:\s*([0-9.]+)\s*%/i);
+            if (m?.[1]) ratePct = Number(m[1]);
+        }
+
+        if (!Number.isFinite(termYears)) {
+            const m = mdText.match(/term\s*\(?\s*([0-9]+)\s*y/i);
+            if (m?.[1]) termYears = Number(m[1]);
+            if (!Number.isFinite(termYears)) termYears = 30;
+        }
+
+        const isInputsValid =
+            Number.isFinite(loanAmt) &&
+            loanAmt > 0 &&
+            Number.isFinite(ratePct) &&
+            ratePct > 0 &&
+            Number.isFinite(termYears) &&
+            termYears > 0;
+
+        if (isInputsValid) {
+            const r = ratePct / 100 / 12;
+            const n = Math.round(termYears * 12);
+
+            // Monthly P&I payment
+            const pow = Math.pow(1 + r, n);
+            const pmt = (loanAmt * r * pow) / (pow - 1);
+
+            let bal = loanAmt;
+            let cumPrin = 0;
+            let cumInt = 0;
+
+            const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+
+            md.push("### Amortization Snapshot");
+            md.push("");
+            md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
+            md.push("| - | -: | -: | -: |");
+
+            for (let m = 1; m <= n; m++) {
+                const interest = bal * r;
+                let principal = pmt - interest;
+
+                // Guard for final month rounding
+                if (principal > bal) principal = bal;
+
+                bal -= principal;
+                cumPrin += principal;
+                cumInt += interest;
+
+                if (m % 12 === 0) {
+                    const y = m / 12;
+                    if (yearsToShow.has(y)) {
+                        md.push(`| ${y} | ${fmtMoney0(cumPrin)} | ${fmtMoney0(cumInt)} | ${fmtMoney0(bal)} |`);
+                    }
+                }
+            }
+
+            md.push("");
+        } else {
+            md.push("### Amortization Snapshot");
+            md.push("");
+            md.push("Amortization snapshot unavailable for this scenario.");
+            md.push("");
+        }
+    }
+
+    // Cash flow table (optional)
     if (Array.isArray(result?.cash_flow_table) && result.cash_flow_table.length) {
         md.push('### Cash Flow (net)');
         md.push('');
         md.push('| Year | Net Cash Flow |');
         md.push('|---:|---:|');
-
         for (const row of result.cash_flow_table) {
-            const y = row?.year ?? '—';
-            const cf = row?.net_cash_flow;
-            md.push(`| ${y} | ${cf == null ? '—' : fmtMoney0(cf)} |`);
+            md.push(`| ${row?.year ?? '—'} | ${row?.net_cash_flow ?? '—'} |`);
         }
         md.push('');
     }
@@ -336,27 +513,24 @@ function scenarioToApiResponse(input: any): ApiResponse {
 
     return {
         path: 'dynamic',
-        usedFRED: (marketData && typeof marketData === 'object' && !!marketData.date) ? true : false,
+        usedFRED: marketData?.usedFallbacks === false || Boolean(marketData?.date),
         confidence: conf,
         message: summary,
         summary,
         answer: summary,
         answerMarkdown: md.join('\n'),
-        data_freshness: (marketData && typeof marketData === 'object' && marketData.date)
-            ? `Live (FRED) as of ${marketData.date}`
-            : undefined,
+        data_freshness: marketData?.date ? `Live (FRED) as of ${marketData.date}` : undefined,
         grok: {
             scenario: true,
-            provider: (grok?.provider ?? meta?.provider ?? 'xai'),
-            model: (grok?.model ?? meta?.model),
-            build_tag: (meta?.build_tag ?? grok?.build_tag),
+            provider: s?.provider,
+            model: meta?.model,
+            build_tag: meta?.build_tag,
             marketData,
             meta,
             result,
         },
     };
 }
-
 /* =========================
    Answer block
 ========================= */
@@ -1195,8 +1369,9 @@ export default function Page() {
             });
 
             const raw = await safeJson(r);
-            const meta: ApiResponse = useScenario ? scenarioToApiResponse(raw) : (raw as ApiResponse);
-
+            const meta: ApiResponse = useScenario
+                ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.grok ?? raw)
+                : (raw as ApiResponse);
 
 
 
