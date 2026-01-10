@@ -513,6 +513,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .single();
 
             if (!error && created?.id) memoryThreadId = created.id;
+
         } catch (e: any) {
             console.warn("ANSWERS: memory thread create failed", e?.message || e);
         }
