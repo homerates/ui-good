@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import {
     getGuidelineContextForQuestion,
@@ -485,11 +486,19 @@ async function handle(req: NextRequest, intentParam?: string) {
         try {
             const raw = (await req.json()) as Body;
             body = raw;
-            userId = raw.userId;
         } catch {
-            body = {};
+            body = {} as Body;
         }
     }
+
+    // Clerk-first user id (reliable). Fallback to body.userId if you still send it sometimes.
+    try {
+        const a = await auth();
+        userId = a?.userId || (body as any)?.userId;
+    } catch {
+        userId = (body as any)?.userId;
+    }
+
     // ===== MEMORY THREAD (separate from chat threads) =====
     function isUuid(v: string) {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
