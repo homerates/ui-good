@@ -28,11 +28,15 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const XAI_API_KEY = process.env.XAI_API_KEY || "";
 const XAI_MODEL = (process.env.XAI_MODEL || "grok-4").trim();
 
-// Supabase (service-side client; used for user_answers memory)
+// Supabase (server-side client; used for memory + user_answers)
 const SUPABASE_URL =
-    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    process.env.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    "";
+
+// IMPORTANT: service role only (do NOT fallback to anon)
 const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 const supabase =
     SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
@@ -40,6 +44,7 @@ const supabase =
             auth: { persistSession: false },
         })
         : null;
+
 
 // --- fetch with timeout (hard cap) ---
 async function fetchWithTimeout(
