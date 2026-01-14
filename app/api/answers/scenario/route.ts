@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { runScenarioMath } from "../../../../lib/scenarioMath";
+import { createClient } from "@supabase/supabase-js";
 
 
 /* =========================
@@ -1085,6 +1086,7 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         (Number.isFinite(pickNum(si, ["term_years", "termYears"], 30)) ? pickNum(si, ["term_years", "termYears"], 30) : 30) ??
         30;
 
+
     const loanAmt = Number(loanAmtRaw);
     const ratePct = Number(rateRaw);
     const termYears = Number(termYearsRaw);
@@ -1864,6 +1866,19 @@ async function callXaiJson(systemPrompt: string, userPrompt: string, maxTokens: 
    Route
 ========================= */
 export async function POST(req: NextRequest) {
+    // ===== Supabase (service-side client; used for memory + logging) =====
+    const SUPABASE_URL =
+        process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    const SUPABASE_SERVICE_ROLE_KEY =
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+
+    const supabase =
+        SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+            ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+                auth: { persistSession: false },
+            })
+            : null;
+
     const t0 = Date.now();
     const buildTag = "scenario-proof-12-19-25-v5";
     const requestId =
@@ -1877,6 +1892,48 @@ export async function POST(req: NextRequest) {
         const body = (await req.json().catch(() => ({}))) as { message?: string; userId?: string };
         const message = (body?.message || "").trim();
         const userId = body?.userId;
+        // ===== MEMORY THREAD (separate from chat threads) =====
+        function isUuid(v: string) {
+            return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+        }
+
+        // Pull from body OR header OR query param (keep same contract as /api/answers)
+        const memoryThreadIdRaw =
+            (body as any)?.memory_thread_id ||
+            (body as any)?.memoryThreadId ||
+            req.headers.get("x-memory-thread-id") ||
+            req.nextUrl.searchParams.get("memory_thread_id") ||
+            null;
+
+        let memoryThreadId: string | null =
+            typeof memoryThreadIdRaw === "string" && isUuid(memoryThreadIdRaw)
+                ? memoryThreadIdRaw
+                : null;
+
+        // If none was provided, create a new memory thread row (self-healing)
+        if (!memoryThreadId && supabase && userId) {
+            try {
+                const { data: created, error } = await supabase
+                    .from("memory_threads")
+                    .insert({ clerk_user_id: userId })
+                    .select("id")
+                    .single();
+
+                if (!error && created?.id) {
+                    memoryThreadId = created.id;
+                } else if (error) {
+                    console.warn("SCENARIO: memory thread insert error", error.message || error);
+                } else {
+                    console.warn("SCENARIO: memory thread insert returned no id");
+                }
+            } catch (e: any) {
+                console.warn("SCENARIO: memory thread create failed", e?.message || e);
+            }
+        }
+
+        // Wrapper so ALL responses include memory_thread_id without editing every return block
+        const respond = (json: any, init?: any) =>
+            noStore({ ...json, memory_thread_id: memoryThreadId }, init);
 
         if (!message) {
             return noStore(
