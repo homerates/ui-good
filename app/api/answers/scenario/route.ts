@@ -2046,6 +2046,8 @@ Schema:
                 {
                     success: false,
                     provider: "xai",
+                    // ✅ Top-level parity
+                    memory_thread_id: memoryThreadId,
                     error: { message: "Scenario payload missing required fields", requestId },
                     marketData,
                     meta: {
@@ -2054,111 +2056,118 @@ Schema:
                         userIdPresent: Boolean(userId),
                         model: xai.model,
                         maxTokens,
+                        // ✅ Meta parity
+                        memory_thread_id: memoryThreadId,
                         timing_ms: { fred_ms, xai_ms, parse_ms, total_ms: Date.now() - t0 },
                     },
                 },
                 { status: 502, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
             );
-        }
 
-        // Normalize for GrokCard + Inputs block + on-demand sensitivity only
-        result = normalizeForGrokCard(result, message, marketData);
-        result = postParseValidateScenario(result, message, marketData);
 
-        // === Final hard guards (deterministic) ===
-        // 1) Enforce default 30Y term unless user explicitly asked otherwise.
-        //    If model hallucinated an early payoff (e.g., 15Y), the validator should already correct payment,
-        //    but we also remove any amortization rows showing payoff before 30.
-        try {
-            const termYears =
-                Number((result as any)?.scenario_inputs?.term_years) ||
-                Number((result as any)?.term_years) ||
-                30;
+            // Normalize for GrokCard + Inputs block + on-demand sensitivity only
+            result = normalizeForGrokCard(result, message, marketData);
+            result = postParseValidateScenario(result, message, marketData);
 
-            if (Array.isArray((result as any)?.amortization_summary) && termYears === 30) {
-                const cleaned = (result as any).amortization_summary.filter((r: any) => {
-                    const y = Number(r?.year);
-                    const bal = Number(r?.ending_balance);
-                    if (!Number.isFinite(y)) return false;
-                    if (Number.isFinite(bal) && bal === 0 && y < 30) return false; // remove premature payoff rows
-                    return true;
-                });
-                (result as any).amortization_summary = cleaned;
-            }
+            // === Final hard guards (deterministic) ===
+            // 1) Enforce default 30Y term unless user explicitly asked otherwise.
+            //    If model hallucinated an early payoff (e.g., 15Y), the validator should already correct payment,
+            //    but we also remove any amortization rows showing payoff before 30.
+            try {
+                const termYears =
+                    Number((result as any)?.scenario_inputs?.term_years) ||
+                    Number((result as any)?.term_years) ||
+                    30;
 
-            // 2) Cash flow table unit normalization:
-            //    If cash_flow_table values appear to be MONTHLY (and match sensitivity monthly_cash_flow),
-            //    convert to ANNUAL so GrokCard is consistent.
-            const cashTable = (result as any)?.cash_flow_table;
-            const curMCF = Number((result as any)?.sensitivity_table?.current_rate?.monthly_cash_flow);
+                if (Array.isArray((result as any)?.amortization_summary) && termYears === 30) {
+                    const cleaned = (result as any).amortization_summary.filter((r: any) => {
+                        const y = Number(r?.year);
+                        const bal = Number(r?.ending_balance);
+                        if (!Number.isFinite(y)) return false;
+                        if (Number.isFinite(bal) && bal === 0 && y < 30) return false; // remove premature payoff rows
+                        return true;
+                    });
+                    (result as any).amortization_summary = cleaned;
+                }
 
-            if (Array.isArray(cashTable) && cashTable.length) {
-                const row1 = cashTable.find((r: any) => Number(r?.year) === 1) ?? cashTable[0];
-                const cf1 = Number(row1?.net_cash_flow);
+                // 2) Cash flow table unit normalization:
+                //    If cash_flow_table values appear to be MONTHLY (and match sensitivity monthly_cash_flow),
+                //    convert to ANNUAL so GrokCard is consistent.
+                const cashTable = (result as any)?.cash_flow_table;
+                const curMCF = Number((result as any)?.sensitivity_table?.current_rate?.monthly_cash_flow);
 
-                const looksMonthly =
-                    Number.isFinite(cf1) &&
-                    Math.abs(cf1) < 20000 && // annual CF often exceeds this; monthly usually within a few thousand
-                    Number.isFinite(curMCF) &&
-                    Math.abs(cf1 - curMCF) <= Math.max(50, Math.abs(curMCF) * 0.25);
+                if (Array.isArray(cashTable) && cashTable.length) {
+                    const row1 = cashTable.find((r: any) => Number(r?.year) === 1) ?? cashTable[0];
+                    const cf1 = Number(row1?.net_cash_flow);
 
-                if (looksMonthly) {
-                    (result as any).cash_flow_table = cashTable.map((r: any) => ({
-                        year: Number(r?.year),
-                        net_cash_flow: Math.round(Number(r?.net_cash_flow) * 12),
-                    }));
-                    // Ensure GrokCard unit reflects annual
-                    if ((result as any)?.grokcard_tables?.cash_flow) {
-                        (result as any).grokcard_tables.cash_flow.unit = "annual";
-                    }
-                    if (Array.isArray((result as any)?.validation_warnings)) {
-                        (result as any).validation_warnings.push(
-                            "cash_flow_table appeared monthly; converted to annual for consistency."
-                        );
-                    } else {
-                        (result as any).validation_warnings = [
-                            "cash_flow_table appeared monthly; converted to annual for consistency.",
-                        ];
+                    const looksMonthly =
+                        Number.isFinite(cf1) &&
+                        Math.abs(cf1) < 20000 && // annual CF often exceeds this; monthly usually within a few thousand
+                        Number.isFinite(curMCF) &&
+                        Math.abs(cf1 - curMCF) <= Math.max(50, Math.abs(curMCF) * 0.25);
+
+                    if (looksMonthly) {
+                        (result as any).cash_flow_table = cashTable.map((r: any) => ({
+                            year: Number(r?.year),
+                            net_cash_flow: Math.round(Number(r?.net_cash_flow) * 12),
+                        }));
+                        // Ensure GrokCard unit reflects annual
+                        if ((result as any)?.grokcard_tables?.cash_flow) {
+                            (result as any).grokcard_tables.cash_flow.unit = "annual";
+                        }
+                        if (Array.isArray((result as any)?.validation_warnings)) {
+                            (result as any).validation_warnings.push(
+                                "cash_flow_table appeared monthly; converted to annual for consistency."
+                            );
+                        } else {
+                            (result as any).validation_warnings = [
+                                "cash_flow_table appeared monthly; converted to annual for consistency.",
+                            ];
+                        }
                     }
                 }
+            } catch {
+                // swallow; never fail the request due to guardrails
             }
-        } catch {
-            // swallow; never fail the request due to guardrails
+
+            const total_ms = Date.now() - t0;
+
+            return respond(
+                {
+                    success: true,
+                    provider: "xai",
+                    // ✅ Top-level parity
+                    memory_thread_id: memoryThreadId,
+                    result,
+                    marketData,
+                    meta: {
+                        build_tag: buildTag,
+                        requestId,
+                        userIdPresent: Boolean(userId),
+                        model: xai.model,
+                        maxTokens,
+                        // ✅ Meta parity
+                        memory_thread_id: memoryThreadId,
+                        timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
+                    },
+                },
+                { headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+            );
+
+        } catch (err: any) {
+            const total_ms = Date.now() - t0;
+            return noStore(
+                {
+                    success: false,
+                    provider: "xai",
+                    error: {
+                        message: "Scenario engine failed",
+                        requestId,
+                        timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
+                        detail: err?.message || String(err),
+                    },
+                },
+                { status: 500, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+            );
         }
-
-        const total_ms = Date.now() - t0;
-
-        return respond(
-            {
-                success: true,
-                provider: "xai",
-                result,
-                marketData,
-                meta: {
-                    build_tag: buildTag,
-                    requestId,
-                    userIdPresent: Boolean(userId),
-                    model: xai.model,
-                    maxTokens,
-                    timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
-                },
-            },
-            { headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
-        );
-    } catch (err: any) {
-        const total_ms = Date.now() - t0;
-        return noStore(
-            {
-                success: false,
-                provider: "xai",
-                error: {
-                    message: "Scenario engine failed",
-                    requestId,
-                    timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
-                    detail: err?.message || String(err),
-                },
-            },
-            { status: 500, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
-        );
     }
-}
