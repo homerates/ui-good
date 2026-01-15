@@ -2133,6 +2133,27 @@ Schema:
         }
 
         const total_ms = Date.now() - t0;
+        // === MEMORY WRITE: scenario snapshot (success only) ===
+        try {
+            if (supabase && memoryThreadId) {
+                await supabase.from("memory_items").insert({
+                    memory_thread_id: memoryThreadId,
+                    kind: "scenario_snapshot",
+                    content_text: result?.plain_english_summary || "Scenario result",
+                    content_json: {
+                        scenario_inputs: result?.scenario_inputs ?? null,
+                        computed_financials: result?.computed_financials ?? null,
+                        dscr: result?.dscr ?? null,
+                        rate_used_pct: result?.rate_context?.rate_used ?? null,
+                        build_tag: buildTag,
+                        requestId,
+                    },
+                    tags: ["scenario", "auto"],
+                });
+            }
+        } catch {
+            // swallow — memory must never break response
+        }
 
         return respond(
             {
