@@ -1932,20 +1932,22 @@ export async function POST(req: NextRequest) {
         }
 
         // Wrapper so ALL responses include memory_thread_id without editing every return block
-        const respond = (json: any, init?: ResponseInit) =>
-            noStore(
-                {
-                    ...json,
-                    // Keep top-level for easy debugging/visibility
+        const respond = (json: any, init?: ResponseInit) => {
+            const obj = (json && typeof json === "object") ? json : { data: json };
+
+            // Force-stamp at the very end so nothing downstream can "replace" it
+            const stamped = {
+                ...obj,
+                memory_thread_id: memoryThreadId,
+                meta: {
+                    ...(obj.meta && typeof obj.meta === "object" ? obj.meta : {}),
                     memory_thread_id: memoryThreadId,
-                    // Also mirror into meta for consistent client plumbing
-                    meta: {
-                        ...(json?.meta ?? {}),
-                        memory_thread_id: memoryThreadId,
-                    },
                 },
-                init
-            );
+            };
+
+            return noStore(stamped, init);
+        };
+
 
 
         if (!message) {
