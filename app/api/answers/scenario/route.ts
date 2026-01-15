@@ -1887,6 +1887,7 @@ export async function POST(req: NextRequest) {
     let fred_ms = 0;
     let xai_ms = 0;
     let parse_ms = 0;
+    let memoryThreadId: string | null = null;
 
     try {
         const body = (await req.json().catch(() => ({}))) as { message?: string; userId?: string };
