@@ -1931,6 +1931,28 @@ export async function POST(req: NextRequest) {
                 console.warn("SCENARIO: memory thread create failed", e?.message || e);
             }
         }
+        // =========================
+        // MEMORY READ: latest scenario snapshot for this thread
+        // =========================
+        let lastScenarioSnapshot: any | null = null;
+
+        try {
+            if (supabase && memoryThreadId) {
+                const { data } = await supabase
+                    .from("memory_items")
+                    .select("content_json, created_at")
+                    .eq("memory_thread_id", memoryThreadId)
+                    .eq("kind", "scenario_snapshot")
+                    .order("created_at", { ascending: false })
+                    .limit(1);
+
+                if (Array.isArray(data) && data.length && (data[0] as any)?.content_json) {
+                    lastScenarioSnapshot = (data[0] as any).content_json;
+                }
+            }
+        } catch {
+            // swallow — memory read must never break scenario
+        }
 
         // Wrapper so ALL responses include memory_thread_id without editing every return block
         const respond = (json: any, init?: ResponseInit) => {
@@ -1964,7 +1986,7 @@ export async function POST(req: NextRequest) {
         fred_ms = Date.now() - tFred;
 
         // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
-        const systemPrompt = compactWhitespace(`
+        let systemPrompt = compactWhitespace(`
 You are HomeRates.AI Smart Scenario Engine.
 
 OUTPUT RULES (hard):
@@ -2033,6 +2055,17 @@ Schema:
         // 3) xAI
         const tXai = Date.now();
         const maxTokens = 900;
+        // =========================
+        // MEMORY INJECTION (scenario baseline)
+        // =========================
+        if (lastScenarioSnapshot) {
+            const memBlock =
+                `\n\nPRIOR SCENARIO MEMORY (use as baseline unless user overrides):\n` +
+                JSON.stringify(lastScenarioSnapshot) +
+                `\n\nRules:\n- Treat this as the active baseline.\n- If user provides new inputs, update only those fields.\n- If critical inputs are missing, ask only for the missing fields.\n`;
+            systemPrompt = `${systemPrompt}${memBlock}`;
+        }
+
         const xai = await callXaiJson(systemPrompt, message, maxTokens);
         xai_ms = Date.now() - tXai;
 
