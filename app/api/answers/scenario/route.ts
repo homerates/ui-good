@@ -1932,8 +1932,21 @@ export async function POST(req: NextRequest) {
         }
 
         // Wrapper so ALL responses include memory_thread_id without editing every return block
-        const respond = (json: any, init?: any) =>
-            noStore({ ...json, memory_thread_id: memoryThreadId }, init);
+        const respond = (json: any, init?: ResponseInit) =>
+            noStore(
+                {
+                    ...json,
+                    // Keep top-level for easy debugging/visibility
+                    memory_thread_id: memoryThreadId,
+                    // Also mirror into meta for consistent client plumbing
+                    meta: {
+                        ...(json?.meta ?? {}),
+                        memory_thread_id: memoryThreadId,
+                    },
+                },
+                init
+            );
+
 
         if (!message) {
             return respond(
@@ -2027,7 +2040,7 @@ Schema:
 
         // Validation gate
         if (!result || typeof result !== "object" || typeof result.plain_english_summary !== "string") {
-            return noStore(
+            return respond(
                 {
                     success: false,
                     provider: "xai",
@@ -2113,7 +2126,7 @@ Schema:
 
         const total_ms = Date.now() - t0;
 
-        return noStore(
+        return respond(
             {
                 success: true,
                 provider: "xai",
