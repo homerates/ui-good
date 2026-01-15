@@ -1936,7 +1936,7 @@ export async function POST(req: NextRequest) {
             noStore({ ...json, memory_thread_id: memoryThreadId }, init);
 
         if (!message) {
-            return noStore(
+            return respond(
                 { error: "Message is required" },
                 { status: 400, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
             );
