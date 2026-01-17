@@ -498,6 +498,9 @@ async function handle(req: NextRequest, intentParam?: string) {
     } catch {
         userId = (body as any)?.userId;
     }
+    // HR-MEMORY:THREAD-ID
+    // If client sent a memory_thread_id, we trust it.
+    // Otherwise we will create one ONCE and reuse it for this request.
 
     // ===== MEMORY THREAD (separate from chat threads) =====
     function isUuid(v: string) {
@@ -515,6 +518,9 @@ async function handle(req: NextRequest, intentParam?: string) {
         typeof memoryThreadIdRaw === "string" && isUuid(memoryThreadIdRaw)
             ? memoryThreadIdRaw
             : null;
+    // HR-MEMORY:THREAD-ID:CREATE
+    // Creating a new memory_thread_id because none was provided.
+    // IMPORTANT: caller must reuse this ID for follow-up questions in the same chat.
 
     // If none was provided, create a new memory thread row.
     // This makes the endpoint self-healing and ensures every session can have a stable id.
@@ -885,10 +891,16 @@ async function handle(req: NextRequest, intentParam?: string) {
     mark("after baseline answer");
 
     // ===== GROK BRAIN =====
+    // HR-MEMORY:LOAD-CONTEXT
+    // Load recent Q/A pairs for this memory_thread_id to enable follow-up continuity.
+    // This context is injected into the Grok prompt.
+
     let conversationHistory = "";
     if (userId && supabase) {
         try {
             const { data: history } = await supabase
+                // HR-MEMORY:LOAD-CONTEXT:SUPABASE
+
                 .from("user_answers")
                 .select("question, answer_summary, answer")
                 .eq("clerk_user_id", userId)
@@ -1138,6 +1150,8 @@ async function handle(req: NextRequest, intentParam?: string) {
             followUp,
         });
     }
+    // HR-MEMORY:GROK-CALL
+    // Inject prior conversation context + current user question into Grok
 
     const grokPrompt = compactWhitespace(
         `
@@ -1232,6 +1246,8 @@ Return valid JSON only:
             console.warn("Sources bundle failed", e?.message || e);
         }
     }
+    // HR-MEMORY:SAVE-ANSWER
+    // Persist assistant response with memory_thread_id for future recall
 
     // Save memory only on success
     if (grokFinal && userId && supabase) {
