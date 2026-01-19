@@ -6,8 +6,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
 
-const TABLE = "user_answers";
 const THREADS_TABLE = "memory_threads";
+const LIBRARY_POST_TABLE = "library_events";
+const TABLE = "user_answers";
 
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });
@@ -91,6 +92,7 @@ export async function GET(req: NextRequest) {
             .limit(20);
 
         if (threadId) q = q.eq("memory_thread_id", threadId);
+        q = q.or("tool_id.is.null,tool_id.neq.library_route");
 
         const { data, error } = await q;
 
@@ -130,6 +132,7 @@ export async function GET(req: NextRequest) {
  * - answer_summary (string)
  */
 export async function POST(req: NextRequest) {
+
     try {
         const { userId } = await auth();
         if (!userId) {
@@ -143,7 +146,7 @@ export async function POST(req: NextRequest) {
         });
 
         const primaryEmail =
-            user?.emailAddresses?.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress ??
+            user?.emailAddresses?.find((e) => e.id === user?.primaryEmailAddressId)?.emailAddress ??
             user?.emailAddresses?.[0]?.emailAddress ??
             null;
 
@@ -253,7 +256,7 @@ export async function POST(req: NextRequest) {
         if (memoryThreadId) insertPayload.memory_thread_id = memoryThreadId;
         if (isUuid(incomingProjectId)) insertPayload.project_id = incomingProjectId;
 
-        const { data, error } = await supabase.from(TABLE).insert(insertPayload).select().single();
+        const { data, error } = await supabase.from(LIBRARY_POST_TABLE).insert(insertPayload).select().single();
 
         if (error) {
             console.error("Supabase POST error in /api/library:", error);

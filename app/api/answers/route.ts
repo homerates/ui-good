@@ -905,6 +905,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .select("question, answer_summary, answer")
                 .eq("clerk_user_id", userId)
                 .eq("memory_thread_id", memoryThreadId)
+                .or("tool_id.is.null,tool_id.neq.library_route")
                 .order("created_at", { ascending: false })
                 .limit(3);
 
