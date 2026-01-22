@@ -543,6 +543,36 @@ async function handle(req: NextRequest, intentParam?: string) {
             console.warn("ANSWERS: memory thread create failed", e?.message || e);
         }
     }
+    // HR-MEMORY:LOAD-CONTEXT
+    // Load prior Q/A turns for this clerk_user_id + memory_thread_id.
+    // This is required for ChatGPT-style follow-up recall.
+    let recallTurnsText = "";
+    try {
+        if (supabase && userId && memoryThreadId) {
+            const { data: turns, error: turnsErr } = await supabase
+                .from("user_answers")
+                .select("question, answer_markdown, created_at")
+                .eq("clerk_user_id", userId)
+                .eq("memory_thread_id", memoryThreadId)
+                .order("created_at", { ascending: false })
+                .limit(8);
+
+            if (!turnsErr && Array.isArray(turns) && turns.length) {
+                const ordered = [...turns].reverse(); // chronological
+                recallTurnsText = ordered
+                    .map((t: any, idx: number) => {
+                        const q = String(t?.question || "").trim();
+                        const a = String(t?.answer_markdown || "").trim();
+                        if (!q && !a) return "";
+                        return `Turn ${idx + 1}\nUser: ${q}\nAssistant: ${a}`.trim();
+                    })
+                    .filter(Boolean)
+                    .join("\n\n");
+            }
+        }
+    } catch {
+        // swallow
+    }
 
 
     const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
@@ -1154,7 +1184,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     // HR-MEMORY:GROK-CALL
     // Inject prior conversation context + current user question into Grok
 
-    const grokPrompt = compactWhitespace(
+    let grokPrompt = compactWhitespace(
         `
 ${specialistPrefix}
 
@@ -1197,6 +1227,16 @@ Return valid JSON only:
     // Track whether we already injected a **Sources** block into grokFinal.answer
     let sourcesInjected = false;
     mark("before Grok call");
+    // HR-MEMORY:INJECT
+    // Inject prior Q/A turns into grokPrompt so follow-ups recall context.
+    // Required because Grok call path is user-only (prompt string is the context).
+    if (typeof recallTurnsText === "string" && recallTurnsText.trim()) {
+        grokPrompt =
+            "Prior conversation context (same user, same memory_thread_id):\n" +
+            recallTurnsText +
+            "\n\nCurrent question:\n" +
+            grokPrompt;
+    }
 
     if (XAI_API_KEY) {
         const result = await callGrokWithRepair(grokPrompt);
