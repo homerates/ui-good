@@ -841,6 +841,8 @@ export default function Page() {
 
     // threads + active
     const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
+    // Memory thread id per chat thread (ChatGPT-style: recall works only if we reuse the same memory_thread_id)
+    const [memoryThreadByChatId, setMemoryThreadByChatId] = useState<Record<string, string>>({});
     const [activeId, setActiveId] = useState<string | null>(null);
 
     // overlays
@@ -865,9 +867,12 @@ export default function Page() {
                 threads?: Record<string, ChatMsg[]>;
                 history?: { id: string; title: string; updatedAt?: number }[];
                 activeId?: string | null;
+                memoryThreadByChatId?: Record<string, string>;
             };
             if (data.threads) setThreads(data.threads);
             if (Array.isArray(data.history)) setHistory(data.history);
+            if (data.memoryThreadByChatId) setMemoryThreadByChatId(data.memoryThreadByChatId);
+
             if (data.activeId && data.threads?.[data.activeId]) {
                 setActiveId(data.activeId);
                 setMessages(data.threads[data.activeId] || []);
@@ -882,12 +887,12 @@ export default function Page() {
         try {
             localStorage.setItem(
                 LS_KEY,
-                JSON.stringify({ threads, history, activeId })
+                JSON.stringify({ threads, history, activeId, memoryThreadByChatId })
             );
         } catch (e) {
             console.warn('hr.chat save failed', e);
         }
-    }, [threads, history, activeId]);
+    }, [threads, history, activeId, memoryThreadByChatId]);
 
     // snapshot into active thread
     useEffect(() => {
@@ -1284,6 +1289,9 @@ export default function Page() {
                 return next.slice(0, 20);
             });
         }
+        // Resolve (and later persist) the server-side memory thread id for this chat thread.
+        // If we don't reuse this id, the backend will create a new memory thread every request and recall will be empty.
+        const existingMemoryThreadId = tid ? memoryThreadByChatId[tid] : undefined;
 
         // Create a placeholder assistant bubble immediately (no canned text)
         const answerId = uid();

@@ -518,6 +518,7 @@ async function handle(req: NextRequest, intentParam?: string) {
         typeof memoryThreadIdRaw === "string" && isUuid(memoryThreadIdRaw)
             ? memoryThreadIdRaw
             : null;
+
     // HR-MEMORY:THREAD-ID:CREATE
     // Creating a new memory_thread_id because none was provided.
     // IMPORTANT: caller must reuse this ID for follow-up questions in the same chat.
