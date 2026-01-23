@@ -545,24 +545,54 @@ async function handle(req: NextRequest, intentParam?: string) {
     }
     // HR-MEMORY:LOAD-CONTEXT
     // Load prior Q/A turns for this clerk_user_id + memory_thread_id.
-    // This is required for ChatGPT-style follow-up recall.
+    // Self-verifying via meta (no console logs).
     let recallTurnsText = "";
+    const recallMeta: { loaded: number; error: string | null } = { loaded: 0, error: null };
+
     try {
         if (supabase && userId && memoryThreadId) {
+            // Use select("*") to avoid silent failure from column mismatches.
             const { data: turns, error: turnsErr } = await supabase
                 .from("user_answers")
-                .select("question, answer_markdown, created_at")
-                .eq("clerk_user_id", userId)
+                .select("*")
                 .eq("memory_thread_id", memoryThreadId)
                 .order("created_at", { ascending: false })
-                .limit(8);
+                .limit(12);
 
-            if (!turnsErr && Array.isArray(turns) && turns.length) {
-                const ordered = [...turns].reverse(); // chronological
+            if (turnsErr) {
+                recallMeta.error = String((turnsErr as any).message || turnsErr);
+            } else if (Array.isArray(turns) && turns.length) {
+                // Optional: if your table definitely has clerk_user_id, filter in code to avoid query mismatch.
+                const filtered = turns.filter((t: any) => {
+                    const cid = t?.clerk_user_id ?? t?.user_id ?? t?.clerkUserId;
+                    return cid ? String(cid) === String(userId) : true;
+                });
+
+                const ordered = [...filtered].reverse(); // chronological
+                recallMeta.loaded = ordered.length;
+
                 recallTurnsText = ordered
                     .map((t: any, idx: number) => {
-                        const q = String(t?.question || "").trim();
-                        const a = String(t?.answer_markdown || "").trim();
+                        const q =
+                            String(
+                                t?.question ??
+                                t?.question_text ??
+                                t?.user_question ??
+                                t?.prompt ??
+                                t?.message ??
+                                ""
+                            ).trim();
+
+                        const a =
+                            String(
+                                t?.answer_markdown ??
+                                t?.answer ??
+                                t?.answer_text ??
+                                t?.response ??
+                                t?.assistant_answer ??
+                                ""
+                            ).trim();
+
                         if (!q && !a) return "";
                         return `Turn ${idx + 1}\nUser: ${q}\nAssistant: ${a}`.trim();
                     })
@@ -570,9 +600,10 @@ async function handle(req: NextRequest, intentParam?: string) {
                     .join("\n\n");
             }
         }
-    } catch {
-        // swallow
+    } catch (e: any) {
+        recallMeta.error = String(e?.message || e);
     }
+
 
 
     const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
