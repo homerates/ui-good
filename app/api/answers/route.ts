@@ -544,67 +544,44 @@ async function handle(req: NextRequest, intentParam?: string) {
         }
     }
     // HR-MEMORY:LOAD-CONTEXT
-    // Load prior Q/A turns for this clerk_user_id + memory_thread_id.
-    // Self-verifying via meta (no console logs).
+    // Load prior Q/A turns for this clerk_user_id + memory_thread_id from user_answers.
     let recallTurnsText = "";
-    const recallMeta: { loaded: number; error: string | null } = { loaded: 0, error: null };
 
     try {
         if (supabase && userId && memoryThreadId) {
-            // Use select("*") to avoid silent failure from column mismatches.
-            const { data: turns, error: turnsErr } = await supabase
+            const { data: turns, error } = await supabase
                 .from("user_answers")
-                .select("*")
+                .select("question, answer, created_at")
+                .eq("clerk_user_id", userId)
                 .eq("memory_thread_id", memoryThreadId)
                 .order("created_at", { ascending: false })
-                .limit(12);
+                .limit(6);
 
-            if (turnsErr) {
-                recallMeta.error = String((turnsErr as any).message || turnsErr);
-            } else if (Array.isArray(turns) && turns.length) {
-                // Optional: if your table definitely has clerk_user_id, filter in code to avoid query mismatch.
-                const filtered = turns.filter((t: any) => {
-                    const cid = t?.clerk_user_id ?? t?.user_id ?? t?.clerkUserId;
-                    return cid ? String(cid) === String(userId) : true;
-                });
-
-                const ordered = [...filtered].reverse(); // chronological
-                recallMeta.loaded = ordered.length;
+            if (!error && Array.isArray(turns) && turns.length) {
+                const ordered = [...turns].reverse(); // chronological
 
                 recallTurnsText = ordered
                     .map((t: any, idx: number) => {
-                        const q =
-                            String(
-                                t?.question ??
-                                t?.question_text ??
-                                t?.user_question ??
-                                t?.prompt ??
-                                t?.message ??
-                                ""
-                            ).trim();
+                        const q = String(t?.question || "").trim();
 
+                        // answer is usually an object (grokFinal). Prefer its "answer" field, else stringify safely.
+                        const raw = t?.answer;
                         const a =
-                            String(
-                                t?.answer_markdown ??
-                                t?.answer ??
-                                t?.answer_text ??
-                                t?.response ??
-                                t?.assistant_answer ??
-                                ""
-                            ).trim();
+                            raw && typeof raw === "object"
+                                ? String((raw as any).answer || JSON.stringify(raw))
+                                : String(raw || "");
 
-                        if (!q && !a) return "";
-                        return `Turn ${idx + 1}\nUser: ${q}\nAssistant: ${a}`.trim();
+                        const aTrim = a.trim();
+                        if (!q && !aTrim) return "";
+                        return `Turn ${idx + 1}\nUser: ${q}\nAssistant: ${aTrim}`.trim();
                     })
                     .filter(Boolean)
                     .join("\n\n");
             }
         }
-    } catch (e: any) {
-        recallMeta.error = String(e?.message || e);
+    } catch {
+        // swallow — recall must never break answers
     }
-
-
 
     const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
     const intent = (intentParam || body.intent || "web").trim() || "web";
