@@ -1893,44 +1893,104 @@ export async function POST(req: NextRequest) {
         const body = (await req.json().catch(() => ({}))) as { message?: string; userId?: string };
         const message = (body?.message || "").trim();
         const userId = body?.userId;
-        // ===== MEMORY THREAD (separate from chat threads) =====
+        // ===== HR-MEMORY:THREAD-ID (server-authoritative by userId + chat_id) =====
         function isUuid(v: string) {
             return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
         }
 
-        // Pull from body OR header OR query param (keep same contract as /api/answers)
-        const memoryThreadIdRaw =
+        // Accept chat_id from body/header/query (client should persist per conversation)
+        const chatIdRaw =
+            (body as any)?.chat_id ||
+            (body as any)?.chatId ||
+            req.headers.get("x-chat-id") ||
+            req.nextUrl.searchParams.get("chat_id") ||
+            null;
+
+        const clientMemoryThreadIdRaw =
             (body as any)?.memory_thread_id ||
             (body as any)?.memoryThreadId ||
             req.headers.get("x-memory-thread-id") ||
             req.nextUrl.searchParams.get("memory_thread_id") ||
             null;
 
-        let memoryThreadId: string | null =
-            typeof memoryThreadIdRaw === "string" && isUuid(memoryThreadIdRaw)
-                ? memoryThreadIdRaw
+        const chatIdFromClient =
+            typeof chatIdRaw === "string" && isUuid(chatIdRaw) ? chatIdRaw : null;
+
+        const clientMemoryThreadId =
+            typeof clientMemoryThreadIdRaw === "string" && isUuid(clientMemoryThreadIdRaw)
+                ? clientMemoryThreadIdRaw
                 : null;
 
-        // If none was provided, create a new memory thread row (self-healing)
-        if (!memoryThreadId && supabase && userId) {
-            try {
-                const { data: created, error } = await supabase
-                    .from("memory_threads")
-                    .insert({ clerk_user_id: userId })
-                    .select("id")
-                    .single();
+        // Ensure we always have a chat_id (server can mint one for backward compat)
+        const chatId: string =
+            chatIdFromClient ||
+            (globalThis.crypto as any)?.randomUUID?.() ||
+            Math.random().toString(36).slice(2);
 
-                if (!error && created?.id) {
-                    memoryThreadId = created.id;
-                } else if (error) {
-                    console.warn("SCENARIO: memory thread insert error", error.message || error);
-                } else {
-                    console.warn("SCENARIO: memory thread insert returned no id");
-                }
-            } catch (e: any) {
-                console.warn("SCENARIO: memory thread create failed", e?.message || e);
+        async function resolveOrCreateMemoryThreadId() {
+            if (!supabase || !userId) {
+                // No server DB client (or unauthenticated) -> best-effort fallback
+                return clientMemoryThreadId || null;
             }
+
+            // 1) Try to resolve mapping from chat_threads (server-authoritative)
+            // Expected schema (Option 1):
+            //   chat_threads: chat_id (uuid, pk), clerk_user_id (text), memory_thread_id (uuid), created_at (timestamptz)
+            try {
+                const { data: existing, error } = await supabase
+                    .from("chat_threads")
+                    .select("memory_thread_id")
+                    .eq("clerk_user_id", userId)
+                    .eq("chat_id", chatId)
+                    .maybeSingle();
+
+                if (!error && existing?.memory_thread_id && isUuid(existing.memory_thread_id)) {
+                    return existing.memory_thread_id as string;
+                }
+            } catch {
+                // If table doesn't exist yet, fall through to legacy behavior.
+            }
+
+            // 2) Choose a memory thread id:
+            //    - Prefer client-provided memory_thread_id ONLY as a bootstrap (legacy clients).
+            //    - Otherwise create a new memory_threads row.
+            let id = clientMemoryThreadId;
+
+            if (!id) {
+                try {
+                    const { data: created, error } = await supabase
+                        .from("memory_threads")
+                        .insert({ clerk_user_id: userId })
+                        .select("id")
+                        .single();
+
+                    if (!error && created?.id && isUuid(created.id)) {
+                        id = created.id as string;
+                    }
+                } catch (e: any) {
+                    console.warn("SCENARIO: memory thread create failed", e?.message || e);
+                }
+            }
+
+            // 3) Upsert mapping into chat_threads so future calls are deterministic
+            if (id && isUuid(id)) {
+                try {
+                    await supabase
+                        .from("chat_threads")
+                        .upsert(
+                            { chat_id: chatId, clerk_user_id: userId, memory_thread_id: id },
+                            { onConflict: "chat_id" }
+                        );
+                } catch {
+                    // If chat_threads doesn't exist yet, ignore (legacy fallback)
+                }
+            }
+
+            return id || null;
         }
+
+        memoryThreadId = await resolveOrCreateMemoryThreadId();
+        // ===== /HR-MEMORY:THREAD-ID =====
         // =========================
         // MEMORY READ: latest scenario snapshot for this thread
         // =========================
@@ -1961,9 +2021,11 @@ export async function POST(req: NextRequest) {
             // Force-stamp at the very end so nothing downstream can "replace" it
             const stamped = {
                 ...obj,
+                chat_id: chatId,
                 memory_thread_id: memoryThreadId,
                 meta: {
                     ...(obj.meta && typeof obj.meta === "object" ? obj.meta : {}),
+                    chat_id: chatId,
                     memory_thread_id: memoryThreadId,
                 },
             };
