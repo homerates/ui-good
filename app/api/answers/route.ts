@@ -462,9 +462,19 @@ async function handle(req: NextRequest, intentParam?: string) {
         mode?: "borrower" | "public";
         userId?: string;
 
-        // NEW: memory thread key for follow-up context
+        // NEW (Option 1): durable chat session keys
+        chat_id?: string;
+        chatId?: string; // allow camelCase from client
+        project_id?: string;
+        projectId?: string; // allow camelCase from client
+
+        // Legacy compatibility (we DO NOT trust this when chat_id + project_id are present)
         memory_thread_id?: string;
         memoryThreadId?: string; // allow camelCase from client
+
+        // Legacy compatibility (some clients used thread_id)
+        thread_id?: string;
+        threadId?: string;
     };
 
 
@@ -499,15 +509,39 @@ async function handle(req: NextRequest, intentParam?: string) {
         userId = (body as any)?.userId;
     }
     // HR-MEMORY:THREAD-ID
-    // If client sent a memory_thread_id, we trust it.
-    // Otherwise we will create one ONCE and reuse it for this request.
+    // Option 1 (server-authoritative):
+    // Resolve memory_thread_id by (clerk_user_id, project_id, chat_id) via public.chat_threads.
+    // Fallback to legacy client-provided memory_thread_id only if chat_id/project_id are missing.
 
-    // ===== MEMORY THREAD (separate from chat threads) =====
+    // ===== helpers =====
     function isUuid(v: string) {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
     }
 
-    const memoryThreadIdRaw =
+    const chatIdRaw =
+        (body as any)?.chat_id ||
+        (body as any)?.chatId ||
+        (body as any)?.thread_id ||
+        (body as any)?.threadId ||
+        req.headers.get("x-chat-id") ||
+        req.nextUrl.searchParams.get("chat_id") ||
+        null;
+
+    const projectIdRaw =
+        (body as any)?.project_id ||
+        (body as any)?.projectId ||
+        req.headers.get("x-project-id") ||
+        req.nextUrl.searchParams.get("project_id") ||
+        null;
+
+    const chatId =
+        typeof chatIdRaw === "string" && chatIdRaw.trim().length ? chatIdRaw.trim() : null;
+
+    const projectId =
+        typeof projectIdRaw === "string" && isUuid(projectIdRaw) ? projectIdRaw : null;
+
+    // Legacy: only used when we cannot resolve server-side via chat_threads
+    const legacyMemoryThreadIdRaw =
         (body as any)?.memory_thread_id ||
         (body as any)?.memoryThreadId ||
         req.headers.get("x-memory-thread-id") ||
@@ -515,16 +549,75 @@ async function handle(req: NextRequest, intentParam?: string) {
         null;
 
     let memoryThreadId: string | null =
-        typeof memoryThreadIdRaw === "string" && isUuid(memoryThreadIdRaw)
-            ? memoryThreadIdRaw
+        typeof legacyMemoryThreadIdRaw === "string" && isUuid(legacyMemoryThreadIdRaw)
+            ? legacyMemoryThreadIdRaw
             : null;
 
-    // HR-MEMORY:THREAD-ID:CREATE
-    // Creating a new memory_thread_id because none was provided.
-    // IMPORTANT: caller must reuse this ID for follow-up questions in the same chat.
+    let chatThreadId: string | null = null;
 
-    // If none was provided, create a new memory thread row.
-    // This makes the endpoint self-healing and ensures every session can have a stable id.
+    // ===== Option 1: server-authoritative resolver =====
+    if (supabase && userId && projectId && chatId) {
+        try {
+            // Upsert the chat_threads row using the unique constraint:
+            // (clerk_user_id, project_id, chat_id)
+            const upsertPayload: any = {
+                clerk_user_id: userId,
+                project_id: projectId,
+                chat_id: chatId,
+                // keep legacy thread_id populated for back-compat; default to chatId
+                thread_id: typeof (body as any)?.thread_id === "string" && (body as any)?.thread_id.trim()
+                    ? String((body as any).thread_id).trim()
+                    : chatId,
+                updated_at: new Date().toISOString(),
+            };
+
+            const { data: threadRow, error: upErr } = await supabase
+                .from("chat_threads")
+                .upsert(upsertPayload, { onConflict: "clerk_user_id,project_id,chat_id" })
+                .select("id, memory_thread_id")
+                .single();
+
+            if (upErr) {
+                console.warn("ANSWERS: chat_threads upsert error", upErr.message || upErr);
+            } else if (threadRow?.id) {
+                chatThreadId = String(threadRow.id);
+                if (threadRow.memory_thread_id) {
+                    memoryThreadId = String(threadRow.memory_thread_id);
+                } else {
+                    // Create memory_threads row once, then bind it to chat_threads
+                    const { data: created, error: mtErr } = await supabase
+                        .from("memory_threads")
+                        .insert({ clerk_user_id: userId })
+                        .select("id")
+                        .single();
+
+                    if (!mtErr && created?.id) {
+                        memoryThreadId = String(created.id);
+
+                        const { error: bindErr } = await supabase
+                            .from("chat_threads")
+                            .update({
+                                memory_thread_id: memoryThreadId,
+                                updated_at: new Date().toISOString(),
+                            })
+                            .eq("id", chatThreadId);
+
+                        if (bindErr) {
+                            console.warn("ANSWERS: chat_threads bind memory_thread_id failed", bindErr.message || bindErr);
+                        }
+                    } else if (mtErr) {
+                        console.warn("ANSWERS: memory_threads insert error", mtErr.message || mtErr);
+                    } else {
+                        console.warn("ANSWERS: memory_threads insert returned no id");
+                    }
+                }
+            }
+        } catch (e: any) {
+            console.warn("ANSWERS: chat_threads resolver failed", e?.message || e);
+        }
+    }
+
+    // ===== Legacy fallback: create memory_thread_id if none exists =====
     if (!memoryThreadId && supabase && userId) {
         try {
             const { data: created, error } = await supabase
@@ -534,7 +627,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .single();
 
             if (!error && created?.id) {
-                memoryThreadId = created.id;
+                memoryThreadId = String(created.id);
             } else if (error) {
                 console.warn("ANSWERS: memory thread insert error", error.message || error);
             } else {
@@ -544,6 +637,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             console.warn("ANSWERS: memory thread create failed", e?.message || e);
         }
     }
+
     // HR-MEMORY:LOAD-CONTEXT
     // Load prior Q/A turns for this clerk_user_id + memory_thread_id from user_answers.
     let recallTurnsText = "";
@@ -1304,6 +1398,7 @@ Return valid JSON only:
         try {
             await supabase.from("user_answers").insert({
                 clerk_user_id: userId,
+                chat_thread_id: chatThreadId,
                 memory_thread_id: memoryThreadId,
                 question,
                 answer: grokFinal,
@@ -1358,6 +1453,9 @@ Return valid JSON only:
     return noStore({
         ok: true,
         memory_thread_id: memoryThreadId,
+        chat_id: chatId,
+        project_id: projectId,
+        chat_thread_id: chatThreadId,
         route: "answers",
         intent,
         path,
