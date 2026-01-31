@@ -2129,13 +2129,37 @@ Schema:
             systemPrompt = `${systemPrompt}${memBlock}`;
         }
 
-        const aiResult = await routeAIRequest(systemPrompt, message, maxTokens, 'auto');
-        const ai_ms = Date.now() - tAI;
-        const provider = aiResult.provider; // 'claude' or 'grok'
+        // =========================
+        // ENHANCED: Add number formatting instructions for Claude
+        // =========================
+        const enhancedPrompt = `${systemPrompt}
+
+CRITICAL - NUMERIC FORMAT REQUIREMENTS:
+1. ALL dollar amounts must be FULL NUMBERS in JSON (e.g., 650000, NOT 650 or "650k")
+2. Examples of CORRECT formatting:
+   - User says "$650k home" → You return: "price": 650000
+   - User says "$585k loan" → You return: "loan_amount": 585000
+   - User says "$3,490 payment" → You return: "monthly_payment": 3490
+3. NO thousand separators (commas) in JSON numbers
+4. NO string values for numeric fields
+5. NO abbreviated notation (k, m, etc.) in JSON output
+
+Your plain_english_summary CAN use $650k notation for readability, but the JSON fields MUST use full numbers.
+`;
+
+        const aiResult = await routeAIRequest(enhancedPrompt, message, maxTokens, 'auto');
+        ai_ms = Date.now() - tAI;
+        provider = aiResult.provider; // 'claude' or 'grok'
 
         // 4) parse timing
         const tParse = Date.now();
         let result = aiResult.parsed;
+
+        // =========================
+        // SAFETY NET: Fix any numbers Claude returned in wrong scale
+        // =========================
+        result = fixScenarioNumbers(result, message);
+
         parse_ms = Date.now() - tParse;
 
         // Validation gate
