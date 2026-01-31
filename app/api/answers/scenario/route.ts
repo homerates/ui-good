@@ -2117,7 +2117,7 @@ Schema:
 
         // 3) AI Provider (Claude or Grok via intelligent routing)
         const tAI = Date.now();
-        const maxTokens = 900;
+        const maxTokens = 4096;  // Let Claude use what it needs
         // =========================
         // MEMORY INJECTION (scenario baseline)
         // =========================
