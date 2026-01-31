@@ -103,18 +103,21 @@ function fixScenarioNumbers(result: any, userMessage: string): any {
 
     // ... rest of function
     /**
-     * Fix scenario numbers that Claude might return in wrong scale
-     * (e.g., Claude sends 650 instead of 650000 for "$650k")
-     */
+  * Fix scenario numbers that Claude might return in wrong scale
+  */
     function fixScenarioNumbers(result: any, userMessage: string): any {
-        if (!result || typeof result !== 'object') return result;
+        console.log('[DEBUG] fixScenarioNumbers called!');
+        console.log('[DEBUG] result.scenario_inputs:', result?.scenario_inputs);
+
+        if (!result || typeof result !== 'object') {
+            return result;
+        }
 
         const warnings: string[] = result.validation_warnings || [];
 
         if (result.scenario_inputs) {
             const inputs = result.scenario_inputs;
 
-            // Fix price (home prices should be > $100,000 to avoid catching already-correct values)
             if (inputs.price && inputs.price < 100000) {
                 const oldPrice = inputs.price;
                 inputs.price = inputs.price * 1000;
@@ -122,7 +125,6 @@ function fixScenarioNumbers(result: any, userMessage: string): any {
                 console.log(`[Fix] Price: ${oldPrice} → ${inputs.price}`);
             }
 
-            // Fix loan_amount
             if (inputs.loan_amount && inputs.loan_amount < 100000) {
                 const oldLoan = inputs.loan_amount;
                 inputs.loan_amount = inputs.loan_amount * 1000;
@@ -131,11 +133,13 @@ function fixScenarioNumbers(result: any, userMessage: string): any {
             }
         }
 
-        if (result.computed_financials?.loan_amount && result.computed_financials.loan_amount < 100000) {
-            const oldLoan = result.computed_financials.loan_amount;
-            result.computed_financials.loan_amount = oldLoan * 1000;
-            warnings.push(`Computed loan corrected from ${oldLoan} to ${result.computed_financials.loan_amount}`);
-            console.log(`[Fix] Computed loan: ${oldLoan} → ${result.computed_financials.loan_amount}`);
+        if (result.computed_financials && result.computed_financials.loan_amount) {
+            if (result.computed_financials.loan_amount < 100000) {
+                const oldLoan = result.computed_financials.loan_amount;
+                result.computed_financials.loan_amount = oldLoan * 1000;
+                warnings.push(`Computed loan corrected from ${oldLoan} to ${result.computed_financials.loan_amount}`);
+                console.log(`[Fix] Computed loan: ${oldLoan} → ${result.computed_financials.loan_amount}`);
+            }
         }
 
         result.validation_warnings = warnings;
