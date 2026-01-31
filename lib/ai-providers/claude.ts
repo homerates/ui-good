@@ -61,7 +61,7 @@ export async function callClaudeJson(
           ],
           temperature: 0.3, // Lower temperature for more consistent JSON
         }),
-        signal: AbortSignal.timeout(10000), // ← ADD THIS: 10 second timeout    
+
       });
 
       if (!response.ok) {
