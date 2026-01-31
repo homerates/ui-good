@@ -93,6 +93,61 @@ function parseMoneyLike(s: string) {
     return base;
 }
 
+
+/**
+ * Fix scenario numbers that Claude might return in wrong scale
+ * (e.g., Claude sends 650 instead of 650000 for "$650k")
+ */
+function fixScenarioNumbers(result: any, userMessage: string): any {
+    if (!result || typeof result !== 'object') return result;
+
+    const warnings: string[] = result.validation_warnings || [];
+
+    // Fix scenario_inputs if they look suspiciously small
+    if (result.scenario_inputs) {
+        const inputs = result.scenario_inputs;
+
+        // Fix price (home prices should be > $50,000)
+        if (inputs.price && inputs.price < 10000) {
+            const oldPrice = inputs.price;
+            inputs.price = inputs.price * 1000;
+            warnings.push(`Price corrected from ${oldPrice} to ${inputs.price} (assumed thousands)`);
+            console.log(`[Scenario Fix] Price: ${oldPrice} → ${inputs.price}`);
+        }
+
+        // Fix loan_amount
+        if (inputs.loan_amount && inputs.loan_amount < 10000) {
+            const oldLoan = inputs.loan_amount;
+            inputs.loan_amount = inputs.loan_amount * 1000;
+            warnings.push(`Loan amount corrected from ${oldLoan} to ${inputs.loan_amount}`);
+            console.log(`[Scenario Fix] Loan: ${oldLoan} → ${inputs.loan_amount}`);
+        }
+
+        // Recalculate loan_amount from price and down_payment if missing
+        if (inputs.price && inputs.down_payment_pct && !inputs.loan_amount) {
+            inputs.loan_amount = Math.round(inputs.price * (1 - inputs.down_payment_pct / 100));
+            console.log(`[Scenario Fix] Calculated loan_amount: ${inputs.loan_amount}`);
+        }
+    }
+
+    // Fix computed_financials
+    if (result.computed_financials) {
+        const cf = result.computed_financials;
+
+        if (cf.loan_amount && cf.loan_amount < 10000) {
+            const oldLoan = cf.loan_amount;
+            cf.loan_amount = cf.loan_amount * 1000;
+            warnings.push(`Computed loan amount corrected from ${oldLoan} to ${cf.loan_amount}`);
+            console.log(`[Scenario Fix] Computed loan: ${oldLoan} → ${cf.loan_amount}`);
+        }
+    }
+
+    result.validation_warnings = warnings;
+    return result;
+}
+
+/**
+ * Only treat a percent as a USER-PROVIDED MORTGAGE RATE if it appears in a rate context.
 /**
  * Only treat a percent as a USER-PROVIDED MORTGAGE RATE if it appears in a rate context.
  * Prevents capture of "tax 1.10%" / "vacancy 7%" etc.
