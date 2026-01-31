@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { runScenarioMath } from "../../../../lib/scenarioMath";
 import { createClient } from "@supabase/supabase-js";
+import { routeAIRequest } from "../../../../lib/ai-providers/router";
 
 
 /* =========================
@@ -1885,10 +1886,10 @@ export async function POST(req: NextRequest) {
         (globalThis.crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
 
     let fred_ms = 0;
-    let xai_ms = 0;
+    let ai_ms = 0;
     let parse_ms = 0;
     let memoryThreadId: string | null = null;
-
+    let provider: 'claude' | 'grok' | 'unknown' = 'unknown';  // ADD THIS LINE
     try {
         const body = (await req.json().catch(() => ({}))) as { message?: string; userId?: string };
         const message = (body?.message || "").trim();
@@ -2114,8 +2115,8 @@ Schema:
 `);
 
 
-        // 3) xAI
-        const tXai = Date.now();
+        // 3) AI Provider (Claude or Grok via intelligent routing)
+        const tAI = Date.now();
         const maxTokens = 900;
         // =========================
         // MEMORY INJECTION (scenario baseline)
@@ -2128,12 +2129,13 @@ Schema:
             systemPrompt = `${systemPrompt}${memBlock}`;
         }
 
-        const xai = await callXaiJson(systemPrompt, message, maxTokens);
-        xai_ms = Date.now() - tXai;
+        const aiResult = await routeAIRequest(systemPrompt, message, maxTokens, 'auto');
+        const ai_ms = Date.now() - tAI;
+        const provider = aiResult.provider; // 'claude' or 'grok'
 
         // 4) parse timing
         const tParse = Date.now();
-        let result = xai.parsed;
+        let result = aiResult.parsed;
         parse_ms = Date.now() - tParse;
 
         // Validation gate
@@ -2141,7 +2143,7 @@ Schema:
             return respond(
                 {
                     success: false,
-                    provider: "xai",
+                    provider: provider,
                     // ✅ Top-level parity
                     memory_thread_id: memoryThreadId,
                     error: { message: "Scenario payload missing required fields", requestId },
@@ -2150,16 +2152,15 @@ Schema:
                         build_tag: buildTag,
                         requestId,
                         userIdPresent: Boolean(userId),
-                        model: xai.model,
+                        model: aiResult.model,
                         maxTokens,
                         // ✅ Meta parity
                         memory_thread_id: memoryThreadId,
-                        timing_ms: { fred_ms, xai_ms, parse_ms, total_ms: Date.now() - t0 },
+                        timing_ms: { fred_ms, ai_ms, parse_ms, total_ms: Date.now() - t0 },
                     },
                 },
                 { status: 502, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
             );
-
         }
 
         // Normalize for GrokCard + Inputs block + on-demand sensitivity only
@@ -2253,7 +2254,7 @@ Schema:
         return respond(
             {
                 success: true,
-                provider: "xai",
+                provider: provider,
                 // ✅ Top-level parity
                 memory_thread_id: memoryThreadId,
                 result,
@@ -2262,11 +2263,12 @@ Schema:
                     build_tag: buildTag,
                     requestId,
                     userIdPresent: Boolean(userId),
-                    model: xai.model,
+                    model: aiResult.model,
                     maxTokens,
                     // ✅ Meta parity
                     memory_thread_id: memoryThreadId,
-                    timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
+                    timing_ms: { fred_ms, ai_ms, parse_ms, total_ms },
+                    complexity: aiResult.complexity, // NEW: shows 'simple'/'medium'/'complex'
                 },
             },
             { headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
@@ -2277,15 +2279,15 @@ Schema:
         return noStore(
             {
                 success: false,
-                provider: "xai",
+                provider: provider || "unknown",
                 // ✅ Top-level parity (even on error)
                 memory_thread_id: memoryThreadId,
                 error: {
                     message: "Scenario engine failed",
                     requestId,
-                    // ✅ Meta parity location doesn’t exist here, so we include it inside error
+                    // ✅ Meta parity location doesn't exist here, so we include it inside error
                     // (optional) If you prefer meta, we can add a meta object instead.
-                    timing_ms: { fred_ms, xai_ms, parse_ms, total_ms },
+                    timing_ms: { fred_ms, ai_ms, parse_ms, total_ms },
                     detail: err?.message || String(err),
                 },
                 // ✅ Add meta with memory_thread_id if you want the same read path:
@@ -2297,6 +2299,5 @@ Schema:
             },
             { status: 500, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
         );
-
     }
 }
