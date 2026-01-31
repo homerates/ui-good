@@ -92,7 +92,29 @@ function parseMoneyLike(s: string) {
     if (suffix === "m") return base * 1_000_000;
     return base;
 }
+/**
+ * Fix scenario inputs BEFORE they go to scenarioMath
+ */
+function fixScenarioInputsBeforeMath(inputs: any): any {
+    if (!inputs || typeof inputs !== 'object') return inputs;
 
+    const fixed = { ...inputs };
+
+    if (fixed.price && fixed.price < 100000) {
+        console.log(`[PreMath Fix] price: ${fixed.price} → ${fixed.price * 1000}`);
+        fixed.price = fixed.price * 1000;
+    }
+    if (fixed.purchase_price && fixed.purchase_price < 100000) {
+        console.log(`[PreMath Fix] purchase_price: ${fixed.purchase_price} → ${fixed.purchase_price * 1000}`);
+        fixed.purchase_price = fixed.purchase_price * 1000;
+    }
+    if (fixed.loan_amount && fixed.loan_amount < 100000) {
+        console.log(`[PreMath Fix] loan_amount: ${fixed.loan_amount} → ${fixed.loan_amount * 1000}`);
+        fixed.loan_amount = fixed.loan_amount * 1000;
+    }
+
+    return fixed;
+}
 /**
  * Fix scenario numbers that Claude might return in wrong scale
  */
@@ -943,8 +965,10 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
    Deterministic Scenario Math (single source of truth)
    ========================= */
 
+    const fixedInputs = fixScenarioInputsBeforeMath(extractedInputs);
+
     const scenarioMathResult = runScenarioMath({
-        scenario_inputs: extractedInputs,
+        scenario_inputs: fixedInputs,
         rate_used_pct: Number((rate_context as any)?.rate_used ?? (rate_context as any)?.rate),
     });
 
