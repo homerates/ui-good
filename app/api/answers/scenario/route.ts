@@ -120,6 +120,7 @@ function fixScenarioInputsBeforeMath(inputs: any): any {
  */
 function fixScenarioNumbers(result: any, userMessage: string): any {
     console.log('[DEBUG] fixScenarioNumbers called!');
+    console.log('[DEBUG] Full result structure:', JSON.stringify(result, null, 2).substring(0, 500));
     console.log('[DEBUG] result.scenario_inputs:', result?.scenario_inputs);
 
     if (!result || typeof result !== 'object') {
