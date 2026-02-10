@@ -2168,6 +2168,14 @@ Live data:
 
 Schema:
 {
+  "scenario_inputs": {
+    "price": number,
+    "down_payment_pct": number,
+    "loan_amount": number,
+    "rate_used_pct": number,
+    "term_years": number,
+    "property_tax_pct": number
+  },
   "monthly_payment": number,
   "total_interest_over_term": number,
   "amortization_summary": [{ "year": number, "principal_paid": number, "interest_paid": number, "ending_balance": number }],
