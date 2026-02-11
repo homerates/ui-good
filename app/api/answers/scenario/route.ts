@@ -2247,15 +2247,18 @@ Your plain_english_summary CAN use $650k notation for readability, but the JSON 
 
         parse_ms = Date.now() - tParse;
 
-        // Validation gate
-        if (!result || typeof result !== "object" || typeof result.plain_english_summary !== "string") {
+        // Normalize for GrokCard + Inputs block + on-demand sensitivity only
+        result = normalizeForGrokCard(result, message, marketData);
+        result = postParseValidateScenario(result, message, marketData);
+
+        // Validation gate (AFTER normalization which builds plain_english_summary)
+        if (!result || typeof result !== "object") {
             return respond(
                 {
                     success: false,
                     provider: provider,
-                    // ✅ Top-level parity
                     memory_thread_id: memoryThreadId,
-                    error: { message: "Scenario payload missing required fields", requestId },
+                    error: { message: "Scenario normalization failed", requestId },
                     marketData,
                     meta: {
                         build_tag: buildTag,
@@ -2263,7 +2266,6 @@ Your plain_english_summary CAN use $650k notation for readability, but the JSON 
                         userIdPresent: Boolean(userId),
                         model: aiResult.model,
                         maxTokens,
-                        // ✅ Meta parity
                         memory_thread_id: memoryThreadId,
                         timing_ms: { fred_ms, ai_ms, parse_ms, total_ms: Date.now() - t0 },
                     },
@@ -2271,10 +2273,6 @@ Your plain_english_summary CAN use $650k notation for readability, but the JSON 
                 { status: 502, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
             );
         }
-
-        // Normalize for GrokCard + Inputs block + on-demand sensitivity only
-        result = normalizeForGrokCard(result, message, marketData);
-        result = postParseValidateScenario(result, message, marketData);
 
         // === Final hard guards (deterministic) ===
         // 1) Enforce default 30Y term unless user explicitly asked otherwise.
