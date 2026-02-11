@@ -962,7 +962,11 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     };
     out.rate_context = rate_context;
     // Inputs summary (borrower-visible + structured)
-    const extractedInputs = extractScenarioInputs(message);
+    // Prefer Claude's scenario_inputs if present, otherwise extract from message
+    const claudeInputs = out.scenario_inputs;
+    const extractedInputs = claudeInputs && Object.keys(claudeInputs).length > 0
+        ? claudeInputs
+        : extractScenarioInputs(message);
     out.scenario_inputs = extractedInputs;
     const inputsBlock = buildInputsSummary(extractedInputs, rate_context);
     /* =========================
