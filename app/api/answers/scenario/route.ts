@@ -2248,8 +2248,21 @@ Your plain_english_summary CAN use $650k notation for readability, but the JSON 
         parse_ms = Date.now() - tParse;
 
         // Normalize for GrokCard + Inputs block + on-demand sensitivity only
-        result = normalizeForGrokCard(result, message, marketData);
-        result = postParseValidateScenario(result, message, marketData);
+        try {
+            console.log('[PIPELINE] Starting normalization pipeline');
+            console.log('[PIPELINE] Input result has keys:', Object.keys(result || {}));
+
+            result = normalizeForGrokCard(result, message, marketData);
+            console.log('[PIPELINE] After normalizeForGrokCard - OK');
+
+            result = postParseValidateScenario(result, message, marketData);
+            console.log('[PIPELINE] After postParseValidateScenario - OK');
+            console.log('[PIPELINE] Final result keys:', Object.keys(result || {}));
+        } catch (err: any) {
+            console.error('[PIPELINE] ERROR during normalization:', err.message);
+            console.error('[PIPELINE] Stack:', err.stack);
+            // Don't throw - let it continue with whatever result we have
+        }
 
         // Validation gate (AFTER normalization which builds plain_english_summary)
         if (!result || typeof result !== "object") {
