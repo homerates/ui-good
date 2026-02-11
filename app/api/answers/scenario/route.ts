@@ -502,7 +502,10 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
     const down = Number(si.down_payment_pct ?? si.downPaymentPct ?? si.down_payment_percent);
     const rent = Number(si.rent_monthly ?? si.rent ?? si.monthly_rent);
 
-    if (!Number.isFinite(price) || !Number.isFinite(down) || !Number.isFinite(rent)) return null;
+    if (!Number.isFinite(price) || !Number.isFinite(down)) return null;
+
+    // Rent is optional - default to 0 if not provided
+    const rentValue = Number.isFinite(rent) ? rent : 0;
 
     // Default any missing assumptions to 0 (matches your prompt: "treat as 0 if not provided").
     const numOrZero = (v: any) => {
@@ -516,7 +519,7 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
     return {
         price,
         down_payment_pct: down,
-        rent_monthly: rent,
+        rent_monthly: rentValue,  // ← Use rentValue instead
 
         vacancy_pct: numOrZero(si.vacancy_pct),
         maintenance_pct: numOrZero(si.maintenance_pct),
