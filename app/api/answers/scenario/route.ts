@@ -2153,21 +2153,36 @@ ASSUMPTIONS (hard):
 - Do NOT invent rent growth, expense growth, refinancing, or any changing cash flow assumptions unless the user explicitly provides growth assumptions.
 - cash_flow_table MUST be flat annual net cash flow values (same number each year) unless user explicitly provides growth assumptions. If no growth assumptions are provided, all years MUST match.
 
-DSCR RULE (hard):
-- If you mention DSCR anywhere, define it explicitly as:
-  DSCR = gross_monthly_rent / (monthly_payment + monthly_tax + monthly_insurance + monthly_HOA)
-  If tax/insurance/HOA are missing, they are treated as 0 in the denominator, and you MUST say "tax/insurance/HOA not provided" in plain_english_summary.
-- Do NOT reduce rent for vacancy for DSCR unless the user explicitly asks for an "effective rent" view.
-
 CONTENT RULES (hard):
-- Always include a short "plain_english_summary" that restates the scenario inputs:
+- Always include a "plain_english_summary" that restates the scenario inputs:
   price/balance, down payment %, loan amount, rent, vacancy, taxes, insurance, maintenance, rate used, rate source, and as-of date.
 - Keep table headers short.
+
+COMPARISON FORMATTING (hard):
+- When comparing multiple scenarios (e.g., "25% down vs 30% down", "FHA vs Conventional"), format plain_english_summary with clear structure using markdown:
+  
+  **Scenario 1: [Name]**
+  - Purchase price: $X
+  - Down payment: $Y (Z%)
+  - Loan amount: $A
+  - Monthly P&I: $B
+  - Monthly expenses: [list]
+  - Cash flow: $C
+  - DSCR: X.XXx
+  
+  **Scenario 2: [Name]**
+  - [Same format]
+  
+  **Comparison:**
+  [Brief summary of key differences and recommendation]
+
+- Use bullet points for clarity
+- Bold the scenario headers
+- End with a brief comparison summary
 
 SENSITIVITY RULE (hard):
 - Do NOT include "sensitivity_table" unless the user explicitly asks for rate comparison or stress testing
   (examples: "+0.5%", "+1%", "-0.5%", "rate stress", "what if rates rise/fall", "compare rates").
-
 Date: ${marketData.date}
 Live data:
 - 30-year fixed (FRED MORTGAGE30US): ${marketData.thirtyYearFixed.toFixed(2)}%
