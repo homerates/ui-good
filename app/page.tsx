@@ -308,10 +308,8 @@ function scenarioToApiResponse(s: any): ApiResponse {
             return `${x.toFixed(2)}x`;
         };
 
-        md.push("### Rate Sensitivity (monthly payment)");
-        md.push("");
-        md.push("| Scenario | Payment | Cash Flow | DSCR |");
-        md.push("| --- | ---: | ---: | ---: |");
+        // Collect valid rows first
+        const rows: string[] = [];
 
         for (const k of order) {
             const v: any = (sens as any)[k];
@@ -321,267 +319,387 @@ function scenarioToApiResponse(s: any): ApiResponse {
             const cf = v.monthly_cash_flow;
             const d = v.dscr;
 
-            md.push(`| ${labelFor(k)} | ${fmtMoney0(p)} | ${fmtCF0(cf)} | ${fmtDSCR(d)} |`);
+            rows.push(`| ${labelFor(k)} | ${fmtMoney0(p)} | ${fmtCF0(cf)} | ${fmtDSCR(d)} |`);
         }
 
-        md.push("");
-    }
-
-
-    // Amortization Snapshot - Use API data if available, otherwise compute locally
-    {
-        const fmtMoney0 = (n: any) => {
-            const x = typeof n === "number" ? n : Number(n);
-            if (!isFinite(x)) return "-";
-            const abs = Math.abs(x);
-            return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-        };
-
-        const parseMoney = (v: any): number => {
-            if (typeof v === "number") return v;
-            if (typeof v !== "string") return NaN;
-            const cleaned = v.replace(/[^0-9.-]/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : NaN;
-        };
-
-        const parsePercent = (v: any): number => {
-            if (typeof v === "number") return v;
-            if (typeof v !== "string") return NaN;
-            const cleaned = v.replace(/[^0-9.-]/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : NaN;
-        };
-
-        const parseYears = (v: any): number => {
-            if (typeof v === "number") return v;
-            if (typeof v !== "string") return NaN;
-            const cleaned = v.replace(/[^0-9.-]/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : NaN;
-        };
-
-        // -------------------------------
-        // Normalize scenario result shape
-        // Some scenario responses place structured data under meta.grok.result
-        // instead of `result`. Do NOT mutate `result`; use a normalized alias.
-        // -------------------------------
-        const scenarioResult =
-            (result &&
-                typeof result === "object" &&
-                Object.keys(result).length > 0)
-                ? result
-                : ((meta as any)?.grok?.result &&
-                    typeof (meta as any).grok.result === "object" &&
-                    Object.keys((meta as any).grok.result).length > 0)
-                    ? (meta as any).grok.result
-                    : null;
-
-        // =========================
-        // STRATEGY 1: Use amortization_summary from API if present
-        // =========================
-        const amortSummary = scenarioResult?.amortization_summary;
-
-        if (Array.isArray(amortSummary) && amortSummary.length > 0) {
-            md.push("### Amortization Snapshot");
+        // Only render the table if we have rows
+        if (rows.length > 0) {
+            md.push("### Rate Sensitivity (monthly payment)");
             md.push("");
-            md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
-            md.push("| - | -: | -: | -: |");
-
-            for (const row of amortSummary) {
-                const year = row?.year ?? '-';
-                const prin = fmtMoney0(row?.principal_paid);
-                const int = fmtMoney0(row?.interest_paid);
-                const bal = fmtMoney0(row?.ending_balance);
-                md.push(`| ${year} | ${prin} | ${int} | ${bal} |`);
-            }
-
+            md.push("| Scenario | Payment | Cash Flow | DSCR |");
+            md.push("| --- | ---: | ---: | ---: |");
+            rows.forEach(row => md.push(row));
             md.push("");
-        } else {
+        }
+
+
+        // Amortization Snapshot - Use API data if available, otherwise compute locally
+        {
+            const fmtMoney0 = (n: any) => {
+                const x = typeof n === "number" ? n : Number(n);
+                if (!isFinite(x)) return "-";
+                const abs = Math.abs(x);
+                return `$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+            };
+
+            const parseMoney = (v: any): number => {
+                if (typeof v === "number") return v;
+                if (typeof v !== "string") return NaN;
+                const cleaned = v.replace(/[^0-9.-]/g, "");
+                const n = Number(cleaned);
+                return Number.isFinite(n) ? n : NaN;
+            };
+
+            const parsePercent = (v: any): number => {
+                if (typeof v === "number") return v;
+                if (typeof v !== "string") return NaN;
+                const cleaned = v.replace(/[^0-9.-]/g, "");
+                const n = Number(cleaned);
+                return Number.isFinite(n) ? n : NaN;
+            };
+
+            const parseYears = (v: any): number => {
+                if (typeof v === "number") return v;
+                if (typeof v !== "string") return NaN;
+                const cleaned = v.replace(/[^0-9.-]/g, "");
+                const n = Number(cleaned);
+                return Number.isFinite(n) ? n : NaN;
+            };
+
+            // -------------------------------
+            // Normalize scenario result shape
+            // Some scenario responses place structured data under meta.grok.result
+            // instead of `result`. Do NOT mutate `result`; use a normalized alias.
+            // -------------------------------
+            const scenarioResult =
+                (result &&
+                    typeof result === "object" &&
+                    Object.keys(result).length > 0)
+                    ? result
+                    : ((meta as any)?.grok?.result &&
+                        typeof (meta as any).grok.result === "object" &&
+                        Object.keys((meta as any).grok.result).length > 0)
+                        ? (meta as any).grok.result
+                        : null;
+
             // =========================
-            // STRATEGY 2: Compute locally from scenario_inputs (fallback)
+            // STRATEGY 1: Use amortization_summary from API if present
             // =========================
-            const base: any = scenarioResult;
+            const amortSummary = scenarioResult?.amortization_summary;
 
-            const loanAmtRaw =
-                base?.scenario_inputs?.loan_amount ??
-                base?.scenario_inputs?.loanAmount ??
-                base?.scenario?.loan_amount ??
-                base?.scenario?.loanAmount ??
-                base?.loan_amount ??
-                base?.loanAmount;
-
-            const rateRaw =
-                base?.rate_context?.rate ??
-                base?.rate_context?.current_rate ??
-                base?.scenario_inputs?.rate ??
-                base?.scenario_inputs?.rate_used ??
-                base?.scenario_inputs?.rateUsed ??
-                base?.scenario?.rate ??
-                base?.rate_used;
-
-            const termYearsRaw =
-                base?.scenario_inputs?.term_years ??
-                base?.scenario_inputs?.termYears ??
-                base?.scenario?.term_years ??
-                base?.scenario?.termYears ??
-                30;
-
-            let loanAmt = parseMoney(loanAmtRaw);
-            let ratePct = parsePercent(rateRaw);
-            let termYears = parseYears(termYearsRaw);
-
-            // Fallback: parse from already-rendered Smart Scenario text in md[]
-            const mdText = md.join("\n");
-
-            if (!Number.isFinite(loanAmt)) {
-                const m = mdText.match(/Loan amount:\s*\$?\s*([\d,]+)/i);
-                if (m?.[1]) loanAmt = Number(m[1].replace(/,/g, ""));
-            }
-
-            if (!Number.isFinite(ratePct)) {
-                const m = mdText.match(/Rate used:\s*([0-9.]+)\s*%/i);
-                if (m?.[1]) ratePct = Number(m[1]);
-            }
-
-            if (!Number.isFinite(termYears)) {
-                const m = mdText.match(/term\s*\(?\s*([0-9]+)\s*y/i);
-                if (m?.[1]) termYears = Number(m[1]);
-                if (!Number.isFinite(termYears)) termYears = 30;
-            }
-
-            const isInputsValid =
-                Number.isFinite(loanAmt) &&
-                loanAmt > 0 &&
-                Number.isFinite(ratePct) &&
-                ratePct > 0 &&
-                Number.isFinite(termYears) &&
-                termYears > 0;
-
-            if (isInputsValid) {
-                const r = ratePct / 100 / 12;
-                const n = Math.round(termYears * 12);
-
-                // Monthly P&I payment
-                const pow = Math.pow(1 + r, n);
-                const pmt = (loanAmt * r * pow) / (pow - 1);
-
-                let bal = loanAmt;
-                let cumPrin = 0;
-                let cumInt = 0;
-
-                const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
-
+            if (Array.isArray(amortSummary) && amortSummary.length > 0) {
                 md.push("### Amortization Snapshot");
                 md.push("");
                 md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
                 md.push("| - | -: | -: | -: |");
 
-                for (let m = 1; m <= n; m++) {
-                    const interest = bal * r;
-                    let principal = pmt - interest;
-
-                    // Guard for final month rounding
-                    if (principal > bal) principal = bal;
-
-                    bal -= principal;
-                    cumPrin += principal;
-                    cumInt += interest;
-
-                    if (m % 12 === 0) {
-                        const y = m / 12;
-                        if (yearsToShow.has(y)) {
-                            md.push(`| ${y} | ${fmtMoney0(cumPrin)} | ${fmtMoney0(cumInt)} | ${fmtMoney0(bal)} |`);
-                        }
-                    }
+                for (const row of amortSummary) {
+                    const year = row?.year ?? '-';
+                    const prin = fmtMoney0(row?.principal_paid);
+                    const int = fmtMoney0(row?.interest_paid);
+                    const bal = fmtMoney0(row?.ending_balance);
+                    md.push(`| ${year} | ${prin} | ${int} | ${bal} |`);
                 }
 
                 md.push("");
             } else {
-                md.push("### Amortization Snapshot");
-                md.push("");
-                md.push("Amortization snapshot unavailable for this scenario.");
-                md.push("");
+                // =========================
+                // STRATEGY 2: Compute locally from scenario_inputs (fallback)
+                // =========================
+                const base: any = scenarioResult;
+
+                const loanAmtRaw =
+                    base?.scenario_inputs?.loan_amount ??
+                    base?.scenario_inputs?.loanAmount ??
+                    base?.scenario?.loan_amount ??
+                    base?.scenario?.loanAmount ??
+                    base?.loan_amount ??
+                    base?.loanAmount;
+
+                const rateRaw =
+                    base?.rate_context?.rate ??
+                    base?.rate_context?.current_rate ??
+                    base?.scenario_inputs?.rate ??
+                    base?.scenario_inputs?.rate_used ??
+                    base?.scenario_inputs?.rateUsed ??
+                    base?.scenario?.rate ??
+                    base?.rate_used;
+
+                const termYearsRaw =
+                    base?.scenario_inputs?.term_years ??
+                    base?.scenario_inputs?.termYears ??
+                    base?.scenario?.term_years ??
+                    base?.scenario?.termYears ??
+                    30;
+
+                let loanAmt = parseMoney(loanAmtRaw);
+                let ratePct = parsePercent(rateRaw);
+                let termYears = parseYears(termYearsRaw);
+
+                // Fallback: parse from already-rendered Smart Scenario text in md[]
+                const mdText = md.join("\n");
+
+                if (!Number.isFinite(loanAmt)) {
+                    const m = mdText.match(/Loan amount:\s*\$?\s*([\d,]+)/i);
+                    if (m?.[1]) loanAmt = Number(m[1].replace(/,/g, ""));
+                }
+
+                if (!Number.isFinite(ratePct)) {
+                    const m = mdText.match(/Rate used:\s*([0-9.]+)\s*%/i);
+                    if (m?.[1]) ratePct = Number(m[1]);
+                }
+
+                if (!Number.isFinite(termYears)) {
+                    const m = mdText.match(/term\s*\(?\s*([0-9]+)\s*y/i);
+                    if (m?.[1]) termYears = Number(m[1]);
+                    if (!Number.isFinite(termYears)) termYears = 30;
+                }
+
+                const isInputsValid =
+                    Number.isFinite(loanAmt) &&
+                    loanAmt > 0 &&
+                    Number.isFinite(ratePct) &&
+                    ratePct > 0 &&
+                    Number.isFinite(termYears) &&
+                    termYears > 0;
+
+                if (isInputsValid) {
+                    const r = ratePct / 100 / 12;
+                    const n = Math.round(termYears * 12);
+
+                    // Monthly P&I payment
+                    const pow = Math.pow(1 + r, n);
+                    const pmt = (loanAmt * r * pow) / (pow - 1);
+
+                    let bal = loanAmt;
+                    let cumPrin = 0;
+                    let cumInt = 0;
+
+                    const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+
+                    md.push("### Amortization Snapshot");
+                    md.push("");
+                    md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
+                    md.push("| - | -: | -: | -: |");
+
+                    for (let m = 1; m <= n; m++) {
+                        const interest = bal * r;
+                        let principal = pmt - interest;
+
+                        // Guard for final month rounding
+                        if (principal > bal) principal = bal;
+
+                        bal -= principal;
+                        cumPrin += principal;
+                        cumInt += interest;
+
+                        if (m % 12 === 0) {
+                            const y = m / 12;
+                            if (yearsToShow.has(y)) {
+                                md.push(`| ${y} | ${fmtMoney0(cumPrin)} | ${fmtMoney0(cumInt)} | ${fmtMoney0(bal)} |`);
+                            }
+                        }
+                    }
+
+                    md.push("");
+                } else {
+                    md.push("### Amortization Snapshot");
+                    md.push("");
+                    md.push("Amortization snapshot unavailable for this scenario.");
+                    md.push("");
+                }
             }
         }
-    }
 
-    // Cash flow table (optional)
-    if (Array.isArray(result?.cash_flow_table) && result.cash_flow_table.length) {
-        md.push('### Cash Flow (net)');
-        md.push('');
-        md.push('| Year | Net Cash Flow |');
-        md.push('|---:|---:|');
-        for (const row of result.cash_flow_table) {
-            md.push(`| ${row?.year ?? '—'} | ${row?.net_cash_flow ?? '—'} |`);
+        // Cash flow table (optional)
+        if (Array.isArray(result?.cash_flow_table) && result.cash_flow_table.length) {
+            md.push('### Cash Flow (net)');
+            md.push('');
+            md.push('| Year | Net Cash Flow |');
+            md.push('|---:|---:|');
+            for (const row of result.cash_flow_table) {
+                md.push(`| ${row?.year ?? '—'} | ${row?.net_cash_flow ?? '—'} |`);
+            }
+            md.push('');
         }
-        md.push('');
+
+        // Key risks
+        if (Array.isArray(result?.key_risks) && result.key_risks.length) {
+            md.push('### Key Risks');
+            md.push('');
+            for (const r of result.key_risks) md.push(`- ${r}`);
+            md.push('');
+        }
+
+        // Confidence mapping
+        const conf: ApiResponse['confidence'] =
+            typeof meta?.confidence === 'string'
+                ? (meta.confidence === 'high' ? 'high' : meta.confidence === 'low' ? 'low' : 'med')
+                : 'med';
+
+        return {
+            path: 'dynamic',
+            usedFRED: marketData?.usedFallbacks === false || Boolean(marketData?.date),
+            confidence: conf,
+            message: summary,
+            summary,
+            answer: summary,
+            answerMarkdown: md.join('\n'),
+            data_freshness: marketData?.date ? `Live (FRED) as of ${marketData.date}` : undefined,
+            grok: {
+                scenario: true,
+                provider: s?.provider,
+                model: meta?.model,
+                build_tag: meta?.build_tag,
+                marketData,
+                meta,
+                result,
+            },
+        };
     }
+    /* =========================
+       Answer block
+    ========================= */
+    function AnswerBlock({
+        meta,
+        friendly,
+    }: {
+        meta?: ApiResponse;
+        friendly?: string;
+    }) {
+        if (!meta) return null;
 
-    // Key risks
-    if (Array.isArray(result?.key_risks) && result.key_risks.length) {
-        md.push('### Key Risks');
-        md.push('');
-        for (const r of result.key_risks) md.push(`- ${r}`);
-        md.push('');
-    }
+        type NestedMeta = {
+            meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
+        };
+        const m = meta as ApiResponse & NestedMeta;
+        const headerPath = (m.path ?? m.meta?.path ?? '—') as
+            | ApiResponse['path']
+            | '—';
+        const headerUsedFRED =
+            typeof m.usedFRED === 'boolean' ? m.usedFRED : m.meta?.usedFRED ?? false;
+        const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
 
-    // Confidence mapping
-    const conf: ApiResponse['confidence'] =
-        typeof meta?.confidence === 'string'
-            ? (meta.confidence === 'high' ? 'high' : meta.confidence === 'low' ? 'low' : 'med')
-            : 'med';
+        if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
+            const a = m.answer as CalcAnswer;
+            return (
+                <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
+                    <div className="meta">
+                        <span>
+                            path: <b>{String(headerPath)}</b>
+                        </span>
+                        <span>
+                            {' '}
+                            | usedFRED: <b>{String(headerUsedFRED)}</b>
+                        </span>
+                        {headerAt && (
+                            <span>
+                                {' '}
+                                | at: <b>{fmtISOshort(headerAt)}</b>
+                            </span>
+                        )}
+                    </div>
+                    {/* Share link footer – TODO: later wire real question/answer variables */}
+                    <div
+                        style={{
+                            marginTop: 4,
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                        }}
+                    >
 
-    return {
-        path: 'dynamic',
-        usedFRED: marketData?.usedFallbacks === false || Boolean(marketData?.date),
-        confidence: conf,
-        message: summary,
-        summary,
-        answer: summary,
-        answerMarkdown: md.join('\n'),
-        data_freshness: marketData?.date ? `Live (FRED) as of ${marketData.date}` : undefined,
-        grok: {
-            scenario: true,
-            provider: s?.provider,
-            model: meta?.model,
-            build_tag: meta?.build_tag,
-            marketData,
-            meta,
-            result,
-        },
-    };
-}
-/* =========================
-   Answer block
-========================= */
-function AnswerBlock({
-    meta,
-    friendly,
-}: {
-    meta?: ApiResponse;
-    friendly?: string;
-}) {
-    if (!meta) return null;
+                    </div>
+                    <div>
+                        <div>
+                            <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
+                        </div>
+                        <div>
+                            <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
+                        </div>
+                    </div>
 
-    type NestedMeta = {
-        meta?: { path?: ApiResponse['path']; usedFRED?: boolean; at?: string };
-    };
-    const m = meta as ApiResponse & NestedMeta;
-    const headerPath = (m.path ?? m.meta?.path ?? '—') as
-        | ApiResponse['path']
-        | '—';
-    const headerUsedFRED =
-        typeof m.usedFRED === 'boolean' ? m.usedFRED : m.meta?.usedFRED ?? false;
-    const headerAt: string | undefined = m.generatedAt ?? m.meta?.at ?? undefined;
+                    {typeof a.monthlyTotalPITI === 'number' &&
+                        a.monthlyTotalPITI > 0 && (
+                            <div className="panel">
+                                <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                                    PITI breakdown
+                                </div>
+                                <ul style={{ marginTop: 0 }}>
+                                    <li>Taxes: ${fmtMoney(a.monthlyTax)}</li>
+                                    <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
+                                    <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
+                                    <li>MI: ${fmtMoney(a.monthlyMI)}</li>
+                                    <li>
+                                        <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
+                                    </li>
+                                </ul>
+                            </div>
+                        )}
 
-    if (headerPath === 'calc' && m.answer && typeof m.answer === 'object') {
-        const a = m.answer as CalcAnswer;
+                    {Array.isArray(a.sensitivities) && a.sensitivities.length > 0 && (
+                        <div>
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                                ±0.25% Sensitivity
+                            </div>
+                            <ul style={{ marginTop: 0 }}>
+                                {a.sensitivities.map((s, i) => (
+                                    <li key={i}>
+                                        Rate:{' '}
+                                        {(Number(s.rate) * 100).toFixed(2)}% → P&I $
+                                        {fmtMoney(s.pi)}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {typeof m.tldr === 'string' && (
+                        <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>
+                    )}
+                </div>
+            );
+        }
+
+        const primary =
+            m.message ??
+            m.summary ??
+            (m.fred &&
+                m.fred.tenYearYield != null &&
+                m.fred.mort30Avg != null &&
+                m.fred.spread != null
+                ? `As of ${m.fred.asOf ?? 'recent data'}: ${typeof m.fred.tenYearYield === 'number'
+                    ? m.fred.tenYearYield.toFixed(2)
+                    : m.fred.tenYearYield
+                }%, 30Y ${typeof m.fred.mort30Avg === 'number'
+                    ? m.fred.mort30Avg.toFixed(2)
+                    : m.fred.mort30Avg
+                }%, spread ${typeof m.fred.spread === 'number'
+                    ? m.fred.spread.toFixed(2)
+                    : m.fred.spread
+                }%.`
+                : typeof m.answer === 'string'
+                    ? m.answer
+                    : '');
+
+        const lines = (typeof m.answer === 'string' ? m.answer : '')
+            .split('\n')
+            .map((s) => s.trim());
+
+        // Use the streaming-friendly text if present, otherwise fall back
+        const takeaway = friendly || primary || lines[0] || '';
+
+        const bullets = lines
+            .filter((l) => l.startsWith('- '))
+            .map((l) => l.slice(2));
+        const nexts = lines
+            .filter((l) => l.toLowerCase().startsWith('next:'))
+            .map((l) => l.slice(5).trim());
+
         return (
             <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
                 <div className="meta">
                     <span>
-                        path: <b>{String(headerPath)}</b>
+                        path: <b>{String(m.path ?? '—')}</b>
                     </span>
                     <span>
                         {' '}
@@ -594,1797 +712,1684 @@ function AnswerBlock({
                         </span>
                     )}
                 </div>
-                {/* Share link footer – TODO: later wire real question/answer variables */}
-                <div
-                    style={{
-                        marginTop: 4,
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                    }}
-                >
 
-                </div>
-                <div>
-                    <div>
-                        <b>Loan amount:</b> ${fmtMoney(a.loanAmount)}
-                    </div>
-                    <div>
-                        <b>Monthly P&I:</b> ${fmtMoney(a.monthlyPI)}
-                    </div>
-                </div>
+                {takeaway && <div>{takeaway}</div>}
 
-                {typeof a.monthlyTotalPITI === 'number' &&
-                    a.monthlyTotalPITI > 0 && (
-                        <div className="panel">
-                            <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                                PITI breakdown
-                            </div>
-                            <ul style={{ marginTop: 0 }}>
-                                <li>Taxes: ${fmtMoney(a.monthlyTax)}</li>
-                                <li>Insurance: ${fmtMoney(a.monthlyIns)}</li>
-                                <li>HOA: ${fmtMoney(a.monthlyHOA)}</li>
-                                <li>MI: ${fmtMoney(a.monthlyMI)}</li>
-                                <li>
-                                    <b>Total PITI: ${fmtMoney(a.monthlyTotalPITI)}</b>
-                                </li>
-                            </ul>
-                        </div>
-                    )}
-
-                {Array.isArray(a.sensitivities) && a.sensitivities.length > 0 && (
+                {Array.isArray(m.tldr) && m.tldr.length > 0 && (
                     <div>
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                            ±0.25% Sensitivity
-                        </div>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
                         <ul style={{ marginTop: 0 }}>
-                            {a.sensitivities.map((s, i) => (
-                                <li key={i}>
-                                    Rate:{' '}
-                                    {(Number(s.rate) * 100).toFixed(2)}% → P&I $
-                                    {fmtMoney(s.pi)}
-                                </li>
+                            {m.tldr.map((t, i) => (
+                                <li key={i}>{t}</li>
                             ))}
                         </ul>
                     </div>
                 )}
 
-                {typeof m.tldr === 'string' && (
-                    <div style={{ fontStyle: 'italic' }}>{m.tldr}</div>
+                {bullets.length > 0 && (
+                    <ul style={{ marginTop: 0 }}>
+                        {bullets.map((b, i) => (
+                            <li key={i}>{b}</li>
+                        ))}
+                    </ul>
+                )}
+
+                {nexts.length > 0 && (
+                    <div style={{ display: 'grid', gap: 4 }}>
+                        {nexts.map((n, i) => (
+                            <div key={i}>
+                                <b>Next:</b> {n}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
+                    <div className="panel">
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                            Borrower Summary
+                        </div>
+                        <ul style={{ marginTop: 0 }}>
+                            {m.borrowerSummary.split('\n').map((l, i) => (
+                                <li key={i}>{l.replace(/^\s*[-|*]\s*/, '')}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {m.paymentDelta && (
+                    <div style={{ fontSize: 13 }}>
+                        Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
+                        {m.paymentDelta.loanAmount.toLocaleString()}.
+                    </div>
                 )}
             </div>
         );
     }
 
-    const primary =
-        m.message ??
-        m.summary ??
-        (m.fred &&
-            m.fred.tenYearYield != null &&
-            m.fred.mort30Avg != null &&
-            m.fred.spread != null
-            ? `As of ${m.fred.asOf ?? 'recent data'}: ${typeof m.fred.tenYearYield === 'number'
-                ? m.fred.tenYearYield.toFixed(2)
-                : m.fred.tenYearYield
-            }%, 30Y ${typeof m.fred.mort30Avg === 'number'
-                ? m.fred.mort30Avg.toFixed(2)
-                : m.fred.mort30Avg
-            }%, spread ${typeof m.fred.spread === 'number'
-                ? m.fred.spread.toFixed(2)
-                : m.fred.spread
-            }%.`
-            : typeof m.answer === 'string'
-                ? m.answer
-                : '');
-
-    const lines = (typeof m.answer === 'string' ? m.answer : '')
-        .split('\n')
-        .map((s) => s.trim());
-
-    // Use the streaming-friendly text if present, otherwise fall back
-    const takeaway = friendly || primary || lines[0] || '';
-
-    const bullets = lines
-        .filter((l) => l.startsWith('- '))
-        .map((l) => l.slice(2));
-    const nexts = lines
-        .filter((l) => l.toLowerCase().startsWith('next:'))
-        .map((l) => l.slice(5).trim());
-
-    return (
-        <div className="answer-block" style={{ display: 'grid', gap: 10 }}>
-            <div className="meta">
-                <span>
-                    path: <b>{String(m.path ?? '—')}</b>
-                </span>
-                <span>
-                    {' '}
-                    | usedFRED: <b>{String(headerUsedFRED)}</b>
-                </span>
-                {headerAt && (
-                    <span>
-                        {' '}
-                        | at: <b>{fmtISOshort(headerAt)}</b>
-                    </span>
-                )}
+    function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
+        const isUser = role === 'user';
+        return (
+            <div
+                className={`bubble ${isUser ? 'user' : 'assistant'}`}
+                data-role={role}
+            >
+                <div className={`balloon ${isUser ? 'user' : 'assistant'}`}>
+                    {children}
+                </div>
             </div>
+        );
+    }
+    // --- HR helper: tighten markdown spacing & remove empty sections ---
+    function sanitizeMarkdown(md?: string): string {
+        if (!md || typeof md !== 'string') return '';
 
-            {takeaway && <div>{takeaway}</div>}
-
-            {Array.isArray(m.tldr) && m.tldr.length > 0 && (
-                <div>
-                    <div style={{ fontWeight: 600, marginBottom: 6 }}>TL;DR</div>
-                    <ul style={{ marginTop: 0 }}>
-                        {m.tldr.map((t, i) => (
-                            <li key={i}>{t}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
-            {bullets.length > 0 && (
-                <ul style={{ marginTop: 0 }}>
-                    {bullets.map((b, i) => (
-                        <li key={i}>{b}</li>
-                    ))}
-                </ul>
-            )}
-
-            {nexts.length > 0 && (
-                <div style={{ display: 'grid', gap: 4 }}>
-                    {nexts.map((n, i) => (
-                        <div key={i}>
-                            <b>Next:</b> {n}
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {m.path === 'market' && headerUsedFRED && m.borrowerSummary && (
-                <div className="panel">
-                    <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                        Borrower Summary
-                    </div>
-                    <ul style={{ marginTop: 0 }}>
-                        {m.borrowerSummary.split('\n').map((l, i) => (
-                            <li key={i}>{l.replace(/^\s*[-|*]\s*/, '')}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
-            {m.paymentDelta && (
-                <div style={{ fontSize: 13 }}>
-                    Every 0.25% ~ <b>${m.paymentDelta.perQuarterPt}/mo</b> on $
-                    {m.paymentDelta.loanAmount.toLocaleString()}.
-                </div>
-            )}
-        </div>
-    );
-}
-
-function Bubble({ role, children }: { role: Role; children: React.ReactNode }) {
-    const isUser = role === 'user';
-    return (
-        <div
-            className={`bubble ${isUser ? 'user' : 'assistant'}`}
-            data-role={role}
-        >
-            <div className={`balloon ${isUser ? 'user' : 'assistant'}`}>
-                {children}
-            </div>
-        </div>
-    );
-}
-// --- HR helper: tighten markdown spacing & remove empty sections ---
-function sanitizeMarkdown(md?: string): string {
-    if (!md || typeof md !== 'string') return '';
-
-    return md
-        // Remove empty "Key Numbers" sections
-        .replace(/\*\*Key Numbers\*\*\s*(\n\s*)+(?=\*\*|$)/gi, '')
-        // Remove empty "Comparison Table" sections
-        .replace(/\*\*Comparison Table\*\*\s*(\n\s*)+(?=\*\*|$)/gi, '')
-        // Collapse excessive blank lines
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-}
-
-/* =========================
-   Page
-========================= */
-export default function Page() {
-    useMobileComposerPin();
-
-    const router = useRouter();
-    const { isSignedIn, user } = useUser();
-
-    const [messages, setMessages] = useState<ChatMsg[]>([
-        {
-            id: uid(),
-            role: 'assistant',
-            content:
-                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
-        },
-    ]);
-
-    const [input, setInput] = useState('');
-
-    // Seed composer once if we came from a shared-link card
-    const hasSeededFromShareRef = React.useRef(false);
-    const searchParams = useSearchParams();
-
-    // borrower-only mode fixed
-    const mode: 'borrower' = 'borrower';
-
-    const [loading, setLoading] = useState(false);
-    const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
-    const [showAuthRequired, setShowAuthRequired] = useState(false);
-
-    const [history, setHistory] = useState<
-        { id: string; title: string; updatedAt?: number }[]
-    >([]);
-    const scrollRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        const el = scrollRef.current;
-        if (!el) return;
-
-        // run after DOM updates so scrollHeight is correct
-        requestAnimationFrame(() => {
-            el.scrollTop = el.scrollHeight;
-        });
-    }, [messages, loading]);
-
-    // If the user came from a shared answer card, pre-fill the composer with that question
-    useEffect(() => {
-        if (!searchParams) return;
-        if (hasSeededFromShareRef.current) return;
-
-        const from = searchParams.get('fromShare');
-        const sq = searchParams.get('sq');
-
-        if (from === '1' && sq && !input) {
-            setInput(sq);
-            hasSeededFromShareRef.current = true;
-        }
-    }, [searchParams, input, setInput]);
-
-    const [sidebarOpen, setSidebarOpen] = useState(() => {
-        if (typeof window === 'undefined') {
-            // On the server we don't know the width, default to open (desktop-ish).
-            return true;
-        }
-        // On the client: keep sidebar open only on larger screens
-        return window.innerWidth >= 1024; // lg breakpoint
-    });
-
-    const toggleSidebar = () => setSidebarOpen((o) => !o);
-
-
-    // threads + active
-    const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
-    // Memory thread id per chat thread (ChatGPT-style: recall works only if we reuse the same memory_thread_id)
-    const [memoryThreadByChatId, setMemoryThreadByChatId] = useState<Record<string, string>>({});
-    const [activeId, setActiveId] = useState<string | null>(null);
-
-    // overlays
-    const [showSearch, setShowSearch] = useState(false);
-    const [showLibrary, setShowLibrary] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [showProject, setShowProject] = useState(false);
-    const [showMortgageCalc, setShowMortgageCalc] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [projectName, setProjectName] = useState('');
-
-    const [newProjectName, setNewProjectName] = React.useState('');
-    const [isCreatingProject, setIsCreatingProject] = React.useState(false);
-
-
-    // restore
-    useEffect(() => {
-        try {
-            const raw = localStorage.getItem(LS_KEY);
-            if (!raw) return;
-            const data = JSON.parse(raw) as {
-                threads?: Record<string, ChatMsg[]>;
-                history?: { id: string; title: string; updatedAt?: number }[];
-                activeId?: string | null;
-                memoryThreadByChatId?: Record<string, string>;
-            };
-            if (data.threads) setThreads(data.threads);
-            if (Array.isArray(data.history)) setHistory(data.history);
-            if (data.memoryThreadByChatId) setMemoryThreadByChatId(data.memoryThreadByChatId);
-
-            if (data.activeId && data.threads?.[data.activeId]) {
-                setActiveId(data.activeId);
-                setMessages(data.threads[data.activeId] || []);
-            }
-        } catch (e) {
-            console.warn('hr.chat load failed', e);
-        }
-    }, []);
-
-    // persist
-    useEffect(() => {
-        try {
-            localStorage.setItem(
-                LS_KEY,
-                JSON.stringify({ threads, history, activeId, memoryThreadByChatId })
-            );
-        } catch (e) {
-            console.warn('hr.chat save failed', e);
-        }
-    }, [threads, history, activeId, memoryThreadByChatId]);
-
-    // snapshot into active thread
-    useEffect(() => {
-        if (!activeId) return;
-
-        setThreads((prev) => {
-            const base = prev && typeof prev === 'object' ? prev : {};
-            return { ...base, [activeId]: messages };
-        });
-
-        setHistory((prev) => {
-            const arr = Array.isArray(prev) ? [...prev] : [];
-            const idx = arr.findIndex((h) => h?.id === activeId);
-            if (idx === -1) return arr;
-            arr[idx] = { ...arr[idx], updatedAt: Date.now() };
-            arr.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
-            return arr;
-        });
-    }, [messages, activeId]);
-
-    // autoscroll
-    useEffect(() => {
-        scrollRef.current?.scrollTo({
-            top: scrollRef.current.scrollHeight,
-            behavior: 'smooth',
-        });
-    }, [messages]);
-
-    // hotkeys
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            const target = e.target as HTMLElement | null;
-            if (
-                target &&
-                (target.tagName === 'INPUT' ||
-                    target.tagName === 'TEXTAREA' ||
-                    (target as HTMLElement).isContentEditable)
-            ) {
-                return;
-            }
-            const k = e.key.toLowerCase();
-            const meta = e.ctrlKey || e.metaKey;
-
-            if (meta && k === 'k') {
-                e.preventDefault();
-                setShowSearch(true);
-                return;
-            }
-            if (meta && k === 'n') {
-                e.preventDefault();
-                newChat();
-                return;
-            }
-            if (meta && k === 'l') {
-                e.preventDefault();
-                setShowLibrary(true);
-                return;
-            }
-            if (meta && k === 'p') {
-                e.preventDefault();
-                setShowProject(true);
-                return;
-            }
-        };
-
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, []);
-
-    // history select
-    function onSelectHistory(id: string) {
-        setActiveId(id);
-        const thread = threads[id];
-        if (Array.isArray(thread) && thread.length) {
-            setMessages(thread);
-        } else {
-            setMessages([
-                {
-                    id: uid(),
-                    role: 'assistant',
-                    content:
-                        'Restored chat (no snapshot found). Start typing to continue.',
-                },
-            ]);
-        }
-        setShowLibrary(false);
+        return md
+            // Remove empty "Key Numbers" sections
+            .replace(/\*\*Key Numbers\*\*\s*(\n\s*)+(?=\*\*|$)/gi, '')
+            // Remove empty "Comparison Table" sections
+            .replace(/\*\*Comparison Table\*\*\s*(\n\s*)+(?=\*\*|$)/gi, '')
+            // Collapse excessive blank lines
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
     }
 
-    const handleProjectAction = React.useCallback(
-        async (action: 'rename' | 'delete', project: any) => {
-            if (!project || !project.id) {
-                console.warn('[ProjectAction] Missing project or id:', project);
-                return;
-            }
+    /* =========================
+       Page
+    ========================= */
+    export default function Page() {
+        useMobileComposerPin();
 
-            if (action === 'rename') {
-                const raw = window.prompt('Rename project:', project.name || '');
-                const newName = raw?.trim();
-                if (!newName || newName === project.name) {
-                    return;
-                }
+        const router = useRouter();
+        const { isSignedIn, user } = useUser();
 
-                try {
-                    const res = await renameProject(project.id, newName);
-                    if (!res.ok) {
-                        console.error('[ProjectAction] Rename failed:', res);
-                        // later: show toast/UI message if you want
-                        return;
-                    }
-
-                    console.log(
-                        '[ProjectAction] Renamed project:',
-                        project.id,
-                        '->',
-                        newName
-                    );
-                    // ProjectsPanel reads from /api/projects via fetchProjects().
-                    // Click "Refresh" in the Projects list to pull updated names.
-                } catch (err) {
-                    console.error('[ProjectAction] Rename error:', err);
-                }
-
-                return;
-            }
-
-            if (action === 'delete') {
-                const confirmed = window.confirm(
-                    `Delete project "${project.name}" and its chat mappings?\n\nChats themselves will remain in the main list.`
-                );
-                if (!confirmed) return;
-
-                try {
-                    const res = await deleteProject(project.id);
-                    if (!res.ok) {
-                        console.error('[ProjectAction] Delete failed:', res);
-                        return;
-                    }
-
-                    console.log('[ProjectAction] Deleted project:', project.id);
-                    // Same as rename: use "Refresh" in Projects to update the list.
-                } catch (err) {
-                    console.error('[ProjectAction] Delete error:', err);
-                }
-            }
-        },
-        []
-    );
-
-
-    const handleMoveChatToProject = React.useCallback(
-        async (threadId: string, projectId: string) => {
-            try {
-                console.log('[Move chat to project] begin', { threadId, projectId });
-
-                const res = await fetch('/api/projects/move-chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ threadId, projectId }),
-                });
-
-                const json: any = await res.json().catch(() => null);
-
-                if (!res.ok || !json?.ok) {
-                    console.error('[Move chat to project] failed', {
-                        status: res.status,
-                        body: json,
-                    });
-                    window.alert(
-                        json?.error ||
-                        'There was a problem moving this chat to the project.'
-                    );
-                    return;
-                }
-
-                console.log('[Move chat to project] success', json);
-
-                const mode = json?.mode || 'unknown';
-                const mapping = json?.mapping;
-
-                window.alert(
-                    `Chat moved to project (${mode}).` +
-                    (mapping?.thread_id
-                        ? `\nthread_id: ${mapping.thread_id}\nproject_id: ${mapping.project_id}`
-                        : '')
-                );
-            } catch (err) {
-                console.error('[Move chat to project] exception', err);
-                window.alert(
-                    'Unexpected error while moving this chat. Please try again.'
-                );
-            }
-        },
-        []
-    );
-
-    function newChat() {
-        const id = uid();
-        setActiveId(id);
-        setMessages([
+        const [messages, setMessages] = useState<ChatMsg[]>([
             {
                 id: uid(),
                 role: 'assistant',
-                content: 'New chat. What do you want to figure out?',
+                content:
+                    'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
             },
         ]);
-        setHistory((h) =>
-            [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20)
-        );
-    }
 
-    function handleHistoryAction(
-        action: 'rename' | 'move' | 'archive' | 'delete',
-        id: string
-    ) {
-        if (action === 'rename') {
-            const current = history.find((h) => h.id === id)?.title ?? '';
-            const name = prompt('Rename chat:', current);
-            if (name && name.trim()) {
-                setHistory((h) =>
-                    h.map((x) =>
-                        x.id === id
-                            ? { ...x, title: name.trim(), updatedAt: Date.now() }
-                            : x
-                    )
-                );
+        const [input, setInput] = useState('');
+
+        // Seed composer once if we came from a shared-link card
+        const hasSeededFromShareRef = React.useRef(false);
+        const searchParams = useSearchParams();
+
+        // borrower-only mode fixed
+        const mode: 'borrower' = 'borrower';
+
+        const [loading, setLoading] = useState(false);
+        const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
+        const [showAuthRequired, setShowAuthRequired] = useState(false);
+
+        const [history, setHistory] = useState<
+            { id: string; title: string; updatedAt?: number }[]
+        >([]);
+        const scrollRef = useRef<HTMLDivElement>(null);
+        useEffect(() => {
+            const el = scrollRef.current;
+            if (!el) return;
+
+            // run after DOM updates so scrollHeight is correct
+            requestAnimationFrame(() => {
+                el.scrollTop = el.scrollHeight;
+            });
+        }, [messages, loading]);
+
+        // If the user came from a shared answer card, pre-fill the composer with that question
+        useEffect(() => {
+            if (!searchParams) return;
+            if (hasSeededFromShareRef.current) return;
+
+            const from = searchParams.get('fromShare');
+            const sq = searchParams.get('sq');
+
+            if (from === '1' && sq && !input) {
+                setInput(sq);
+                hasSeededFromShareRef.current = true;
             }
-            return;
+        }, [searchParams, input, setInput]);
+
+        const [sidebarOpen, setSidebarOpen] = useState(() => {
+            if (typeof window === 'undefined') {
+                // On the server we don't know the width, default to open (desktop-ish).
+                return true;
+            }
+            // On the client: keep sidebar open only on larger screens
+            return window.innerWidth >= 1024; // lg breakpoint
+        });
+
+        const toggleSidebar = () => setSidebarOpen((o) => !o);
+
+
+        // threads + active
+        const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
+        // Memory thread id per chat thread (ChatGPT-style: recall works only if we reuse the same memory_thread_id)
+        const [memoryThreadByChatId, setMemoryThreadByChatId] = useState<Record<string, string>>({});
+        const [activeId, setActiveId] = useState<string | null>(null);
+
+        // overlays
+        const [showSearch, setShowSearch] = useState(false);
+        const [showLibrary, setShowLibrary] = useState(false);
+        const [showSettings, setShowSettings] = useState(false);
+        const [showProject, setShowProject] = useState(false);
+        const [showMortgageCalc, setShowMortgageCalc] = useState(false);
+        const [searchQuery, setSearchQuery] = useState('');
+        const [projectName, setProjectName] = useState('');
+
+        const [newProjectName, setNewProjectName] = React.useState('');
+        const [isCreatingProject, setIsCreatingProject] = React.useState(false);
+
+
+        // restore
+        useEffect(() => {
+            try {
+                const raw = localStorage.getItem(LS_KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw) as {
+                    threads?: Record<string, ChatMsg[]>;
+                    history?: { id: string; title: string; updatedAt?: number }[];
+                    activeId?: string | null;
+                    memoryThreadByChatId?: Record<string, string>;
+                };
+                if (data.threads) setThreads(data.threads);
+                if (Array.isArray(data.history)) setHistory(data.history);
+                if (data.memoryThreadByChatId) setMemoryThreadByChatId(data.memoryThreadByChatId);
+
+                if (data.activeId && data.threads?.[data.activeId]) {
+                    setActiveId(data.activeId);
+                    setMessages(data.threads[data.activeId] || []);
+                }
+            } catch (e) {
+                console.warn('hr.chat load failed', e);
+            }
+        }, []);
+
+        // persist
+        useEffect(() => {
+            try {
+                localStorage.setItem(
+                    LS_KEY,
+                    JSON.stringify({ threads, history, activeId, memoryThreadByChatId })
+                );
+            } catch (e) {
+                console.warn('hr.chat save failed', e);
+            }
+        }, [threads, history, activeId, memoryThreadByChatId]);
+
+        // snapshot into active thread
+        useEffect(() => {
+            if (!activeId) return;
+
+            setThreads((prev) => {
+                const base = prev && typeof prev === 'object' ? prev : {};
+                return { ...base, [activeId]: messages };
+            });
+
+            setHistory((prev) => {
+                const arr = Array.isArray(prev) ? [...prev] : [];
+                const idx = arr.findIndex((h) => h?.id === activeId);
+                if (idx === -1) return arr;
+                arr[idx] = { ...arr[idx], updatedAt: Date.now() };
+                arr.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+                return arr;
+            });
+        }, [messages, activeId]);
+
+        // autoscroll
+        useEffect(() => {
+            scrollRef.current?.scrollTo({
+                top: scrollRef.current.scrollHeight,
+                behavior: 'smooth',
+            });
+        }, [messages]);
+
+        // hotkeys
+        useEffect(() => {
+            const onKey = (e: KeyboardEvent) => {
+                const target = e.target as HTMLElement | null;
+                if (
+                    target &&
+                    (target.tagName === 'INPUT' ||
+                        target.tagName === 'TEXTAREA' ||
+                        (target as HTMLElement).isContentEditable)
+                ) {
+                    return;
+                }
+                const k = e.key.toLowerCase();
+                const meta = e.ctrlKey || e.metaKey;
+
+                if (meta && k === 'k') {
+                    e.preventDefault();
+                    setShowSearch(true);
+                    return;
+                }
+                if (meta && k === 'n') {
+                    e.preventDefault();
+                    newChat();
+                    return;
+                }
+                if (meta && k === 'l') {
+                    e.preventDefault();
+                    setShowLibrary(true);
+                    return;
+                }
+                if (meta && k === 'p') {
+                    e.preventDefault();
+                    setShowProject(true);
+                    return;
+                }
+            };
+
+            window.addEventListener('keydown', onKey);
+            return () => window.removeEventListener('keydown', onKey);
+        }, []);
+
+        // history select
+        function onSelectHistory(id: string) {
+            setActiveId(id);
+            const thread = threads[id];
+            if (Array.isArray(thread) && thread.length) {
+                setMessages(thread);
+            } else {
+                setMessages([
+                    {
+                        id: uid(),
+                        role: 'assistant',
+                        content:
+                            'Restored chat (no snapshot found). Start typing to continue.',
+                    },
+                ]);
+            }
+            setShowLibrary(false);
         }
-        if (action === 'move') {
-            const rawName = prompt(
-                'Move this chat to which project? (New or existing)'
-            );
-            if (!rawName) return;
 
-            const projectName = rawName.trim();
-            if (!projectName) return;
+        const handleProjectAction = React.useCallback(
+            async (action: 'rename' | 'delete', project: any) => {
+                if (!project || !project.id) {
+                    console.warn('[ProjectAction] Missing project or id:', project);
+                    return;
+                }
 
-            // Fire-and-forget async call to Supabase via /api/projects
-            (async () => {
+                if (action === 'rename') {
+                    const raw = window.prompt('Rename project:', project.name || '');
+                    const newName = raw?.trim();
+                    if (!newName || newName === project.name) {
+                        return;
+                    }
+
+                    try {
+                        const res = await renameProject(project.id, newName);
+                        if (!res.ok) {
+                            console.error('[ProjectAction] Rename failed:', res);
+                            // later: show toast/UI message if you want
+                            return;
+                        }
+
+                        console.log(
+                            '[ProjectAction] Renamed project:',
+                            project.id,
+                            '->',
+                            newName
+                        );
+                        // ProjectsPanel reads from /api/projects via fetchProjects().
+                        // Click "Refresh" in the Projects list to pull updated names.
+                    } catch (err) {
+                        console.error('[ProjectAction] Rename error:', err);
+                    }
+
+                    return;
+                }
+
+                if (action === 'delete') {
+                    const confirmed = window.confirm(
+                        `Delete project "${project.name}" and its chat mappings?\n\nChats themselves will remain in the main list.`
+                    );
+                    if (!confirmed) return;
+
+                    try {
+                        const res = await deleteProject(project.id);
+                        if (!res.ok) {
+                            console.error('[ProjectAction] Delete failed:', res);
+                            return;
+                        }
+
+                        console.log('[ProjectAction] Deleted project:', project.id);
+                        // Same as rename: use "Refresh" in Projects to update the list.
+                    } catch (err) {
+                        console.error('[ProjectAction] Delete error:', err);
+                    }
+                }
+            },
+            []
+        );
+
+
+        const handleMoveChatToProject = React.useCallback(
+            async (threadId: string, projectId: string) => {
                 try {
-                    const payload = {
-                        threadId: id,
-                        projectName,
-                        // extra aliases in case the API expects a different field name
-                        name: projectName,
-                        title: projectName,
-                    };
+                    console.log('[Move chat to project] begin', { threadId, projectId });
 
-                    const res = await fetch('/api/projects', {
+                    const res = await fetch('/api/projects/move-chat', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ threadId, projectId }),
                     });
 
-                    const json = await res.json().catch(() => ({} as any));
-
-                    console.log('projects POST response', {
-                        status: res.status,
-                        json,
-                    });
+                    const json: any = await res.json().catch(() => null);
 
                     if (!res.ok || !json?.ok) {
-                        alert(
-                            'Sorry, there was a problem saving this chat to a project.'
+                        console.error('[Move chat to project] failed', {
+                            status: res.status,
+                            body: json,
+                        });
+                        window.alert(
+                            json?.error ||
+                            'There was a problem moving this chat to the project.'
                         );
                         return;
                     }
 
-                    // Later: toast + update local project state
+                    console.log('[Move chat to project] success', json);
+
+                    const mode = json?.mode || 'unknown';
+                    const mapping = json?.mapping;
+
+                    window.alert(
+                        `Chat moved to project (${mode}).` +
+                        (mapping?.thread_id
+                            ? `\nthread_id: ${mapping.thread_id}\nproject_id: ${mapping.project_id}`
+                            : '')
+                    );
                 } catch (err) {
-                    console.error('Project save error:', err);
-                    alert('Network error while saving this chat to a project.');
+                    console.error('[Move chat to project] exception', err);
+                    window.alert(
+                        'Unexpected error while moving this chat. Please try again.'
+                    );
                 }
-            })();
+            },
+            []
+        );
 
-            return;
+        function newChat() {
+            const id = uid();
+            setActiveId(id);
+            setMessages([
+                {
+                    id: uid(),
+                    role: 'assistant',
+                    content: 'New chat. What do you want to figure out?',
+                },
+            ]);
+            setHistory((h) =>
+                [{ id, title: 'New chat', updatedAt: Date.now() }, ...h].slice(0, 20)
+            );
         }
 
-        if (action === 'archive') {
-            alert('Archive (coming soon)');
-            return;
-        }
-        if (action === 'delete') {
-            if (confirm('Delete this chat? This cannot be undone.')) {
-                setHistory((h) => h.filter((x) => x.id !== id));
-                setThreads((t) => {
-                    const copy = { ...t };
-                    delete copy[id];
-                    return copy;
-                });
-                if (activeId === id) {
-                    setActiveId(null);
-                    setMessages([
-                        {
-                            id: uid(),
-                            role: 'assistant',
-                            content: 'New chat. What do you want to figure out?',
-                        },
-                    ]);
-                }
-            }
-            return;
-        }
-    }
-
-    // === Typewriter helper for a "streaming" feel ===
-    const typeOutAssistant = React.useCallback(
-        (id: string, full: string) => {
-            if (!full) return;
-
-            // Use Array.from to be safe with emoji / unicode
-            const chars = Array.from(full);
-            const total = chars.length;
-
-            let index = 0;
-
-            const step = () => {
-                index += 24; // chars per tick; tweak for speed
-                if (index >= total) {
-                    // Final update with full string
-                    setMessages((prev) =>
-                        prev.map((m) =>
-                            m.id === id ? { ...m, content: full } : m
+        function handleHistoryAction(
+            action: 'rename' | 'move' | 'archive' | 'delete',
+            id: string
+        ) {
+            if (action === 'rename') {
+                const current = history.find((h) => h.id === id)?.title ?? '';
+                const name = prompt('Rename chat:', current);
+                if (name && name.trim()) {
+                    setHistory((h) =>
+                        h.map((x) =>
+                            x.id === id
+                                ? { ...x, title: name.trim(), updatedAt: Date.now() }
+                                : x
                         )
                     );
+                }
+                return;
+            }
+            if (action === 'move') {
+                const rawName = prompt(
+                    'Move this chat to which project? (New or existing)'
+                );
+                if (!rawName) return;
+
+                const projectName = rawName.trim();
+                if (!projectName) return;
+
+                // Fire-and-forget async call to Supabase via /api/projects
+                (async () => {
+                    try {
+                        const payload = {
+                            threadId: id,
+                            projectName,
+                            // extra aliases in case the API expects a different field name
+                            name: projectName,
+                            title: projectName,
+                        };
+
+                        const res = await fetch('/api/projects', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                        });
+
+                        const json = await res.json().catch(() => ({} as any));
+
+                        console.log('projects POST response', {
+                            status: res.status,
+                            json,
+                        });
+
+                        if (!res.ok || !json?.ok) {
+                            alert(
+                                'Sorry, there was a problem saving this chat to a project.'
+                            );
+                            return;
+                        }
+
+                        // Later: toast + update local project state
+                    } catch (err) {
+                        console.error('Project save error:', err);
+                        alert('Network error while saving this chat to a project.');
+                    }
+                })();
+
+                return;
+            }
+
+            if (action === 'archive') {
+                alert('Archive (coming soon)');
+                return;
+            }
+            if (action === 'delete') {
+                if (confirm('Delete this chat? This cannot be undone.')) {
+                    setHistory((h) => h.filter((x) => x.id !== id));
+                    setThreads((t) => {
+                        const copy = { ...t };
+                        delete copy[id];
+                        return copy;
+                    });
+                    if (activeId === id) {
+                        setActiveId(null);
+                        setMessages([
+                            {
+                                id: uid(),
+                                role: 'assistant',
+                                content: 'New chat. What do you want to figure out?',
+                            },
+                        ]);
+                    }
+                }
+                return;
+            }
+        }
+
+        // === Typewriter helper for a "streaming" feel ===
+        const typeOutAssistant = React.useCallback(
+            (id: string, full: string) => {
+                if (!full) return;
+
+                // Use Array.from to be safe with emoji / unicode
+                const chars = Array.from(full);
+                const total = chars.length;
+
+                let index = 0;
+
+                const step = () => {
+                    index += 24; // chars per tick; tweak for speed
+                    if (index >= total) {
+                        // Final update with full string
+                        setMessages((prev) =>
+                            prev.map((m) =>
+                                m.id === id ? { ...m, content: full } : m
+                            )
+                        );
+                        return;
+                    }
+
+                    const slice = chars.slice(0, index).join('');
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === id ? { ...m, content: slice } : m
+                        )
+                    );
+
+                    window.setTimeout(step, 20); // ms between ticks
+                };
+
+                step();
+            },
+            [setMessages]
+        );
+
+        async function send() {
+            const q = input.trim();
+            if (!q || loading) return;
+
+            // Enforce simple daily limits before we send anything
+            if (!isSignedIn) {
+                const allowed = bumpAnonCounterOrBlock();
+                if (!allowed) {
+                    setShowAuthRequired(true);
                     return;
                 }
+            } else {
+                const allowed = bumpSignedCounterOrBlock(user?.id);
+                if (!allowed) {
+                    setShowUpgradeRequired(true);
+                    return;
+                }
+            }
 
-                const slice = chars.slice(0, index).join('');
+            const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
+
+            // ensure thread
+            let tid = activeId;
+            if (!tid) {
+                tid = uid();
+                setActiveId(tid);
+                setHistory((h) =>
+                    [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20)
+                );
+            } else {
+                setHistory((prev) => {
+                    const next = Array.isArray(prev) ? [...prev] : [];
+                    const idx = next.findIndex((x) => x?.id === tid);
+                    if (idx >= 0) {
+                        const current = next[idx] ?? { id: tid!, title: 'Untitled' };
+                        const needsTitle =
+                            typeof current.title === 'string' &&
+                            (current.title === 'New chat' ||
+                                current.title.startsWith('Untitled'));
+
+                        next[idx] = {
+                            ...current,
+                            title: needsTitle ? title : current.title,
+                            updatedAt: Date.now(),
+                        };
+                        return next;
+                    }
+                    next.unshift({ id: tid!, title, updatedAt: Date.now() });
+                    return next.slice(0, 20);
+                });
+            }
+            // Resolve (and later persist) the server-side memory thread id for this chat thread.
+            // If we don't reuse this id, the backend will create a new memory thread every request and recall will be empty.
+            const existingMemoryThreadId = tid ? memoryThreadByChatId[tid] : undefined;
+
+            // Create a placeholder assistant bubble immediately (no canned text)
+            const answerId = uid();
+
+            setMessages((m) => [
+                ...m,
+                { id: uid(), role: 'user', content: q },
+                { id: answerId, role: 'assistant', content: '' },
+            ]);
+
+            setInput('');
+            setLoading(true);
+
+            try {
+                // borrower-only body (no intent/loanAmount passthrough)
+                const body: { question: string; mode: 'borrower' } = {
+                    question: q,
+                    mode,
+                };
+
+                // === Scenario routing (12-18-25) ===
+                // Force mode: if URL has ?scenario=1 (your sidebar button can add this)
+                const sp =
+                    typeof window !== 'undefined'
+                        ? new URLSearchParams(window.location.search)
+                        : null;
+
+                const forceScenario = sp?.get('scenario') === '1';
+
+                // Smart detection: only flip to scenario when it smells like compare/projection + has numbers
+                const t = q.toLowerCase();
+
+                const looksLikeScenario =
+                    t.includes('scenario') ||
+                    t.includes('compare') ||
+                    t.includes(' vs ') ||
+                    t.includes('cash out') ||
+                    t.includes('cash-out') ||
+                    t.includes('equity') ||
+                    t.includes('projection') ||
+                    t.includes('stress test') ||
+                    t.includes('10-year') ||
+                    t.includes('10 year') ||
+                    t.includes('5-year') ||
+                    t.includes('5 year') ||
+
+                    // Investment / DSCR / rental math should always use Smart Scenario (single numeric authority)
+                    t.includes('dscr') ||
+                    t.includes('pitia') ||
+                    t.includes('amortization') ||
+                    t.includes('amortisation') ||
+                    t.includes('cash flow') ||
+                    t.includes('rental') ||
+                    t.includes('rent ') ||
+                    t.includes('investment property') ||
+                    t.includes('vacancy') ||
+                    t.includes('maintenance') ||
+                    t.includes('property tax') ||
+                    t.includes('insurance');
+
+                const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
+
+                const useScenario = forceScenario || (looksLikeScenario && hasNumbersContext);
+
+                // Endpoint + payload
+                const answersEndpoint = useScenario ? '/api/answers/scenario' : '/api/answers';
+
+                const payload = useScenario
+                    ? {
+                        message: q,
+                        userId: user?.id || 'anon',
+                    }
+                    : body;
+                // === End scenario routing ===
+
+
+
+                const r = await fetch(answersEndpoint, {
+
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                const raw = await safeJson(r);
+                const meta: ApiResponse = useScenario
+                    ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.grok ?? raw)
+                    : (raw as ApiResponse);
+
+
+
+                // Attach Grok metadata to the assistant message (under m.meta)
                 setMessages((prev) =>
                     prev.map((m) =>
-                        m.id === id ? { ...m, content: slice } : m
+                        m.id === answerId && m.role === 'assistant'
+                            ? {
+                                ...m,
+                                meta,      // <--- meta now lives under m.meta
+                                content: '', // typewriter will fill summary, not markdown
+                            }
+                            : m
                     )
                 );
 
-                window.setTimeout(step, 20); // ms between ticks
-            };
 
-            step();
-        },
-        [setMessages]
-    );
+                const friendly =
+                    meta.message ??
+                    meta.summary ??
+                    (meta.fred &&
+                        meta.fred.tenYearYield != null &&
+                        meta.fred.mort30Avg != null &&
+                        meta.fred.spread != null
+                        ? `As of ${meta.fred.asOf ?? 'recent data'
+                        }: ${typeof meta.fred.tenYearYield === 'number'
+                            ? `${meta.fred.tenYearYield.toFixed(2)}%`
+                            : meta.fred.tenYearYield
+                        } 10Y, ${typeof meta.fred.mort30Avg === 'number'
+                            ? `${meta.fred.mort30Avg.toFixed(2)}%`
+                            : meta.fred.mort30Avg
+                        } 30Y, spread ${typeof meta.fred.spread === 'number'
+                            ? `${meta.fred.spread.toFixed(2)}%`
+                            : meta.fred.spread
+                        }.`
+                        : typeof meta.answer === 'string'
+                            ? meta.answer
+                            : `path: ${meta.path} | usedFRED: ${String(
+                                meta.usedFRED
+                            )} | confidence: ${meta.confidence ?? '-'}`);
 
-    async function send() {
-        const q = input.trim();
-        if (!q || loading) return;
+                // Fire-and-forget: log this Q&A to the user's library (signed-in only)
+                try {
+                    if (isSignedIn) {
+                        void logAnswerToLibrary(q, { friendly, meta });
+                    }
+                } catch (err) {
+                    console.error('Library logging error:', err);
+                }
 
-        // Enforce simple daily limits before we send anything
-        if (!isSignedIn) {
-            const allowed = bumpAnonCounterOrBlock();
-            if (!allowed) {
-                setShowAuthRequired(true);
-                return;
-            }
-        } else {
-            const allowed = bumpSignedCounterOrBlock(user?.id);
-            if (!allowed) {
-                setShowUpgradeRequired(true);
-                return;
+
+                // If the backend signals that a limit was hit, surface the right modal
+                if (meta.upgradeRequired || meta.limitHit) {
+                    if (!isSignedIn) {
+                        setShowAuthRequired(true);
+                    } else {
+                        setShowUpgradeRequired(true);
+                    }
+                }
+
+                // Type out the actual answer text into the existing assistant bubble
+                const fullText = friendly;
+                typeOutAssistant(answerId, fullText);
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                setMessages((m) => [
+                    ...m,
+                    { id: uid(), role: 'assistant', content: `Error: ${msg}` },
+                ]);
+            } finally {
+                setLoading(false);
             }
         }
 
-        const title = q.length > 42 ? q.slice(0, 42) + '...' : q;
-
-        // ensure thread
-        let tid = activeId;
-        if (!tid) {
-            tid = uid();
-            setActiveId(tid);
-            setHistory((h) =>
-                [{ id: tid!, title, updatedAt: Date.now() }, ...h].slice(0, 20)
-            );
-        } else {
-            setHistory((prev) => {
-                const next = Array.isArray(prev) ? [...prev] : [];
-                const idx = next.findIndex((x) => x?.id === tid);
-                if (idx >= 0) {
-                    const current = next[idx] ?? { id: tid!, title: 'Untitled' };
-                    const needsTitle =
-                        typeof current.title === 'string' &&
-                        (current.title === 'New chat' ||
-                            current.title.startsWith('Untitled'));
-
-                    next[idx] = {
-                        ...current,
-                        title: needsTitle ? title : current.title,
-                        updatedAt: Date.now(),
-                    };
-                    return next;
-                }
-                next.unshift({ id: tid!, title, updatedAt: Date.now() });
-                return next.slice(0, 20);
-            });
+        function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+            }
         }
-        // Resolve (and later persist) the server-side memory thread id for this chat thread.
-        // If we don't reuse this id, the backend will create a new memory thread every request and recall will be empty.
-        const existingMemoryThreadId = tid ? memoryThreadByChatId[tid] : undefined;
 
-        // Create a placeholder assistant bubble immediately (no canned text)
-        const answerId = uid();
-
-        setMessages((m) => [
-            ...m,
-            { id: uid(), role: 'user', content: q },
-            { id: answerId, role: 'assistant', content: '' },
-        ]);
-
-        setInput('');
-        setLoading(true);
-
-        try {
-            // borrower-only body (no intent/loanAmount passthrough)
-            const body: { question: string; mode: 'borrower' } = {
-                question: q,
-                mode,
-            };
-
-            // === Scenario routing (12-18-25) ===
-            // Force mode: if URL has ?scenario=1 (your sidebar button can add this)
-            const sp =
-                typeof window !== 'undefined'
-                    ? new URLSearchParams(window.location.search)
-                    : null;
-
-            const forceScenario = sp?.get('scenario') === '1';
-
-            // Smart detection: only flip to scenario when it smells like compare/projection + has numbers
-            const t = q.toLowerCase();
-
-            const looksLikeScenario =
-                t.includes('scenario') ||
-                t.includes('compare') ||
-                t.includes(' vs ') ||
-                t.includes('cash out') ||
-                t.includes('cash-out') ||
-                t.includes('equity') ||
-                t.includes('projection') ||
-                t.includes('stress test') ||
-                t.includes('10-year') ||
-                t.includes('10 year') ||
-                t.includes('5-year') ||
-                t.includes('5 year') ||
-
-                // Investment / DSCR / rental math should always use Smart Scenario (single numeric authority)
-                t.includes('dscr') ||
-                t.includes('pitia') ||
-                t.includes('amortization') ||
-                t.includes('amortisation') ||
-                t.includes('cash flow') ||
-                t.includes('rental') ||
-                t.includes('rent ') ||
-                t.includes('investment property') ||
-                t.includes('vacancy') ||
-                t.includes('maintenance') ||
-                t.includes('property tax') ||
-                t.includes('insurance');
-
-            const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
-
-            const useScenario = forceScenario || (looksLikeScenario && hasNumbersContext);
-
-            // Endpoint + payload
-            const answersEndpoint = useScenario ? '/api/answers/scenario' : '/api/answers';
-
-            const payload = useScenario
-                ? {
-                    message: q,
-                    userId: user?.id || 'anon',
-                }
-                : body;
-            // === End scenario routing ===
-
-
-
-            const r = await fetch(answersEndpoint, {
-
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            const raw = await safeJson(r);
-            const meta: ApiResponse = useScenario
-                ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.grok ?? raw)
-                : (raw as ApiResponse);
-
-
-
-            // Attach Grok metadata to the assistant message (under m.meta)
-            setMessages((prev) =>
-                prev.map((m) =>
-                    m.id === answerId && m.role === 'assistant'
-                        ? {
-                            ...m,
-                            meta,      // <--- meta now lives under m.meta
-                            content: '', // typewriter will fill summary, not markdown
-                        }
-                        : m
+        function onShare() {
+            const text = messages
+                .map((m) =>
+                    `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''
+                    }`
                 )
-            );
+                .join('\n');
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(text).catch(() => { });
+            } else {
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'conversation.txt';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            }
+        }
 
+        function onSettings() {
+            setShowSettings(true);
+        }
 
-            const friendly =
-                meta.message ??
-                meta.summary ??
-                (meta.fred &&
-                    meta.fred.tenYearYield != null &&
-                    meta.fred.mort30Avg != null &&
-                    meta.fred.spread != null
-                    ? `As of ${meta.fred.asOf ?? 'recent data'
-                    }: ${typeof meta.fred.tenYearYield === 'number'
-                        ? `${meta.fred.tenYearYield.toFixed(2)}%`
-                        : meta.fred.tenYearYield
-                    } 10Y, ${typeof meta.fred.mort30Avg === 'number'
-                        ? `${meta.fred.mort30Avg.toFixed(2)}%`
-                        : meta.fred.mort30Avg
-                    } 30Y, spread ${typeof meta.fred.spread === 'number'
-                        ? `${meta.fred.spread.toFixed(2)}%`
-                        : meta.fred.spread
-                    }.`
-                    : typeof meta.answer === 'string'
-                        ? meta.answer
-                        : `path: ${meta.path} | usedFRED: ${String(
-                            meta.usedFRED
-                        )} | confidence: ${meta.confidence ?? '-'}`);
+        function onSearch() {
+            setShowSearch(true);
+        }
 
-            // Fire-and-forget: log this Q&A to the user's library (signed-in only)
-            try {
-                if (isSignedIn) {
-                    void logAnswerToLibrary(q, { friendly, meta });
-                }
-            } catch (err) {
-                console.error('Library logging error:', err);
+        function onLibrary() {
+            setShowLibrary(true);
+        }
+
+        // NEW PROJECT:
+        // Create a project for the *current chat thread* using /api/projects,
+        // which expects { threadId, projectName }.
+        function onNewProject() {
+            if (!activeId) {
+                console.warn('[NewProject] No active chat thread to attach project to.');
+                // optional: alert('Open or select a chat before creating a project.');
+                return;
             }
 
-
-            // If the backend signals that a limit was hit, surface the right modal
-            if (meta.upgradeRequired || meta.limitHit) {
-                if (!isSignedIn) {
-                    setShowAuthRequired(true);
-                } else {
-                    setShowUpgradeRequired(true);
-                }
+            const raw = window.prompt('Name your project (for grouping related chats):');
+            const projectName = raw?.trim();
+            if (!projectName) {
+                return;
             }
 
-            // Type out the actual answer text into the existing assistant bubble
-            const fullText = friendly;
-            typeOutAssistant(answerId, fullText);
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            setMessages((m) => [
-                ...m,
-                { id: uid(), role: 'assistant', content: `Error: ${msg}` },
-            ]);
-        } finally {
-            setLoading(false);
-        }
-    }
+            // Fire-and-forget async flow so handler stays () => void
+            void (async () => {
+                try {
+                    const res = await createProject(activeId, projectName);
+                    if (!res.ok) {
+                        console.error('[NewProject] Error creating project:', res);
+                        return;
+                    }
 
-    function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            send();
-        }
-    }
-
-    function onShare() {
-        const text = messages
-            .map((m) =>
-                `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''
-                }`
-            )
-            .join('\n');
-        if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(text).catch(() => { });
-        } else {
-            const blob = new Blob([text], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'conversation.txt';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        }
-    }
-
-    function onSettings() {
-        setShowSettings(true);
-    }
-
-    function onSearch() {
-        setShowSearch(true);
-    }
-
-    function onLibrary() {
-        setShowLibrary(true);
-    }
-
-    // NEW PROJECT:
-    // Create a project for the *current chat thread* using /api/projects,
-    // which expects { threadId, projectName }.
-    function onNewProject() {
-        if (!activeId) {
-            console.warn('[NewProject] No active chat thread to attach project to.');
-            // optional: alert('Open or select a chat before creating a project.');
-            return;
-        }
-
-        const raw = window.prompt('Name your project (for grouping related chats):');
-        const projectName = raw?.trim();
-        if (!projectName) {
-            return;
-        }
-
-        // Fire-and-forget async flow so handler stays () => void
-        void (async () => {
-            try {
-                const res = await createProject(activeId, projectName);
-                if (!res.ok) {
-                    console.error('[NewProject] Error creating project:', res);
-                    return;
+                    console.log(
+                        '[NewProject] Created project for thread:',
+                        activeId,
+                        'name:',
+                        projectName
+                    );
+                    // ProjectsPanel reads from /api/projects; click "Refresh" there
+                    // to pull the new project + mapping into the sidebar.
+                } catch (err) {
+                    console.error('[NewProject] Unexpected error:', err);
                 }
+            })();
+        }
 
-                console.log(
-                    '[NewProject] Created project for thread:',
-                    activeId,
-                    'name:',
-                    projectName
-                );
-                // ProjectsPanel reads from /api/projects; click "Refresh" there
-                // to pull the new project + mapping into the sidebar.
-            } catch (err) {
-                console.error('[NewProject] Unexpected error:', err);
-            }
-        })();
-    }
+        // MORTGAGE CALC: opens the calculator overlay
+        function onMortgageCalc() {
+            setShowMortgageCalc(true);
+        }
 
-    // MORTGAGE CALC: opens the calculator overlay
-    function onMortgageCalc() {
-        setShowMortgageCalc(true);
-    }
+        // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
+        function onAskUnderwriting() {
+            const seed =
+                'Ask Underwriting: ';
 
-    // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
-    function onAskUnderwriting() {
-        const seed =
-            'Ask Underwriting: ';
+            // Just pre-fill the composer – user can edit then hit Enter / Send.
+            setInput(seed);
+        }
+        // ABOUT HOMERATES: seeds the composer to trigger the "about" module
+        function onAboutHomeRates() {
+            const seed =
+                'What is HomeRates.ai and what makes this different from other mortgage & Ai Apps?';
+            setInput(seed);
+        }
 
-        // Just pre-fill the composer – user can edit then hit Enter / Send.
-        setInput(seed);
-    }
-    // ABOUT HOMERATES: seeds the composer to trigger the "about" module
-    function onAboutHomeRates() {
-        const seed =
-            'What is HomeRates.ai and what makes this different from other mortgage & Ai Apps?';
-        setInput(seed);
-    }
-
-    function closeAllOverlays() {
-        setShowSearch(false);
-        setShowLibrary(false);
-        setShowSettings(false);
-        setShowProject(false);
-        setShowMortgageCalc(false);
-    }
+        function closeAllOverlays() {
+            setShowSearch(false);
+            setShowLibrary(false);
+            setShowSettings(false);
+            setShowProject(false);
+            setShowMortgageCalc(false);
+        }
 
 
 
-    return (
-        <>
-            {/* Sidebar */}
-            <Sidebar
-                id="hr-sidebar"
-                history={history}
-                activeId={activeId}
-                isOpen={sidebarOpen}
-                onToggle={toggleSidebar}
-                onSelectHistory={onSelectHistory}
-                onHistoryAction={handleHistoryAction}
-                onNewChat={newChat}
-                onSettings={onSettings}
-                onShare={onShare}
-                onSearch={onSearch}
-                onLibrary={onLibrary}
-                onNewProject={onNewProject}
-                onMortgageCalc={onMortgageCalc}
-                onAskUnderwriting={onAskUnderwriting}
-                onAboutHomeRates={onAboutHomeRates}
-                onProjectAction={handleProjectAction}
-                onMoveChatToProject={handleMoveChatToProject}
-            />
+        return (
+            <>
+                {/* Sidebar */}
+                <Sidebar
+                    id="hr-sidebar"
+                    history={history}
+                    activeId={activeId}
+                    isOpen={sidebarOpen}
+                    onToggle={toggleSidebar}
+                    onSelectHistory={onSelectHistory}
+                    onHistoryAction={handleHistoryAction}
+                    onNewChat={newChat}
+                    onSettings={onSettings}
+                    onShare={onShare}
+                    onSearch={onSearch}
+                    onLibrary={onLibrary}
+                    onNewProject={onNewProject}
+                    onMortgageCalc={onMortgageCalc}
+                    onAskUnderwriting={onAskUnderwriting}
+                    onAboutHomeRates={onAboutHomeRates}
+                    onProjectAction={handleProjectAction}
+                    onMoveChatToProject={handleMoveChatToProject}
+                />
 
 
 
 
-            {/* Main */}
-            <section
-                className="main"
-                style={{
-                    minHeight: '100dvh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                }}
-            >
-                <div className="header">
-                    <div
-                        className="header-inner"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            paddingLeft: 8,
-                        }}
-                    >
-                        {/* HomeRates logo */}
-                        <img
-                            src="/assets/homerates-full-logo.png"
-                            alt="HomeRates.ai"
-                            style={{
-                                height: 28,
-                                width: 'auto',
-                                display: 'block',
-                            }}
-                        />
-
-                        {/* Existing hamburger menu */}
-                        <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
-
-                        {/* Title */}
-                        <div style={{ fontWeight: 700, marginLeft: 8 }}>Chat</div>
-
-                        {/* Right-side spacer / controls */}
-                        <div style={{ marginLeft: 'auto' }} />
-                    </div>
-                </div>
-
-                <div
-                    ref={scrollRef}
-                    className="scroll"
+                {/* Main */}
+                <section
+                    className="main"
                     style={{
-                        flex: '1 1 auto',
-                        minHeight: 0,
-                        overflowY: 'auto',
+                        minHeight: '100dvh',
+                        display: 'flex',
+                        flexDirection: 'column',
                     }}
                 >
-                    <div className="center">
-                        <div className="messages">
-                            {messages.map((m) => (
-                                <div key={m.id}>
-                                    <Bubble role={m.role}>
-                                        {m.role === 'assistant' ? (
-                                            // If this is a Grok-style answer with markdown, use GrokCard
-                                            m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
-                                                <GrokCard
-                                                    data={{
-                                                        grok: m.meta.grok,
-                                                        answerMarkdown: sanitizeMarkdown(
-                                                            m.meta.answerMarkdown ??
-                                                            (typeof m.content === 'string' ? m.content : '')
-                                                        ),
+                    <div className="header">
+                        <div
+                            className="header-inner"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                paddingLeft: 8,
+                            }}
+                        >
+                            {/* HomeRates logo */}
+                            <img
+                                src="/assets/homerates-full-logo.png"
+                                alt="HomeRates.ai"
+                                style={{
+                                    height: 28,
+                                    width: 'auto',
+                                    display: 'block',
+                                }}
+                            />
 
-                                                        followUp: m.meta.followUp ?? m.meta.grok?.follow_up,
-                                                        data_freshness:
-                                                            m.meta.data_freshness ??
-                                                            m.meta.fred?.asOf ??
+                            {/* Existing hamburger menu */}
+                            <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
-                                                            '',
-                                                    }}
-                                                    onFollowUp={(q: string) => {
-                                                        if (!q) return;
-                                                        setInput(q);
-                                                        // Then you can review/edit and hit Enter or the Send button
-                                                    }}
+                            {/* Title */}
+                            <div style={{ fontWeight: 700, marginLeft: 8 }}>Chat</div>
 
-
-                                                />
-                                            ) : m.meta ? (
-                                                // Legacy / calc answers still use AnswerBlock (Grok card)
-                                                <GrokAnswerBlock
-                                                    meta={m.meta}
-                                                    friendly={
-                                                        typeof m.content === 'string'
-                                                            ? m.content
-                                                            : undefined
-                                                    }
-                                                />
-                                            ) : (
-                                                // Bare assistant content fallback
-                                                typeof m.content === 'string' ? m.content : ''
-                                            )
-                                        ) : (
-                                            // User messages unchanged
-                                            m.content
-                                        )}
-
-                                        {m.role === 'assistant' &&
-                                            m.meta &&
-                                            typeof m.content === 'string' &&
-                                            m.content.trim().length > 40 && (
-                                                <div
-                                                    style={{
-                                                        marginTop: 4,
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end',
-                                                    }}
-                                                >
-                                                    <ShareAnswerButton
-                                                        question="Question asked in HomeRates.ai"
-                                                        answer={m.content}
-                                                        source="thread"
-                                                    />
-                                                </div>
-                                            )}
-
-
-                                    </Bubble>
-                                </div>
-                            ))}
-
-                            {loading && (
-                                <Bubble role="assistant">
-                                    <div className="typing-dots" aria-label="HomeRates is thinking">
-                                        <span></span>
-                                        <span></span>
-                                        <span></span>
-                                    </div>
-                                </Bubble>
-                            )}
-
+                            {/* Right-side spacer / controls */}
+                            <div style={{ marginLeft: 'auto' }} />
                         </div>
                     </div>
-                </div>
 
-                {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
-                <div
-                    className="hr-composer"
-                    data-composer="primary"
-                    style={{
-                        // position/bottom now handled in CSS (desktop vs mobile)
-                        zIndex: 900,
-                        borderTop: '1px solid rgba(245, 247, 250, 0.06)',
-                        background: 'transparent',
-                    }}
-                >
                     <div
-                        className="hr-composer-inner"
+                        ref={scrollRef}
+                        className="scroll"
                         style={{
-                            position: 'relative',
-                            display: 'flex',
-                            alignItems: 'center',
-                            // let the inner input flex control width, avoid pill growth on type
-                            maxWidth: 640, // line up with main column
-                            margin: '0 auto',
-                            padding: '8px 12px',
-                            boxSizing: 'border-box',
+                            flex: '1 1 auto',
+                            minHeight: 0,
+                            overflowY: 'auto',
                         }}
                     >
-                        <input
-                            className="hr-composer-input"
-                            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={onKey}
+                        <div className="center">
+                            <div className="messages">
+                                {messages.map((m) => (
+                                    <div key={m.id}>
+                                        <Bubble role={m.role}>
+                                            {m.role === 'assistant' ? (
+                                                // If this is a Grok-style answer with markdown, use GrokCard
+                                                m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
+                                                    <GrokCard
+                                                        data={{
+                                                            grok: m.meta.grok,
+                                                            answerMarkdown: sanitizeMarkdown(
+                                                                m.meta.answerMarkdown ??
+                                                                (typeof m.content === 'string' ? m.content : '')
+                                                            ),
+
+                                                            followUp: m.meta.followUp ?? m.meta.grok?.follow_up,
+                                                            data_freshness:
+                                                                m.meta.data_freshness ??
+                                                                m.meta.fred?.asOf ??
+
+                                                                '',
+                                                        }}
+                                                        onFollowUp={(q: string) => {
+                                                            if (!q) return;
+                                                            setInput(q);
+                                                            // Then you can review/edit and hit Enter or the Send button
+                                                        }}
+
+
+                                                    />
+                                                ) : m.meta ? (
+                                                    // Legacy / calc answers still use AnswerBlock (Grok card)
+                                                    <GrokAnswerBlock
+                                                        meta={m.meta}
+                                                        friendly={
+                                                            typeof m.content === 'string'
+                                                                ? m.content
+                                                                : undefined
+                                                        }
+                                                    />
+                                                ) : (
+                                                    // Bare assistant content fallback
+                                                    typeof m.content === 'string' ? m.content : ''
+                                                )
+                                            ) : (
+                                                // User messages unchanged
+                                                m.content
+                                            )}
+
+                                            {m.role === 'assistant' &&
+                                                m.meta &&
+                                                typeof m.content === 'string' &&
+                                                m.content.trim().length > 40 && (
+                                                    <div
+                                                        style={{
+                                                            marginTop: 4,
+                                                            display: 'flex',
+                                                            justifyContent: 'flex-end',
+                                                        }}
+                                                    >
+                                                        <ShareAnswerButton
+                                                            question="Question asked in HomeRates.ai"
+                                                            answer={m.content}
+                                                            source="thread"
+                                                        />
+                                                    </div>
+                                                )}
+
+
+                                        </Bubble>
+                                    </div>
+                                ))}
+
+                                {loading && (
+                                    <Bubble role="assistant">
+                                        <div className="typing-dots" aria-label="HomeRates is thinking">
+                                            <span></span>
+                                            <span></span>
+                                            <span></span>
+                                        </div>
+                                    </Bubble>
+                                )}
+
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
+                    <div
+                        className="hr-composer"
+                        data-composer="primary"
+                        style={{
+                            // position/bottom now handled in CSS (desktop vs mobile)
+                            zIndex: 900,
+                            borderTop: '1px solid rgba(245, 247, 250, 0.06)',
+                            background: 'transparent',
+                        }}
+                    >
+                        <div
+                            className="hr-composer-inner"
                             style={{
-                                flex: '1 1 auto',
-                                minWidth: 0,
-                                height: 36, // compact (about half your old tall pill)
-                                borderRadius: 9999, // true pill
-                                border: '1px solid #E5E7EB',
-                                padding: '6px 40px 6px 12px', // room on the right for the arrow circle
-                                background: '#FFFFFF',
-                                fontSize: 16, // >=16 prevents iOS zoom on focus
-                                lineHeight: 1.3,
+                                position: 'relative',
+                                display: 'flex',
+                                alignItems: 'center',
+                                // let the inner input flex control width, avoid pill growth on type
+                                maxWidth: 640, // line up with main column
+                                margin: '0 auto',
+                                padding: '8px 12px',
                                 boxSizing: 'border-box',
                             }}
-                        />
-
-                        <button
-                            className="hr-composer-send"
-                            data-testid="ask-pill"
-                            aria-label="Send message"
-                            title="Send"
-                            onClick={send}
-                            disabled={loading || !input.trim()}
-                            style={{
-                                position: 'absolute',
-                                right: 16,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: 24, // small circle
-                                height: 24,
-                                borderRadius: 9999,
-                                padding: 0,
-                                border: 'none',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: '#111827',
-                                color: '#FFFFFF',
-                                cursor:
-                                    loading || !input.trim()
-                                        ? 'default'
-                                        : 'pointer',
-                                opacity: loading || !input.trim() ? 0.5 : 1,
-                                zIndex: 2,
-                            }}
                         >
-                            <svg
-                                width={14}
-                                height={14}
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                                style={{ transform: 'rotate(-90deg)' }} // arrow points up
-                            >
-                                <path
-                                    d="M3 12h14.5M13 6l6 6-6 6"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={2}
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
-                {(showSearch ||
-                    showLibrary ||
-                    showSettings ||
-                    showProject ||
-                    showMortgageCalc) && (
-                        <div
-                            role="dialog"
-                            aria-modal="true"
-                            aria-label="Overlay"
-                            onClick={(e) => {
-                                if (e.target === e.currentTarget) closeAllOverlays();
-                            }}
-                            style={{
-                                position: 'fixed',
-                                inset: 0,
-                                background: 'rgba(0,0,0,0.35)',
-                                display: 'grid',
-                                placeItems: 'center',
-                                zIndex: 5000,
-                                maxWidth: '100vw',
-                                overflowX: 'hidden',
-                            }}
-                        >
-                            <div
-                                className="panel"
+                            <input
+                                className="hr-composer-input"
+                                placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={onKey}
                                 style={{
-                                    width: '100%', // fill the padded area, not the whole screen
-                                    maxWidth: 520, // hard cap so it doesn't feel like an iPad on phones
-                                    maxHeight: '80vh',
-                                    overflowY: 'auto',
-                                    padding: 16,
-                                    paddingBottom: 32, // gives room under the buttons
-                                    borderRadius: 12,
-                                    background: 'var(--card)',
-                                    boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
-                                    display: 'grid',
-                                    gap: 12,
+                                    flex: '1 1 auto',
+                                    minWidth: 0,
+                                    height: 36, // compact (about half your old tall pill)
+                                    borderRadius: 9999, // true pill
+                                    border: '1px solid #E5E7EB',
+                                    padding: '6px 40px 6px 12px', // room on the right for the arrow circle
+                                    background: '#FFFFFF',
+                                    fontSize: 16, // >=16 prevents iOS zoom on focus
+                                    lineHeight: 1.3,
                                     boxSizing: 'border-box',
+                                }}
+                            />
+
+                            <button
+                                className="hr-composer-send"
+                                data-testid="ask-pill"
+                                aria-label="Send message"
+                                title="Send"
+                                onClick={send}
+                                disabled={loading || !input.trim()}
+                                style={{
+                                    position: 'absolute',
+                                    right: 16,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    width: 24, // small circle
+                                    height: 24,
+                                    borderRadius: 9999,
+                                    padding: 0,
+                                    border: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: '#111827',
+                                    color: '#FFFFFF',
+                                    cursor:
+                                        loading || !input.trim()
+                                            ? 'default'
+                                            : 'pointer',
+                                    opacity: loading || !input.trim() ? 0.5 : 1,
+                                    zIndex: 2,
+                                }}
+                            >
+                                <svg
+                                    width={14}
+                                    height={14}
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                    style={{ transform: 'rotate(-90deg)' }} // arrow points up
+                                >
+                                    <path
+                                        d="M3 12h14.5M13 6l6 6-6 6"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ------- Overlays (Search/Library/Settings/New Project/Mortgage Calc) ------- */}
+                    {(showSearch ||
+                        showLibrary ||
+                        showSettings ||
+                        showProject ||
+                        showMortgageCalc) && (
+                            <div
+                                role="dialog"
+                                aria-modal="true"
+                                aria-label="Overlay"
+                                onClick={(e) => {
+                                    if (e.target === e.currentTarget) closeAllOverlays();
+                                }}
+                                style={{
+                                    position: 'fixed',
+                                    inset: 0,
+                                    background: 'rgba(0,0,0,0.35)',
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                    zIndex: 5000,
+                                    maxWidth: '100vw',
+                                    overflowX: 'hidden',
                                 }}
                             >
                                 <div
+                                    className="panel"
                                     style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
+                                        width: '100%', // fill the padded area, not the whole screen
+                                        maxWidth: 520, // hard cap so it doesn't feel like an iPad on phones
+                                        maxHeight: '80vh',
+                                        overflowY: 'auto',
+                                        padding: 16,
+                                        paddingBottom: 32, // gives room under the buttons
+                                        borderRadius: 12,
+                                        background: 'var(--card)',
+                                        boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                                        display: 'grid',
+                                        gap: 12,
+                                        boxSizing: 'border-box',
                                     }}
                                 >
-                                    <div style={{ fontWeight: 700 }}>
-                                        {showSearch && 'Search'}
-                                        {showLibrary && 'Library'}
-                                        {showSettings && 'Settings'}
-                                        {showProject && 'New Project'}
-                                        {showMortgageCalc && 'Mortgage Calculator'}
-                                    </div>
-                                    <button
-                                        className="btn"
-                                        onClick={closeAllOverlays}
-                                        aria-label="Close"
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                        }}
                                     >
-                                        Close
-                                    </button>
-                                </div>
-
-                                {/* SEARCH */}
-                                {showSearch && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <input
-                                            className="input"
-                                            placeholder="Search your current thread and history..."
-                                            value={searchQuery}
-                                            onChange={(e) =>
-                                                setSearchQuery(e.target.value)
-                                            }
-                                            autoFocus
-                                        />
-                                        <div
-                                            className="panel"
-                                            style={{ display: 'grid', gap: 6 }}
+                                        <div style={{ fontWeight: 700 }}>
+                                            {showSearch && 'Search'}
+                                            {showLibrary && 'Library'}
+                                            {showSettings && 'Settings'}
+                                            {showProject && 'New Project'}
+                                            {showMortgageCalc && 'Mortgage Calculator'}
+                                        </div>
+                                        <button
+                                            className="btn"
+                                            onClick={closeAllOverlays}
+                                            aria-label="Close"
                                         >
-                                            <div style={{ fontWeight: 600 }}>
-                                                Matches in current thread
+                                            Close
+                                        </button>
+                                    </div>
+
+                                    {/* SEARCH */}
+                                    {showSearch && (
+                                        <div style={{ display: 'grid', gap: 10 }}>
+                                            <input
+                                                className="input"
+                                                placeholder="Search your current thread and history..."
+                                                value={searchQuery}
+                                                onChange={(e) =>
+                                                    setSearchQuery(e.target.value)
+                                                }
+                                                autoFocus
+                                            />
+                                            <div
+                                                className="panel"
+                                                style={{ display: 'grid', gap: 6 }}
+                                            >
+                                                <div style={{ fontWeight: 600 }}>
+                                                    Matches in current thread
+                                                </div>
+                                                <ul style={{ marginTop: 0 }}>
+                                                    {messages
+                                                        .filter(
+                                                            (m) =>
+                                                                typeof m.content ===
+                                                                'string' &&
+                                                                m.content
+                                                                    .toLowerCase()
+                                                                    .includes(
+                                                                        searchQuery.toLowerCase()
+                                                                    )
+                                                        )
+                                                        .slice(0, 12)
+                                                        .map((m, i) => (
+                                                            <li key={m.id + i}>
+                                                                <b>
+                                                                    {m.role === 'user'
+                                                                        ? 'You'
+                                                                        : 'HomeRates'}
+                                                                    :
+                                                                </b>{' '}
+                                                                <span>
+                                                                    {(
+                                                                        m.content as string
+                                                                    ).slice(0, 200)}
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                </ul>
                                             </div>
-                                            <ul style={{ marginTop: 0 }}>
-                                                {messages
-                                                    .filter(
-                                                        (m) =>
-                                                            typeof m.content ===
-                                                            'string' &&
-                                                            m.content
+                                            <div
+                                                className="panel"
+                                                style={{ display: 'grid', gap: 6 }}
+                                            >
+                                                <div style={{ fontWeight: 600 }}>
+                                                    Matches in history titles
+                                                </div>
+                                                <ul style={{ marginTop: 0 }}>
+                                                    {history
+                                                        .filter((h) =>
+                                                            h.title
                                                                 .toLowerCase()
                                                                 .includes(
                                                                     searchQuery.toLowerCase()
                                                                 )
-                                                    )
-                                                    .slice(0, 12)
-                                                    .map((m, i) => (
-                                                        <li key={m.id + i}>
-                                                            <b>
-                                                                {m.role === 'user'
-                                                                    ? 'You'
-                                                                    : 'HomeRates'}
-                                                                :
-                                                            </b>{' '}
-                                                            <span>
-                                                                {(
-                                                                    m.content as string
-                                                                ).slice(0, 200)}
-                                                            </span>
-                                                        </li>
-                                                    ))}
-                                            </ul>
-                                        </div>
-                                        <div
-                                            className="panel"
-                                            style={{ display: 'grid', gap: 6 }}
-                                        >
-                                            <div style={{ fontWeight: 600 }}>
-                                                Matches in history titles
+                                                        )
+                                                        .slice(0, 20)
+                                                        .map((h) => (
+                                                            <li key={h.id}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn"
+                                                                    style={{
+                                                                        padding:
+                                                                            '2px 6px',
+                                                                        fontSize: 13,
+                                                                        width: '100%',
+                                                                        textAlign:
+                                                                            'left',
+                                                                    }}
+                                                                    onClick={() =>
+                                                                        onSelectHistory(
+                                                                            h.id
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {h.title}
+                                                                </button>
+                                                            </li>
+                                                        ))}
+                                                </ul>
                                             </div>
-                                            <ul style={{ marginTop: 0 }}>
-                                                {history
-                                                    .filter((h) =>
-                                                        h.title
-                                                            .toLowerCase()
-                                                            .includes(
-                                                                searchQuery.toLowerCase()
-                                                            )
-                                                    )
-                                                    .slice(0, 20)
-                                                    .map((h) => (
-                                                        <li key={h.id}>
-                                                            <button
-                                                                type="button"
-                                                                className="btn"
-                                                                style={{
-                                                                    padding:
-                                                                        '2px 6px',
-                                                                    fontSize: 13,
-                                                                    width: '100%',
-                                                                    textAlign:
-                                                                        'left',
-                                                                }}
-                                                                onClick={() =>
-                                                                    onSelectHistory(
-                                                                        h.id
-                                                                    )
-                                                                }
-                                                            >
-                                                                {h.title}
-                                                            </button>
-                                                        </li>
-                                                    ))}
-                                            </ul>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* LIBRARY */}
-                                {showLibrary && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <div style={{ color: 'var(--text-weak)' }}>
-                                            Your recent chats:
+                                    {/* LIBRARY */}
+                                    {showLibrary && (
+                                        <div style={{ display: 'grid', gap: 10 }}>
+                                            <div style={{ color: 'var(--text-weak)' }}>
+                                                Your recent chats:
+                                            </div>
+                                            <div className="chat-list" role="list">
+                                                {history.length === 0 && (
+                                                    <div
+                                                        className="chat-item"
+                                                        style={{ opacity: 0.7 }}
+                                                        role="listitem"
+                                                    >
+                                                        No history yet
+                                                    </div>
+                                                )}
+                                                {history.map((h) => (
+                                                    <button
+                                                        key={h.id}
+                                                        className="chat-item"
+                                                        role="listitem"
+                                                        title={h.title}
+                                                        onClick={() =>
+                                                            onSelectHistory(h.id)
+                                                        }
+                                                        style={{ textAlign: 'left' }}
+                                                    >
+                                                        {h.title}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="chat-list" role="list">
-                                            {history.length === 0 && (
-                                                <div
-                                                    className="chat-item"
-                                                    style={{ opacity: 0.7 }}
-                                                    role="listitem"
-                                                >
-                                                    No history yet
-                                                </div>
-                                            )}
-                                            {history.map((h) => (
-                                                <button
-                                                    key={h.id}
-                                                    className="chat-item"
-                                                    role="listitem"
-                                                    title={h.title}
-                                                    onClick={() =>
-                                                        onSelectHistory(h.id)
-                                                    }
-                                                    style={{ textAlign: 'left' }}
-                                                >
-                                                    {h.title}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* SETTINGS */}
-                                {showSettings && (
-                                    <div style={{ display: 'grid', gap: 10 }}>
-                                        <label
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 8,
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                onChange={() => {
-                                                    /* next pass */
+                                    {/* SETTINGS */}
+                                    {showSettings && (
+                                        <div style={{ display: 'grid', gap: 10 }}>
+                                            <label
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 8,
                                                 }}
-                                            />
-                                            Compact bubbles (coming soon)
-                                        </label>
-                                        <label
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 8,
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                onChange={() => {
-                                                    /* next pass */
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    onChange={() => {
+                                                        /* next pass */
+                                                    }}
+                                                />
+                                                Compact bubbles (coming soon)
+                                            </label>
+                                            <label
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 8,
                                                 }}
-                                            />
-                                            Prefer dark mode (coming soon)
-                                        </label>
-                                        <button
-                                            className="btn"
-                                            onClick={() => {
-                                                setHistory([]);
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    onChange={() => {
+                                                        /* next pass */
+                                                    }}
+                                                />
+                                                Prefer dark mode (coming soon)
+                                            </label>
+                                            <button
+                                                className="btn"
+                                                onClick={() => {
+                                                    setHistory([]);
+                                                    setMessages([
+                                                        {
+                                                            id: uid(),
+                                                            role: 'assistant',
+                                                            content:
+                                                                'New chat. Ask me Anything?',
+                                                        },
+                                                    ]);
+                                                    closeAllOverlays();
+                                                }}
+                                            >
+                                                Clear history & reset chat
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* NEW PROJECT */}
+                                    {showProject && (
+                                        <form
+                                            onSubmit={(
+                                                e: React.FormEvent<HTMLFormElement>
+                                            ) => {
+                                                e.preventDefault();
+                                                const name =
+                                                    projectName.trim() ||
+                                                    'Untitled Project';
+                                                const id = uid();
+                                                setActiveId(id);
+                                                setHistory((h) =>
+                                                    [
+                                                        {
+                                                            id,
+                                                            title: `Project: ${name}`,
+                                                            updatedAt: Date.now(),
+                                                        },
+                                                        ...h,
+                                                    ].slice(0, 20)
+                                                );
                                                 setMessages([
                                                     {
                                                         id: uid(),
                                                         role: 'assistant',
-                                                        content:
-                                                            'New chat. Ask me Anything?',
+                                                        content: `New Project "${name}" started. What is the goal?`,
                                                     },
                                                 ]);
+                                                setProjectName('');
                                                 closeAllOverlays();
                                             }}
+                                            style={{ display: 'grid', gap: 10 }}
                                         >
-                                            Clear history & reset chat
-                                        </button>
-                                    </div>
-                                )}
+                                            <input
+                                                className="input"
+                                                placeholder="Project name"
+                                                value={projectName}
+                                                onChange={(e) =>
+                                                    setProjectName(e.target.value)
+                                                }
+                                                autoFocus
+                                            />
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    gap: 8,
+                                                }}
+                                            >
+                                                <button
+                                                    className="btn primary"
+                                                    type="submit"
+                                                >
+                                                    Create
+                                                </button>
+                                                <button
+                                                    className="btn"
+                                                    type="button"
+                                                    onClick={closeAllOverlays}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    )}
 
-                                {/* NEW PROJECT */}
-                                {showProject && (
-                                    <form
-                                        onSubmit={(
-                                            e: React.FormEvent<HTMLFormElement>
-                                        ) => {
-                                            e.preventDefault();
-                                            const name =
-                                                projectName.trim() ||
-                                                'Untitled Project';
-                                            const id = uid();
-                                            setActiveId(id);
-                                            setHistory((h) =>
-                                                [
+                                    {/* MORTGAGE CALCULATOR (dedicated panel) */}
+                                    {showMortgageCalc && (
+                                        <MortgageCalcPanel
+                                            onCancel={closeAllOverlays}
+                                            onSubmit={(res: CalcSubmitResult) => {
+                                                closeAllOverlays();
+                                                // echo a clean line + structured calc meta reply
+                                                setMessages((m) => [
+                                                    ...m,
                                                     {
-                                                        id,
-                                                        title: `Project: ${name}`,
-                                                        updatedAt: Date.now(),
-                                                    },
-                                                    ...h,
-                                                ].slice(0, 20)
-                                            );
-                                            setMessages([
-                                                {
-                                                    id: uid(),
-                                                    role: 'assistant',
-                                                    content: `New Project "${name}" started. What is the goal?`,
-                                                },
-                                            ]);
-                                            setProjectName('');
-                                            closeAllOverlays();
-                                        }}
-                                        style={{ display: 'grid', gap: 10 }}
-                                    >
-                                        <input
-                                            className="input"
-                                            placeholder="Project name"
-                                            value={projectName}
-                                            onChange={(e) =>
-                                                setProjectName(e.target.value)
-                                            }
-                                            autoFocus
-                                        />
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                gap: 8,
-                                            }}
-                                        >
-                                            <button
-                                                className="btn primary"
-                                                type="submit"
-                                            >
-                                                Create
-                                            </button>
-                                            <button
-                                                className="btn"
-                                                type="button"
-                                                onClick={closeAllOverlays}
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </form>
-                                )}
-
-                                {/* MORTGAGE CALCULATOR (dedicated panel) */}
-                                {showMortgageCalc && (
-                                    <MortgageCalcPanel
-                                        onCancel={closeAllOverlays}
-                                        onSubmit={(res: CalcSubmitResult) => {
-                                            closeAllOverlays();
-                                            // echo a clean line + structured calc meta reply
-                                            setMessages((m) => [
-                                                ...m,
-                                                {
-                                                    id: uid(),
-                                                    role: 'assistant',
-                                                    content: `Guided inputs -> $${fmtMoney(
-                                                        res.monthlyPI
-                                                    )} P&I on $${fmtMoney(
-                                                        res.loanAmount
-                                                    )} at ${res.ratePct
-                                                        }% for ${res.termYears}y.`,
-                                                    meta: {
-                                                        path: 'calc',
-                                                        usedFRED: false,
-                                                        generatedAt:
-                                                            new Date().toISOString(),
-                                                        answer: {
-                                                            loanAmount:
-                                                                res.loanAmount,
-                                                            monthlyPI:
-                                                                res.monthlyPI,
-                                                            sensitivities:
-                                                                res.sensitivities,
+                                                        id: uid(),
+                                                        role: 'assistant',
+                                                        content: `Guided inputs -> $${fmtMoney(
+                                                            res.monthlyPI
+                                                        )} P&I on $${fmtMoney(
+                                                            res.loanAmount
+                                                        )} at ${res.ratePct
+                                                            }% for ${res.termYears}y.`,
+                                                        meta: {
+                                                            path: 'calc',
+                                                            usedFRED: false,
+                                                            generatedAt:
+                                                                new Date().toISOString(),
+                                                            answer: {
+                                                                loanAmount:
+                                                                    res.loanAmount,
+                                                                monthlyPI:
+                                                                    res.monthlyPI,
+                                                                sensitivities:
+                                                                    res.sensitivities,
+                                                            },
                                                         },
                                                     },
-                                                },
-                                            ]);
+                                                ]);
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                    {/* -------- Auth-required (sign in for more free questions) modal -------- */}
+                    {showAuthRequired && (
+                        <div
+                            style={{
+                                position: 'fixed',
+                                inset: 0,
+                                backgroundColor: 'rgba(0,0,0,0.45)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 6000,
+                            }}
+                            onClick={() => setShowAuthRequired(false)}
+                        >
+                            <div
+                                style={{
+                                    background: 'var(--surface, #111827)',
+                                    borderRadius: 16,
+                                    padding: 24,
+                                    maxWidth: 380,
+                                    width: '90%',
+                                    boxShadow: '0 18px 45px rgba(0,0,0,0.5)',
+                                    color: 'var(--fg, #e5e7eb)',
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <h2
+                                    style={{
+                                        fontSize: 18,
+                                        fontWeight: 600,
+                                        marginBottom: 8,
+                                    }}
+                                >
+                                    Sign in to keep going
+                                </h2>
+                                <p
+                                    style={{
+                                        fontSize: 14,
+                                        lineHeight: 1.5,
+                                        marginBottom: 20,
+                                        opacity: 0.9,
+                                    }}
+                                >
+                                    You&apos;ve used today&apos;s free guest
+                                    questions. Create a free HomeRates.ai account or
+                                    sign in to continue asking questions and unlock
+                                    more tools.
+                                </p>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'flex-end',
+                                        gap: 8,
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAuthRequired(false)}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: 999,
+                                            border:
+                                                '1px solid rgba(249,250,251,0.1)',
+                                            background: 'transparent',
+                                            color: 'inherit',
+                                            fontSize: 13,
+                                            cursor: 'pointer',
                                         }}
-                                    />
-                                )}
+                                    >
+                                        Maybe later
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push('/sign-in')}
+                                        style={{
+                                            padding: '6px 14px',
+                                            borderRadius: 999,
+                                            border: 'none',
+                                            background:
+                                                'var(--accent, #22c55e)',
+                                            color: '#020617',
+                                            fontWeight: 600,
+                                            fontSize: 13,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        Continue free
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                {/* -------- Auth-required (sign in for more free questions) modal -------- */}
-                {showAuthRequired && (
-                    <div
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            backgroundColor: 'rgba(0,0,0,0.45)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 6000,
-                        }}
-                        onClick={() => setShowAuthRequired(false)}
-                    >
+                    {/* -------- Upgrade-required (Pro plan) modal -------- */}
+                    {showUpgradeRequired && (
                         <div
                             style={{
-                                background: 'var(--surface, #111827)',
-                                borderRadius: 16,
-                                padding: 24,
-                                maxWidth: 380,
-                                width: '90%',
-                                boxShadow: '0 18px 45px rgba(0,0,0,0.5)',
-                                color: 'var(--fg, #e5e7eb)',
+                                position: 'fixed',
+                                inset: 0,
+                                backgroundColor: 'rgba(0,0,0,0.45)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 6000,
                             }}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={() => setShowUpgradeRequired(false)}
                         >
-                            <h2
-                                style={{
-                                    fontSize: 18,
-                                    fontWeight: 600,
-                                    marginBottom: 8,
-                                }}
-                            >
-                                Sign in to keep going
-                            </h2>
-                            <p
-                                style={{
-                                    fontSize: 14,
-                                    lineHeight: 1.5,
-                                    marginBottom: 20,
-                                    opacity: 0.9,
-                                }}
-                            >
-                                You&apos;ve used today&apos;s free guest
-                                questions. Create a free HomeRates.ai account or
-                                sign in to continue asking questions and unlock
-                                more tools.
-                            </p>
                             <div
                                 style={{
-                                    display: 'flex',
-                                    justifyContent: 'flex-end',
-                                    gap: 8,
+                                    background: 'var(--surface, #111827)',
+                                    borderRadius: 16,
+                                    padding: 24,
+                                    maxWidth: 380,
+                                    width: '90%',
+                                    boxShadow: '0 18px 45px rgba(0,0,0,0.5)',
+                                    color: 'var(--fg, #e5e7eb)',
                                 }}
+                                onClick={(e) => e.stopPropagation()}
                             >
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAuthRequired(false)}
+                                <h2
                                     style={{
-                                        padding: '6px 12px',
-                                        borderRadius: 999,
-                                        border:
-                                            '1px solid rgba(249,250,251,0.1)',
-                                        background: 'transparent',
-                                        color: 'inherit',
-                                        fontSize: 13,
-                                        cursor: 'pointer',
-                                    }}
-                                >
-                                    Maybe later
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => router.push('/sign-in')}
-                                    style={{
-                                        padding: '6px 14px',
-                                        borderRadius: 999,
-                                        border: 'none',
-                                        background:
-                                            'var(--accent, #22c55e)',
-                                        color: '#020617',
+                                        fontSize: 18,
                                         fontWeight: 600,
-                                        fontSize: 13,
-                                        cursor: 'pointer',
+                                        marginBottom: 8,
                                     }}
                                 >
-                                    Continue free
-                                </button>
+                                    Upgrade to HomeRates.ai Pro
+                                </h2>
+                                <p
+                                    style={{
+                                        fontSize: 14,
+                                        lineHeight: 1.5,
+                                        marginBottom: 20,
+                                        opacity: 0.9,
+                                    }}
+                                >
+                                    You&apos;ve reached today&apos;s free question
+                                    limit for your account. Upgrade to
+                                    HomeRates.ai&nbsp;Pro for unlimited questions
+                                    and full access to advanced mortgage tools and
+                                    scenario modeling.
+                                </p>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'flex-end',
+                                        gap: 8,
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowUpgradeRequired(false)
+                                        }
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: 999,
+                                            border:
+                                                '1px solid rgba(249,250,251,0.1)',
+                                            background: 'transparent',
+                                            color: 'inherit',
+                                            fontSize: 13,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        Maybe later
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push('/upgrade')}
+                                        style={{
+                                            padding: '6px 14px',
+                                            borderRadius: 999,
+                                            border: 'none',
+                                            background:
+                                                'var(--accent, #22c55e)',
+                                            color: '#020617',
+                                            fontWeight: 600,
+                                            fontSize: 13,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        View plans
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-
-                {/* -------- Upgrade-required (Pro plan) modal -------- */}
-                {showUpgradeRequired && (
-                    <div
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            backgroundColor: 'rgba(0,0,0,0.45)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 6000,
-                        }}
-                        onClick={() => setShowUpgradeRequired(false)}
-                    >
-                        <div
-                            style={{
-                                background: 'var(--surface, #111827)',
-                                borderRadius: 16,
-                                padding: 24,
-                                maxWidth: 380,
-                                width: '90%',
-                                boxShadow: '0 18px 45px rgba(0,0,0,0.5)',
-                                color: 'var(--fg, #e5e7eb)',
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <h2
-                                style={{
-                                    fontSize: 18,
-                                    fontWeight: 600,
-                                    marginBottom: 8,
-                                }}
-                            >
-                                Upgrade to HomeRates.ai Pro
-                            </h2>
-                            <p
-                                style={{
-                                    fontSize: 14,
-                                    lineHeight: 1.5,
-                                    marginBottom: 20,
-                                    opacity: 0.9,
-                                }}
-                            >
-                                You&apos;ve reached today&apos;s free question
-                                limit for your account. Upgrade to
-                                HomeRates.ai&nbsp;Pro for unlimited questions
-                                and full access to advanced mortgage tools and
-                                scenario modeling.
-                            </p>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'flex-end',
-                                    gap: 8,
-                                }}
-                            >
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowUpgradeRequired(false)
-                                    }
-                                    style={{
-                                        padding: '6px 12px',
-                                        borderRadius: 999,
-                                        border:
-                                            '1px solid rgba(249,250,251,0.1)',
-                                        background: 'transparent',
-                                        color: 'inherit',
-                                        fontSize: 13,
-                                        cursor: 'pointer',
-                                    }}
-                                >
-                                    Maybe later
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => router.push('/upgrade')}
-                                    style={{
-                                        padding: '6px 14px',
-                                        borderRadius: 999,
-                                        border: 'none',
-                                        background:
-                                            'var(--accent, #22c55e)',
-                                        color: '#020617',
-                                        fontWeight: 600,
-                                        fontSize: 13,
-                                        cursor: 'pointer',
-                                    }}
-                                >
-                                    View plans
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </section>
-        </>
-    );
-}
+                    )}
+                </section>
+            </>
+        );
+    }
