@@ -16,6 +16,18 @@ import {
 /* =========================
    Helpers
 ========================= */
+
+/**
+ * Safe number formatter - prevents .toFixed() errors
+ */
+function safeToFixed(value: any, decimals: number = 2): string {
+    const num = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(num)) {
+        return 'N/A';
+    }
+    return num.toFixed(decimals);
+}
+
 function noStore(json: any, init?: ResponseInit) {
     return NextResponse.json(json, {
         ...(init || {}),
@@ -27,13 +39,7 @@ function noStore(json: any, init?: ResponseInit) {
         },
     });
 }
-function safeToFixed(value: any, decimals: number = 2): string {
-    const num = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(num)) {
-        return 'N/A';
-    }
-    return num.toFixed(decimals);
-}
+
 function withTimeout<T>(p: Promise<T>, ms: number, label: string) {
     let t: any;
     const timeout = new Promise<never>((_, rej) => {
@@ -77,14 +83,14 @@ function formatUSD(n: number, decimals = 0) {
             minimumFractionDigits: decimals,
         }).format(n);
     } catch {
-        // Fallback if Intl is unavailable
-        const fixed = n.toFixed(decimals);
+        // Fallback if Intl is unavailable - NOW USES safeToFixed
+        const fixed = safeToFixed(n, decimals);
         return `$${fixed.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
     }
 }
 
 function formatPct(n: number, decimals = 2) {
-    return `${n.toFixed(decimals)}%`;
+    return `${safeToFixed(n, decimals)}%`;  // ← UPDATED to use safeToFixed
 }
 
 /**
