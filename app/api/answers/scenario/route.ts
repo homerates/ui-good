@@ -2240,9 +2240,28 @@ Schema:
         // =========================
         let memoryHistory: any[] = [];
 
+        // DEBUG: Log memory thread info
+        console.log('[Memory Debug] memoryThreadId:', memoryThreadId);
+        console.log('[Memory Debug] userId:', userId);
+        console.log('[Memory Debug] supabase exists:', !!supabase);
+
         if (supabase && memoryThreadId) {
             memoryHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 5);
             console.log('[Memory] Retrieved', memoryHistory.length, 'previous scenarios');
+
+            // DEBUG: If no scenarios found, check database directly
+            if (memoryHistory.length === 0) {
+                const { data: dbCheck, error: dbError } = await supabase
+                    .from('memory_items')
+                    .select('id, kind, created_at')
+                    .eq('memory_thread_id', memoryThreadId)
+                    .eq('kind', 'scenario_snapshot');
+
+                console.log('[Memory Debug] Direct DB check - scenarios in this thread:', dbCheck?.length || 0);
+                if (dbError) console.log('[Memory Debug] DB Error:', dbError.message);
+            } else {
+                console.log('[Memory Debug] Most recent scenario price:', memoryHistory[0]?.scenario_inputs?.price);
+            }
         }
 
         // =========================
@@ -2250,11 +2269,17 @@ Schema:
         // =========================
         let contextualPrompt = systemPrompt;
 
-        if (isFollowUpQuestion(message)) {
-            console.log('[Memory] Detected follow-up question, adding context');
+        const isFollowUp = isFollowUpQuestion(message);
+        console.log('[Memory Debug] Question:', message.substring(0, 100));
+        console.log('[Memory Debug] Detected as follow-up:', isFollowUp);
+
+        if (isFollowUp && memoryHistory.length > 0) {
+            console.log('[Memory] Adding context from', memoryHistory.length, 'previous scenarios');
             contextualPrompt = buildSystemPromptWithMemory(systemPrompt, message, memoryHistory);
-        } else if (lastScenarioSnapshot) {
-            // Legacy: Single scenario baseline (backwards compatible)
+        } else if (isFollowUp && memoryHistory.length === 0) {
+            console.log('[Memory WARNING] Follow-up detected but NO history available!');
+        } else if (!isFollowUp && lastScenarioSnapshot) {
+            console.log('[Memory] Using legacy single scenario baseline');
             const memBlock =
                 `\n\nPRIOR SCENARIO MEMORY (use as baseline unless user overrides):\n` +
                 JSON.stringify(lastScenarioSnapshot) +
@@ -2265,7 +2290,7 @@ Schema:
         // =========================
         // ENHANCED: Add number formatting instructions for Claude
         // =========================
-        const enhancedPrompt = `${contextualPrompt}   
+        const enhancedPrompt = `${contextualPrompt}
 
 CRITICAL - NUMERIC FORMAT REQUIREMENTS:
 1. ALL dollar amounts must be FULL NUMBERS in JSON (e.g., 650000, NOT 650 or "650k")
