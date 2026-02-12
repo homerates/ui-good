@@ -27,7 +27,13 @@ function noStore(json: any, init?: ResponseInit) {
         },
     });
 }
-
+function safeToFixed(value: any, decimals: number = 2): string {
+    const num = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(num)) {
+        return 'N/A';
+    }
+    return num.toFixed(decimals);
+}
 function withTimeout<T>(p: Promise<T>, ms: number, label: string) {
     let t: any;
     const timeout = new Promise<never>((_, rej) => {
