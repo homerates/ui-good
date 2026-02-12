@@ -2188,10 +2188,10 @@ COMPARISON FORMATTING (hard):
 SENSITIVITY RULE (hard):
 - Do NOT include "sensitivity_table" unless the user explicitly asks for rate comparison or stress testing
   (examples: "+0.5%", "+1%", "-0.5%", "rate stress", "what if rates rise/fall", "compare rates").
-Date: ${marketData.date}
+Date: ${marketData?.date || 'N/A'}
 Live data:
-- 30-year fixed (FRED MORTGAGE30US): ${marketData.thirtyYearFixed.toFixed(2)}%
-- 10-year Treasury (FRED DGS10): ${marketData.tenYearTreasury.toFixed(2)}%
+- 30-year fixed (FRED MORTGAGE30US): ${typeof marketData?.thirtyYearFixed === 'number' ? marketData.thirtyYearFixed.toFixed(2) : 'N/A'}%
+- 10-year Treasury (FRED DGS10): ${typeof marketData?.tenYearTreasury === 'number' ? marketData.tenYearTreasury.toFixed(2) : 'N/A'}%
 
 Schema:
 {
