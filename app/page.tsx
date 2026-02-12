@@ -328,7 +328,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
     }
 
 
-    // Amortization Snapshot (computed locally from scenario text / scenario inputs)
+    // Amortization Snapshot - Use API data if available, otherwise compute locally
     {
         const fmtMoney0 = (n: any) => {
             const x = typeof n === "number" ? n : Number(n);
@@ -352,6 +352,15 @@ function scenarioToApiResponse(s: any): ApiResponse {
             const n = Number(cleaned);
             return Number.isFinite(n) ? n : NaN;
         };
+
+        const parseYears = (v: any): number => {
+            if (typeof v === "number") return v;
+            if (typeof v !== "string") return NaN;
+            const cleaned = v.replace(/[^0-9.-]/g, "");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : NaN;
+        };
+
         // -------------------------------
         // Normalize scenario result shape
         // Some scenario responses place structured data under meta.grok.result
@@ -368,120 +377,132 @@ function scenarioToApiResponse(s: any): ApiResponse {
                     ? (meta as any).grok.result
                     : null;
 
-        // NOTE: parseMoney and parsePercent already exist above in this file.
-        // Only define the missing helper here.
-        const parseYears = (v: any): number => {
-            if (typeof v === "number") return v;
-            if (typeof v !== "string") return NaN;
-            const cleaned = v.replace(/[^0-9.-]/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : NaN;
-        };
+        // =========================
+        // STRATEGY 1: Use amortization_summary from API if present
+        // =========================
+        const amortSummary = scenarioResult?.amortization_summary;
 
-        // 1) Try structured fields first (fine if missing)
-        const base: any = scenarioResult;
-
-        const loanAmtRaw =
-            base?.scenario_inputs?.loan_amount ??
-            base?.scenario_inputs?.loanAmount ??
-            base?.scenario?.loan_amount ??
-            base?.scenario?.loanAmount ??
-            base?.loan_amount ??
-            base?.loanAmount;
-
-        const rateRaw =
-            base?.rate_context?.rate ??
-            base?.rate_context?.current_rate ??
-            base?.scenario_inputs?.rate ??
-            base?.scenario_inputs?.rate_used ??
-            base?.scenario_inputs?.rateUsed ??
-            base?.scenario?.rate ??
-            base?.rate_used;
-
-        const termYearsRaw =
-            base?.scenario_inputs?.term_years ??
-            base?.scenario_inputs?.termYears ??
-            base?.scenario?.term_years ??
-            base?.scenario?.termYears ??
-            30;
-
-
-        let loanAmt = parseMoney(loanAmtRaw);
-        let ratePct = parsePercent(rateRaw); // percent, e.g. 6.21
-        let termYears = parseYears(termYearsRaw);
-
-        // 2) Fallback: parse from already-rendered Smart Scenario text in md[]
-        // This is the most reliable source in your current UI flow.
-        const mdText = md.join("\n");
-
-        if (!Number.isFinite(loanAmt)) {
-            const m = mdText.match(/Loan amount:\s*\$?\s*([\d,]+)/i);
-            if (m?.[1]) loanAmt = Number(m[1].replace(/,/g, ""));
-        }
-
-        if (!Number.isFinite(ratePct)) {
-            const m = mdText.match(/Rate used:\s*([0-9.]+)\s*%/i);
-            if (m?.[1]) ratePct = Number(m[1]);
-        }
-
-        if (!Number.isFinite(termYears)) {
-            const m = mdText.match(/term\s*\(?\s*([0-9]+)\s*y/i);
-            if (m?.[1]) termYears = Number(m[1]);
-            if (!Number.isFinite(termYears)) termYears = 30;
-        }
-
-        const isInputsValid =
-            Number.isFinite(loanAmt) &&
-            loanAmt > 0 &&
-            Number.isFinite(ratePct) &&
-            ratePct > 0 &&
-            Number.isFinite(termYears) &&
-            termYears > 0;
-
-        if (isInputsValid) {
-            const r = ratePct / 100 / 12;
-            const n = Math.round(termYears * 12);
-
-            // Monthly P&I payment
-            const pow = Math.pow(1 + r, n);
-            const pmt = (loanAmt * r * pow) / (pow - 1);
-
-            let bal = loanAmt;
-            let cumPrin = 0;
-            let cumInt = 0;
-
-            const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
-
+        if (Array.isArray(amortSummary) && amortSummary.length > 0) {
             md.push("### Amortization Snapshot");
             md.push("");
             md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
             md.push("| - | -: | -: | -: |");
 
-            for (let m = 1; m <= n; m++) {
-                const interest = bal * r;
-                let principal = pmt - interest;
-
-                // Guard for final month rounding
-                if (principal > bal) principal = bal;
-
-                bal -= principal;
-                cumPrin += principal;
-                cumInt += interest;
-
-                if (m % 12 === 0) {
-                    const y = m / 12;
-                    if (yearsToShow.has(y)) {
-                        md.push(`| ${y} | ${fmtMoney0(cumPrin)} | ${fmtMoney0(cumInt)} | ${fmtMoney0(bal)} |`);
-                    }
-                }
+            for (const row of amortSummary) {
+                const year = row?.year ?? '-';
+                const prin = fmtMoney0(row?.principal_paid);
+                const int = fmtMoney0(row?.interest_paid);
+                const bal = fmtMoney0(row?.ending_balance);
+                md.push(`| ${year} | ${prin} | ${int} | ${bal} |`);
             }
 
             md.push("");
         } else {
-            md.push("### Amortization Snapshot");
-            md.push("");
-            md.push("Amortization snapshot unavailable for this scenario.");
-            md.push("");
+            // =========================
+            // STRATEGY 2: Compute locally from scenario_inputs (fallback)
+            // =========================
+            const base: any = scenarioResult;
+
+            const loanAmtRaw =
+                base?.scenario_inputs?.loan_amount ??
+                base?.scenario_inputs?.loanAmount ??
+                base?.scenario?.loan_amount ??
+                base?.scenario?.loanAmount ??
+                base?.loan_amount ??
+                base?.loanAmount;
+
+            const rateRaw =
+                base?.rate_context?.rate ??
+                base?.rate_context?.current_rate ??
+                base?.scenario_inputs?.rate ??
+                base?.scenario_inputs?.rate_used ??
+                base?.scenario_inputs?.rateUsed ??
+                base?.scenario?.rate ??
+                base?.rate_used;
+
+            const termYearsRaw =
+                base?.scenario_inputs?.term_years ??
+                base?.scenario_inputs?.termYears ??
+                base?.scenario?.term_years ??
+                base?.scenario?.termYears ??
+                30;
+
+            let loanAmt = parseMoney(loanAmtRaw);
+            let ratePct = parsePercent(rateRaw);
+            let termYears = parseYears(termYearsRaw);
+
+            // Fallback: parse from already-rendered Smart Scenario text in md[]
+            const mdText = md.join("\n");
+
+            if (!Number.isFinite(loanAmt)) {
+                const m = mdText.match(/Loan amount:\s*\$?\s*([\d,]+)/i);
+                if (m?.[1]) loanAmt = Number(m[1].replace(/,/g, ""));
+            }
+
+            if (!Number.isFinite(ratePct)) {
+                const m = mdText.match(/Rate used:\s*([0-9.]+)\s*%/i);
+                if (m?.[1]) ratePct = Number(m[1]);
+            }
+
+            if (!Number.isFinite(termYears)) {
+                const m = mdText.match(/term\s*\(?\s*([0-9]+)\s*y/i);
+                if (m?.[1]) termYears = Number(m[1]);
+                if (!Number.isFinite(termYears)) termYears = 30;
+            }
+
+            const isInputsValid =
+                Number.isFinite(loanAmt) &&
+                loanAmt > 0 &&
+                Number.isFinite(ratePct) &&
+                ratePct > 0 &&
+                Number.isFinite(termYears) &&
+                termYears > 0;
+
+            if (isInputsValid) {
+                const r = ratePct / 100 / 12;
+                const n = Math.round(termYears * 12);
+
+                // Monthly P&I payment
+                const pow = Math.pow(1 + r, n);
+                const pmt = (loanAmt * r * pow) / (pow - 1);
+
+                let bal = loanAmt;
+                let cumPrin = 0;
+                let cumInt = 0;
+
+                const yearsToShow = new Set([1, 2, 3, 4, 5, 10, 15, 20, 25, 30]);
+
+                md.push("### Amortization Snapshot");
+                md.push("");
+                md.push("| Year | Principal Paid | Interest Paid | Ending Balance |");
+                md.push("| - | -: | -: | -: |");
+
+                for (let m = 1; m <= n; m++) {
+                    const interest = bal * r;
+                    let principal = pmt - interest;
+
+                    // Guard for final month rounding
+                    if (principal > bal) principal = bal;
+
+                    bal -= principal;
+                    cumPrin += principal;
+                    cumInt += interest;
+
+                    if (m % 12 === 0) {
+                        const y = m / 12;
+                        if (yearsToShow.has(y)) {
+                            md.push(`| ${y} | ${fmtMoney0(cumPrin)} | ${fmtMoney0(cumInt)} | ${fmtMoney0(bal)} |`);
+                        }
+                    }
+                }
+
+                md.push("");
+            } else {
+                md.push("### Amortization Snapshot");
+                md.push("");
+                md.push("Amortization snapshot unavailable for this scenario.");
+                md.push("");
+            }
         }
     }
 
