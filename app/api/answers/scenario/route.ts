@@ -6,7 +6,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { runScenarioMath } from "../../../../lib/scenarioMath";
 import { createClient } from "@supabase/supabase-js";
 import { routeAIRequest } from "../../../../lib/ai-providers/router";
-
+import {
+    getRecentScenarioHistory,
+    buildSystemPromptWithMemory,
+    storeScenarioMemory,
+    isFollowUpQuestion,
+} from "../../../../lib/memory";
 
 /* =========================
    Helpers
@@ -2219,20 +2224,36 @@ Schema:
         const tAI = Date.now();
         const maxTokens = 4096;  // Let Claude use what it needs
         // =========================
-        // MEMORY INJECTION (scenario baseline)
+        // MEMORY: Fetch conversation history for follow-ups
         // =========================
-        if (lastScenarioSnapshot) {
+        let memoryHistory: any[] = [];
+
+        if (supabase && memoryThreadId) {
+            memoryHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 5);
+            console.log('[Memory] Retrieved', memoryHistory.length, 'previous scenarios');
+        }
+
+        // =========================
+        // MEMORY INJECTION: Add context for follow-up questions
+        // =========================
+        let contextualPrompt = systemPrompt;
+
+        if (isFollowUpQuestion(message)) {
+            console.log('[Memory] Detected follow-up question, adding context');
+            contextualPrompt = buildSystemPromptWithMemory(systemPrompt, message, memoryHistory);
+        } else if (lastScenarioSnapshot) {
+            // Legacy: Single scenario baseline (backwards compatible)
             const memBlock =
                 `\n\nPRIOR SCENARIO MEMORY (use as baseline unless user overrides):\n` +
                 JSON.stringify(lastScenarioSnapshot) +
-                `\n\nRules:\n- Treat this as the active baseline.\n- If user provides new inputs, update only those fields.\n- If critical inputs are missing, ask only for the missing fields.\n`;
-            systemPrompt = `${systemPrompt}${memBlock}`;
+                `\n\nRules:\n- Treat this as the active baseline.\n- If user provides new inputs, update only those fields.\n`;
+            contextualPrompt = `${systemPrompt}${memBlock}`;
         }
 
         // =========================
         // ENHANCED: Add number formatting instructions for Claude
         // =========================
-        const enhancedPrompt = `${systemPrompt}
+        const enhancedPrompt = `${contextualPrompt}   
 
 CRITICAL - NUMERIC FORMAT REQUIREMENTS:
 1. ALL dollar amounts must be FULL NUMBERS in JSON (e.g., 650000, NOT 650 or "650k")
@@ -2367,22 +2388,22 @@ Your plain_english_summary CAN use $650k notation for readability, but the JSON 
         // === MEMORY WRITE: scenario snapshot (success only) ===
         try {
             if (supabase && memoryThreadId) {
-                await supabase.from("memory_items").insert({
-                    memory_thread_id: memoryThreadId,
-                    kind: "scenario_snapshot",
-                    content_text: result?.plain_english_summary || "Scenario result",
-                    content_json: {
-                        scenario_inputs: result?.scenario_inputs ?? null,
-                        computed_financials: result?.computed_financials ?? null,
-                        dscr: result?.dscr ?? null,
-                        rate_used_pct: result?.rate_context?.rate_used ?? null,
-                        build_tag: buildTag,
+                await storeScenarioMemory(
+                    supabase,
+                    memoryThreadId,
+                    result,
+                    message,
+                    {
+                        buildTag,
                         requestId,
-                    },
-                    tags: ["scenario", "auto"],
-                });
+                        provider,
+                        model: aiResult.model,
+                    }
+                );
+                console.log('[Memory] Stored scenario snapshot');
             }
-        } catch {
+        } catch (err) {
+            console.error('[Memory] Failed to store scenario:', err);
             // swallow — memory must never break response
         }
 
