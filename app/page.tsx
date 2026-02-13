@@ -1396,6 +1396,8 @@ export default function Page() {
                 ? {
                     message: q,
                     userId: user?.id || 'anon',
+                    chat_id: activeId || tid,
+                    memory_thread_id: existingMemoryThreadId,
                 }
                 : body;
             // === End scenario routing ===
