@@ -1363,7 +1363,14 @@ export default function Page() {
                 t.includes('10 year') ||
                 t.includes('5-year') ||
                 t.includes('5 year') ||
-
+                // Follow-up question indicators
+                t.includes('what if') ||
+                t.includes('instead') ||
+                t.includes('same property') ||
+                t.includes('same home') ||
+                t.includes('that property') ||
+                t.includes('that home') ||
+                t.includes('previous') ||
                 // Investment / DSCR / rental math should always use Smart Scenario (single numeric authority)
                 t.includes('dscr') ||
                 t.includes('pitia') ||
