@@ -145,6 +145,7 @@ export function buildMemoryContext(history: ScenarioMemory[]): string {
 /**
  * Store a scenario result in memory
  * Called after successful scenario calculation
+ * Writes to BOTH memory_items (structured data) AND user_answers (conversation history)
  */
 export async function storeScenarioMemory(
     supabase: SupabaseClient,
@@ -156,10 +157,13 @@ export async function storeScenarioMemory(
         requestId?: string;
         provider?: string;
         model?: string;
+        userId?: string;
+        complexity?: string;
     }
 ): Promise<{ success: boolean; error?: any }> {
     try {
-        const { error } = await supabase.from('memory_items').insert({
+        // 1) Store structured scenario data in memory_items
+        const { error: memoryError } = await supabase.from('memory_items').insert({
             memory_thread_id: memoryThreadId,
             kind: 'scenario_snapshot',
             content_text: result?.plain_english_summary || question || 'Scenario analysis',
@@ -175,9 +179,40 @@ export async function storeScenarioMemory(
             tags: ['scenario', 'auto'],
         });
 
-        if (error) {
-            console.error('[Memory] Error storing scenario:', error);
-            return { success: false, error };
+        if (memoryError) {
+            console.error('[Memory] Error storing to memory_items:', memoryError);
+            return { success: false, error: memoryError };
+        }
+
+        // 2) ALSO store in user_answers for conversation history continuity
+        if (metadata?.userId) {
+            const { error: answersError } = await supabase.from('user_answers').insert({
+                clerk_user_id: metadata.userId,
+                memory_thread_id: memoryThreadId,
+                question: question,
+                answer: {
+                    answer: result?.plain_english_summary || 'Scenario analysis completed',
+                    scenario_inputs: result?.scenario_inputs,
+                    monthly_payment: result?.monthly_payment,
+                    dscr: result?.dscr,
+                },
+                answer_summary: result?.plain_english_summary
+                    ? String(result.plain_english_summary).slice(0, 320) + '…'
+                    : 'Scenario analysis',
+                model: metadata?.model || metadata?.provider || 'scenario-engine',
+                tool_id: 'scenario',
+                metadata: {
+                    build_tag: metadata?.buildTag,
+                    requestId: metadata?.requestId,
+                    provider: metadata?.provider,
+                    complexity: metadata?.complexity,
+                },
+            });
+
+            if (answersError) {
+                console.warn('[Memory] Error storing to user_answers (non-critical):', answersError);
+                // Don't fail the whole operation if user_answers write fails
+            }
         }
 
         return { success: true };
