@@ -968,8 +968,12 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     }
 
     // Rate provenance: add rate_context + prepend to summary
+    // Trust Claude's rate if it already set one (from memory context)
+    const claudeRate = Number(out?.scenario_inputs?.rate_used_pct);
     const userRate = detectUserProvidedRate(message);
-    const rateUsed = userRate ?? marketData?.thirtyYearFixed ?? null;
+    const rateUsed = (Number.isFinite(claudeRate) && claudeRate > 0)
+        ? claudeRate
+        : (userRate ?? marketData?.thirtyYearFixed ?? null);
 
     const rate_context = {
         rate_used: rateUsed,
