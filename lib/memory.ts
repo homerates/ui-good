@@ -52,8 +52,6 @@ export async function getRecentScenarioHistory(
     limit: number = 5
 ): Promise<ScenarioMemory[]> {
     try {
-        console.log('[Memory Debug] Querying with memoryThreadId:', memoryThreadId);
-
         const { data, error } = await supabase
             .from('memory_items')
             .select('content_json, content_text, created_at')
@@ -61,12 +59,6 @@ export async function getRecentScenarioHistory(
             .eq('kind', 'scenario_snapshot')
             .order('created_at', { ascending: false })
             .limit(limit);
-
-        console.log('[Memory Debug] Query returned:', { dataCount: data?.length || 0, hasError: !!error });
-
-        if (error) {
-            console.error('[Memory] Error fetching history:', error);
-        }
 
         if (error) {
             console.error('[Memory] Error fetching history:', error);
@@ -307,11 +299,14 @@ CONVERSATION MEMORY (for follow-up questions)
 
 ${context}
 
-MEMORY USAGE RULES:
-- If the user's question references "the previous scenario", "that property", "same thing", etc., use the MOST RECENT SCENARIO above as the baseline
-- If they say "compare to X" or "what if Y", keep the other inputs the same and only change what they specify
-- If they ask a completely new question unrelated to the above, ignore this memory and start fresh
-- Always clarify which scenario you're building from if using memory (e.g., "Based on your previous $850k property with 25% down...")
+MEMORY USAGE RULES (CRITICAL):
+- The user is asking a FOLLOW-UP question about a previous scenario shown above
+- Use the MOST RECENT SCENARIO as your baseline - copy ALL inputs from it (price, down payment, loan amount, etc.)
+- ONLY change what the user explicitly asks to change in their new question
+- For "what if rates go to 7%?" → Use 7% rate, keep everything else from previous scenario
+- For "what if 25% down instead?" → Use 25% down, keep everything else from previous scenario
+- DO NOT use FRED rates if the user specifies a rate - use their exact number
+- Always state: "Based on your previous scenario ([brief description]), updating [what changed]..."
 
 ═══════════════════════════════════════════════════════════════
 `;
