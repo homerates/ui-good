@@ -52,6 +52,8 @@ export async function getRecentScenarioHistory(
     limit: number = 5
 ): Promise<ScenarioMemory[]> {
     try {
+        console.log('[Memory Debug] Querying with memoryThreadId:', memoryThreadId);
+
         const { data, error } = await supabase
             .from('memory_items')
             .select('content_json, content_text, created_at')
@@ -59,6 +61,12 @@ export async function getRecentScenarioHistory(
             .eq('kind', 'scenario_snapshot')
             .order('created_at', { ascending: false })
             .limit(limit);
+
+        console.log('[Memory Debug] Query returned:', { dataCount: data?.length || 0, hasError: !!error });
+
+        if (error) {
+            console.error('[Memory] Error fetching history:', error);
+        }
 
         if (error) {
             console.error('[Memory] Error fetching history:', error);
