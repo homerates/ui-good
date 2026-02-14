@@ -2435,6 +2435,8 @@ Your plain_english_summary CAN use $650k notation for readability, but the JSON 
                         requestId,
                         provider,
                         model: aiResult.model,
+                        userId: userId,
+                        complexity: aiResult.complexity,
                     }
                 );
                 console.log('[Memory] Stored scenario snapshot');

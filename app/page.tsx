@@ -1417,6 +1417,19 @@ export default function Page() {
                 : (raw as ApiResponse);
 
 
+            // Save memory_thread_id for future questions in this conversation
+            const returnedMemoryThreadId =
+                raw?.memory_thread_id ||
+                raw?.answer?.memory_thread_id ||
+                raw?.meta?.memory_thread_id ||
+                meta?.grok?.meta?.memory_thread_id;
+
+            if (returnedMemoryThreadId && tid) {
+                setMemoryThreadByChatId(prev => ({
+                    ...prev,
+                    [tid]: returnedMemoryThreadId
+                }));
+            }
 
             // Attach Grok metadata to the assistant message (under m.meta)
             setMessages((prev) =>
