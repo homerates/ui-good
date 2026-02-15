@@ -281,7 +281,7 @@ function extractScenarioInputs(message: string) {
         .filter(x => x.val != null) as { raw: string; val: number }[];
 
     // Rent detection
-    const rentMatch = m.match(/rent\s*(?:is|=|:)?\s*\$?\s*([\d,.]+)\s*(?:\/?\s*mo|month|monthly)?/i);
+    const rentMatch = m.match(/(?:rental\s+income|rent)\s*(?:is|of|=|:)?\s*\$?\s*([\d,.]+)\s*(?:\/?\s*mo|month|monthly|per\s*month)?/i);
     if (rentMatch) {
         const rentVal = parseMoneyLike(rentMatch[1]);
         if (rentVal != null) inputs.rent_monthly = rentVal;
@@ -339,7 +339,7 @@ function extractScenarioInputs(message: string) {
         const rentMatch =
             m.match(/\brent\b\s*[:=]?\s*\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\b/i) ||
             m.match(/\b\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\s*\b(?:\/\s*mo|per\s*month|monthly)\b.*\brent\b/i) ||
-            m.match(/\b(?:gross\s+rent|monthly\s+rent|rent)\b.*?\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\b/i) ||
+            m.match(/\b(?:rental\s+income|gross\s+rent|monthly\s+rent|rent)\b.*?\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\b/i) ||
             m.match(/\b\$?\s*([\d,]+(?:\.\d+)?)(\s*k)?\s*\brent\b/i);
 
         if (rentMatch) {
