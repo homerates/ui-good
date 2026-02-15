@@ -2318,6 +2318,10 @@ MEMORY RULES (for follow-up questions):
                 if (dbError) console.log('[Memory Debug] DB Error:', dbError.message);
             } else {
                 console.log('[Memory Debug] Most recent scenario price:', memoryHistory[0]?.scenario_inputs?.price);
+                console.log('[Memory Debug] Most recent scenario FULL:', JSON.stringify(memoryHistory[0]?.scenario_inputs));  // ← ADD THIS
+                console.log('[Memory Debug] Most recent scenario maintenance_pct:', memoryHistory[0]?.scenario_inputs?.maintenance_pct);  // ← ADD THIS
+                console.log('[Memory Debug] Most recent scenario rent_monthly:', memoryHistory[0]?.scenario_inputs?.rent_monthly);  // ← ADD THIS
+
             }
         }
 
