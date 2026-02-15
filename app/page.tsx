@@ -1416,7 +1416,12 @@ export default function Page() {
                     chat_id: activeId || tid,
                     memory_thread_id: existingMemoryThreadId,
                 }
-                : body;
+                : {
+                    ...body,
+                    chat_id: activeId || tid,
+                    memory_thread_id: existingMemoryThreadId,
+                };
+
             // === End scenario routing ===
 
 
