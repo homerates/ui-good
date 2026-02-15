@@ -983,18 +983,24 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     };
     out.rate_context = rate_context;
     // Inputs summary (borrower-visible + structured)
-    // Prefer Claude's scenario_inputs if present, otherwise extract from message
-    const claudeInputs = out.scenario_inputs;
-    const extractedInputs = claudeInputs && Object.keys(claudeInputs).length > 0
-        ? claudeInputs
-        : extractScenarioInputs(message);
-    out.scenario_inputs = extractedInputs;
-    const inputsBlock = buildInputsSummary(extractedInputs, rate_context);
-    /* =========================
-   Deterministic Scenario Math (single source of truth)
-   ========================= */
+    // CRITICAL: Trust Claude's scenario_inputs (from memory), fill gaps with message extraction
+    const claudeInputs = out.scenario_inputs || {};
+    const extractedInputs = extractScenarioInputs(message);
 
-    const fixedInputs = fixScenarioInputsBeforeMath(extractedInputs);
+    // Merge: Claude's values take precedence (from memory context)
+    const mergedInputs = {
+        ...extractedInputs,  // Fallback values from message parsing
+        ...claudeInputs,     // Claude's values override (includes memory context)
+    };
+
+    out.scenario_inputs = mergedInputs;
+    const inputsBlock = buildInputsSummary(mergedInputs, rate_context);
+
+    /* =========================
+       Deterministic Scenario Math (single source of truth)
+       ========================= */
+
+    const fixedInputs = fixScenarioInputsBeforeMath(mergedInputs);
 
     const scenarioMathResult = runScenarioMath({
         scenario_inputs: fixedInputs,
@@ -1273,7 +1279,13 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
     // NOTE: extractedInputs is already defined above and assigned to out.scenario_inputs
     const siDet: any = extractedInputs || {};
-    const rateUsedPct = Number(out?.rate_context?.rate_used ?? marketData?.thirtyYearFixed ?? NaN);
+    // Trust scenario_inputs.rate_used_pct first (Claude's value), then rate_context, then FRED
+    const rateUsedPct = Number(
+        out?.scenario_inputs?.rate_used_pct ??
+        out?.rate_context?.rate_used ??
+        marketData?.thirtyYearFixed ??
+        NaN
+    );
 
     // Helpers
     const toPctDet = (v: any) => {

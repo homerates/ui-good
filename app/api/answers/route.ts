@@ -10,7 +10,11 @@ import {
     maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
 import { generateSourcesBundle } from "../../lib/sources-generator";
-
+import {
+    getRecentScenarioHistory,
+    buildSystemPromptWithMemory,
+    isFollowUpQuestion,
+} from "../../../lib/memory";
 
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
@@ -1330,6 +1334,21 @@ Return valid JSON only:
     // Track whether we already injected a **Sources** block into grokFinal.answer
     let sourcesInjected = false;
     mark("before Grok call");
+
+    // NEW: Fetch scenario memory for cross-route context on follow-ups
+    let scenarioMemoryContext = "";
+    try {
+        if (supabase && memoryThreadId && isFollowUpQuestion(question)) {
+            const scenarioHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 3);
+            if (scenarioHistory && scenarioHistory.length > 0) {
+                scenarioMemoryContext = buildSystemPromptWithMemory("", question, scenarioHistory);
+                console.log('[Memory] Added scenario context from', scenarioHistory.length, 'previous scenarios');
+            }
+        }
+    } catch (err) {
+        console.warn('[Memory] Failed to fetch scenario context:', err);
+    }
+
     // HR-MEMORY:INJECT
     // Inject prior Q/A turns into grokPrompt so follow-ups recall context.
     // Required because Grok call path is user-only (prompt string is the context).
@@ -1339,6 +1358,11 @@ Return valid JSON only:
             recallTurnsText +
             "\n\nCurrent question:\n" +
             grokPrompt;
+    }
+
+    // Add scenario memory context if available
+    if (scenarioMemoryContext) {
+        grokPrompt = scenarioMemoryContext + "\n\n" + grokPrompt;
     }
 
     if (XAI_API_KEY) {
