@@ -2360,6 +2360,33 @@ CRITICAL - NUMERIC FORMAT REQUIREMENTS:
 5. NO abbreviated notation (k, m, etc.) in JSON output
 
 Your plain_english_summary CAN use $650k notation for readability, but the JSON fields MUST use full numbers.
+
+CRITICAL - FOLLOW-UP QUESTION RULES:
+When the user asks a follow-up question (e.g., "what if X changes"):
+1. You MUST include ALL fields from scenario_inputs in your JSON output
+2. For fields the user did NOT mention changing: copy the EXACT value from the prior context
+3. For fields the user mentions changing: use the new value
+4. NEVER set a field to 0 if it had a non-zero value in prior context (unless user explicitly says "0")
+
+Example:
+Prior context: {"price": 900000, "down_payment_pct": 30, "rent_monthly": 5000, "maintenance_pct": 0.5}
+User asks: "What if down payment is 35%?"
+YOU MUST OUTPUT ALL FIELDS:
+{
+  "scenario_inputs": {
+    "price": 900000,           // ← from prior (unchanged)
+    "down_payment_pct": 35,    // ← user changed this
+    "rent_monthly": 5000,      // ← from prior (unchanged)
+    "maintenance_pct": 0.5,    // ← from prior (unchanged) - DO NOT change to 0!
+    "vacancy_pct": 0,
+    "property_tax_pct": 1.3,   // ← from prior (unchanged)
+    "insurance_pct": 0,
+    "hoa_monthly": 0,
+    "rate_used_pct": 6.09,
+    "loan_amount": 585000,     // ← recalculated from new down payment
+    "term_years": 30
+  }
+}
 `;
 
         const aiResult = await routeAIRequest(enhancedPrompt, message, maxTokens, 'auto');
