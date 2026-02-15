@@ -2239,8 +2239,14 @@ Schema:
     "loan_amount": number,
     "rate_used_pct": number,
     "term_years": number,
-    "property_tax_pct": number
+    "property_tax_pct": number,
+    "rent_monthly": number,
+    "maintenance_pct": number,
+    "vacancy_pct": number,
+    "insurance_pct": number,
+    "hoa_monthly": number
   },
+  
   "monthly_payment": number,
   "total_interest_over_term": number,
   "amortization_summary": [{ "year": number, "principal_paid": number, "interest_paid": number, "ending_balance": number }],
@@ -2255,6 +2261,15 @@ Schema:
     "minus_0_5pct": { "monthly_payment": number, "monthly_cash_flow": number, "dscr": number }
   }
 }
+
+MEMORY RULES (for follow-up questions):
+- When user asks "what if X changes", you MUST output ALL scenario_inputs fields in your response
+- Copy forward all fields from prior context that user did NOT explicitly change
+- Only update the specific field(s) the user mentions changing
+- Example: If user says "what if down payment is 25%" but prior scenario had rent_monthly=5000:
+  You MUST include both "down_payment_pct": 25 AND "rent_monthly": 5000 in your scenario_inputs output
+- Fields to always include if they were in prior context: rent_monthly, maintenance_pct, vacancy_pct, insurance_pct, hoa_monthly, property_tax_pct
+- If a field was NOT in prior context and user does not mention it, you may omit it or set to 0  
 `);
 
 
