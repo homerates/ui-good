@@ -870,7 +870,7 @@ export default function Page() {
     // Memory thread id per chat thread (ChatGPT-style: recall works only if we reuse the same memory_thread_id)
     const [memoryThreadByChatId, setMemoryThreadByChatId] = useState<Record<string, string>>({});
     const [activeId, setActiveId] = useState<string | null>(null);
-
+    const [lastRouteByThread, setLastRouteByThread] = useState<Record<string, string>>({});
     // overlays
     const [showSearch, setShowSearch] = useState(false);
     const [showLibrary, setShowLibrary] = useState(false);
@@ -1350,44 +1350,61 @@ export default function Page() {
             // Smart detection: only flip to scenario when it smells like compare/projection + has numbers
             const t = q.toLowerCase();
 
-            const looksLikeScenario =
-                t.includes('scenario') ||
-                t.includes('compare') ||
-                t.includes(' vs ') ||
-                t.includes('cash out') ||
-                t.includes('cash-out') ||
-                t.includes('equity') ||
-                t.includes('projection') ||
-                t.includes('stress test') ||
-                t.includes('10-year') ||
-                t.includes('10 year') ||
-                t.includes('5-year') ||
-                t.includes('5 year') ||
-                // Follow-up question indicators
+            // Check if we have a previous route for this thread
+            const lastRoute = tid ? lastRouteByThread[tid] : undefined;
+
+            // Detect follow-up indicators
+            const isFollowUp =
                 t.includes('what if') ||
                 t.includes('instead') ||
                 t.includes('same property') ||
                 t.includes('same home') ||
                 t.includes('that property') ||
                 t.includes('that home') ||
-                t.includes('previous') ||
-                // Investment / DSCR / rental math should always use Smart Scenario (single numeric authority)
-                t.includes('dscr') ||
-                t.includes('pitia') ||
-                t.includes('amortization') ||
-                t.includes('amortisation') ||
-                t.includes('cash flow') ||
-                t.includes('rental') ||
-                t.includes('rent ') ||
-                t.includes('investment property') ||
-                t.includes('vacancy') ||
-                t.includes('maintenance') ||
-                t.includes('property tax') ||
-                t.includes('insurance');
+                t.includes('previous');
 
-            const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
+            let useScenario = false;
 
-            const useScenario = forceScenario || (looksLikeScenario && hasNumbersContext);
+            if (isFollowUp && lastRoute) {
+                // Follow-up: stick with previous route
+                useScenario = lastRoute === 'scenario';
+                console.log('[Routing] Follow-up detected, using last route:', lastRoute);
+            } else if (forceScenario) {
+                // Forced via URL parameter
+                useScenario = true;
+            } else {
+                // New question: detect route normally
+                const looksLikeScenario =
+                    t.includes('scenario') ||
+                    t.includes('compare') ||
+                    t.includes(' vs ') ||
+                    t.includes('cash out') ||
+                    t.includes('cash-out') ||
+                    t.includes('equity') ||
+                    t.includes('projection') ||
+                    t.includes('stress test') ||
+                    t.includes('10-year') ||
+                    t.includes('10 year') ||
+                    t.includes('5-year') ||
+                    t.includes('5 year') ||
+                    // Investment / DSCR / rental math should always use Smart Scenario (single numeric authority)
+                    t.includes('dscr') ||
+                    t.includes('pitia') ||
+                    t.includes('amortization') ||
+                    t.includes('amortisation') ||
+                    t.includes('cash flow') ||
+                    t.includes('rental') ||
+                    t.includes('rent ') ||
+                    t.includes('investment property') ||
+                    t.includes('vacancy') ||
+                    t.includes('maintenance') ||
+                    t.includes('property tax') ||
+                    t.includes('insurance');
+
+                const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
+
+                useScenario = looksLikeScenario && hasNumbersContext;
+            }
 
             // Endpoint + payload
             const answersEndpoint = useScenario ? '/api/answers/scenario' : '/api/answers';
@@ -1401,7 +1418,6 @@ export default function Page() {
                 }
                 : body;
             // === End scenario routing ===
-
 
 
             const r = await fetch(answersEndpoint, {
@@ -1491,6 +1507,14 @@ export default function Page() {
             // Type out the actual answer text into the existing assistant bubble
             const fullText = friendly;
             typeOutAssistant(answerId, fullText);
+
+            // Save which route we used for this thread
+            if (tid) {
+                setLastRouteByThread(prev => ({
+                    ...prev,
+                    [tid]: useScenario ? 'scenario' : 'general'
+                }));
+            }
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             setMessages((m) => [
