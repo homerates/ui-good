@@ -997,11 +997,27 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const claudeInputs = out.scenario_inputs || {};
     const extractedInputs = extractScenarioInputs(message);
 
-    // Merge: Start with memory, override with new changes from message
-    const mergedInputs = {
-        ...claudeInputs,     // Values from memory (previous scenario)
-        ...extractedInputs,  // New values from current message override
-    };
+    // Merge: Start with memory, override ONLY with non-zero new changes from message
+    const mergedInputs = { ...claudeInputs }; // Start with ALL memory values
+
+    // Only override if we extracted a meaningful value from the message
+    // Don't let 0 or undefined overwrite existing values
+    Object.keys(extractedInputs).forEach(key => {
+        const newVal = extractedInputs[key];
+        const oldVal = claudeInputs[key];
+
+        // Override if:
+        // 1. New value exists and is not undefined/null
+        // 2. OR old value doesn't exist (new field)
+        if (newVal !== undefined && newVal !== null) {
+            // For percentage fields, 0 is valid if explicitly set
+            // For other fields, only override if non-zero OR if old value was also 0
+            if (newVal !== 0 || oldVal === undefined || oldVal === 0) {
+                mergedInputs[key] = newVal;
+            }
+            // else: keep old value (don't override non-zero with 0)
+        }
+    });
 
     out.scenario_inputs = mergedInputs;
     const inputsBlock = buildInputsSummary(mergedInputs, rate_context);
