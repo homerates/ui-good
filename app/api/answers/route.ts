@@ -1315,6 +1315,7 @@ Current question:
 
 ABSOLUTE RULES:
 - Do NOT invent numbers, rates, payments, fees, or scenario facts unless the user explicitly asks for an example.
+- When user does NOT specify a rate, use the FRED 30Y fixed average rate shown above (currently 6.09%). Do NOT use rates from "Latest signals" unless user asks for current market rates.
 - Markdown only inside the "answer" field. Never output HTML.
 - Keep total length around 180–350 words unless asked for more.
 
@@ -1358,7 +1359,10 @@ Return valid JSON only:
         grokPrompt =
             "Prior conversation context (same user, same memory_thread_id):\n" +
             recallTurnsText +
-            "\n\nCurrent question:\n" +
+            "\n\nIMPORTANT: When answering the current question below, use the MOST RECENT values from the conversation above. " +
+            "If the user is asking 'what if X changes', keep all other values from the most recent turn and only change X. " +
+            "Reference the previous scenario in your answer (e.g., 'Based on your previous scenario...').\n\n" +
+            "Current question:\n" +
             grokPrompt;
     }
 
