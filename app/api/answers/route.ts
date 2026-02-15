@@ -1328,6 +1328,8 @@ Return valid JSON only:
 `.trim()
     );
 
+    // CORRECTED BLOCK - Replace from "let grokFinal: any = null;" to the end of the POST function
+
     let grokFinal: any = null;
     let debug: any = null;
 
@@ -1394,6 +1396,7 @@ Return valid JSON only:
     }
 
     mark("after Grok call");
+
     // --- SOURCE GENERATION (core overrides; US-only; no duplicates) ---
     if (grokFinal) {
         try {
@@ -1403,7 +1406,7 @@ Return valid JSON only:
             });
 
             // If core matched, REPLACE topSources entirely (single source).
-            // If not core, leave Tavily topSources intact (prevents “two sources” behavior).
+            // If not core, leave Tavily topSources intact (prevents "two sources" behavior).
             if (bundle.mode === "core") {
                 topSources = bundle.sources.map((s: { title: string; url: string }) => ({
                     title: s.title,
@@ -1414,11 +1417,10 @@ Return valid JSON only:
             console.warn("Sources bundle failed", e?.message || e);
         }
     }
-    // HR-MEMORY:SAVE-ANSWER
-    // Persist assistant response with memory_thread_id for future recall
 
-    // Save memory only on success
-    if (grokFinal && userId && supabase) {
+    // HR-MEMORY:SAVE-ANSWER
+    // Save memory only on success (both user_answers for continuity)
+    if (grokFinal && userId && supabase && memoryThreadId) {
         try {
             await supabase.from("user_answers").insert({
                 clerk_user_id: userId,
@@ -1429,38 +1431,14 @@ Return valid JSON only:
                 answer_summary:
                     typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
                 model: XAI_MODEL,
+                tool_id: "general",
                 created_at: new Date().toISOString(),
             });
+            console.log('[Memory] Stored Q&A in user_answers');
         } catch (err: any) {
             console.warn("ANSWERS: save failed", err?.message || err);
         }
     }
-    // --- SOURCE GENERATION (core overrides; US-only; no duplicates) ---
-    if (grokFinal) {
-        try {
-            const bundle = await generateSourcesBundle({
-                topic: `${question} ${module}`,
-                reqUrl: req.url,
-            });
-
-            // If our core map matched, set exactly ONE source and do NOT add extra markdown.
-            if (bundle.mode === "core") {
-                topSources = bundle.sources.map((s: { title: string; url: string }) => ({
-
-                    title: s.title,
-                    url: s.url,
-                }));
-            }
-
-            // If not core, do nothing here:
-            // - keep existing Tavily-derived topSources (already built earlier)
-            // - keep usedTavily as-is
-            // - avoid duplicates and avoid drifting sources behavior
-        } catch (e: any) {
-            console.warn("Sources bundle failed", e?.message || e);
-        }
-    }
-
 
     // Final markdown (always include sources/fred at bottom if present)
     const finalMarkdown = grokFinal
@@ -1468,7 +1446,6 @@ Return valid JSON only:
             grokFinal.confidence
         )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
         : legacyAnswerMarkdown;
-
 
     const message = grokFinal?.answer || legacyAnswer;
 
