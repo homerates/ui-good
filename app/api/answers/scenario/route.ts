@@ -975,11 +975,21 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
         ? claudeRate
         : (userRate ?? marketData?.thirtyYearFixed ?? null);
 
+    // Determine source: Claude (memory), user (current message), or FRED (fallback)
+    let rateSource: string;
+    if (Number.isFinite(claudeRate) && claudeRate > 0 && userRate == null) {
+        rateSource = "user"; // From memory (user set it in previous question)
+    } else if (userRate != null) {
+        rateSource = "user"; // From current message
+    } else {
+        rateSource = "FRED"; // Fallback to market data
+    }
+
     const rate_context = {
         rate_used: rateUsed,
-        source: userRate != null ? "user" : "FRED",
+        source: rateSource,
         as_of: marketData?.date ?? null,
-        series: userRate != null ? null : "MORTGAGE30US",
+        series: rateSource === "FRED" ? "MORTGAGE30US" : null,
     };
     out.rate_context = rate_context;
     // Inputs summary (borrower-visible + structured)
@@ -987,10 +997,10 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const claudeInputs = out.scenario_inputs || {};
     const extractedInputs = extractScenarioInputs(message);
 
-    // Merge: Claude's values take precedence (from memory context)
+    // Merge: Start with memory, override with new changes from message
     const mergedInputs = {
-        ...extractedInputs,  // Fallback values from message parsing
-        ...claudeInputs,     // Claude's values override (includes memory context)
+        ...claudeInputs,     // Values from memory (previous scenario)
+        ...extractedInputs,  // New values from current message override
     };
 
     out.scenario_inputs = mergedInputs;
