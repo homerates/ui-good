@@ -997,6 +997,18 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const claudeInputs = out.scenario_inputs || {};
     const extractedInputs = extractScenarioInputs(message);
 
+    // FIX: Restore fields Claude incorrectly set to 0
+    if (memoryHistory && memoryHistory.length > 0) {
+        const prev = memoryHistory[0]?.scenario_inputs || {};
+        ['maintenance_pct', 'vacancy_pct', 'insurance_pct', 'hoa_monthly'].forEach(f => {
+            if ((claudeInputs[f] === 0 || !claudeInputs[f]) &&
+                prev[f] && prev[f] !== 0 &&
+                !extractedInputs.hasOwnProperty(f)) {
+                claudeInputs[f] = prev[f];
+            }
+        });
+    }
+
     // Merge: Start with memory, override ONLY with non-zero new changes from message
     const mergedInputs = { ...claudeInputs }; // Start with ALL memory values
 
@@ -2301,7 +2313,7 @@ MEMORY RULES (for follow-up questions):
         console.log('[Memory Debug] memoryThreadId:', memoryThreadId);
         console.log('[Memory Debug] userId:', userId);
         console.log('[Memory Debug] supabase exists:', !!supabase);
-
+        THIS
         if (supabase && memoryThreadId) {
             memoryHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 5);
             console.log('[Memory] Retrieved', memoryHistory.length, 'previous scenarios');
