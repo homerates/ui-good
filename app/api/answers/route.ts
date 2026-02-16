@@ -591,7 +591,10 @@ async function handle(req: NextRequest, intentParam?: string) {
                     // Create memory_threads row once, then bind it to chat_threads
                     const { data: created, error: mtErr } = await supabase
                         .from("memory_threads")
-                        .insert({ clerk_user_id: userId })
+                        .insert({
+                            clerk_user_id: userId,
+                            project_id: projectId
+                        })
                         .select("id")
                         .single();
 
@@ -1430,12 +1433,12 @@ Return valid JSON only:
                 clerk_user_id: userId,
                 chat_thread_id: chatThreadId,
                 memory_thread_id: memoryThreadId,
+                project_id: projectId,  // ← ADD THIS LINE
                 question,
                 answer: grokFinal,
                 answer_summary:
                     typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
                 model: XAI_MODEL,
-                tool_id: "general",
                 created_at: new Date().toISOString(),
             });
             console.log('[Memory] Stored Q&A in user_answers');
