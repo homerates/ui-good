@@ -2313,7 +2313,7 @@ MEMORY RULES (for follow-up questions):
         console.log('[Memory Debug] memoryThreadId:', memoryThreadId);
         console.log('[Memory Debug] userId:', userId);
         console.log('[Memory Debug] supabase exists:', !!supabase);
-        THIS
+
         if (supabase && memoryThreadId) {
             memoryHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 5);
             console.log('[Memory] Retrieved', memoryHistory.length, 'previous scenarios');
