@@ -565,7 +565,7 @@ function ensureScenarioInputs(result: any): ScenarioInputs | null {
 }
 
 
-function postParseValidateScenario(result: any, message: string, marketData: any) {
+function postParseValidateScenario(result: any, message: string, marketData: any, memoryHistory?: any[]) {
     const out = { ...(result || {}) };
     const warnings: string[] = Array.isArray(out.validation_warnings)
         ? [...out.validation_warnings]
@@ -2428,7 +2428,7 @@ YOU MUST OUTPUT ALL FIELDS:
             result = normalizeForGrokCard(result, message, marketData);
             console.log('[PIPELINE] After normalizeForGrokCard - OK');
 
-            result = postParseValidateScenario(result, message, marketData);
+            result = postParseValidateScenario(result, message, marketData, memoryHistory);
             console.log('[PIPELINE] After postParseValidateScenario - OK');
             console.log('[PIPELINE] Final result keys:', Object.keys(result || {}));
         } catch (err: any) {
