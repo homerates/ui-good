@@ -997,17 +997,6 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
     const claudeInputs = out.scenario_inputs || {};
     const extractedInputs = extractScenarioInputs(message);
 
-    // FIX: Restore fields Claude incorrectly set to 0
-    if (memoryHistory && memoryHistory.length > 0) {
-        const prev = memoryHistory[0]?.scenario_inputs || {};
-        ['maintenance_pct', 'vacancy_pct', 'insurance_pct', 'hoa_monthly'].forEach(f => {
-            if ((claudeInputs[f] === 0 || !claudeInputs[f]) &&
-                prev[f] && prev[f] !== 0 &&
-                !extractedInputs.hasOwnProperty(f)) {
-                claudeInputs[f] = prev[f];
-            }
-        });
-    }
 
     // Merge: Start with memory, override ONLY with non-zero new changes from message
     const mergedInputs = { ...claudeInputs }; // Start with ALL memory values
@@ -2427,6 +2416,18 @@ YOU MUST OUTPUT ALL FIELDS:
 
             result = normalizeForGrokCard(result, message, marketData);
             console.log('[PIPELINE] After normalizeForGrokCard - OK');
+
+            // FIX: Restore fields Claude incorrectly set to 0 (before validation)
+            if (memoryHistory && memoryHistory.length > 0 && result?.scenario_inputs) {
+                const prev = memoryHistory[0]?.scenario_inputs || {};
+                const claudeInputs = result.scenario_inputs;
+                ['maintenance_pct', 'vacancy_pct', 'insurance_pct', 'hoa_monthly'].forEach(f => {
+                    if ((claudeInputs[f] === 0 || claudeInputs[f] == null) && prev[f] && prev[f] !== 0) {
+                        console.log(`[Memory Restore] ${f}: ${claudeInputs[f]} → ${prev[f]}`);
+                        claudeInputs[f] = prev[f];
+                    }
+                });
+            }
 
             result = postParseValidateScenario(result, message, marketData, memoryHistory);
             console.log('[PIPELINE] After postParseValidateScenario - OK');
