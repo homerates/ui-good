@@ -43,6 +43,7 @@ const SUPABASE_URL =
 const SUPABASE_SERVICE_ROLE_KEY =
     process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
+
 const supabase =
     SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
         ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -50,6 +51,48 @@ const supabase =
         })
         : null;
 
+// ---------- Helper: Get or Create Default Project ----------
+async function getOrCreateDefaultProject(supabase: any, userId: string): Promise<string | null> {
+    try {
+        const { data: existing, error: findErr } = await supabase
+            .from('projects')
+            .select('id')
+            .eq('clerk_user_id', userId)
+            .eq('name', 'Unsorted')
+            .maybeSingle();
+
+        if (findErr) {
+            console.warn('[Default Project] Error finding existing:', findErr.message);
+        }
+
+        if (existing?.id) {
+            return String(existing.id);
+        }
+
+        const { data: created, error: createErr } = await supabase
+            .from('projects')
+            .insert({
+                clerk_user_id: userId,
+                name: 'Unsorted'
+            })
+            .select('id')
+            .single();
+
+        if (createErr) {
+            console.warn('[Default Project] Error creating:', createErr.message);
+            return null;
+        }
+
+        console.log('[Default Project] Created "Unsorted" project for user:', userId);
+        return created?.id ? String(created.id) : null;
+
+    } catch (err: any) {
+        console.error('[Default Project] Unexpected error:', err?.message || err);
+        return null;
+    }
+}
+
+// --- fetch with timeout (hard cap) ---
 
 // --- fetch with timeout (hard cap) ---
 async function fetchWithTimeout(
