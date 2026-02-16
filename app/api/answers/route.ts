@@ -1469,14 +1469,30 @@ Return valid JSON only:
     }
 
     // HR-MEMORY:SAVE-ANSWER
-    // Save memory only on success (both user_answers for continuity)
-    if (grokFinal && userId && supabase && memoryThreadId) {
+    // Save memory only on success
+    if (grokFinal && userId && supabase) {
         try {
+            // Get project_id from chat_threads if we have a chatThreadId
+            let projectIdForAnswer = projectId; // From request (might be null)
+
+            if (!projectIdForAnswer && chatThreadId) {
+                const { data: threadData } = await supabase
+                    .from('chat_threads')
+                    .select('project_id')
+                    .eq('id', chatThreadId)
+                    .single();
+
+                if (threadData?.project_id) {
+                    projectIdForAnswer = threadData.project_id;
+                    console.log('[Project Link] Got project_id from chat_threads:', projectIdForAnswer);
+                }
+            }
+
             await supabase.from("user_answers").insert({
                 clerk_user_id: userId,
                 chat_thread_id: chatThreadId,
                 memory_thread_id: memoryThreadId,
-                project_id: projectId,  // ← ADD THIS LINE
+                project_id: projectIdForAnswer,
                 question,
                 answer: grokFinal,
                 answer_summary:
@@ -1484,7 +1500,6 @@ Return valid JSON only:
                 model: XAI_MODEL,
                 created_at: new Date().toISOString(),
             });
-            console.log('[Memory] Stored Q&A in user_answers');
         } catch (err: any) {
             console.warn("ANSWERS: save failed", err?.message || err);
         }
