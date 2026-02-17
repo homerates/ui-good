@@ -1543,25 +1543,41 @@ export default function Page() {
         }
     }
 
-    function onShare() {
-        const text = messages
-            .map((m) =>
-                `${m.role === 'user' ? 'You' : 'HomeRates'}: ${typeof m.content === 'string' ? m.content : ''
-                }`
-            )
-            .join('\n');
-        if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(text).catch(() => { });
-        } else {
-            const blob = new Blob([text], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'conversation.txt';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
+    async function onShare() {
+        // Get the last Q&A pair from messages
+        const userMessages = messages.filter(m => m.role === 'user');
+        const assistantMessages = messages.filter(m => m.role === 'assistant');
+
+        const lastQuestion = typeof userMessages.at(-1)?.content === 'string'
+            ? userMessages.at(-1)?.content as string
+            : '';
+        const lastAnswer = typeof assistantMessages.at(-1)?.content === 'string'
+            ? assistantMessages.at(-1)?.content as string
+            : '';
+
+        try {
+            const res = await fetch('/api/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: lastQuestion,
+                    answer: lastAnswer,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.ok && data.url) {
+                // Copy share URL to clipboard
+                await navigator.clipboard.writeText(data.url).catch(() => { });
+                alert(`Share link copied!\n${data.url}`);
+            } else {
+                console.error('[Share] Failed:', data.error);
+                alert('Failed to create share link. Please try again.');
+            }
+        } catch (err) {
+            console.error('[Share] Error:', err);
+            alert('Failed to create share link. Please try again.');
         }
     }
 
