@@ -31,23 +31,15 @@ export async function POST(req: NextRequest) {
     try {
         const { userId } = await auth();
         const body = await req.json();
+        const { messages, title } = body;
 
-        const { question, answer } = body;
-
-        if (!question && !answer) {
-            return NextResponse.json({ error: "question or answer required" }, { status: 400 });
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            return NextResponse.json({ error: "messages array required" }, { status: 400 });
         }
 
         if (!supabase) {
             return NextResponse.json({ error: "Database not configured" }, { status: 500 });
         }
-
-        // Build the target URL (the /share page with Q&A encoded)
-        const base = process.env.NEXT_PUBLIC_APP_BASE_URL || "https://chat.homerates.ai";
-        const params = new URLSearchParams();
-        if (question) params.set("q", question);
-        if (answer) params.set("a", answer);
-        const targetUrl = `${base}/share?${params.toString()}`;
 
         // Generate a unique slug
         let slug = generateSlug();
@@ -55,23 +47,23 @@ export async function POST(req: NextRequest) {
 
         while (attempts < 5) {
             const { data: existing } = await supabase
-                .from("short_links")
+                .from("shared_threads")
                 .select("slug")
                 .eq("slug", slug)
                 .maybeSingle();
 
-            if (!existing) break; // Slug is unique!
-            slug = generateSlug(); // Try again
+            if (!existing) break;
+            slug = generateSlug();
             attempts++;
         }
 
-        // Save to short_links table
+        // Save full thread to shared_threads table
         const { error: insertErr } = await supabase
-            .from("short_links")
+            .from("shared_threads")
             .insert({
                 slug,
-                target_url: targetUrl,
-                created_by: userId || "anon",
+                clerk_user_id: userId || "anon",
+                messages,
                 created_at: new Date().toISOString(),
             });
 
@@ -80,8 +72,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Failed to create share link" }, { status: 500 });
         }
 
+        const base = process.env.NEXT_PUBLIC_APP_BASE_URL || "https://chat.homerates.ai";
         const shareUrl = `${base}/s/${slug}`;
-        console.log("[Share] Created:", shareUrl);
+        console.log("[Share] Created:", shareUrl, "by:", userId || "anon");
 
         return NextResponse.json({ ok: true, url: shareUrl, slug });
 

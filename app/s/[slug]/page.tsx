@@ -1,13 +1,11 @@
 // app/s/[slug]/page.tsx
-// Short-link redirect for HomeRates share URLs.
-// Given a slug, look up the long URL and redirect (302) to it.
+// Loads shared thread data and passes it to main app via query param
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-// Reuse the same env logic as other server-side Supabase clients
 const SUPABASE_URL =
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY =
@@ -20,36 +18,37 @@ const supabase =
         })
         : null;
 
-// NOTE: we deliberately type props as any so we don't fight Next's generated PageProps,
-// which currently treats params as a Promise<any> in .next/types.
 export default async function ShortRedirectPage(props: any) {
-    // Next 15 sometimes models params as a Promise in its generated types,
-    // so we use await here to be compatible either way.
     const params = (await props.params) as { slug?: string } | undefined;
     const slug = params?.slug ?? '';
 
     if (!slug || !supabase) {
-        // If we can't resolve the slug or Supabase isn't configured, go home.
         redirect('/');
     }
 
-    // Look up the long URL from your short_links table
-    const { data, error } = await supabase
+    // Check shared_threads first (full thread share)
+    const { data: sharedThread } = await supabase
+        .from('shared_threads')
+        .select('slug, messages')
+        .eq('slug', slug)
+        .maybeSingle();
+
+    if (sharedThread?.slug) {
+        // Redirect to main app with shared param - app will load the thread
+        redirect(`/?shared=${slug}`);
+    }
+
+    // Fallback: check short_links table (legacy single Q&A share)
+    const { data: shortLink } = await supabase
         .from('short_links')
         .select('target_url')
         .eq('slug', slug)
         .maybeSingle();
 
-    if (error || !data?.target_url) {
-        redirect('/');
+    if (shortLink?.target_url) {
+        redirect(shortLink.target_url);
     }
 
-    const target = String(data.target_url);
-
-    // If for some reason it's empty, also fall back
-    if (!target) {
-        redirect('/');
-    }
-
-    redirect(target);
+    // Nothing found - go home
+    redirect('/');
 }

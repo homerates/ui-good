@@ -853,6 +853,42 @@ export default function Page() {
         }
     }, [searchParams, input, setInput]);
 
+    // Load shared thread from URL param ?shared=slug
+    const hasLoadedSharedRef = React.useRef(false);
+
+    useEffect(() => {
+        if (hasLoadedSharedRef.current) return;
+        const sharedSlug = searchParams?.get('shared');
+        if (!sharedSlug) return;
+        hasLoadedSharedRef.current = true;
+
+        async function loadSharedThread() {
+            try {
+                const res = await fetch(`/api/share/load?slug=${sharedSlug}`);
+                const data = await res.json();
+                if (data.ok && Array.isArray(data.messages) && data.messages.length > 0) {
+                    const newId = `shared-${sharedSlug}`;
+                    setThreads(prev => ({ ...prev, [newId]: data.messages }));
+                    setHistory(prev => [
+                        {
+                            id: newId,
+                            title: `Shared: ${data.messages[0]?.content?.slice(0, 40) || 'Conversation'}…`,
+                            updatedAt: Date.now()
+                        },
+                        ...prev.filter(h => h.id !== newId),
+                    ]);
+                    setActiveId(newId);
+                    setMessages(data.messages);
+                    console.log('[Share] Loaded shared thread:', sharedSlug);
+                }
+            } catch (err) {
+                console.error('[Share] Failed to load shared thread:', err);
+            }
+        }
+
+        void loadSharedThread();
+    }, [searchParams]);
+
     const [sidebarOpen, setSidebarOpen] = useState(() => {
         if (typeof window === 'undefined') {
             // On the server we don't know the width, default to open (desktop-ish).
@@ -1544,33 +1580,20 @@ export default function Page() {
     }
 
     async function onShare() {
-        // Get the last Q&A pair from messages
-        const userMessages = messages.filter(m => m.role === 'user');
-        const assistantMessages = messages.filter(m => m.role === 'assistant');
-
-        const lastQuestion = typeof userMessages.at(-1)?.content === 'string'
-            ? userMessages.at(-1)?.content as string
-            : '';
-        const lastAnswer = typeof assistantMessages.at(-1)?.content === 'string'
-            ? assistantMessages.at(-1)?.content as string
-            : '';
-
+        if (messages.length === 0) {
+            alert('No conversation to share yet.');
+            return;
+        }
         try {
             const res = await fetch('/api/share', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question: lastQuestion,
-                    answer: lastAnswer,
-                }),
+                body: JSON.stringify({ messages }),
             });
-
             const data = await res.json();
-
             if (data.ok && data.url) {
-                // Copy share URL to clipboard
                 await navigator.clipboard.writeText(data.url).catch(() => { });
-                alert(`Share link copied!\n${data.url}`);
+                alert(`Share link copied!\n\n${data.url}\n\nAnyone with this link can view and continue this conversation.`);
             } else {
                 console.error('[Share] Failed:', data.error);
                 alert('Failed to create share link. Please try again.');
