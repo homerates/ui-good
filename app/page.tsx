@@ -1333,9 +1333,14 @@ export default function Page() {
 
         try {
             // borrower-only body (no intent/loanAmount passthrough)
-            const body: { question: string; mode: 'borrower' } = {
+            const body: {
+                question: string;
+                mode: 'borrower';
+                chat_id?: string;
+            } = {
                 question: q,
                 mode,
+                chat_id: activeId || undefined,  // Send the current chat ID!
             };
 
             // === Scenario routing (12-18-25) ===

@@ -584,8 +584,16 @@ async function handle(req: NextRequest, intentParam?: string) {
     const chatId =
         typeof chatIdRaw === "string" && chatIdRaw.trim().length ? chatIdRaw.trim() : null;
 
-    const projectId =
+    let projectId =
         typeof projectIdRaw === "string" && isUuid(projectIdRaw) ? projectIdRaw : null;
+
+    // Auto-create "Unsorted" project if no project_id provided
+    if (!projectId && userId && supabase) {
+        projectId = await getOrCreateDefaultProject(supabase, userId);
+        if (projectId) {
+            console.log('[Auto Project] Using default "Unsorted" project:', projectId);
+        }
+    }
 
     // Legacy: only used when we cannot resolve server-side via chat_threads
     const legacyMemoryThreadIdRaw =
