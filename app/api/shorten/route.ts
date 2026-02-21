@@ -4,11 +4,12 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { auth } from "@clerk/nextjs/server";
 
 const SUPABASE_URL =
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+    process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const supabase =
     SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
@@ -18,8 +19,7 @@ const supabase =
         : null;
 
 function randomSlug(length = 7): string {
-    const chars =
-        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
     let out = '';
     for (let i = 0; i < length; i++) {
         out += chars[Math.floor(Math.random() * chars.length)];
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
         );
     }
 
+    const { userId } = await auth();
     let body: any = {};
     try {
         body = await req.json();
@@ -42,15 +43,55 @@ export async function POST(req: NextRequest) {
         body = {};
     }
 
+    // Support both old format (url) and new format (messages)
+    const messages = body?.messages;
     const longUrl = (body?.url ?? '').toString().trim();
+
+    // If messages provided, save to shared_threads (new system)
+    if (messages && Array.isArray(messages) && messages.length > 0) {
+        let slug: string | null = null;
+
+        for (let i = 0; i < 5; i++) {
+            const candidate = randomSlug();
+            const { error } = await supabase
+                .from('shared_threads')
+                .insert({
+                    slug: candidate,
+                    clerk_user_id: userId || 'anon',
+                    messages,
+                    created_at: new Date().toISOString(),
+                })
+                .select('slug')
+                .single();
+
+            if (!error) {
+                slug = candidate;
+                break;
+            }
+        }
+
+        if (!slug) {
+            return NextResponse.json(
+                { ok: false, error: 'Could not generate unique slug' },
+                { status: 500 }
+            );
+        }
+
+        const base = process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://chat.homerates.ai';
+        const shortUrl = `${base}/s/${slug}`;
+
+        console.log('[Shorten] Created shared thread:', shortUrl);
+        return NextResponse.json({ ok: true, slug, shortUrl, url: shortUrl });
+    }
+
+    // Old behavior: save URL to short_links (for backwards compatibility)
     if (!longUrl) {
         return NextResponse.json(
-            { ok: false, error: 'Missing url' },
+            { ok: false, error: 'Missing url or messages' },
             { status: 400 }
         );
     }
 
-    // Try a few times in case of slug collisions
     let slug: string | null = null;
 
     for (let i = 0; i < 5; i++) {
@@ -68,16 +109,6 @@ export async function POST(req: NextRequest) {
             slug = candidate;
             break;
         }
-
-        // If it's clearly a duplicate key, try again, otherwise bail out
-        const msg = (error as any)?.message || '';
-        if (!msg.toLowerCase().includes('duplicate key')) {
-            console.error('[shorten] insert error:', error);
-            return NextResponse.json(
-                { ok: false, error: 'Failed to create short link' },
-                { status: 500 }
-            );
-        }
     }
 
     if (!slug) {
@@ -87,17 +118,9 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const baseFromEnv = process.env.NEXT_PUBLIC_APP_BASE_URL || '';
-    const origin =
-        baseFromEnv ||
-        req.headers.get('origin') ||
-        'https://chat.homerates.ai';
+    const base = process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://chat.homerates.ai';
+    const shortUrl = `${base}/s/${slug}`;
 
-    const shortUrl = new URL(`/s/${slug}`, origin).toString();
-
-    return NextResponse.json({
-        ok: true,
-        slug,
-        shortUrl,
-    });
+    console.log('[Shorten] Created short link:', shortUrl);
+    return NextResponse.json({ ok: true, slug, shortUrl, url: shortUrl });
 }
