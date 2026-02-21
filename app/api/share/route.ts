@@ -28,40 +28,69 @@ function generateSlug(length = 7): string {
 }
 
 async function sendShareEmail(toEmail: string, shareUrl: string, senderName?: string): Promise<void> {
-    // TODO: Integrate with your email service (SendGrid, Resend, etc.)
-    // For now, just log
-    console.log('[Share Email] Would send to:', toEmail, 'URL:', shareUrl, 'From:', senderName);
-
-    // Example with Resend (uncomment when you have API key):
-    /*
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     if (!RESEND_API_KEY) {
+        console.error('[Share Email] RESEND_API_KEY not configured');
         throw new Error('RESEND_API_KEY not configured');
     }
 
-    const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            from: 'HomeRates.ai <noreply@homerates.ai>',
-            to: [toEmail],
-            subject: `${senderName || 'Someone'} shared a conversation with you`,
-            html: `
+    try {
+        const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${RESEND_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                from: 'HomeRates.ai <noreply@homerates.ai>',
+                to: [toEmail],
+                subject: `${senderName || 'Someone'} shared a conversation with you`,
+                html: `
+                    <h2>You've been invited to view a conversation</h2>
+                    <p>${senderName || 'A colleague'} thought you'd find this helpful.</p>
+                    <p><a href="${shareUrl}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Conversation</a></p>
+                    <p style="color: #666; font-size: 14px;">This link allows you to view and continue the conversation. You can ask follow-up questions even without an account.</p>
+                `,
+            }),
+        });
+
+        if (!res.ok) {
+            const error = await res.text();
+            console.error('[Share Email] Resend API error:', error);
+            throw new Error(`Failed to send email: ${error}`);
+        }
+
+        const result = await res.json();
+        console.log('[Share Email] Sent successfully:', result);
+    } catch (err: any) {
+        console.error('[Share Email] Error:', err.message);
+        throw err;
+    }
+}
+
+const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        from: 'HomeRates.ai <noreply@homerates.ai>',
+        to: [toEmail],
+        subject: `${senderName || 'Someone'} shared a conversation with you`,
+        html: `
                 <h2>You've been invited to view a conversation</h2>
                 <p>${senderName || 'A colleague'} thought you'd find this helpful.</p>
                 <p><a href="${shareUrl}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Conversation</a></p>
                 <p style="color: #666; font-size: 14px;">This link allows you to view and continue the conversation. You can ask follow-up questions even without an account.</p>
             `,
-        }),
-    });
+    }),
+});
 
-    if (!res.ok) {
-        const error = await res.text();
-        throw new Error(`Failed to send email: ${error}`);
-    }
+if (!res.ok) {
+    const error = await res.text();
+    throw new Error(`Failed to send email: ${error}`);
+}
     */
 }
 
