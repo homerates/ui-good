@@ -42,7 +42,7 @@ async function sendShareEmail(toEmail: string, shareUrl: string, senderName?: st
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                from: 'onboarding@resend.dev',
+                from: 'HomeRates.ai <noreply@homerates.ai>',
                 to: [toEmail],
                 subject: `${senderName || 'Someone'} shared a conversation with you`,
                 html: `
