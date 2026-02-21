@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         // If email provided, send it
         if (email && typeof email === 'string' && email.includes('@')) {
             try {
-                await sendShareEmail(email, shareUrl, userId);
+                await sendShareEmail(email, shareUrl, userId || undefined);
                 console.log("[Share] Email sent to:", email);
             } catch (emailErr: any) {
                 console.error("[Share] Email error:", emailErr.message);
