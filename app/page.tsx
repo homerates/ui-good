@@ -1826,6 +1826,7 @@ export default function Page() {
                                                     <ShareAnswerButton
                                                         question="Question asked in HomeRates.ai"
                                                         answer={m.content}
+                                                        messages={messages}
                                                         source="thread"
                                                     />
                                                 </div>

@@ -1,167 +1,128 @@
+// app/components/ShareAnswerButton.tsx
 'use client';
 
 import * as React from 'react';
-import { buildAnswerShareUrl } from '../../lib/shareLink';
+import { ShareModal } from './ShareModal';
+
+type ChatMsg =
+    | { id: string; role: 'user'; content: string }
+    | { id: string; role: 'assistant'; content: string; meta?: any };
 
 type ShareAnswerButtonProps = {
     question: string;
     answer: string;
+    messages: ChatMsg[]; // Full thread messages
     source?: string;
 };
-
-function safeFallbackShareUrl(question: string, answer: string) {
-    // Force a share URL even if buildAnswerShareUrl regresses to "/"
-    const origin =
-        (typeof window !== 'undefined' && window.location?.origin) ||
-        'https://chat.homerates.ai';
-
-    const q = encodeURIComponent((question || '').trim());
-    const a = encodeURIComponent((answer || '').trim());
-
-    return `${origin}/share?q=${q}&a=${a}`;
-}
-
-function normalizeUrl(u: string) {
-    const s = (u || '').trim();
-    if (!s) return '';
-    return s;
-}
-
-function isBadShareTarget(longUrl: string) {
-    try {
-        const origin =
-            (typeof window !== 'undefined' && window.location?.origin) ||
-            'https://chat.homerates.ai';
-
-        // Treat exact homepage (with or without trailing slash) as invalid share target
-        return longUrl === origin || longUrl === `${origin}/` || longUrl === '/';
-    } catch {
-        return longUrl === '/' || longUrl === '';
-    }
-}
 
 export function ShareAnswerButton({
     question,
     answer,
+    messages,
     source = 'thread',
 }: ShareAnswerButtonProps) {
+    const [showModal, setShowModal] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [copied, setCopied] = React.useState(false);
-    const [shortUrl, setShortUrl] = React.useState<string | null>(null);
 
-    async function ensureShortUrl(longUrl: string): Promise<string> {
-        if (shortUrl) return shortUrl;
+    async function handleShare(method: 'link' | 'email', email?: string): Promise<void> {
+        setLoading(true);
 
         try {
-            const res = await fetch('/api/shorten', {
+            // Call the share API with full messages
+            const res = await fetch('/api/share', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: longUrl }),
+                body: JSON.stringify({
+                    messages,
+                    email: method === 'email' ? email : undefined,
+                }),
             });
 
-            const json: any = await res.json().catch(() => null);
+            const data = await res.json();
 
-            if (!res.ok || !json?.ok || !json?.shortUrl) {
-                console.warn('[ShareAnswerButton] shorten failed, falling back', {
-                    status: res.status,
-                    json,
-                });
-                return longUrl;
+            if (!data.ok || !data.url) {
+                throw new Error(data.error || 'Failed to create share link');
             }
 
-            setShortUrl(json.shortUrl as string);
-            return json.shortUrl as string;
-        } catch (err) {
-            console.error('[ShareAnswerButton] shorten error', err);
-            return longUrl;
-        }
-    }
-
-    async function handleClick() {
-        if (loading) return;
-
-        try {
-            setLoading(true);
-
-            // 1) Ask shareLink builder for best URL (thread preferred)
-            const built = normalizeUrl(
-                buildAnswerShareUrl({
-                    question,
-                    answer,
-                    source,
-                })
-            );
-
-            // 2) If builder regressed and gives homepage, force a usable /share fallback
-            const longUrl = isBadShareTarget(built)
-                ? safeFallbackShareUrl(question, answer)
-                : built;
-
-            // 3) Shorten the final long URL (never "/")
-            const urlToCopy = await ensureShortUrl(longUrl);
-
-            if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(urlToCopy);
-            } else {
-                const temp = document.createElement('textarea');
-                temp.value = urlToCopy;
-                temp.style.position = 'fixed';
-                temp.style.left = '-9999px';
-                document.body.appendChild(temp);
-                temp.select();
-                try {
-                    document.execCommand('copy');
-                } catch {
-                    // ignore
-                }
-                document.body.removeChild(temp);
+            if (method === 'link') {
+                // Copy to clipboard
+                await navigator.clipboard.writeText(data.url);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
             }
 
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
+            // Email will be sent by the API, just close modal
+            setShowModal(false);
+
+        } catch (err: any) {
+            console.error('[ShareAnswerButton] Error:', err);
+            throw err; // Re-throw so modal can show error
         } finally {
             setLoading(false);
         }
     }
 
-    const label = loading ? 'Preparing…' : copied ? 'Link copied' : 'Share';
+    const label = loading ? 'Sharing…' : copied ? 'Link copied!' : 'Share';
 
     return (
-        <button
-            type="button"
-            onClick={handleClick}
-            disabled={loading}
-            style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '4px 10px',
-                borderRadius: 999,
-                border: '1px solid rgba(148, 163, 184, 0.7)',
-                background: '#0f172a',
-                color: '#e5e7eb',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                cursor: loading ? 'default' : 'pointer',
-                opacity: loading ? 0.7 : 1,
-            }}
-        >
-            <span
-                aria-hidden="true"
+        <>
+            <button
+                type="button"
+                onClick={() => setShowModal(true)}
+                disabled={loading}
                 style={{
                     display: 'inline-flex',
-                    width: 12,
-                    height: 12,
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 999,
+                    border: '1px solid rgba(148, 163, 184, 0.7)',
+                    background: copied ? 'rgba(34, 197, 94, 0.2)' : '#0f172a',
+                    color: copied ? '#4ade80' : '#e5e7eb',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    cursor: loading ? 'default' : 'pointer',
+                    opacity: loading ? 0.7 : 1,
+                    transition: 'all 0.2s',
                 }}
             >
-                <svg viewBox="0 0 24 24" width="12" height="12" style={{ display: 'block' }}>
-                    <path
-                        d="M17 4a3 3 0 1 1-2.83 4H9.83A3.001 3.001 0 0 1 7 10a3 3 0 0 1 2.83-4h4.34A3.001 3.001 0 0 1 17 4Zm-7.17 8h4.34A3.001 3.001 0 0 1 17 10a3 3 0 1 1-2.83 4H9.83A3.001 3.001 0 0 1 7 16a3 3 0 1 1 2.83-4Z"
-                        fill="currentColor"
-                    />
-                </svg>
-            </span>
-            <span>{label}</span>
-        </button>
+                <span
+                    aria-hidden="true"
+                    style={{
+                        display: 'inline-flex',
+                        width: 12,
+                        height: 12,
+                    }}
+                >
+                    {copied ? (
+                        <svg viewBox="0 0 24 24" width="12" height="12" style={{ display: 'block' }}>
+                            <path
+                                d="M20 6L9 17l-5-5"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                        </svg>
+                    ) : (
+                        <svg viewBox="0 0 24 24" width="12" height="12" style={{ display: 'block' }}>
+                            <path
+                                d="M17 4a3 3 0 1 1-2.83 4H9.83A3.001 3.001 0 0 1 7 10a3 3 0 0 1 2.83-4h4.34A3.001 3.001 0 0 1 17 4Zm-7.17 8h4.34A3.001 3.001 0 0 1 17 10a3 3 0 1 1-2.83 4H9.83A3.001 3.001 0 0 1 7 16a3 3 0 1 1 2.83-4Z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                    )}
+                </span>
+                <span>{label}</span>
+            </button>
+
+            <ShareModal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                onShare={handleShare}
+            />
+        </>
     );
 }
