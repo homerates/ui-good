@@ -229,7 +229,55 @@ function safeJsonObjectSlice(input: string): string | null {
     return null;
 }
 
-/* ===== Topic handling ===== */
+// ===== MORTGAGE CALCULATOR HELPERS =====
+/**
+ * Detect if question is about mortgage payment calculations
+ */
+function isMortgageCalculation(question: string): boolean {
+    const hasPaymentKeywords = /payment|monthly|total interest|amortization|P&I|PITI/i.test(question);
+    const hasMoneyOrPercent = /\$[\d,]+|down.*payment|\d+%/i.test(question);
+    const hasMortgageContext = /home|house|property|loan|mortgage|buying|purchase/i.test(question);
+
+    return hasPaymentKeywords && hasMoneyOrPercent && hasMortgageContext;
+}
+
+/**
+ * Extract mortgage parameters from question using regex
+ */
+function extractMortgageParams(question: string, fredMort30Avg?: number): {
+    price?: number;
+    downPaymentPct?: number;
+    rate?: number;
+    termYears?: number;
+} | null {
+    // Extract price: "$850,000" or "$850k" or "850000"
+    const priceMatch = question.match(/\$\s*([\d,]+(?:\.\d+)?)\s*k?\b/i);
+    if (!priceMatch) return null;
+
+    let price = parseFloat(priceMatch[1].replace(/,/g, ''));
+
+    // Check if it's in thousands (e.g., "850k")
+    if (question.match(/\$\s*[\d,]+\s*k\b/i)) {
+        price *= 1000;
+    }
+
+    // Extract down payment: "10% down" or "20 percent down"
+    const downMatch = question.match(/(\d+(?:\.\d+)?)\s*%?\s*down/i);
+    const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 20; // Default 20%
+
+    // Extract interest rate: "6% rate" or "at 6.5%" or "6.5% interest"
+    const rateMatch = question.match(/(?:at|rate|interest)?\s*(\d+(?:\.\d+)?)\s*%/i);
+    const rate = rateMatch ? parseFloat(rateMatch[1]) : (fredMort30Avg || 6.0);
+
+    // Extract term: "30 year" or "15-year"
+    const termMatch = question.match(/(\d+)[\s-]?year/i);
+    const termYears = termMatch ? parseInt(termMatch[1]) : 30; // Default 30 years
+
+    return { price, downPaymentPct, rate, termYears };
+}
+// ===== END MORTGAGE HELPERS =====
+
+
 type Topic =
     | "pmi"
     | "rates"
@@ -1345,6 +1393,66 @@ async function handle(req: NextRequest, intentParam?: string) {
     // HR-MEMORY:GROK-CALL
     // Inject prior conversation context + current user question into Grok
 
+    // ========== MORTGAGE CALCULATOR PRE-CALCULATION ==========
+    let mortgageCalcContext = "";
+
+    if (isMortgageCalculation(question)) {
+        const params = extractMortgageParams(question, fred?.mort30Avg ?? undefined);
+
+        if (params && params.price) {
+            try {
+                console.log('[Mortgage Calc] Detected question, calling calculator with:', params);
+
+                const { calculateMortgage, compareRates } =
+                    await import('../../../lib/mortgageCalculator');
+
+                const result = calculateMortgage({
+                    price: params.price,
+                    downPaymentPct: params.downPaymentPct!,
+                    rate: params.rate!,
+                    termYears: params.termYears!,
+                });
+
+                const scenarios = compareRates(
+                    params.price,
+                    params.downPaymentPct!,
+                    params.termYears!,
+                    [params.rate! - 0.25, params.rate!, params.rate! + 0.25]
+                );
+
+                mortgageCalcContext = `
+MORTGAGE CALCULATION (PRE-CALCULATED - USE THESE EXACT VALUES):
+
+Input Parameters:
+- Home Price: $${result.homePrice.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+- Down Payment: $${result.downPayment.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} (${result.downPaymentPct}%)
+- Loan Amount: $${result.loanAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+- Interest Rate: ${result.rateAnnual}%
+- Term: ${result.termYears} years
+
+Calculated Results (100% ACCURATE):
+- Monthly P&I Payment: $${result.monthlyPI.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+- Total Amount Paid: $${result.totalPayments.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+- Total Interest Paid: $${result.totalInterest.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+
+Rate Comparison Scenarios:
+${scenarios.map(s => '- ' + s.label + ': Monthly P&I = $' + s.monthlyPI.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ', Total Interest = $' + s.totalInterest.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })).join('\n')}
+
+CRITICAL: Use these numbers EXACTLY in your response. Do NOT recalculate.
+`;
+
+                console.log('[Mortgage Calc] Pre-calculated:', {
+                    monthlyPI: result.monthlyPI,
+                    totalInterest: result.totalInterest
+                });
+
+            } catch (err: any) {
+                console.error('[Mortgage Calc] Error:', err.message);
+            }
+        }
+    }
+    // ========== END MORTGAGE CALCULATOR ==========
+
     let grokPrompt = compactWhitespace(
         `
 ${specialistPrefix}
@@ -1354,6 +1462,8 @@ If lender guideline context is provided, treat it as primary for that lender.
 
 Date: ${today}
 ${fredContext}
+
+${mortgageCalcContext}
 
 LENDER GUIDELINE CONTEXT:
 ${guidelineCtxTrim || "None"}
@@ -1369,7 +1479,8 @@ Current question:
 
 ABSOLUTE RULES:
 - Do NOT invent numbers, rates, payments, fees, or scenario facts unless the user explicitly asks for an example.
-- When user does NOT specify a rate, use the FRED 30Y fixed average rate shown above (currently 6.09%). Do NOT use rates from "Latest signals" unless user asks for current market rates.
+- If MORTGAGE CALCULATION context is provided above, use those numbers EXACTLY. Do not recalculate.
+- When user does NOT specify a rate, use the FRED 30Y fixed average rate shown above. Do NOT use rates from "Latest signals" unless user asks for current market rates.
 - Markdown only inside the "answer" field. Never output HTML.
 - Keep total length around 180–350 words unless asked for more.
 
@@ -1383,16 +1494,12 @@ Return valid JSON only:
 `.trim()
     );
 
-    // CORRECTED BLOCK - Replace from "let grokFinal: any = null;" to the end of the POST function
-
     let grokFinal: any = null;
     let debug: any = null;
 
-    // Track whether we already injected a **Sources** block into grokFinal.answer
     let sourcesInjected = false;
     mark("before Grok call");
 
-    // NEW: Fetch scenario memory for cross-route context on follow-ups
     let scenarioMemoryContext = "";
     try {
         if (supabase && memoryThreadId && isFollowUpQuestion(question)) {
@@ -1406,9 +1513,6 @@ Return valid JSON only:
         console.warn('[Memory] Failed to fetch scenario context:', err);
     }
 
-    // HR-MEMORY:INJECT
-    // Inject prior Q/A turns into grokPrompt so follow-ups recall context.
-    // Required because Grok call path is user-only (prompt string is the context).
     if (typeof recallTurnsText === "string" && recallTurnsText.trim()) {
         grokPrompt =
             "Prior conversation context (same user, same memory_thread_id):\n" +
@@ -1420,7 +1524,6 @@ Return valid JSON only:
             grokPrompt;
     }
 
-    // Add scenario memory context if available
     if (scenarioMemoryContext) {
         grokPrompt = scenarioMemoryContext + "\n\n" + grokPrompt;
     }
@@ -1430,13 +1533,11 @@ Return valid JSON only:
         debug = {
             ...result.debug,
             repaired: result.repaired,
-            // include first attempt debug only if we had to repair and still failed
             debugFirst: (result as any).debugFirst ?? null,
         };
 
         if (result.ok) {
             grokFinal = result.grokFinal;
-            // Validate required fields
             if (
                 !grokFinal ||
                 typeof grokFinal !== "object" ||
@@ -1455,7 +1556,6 @@ Return valid JSON only:
 
     mark("after Grok call");
 
-    // --- SOURCE GENERATION (core overrides; US-only; no duplicates) ---
     if (grokFinal) {
         try {
             const bundle = await generateSourcesBundle({
@@ -1463,8 +1563,6 @@ Return valid JSON only:
                 reqUrl: req.url,
             });
 
-            // If core matched, REPLACE topSources entirely (single source).
-            // If not core, leave Tavily topSources intact (prevents "two sources" behavior).
             if (bundle.mode === "core") {
                 topSources = bundle.sources.map((s: { title: string; url: string }) => ({
                     title: s.title,
@@ -1476,12 +1574,9 @@ Return valid JSON only:
         }
     }
 
-    // HR-MEMORY:SAVE-ANSWER
-    // Save memory only on success
     if (grokFinal && userId && supabase) {
         try {
-            // Get project_id from chat_threads if we have a chatThreadId
-            let projectIdForAnswer = projectId; // From request (might be null)
+            let projectIdForAnswer = projectId;
 
             if (!projectIdForAnswer && chatThreadId) {
                 const { data: threadData } = await supabase
@@ -1513,7 +1608,6 @@ Return valid JSON only:
         }
     }
 
-    // Final markdown (always include sources/fred at bottom if present)
     const finalMarkdown = grokFinal
         ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
             grokFinal.confidence
@@ -1548,7 +1642,6 @@ Return valid JSON only:
     });
 }
 
-/* ===== Next.js route exports ===== */
 export async function POST(req: NextRequest) {
     return handle(req);
 }
