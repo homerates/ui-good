@@ -265,8 +265,14 @@ function extractMortgageParams(question: string, fredMort30Avg?: number): {
     const downMatch = question.match(/(\d+(?:\.\d+)?)\s*%?\s*down/i);
     const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 20; // Default 20%
 
-    // Extract interest rate: "6% rate" or "at 6.5%" or "6.5% interest"
-    const rateMatch = question.match(/(?:at|rate|interest)?\s*(\d+(?:\.\d+)?)\s*%/i);
+    // Extract interest rate - look for rate mentioned AFTER down payment
+    let rateMatch = question.match(/down.*?(\d+(?:\.\d+)?)\s*%/i); // Rate after "down"
+    if (!rateMatch) {
+        rateMatch = question.match(/(?:rate|interest|at)\s*(\d+(?:\.\d+)?)\s*%/i); // Keywords + rate
+    }
+    if (!rateMatch) {
+        rateMatch = question.match(/(\d+(?:\.\d+)?)\s*%/); // Any percentage
+    }
     const rate = rateMatch ? parseFloat(rateMatch[1]) : (fredMort30Avg || 6.0);
 
     // Extract term: "30 year" or "15-year"
