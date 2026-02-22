@@ -109,6 +109,57 @@ function parseMoneyLike(s: string) {
     if (suffix === "m") return base * 1_000_000;
     return base;
 }
+// ADD THIS RIGHT AFTER LINE 111 (after the parseMoneyLike function closes)
+
+// ===== MORTGAGE CALCULATOR HELPERS =====
+/**
+ * Detect if scenario involves mortgage payment calculations
+ */
+function needsMortgageCalculation(message: string): boolean {
+    // Scenario route is ALWAYS about mortgage calculations
+    // But we specifically check if it has price/loan info
+    return /\$[\d,]+|price|loan|down.*payment|\d+%/i.test(message);
+}
+
+/**
+ * Extract mortgage parameters from scenario message
+ */
+function extractScenarioMortgageParams(message: string, marketData: any): {
+    price?: number;
+    downPaymentPct?: number;
+    rate?: number;
+    termYears?: number;
+} | null {
+    // Extract price
+    const priceMatch = message.match(/\$\s*([\d,]+(?:\.\d+)?)\s*k?\b/i) ||
+        message.match(/price.*?(\d+[,\d]*)/i);
+    if (!priceMatch) return null;
+
+    let price = parseFloat(priceMatch[1].replace(/,/g, ''));
+    if (message.match(/\$?\s*[\d,]+\s*k\b/i)) {
+        price *= 1000;
+    }
+
+    // Extract down payment
+    const downMatch = message.match(/(\d+(?:\.\d+)?)\s*%?\s*down/i);
+    const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 20;
+
+    // Extract rate - look for rate mentioned AFTER down payment
+    let rateMatch = message.match(/down.*?(\d+(?:\.\d+)?)\s*%/i);
+    if (!rateMatch) {
+        rateMatch = message.match(/(?:rate|interest|at)\s*(\d+(?:\.\d+)?)\s*%/i);
+    }
+    const rate = rateMatch
+        ? parseFloat(rateMatch[1])
+        : (marketData?.thirtyYearFixed || 6.0);
+
+    // Extract term
+    const termMatch = message.match(/(\d+)[\s-]?year/i);
+    const termYears = termMatch ? parseInt(termMatch[1]) : 30;
+
+    return { price, downPaymentPct, rate, termYears };
+}
+// ===== END MORTGAGE HELPERS =====
 /**
  * Fix scenario inputs BEFORE they go to scenarioMath
  */
@@ -2186,6 +2237,57 @@ export async function POST(req: NextRequest) {
         fred_ms = Date.now() - tFred;
 
         // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
+        // ===== MORTGAGE CALCULATOR PRE-CALCULATION =====
+        let mortgageCalcContext = "";
+
+        if (needsMortgageCalculation(message)) {
+            const params = extractScenarioMortgageParams(message, marketData);
+
+            if (params && params.price) {
+                try {
+                    console.log('[Scenario Calc] Detected question, calling calculator with:', params);
+
+                    // Import calculator
+                    const { calculateMortgage } = await import('../../../../lib/mortgageCalculator');
+
+                    // Calculate
+                    const result = calculateMortgage({
+                        price: params.price,
+                        downPaymentPct: params.downPaymentPct!,
+                        rate: params.rate!,
+                        termYears: params.termYears!,
+                    });
+
+                    // Build context
+                    mortgageCalcContext = `
+PRE-CALCULATED MORTGAGE VALUES (USE THESE EXACTLY):
+- Loan Amount: ${result.loanAmount}
+- Monthly P&I: ${result.monthlyPI.toFixed(2)} (use this exact value)
+- Total Interest Over Term: ${Math.round(result.totalInterest)}
+- Total Payments: ${Math.round(result.totalPayments)}
+- Number of Payments: ${result.numberOfPayments}
+
+CRITICAL: Use these EXACT values in your JSON response:
+  "monthly_payment": ${result.monthlyPI},
+  "total_interest_over_term": ${Math.round(result.totalInterest)},
+
+Do NOT recalculate. These are verified using industry-standard formulas.
+`;
+
+                    console.log('[Scenario Calc] Pre-calculated:', {
+                        monthlyPI: result.monthlyPI,
+                        totalInterest: result.totalInterest
+                    });
+
+                } catch (err: any) {
+                    console.error('[Scenario Calc] Error:', err.message);
+                }
+            }
+        }
+        // ===== END MORTGAGE CALCULATOR =====
+
+        // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
+
         let systemPrompt = compactWhitespace(`
 You are HomeRates.AI Smart Scenario Engine.
 
@@ -2205,6 +2307,10 @@ MATH DEFINITIONS (hard):
   - n = term_years * 12  (default term_years = 30 unless explicitly provided)
 - total_interest_over_term MUST be (monthly_payment * n) - P (rounded reasonably).
 - amortization_summary MUST be consistent with the same mortgage math (no alternate payment calculators).
+
+${mortgageCalcContext}
+
+ASSUMPTIONS (hard):
 
 ASSUMPTIONS (hard):
 - Use the user-provided rate if explicitly stated in the user prompt.
