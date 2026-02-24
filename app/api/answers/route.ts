@@ -1889,25 +1889,6 @@ Return valid JSON only:
     let sourcesInjected = false;
     // ========== END AFFORDABILITY CHECK ==========
 
-    if (affordabilityAnswer) {
-        // Skip Grok entirely, use our pre-built answer
-        grokFinal = affordabilityAnswer;
-        debug = {
-            requestedModel: "affordability-advisor",
-            servedModel: "internal-calculator",
-            promptChars: question.length,
-            elapsedMs: 0,
-            requestId: "affordability-" + Date.now(),
-            parseMode: "direct",
-            repaired: false
-        };
-
-        console.log('[Affordability] Returning direct answer, skipping Grok');
-    } else if (XAI_API_KEY) {
-        // Normal Grok path...
-        const result = await callGrokWithRepair(grokPrompt);
-        // ... rest of existing code
-    }
 
     mark("before Grok call");
 
