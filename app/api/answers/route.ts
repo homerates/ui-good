@@ -1796,13 +1796,23 @@ CRITICAL: Use these numbers EXACTLY in your response. Do NOT recalculate.
                 scenarios
             );
 
-            // Build the response object (skip Grok, return direct)
+            // Generate smart follow-up based on their situation
+            const smartFollowUp = generateAffordabilityFollowUp(
+                {
+                    annualIncome: affordParams.annualIncome!,
+                    savings: affordParams.savings!,
+                    monthlyDebt: affordParams.monthlyDebt || 0
+                },
+                scenarios
+            );
+
             affordabilityAnswer = {
                 answer: affordabilityMarkdown,
-                next_step: "Get pre-approved with 2-3 lenders to confirm your rate and qualify for the best terms.",
-                follow_up: "Want to explore FHA loans, adjust down payment amounts, or see how this works in a specific location?",
-                confidence: "1.00 (calculated using verified mortgage formulas + DTI industry standards)"
+                next_step: "Get pre-approved with 2-3 lenders to compare rates and confirm qualification.",
+                follow_up: smartFollowUp,  // ← Make sure this line uses smartFollowUp
+                confidence: "1.00 (calculated using verified mortgage formulas + Fannie Mae DTI guidelines)"
             };
+
 
         } else {
             // User asked about affordability but didn't provide info yet
