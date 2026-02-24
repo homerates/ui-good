@@ -1780,11 +1780,11 @@ CRITICAL: Use these numbers EXACTLY in your response. Do NOT recalculate.
             // User provided income and savings - generate scenarios
             console.log('[Affordability] Generating scenarios:', affordParams);
 
-            const scenarios = generateAffordabilityScenarios({
+            const scenarios = await generateAffordabilityScenarios({
                 annualIncome: affordParams.annualIncome!,
                 savings: affordParams.savings!,
                 monthlyDebt: affordParams.monthlyDebt || 0,
-                currentRate: 6.01
+                currentRate: fred?.mort30Avg || 6.01
             });
 
             const affordabilityMarkdown = buildAffordabilityMarkdown(
