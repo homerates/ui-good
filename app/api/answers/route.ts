@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
+import { calculateMortgage } from "../../../lib/mortgageCalculator";
 import {
     getGuidelineContextForQuestion,
     maybeBuildDscrOverrideAnswer,
@@ -282,6 +283,227 @@ function extractMortgageParams(question: string, fredMort30Avg?: number): {
     return { price, downPaymentPct, rate, termYears };
 }
 // ===== END MORTGAGE HELPERS =====
+
+// ===== AFFORDABILITY ADVISOR HELPERS =====
+
+/**
+ * Detect if this is an affordability/budget question
+ */
+function isAffordabilityQuestion(question: string): boolean {
+    const text = question.toLowerCase();
+    const triggers = [
+        /what can i afford/i,
+        /how much (home|house|property) can i (afford|buy)/i,
+        /first.time buyer/i,
+        /(my|our) budget/i,
+        /afford.*home/i,
+        /buying power/i,
+        /qualify.*amount/i,
+        /pre.*approval.*range/i,
+        /income.*afford/i,
+        /afford.*calculator/i
+    ];
+
+    return triggers.some(pattern => pattern.test(text));
+}
+
+/**
+ * Extract affordability parameters from question
+ */
+function extractAffordabilityParams(question: string): {
+    annualIncome?: number;
+    savings?: number;
+    monthlyDebt?: number;
+    hasInfo: boolean;
+} {
+    const text = question.toLowerCase();
+
+    // Income: "$95k", "95k income", "make $95,000", "120k salary"
+    const incomeMatch = text.match(/\$?\s*(\d+)k?\s*(?:income|salary|make|earn|year)/i) ||
+        text.match(/(?:income|salary|make|earn)\s*\$?\s*(\d+)k?/i);
+    let annualIncome = incomeMatch ? parseFloat(incomeMatch[1]) : undefined;
+
+    if (annualIncome && text.includes('k') && annualIncome < 1000) {
+        annualIncome *= 1000;
+    }
+
+    // Savings: "$40k saved", "have $40,000", "down payment 50k"
+    const savingsMatch = text.match(/\$?\s*(\d+)k?\s*(?:saved|down|savings)/i) ||
+        text.match(/(?:have|saved)\s*\$?\s*(\d+)k?/i);
+    let savings = savingsMatch ? parseFloat(savingsMatch[1]) : undefined;
+
+    if (savings && text.includes('k') && savings < 1000) {
+        savings *= 1000;
+    }
+
+    // Debt: "$300 car payment", "$500/month debt"
+    const debtMatch = text.match(/\$?\s*(\d+)\s*(?:\/month|month|monthly)?\s*(?:car|debt|loan|payment)/i);
+    const monthlyDebt = debtMatch ? parseFloat(debtMatch[1]) : 0;
+
+    const hasInfo = !!(annualIncome && savings);
+
+    return { annualIncome, savings, monthlyDebt, hasInfo };
+}
+
+/**
+ * Generate 3 affordability scenarios (Conservative, Comfortable, Aggressive)
+ */
+function generateAffordabilityScenarios(params: {
+    annualIncome: number;
+    savings: number;
+    monthlyDebt: number;
+    currentRate: number;
+}) {
+    const { annualIncome, savings, monthlyDebt, currentRate } = params;
+    const monthlyIncome = annualIncome / 12;
+
+    const scenarios = [
+        { level: 'Conservative', dtiTarget: 0.28, downPct: 20, icon: '🛡️' },
+        { level: 'Comfortable', dtiTarget: 0.36, downPct: 15, icon: '🎯' },
+        { level: 'Aggressive', dtiTarget: 0.43, downPct: 10, icon: '⚡' }
+    ];
+
+    return scenarios.map(scenario => {
+        // Max monthly housing payment at this DTI
+        const maxHousingPayment = (monthlyIncome * scenario.dtiTarget) - monthlyDebt;
+
+        // Estimate taxes + insurance as 30% of P&I
+        const maxPI = maxHousingPayment / 1.3;
+
+        // Calculate max loan amount using reverse mortgage formula
+        const r = (currentRate / 100) / 12;
+        const n = 30 * 12;
+        const maxLoanAmount = maxPI * (Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n));
+
+        // Max home price based on down payment %
+        const maxHomePrice = maxLoanAmount / (1 - scenario.downPct / 100);
+        const downPaymentAmount = maxHomePrice * (scenario.downPct / 100);
+
+        // Adjust if not enough savings
+        const adjustedHomePrice = downPaymentAmount > savings
+            ? (savings / (scenario.downPct / 100))
+            : maxHomePrice;
+
+        const finalDownPayment = adjustedHomePrice * (scenario.downPct / 100);
+        const finalLoanAmount = adjustedHomePrice - finalDownPayment;
+
+        // Calculate actual mortgage using your calculator
+        const mortgage = calculateMortgage({
+            price: adjustedHomePrice,
+            downPaymentPct: scenario.downPct,
+            rate: currentRate,
+            termYears: 30
+        });
+
+        // Estimate other costs
+        const monthlyTax = (adjustedHomePrice * 0.011) / 12; // 1.1% avg
+        const monthlyInsurance = adjustedHomePrice * 0.0035 / 12; // 0.35% avg
+        const monthlyPMI = scenario.downPct < 20 ? finalLoanAmount * 0.005 / 12 : 0;
+        const totalMonthly = mortgage.monthlyPI + monthlyTax + monthlyInsurance + monthlyPMI;
+        const actualDTI = ((totalMonthly + monthlyDebt) / monthlyIncome) * 100;
+
+        // Emergency fund after down payment + closing costs
+        const closingCosts = adjustedHomePrice * 0.03;
+        const emergencyFundLeft = savings - finalDownPayment - closingCosts;
+
+        return {
+            level: scenario.level,
+            icon: scenario.icon,
+            homePrice: Math.round(adjustedHomePrice),
+            downPaymentPct: scenario.downPct,
+            downPaymentAmount: Math.round(finalDownPayment),
+            loanAmount: Math.round(finalLoanAmount),
+            monthlyPI: Math.round(mortgage.monthlyPI),
+            monthlyTax: Math.round(monthlyTax),
+            monthlyInsurance: Math.round(monthlyInsurance),
+            monthlyPMI: Math.round(monthlyPMI),
+            totalMonthly: Math.round(totalMonthly),
+            totalInterest: Math.round(mortgage.totalInterest),
+            dtiRatio: Math.round(actualDTI),
+            emergencyFundLeft: Math.round(emergencyFundLeft),
+            rate: currentRate
+        };
+    });
+}
+
+/**
+ * Build rich affordability answer in markdown
+ */
+function buildAffordabilityMarkdown(
+    params: { annualIncome: number; savings: number; monthlyDebt: number },
+    scenarios: any[]
+): string {
+    const [conservative, comfortable, aggressive] = scenarios;
+
+    return `**What You Can Afford - First-Time Buyer Analysis**
+
+Based on **$${(params.annualIncome / 1000).toFixed(0)}k annual income** and **$${(params.savings / 1000).toFixed(0)}k saved**, here are your 3 scenarios:
+
+---
+
+## ${conservative.icon} Conservative ($${(conservative.homePrice / 1000).toFixed(0)}k)
+
+**Monthly Breakdown:**
+- P&I: $${conservative.monthlyPI.toLocaleString()}
+- Taxes/Insurance: ~$${(conservative.monthlyTax + conservative.monthlyInsurance).toLocaleString()}
+${conservative.monthlyPMI > 0 ? `- PMI: $${conservative.monthlyPMI}\n` : ''}- **Total: $${conservative.totalMonthly.toLocaleString()}/month**
+
+**Details:**
+- Down payment: $${(conservative.downPaymentAmount / 1000).toFixed(0)}k (${conservative.downPaymentPct}%)
+- DTI: ${conservative.dtiRatio}%
+- Emergency fund left: $${(conservative.emergencyFundLeft / 1000).toFixed(1)}k
+- Total interest (30yr): $${(conservative.totalInterest / 1000).toFixed(0)}k
+
+✅ **Best for:** Maximum safety${conservative.downPaymentPct >= 20 ? ', no PMI' : ''}, strong cushion
+
+---
+
+## ${comfortable.icon} Comfortable ($${(comfortable.homePrice / 1000).toFixed(0)}k) ⭐
+
+**Monthly Breakdown:**
+- P&I: $${comfortable.monthlyPI.toLocaleString()}
+- Taxes/Insurance: ~$${(comfortable.monthlyTax + comfortable.monthlyInsurance).toLocaleString()}
+${comfortable.monthlyPMI > 0 ? `- PMI: $${comfortable.monthlyPMI}\n` : ''}- **Total: $${comfortable.totalMonthly.toLocaleString()}/month**
+
+**Details:**
+- Down payment: $${(comfortable.downPaymentAmount / 1000).toFixed(0)}k (${comfortable.downPaymentPct}%)
+- DTI: ${comfortable.dtiRatio}%
+- Emergency fund left: $${(comfortable.emergencyFundLeft / 1000).toFixed(1)}k
+- Total interest (30yr): $${(comfortable.totalInterest / 1000).toFixed(0)}k
+
+✅ **Best for:** Balance of options and affordability (most buyers choose this)
+
+---
+
+## ${aggressive.icon} Aggressive ($${(aggressive.homePrice / 1000).toFixed(0)}k)
+
+**Monthly Breakdown:**
+- P&I: $${aggressive.monthlyPI.toLocaleString()}
+- Taxes/Insurance: ~$${(aggressive.monthlyTax + aggressive.monthlyInsurance).toLocaleString()}
+${aggressive.monthlyPMI > 0 ? `- PMI: $${aggressive.monthlyPMI}\n` : ''}- **Total: $${aggressive.totalMonthly.toLocaleString()}/month**
+
+**Details:**
+- Down payment: $${(aggressive.downPaymentAmount / 1000).toFixed(0)}k (${aggressive.downPaymentPct}%)
+- DTI: ${aggressive.dtiRatio}%
+- Emergency fund left: $${(aggressive.emergencyFundLeft / 1000).toFixed(1)}k
+- Total interest (30yr): $${(aggressive.totalInterest / 1000).toFixed(0)}k
+
+⚠️ **Consider:** Tighter budget, less cushion
+
+---
+
+**Key Insights:**
+
+${params.monthlyDebt > 0 ? `- Factored in $${params.monthlyDebt}/month existing debt\n` : ''}- All scenarios use ${conservative.rate}% current rate
+- Comfortable range is typically most sustainable
+${conservative.emergencyFundLeft < 5000 ? '- ⚠️ Low emergency fund - consider FHA (3.5% down) or saving more\n' : ''}${conservative.downPaymentPct < 20 ? `- To avoid PMI, you'd need $${Math.round(conservative.homePrice * 0.2 / 1000)}k saved (20% down)\n` : ''}
+**Next Steps:**
+1. Get pre-approved with 2-3 lenders
+2. Factor in actual taxes/insurance for your target area
+3. Consider FHA if you want to buy sooner with less down`;
+}
+
+// ===== END AFFORDABILITY HELPERS =====
 
 
 type Topic =
@@ -1458,6 +1680,69 @@ CRITICAL: Use these numbers EXACTLY in your response. Do NOT recalculate.
         }
     }
     // ========== END MORTGAGE CALCULATOR ==========
+    // ========== AFFORDABILITY ADVISOR CHECK ==========
+    let affordabilityAnswer = null;
+
+    if (isAffordabilityQuestion(question)) {
+        console.log('[Affordability] Detected affordability question');
+
+        const affordParams = extractAffordabilityParams(question);
+
+        if (affordParams.hasInfo) {
+            // User provided income and savings - generate scenarios
+            console.log('[Affordability] Generating scenarios:', affordParams);
+
+            const scenarios = generateAffordabilityScenarios({
+                annualIncome: affordParams.annualIncome!,
+                savings: affordParams.savings!,
+                monthlyDebt: affordParams.monthlyDebt || 0,
+                currentRate: fredRate || 6.01
+            });
+
+            const affordabilityMarkdown = buildAffordabilityMarkdown(
+                {
+                    annualIncome: affordParams.annualIncome!,
+                    savings: affordParams.savings!,
+                    monthlyDebt: affordParams.monthlyDebt || 0
+                },
+                scenarios
+            );
+
+            // Build the response object (skip Grok, return direct)
+            affordabilityAnswer = {
+                answer: affordabilityMarkdown,
+                next_step: "Get pre-approved with 2-3 lenders to confirm your rate and qualify for the best terms.",
+                follow_up: "Want to explore FHA loans, adjust down payment amounts, or see how this works in a specific location?",
+                confidence: "1.00 (calculated using verified mortgage formulas + DTI industry standards)"
+            };
+
+        } else {
+            // User asked about affordability but didn't provide info yet
+            console.log('[Affordability] Asking for info');
+
+            affordabilityAnswer = {
+                answer: `**Let's figure out what you can afford!**
+
+To give you accurate scenarios, I need:
+- **Annual income** (salary/wages before taxes)
+- **Savings** (amount available for down payment)
+
+**Optional:**
+- Monthly debt payments (car, student loans, credit cards)
+- Target location (for tax estimates)
+
+**Example:** "I make $95k/year and have $40k saved"
+
+**Or be more specific:** "I make $120k, have $20k saved, $300/month car payment, looking in Austin"
+
+What's your situation?`,
+                next_step: "Share your income and savings so I can show you 3 affordability scenarios (Conservative, Comfortable, Aggressive).",
+                follow_up: "What's your annual income and how much do you have saved?",
+                confidence: "1.00 (interactive advisor - ready to calculate)"
+            };
+        }
+    }
+    // ========== END AFFORDABILITY CHECK ==========
 
     let grokPrompt = compactWhitespace(
         `
@@ -1504,6 +1789,28 @@ Return valid JSON only:
     let debug: any = null;
 
     let sourcesInjected = false;
+    // ========== END AFFORDABILITY CHECK ==========
+
+    if (affordabilityAnswer) {
+        // Skip Grok entirely, use our pre-built answer
+        grokFinal = affordabilityAnswer;
+        debug = {
+            requestedModel: "affordability-advisor",
+            servedModel: "internal-calculator",
+            promptChars: question.length,
+            elapsedMs: 0,
+            requestId: "affordability-" + Date.now(),
+            parseMode: "direct",
+            repaired: false
+        };
+
+        console.log('[Affordability] Returning direct answer, skipping Grok');
+    } else if (XAI_API_KEY) {
+        // Normal Grok path...
+        const result = await callGrokWithRepair(grokPrompt);
+        // ... rest of existing code
+    }
+
     mark("before Grok call");
 
     let scenarioMemoryContext = "";
@@ -1534,7 +1841,20 @@ Return valid JSON only:
         grokPrompt = scenarioMemoryContext + "\n\n" + grokPrompt;
     }
 
-    if (XAI_API_KEY) {
+    if (affordabilityAnswer) {
+        // Skip Grok, use affordability answer
+        grokFinal = affordabilityAnswer;
+        debug = {
+            requestedModel: "affordability-advisor",
+            servedModel: "internal-calculator",
+            promptChars: question.length,
+            elapsedMs: 0,
+            requestId: "affordability-" + Date.now(),
+            parseMode: "direct",
+            repaired: false
+        };
+        console.log('[Affordability] Returning direct answer, skipping Grok');
+    } else if (XAI_API_KEY) {
         const result = await callGrokWithRepair(grokPrompt);
         debug = {
             ...result.debug,

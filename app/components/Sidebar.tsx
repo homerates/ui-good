@@ -360,7 +360,7 @@ export default function Sidebar(props: SidebarProps) {
             New Project +
           </button>
           <button className="btn" onClick={onMortgageCalc} type="button">
-            Mortgage Calculator
+            🏠 First-Time Buyer Advisor
           </button>
 
           {/* Ask Underwriting pill – uses onAskUnderwriting if provided, otherwise onKnowledgeTool */}

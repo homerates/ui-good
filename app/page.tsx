@@ -1657,7 +1657,8 @@ export default function Page() {
 
     // MORTGAGE CALC: opens the calculator overlay
     function onMortgageCalc() {
-        setShowMortgageCalc(true);
+        // Navigate to the new First-Time Buyer Advisor
+        window.location.href = '/advisor';
     }
 
     // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt

@@ -22,6 +22,7 @@
     "@clerk/shared": "^3.44.0",
     "@supabase/supabase-js": "^2.81.1",
     "chevrotain": "^11.0.3",
+    "lucide-react": "^0.575.0",
     "next": "^15.5.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
