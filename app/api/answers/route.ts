@@ -1696,7 +1696,7 @@ CRITICAL: Use these numbers EXACTLY in your response. Do NOT recalculate.
                 annualIncome: affordParams.annualIncome!,
                 savings: affordParams.savings!,
                 monthlyDebt: affordParams.monthlyDebt || 0,
-                currentRate: fredRate || 6.01
+                currentRate: 6.01
             });
 
             const affordabilityMarkdown = buildAffordabilityMarkdown(
