@@ -1655,10 +1655,20 @@ export default function Page() {
         })();
     }
 
-    // MORTGAGE CALC: opens the calculator overlay
     function onMortgageCalc() {
-        // Navigate to the new First-Time Buyer Advisor
-        window.location.href = '/advisor';
+        // Seed the affordability question
+        const seed = "What can I afford as a first-time home buyer?";
+        setInput(seed);
+
+        // Auto-submit after brief delay
+        setTimeout(() => {
+            // Trigger the form submission
+            const form = document.querySelector('form');
+            if (form) {
+                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                form.dispatchEvent(submitEvent);
+            }
+        }, 100);
     }
 
     // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
