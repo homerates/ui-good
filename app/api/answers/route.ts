@@ -593,6 +593,214 @@ ${conservativeReserves < (conservative.totalMonthly * 2) ? `- ⚠️ **Reserve A
 
 // ===== END AFFORDABILITY HELPERS =====
 
+// ===== FHA CALCULATOR HELPERS =====
+// Add to app/api/answers/route.ts after affordability helpers
+
+/**
+ * Detect if this is an FHA-specific question
+ */
+function isFHAQuestion(question: string): boolean {
+    const text = question.toLowerCase();
+
+    // Strong FHA indicators
+    const hasFHA = /\bfha\b/i.test(text);
+    const hasMIP = /\bmip\b|\bmortagage insurance premium\b|\bupfront.*premium\b|\bufmip\b/i.test(text);
+    const has35Down = /3\.?5\s*%\s*down/i.test(text);
+
+    // FHA-specific terms
+    const fhaTerms = /fha.*loan|fha.*mortgage|fha.*guideline|fha.*requirement/i.test(text);
+
+    return hasFHA || hasMIP || (has35Down && /loan|mortgage|payment/.test(text)) || fhaTerms;
+}
+
+/**
+ * Extract FHA parameters from question
+ */
+function extractFHAParams(question: string): {
+    purchasePrice?: number;
+    downPaymentPct?: number;
+    interestRate?: number;
+    annualIncome?: number;
+    monthlyDebts?: number;
+    propertyTaxRate?: number;
+    creditScore?: number;
+    hasInfo: boolean;
+} {
+    const text = question.toLowerCase();
+
+    // Purchase price
+    const priceMatch = text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
+        text.match(/(?:price|purchase).*?\$?\s*([\d,]+)k?/i);
+    let purchasePrice = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : undefined;
+    if (purchasePrice && text.includes('k') && purchasePrice < 10000) {
+        purchasePrice *= 1000;
+    }
+
+    // Down payment %
+    const downMatch = text.match(/(\d+\.?\d*)\s*%\s*down/i);
+    const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 3.5; // FHA default
+
+    // Interest rate
+    let rateMatch = text.match(/(?:rate|interest).*?(\d+\.?\d*)\s*%/i);
+    if (!rateMatch) {
+        rateMatch = text.match(/at\s+(\d+\.?\d*)\s*%/i);
+    }
+    const interestRate = rateMatch ? parseFloat(rateMatch[1]) : undefined;
+
+    // Income
+    const incomeMatch = text.match(/(?:income|makes?|earn|salary).*?\$?\s*([\d,]+)k?/i) ||
+        text.match(/\$?\s*([\d,]+)k?\s*(?:income|salary|year|annual)/i);
+    let annualIncome = incomeMatch ? parseFloat(incomeMatch[1].replace(/,/g, '')) : undefined;
+    if (annualIncome && text.includes('k') && annualIncome < 1000) {
+        annualIncome *= 1000;
+    }
+
+    // Monthly debts
+    const debtMatch = text.match(/\$?\s*(\d+)\s*(?:debt|payment|car|loan).*?(?:month|monthly)/i);
+    const monthlyDebts = debtMatch ? parseFloat(debtMatch[1]) : 0;
+
+    // Property tax rate
+    const taxMatch = text.match(/(?:property tax|tax).*?(\d+\.?\d*)\s*%/i);
+    const propertyTaxRate = taxMatch ? parseFloat(taxMatch[1]) : undefined;
+
+    // Credit score
+    const creditMatch = text.match(/(?:credit score|fico|score).*?(\d{3})/i);
+    const creditScore = creditMatch ? parseInt(creditMatch[1]) : undefined;
+
+    const hasInfo = !!(purchasePrice || annualIncome);
+
+    return {
+        purchasePrice,
+        downPaymentPct,
+        interestRate,
+        annualIncome,
+        monthlyDebts,
+        propertyTaxRate,
+        creditScore,
+        hasInfo,
+    };
+}
+
+/**
+ * Build FHA answer markdown with guidelines
+ */
+function buildFHAMarkdown(
+    params: any,
+    result: any,
+    comparison?: any
+): string {
+    const { purchasePrice, annualIncome, monthlyDebts } = params;
+
+    return `**FHA Loan Analysis**
+
+${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k income${monthlyDebts > 0 ? `, $${monthlyDebts}/month debt` : ''}` : ''}
+
+---
+
+## 🏡 FHA Loan Details
+
+**Property:** $${(result.purchasePrice / 1000).toFixed(0)}k purchase price
+
+**Down Payment:**
+- Amount: $${(result.downPayment / 1000).toFixed(1)}k (${result.downPaymentPct}%)
+- ${result.meetsDownPaymentRequirement ? '✅' : '❌'} Meets FHA minimum (3.5%)
+
+**Loan Structure:**
+- Base loan: $${(result.baseLoanAmount / 1000).toFixed(0)}k
+- UFMIP (${result.ufmipPct}%): $${(result.ufmip / 1000).toFixed(1)}k (financed)
+- **Total loan: $${(result.totalLoanAmount / 1000).toFixed(0)}k**
+
+---
+
+## 💰 Monthly Payment Breakdown
+
+| Component | Amount |
+|-----------|--------|
+| Principal & Interest | $${result.monthlyPI.toLocaleString()} |
+| Monthly MIP | $${result.monthlyMIP.toLocaleString()} |
+| Property Taxes | $${result.monthlyPropertyTax.toLocaleString()} |
+| Home Insurance | $${result.monthlyHomeInsurance.toLocaleString()} |
+${result.monthlyHOA > 0 ? `| HOA | $${result.monthlyHOA.toLocaleString()} |\n` : ''}| **Total Monthly (PITI${result.monthlyHOA > 0 ? 'A' : ''})** | **$${result.totalMonthlyPITIA.toLocaleString()}** |
+
+---
+
+## 📊 FHA-Specific Costs
+
+**Upfront Mortgage Insurance Premium (UFMIP):**
+- 1.75% of base loan = $${(result.ufmip / 1000).toFixed(1)}k
+- Financed into loan (no cash needed upfront)
+
+**Monthly Mortgage Insurance Premium (MIP):**
+- $${result.monthlyMIP}/month
+- Duration: ${result.mipDuration}
+- Total MIP paid: $${(result.totalMIPPaid / 1000).toFixed(0)}k
+
+${result.mipDuration === 'Life of loan' ? `⚠️ **Note:** With ${result.downPaymentPct}% down, MIP lasts for the life of the loan. To remove MIP after 11 years, you'd need at least 10% down.` : `✅ MIP automatically removed after 11 years.`}
+
+---
+
+${annualIncome ? `## 📈 Debt-to-Income (DTI) Analysis
+
+**Housing Ratio (Front-End):** ${result.housingDTI}%
+- Your monthly payment ÷ gross income
+- FHA guideline: ≤ 31% (with flexibility)
+
+**Total DTI (Back-End):** ${result.totalDTI}%
+- Your monthly payment + debts ÷ gross income  
+- FHA guideline: ≤ 43% (up to 50% with compensating factors)
+
+${result.qualifies ? '✅ **You qualify** based on DTI!' : '⚠️ **DTI too high** - may need higher income, lower price, or pay off debts'}
+
+${result.maxMonthlyPayment ? `**Max affordable payment (43% DTI):** $${result.maxMonthlyPayment.toLocaleString()}/month` : ''}
+
+---
+
+` : ''}## 📋 FHA Requirements Checklist
+
+${result.meetsCreditRequirement ? '✅' : '❌'} Credit score ≥ 580 (for 3.5% down) or ≥ 500 (for 10% down)
+${result.meetsDownPaymentRequirement ? '✅' : '❌'} Down payment ≥ 3.5%
+${result.withinLimits ? '✅' : '❌'} Loan amount ≤ $${(result.fhaLoanLimit / 1000).toFixed(0)}k (FHA limit)
+${result.qualifies !== undefined ? (result.qualifies ? '✅' : '❌') + ' DTI ≤ 43%' : ''}
+
+**FHA Advantages:**
+- ✅ Low down payment (3.5%)
+- ✅ More flexible credit requirements  
+- ✅ Gift funds allowed for down payment
+- ✅ Seller can contribute up to 6% toward closing costs
+
+**FHA Considerations:**
+- ⚠️ MIP for ${result.mipDuration}
+- ⚠️ UFMIP adds to loan amount
+- ⚠️ Property must meet FHA standards
+- ⚠️ Loan limits vary by county
+
+---
+
+${comparison ? `## 🆚 FHA vs Conventional Comparison
+
+| Feature | FHA | Conventional (5% down) |
+|---------|-----|------------------------|
+| Down payment | $${(result.downPayment / 1000).toFixed(0)}k (${result.downPaymentPct}%) | $${(comparison.conventional.downPayment / 1000).toFixed(0)}k (${comparison.conventional.downPaymentPct}%) |
+| Monthly payment | $${result.totalMonthlyPITIA.toLocaleString()} | $${comparison.conventional.totalMonthly.toLocaleString()} |
+| Upfront costs | Lower by $${((comparison.conventional.downPayment - result.downPayment) / 1000).toFixed(0)}k | Higher down payment |
+| Monthly insurance | MIP: $${result.monthlyMIP} | PMI: $${comparison.conventional.monthlyPMI} |
+| Insurance duration | ${result.mipDuration} | Until 78% LTV (auto-removes) |
+
+**${comparison.recommendation}**
+
+---
+
+` : ''}**Next Steps:**
+1. **Get FHA pre-approval** from FHA-approved lender
+2. **Check credit score** - 580+ for 3.5% down
+3. **Property inspection** - Must meet FHA standards
+4. **Down payment source** - Verify funds (gift funds OK)
+
+**FHA Guidelines:** [HUD FHA Loan Limits](https://www.hud.gov/program_offices/housing/sfh/lender/origination) | [FHA Mortgage Insurance](https://www.hud.gov/program_offices/housing/comp/premiums/sfpcalc)`;
+}
+
+// ===== END FHA HELPERS =====
+
 
 type Topic =
     | "pmi"
@@ -1841,9 +2049,143 @@ What's your situation?`,
         }
     }
     // ========== END AFFORDABILITY CHECK ==========
+    // ===== FHA CALCULATOR INTEGRATION =====
+    // Add to app/api/answers/route.ts AFTER the affordability check (around line 1820)
 
-    let grokPrompt = compactWhitespace(
-        `
+    // ========== FHA CALCULATOR CHECK ==========
+    let fhaAnswer = null;
+
+    if (!affordabilityAnswer && isFHAQuestion(question)) {
+        console.log('[FHA] Detected FHA question');
+
+        const fhaParams = extractFHAParams(question);
+
+        if (fhaParams.hasInfo && fhaParams.purchasePrice) {
+            console.log('[FHA] Calculating FHA loan:', fhaParams);
+
+            try {
+                // Import FHA calculator
+                const { calculateFHA, compareFHAvsConventional } =
+                    await import('../../../lib/fhaCalculator');
+
+                // Calculate FHA loan
+                const fhaResult = calculateFHA({
+                    purchasePrice: fhaParams.purchasePrice,
+                    downPaymentPct: fhaParams.downPaymentPct || 3.5,
+                    interestRate: fhaParams.interestRate || fred?.mort30Avg || 6.5,
+                    creditScore: fhaParams.creditScore || 580,
+                    loanTerm: 30,
+                    propertyTaxRate: fhaParams.propertyTaxRate || 1.1,
+                    homeInsuranceAnnual: 1200,
+                    hoaMonthly: 0,
+                    annualIncome: fhaParams.annualIncome,
+                    monthlyDebts: fhaParams.monthlyDebts || 0,
+                });
+
+                // Generate comparison if we have income
+                let comparison = null;
+                if (fhaParams.annualIncome) {
+                    comparison = compareFHAvsConventional(
+                        fhaParams.purchasePrice,
+                        fhaParams.interestRate || fred?.mort30Avg || 6.5,
+                        fhaParams.annualIncome,
+                        fhaParams.monthlyDebts || 0,
+                        fhaParams.propertyTaxRate || 1.1
+                    );
+                }
+
+                // Build markdown answer
+                const fhaMarkdown = buildFHAMarkdown(fhaParams, fhaResult, comparison);
+
+                // Generate smart follow-up
+                let fhaFollowUp = "Want to see conventional loan comparison or explore different down payment scenarios?";
+
+                if (!fhaResult.qualifies && fhaResult.totalDTI) {
+                    fhaFollowUp = `Your DTI is ${fhaResult.totalDTI}% (max 43%). Want to see lower price ranges or debt payoff scenarios?`;
+                } else if (!fhaResult.meetsCreditRequirement) {
+                    fhaFollowUp = "Credit score below 580. Want to see options for building credit or alternative loan programs?";
+                } else if (fhaResult.mipDuration === 'Life of loan') {
+                    fhaFollowUp = `MIP lasts for life of loan with ${fhaResult.downPaymentPct}% down. Want to see 10% down scenario (removes MIP after 11 years)?`;
+                } else if (comparison) {
+                    const savings = comparison.conventional.downPayment - fhaResult.downPayment;
+                    fhaFollowUp = `FHA saves $${(savings / 1000).toFixed(0)}k upfront. Want detailed FHA vs Conventional comparison or see saving strategies?`;
+                }
+
+                fhaAnswer = {
+                    answer: fhaMarkdown,
+                    next_step: "Get FHA pre-approval from an FHA-approved lender. Check credit score and verify down payment source.",
+                    follow_up: fhaFollowUp,
+                    confidence: "1.00 (calculated using official FHA guidelines and MIP rates)"
+                };
+
+                console.log('[FHA] Generated FHA analysis');
+
+            } catch (err: any) {
+                console.error('[FHA] Calculation error:', err.message);
+            }
+
+        } else {
+            // Need more info
+            console.log('[FHA] Asking for FHA info');
+
+            fhaAnswer = {
+                answer: `**FHA Loan Calculator**
+
+I can help you calculate an FHA loan with all costs including:
+- ✅ UFMIP (Upfront Mortgage Insurance Premium)
+- ✅ Monthly MIP (Mortgage Insurance Premium)  
+- ✅ DTI analysis (qualify or not)
+- ✅ FHA vs Conventional comparison
+
+**To calculate, I need:**
+- Purchase price
+- Interest rate (or I'll use current rates)
+
+**Optional but helpful:**
+- Your income (for DTI qualification)
+- Monthly debts (car, student loans, etc.)
+- Credit score
+- Property tax rate in your area
+
+**Examples:**
+- "FHA loan on $300k home at 6.5%"
+- "I make $75k, want FHA loan on $280k house, have $400 car payment"
+- "FHA with 3.5% down on $350k, credit score 620, property tax 1.5%"
+
+What's your scenario?`,
+                next_step: "Share property price and rate (or income for full DTI analysis).",
+                follow_up: "What's the purchase price and do you know your credit score?",
+                confidence: "1.00 (ready to calculate FHA loan)"
+            };
+        }
+    }
+    // ========== END FHA CHECK ==========
+
+
+    // THEN, update the final check to include FHA:
+
+    if (affordabilityAnswer) {
+        grokFinal = affordabilityAnswer;
+        debug = { /* ... existing affordability debug ... */ };
+        console.log('[Affordability] Returning direct answer, skipping Grok');
+    } else if (fhaAnswer) {
+        // FHA calculator answer
+        grokFinal = fhaAnswer;
+        debug = {
+            requestedModel: "fha-calculator",
+            servedModel: "fha-guidelines",
+            promptChars: question.length,
+            elapsedMs: 0,
+            requestId: "fha-" + Date.now(),
+            parseMode: "direct",
+            repaired: false
+        };
+        console.log('[FHA] Returning FHA analysis, skipping Grok');
+    } else if (XAI_API_KEY) {
+        // Normal Grok path...
+
+        let grokPrompt = compactWhitespace(
+            `
 ${specialistPrefix}
 
 You are HomeRates.ai. Calm, precise, data-first. Never sell. Never hype.
@@ -1881,177 +2223,178 @@ Return valid JSON only:
   "confidence": "0.00–1.00 numeric score plus a short reason."
 }
 `.trim()
-    );
+        );
 
-    let grokFinal: any = null;
-    let debug: any = null;
+        let grokFinal: any = null;
+        let debug: any = null;
 
-    let sourcesInjected = false;
-    // ========== END AFFORDABILITY CHECK ==========
+        let sourcesInjected = false;
+
+        // ========== END AFFORDABILITY CHECK ==========
 
 
-    mark("before Grok call");
+        mark("before Grok call");
 
-    let scenarioMemoryContext = "";
-    try {
-        if (supabase && memoryThreadId && isFollowUpQuestion(question)) {
-            const scenarioHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 3);
-            if (scenarioHistory && scenarioHistory.length > 0) {
-                scenarioMemoryContext = buildSystemPromptWithMemory("", question, scenarioHistory);
-                console.log('[Memory] Added scenario context from', scenarioHistory.length, 'previous scenarios');
-            }
-        }
-    } catch (err) {
-        console.warn('[Memory] Failed to fetch scenario context:', err);
-    }
-
-    if (typeof recallTurnsText === "string" && recallTurnsText.trim()) {
-        grokPrompt =
-            "Prior conversation context (same user, same memory_thread_id):\n" +
-            recallTurnsText +
-            "\n\nIMPORTANT: When answering the current question below, use the MOST RECENT values from the conversation above. " +
-            "If the user is asking 'what if X changes', keep all other values from the most recent turn and only change X. " +
-            "Reference the previous scenario in your answer (e.g., 'Based on your previous scenario...').\n\n" +
-            "Current question:\n" +
-            grokPrompt;
-    }
-
-    if (scenarioMemoryContext) {
-        grokPrompt = scenarioMemoryContext + "\n\n" + grokPrompt;
-    }
-
-    if (affordabilityAnswer) {
-        // Skip Grok, use affordability answer
-        grokFinal = affordabilityAnswer;
-        debug = {
-            requestedModel: "affordability-advisor",
-            servedModel: "internal-calculator",
-            promptChars: question.length,
-            elapsedMs: 0,
-            requestId: "affordability-" + Date.now(),
-            parseMode: "direct",
-            repaired: false
-        };
-        console.log('[Affordability] Returning direct answer, skipping Grok');
-    } else if (XAI_API_KEY) {
-        const result = await callGrokWithRepair(grokPrompt);
-        debug = {
-            ...result.debug,
-            repaired: result.repaired,
-            debugFirst: (result as any).debugFirst ?? null,
-        };
-
-        if (result.ok) {
-            grokFinal = result.grokFinal;
-            if (
-                !grokFinal ||
-                typeof grokFinal !== "object" ||
-                !grokFinal.answer ||
-                !grokFinal.next_step ||
-                !grokFinal.follow_up ||
-                !grokFinal.confidence
-            ) {
-                debug.error = debug.error || "Missing required fields in Grok JSON";
-                grokFinal = null;
-            }
-        }
-    } else {
-        debug = { bypass: "missing_XAI_API_KEY" };
-    }
-
-    mark("after Grok call");
-
-    if (grokFinal) {
+        let scenarioMemoryContext = "";
         try {
-            const bundle = await generateSourcesBundle({
-                topic: `${question} ${module}`,
-                reqUrl: req.url,
-            });
-
-            if (bundle.mode === "core") {
-                topSources = bundle.sources.map((s: { title: string; url: string }) => ({
-                    title: s.title,
-                    url: s.url,
-                }));
-            }
-        } catch (e: any) {
-            console.warn("Sources bundle failed", e?.message || e);
-        }
-    }
-
-    if (grokFinal && userId && supabase) {
-        try {
-            let projectIdForAnswer = projectId;
-
-            if (!projectIdForAnswer && chatThreadId) {
-                const { data: threadData } = await supabase
-                    .from('chat_threads')
-                    .select('project_id')
-                    .eq('id', chatThreadId)
-                    .single();
-
-                if (threadData?.project_id) {
-                    projectIdForAnswer = threadData.project_id;
-                    console.log('[Project Link] Got project_id from chat_threads:', projectIdForAnswer);
+            if (supabase && memoryThreadId && isFollowUpQuestion(question)) {
+                const scenarioHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 3);
+                if (scenarioHistory && scenarioHistory.length > 0) {
+                    scenarioMemoryContext = buildSystemPromptWithMemory("", question, scenarioHistory);
+                    console.log('[Memory] Added scenario context from', scenarioHistory.length, 'previous scenarios');
                 }
             }
-
-            await supabase.from("user_answers").insert({
-                clerk_user_id: userId,
-                chat_thread_id: chatThreadId,
-                memory_thread_id: memoryThreadId,
-                project_id: projectIdForAnswer,
-                question,
-                answer: grokFinal,
-                answer_summary:
-                    typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
-                model: XAI_MODEL,
-                created_at: new Date().toISOString(),
-            });
-        } catch (err: any) {
-            console.warn("ANSWERS: save failed", err?.message || err);
+        } catch (err) {
+            console.warn('[Memory] Failed to fetch scenario context:', err);
         }
+
+        if (typeof recallTurnsText === "string" && recallTurnsText.trim()) {
+            grokPrompt =
+                "Prior conversation context (same user, same memory_thread_id):\n" +
+                recallTurnsText +
+                "\n\nIMPORTANT: When answering the current question below, use the MOST RECENT values from the conversation above. " +
+                "If the user is asking 'what if X changes', keep all other values from the most recent turn and only change X. " +
+                "Reference the previous scenario in your answer (e.g., 'Based on your previous scenario...').\n\n" +
+                "Current question:\n" +
+                grokPrompt;
+        }
+
+        if (scenarioMemoryContext) {
+            grokPrompt = scenarioMemoryContext + "\n\n" + grokPrompt;
+        }
+
+        if (affordabilityAnswer) {
+            // Skip Grok, use affordability answer
+            grokFinal = affordabilityAnswer;
+            debug = {
+                requestedModel: "affordability-advisor",
+                servedModel: "internal-calculator",
+                promptChars: question.length,
+                elapsedMs: 0,
+                requestId: "affordability-" + Date.now(),
+                parseMode: "direct",
+                repaired: false
+            };
+            console.log('[Affordability] Returning direct answer, skipping Grok');
+        } else if (XAI_API_KEY) {
+            const result = await callGrokWithRepair(grokPrompt);
+            debug = {
+                ...result.debug,
+                repaired: result.repaired,
+                debugFirst: (result as any).debugFirst ?? null,
+            };
+
+            if (result.ok) {
+                grokFinal = result.grokFinal;
+                if (
+                    !grokFinal ||
+                    typeof grokFinal !== "object" ||
+                    !grokFinal.answer ||
+                    !grokFinal.next_step ||
+                    !grokFinal.follow_up ||
+                    !grokFinal.confidence
+                ) {
+                    debug.error = debug.error || "Missing required fields in Grok JSON";
+                    grokFinal = null;
+                }
+            }
+        } else {
+            debug = { bypass: "missing_XAI_API_KEY" };
+        }
+
+        mark("after Grok call");
+
+        if (grokFinal) {
+            try {
+                const bundle = await generateSourcesBundle({
+                    topic: `${question} ${module}`,
+                    reqUrl: req.url,
+                });
+
+                if (bundle.mode === "core") {
+                    topSources = bundle.sources.map((s: { title: string; url: string }) => ({
+                        title: s.title,
+                        url: s.url,
+                    }));
+                }
+            } catch (e: any) {
+                console.warn("Sources bundle failed", e?.message || e);
+            }
+        }
+
+        if (grokFinal && userId && supabase) {
+            try {
+                let projectIdForAnswer = projectId;
+
+                if (!projectIdForAnswer && chatThreadId) {
+                    const { data: threadData } = await supabase
+                        .from('chat_threads')
+                        .select('project_id')
+                        .eq('id', chatThreadId)
+                        .single();
+
+                    if (threadData?.project_id) {
+                        projectIdForAnswer = threadData.project_id;
+                        console.log('[Project Link] Got project_id from chat_threads:', projectIdForAnswer);
+                    }
+                }
+
+                await supabase.from("user_answers").insert({
+                    clerk_user_id: userId,
+                    chat_thread_id: chatThreadId,
+                    memory_thread_id: memoryThreadId,
+                    project_id: projectIdForAnswer,
+                    question,
+                    answer: grokFinal,
+                    answer_summary:
+                        typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
+                    model: XAI_MODEL,
+                    created_at: new Date().toISOString(),
+                });
+            } catch (err: any) {
+                console.warn("ANSWERS: save failed", err?.message || err);
+            }
+        }
+
+        const finalMarkdown = grokFinal
+            ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
+                grokFinal.confidence
+            )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
+            : legacyAnswerMarkdown;
+
+        const message = grokFinal?.answer || legacyAnswer;
+
+        mark("end (before return)");
+
+        return noStore({
+            ok: true,
+            memory_thread_id: memoryThreadId,
+            chat_id: chatId,
+            project_id: projectId,
+            chat_thread_id: chatThreadId,
+            route: "answers",
+            intent,
+            path,
+            tag,
+            generatedAt,
+            usedFRED,
+            usedTavily,
+            fred,
+            topSources,
+            grok: grokFinal || null,
+            debug,
+            data_freshness: grokFinal ? `Live (${XAI_MODEL})` : "Legacy stack",
+            message,
+            answerMarkdown: finalMarkdown,
+            followUp: grokFinal?.follow_up || followUpFor(topic),
+        });
     }
 
-    const finalMarkdown = grokFinal
-        ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
-            grokFinal.confidence
-        )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
-        : legacyAnswerMarkdown;
+    export async function POST(req: NextRequest) {
+        return handle(req);
+    }
 
-    const message = grokFinal?.answer || legacyAnswer;
-
-    mark("end (before return)");
-
-    return noStore({
-        ok: true,
-        memory_thread_id: memoryThreadId,
-        chat_id: chatId,
-        project_id: projectId,
-        chat_thread_id: chatThreadId,
-        route: "answers",
-        intent,
-        path,
-        tag,
-        generatedAt,
-        usedFRED,
-        usedTavily,
-        fred,
-        topSources,
-        grok: grokFinal || null,
-        debug,
-        data_freshness: grokFinal ? `Live (${XAI_MODEL})` : "Legacy stack",
-        message,
-        answerMarkdown: finalMarkdown,
-        followUp: grokFinal?.follow_up || followUpFor(topic),
-    });
-}
-
-export async function POST(req: NextRequest) {
-    return handle(req);
-}
-
-export async function GET(req: NextRequest) {
-    const intent = req.nextUrl.searchParams.get("intent") || undefined;
-    return handle(req, intent);
-}
+    export async function GET(req: NextRequest) {
+        const intent = req.nextUrl.searchParams.get("intent") || undefined;
+        return handle(req, intent);
+    }
