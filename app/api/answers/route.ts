@@ -2264,138 +2264,125 @@ Return valid JSON only:
             grokPrompt = scenarioMemoryContext + "\n\n" + grokPrompt;
         }
 
-        if (affordabilityAnswer) {
-            // Skip Grok, use affordability answer
-            grokFinal = affordabilityAnswer;
-            debug = {
-                requestedModel: "affordability-advisor",
-                servedModel: "internal-calculator",
-                promptChars: question.length,
-                elapsedMs: 0,
-                requestId: "affordability-" + Date.now(),
-                parseMode: "direct",
-                repaired: false
-            };
-            console.log('[Affordability] Returning direct answer, skipping Grok');
-        } else if (XAI_API_KEY) {
-            const result = await callGrokWithRepair(grokPrompt);
-            debug = {
-                ...result.debug,
-                repaired: result.repaired,
-                debugFirst: (result as any).debugFirst ?? null,
-            };
 
-            if (result.ok) {
-                grokFinal = result.grokFinal;
-                if (
-                    !grokFinal ||
-                    typeof grokFinal !== "object" ||
-                    !grokFinal.answer ||
-                    !grokFinal.next_step ||
-                    !grokFinal.follow_up ||
-                    !grokFinal.confidence
-                ) {
-                    debug.error = debug.error || "Missing required fields in Grok JSON";
-                    grokFinal = null;
-                }
-            }
-        } else {
-            debug = { bypass: "missing_XAI_API_KEY" };
-        }
+        const result = await callGrokWithRepair(grokPrompt);
+        debug = {
+            ...result.debug,
+            repaired: result.repaired,
+            debugFirst: (result as any).debugFirst ?? null,
+        };
 
-        mark("after Grok call");
-
-        if (grokFinal) {
-            try {
-                const bundle = await generateSourcesBundle({
-                    topic: `${question} ${module}`,
-                    reqUrl: req.url,
-                });
-
-                if (bundle.mode === "core") {
-                    topSources = bundle.sources.map((s: { title: string; url: string }) => ({
-                        title: s.title,
-                        url: s.url,
-                    }));
-                }
-            } catch (e: any) {
-                console.warn("Sources bundle failed", e?.message || e);
+        if (result.ok) {
+            grokFinal = result.grokFinal;
+            if (
+                !grokFinal ||
+                typeof grokFinal !== "object" ||
+                !grokFinal.answer ||
+                !grokFinal.next_step ||
+                !grokFinal.follow_up ||
+                !grokFinal.confidence
+            ) {
+                debug.error = debug.error || "Missing required fields in Grok JSON";
+                grokFinal = null;
             }
         }
+    } else {
+        debug = { bypass: "missing_XAI_API_KEY" };
+    }
 
-        if (grokFinal && userId && supabase) {
-            try {
-                let projectIdForAnswer = projectId;
+    mark("after Grok call");
 
-                if (!projectIdForAnswer && chatThreadId) {
-                    const { data: threadData } = await supabase
-                        .from('chat_threads')
-                        .select('project_id')
-                        .eq('id', chatThreadId)
-                        .single();
+    if (grokFinal) {
+        try {
+            const bundle = await generateSourcesBundle({
+                topic: `${question} ${module}`,
+                reqUrl: req.url,
+            });
 
-                    if (threadData?.project_id) {
-                        projectIdForAnswer = threadData.project_id;
-                        console.log('[Project Link] Got project_id from chat_threads:', projectIdForAnswer);
-                    }
-                }
-
-                await supabase.from("user_answers").insert({
-                    clerk_user_id: userId,
-                    chat_thread_id: chatThreadId,
-                    memory_thread_id: memoryThreadId,
-                    project_id: projectIdForAnswer,
-                    question,
-                    answer: grokFinal,
-                    answer_summary:
-                        typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
-                    model: XAI_MODEL,
-                    created_at: new Date().toISOString(),
-                });
-            } catch (err: any) {
-                console.warn("ANSWERS: save failed", err?.message || err);
+            if (bundle.mode === "core") {
+                topSources = bundle.sources.map((s: { title: string; url: string }) => ({
+                    title: s.title,
+                    url: s.url,
+                }));
             }
+        } catch (e: any) {
+            console.warn("Sources bundle failed", e?.message || e);
         }
-
-        const finalMarkdown = grokFinal
-            ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
-                grokFinal.confidence
-            )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
-            : legacyAnswerMarkdown;
-
-        const message = grokFinal?.answer || legacyAnswer;
-
-        mark("end (before return)");
-
-        return noStore({
-            ok: true,
-            memory_thread_id: memoryThreadId,
-            chat_id: chatId,
-            project_id: projectId,
-            chat_thread_id: chatThreadId,
-            route: "answers",
-            intent,
-            path,
-            tag,
-            generatedAt,
-            usedFRED,
-            usedTavily,
-            fred,
-            topSources,
-            grok: grokFinal || null,
-            debug,
-            data_freshness: grokFinal ? `Live (${XAI_MODEL})` : "Legacy stack",
-            message,
-            answerMarkdown: finalMarkdown,
-            followUp: grokFinal?.follow_up || followUpFor(topic),
-        });
     }
 
-    export async function POST(req: NextRequest) {
-        return handle(req);
+    if (grokFinal && userId && supabase) {
+        try {
+            let projectIdForAnswer = projectId;
+
+            if (!projectIdForAnswer && chatThreadId) {
+                const { data: threadData } = await supabase
+                    .from('chat_threads')
+                    .select('project_id')
+                    .eq('id', chatThreadId)
+                    .single();
+
+                if (threadData?.project_id) {
+                    projectIdForAnswer = threadData.project_id;
+                    console.log('[Project Link] Got project_id from chat_threads:', projectIdForAnswer);
+                }
+            }
+
+            await supabase.from("user_answers").insert({
+                clerk_user_id: userId,
+                chat_thread_id: chatThreadId,
+                memory_thread_id: memoryThreadId,
+                project_id: projectIdForAnswer,
+                question,
+                answer: grokFinal,
+                answer_summary:
+                    typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
+                model: XAI_MODEL,
+                created_at: new Date().toISOString(),
+            });
+        } catch (err: any) {
+            console.warn("ANSWERS: save failed", err?.message || err);
+        }
     }
 
-    export async function GET(req: NextRequest) {
-        const intent = req.nextUrl.searchParams.get("intent") || undefined;
-        return handle(req, intent);
-    }
+    const finalMarkdown = grokFinal
+        ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
+            grokFinal.confidence
+        )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
+        : legacyAnswerMarkdown;
+
+    const message = grokFinal?.answer || legacyAnswer;
+
+    mark("end (before return)");
+
+    return noStore({
+        ok: true,
+        memory_thread_id: memoryThreadId,
+        chat_id: chatId,
+        project_id: projectId,
+        chat_thread_id: chatThreadId,
+        route: "answers",
+        intent,
+        path,
+        tag,
+        generatedAt,
+        usedFRED,
+        usedTavily,
+        fred,
+        topSources,
+        grok: grokFinal || null,
+        debug,
+        data_freshness: grokFinal ? `Live (${XAI_MODEL})` : "Legacy stack",
+        message,
+        answerMarkdown: finalMarkdown,
+        followUp: grokFinal?.follow_up || followUpFor(topic),
+    });
+}
+
+export async function POST(req: NextRequest) {
+    return handle(req);
+}
+
+export async function GET(req: NextRequest) {
+    const intent = req.nextUrl.searchParams.get("intent") || undefined;
+    return handle(req, intent);
+}
