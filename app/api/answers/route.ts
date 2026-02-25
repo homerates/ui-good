@@ -2164,6 +2164,10 @@ What's your scenario?`,
 
     // THEN, update the final check to include FHA:
 
+    let grokFinal: any = null;
+    let debug: any = null;
+
+    let sourcesInjected = false;
     if (affordabilityAnswer) {
         grokFinal = affordabilityAnswer;
         debug = { /* ... existing affordability debug ... */ };
@@ -2225,10 +2229,7 @@ Return valid JSON only:
 `.trim()
         );
 
-        let grokFinal: any = null;
-        let debug: any = null;
 
-        let sourcesInjected = false;
 
         // ========== END AFFORDABILITY CHECK ==========
 
