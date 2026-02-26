@@ -1974,10 +1974,10 @@ async function handle(req: NextRequest, intentParam?: string) {
                 });
 
                 // Extract income/debts for DTI if provided
-                const incomeMatch = question.match(/(?:income|makes?|earn|salary|i\s+earn|i\s+make|we\s+make)[\s\S]{0,20}\$?\s*([\d,]+)k?/i);
-                let annualIncome = incomeMatch ? parseFloat(incomeMatch[1].replace(/,/g, '')) : undefined;
-                if (annualIncome && /k\b/i.test(question.slice(question.search(/earn|make|income|salary/i))) && annualIncome < 1000) annualIncome *= 1000;
-
+                const incomeMatch = question.match(/(?:i\s+earn|i\s+make|we\s+make|earn|makes?|income|salary)\s+[\$]?\s*([\d,]+)\s*k?\b/i) ||
+                    question.match(/[\$]\s*([\d,]+)\s*k?\s*(?:income|salary|a\s+year|per\s+year|annually)/i);
+                let annualIncome = incomeMatch ? parseFloat(incomeMatch[1].replace(/,/g, "")) : undefined;
+                if (annualIncome && annualIncome < 1000) annualIncome *= 1000;
                 const debtMatch = question.match(/\$\s*(\d+)\s*(?:car|student|debt|loan)\s*payment/i) ||
                     question.match(/(?:car|student|debt|loan)\s*payment.*?\$?\s*(\d+)/i);
                 const monthlyDebts = debtMatch ? parseFloat(debtMatch[1]) : 0;
