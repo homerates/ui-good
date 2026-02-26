@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
-import { calculateMortgage } from "../../../lib/mortgageCalculator";
+import { calculateMortgage, compareRates } from "../../../lib/mortgageCalculator";
 import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculator";
 import {
     getGuidelineContextForQuestion,
@@ -235,14 +235,6 @@ function safeJsonObjectSlice(input: string): string | null {
 /**
  * Detect if question is about mortgage payment calculations
  */
-function isMortgageCalculation(question: string): boolean {
-    const hasPaymentKeywords = /payment|monthly|total interest|amortization|P&I|PITI/i.test(question);
-    const hasMoneyOrPercent = /\$[\d,]+|down.*payment|\d+%/i.test(question);
-    const hasMortgageContext = /home|house|property|loan|mortgage|buying|purchase/i.test(question);
-
-    return hasPaymentKeywords && hasMoneyOrPercent && hasMortgageContext;
-}
-
 /**
  * Extract mortgage parameters from question using regex
  */
@@ -412,8 +404,7 @@ async function generateAffordabilityScenarios(params: {
         const finalDownPayment = adjustedHomePrice * (scenario.downPct / 100);
         const finalLoanAmount = adjustedHomePrice - finalDownPayment;
 
-        const { calculateMortgage: calcMortgage } = await import('../../../lib/mortgageCalculator');
-        const mortgage = calcMortgage({
+        const mortgage = calculateMortgage({
             price: adjustedHomePrice,
             downPaymentPct: scenario.downPct,
             rate: currentRate,
@@ -1942,8 +1933,19 @@ async function handle(req: NextRequest, intentParam?: string) {
     // HR-MEMORY:GROK-CALL
     // Inject prior conversation context + current user question into Grok
 
-    // ========== MORTGAGE CALCULATOR PRE-CALCULATION ==========
+    // ========== MORTGAGE CALCULATOR BYPASS ==========
+    let mortgageAnswer: any = null;
     let mortgageCalcContext = "";
+
+    // Broad detection - any question with a price + mortgage context
+    function isMortgageCalculation(q: string): boolean {
+        const hasPrice = /\$\s*[\d,]+k?\b/i.test(q);
+        const hasMortgageContext = /home|house|property|loan|mortgage|buying|purchase|condo|townhouse/i.test(q);
+        // Exclude FHA (handled separately) and affordability (no specific price)
+        const isFHA = /\bfha\b/i.test(q);
+        const isAffordability = isAffordabilityQuestion(q);
+        return hasPrice && hasMortgageContext && !isFHA && !isAffordability;
+    }
 
     if (isMortgageCalculation(question)) {
         const params = extractMortgageParams(question, fred?.mort30Avg ?? undefined);
@@ -1951,9 +1953,6 @@ async function handle(req: NextRequest, intentParam?: string) {
         if (params && params.price) {
             try {
                 console.log('[Mortgage Calc] Detected question, calling calculator with:', params);
-
-                const { calculateMortgage, compareRates } =
-                    await import('../../../lib/mortgageCalculator');
 
                 const result = calculateMortgage({
                     price: params.price,
@@ -1966,41 +1965,126 @@ async function handle(req: NextRequest, intentParam?: string) {
                     params.price,
                     params.downPaymentPct!,
                     params.termYears!,
-                    [params.rate! - 0.25, params.rate!, params.rate! + 0.25]
+                    [params.rate! - 0.5, params.rate!, params.rate! + 0.5]
                 );
-
-                mortgageCalcContext = `
-MORTGAGE CALCULATION (PRE-CALCULATED - USE THESE EXACT VALUES):
-
-Input Parameters:
-- Home Price: $${result.homePrice.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-- Down Payment: $${result.downPayment.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} (${result.downPaymentPct}%)
-- Loan Amount: $${result.loanAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-- Interest Rate: ${result.rateAnnual}%
-- Term: ${result.termYears} years
-
-Calculated Results (100% ACCURATE):
-- Monthly P&I Payment: $${result.monthlyPI.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-- Total Amount Paid: $${result.totalPayments.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-- Total Interest Paid: $${result.totalInterest.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-
-Rate Comparison Scenarios:
-${scenarios.map(s => '- ' + s.label + ': Monthly P&I = $' + s.monthlyPI.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ', Total Interest = $' + s.totalInterest.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })).join('\n')}
-
-CRITICAL: Use these numbers EXACTLY in your response. Do NOT recalculate.
-`;
 
                 console.log('[Mortgage Calc] Pre-calculated:', {
                     monthlyPI: result.monthlyPI,
                     totalInterest: result.totalInterest
                 });
 
+                // Extract income/debts for DTI if provided
+                const incomeMatch = question.match(/(?:income|makes?|earn|salary|i\s+earn|i\s+make|we\s+make)[\s\S]{0,20}\$?\s*([\d,]+)k?/i);
+                let annualIncome = incomeMatch ? parseFloat(incomeMatch[1].replace(/,/g, '')) : undefined;
+                if (annualIncome && /k\b/i.test(question.slice(question.search(/earn|make|income|salary/i))) && annualIncome < 1000) annualIncome *= 1000;
+
+                const debtMatch = question.match(/\$\s*(\d+)\s*(?:car|student|debt|loan)\s*payment/i) ||
+                    question.match(/(?:car|student|debt|loan)\s*payment.*?\$?\s*(\d+)/i);
+                const monthlyDebts = debtMatch ? parseFloat(debtMatch[1]) : 0;
+
+                // Monthly tax + insurance estimates
+                const monthlyTax = Math.round((result.homePrice * 0.011) / 12);
+                const monthlyIns = 100;
+                const monthlyPMI = result.downPaymentPct < 20 ? Math.round((result.loanAmount * 0.006) / 12) : 0;
+                const totalMonthly = Math.round(result.monthlyPI + monthlyTax + monthlyIns + monthlyPMI);
+
+                // DTI
+                let frontEndDTI: number | undefined;
+                let totalDTI: number | undefined;
+                if (annualIncome) {
+                    const monthlyIncome = annualIncome / 12;
+                    frontEndDTI = Math.round((totalMonthly / monthlyIncome) * 1000) / 10;
+                    totalDTI = Math.round(((totalMonthly + monthlyDebts) / monthlyIncome) * 1000) / 10;
+                }
+
+                const pmiLine = monthlyPMI > 0 ? `| PMI (~0.6%) | $${monthlyPMI} |\n` : '';
+                const dtiSection = annualIncome ? `
+---
+
+## 📈 Debt-to-Income Analysis
+
+| | Amount |
+|--|--|
+| Gross Monthly Income | $${Math.round(annualIncome / 12).toLocaleString()} |
+| Front-End DTI (housing) | ${frontEndDTI}% |
+| Back-End DTI (housing + debts) | ${totalDTI}% |
+
+${frontEndDTI! <= 28 ? '✅ **Excellent** — well within 28% front-end guideline' :
+                        frontEndDTI! <= 36 ? '✅ **Good** — within conventional 36% guideline' :
+                            frontEndDTI! <= 43 ? '⚠️ **Stretched** — above 36% but below 43% FHA max' :
+                                '❌ **Too High** — exceeds 43% guideline, lender approval uncertain'}
+` : '';
+
+                const mortgageMarkdown = `**Conventional Mortgage Breakdown**
+
+${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k income${monthlyDebts > 0 ? `, $${monthlyDebts}/month debt` : ''}` : ''}
+
+---
+
+## 🏡 Loan Details
+
+| | |
+|--|--|
+| Home Price | $${result.homePrice.toLocaleString()} |
+| Down Payment | $${result.downPayment.toLocaleString()} (${result.downPaymentPct}%) |
+| Loan Amount | $${result.loanAmount.toLocaleString()} |
+| Interest Rate | ${result.rateAnnual}% (${result.termYears}-year fixed) |
+| Total Interest | $${result.totalInterest.toLocaleString()} |
+
+---
+
+## 💰 Monthly Payment Breakdown
+
+| Component | Amount |
+|-----------|--------|
+| Principal & Interest | $${Math.round(result.monthlyPI).toLocaleString()} |
+| Property Taxes (~1.1%) | $${monthlyTax.toLocaleString()} |
+| Home Insurance | $${monthlyIns} |
+${pmiLine}| **Total Monthly (PITI${monthlyPMI > 0 ? '+PMI' : ''})** | **$${totalMonthly.toLocaleString()}** |
+
+${monthlyPMI > 0 ? `⚠️ **PMI applies** — less than 20% down. Removed automatically at 80% LTV (~${Math.round((result.loanAmount * 0.8) / (result.homePrice * 0.003) / 12)} years).` : '✅ **No PMI** — 20%+ down payment.'}
+
+---
+
+## 📊 Rate Comparison
+
+| Rate | Monthly P&I | Total Interest |
+|------|-------------|----------------|
+${scenarios.map((s: any) => `| ${s.label} | $${Math.round(s.monthlyPI).toLocaleString()} | $${Math.round(s.totalInterest).toLocaleString()} |`).join('\n')}
+${dtiSection}
+---
+
+**Next Steps:**
+1. **Get pre-approved** with 2-3 lenders to compare rates
+2. **Lock your rate** once pre-approved
+3. **Factor in closing costs** (~2-3% of loan = $${Math.round(result.loanAmount * 0.025).toLocaleString()})`;
+
+                // Smart follow-up
+                let followUp = "Want to see a 15-year vs 30-year comparison, or factor in PMI removal timeline?";
+                if (annualIncome && frontEndDTI! > 43) {
+                    followUp = `Your DTI is ${frontEndDTI}%. Want to see what price range keeps you under 36%?`;
+                } else if (monthlyPMI > 0) {
+                    followUp = `PMI adds $${monthlyPMI}/month. Want to see how much extra to put down to eliminate it?`;
+                } else if (annualIncome && frontEndDTI! <= 28) {
+                    followUp = `Strong DTI at ${frontEndDTI}%. Want to compare 15-year vs 30-year to save on total interest?`;
+                }
+
+                mortgageAnswer = {
+                    answer: mortgageMarkdown,
+                    next_step: `Get pre-approved with 2-3 lenders. Closing costs estimated at ~$${Math.round(result.loanAmount * 0.025).toLocaleString()}.`,
+                    follow_up: followUp,
+                    confidence: "1.00 (calculated using verified mortgage formula)"
+                };
+
+                // Keep context for Grok fallback (if mortgage answer somehow null)
+                mortgageCalcContext = `MORTGAGE CALCULATION (PRE-CALCULATED):\n- Monthly P&I: $${result.monthlyPI}\n- Total Interest: $${result.totalInterest}\nCRITICAL: Use these numbers EXACTLY.`;
+
             } catch (err: any) {
-                console.error('[Mortgage Calc] Error:', err.message);
+                console.error('[Mortgage Calc] Error:', err.message, err.stack);
             }
         }
     }
-    // ========== END MORTGAGE CALCULATOR ==========
+    // ========== END MORTGAGE CALCULATOR BYPASS ==========
     // ========== AFFORDABILITY ADVISOR CHECK ==========
     let affordabilityAnswer = null;
 
@@ -2191,21 +2275,16 @@ What's your scenario?`,
     let sourcesInjected = false;
     if (affordabilityAnswer) {
         grokFinal = affordabilityAnswer;
-        debug = { /* ... existing affordability debug ... */ };
+        debug = { requestedModel: "affordability-calculator", servedModel: "dti-scenarios", promptChars: question.length, elapsedMs: 0, requestId: "afford-" + Date.now(), parseMode: "direct", repaired: false };
         console.log('[Affordability] Returning direct answer, skipping Grok');
     } else if (fhaAnswer) {
-        // FHA calculator answer
         grokFinal = fhaAnswer;
-        debug = {
-            requestedModel: "fha-calculator",
-            servedModel: "fha-guidelines",
-            promptChars: question.length,
-            elapsedMs: 0,
-            requestId: "fha-" + Date.now(),
-            parseMode: "direct",
-            repaired: false
-        };
+        debug = { requestedModel: "fha-calculator", servedModel: "fha-guidelines", promptChars: question.length, elapsedMs: 0, requestId: "fha-" + Date.now(), parseMode: "direct", repaired: false };
         console.log('[FHA] Returning FHA analysis, skipping Grok');
+    } else if (mortgageAnswer) {
+        grokFinal = mortgageAnswer;
+        debug = { requestedModel: "mortgage-calculator", servedModel: "mortgage-calculator", promptChars: question.length, elapsedMs: 0, requestId: "mort-" + Date.now(), parseMode: "direct", repaired: false };
+        console.log('[Mortgage Calc] Returning direct answer, skipping Grok');
     } else if (XAI_API_KEY) {
         // Normal Grok path...
 
