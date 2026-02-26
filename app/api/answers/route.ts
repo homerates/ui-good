@@ -292,6 +292,10 @@ function extractMortgageParams(question: string, fredMort30Avg?: number): {
  */
 function isAffordabilityQuestion(question: string): boolean {
     const text = question.toLowerCase();
+
+    // Never steal FHA-specific questions
+    if (/\bfha\b/i.test(text)) return false;
+
     const triggers = [
         /what can i afford/i,
         /how much (home|house|property) can i (afford|buy)/i,
@@ -308,8 +312,8 @@ function isAffordabilityQuestion(question: string): boolean {
     if (triggers.some(pattern => pattern.test(text))) return true;
 
     // Also trigger when user provides income + savings together (implied affordability question)
-    const hasIncome = /(?:make|earn|income|salary|i\s+make|we\s+make|gross)[\s\S]{0,30}\$?\s*\d[\d,k]+/i.test(text);
-    const hasSavings = /(?:have|saved|savings|got|saving)[\s\S]{0,30}\$?\s*\d[\d,k]+/i.test(text);
+    const hasIncome = /(?:make|earn|income|salary|i\s+make|we\s+make|gross)[\s\S]{0,30}[\$]?\s*\d[\d,k]+/i.test(text);
+    const hasSavings = /(?:have|saved|savings|got|saving)[\s\S]{0,30}[\$]?\s*\d[\d,k]+/i.test(text);
 
     return hasIncome && hasSavings;
 }
@@ -2071,10 +2075,6 @@ What's your situation?`,
             console.log('[FHA] Calculating FHA loan:', fhaParams);
 
             try {
-                // Import FHA calculator
-                const { calculateFHA, compareFHAvsConventional } =
-                    await import('../../../lib/fhaCalculator');
-
                 // Calculate FHA loan
                 const fhaResult = calculateFHA({
                     purchasePrice: fhaParams.purchasePrice,
