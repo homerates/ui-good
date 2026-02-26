@@ -667,7 +667,10 @@ function extractFHAParams(question: string): {
     }
 
     // Monthly debts
-    const debtMatch = text.match(/\$?\s*(\d+)\s*(?:debt|payment|car|loan).*?(?:month|monthly)/i);
+    const debtMatch = text.match(/\$\s*(\d+)\s*(?:car|student|debt|loan)\s*payment/i) ||
+        text.match(/(\d+)\s*(?:dollar|\/mo).*?(?:car|debt|loan)/i) ||
+        text.match(/\$?\s*(\d+)\s*(?:month|monthly|\/mo).*?(?:car|debt|loan|payment)/i) ||
+        text.match(/(?:car|student|debt|loan)\s*payment.*?\$?\s*(\d+)/i);
     const monthlyDebts = debtMatch ? parseFloat(debtMatch[1]) : 0;
 
     // Property tax rate
