@@ -1,338 +1,247 @@
 // lib/fhaCalculator.ts
-// FHA Mortgage Calculator with UFMIP, MIP, DTI calculations
+// Official FHA MIP rates (as of 2024, per HUD ML 2023-05)
 
 export interface FHAInput {
     purchasePrice: number;
-    downPaymentPct?: number; // Default 3.5%
-    creditScore?: number; // Affects MIP rates
-    loanTerm?: number; // 15 or 30 years
-    interestRate: number;
-    propertyTaxRate?: number; // Annual % (e.g., 1.2 for 1.2%)
-    homeInsuranceAnnual?: number; // Annual amount
-    hoaMonthly?: number;
-    annualIncome?: number; // For DTI calculation
-    monthlyDebts?: number; // For DTI calculation
+    downPaymentPct: number;        // e.g. 3.5
+    interestRate: number;          // e.g. 6.5
+    creditScore: number;           // e.g. 640
+    loanTerm: number;              // 15 or 30
+    propertyTaxRate: number;       // e.g. 1.1 (percent)
+    homeInsuranceAnnual: number;   // e.g. 1200
+    hoaMonthly: number;
+    annualIncome?: number;
+    monthlyDebts?: number;
 }
 
 export interface FHAResult {
-    // Loan Details
     purchasePrice: number;
     downPayment: number;
     downPaymentPct: number;
     baseLoanAmount: number;
-
-    // FHA-Specific Costs
-    ufmip: number; // Upfront Mortgage Insurance Premium
-    ufmipPct: number; // Usually 1.75%
-    totalLoanAmount: number; // Base + UFMIP
-
-    // Monthly Costs
-    monthlyPI: number; // Principal + Interest
-    monthlyMIP: number; // Monthly Mortgage Insurance Premium
-    monthlyPropertyTax: number;
-    monthlyHomeInsurance: number;
+    ufmip: number;                 // Upfront MIP (1.75%)
+    totalLoanAmount: number;       // Base + UFMIP
+    annualMIPRate: number;         // e.g. 0.55
+    monthlyMIP: number;
+    mipDuration: string;           // "11 years" or "Life of loan"
+    monthlyPI: number;
+    monthlyTax: number;
+    monthlyInsurance: number;
     monthlyHOA: number;
-    totalMonthlyPITI: number;
-    totalMonthlyPITIA: number; // PITI + HOA
-
-    // Totals
-    totalInterest: number;
-    totalMIPPaid: number; // Over life of loan
-    totalPaid: number; // All payments over life
-
-    // DTI Analysis
-    housingDTI?: number; // Front-end ratio (PITIA / Income)
-    totalDTI?: number; // Back-end ratio ((PITIA + Debts) / Income)
-    maxMonthlyPayment?: number; // At 43% DTI
-    qualifies?: boolean; // Based on DTI limits
-
-    // FHA Limits
-    fhaLoanLimit: number; // Based on county
+    totalMonthly: number;          // PITI + MIP + HOA
+    // DTI
+    frontEndDTI?: number;
+    totalDTI?: number;
+    qualifies?: boolean;
+    // Loan limits
+    fhaLoanLimit: number;
     withinLimits: boolean;
-
-    // Guidelines
-    meetsCreditRequirement: boolean;
     meetsDownPaymentRequirement: boolean;
-    mipDuration: string; // How long MIP required
+    meetsCreditRequirement: boolean;
 }
 
-/**
- * FHA Loan Limits by County Type (2024)
- */
-const FHA_LOAN_LIMITS = {
-    floor: 498257, // Standard counties
-    ceiling: 1149825, // High-cost counties (e.g., SF, NYC)
-};
+/** 2024 FHA loan limit (national floor / ceiling varies by county) */
+const FHA_LOAN_LIMIT_2024 = 498_257; // national floor; high-cost up to 1,149,825
 
 /**
- * Get MIP rate based on loan characteristics
- * FHA MIP rates vary by LTV, loan term, and loan amount
+ * Get annual MIP rate based on loan term, LTV, and loan amount.
+ * Source: HUD Mortgagee Letter 2023-05 (effective March 2023)
  */
-function getMIPRate(
-    baseLoanAmount: number,
+function getAnnualMIPRate(
     loanTerm: number,
-    ltvRatio: number
-): { annualRate: number; duration: string } {
-    // 30-year loans
-    if (loanTerm === 30) {
-        if (ltvRatio <= 95) {
-            // Base loan ≤ $726,200
-            if (baseLoanAmount <= 726200) {
-                return { annualRate: 0.0050, duration: '11 years' }; // 0.50%
-            } else {
-                return { annualRate: 0.0055, duration: '11 years' }; // 0.55%
-            }
+    ltvPct: number,
+    loanAmount: number
+): number {
+    if (loanTerm > 15) {
+        // 30-year
+        if (loanAmount <= 726_200) {
+            if (ltvPct <= 90) return 0.50;
+            if (ltvPct <= 95) return 0.50;
+            return 0.55; // LTV > 95%
         } else {
-            // LTV > 95%
-            if (baseLoanAmount <= 726200) {
-                return { annualRate: 0.0055, duration: 'Life of loan' }; // 0.55%
-            } else {
-                return { annualRate: 0.0070, duration: 'Life of loan' }; // 0.70%
-            }
+            // Jumbo FHA
+            if (ltvPct <= 90) return 0.70;
+            if (ltvPct <= 95) return 0.70;
+            return 0.75;
+        }
+    } else {
+        // 15-year
+        if (loanAmount <= 726_200) {
+            if (ltvPct <= 90) return 0.15;
+            return 0.40;
+        } else {
+            if (ltvPct <= 78) return 0.15;
+            if (ltvPct <= 90) return 0.40;
+            return 0.65;
         }
     }
-
-    // 15-year loans
-    if (loanTerm === 15) {
-        if (ltvRatio <= 90) {
-            return { annualRate: 0.0045, duration: '11 years' }; // 0.45%
-        } else {
-            return { annualRate: 0.0070, duration: 'Life of loan' }; // 0.70%
-        }
-    }
-
-    // Default
-    return { annualRate: 0.0055, duration: 'Life of loan' };
 }
 
 /**
- * Calculate FHA mortgage with all costs
+ * MIP duration rules:
+ * - 15-year: cancelled when LTV reaches 78% (regardless of when)
+ * - 30-year with ≥10% down (LTV ≤ 90%): 11 years
+ * - 30-year with <10% down (LTV > 90%): Life of loan
  */
+function getMIPDuration(loanTerm: number, downPaymentPct: number): string {
+    if (loanTerm <= 15) return "Cancelled at 78% LTV";
+    if (downPaymentPct >= 10) return "11 years";
+    return "Life of loan";
+}
+
+/** Monthly payment (P&I) */
+function monthlyPI(principal: number, annualRate: number, termYears: number): number {
+    const r = annualRate / 100 / 12;
+    const n = termYears * 12;
+    if (r === 0) return principal / n;
+    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+
 export function calculateFHA(input: FHAInput): FHAResult {
     const {
         purchasePrice,
-        downPaymentPct = 3.5,
-        creditScore = 580, // FHA minimum
-        loanTerm = 30,
+        downPaymentPct,
         interestRate,
-        propertyTaxRate = 1.1,
-        homeInsuranceAnnual = 1200,
-        hoaMonthly = 0,
+        creditScore,
+        loanTerm,
+        propertyTaxRate,
+        homeInsuranceAnnual,
+        hoaMonthly,
         annualIncome,
         monthlyDebts = 0,
     } = input;
 
-    // Down Payment
     const downPayment = purchasePrice * (downPaymentPct / 100);
     const baseLoanAmount = purchasePrice - downPayment;
+    const ltvPct = (baseLoanAmount / purchasePrice) * 100;
 
-    // UFMIP (Upfront Mortgage Insurance Premium) - 1.75% of base loan
-    const ufmipPct = 1.75;
-    const ufmip = baseLoanAmount * (ufmipPct / 100);
-
-    // Total loan amount (base + UFMIP financed)
+    // UFMIP: 1.75% of base loan
+    const ufmip = baseLoanAmount * 0.0175;
     const totalLoanAmount = baseLoanAmount + ufmip;
 
-    // LTV Ratio (for MIP calculation)
-    const ltvRatio = (baseLoanAmount / purchasePrice) * 100;
-
-    // Get MIP rate
-    const mipInfo = getMIPRate(baseLoanAmount, loanTerm, ltvRatio);
-
-    // Monthly P&I on total loan amount (including financed UFMIP)
-    const monthlyRate = interestRate / 100 / 12;
-    const numberOfPayments = loanTerm * 12;
-    const monthlyPI =
-        (totalLoanAmount * monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) /
-        (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
-
     // Monthly MIP
-    const monthlyMIP = (totalLoanAmount * mipInfo.annualRate) / 12;
+    const annualMIPRate = getAnnualMIPRate(loanTerm, ltvPct, baseLoanAmount);
+    const monthlyMIPValue = (totalLoanAmount * (annualMIPRate / 100)) / 12;
+    const mipDuration = getMIPDuration(loanTerm, downPaymentPct);
 
-    // Other monthly costs
-    const monthlyPropertyTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const monthlyHomeInsurance = homeInsuranceAnnual / 12;
-    const monthlyHOA = hoaMonthly;
+    // Monthly P&I
+    const piPayment = monthlyPI(totalLoanAmount, interestRate, loanTerm);
 
-    // Total monthly payments
-    const totalMonthlyPITI = monthlyPI + monthlyPropertyTax + monthlyHomeInsurance;
-    const totalMonthlyPITIA = totalMonthlyPITI + monthlyMIP + monthlyHOA;
+    // Monthly tax & insurance
+    const monthlyTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
+    const monthlyInsurance = homeInsuranceAnnual / 12;
 
-    // Total costs over life of loan
-    const totalPaid = monthlyPI * numberOfPayments;
-    const totalInterest = totalPaid - totalLoanAmount;
+    const totalMonthly = piPayment + monthlyMIPValue + monthlyTax + monthlyInsurance + hoaMonthly;
 
-    // Total MIP paid (depends on duration)
-    let mipPayments: number;
-    if (mipInfo.duration === 'Life of loan') {
-        mipPayments = numberOfPayments;
-    } else {
-        // 11 years
-        mipPayments = 11 * 12;
-    }
-    const totalMIPPaid = monthlyMIP * mipPayments;
-
-    // DTI Calculations
-    let housingDTI: number | undefined;
+    // DTI
+    let frontEndDTI: number | undefined;
     let totalDTI: number | undefined;
-    let maxMonthlyPayment: number | undefined;
     let qualifies: boolean | undefined;
 
-    if (annualIncome) {
+    if (annualIncome && annualIncome > 0) {
         const monthlyIncome = annualIncome / 12;
-        housingDTI = (totalMonthlyPITIA / monthlyIncome) * 100;
-        totalDTI = ((totalMonthlyPITIA + monthlyDebts) / monthlyIncome) * 100;
-        maxMonthlyPayment = (monthlyIncome * 0.43) - monthlyDebts; // 43% max DTI
-
-        // FHA allows up to 43% back-end DTI (sometimes 50% with compensating factors)
-        qualifies = totalDTI <= 43;
+        frontEndDTI = Math.round((totalMonthly / monthlyIncome) * 1000) / 10;
+        totalDTI = Math.round(((totalMonthly + monthlyDebts) / monthlyIncome) * 1000) / 10;
+        // FHA: front ≤ 31%, back ≤ 43% (up to 50% with compensating factors)
+        qualifies = frontEndDTI <= 31 && totalDTI <= 43;
     }
-
-    // FHA Loan Limits (simplified - would need county lookup in production)
-    const fhaLoanLimit = FHA_LOAN_LIMITS.ceiling; // Use max for now
-    const withinLimits = baseLoanAmount <= fhaLoanLimit;
-
-    // FHA Requirements
-    const meetsCreditRequirement = creditScore >= 580; // 580 for 3.5% down
-    const meetsDownPaymentRequirement = downPaymentPct >= 3.5;
 
     return {
         purchasePrice,
         downPayment: Math.round(downPayment),
         downPaymentPct,
         baseLoanAmount: Math.round(baseLoanAmount),
-
         ufmip: Math.round(ufmip),
-        ufmipPct,
         totalLoanAmount: Math.round(totalLoanAmount),
-
-        monthlyPI: Math.round(monthlyPI),
-        monthlyMIP: Math.round(monthlyMIP),
-        monthlyPropertyTax: Math.round(monthlyPropertyTax),
-        monthlyHomeInsurance: Math.round(monthlyHomeInsurance),
-        monthlyHOA: Math.round(monthlyHOA),
-        totalMonthlyPITI: Math.round(totalMonthlyPITI),
-        totalMonthlyPITIA: Math.round(totalMonthlyPITIA),
-
-        totalInterest: Math.round(totalInterest),
-        totalMIPPaid: Math.round(totalMIPPaid),
-        totalPaid: Math.round(totalPaid + totalMIPPaid + (monthlyPropertyTax * numberOfPayments) + (monthlyHomeInsurance * numberOfPayments)),
-
-        housingDTI: housingDTI ? Math.round(housingDTI * 10) / 10 : undefined,
-        totalDTI: totalDTI ? Math.round(totalDTI * 10) / 10 : undefined,
-        maxMonthlyPayment: maxMonthlyPayment ? Math.round(maxMonthlyPayment) : undefined,
+        annualMIPRate,
+        monthlyMIP: Math.round(monthlyMIPValue),
+        mipDuration,
+        monthlyPI: Math.round(piPayment),
+        monthlyTax: Math.round(monthlyTax),
+        monthlyInsurance: Math.round(monthlyInsurance),
+        monthlyHOA: hoaMonthly,
+        totalMonthly: Math.round(totalMonthly),
+        frontEndDTI,
+        totalDTI,
         qualifies,
-
-        fhaLoanLimit,
-        withinLimits,
-
-        meetsCreditRequirement,
-        meetsDownPaymentRequirement,
-        mipDuration: mipInfo.duration,
+        fhaLoanLimit: FHA_LOAN_LIMIT_2024,
+        withinLimits: baseLoanAmount <= FHA_LOAN_LIMIT_2024,
+        meetsDownPaymentRequirement: downPaymentPct >= (creditScore >= 580 ? 3.5 : 10),
+        meetsCreditRequirement: creditScore >= 500,
     };
 }
 
-/**
- * Compare FHA vs Conventional
- */
+export interface FHAvsConventionalComparison {
+    fha: {
+        downPayment: number;
+        downPaymentPct: number;
+        upfrontCost: number; // down + UFMIP
+        monthlyPayment: number;
+        monthlyMI: number;
+        miDuration: string;
+        fiveYearMI: number;
+    };
+    conventional: {
+        downPayment: number;
+        downPaymentPct: number;
+        monthlyPayment: number;
+        monthlyMI: number; // PMI
+        miDuration: string;
+        fiveYearMI: number;
+    };
+}
+
 export function compareFHAvsConventional(
     purchasePrice: number,
     interestRate: number,
     annualIncome: number,
-    monthlyDebts: number = 0,
-    propertyTaxRate: number = 1.1
-): {
-    fha: FHAResult;
-    conventional: any;
-    recommendation: string;
-} {
-    // FHA with 3.5% down
-    const fha = calculateFHA({
+    monthlyDebts: number,
+    propertyTaxRate: number
+): FHAvsConventionalComparison {
+    // FHA: 3.5% down
+    const fhaResult = calculateFHA({
         purchasePrice,
         downPaymentPct: 3.5,
         interestRate,
+        creditScore: 640,
+        loanTerm: 30,
+        propertyTaxRate,
+        homeInsuranceAnnual: 1200,
+        hoaMonthly: 0,
         annualIncome,
         monthlyDebts,
-        propertyTaxRate,
     });
 
-    // Conventional with 5% down (minimum for good rates)
+    // Conventional: 5% down, no UFMIP, PMI ~0.5-1%
     const convDownPct = 5;
-    const convDownPayment = purchasePrice * (convDownPct / 100);
-    const convLoanAmount = purchasePrice - convDownPayment;
-
-    const monthlyRate = interestRate / 100 / 12;
-    const n = 30 * 12;
-    const convMonthlyPI =
-        (convLoanAmount * monthlyRate * Math.pow(1 + monthlyRate, n)) /
-        (Math.pow(1 + monthlyRate, n) - 1);
-
-    // Conventional PMI (0.5% annual for 5% down)
-    const convMonthlyPMI = (convLoanAmount * 0.005) / 12;
-
-    const convMonthlyTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const convMonthlyIns = 1200 / 12;
-    const convTotalMonthly = convMonthlyPI + convMonthlyPMI + convMonthlyTax + convMonthlyIns;
-
-    const monthlyIncome = annualIncome / 12;
-    const convDTI = ((convTotalMonthly + monthlyDebts) / monthlyIncome) * 100;
-
-    const conventional = {
-        downPayment: Math.round(convDownPayment),
-        downPaymentPct: convDownPct,
-        loanAmount: Math.round(convLoanAmount),
-        monthlyPI: Math.round(convMonthlyPI),
-        monthlyPMI: Math.round(convMonthlyPMI),
-        totalMonthly: Math.round(convTotalMonthly),
-        totalDTI: Math.round(convDTI * 10) / 10,
-    };
-
-    // Recommendation logic
-    let recommendation = '';
-    const fhaSavingsUpfront = convDownPayment - fha.downPayment;
-    const monthlySavings = conventional.totalMonthly - fha.totalMonthlyPITIA;
-
-    if (fhaSavingsUpfront > 10000 && fha.qualifies) {
-        recommendation = `FHA recommended: Save $${(fhaSavingsUpfront / 1000).toFixed(0)}k upfront, buy sooner. Monthly cost ${monthlySavings > 0 ? 'higher' : 'lower'} by $${Math.abs(monthlySavings)}.`;
-    } else if (monthlySavings > 100) {
-        recommendation = `Conventional recommended: $${Math.abs(monthlySavings)}/month savings, lower lifetime cost. Need $${((convDownPayment - fha.downPayment) / 1000).toFixed(0)}k more for down payment.`;
-    } else {
-        recommendation = `Similar costs. FHA = less upfront ($${(fhaSavingsUpfront / 1000).toFixed(0)}k savings), Conventional = lower monthly ($${Math.abs(monthlySavings)}).`;
-    }
+    const convDown = purchasePrice * 0.05;
+    const convLoan = purchasePrice - convDown;
+    const convLTV = (convLoan / purchasePrice) * 100;
+    const convPI = monthlyPI(convLoan, interestRate, 30);
+    const convTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
+    const convInsurance = 1200 / 12;
+    // PMI: ~0.65% for 95% LTV, 640 credit
+    const convPMIRate = convLTV > 90 ? 0.0065 : 0.005;
+    const convPMI = Math.round((convLoan * convPMIRate) / 12);
+    const convTotal = Math.round(convPI + convPMI + convTax + convInsurance);
 
     return {
-        fha,
-        conventional,
-        recommendation,
+        fha: {
+            downPayment: fhaResult.downPayment,
+            downPaymentPct: 3.5,
+            upfrontCost: fhaResult.downPayment + fhaResult.ufmip,
+            monthlyPayment: fhaResult.totalMonthly,
+            monthlyMI: fhaResult.monthlyMIP,
+            miDuration: fhaResult.mipDuration,
+            fiveYearMI: fhaResult.monthlyMIP * 60,
+        },
+        conventional: {
+            downPayment: Math.round(convDown),
+            downPaymentPct: convDownPct,
+            monthlyPayment: convTotal,
+            monthlyMI: convPMI,
+            miDuration: "Until 80% LTV (approx. 8-10 years)",
+            fiveYearMI: convPMI * 60,
+        },
     };
-}
-
-/**
- * Verification tests
- */
-export function runFHAVerificationTests(): boolean {
-    console.log('Running FHA Calculator Verification Tests...\n');
-
-    // Test 1: $300k home, 3.5% down, 6.5% rate, $75k income
-    const test1 = calculateFHA({
-        purchasePrice: 300000,
-        downPaymentPct: 3.5,
-        interestRate: 6.5,
-        annualIncome: 75000,
-        monthlyDebts: 400,
-    });
-
-    console.log('Test 1: $300k home, 3.5% down, 6.5%');
-    console.log('  Down payment:', test1.downPayment); // Should be $10,500
-    console.log('  UFMIP:', test1.ufmip); // Should be ~$5,066
-    console.log('  Total loan:', test1.totalLoanAmount); // Should be ~$294,566
-    console.log('  Monthly PI:', test1.monthlyPI); // Should be ~$1,863
-    console.log('  Monthly MIP:', test1.monthlyMIP); // Should be ~$135
-    console.log('  Total PITIA:', test1.totalMonthlyPITIA);
-    console.log('  DTI:', test1.totalDTI, '%'); // Should show DTI
-    console.log('  Qualifies:', test1.qualifies);
-    console.log('  MIP Duration:', test1.mipDuration);
-    console.log('');
-
-    return true;
 }
