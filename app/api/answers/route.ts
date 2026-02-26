@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { calculateMortgage } from "../../../lib/mortgageCalculator";
+import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculator";
 import {
     getGuidelineContextForQuestion,
     maybeBuildDscrOverrideAnswer,
