@@ -811,7 +811,7 @@ ${comparison ? `## 🆚 FHA vs Conventional Comparison
 | Monthly insurance | MIP: $${result.monthlyMIP} | PMI: $${convPMI} |
 | Insurance duration | ${result.mipDuration} | Until 80% LTV (auto-removes) |
 
-**Bottom line:** FHA saves $${((convDown - result.downPayment) / 1000).toFixed(0)}k upfront. Conventional saves $${(totalMonthly - convTotal)}/month long-term.
+**Bottom line:** ${(convDown - result.downPayment) >= 0 ? `FHA saves $${((convDown - result.downPayment) / 1000).toFixed(0)}k upfront.` : `FHA costs $${((result.downPayment - convDown) / 1000).toFixed(0)}k more upfront.`} ${(totalMonthly - convTotal) <= 0 ? `FHA saves $${(convTotal - totalMonthly)}/month vs Conventional.` : `Conventional saves $${(totalMonthly - convTotal)}/month long-term.`}
 
 ---
 
