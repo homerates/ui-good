@@ -304,7 +304,13 @@ function isAffordabilityQuestion(question: string): boolean {
         /afford.*calculator/i
     ];
 
-    return triggers.some(pattern => pattern.test(text));
+    if (triggers.some(pattern => pattern.test(text))) return true;
+
+    // Also trigger when user provides income + savings together (implied affordability question)
+    const hasIncome = /(?:make|earn|income|salary|i\s+make|we\s+make|gross)[\s\S]{0,30}\$?\s*\d[\d,k]+/i.test(text);
+    const hasSavings = /(?:have|saved|savings|got|saving)[\s\S]{0,30}\$?\s*\d[\d,k]+/i.test(text);
+
+    return hasIncome && hasSavings;
 }
 
 /**
@@ -2231,7 +2237,6 @@ Return valid JSON only:
 
 
 
-        // ========== END AFFORDABILITY CHECK ==========
 
 
         mark("before Grok call");
