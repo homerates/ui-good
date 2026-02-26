@@ -2128,7 +2128,7 @@ What's your situation?`,
                 console.log('[FHA] Generated FHA analysis');
 
             } catch (err: any) {
-                console.error('[FHA] Calculation error:', err.message);
+                console.error('[FHA] Calculation error:', err.message, err.stack);
             }
 
         } else {
