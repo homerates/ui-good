@@ -700,7 +700,20 @@ function buildFHAMarkdown(
     result: any,
     comparison?: any
 ): string {
-    const { purchasePrice, annualIncome, monthlyDebts } = params;
+    const { annualIncome, monthlyDebts } = params;
+
+    // Normalise field names (calculator uses monthlyTax, monthlyInsurance, totalMonthly, frontEndDTI)
+    const monthlyTax = result.monthlyTax ?? result.monthlyPropertyTax ?? 0;
+    const monthlyIns = result.monthlyInsurance ?? result.monthlyHomeInsurance ?? 0;
+    const totalMonthly = result.totalMonthly ?? result.totalMonthlyPITIA ?? 0;
+    const frontEndDTI = result.frontEndDTI ?? result.housingDTI ?? null;
+    const convTotal = comparison?.conventional?.monthlyPayment ?? comparison?.conventional?.totalMonthly ?? 0;
+    const convPMI = comparison?.conventional?.monthlyMI ?? comparison?.conventional?.monthlyPMI ?? 0;
+    const convDown = comparison?.conventional?.downPayment ?? 0;
+    const convDownPct = comparison?.conventional?.downPaymentPct ?? 5;
+    // Estimate total MIP paid (monthly MIP × duration in months, capped at 360)
+    const mipMonths = result.mipDuration === '11 years' ? 132 : result.mipDuration === 'Life of loan' ? 360 : 360;
+    const totalMIPPaid = result.monthlyMIP * mipMonths;
 
     return `**FHA Loan Analysis**
 
@@ -718,7 +731,7 @@ ${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k inco
 
 **Loan Structure:**
 - Base loan: $${(result.baseLoanAmount / 1000).toFixed(0)}k
-- UFMIP (${result.ufmipPct}%): $${(result.ufmip / 1000).toFixed(1)}k (financed)
+- UFMIP (1.75%): $${(result.ufmip / 1000).toFixed(1)}k (financed)
 - **Total loan: $${(result.totalLoanAmount / 1000).toFixed(0)}k**
 
 ---
@@ -729,9 +742,9 @@ ${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k inco
 |-----------|--------|
 | Principal & Interest | $${result.monthlyPI.toLocaleString()} |
 | Monthly MIP | $${result.monthlyMIP.toLocaleString()} |
-| Property Taxes | $${result.monthlyPropertyTax.toLocaleString()} |
-| Home Insurance | $${result.monthlyHomeInsurance.toLocaleString()} |
-${result.monthlyHOA > 0 ? `| HOA | $${result.monthlyHOA.toLocaleString()} |\n` : ''}| **Total Monthly (PITI${result.monthlyHOA > 0 ? 'A' : ''})** | **$${result.totalMonthlyPITIA.toLocaleString()}** |
+| Property Taxes | $${monthlyTax.toLocaleString()} |
+| Home Insurance | $${monthlyIns.toLocaleString()} |
+${result.monthlyHOA > 0 ? `| HOA | $${result.monthlyHOA.toLocaleString()} |\n` : ''}| **Total Monthly (PITI${result.monthlyHOA > 0 ? 'A' : ''})** | **$${totalMonthly.toLocaleString()}** |
 
 ---
 
@@ -744,25 +757,23 @@ ${result.monthlyHOA > 0 ? `| HOA | $${result.monthlyHOA.toLocaleString()} |\n` :
 **Monthly Mortgage Insurance Premium (MIP):**
 - $${result.monthlyMIP}/month
 - Duration: ${result.mipDuration}
-- Total MIP paid: $${(result.totalMIPPaid / 1000).toFixed(0)}k
+- Est. total MIP paid: $${(totalMIPPaid / 1000).toFixed(0)}k
 
-${result.mipDuration === 'Life of loan' ? `⚠️ **Note:** With ${result.downPaymentPct}% down, MIP lasts for the life of the loan. To remove MIP after 11 years, you'd need at least 10% down.` : `✅ MIP automatically removed after 11 years.`}
+${result.mipDuration === 'Life of loan' ? `⚠️ **Note:** With ${result.downPaymentPct}% down, MIP lasts for the life of the loan. Put 10%+ down to remove MIP after 11 years.` : `✅ MIP automatically removed after 11 years (10%+ down).`}
 
 ---
 
 ${annualIncome ? `## 📈 Debt-to-Income (DTI) Analysis
 
-**Housing Ratio (Front-End):** ${result.housingDTI}%
+**Housing Ratio (Front-End):** ${frontEndDTI}%
 - Your monthly payment ÷ gross income
 - FHA guideline: ≤ 31% (with flexibility)
 
 **Total DTI (Back-End):** ${result.totalDTI}%
-- Your monthly payment + debts ÷ gross income  
+- Your monthly payment + debts ÷ gross income
 - FHA guideline: ≤ 43% (up to 50% with compensating factors)
 
 ${result.qualifies ? '✅ **You qualify** based on DTI!' : '⚠️ **DTI too high** - may need higher income, lower price, or pay off debts'}
-
-${result.maxMonthlyPayment ? `**Max affordable payment (43% DTI):** $${result.maxMonthlyPayment.toLocaleString()}/month` : ''}
 
 ---
 
@@ -775,7 +786,7 @@ ${result.qualifies !== undefined ? (result.qualifies ? '✅' : '❌') + ' DTI �
 
 **FHA Advantages:**
 - ✅ Low down payment (3.5%)
-- ✅ More flexible credit requirements  
+- ✅ More flexible credit requirements
 - ✅ Gift funds allowed for down payment
 - ✅ Seller can contribute up to 6% toward closing costs
 
@@ -791,13 +802,13 @@ ${comparison ? `## 🆚 FHA vs Conventional Comparison
 
 | Feature | FHA | Conventional (5% down) |
 |---------|-----|------------------------|
-| Down payment | $${(result.downPayment / 1000).toFixed(0)}k (${result.downPaymentPct}%) | $${(comparison.conventional.downPayment / 1000).toFixed(0)}k (${comparison.conventional.downPaymentPct}%) |
-| Monthly payment | $${result.totalMonthlyPITIA.toLocaleString()} | $${comparison.conventional.totalMonthly.toLocaleString()} |
-| Upfront costs | Lower by $${((comparison.conventional.downPayment - result.downPayment) / 1000).toFixed(0)}k | Higher down payment |
-| Monthly insurance | MIP: $${result.monthlyMIP} | PMI: $${comparison.conventional.monthlyPMI} |
-| Insurance duration | ${result.mipDuration} | Until 78% LTV (auto-removes) |
+| Down payment | $${(result.downPayment / 1000).toFixed(0)}k (${result.downPaymentPct}%) | $${(convDown / 1000).toFixed(0)}k (${convDownPct}%) |
+| Monthly payment | $${totalMonthly.toLocaleString()} | $${convTotal.toLocaleString()} |
+| Upfront cash needed | $${(result.downPayment / 1000).toFixed(0)}k down | $${(convDown / 1000).toFixed(0)}k down |
+| Monthly insurance | MIP: $${result.monthlyMIP} | PMI: $${convPMI} |
+| Insurance duration | ${result.mipDuration} | Until 80% LTV (auto-removes) |
 
-**${comparison.recommendation}**
+**Bottom line:** FHA saves $${((convDown - result.downPayment) / 1000).toFixed(0)}k upfront. Conventional saves $${(totalMonthly - convTotal)}/month long-term.
 
 ---
 
@@ -2128,7 +2139,7 @@ What's your situation?`,
                 console.log('[FHA] Generated FHA analysis');
 
             } catch (err: any) {
-                console.error('[FHA] Calculation error:', err.message, err.stack);
+                console.error('[FHA] Calculation error:', err.message);
             }
 
         } else {
