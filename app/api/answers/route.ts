@@ -360,71 +360,45 @@ async function generateAffordabilityScenarios(params: {
     const { annualIncome, savings, monthlyDebt, currentRate } = params;
     const monthlyIncome = annualIncome / 12;
 
-    const scenarios = [
-        {
-            level: 'Conservative',
-            dtiTarget: 0.28,
-            downPct: 20,
-            icon: '🛡️',
-            description: 'Traditional 28% DTI guideline'
-        },
-        {
-            level: 'Comfortable',
-            dtiTarget: 0.36,
-            downPct: 15,
-            icon: '🎯',
-            description: 'Fannie Mae conventional max'
-        },
-        {
-            level: 'Aggressive',
-            dtiTarget: 0.43,
-            downPct: 10,
-            icon: '⚡',
-            description: 'Fannie Mae absolute max DTI'
-        }
-    ];
+    // Income-based annuity factor (shared)
+    const r = (currentRate / 100) / 12;
+    const n = 30 * 12;
+    const annuityFactor = (Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n));
 
-    const results = [];
+    // Helper: given DTI target and down%, compute income-qualified home price
+    function calcScenario(dtiTarget: number, downPct: number, label: string, icon: string, program: string, closingCostPct: number = 0.03) {
+        const maxHousingPayment = (monthlyIncome * dtiTarget) - monthlyDebt;
+        // Back out taxes (1.1%/yr) + insurance (0.35%/yr) from PITI budget to get max P&I
+        // PITI = PI + (price * 0.0145/12). Since price = loan/(1-down%), iteratively solve:
+        // Approximate: PI ≈ maxHousingPayment * 0.80 (taxes+ins ~20% of payment at typical prices)
+        const maxPI = maxHousingPayment * 0.80;
+        const maxLoan = maxPI * annuityFactor;
+        const homePrice = maxLoan / (1 - downPct / 100);
 
-    for (const scenario of scenarios) {
-        const maxHousingPayment = (monthlyIncome * scenario.dtiTarget) - monthlyDebt;
-        const maxPI = maxHousingPayment / 1.3;
+        const loanAmount = homePrice * (1 - downPct / 100);
+        const downPaymentAmount = homePrice * (downPct / 100);
+        const closingCosts = homePrice * closingCostPct;
+        const totalCashNeeded = downPaymentAmount + closingCosts;
+        const savingsGap = Math.max(0, totalCashNeeded - savings);
+        const savingsAfterClose = Math.max(0, savings - totalCashNeeded);
 
-        const r = (currentRate / 100) / 12;
-        const n = 30 * 12;
-        const maxLoanAmount = maxPI * (Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n));
-
-        const maxHomePrice = maxLoanAmount / (1 - scenario.downPct / 100);
-        const downPaymentAmount = maxHomePrice * (scenario.downPct / 100);
-
-        const adjustedHomePrice = downPaymentAmount > savings
-            ? (savings * 0.95) / (scenario.downPct / 100)
-            : maxHomePrice;
-
-        const finalDownPayment = adjustedHomePrice * (scenario.downPct / 100);
-        const finalLoanAmount = adjustedHomePrice - finalDownPayment;
-
-        const mortgage = calculateMortgage({
-            price: adjustedHomePrice,
-            downPaymentPct: scenario.downPct,
-            rate: currentRate,
-            termYears: 30
-        });
-
-        const monthlyTax = (adjustedHomePrice * 0.011) / 12;
-        const monthlyInsurance = adjustedHomePrice * 0.0035 / 12;
-        const monthlyPMI = scenario.downPct < 20 ? finalLoanAmount * 0.005 / 12 : 0;
+        const mortgage = calculateMortgage({ price: homePrice, downPaymentPct: downPct, rate: currentRate, termYears: 30 });
+        const monthlyTax = (homePrice * 0.011) / 12;
+        const monthlyInsurance = homePrice * 0.0035 / 12;
+        const monthlyPMI = downPct < 20 ? loanAmount * 0.005 / 12 : 0;
         const totalMonthly = mortgage.monthlyPI + monthlyTax + monthlyInsurance + monthlyPMI;
         const actualDTI = ((totalMonthly + monthlyDebt) / monthlyIncome) * 100;
 
-        results.push({
-            level: scenario.level,
-            icon: scenario.icon,
-            description: scenario.description,
-            homePrice: Math.round(adjustedHomePrice),
-            downPaymentPct: scenario.downPct,
-            downPaymentAmount: Math.round(finalDownPayment),
-            loanAmount: Math.round(finalLoanAmount),
+        return {
+            label, icon, program, dtiTarget,
+            homePrice: Math.round(homePrice),
+            downPaymentPct: downPct,
+            downPaymentAmount: Math.round(downPaymentAmount),
+            closingCosts: Math.round(closingCosts),
+            totalCashNeeded: Math.round(totalCashNeeded),
+            savingsGap: Math.round(savingsGap),
+            savingsAfterClose: Math.round(savingsAfterClose),
+            loanAmount: Math.round(loanAmount),
             monthlyPI: Math.round(mortgage.monthlyPI),
             monthlyTax: Math.round(monthlyTax),
             monthlyInsurance: Math.round(monthlyInsurance),
@@ -432,9 +406,16 @@ async function generateAffordabilityScenarios(params: {
             totalMonthly: Math.round(totalMonthly),
             totalInterest: Math.round(mortgage.totalInterest),
             dtiRatio: Math.round(actualDTI * 10) / 10,
-            rate: currentRate
-        });
+            rate: currentRate,
+        };
     }
+
+    // 3 scenarios: FHA 3.5%, Conventional 3%, Conventional 20%
+    const results = [
+        calcScenario(0.43, 3.5, 'FHA (3.5% down)', '🏠', 'FHA'),
+        calcScenario(0.43, 3.0, 'Conventional (3% down)', '🎯', 'Conventional'),
+        calcScenario(0.43, 20.0, 'Conventional (20% down)', '🛡️', 'Conventional'),
+    ];
 
     return results;
 }
@@ -446,29 +427,11 @@ function generateAffordabilityFollowUp(
     params: { annualIncome: number; savings: number; monthlyDebt: number },
     scenarios: any[]
 ): string {
-    const [conservative, comfortable, aggressive] = scenarios;
+    const [fha, conv3, conv20] = scenarios;
 
-    const conservativeReserves = params.savings - conservative.downPaymentAmount;
-    const comfortableReserves = params.savings - comfortable.downPaymentAmount;
-
-    const twoMonthsReserve = conservative.totalMonthly * 2;
-    if (conservativeReserves < twoMonthsReserve) {
-        const fhaDown = conservative.homePrice * 0.035;
-        const fhaReserves = Math.round((params.savings - fhaDown) / 1000);
-        return `FHA requires no reserves and you'd keep ~$${fhaReserves}k after closing. Want to see FHA scenarios vs conventional with reserves?`;
-    }
-
-    const sixMonthsReserve = conservative.totalMonthly * 6;
-    if (conservativeReserves < sixMonthsReserve && comfortable.homePrice > 766000) {
-        return `Jumbo loans typically require 6-12 months reserves. You have ${Math.floor(conservativeReserves / conservative.totalMonthly)} months. Want to see conforming loan options or saving strategies?`;
-    }
-
-    if (comfortable.downPaymentPct < 20) {
-        const twentyPercent = comfortable.homePrice * 0.2;
-        const shortfall = Math.round((twentyPercent - params.savings) / 1000);
-        if (shortfall > 0 && shortfall < 50) {
-            return `You're $${shortfall}k away from 20% down (avoids PMI ~$${comfortable.monthlyPMI}/mo). Want to see savings timeline or explore conventional <20% down with reserve requirements?`;
-        }
+    if (fha.savingsGap > 0) {
+        const gapK = Math.round(fha.savingsGap / 1000);
+        return `You need $${gapK}k more to close on the FHA option. Want to see a savings timeline, or explore a lower-priced home that fits your current $${Math.round(params.savings / 1000)}k?`;
     }
 
     if (params.monthlyDebt >= 300) {
@@ -476,11 +439,12 @@ function generateAffordabilityFollowUp(
         return `Paying off that $${params.monthlyDebt}/month debt could increase your budget by ~$${budgetIncrease}k. Want to see that scenario?`;
     }
 
-    if (conservativeReserves > sixMonthsReserve) {
-        return "You have strong reserves! Want to explore specific locations, see how rates affect buying power, or compare conventional vs jumbo programs?";
+    if (conv20.savingsGap > 0) {
+        const gapK = Math.round(conv20.savingsGap / 1000);
+        return `You're $${gapK}k away from 20% down (no PMI). Want to see a savings plan, or run the numbers on a specific home price?`;
     }
 
-    return "Want to compare FHA vs conventional reserve requirements, adjust down payment percentages, or explore different locations?";
+    return "Want to run numbers on a specific home, location, or see how different rates affect your payment?";
 }
 
 /**
@@ -490,107 +454,80 @@ function buildAffordabilityMarkdown(
     params: { annualIncome: number; savings: number; monthlyDebt: number },
     scenarios: any[]
 ): string {
-    const [conservative, comfortable, aggressive] = scenarios;
+    const [fha, conv3, conv20] = scenarios;
+    const monthlyGross = Math.round(params.annualIncome / 12);
 
-    const conservativeReserves = params.savings - conservative.downPaymentAmount;
-    const comfortableReserves = params.savings - comfortable.downPaymentAmount;
-    const aggressiveReserves = params.savings - aggressive.downPaymentAmount;
+    const cashNote = (s: any) => {
+        const haveK = Math.round(params.savings / 1000);
+        const needK = Math.round(s.totalCashNeeded / 1000);
+        const gapK = Math.round(s.savingsGap / 1000);
+        const afterK = Math.round(s.savingsAfterClose / 1000);
+        if (s.savingsGap > 0) {
+            return `💰 **Cash needed:** $${needK}k (down + closing) | You have $${haveK}k | **Need $${gapK}k more**`;
+        }
+        return `💰 **Cash needed:** $${needK}k (down + closing) | You have $${haveK}k | ✅ $${afterK}k left after closing`;
+    };
 
-    return `**What You Can Afford - First-Time Buyer Analysis**
+    const scenarioBlock = (s: any, star: string = '') => `## ${s.icon} ${s.label}${star}
 
-Based on **$${(params.annualIncome / 1000).toFixed(0)}k annual income** and **$${(params.savings / 1000).toFixed(0)}k saved**, here are your 3 scenarios:
+| | |
+|--|--|
+| **Max Home Price** | **$${s.homePrice.toLocaleString()}** |
+| Down Payment (${s.downPaymentPct}%) | $${s.downPaymentAmount.toLocaleString()} |
+| Closing Costs (~3%) | $${s.closingCosts.toLocaleString()} |
+| Loan Amount | $${s.loanAmount.toLocaleString()} |
 
----
+**Monthly Payment:**
+| Component | Amount |
+|-----------|--------|
+| Principal & Interest | $${s.monthlyPI.toLocaleString()} |
+| Property Taxes (est.) | $${s.monthlyTax.toLocaleString()} |
+| Home Insurance | $${s.monthlyInsurance.toLocaleString()} |
+${s.monthlyPMI > 0 ? `| PMI/MIP | $${s.monthlyPMI.toLocaleString()} |
+` : ''}| **Total PITI${s.monthlyPMI > 0 ? '+MI' : ''}** | **$${s.totalMonthly.toLocaleString()}/mo** |
 
-## ${conservative.icon} Conservative ($${(conservative.homePrice / 1000).toFixed(0)}k)
+- DTI used: ${s.dtiRatio}% of $${monthlyGross.toLocaleString()}/mo gross
+- Total interest over 30yr: $${Math.round(s.totalInterest / 1000)}k
+${cashNote(s)}`;
 
-**Fannie Mae Guidelines: 28% DTI (Traditional)**
+    return `**What You Can Afford — Income-Based Analysis**
 
-**Monthly Breakdown:**
-- P&I: $${conservative.monthlyPI.toLocaleString()}
-- Taxes/Insurance: ~$${(conservative.monthlyTax + conservative.monthlyInsurance).toLocaleString()}
-${conservative.monthlyPMI > 0 ? `- PMI: $${conservative.monthlyPMI}\n` : ''}- **Total: $${conservative.totalMonthly.toLocaleString()}/month**
+**$${Math.round(params.annualIncome / 1000)}k/year = $${monthlyGross.toLocaleString()}/mo gross** | Rate: ${fha.rate}%${params.monthlyDebt > 0 ? ` | $${params.monthlyDebt}/mo existing debt factored in` : ''}
 
-**Details:**
-- Down payment: $${(conservative.downPaymentAmount / 1000).toFixed(0)}k (${conservative.downPaymentPct}%)
-- Actual DTI: ${conservative.dtiRatio}%
-- Reserves after closing: $${(conservativeReserves / 1000).toFixed(1)}k
-- Total interest (30yr): $${(conservative.totalInterest / 1000).toFixed(0)}k
-
-✅ **Best for:** Maximum financial safety${conservative.downPaymentPct >= 20 ? ', no PMI' : ''}, strong cushion
-
----
-
-## ${comfortable.icon} Comfortable ($${(comfortable.homePrice / 1000).toFixed(0)}k) ⭐
-
-**Fannie Mae Guidelines: 36% DTI (Conventional Max)**
-
-**Monthly Breakdown:**
-- P&I: $${comfortable.monthlyPI.toLocaleString()}
-- Taxes/Insurance: ~$${(comfortable.monthlyTax + comfortable.monthlyInsurance).toLocaleString()}
-${comfortable.monthlyPMI > 0 ? `- PMI: $${comfortable.monthlyPMI}\n` : ''}- **Total: $${comfortable.totalMonthly.toLocaleString()}/month**
-
-**Details:**
-- Down payment: $${(comfortable.downPaymentAmount / 1000).toFixed(0)}k (${comfortable.downPaymentPct}%)
-- Actual DTI: ${comfortable.dtiRatio}%
-- Reserves after closing: $${(comfortableReserves / 1000).toFixed(1)}k
-- Total interest (30yr): $${(comfortable.totalInterest / 1000).toFixed(0)}k
-
-✅ **Best for:** Sweet spot for most buyers - balance of options and affordability
+> 💡 Home prices below are based on what your **income qualifies for** at 43% DTI. Savings gap is shown separately — you may have more savings than listed, or can save toward the gap.
 
 ---
 
-## ${aggressive.icon} Aggressive ($${(aggressive.homePrice / 1000).toFixed(0)}k)
-
-**Fannie Mae Guidelines: 43% DTI (Absolute Max)**
-
-**Monthly Breakdown:**
-- P&I: $${aggressive.monthlyPI.toLocaleString()}
-- Taxes/Insurance: ~$${(aggressive.monthlyTax + aggressive.monthlyInsurance).toLocaleString()}
-${aggressive.monthlyPMI > 0 ? `- PMI: $${aggressive.monthlyPMI}\n` : ''}- **Total: $${aggressive.totalMonthly.toLocaleString()}/month**
-
-**Details:**
-- Down payment: $${(aggressive.downPaymentAmount / 1000).toFixed(0)}k (${aggressive.downPaymentPct}%)
-- Actual DTI: ${aggressive.dtiRatio}%
-- Reserves after closing: $${(aggressiveReserves / 1000).toFixed(1)}k
-- Total interest (30yr): $${(aggressive.totalInterest / 1000).toFixed(0)}k
-
-⚠️ **Consider:** Maximum buying power but tightest budget
+${scenarioBlock(fha, ' ⭐ Lowest barrier to entry')}
 
 ---
 
-**Reserve Requirements by Program**
-
-Different loan programs require different reserves after closing:
-
-| Program | Minimum Reserves | Conservative | Comfortable |
-|---------|------------------|--------------|-------------|
-| **FHA (3.5% down)** | Typically none | $${(conservativeReserves / 1000).toFixed(0)}k ✅ | $${(comfortableReserves / 1000).toFixed(0)}k ✅ |
-| **Conventional (<20%)** | 2-6 months PITI* | ${conservativeReserves >= (conservative.totalMonthly * 2) ? `$${(conservativeReserves / 1000).toFixed(0)}k ✅` : `⚠️ Need more`} | ${comfortableReserves >= (comfortable.totalMonthly * 2) ? `$${(comfortableReserves / 1000).toFixed(0)}k ✅` : `⚠️ Need more`} |
-| **Conventional (20%+)** | 2-12 months PITI* | ${conservativeReserves >= (conservative.totalMonthly * 2) ? `$${(conservativeReserves / 1000).toFixed(0)}k ✅` : `⚠️ Need more`} | ${comfortableReserves >= (comfortable.totalMonthly * 2) ? `$${(comfortableReserves / 1000).toFixed(0)}k ✅` : `⚠️ Need more`} |
-| **Jumbo (>$766k)** | 6-12 months PITI* | ${conservativeReserves >= (conservative.totalMonthly * 6) ? `$${(conservativeReserves / 1000).toFixed(0)}k ✅` : `⚠️ Need more`} | ${comfortableReserves >= (comfortable.totalMonthly * 6) ? `$${(comfortableReserves / 1000).toFixed(0)}k ✅` : `⚠️ Need more`} |
-
-*PITI = Principal + Interest + Taxes + Insurance
-
-**Note:** Reserve requirements vary by lender, credit score, and loan-to-value ratio. Higher reserves may be required for investment properties, multi-units, lower credit scores, or high DTI ratios.
+${scenarioBlock(conv3, ' — Lowest conventional down')}
 
 ---
 
-**DTI Explained:**
-- **28% DTI:** Traditional guideline - housing under 28% of gross income
-- **36% DTI:** Fannie Mae conventional max - standard for most buyers
-- **43% DTI:** Fannie Mae absolute max - some lenders with strong credit
+${scenarioBlock(conv20, ' — No PMI, best long-term rate')}
 
-**Key Insights:**
+---
 
-${params.monthlyDebt > 0 ? `- Factored in $${params.monthlyDebt}/month existing debt\n` : ''}- All scenarios use ${conservative.rate}% current rate
-- Comfortable (36% DTI) is where most first-time buyers land
-${conservativeReserves < (conservative.totalMonthly * 2) ? `- ⚠️ **Reserve Alert:** $${(conservativeReserves / 1000).toFixed(1)}k after closing is below typical 2-month requirement\n  - Consider **FHA** (no reserve requirement) or **save more**\n` : conservativeReserves < (conservative.totalMonthly * 6) ? `- ✅ **Reserves:** $${(conservativeReserves / 1000).toFixed(1)}k meets most conventional requirements\n` : `- ✅ **Strong Reserves:** $${(conservativeReserves / 1000).toFixed(1)}k exceeds most requirements\n`}${comfortable.downPaymentPct < 20 ? `- With 20% down ($${Math.round(comfortable.homePrice * 0.2 / 1000)}k), you'd avoid PMI (saves $${comfortable.monthlyPMI}/month)\n` : ''}
+## 📊 Side-by-Side Comparison
+
+| | FHA 3.5% | Conv 3% | Conv 20% |
+|--|--|--|--|
+| Max home price | $${Math.round(fha.homePrice / 1000)}k | $${Math.round(conv3.homePrice / 1000)}k | $${Math.round(conv20.homePrice / 1000)}k |
+| Cash needed | $${Math.round(fha.totalCashNeeded / 1000)}k | $${Math.round(conv3.totalCashNeeded / 1000)}k | $${Math.round(conv20.totalCashNeeded / 1000)}k |
+| You have | $${Math.round(params.savings / 1000)}k | $${Math.round(params.savings / 1000)}k | $${Math.round(params.savings / 1000)}k |
+| Gap to close | ${fha.savingsGap > 0 ? `**$${Math.round(fha.savingsGap / 1000)}k more**` : `✅ Ready`} | ${conv3.savingsGap > 0 ? `**$${Math.round(conv3.savingsGap / 1000)}k more**` : `✅ Ready`} | ${conv20.savingsGap > 0 ? `**$${Math.round(conv20.savingsGap / 1000)}k more**` : `✅ Ready`} |
+| Monthly PITI | $${fha.totalMonthly.toLocaleString()} | $${conv3.totalMonthly.toLocaleString()} | $${conv20.totalMonthly.toLocaleString()} |
+| PMI/MIP | Yes (life of loan) | Yes (until 80% LTV) | ❌ None |
+
+---
+
 **Next Steps:**
-1. **Get pre-approved** with 2-3 lenders (rates and reserve requirements vary)
-2. **Ask about reserves** - requirements differ by program and lender
-3. **Factor location** - taxes vary widely by area
-4. **Consider FHA** if reserves are tight (typically no requirement)`;
+1. **FHA** — best if savings are tight (3.5% down, flexible credit)
+2. **Conventional 3%** — no UFMIP, PMI cancels at 80% LTV
+3. **Conventional 20%** — no PMI, lowest monthly payment long-term
+4. Get pre-approved with 2–3 lenders to lock in your rate`;
 }
 
 // ===== END AFFORDABILITY HELPERS =====
