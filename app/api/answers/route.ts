@@ -304,10 +304,18 @@ function isAffordabilityQuestion(question: string): boolean {
     if (triggers.some(pattern => pattern.test(text))) return true;
 
     // Also trigger when user provides income + savings together (implied affordability question)
-    const hasIncome = /(?:make|earn|income|salary|i\s+make|we\s+make|gross)[\s\S]{0,30}[\$]?\s*\d[\d,k]+/i.test(text);
-    const hasSavings = /(?:have|saved|savings|got|saving)[\s\S]{0,30}[\$]?\s*\d[\d,k]+/i.test(text);
+    const hasIncome = /(?:make|earn|income|salary|i\s+make|we\s+make|gross|making|earning)\s*(?:is\s*|of\s*)?[\s\S]{0,20}[\$]?\s*\d[\d,k]+/i.test(text) ||
+        /[\$]?\s*\d[\d,k]+\s*(?:income|salary|a year|\/year|per year|annually)/i.test(text);
+    const hasSavings = /(?:have|saved|savings|got|saving)\s*[\$]?\s*\d[\d,k]+/i.test(text) ||
+        /[\$]?\s*\d[\d,k]+\s*(?:saved|savings|in savings|in the bank)/i.test(text);
 
-    return hasIncome && hasSavings;
+    if (hasIncome && hasSavings) return true;
+
+    // Also trigger for "home buying options" / "options" when income context present
+    const hasOptions = /(?:home buying|buying|purchase|buy)\s*(?:options|scenarios|choices)/i.test(text) ||
+        /(?:what are my|show me|what(?:'s| is) my)\s*options/i.test(text);
+
+    return hasIncome && hasOptions;
 }
 
 /**
@@ -321,17 +329,20 @@ function extractAffordabilityParams(question: string): {
 } {
     const text = question.toLowerCase();
 
-    // Income: "$95k", "95k income", "make $95,000", "120k salary"
-    const incomeMatch = text.match(/\$?\s*(\d+)k?\s*(?:income|salary|make|earn|year)/i) ||
-        text.match(/(?:income|salary|make|earn)\s*\$?\s*(\d+)k?/i);
+    // Income: "$95k/year", "income $65k", "make $95,000", "120k salary", "earn 80k a year"
+    const incomeMatch = text.match(/(?:make|earn|income|salary|making|earning)\s*(?:is\s*|of\s*|about\s*)?\$?\s*(\d+(?:,\d{3})*)k?\s*(?:\/year|a year|per year|year|annually)?/i) ||
+        text.match(/\$?\s*(\d+(?:,\d{3})*)k?\s*(?:income|salary|a year|\/year|per year|annually)/i) ||
+        text.match(/\$?\s*(\d+)k\s*(?:a year|year|salary|income)?/i);
     let annualIncome = incomeMatch ? parseFloat(incomeMatch[1]) : undefined;
 
     if (annualIncome && text.includes('k') && annualIncome < 1000) {
         annualIncome *= 1000;
     }
 
-    // Savings: "$40k saved", "have $40,000", "down payment 50k"
-    const savingsMatch = text.match(/\$?\s*(\d+)k?\s*(?:saved|down|savings)/i) ||
+    // Savings: "$40k saved", "have $40,000", "savings $15k", "$15k savings", "down payment 50k"
+    const savingsMatch = text.match(/\$?\s*(\d+)k?\s*(?:saved|savings|down payment)/i) ||
+        text.match(/(?:savings|saved)\s*(?:of\s*)?\$?\s*(\d+)k?/i) ||
+        text.match(/(?:have|with)\s*\$?\s*(\d+)k?\s*(?:saved|savings|in savings|available)?/i) ||
         text.match(/(?:have|saved)\s*\$?\s*(\d+)k?/i);
     let savings = savingsMatch ? parseFloat(savingsMatch[1]) : undefined;
 
@@ -2443,10 +2454,57 @@ ${dtiSection}
     // ========== AFFORDABILITY ADVISOR CHECK ==========
     let affordabilityAnswer = null;
 
-    if (isAffordabilityQuestion(question)) {
+    // Detect debt/savings change follow-ups that should re-run the affordability calculator
+    // e.g. "what if I have $800 in monthly debt", "what if I pay off my car"
+    function isAffordabilityFollowUp(q: string): { isFollowUp: boolean; debtOverride?: number; savingsOverride?: number } {
+        const t = q.toLowerCase();
+        // "what if I have $X in monthly debt" / "add $X debt" / "with $X monthly debt"
+        const debtMatch = t.match(/(?:what if|add|with|including|have|had)\s*(?:i have\s*)?[\$]?\s*(\d+)\s*(?:in\s*)?(?:monthly\s*)?(?:debt|payment|obligation)/i) ||
+            t.match(/[\$]?\s*(\d+)\s*(?:\/mo|per month|monthly|a month)\s*(?:in\s*)?(?:debt|payments?)/i);
+        const debtOverride = debtMatch ? parseFloat(debtMatch[1]) : undefined;
+
+        // "what if I pay off my car/debt" → debt = 0
+        const payOff = /pay\s*off|zero\s*debt|no\s*debt|without\s*debt|debt.{0,10}free/i.test(t);
+
+        const hasMutator = !!(debtOverride !== undefined || payOff);
+        return { isFollowUp: hasMutator, debtOverride: payOff ? 0 : debtOverride };
+    }
+
+    // Check debt/savings follow-up FIRST — may override params from memory
+    const affordFollowUp = isAffordabilityFollowUp(question);
+
+    // Try to pull prior affordability context from recent Grok memory (in-request context)
+    // We look for income/savings in the recent conversation history passed to Grok
+    let priorAffordContext: { annualIncome?: number; savings?: number; monthlyDebt?: number } | null = null;
+    if (affordFollowUp.isFollowUp) {
+        // Scan recent message history for income/savings values
+        const historyText = conversationHistory || '';
+        const histIncome = historyText.match(/\$?([\d,]+)k?\s*(?:\/year|a year|per year|income|salary)/i) ||
+            historyText.match(/(?:make|earn|income|salary)[^\d]*\$?([\d,]+)k?/i);
+        const histSavings = historyText.match(/\$?([\d,]+)k?\s*(?:saved|savings|in the bank|in savings)/i) ||
+            historyText.match(/(?:have|with|savings)[^\d]*\$?([\d,]+)k?/i);
+        if (histIncome || histSavings) {
+            let inc = histIncome ? parseFloat(histIncome[1]) : undefined;
+            let sav = histSavings ? parseFloat(histSavings[1]) : undefined;
+            if (inc && inc < 1000) inc *= 1000;
+            if (sav && sav < 1000) sav *= 1000;
+            priorAffordContext = { annualIncome: inc, savings: sav };
+        }
+    }
+
+    if (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && priorAffordContext?.annualIncome)) {
         console.log('[Affordability] Detected affordability question');
 
         const affordParams = extractAffordabilityParams(question);
+
+        // If it's a follow-up with debt change, merge prior context
+        if (affordFollowUp.isFollowUp && priorAffordContext?.annualIncome && !affordParams.hasInfo) {
+            affordParams.annualIncome = priorAffordContext.annualIncome;
+            affordParams.savings = priorAffordContext.savings || affordParams.savings || 10000;
+            affordParams.monthlyDebt = affordFollowUp.debtOverride ?? affordParams.monthlyDebt ?? 0;
+            (affordParams as any).hasInfo = true;
+            console.log('[Affordability] Follow-up override applied:', affordParams);
+        }
 
         if (affordParams.hasInfo) {
             // User provided income and savings - generate scenarios
