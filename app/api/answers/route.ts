@@ -630,11 +630,13 @@ function extractFHAParams(question: string): {
 } {
     const text = question.toLowerCase();
 
-    // Purchase price
-    const priceMatch = text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
-        text.match(/(?:price|purchase).*?\$?\s*([\d,]+)k?/i);
+    // Purchase price — handles "$500K", "$500,000", "$500k home", "purchase price $500k"
+    const priceMatch = text.match(/\$\s*([\d,]+)\s*k\b/i) ||
+        text.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ||
+        text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
+        text.match(/(?:price|purchase|home|house|property).*?\$?\s*([\d,]+)k?/i);
     let purchasePrice = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : undefined;
-    if (purchasePrice && text.includes('k') && purchasePrice < 10000) {
+    if (purchasePrice && /\$\s*[\d,]+k\b/i.test(text) && purchasePrice < 10000) {
         purchasePrice *= 1000;
     }
 
@@ -642,20 +644,19 @@ function extractFHAParams(question: string): {
     const downMatch = text.match(/(\d+\.?\d*)\s*%\s*down/i);
     const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 3.5; // FHA default
 
-    // Interest rate
+    // Interest rate — treat "current rates" as FRED fallback (undefined → uses fred avg downstream)
     let rateMatch = text.match(/(?:rate|interest).*?(\d+\.?\d*)\s*%/i);
     if (!rateMatch) {
         rateMatch = text.match(/at\s+(\d+\.?\d*)\s*%/i);
     }
-    const interestRate = rateMatch ? parseFloat(rateMatch[1]) : undefined;
+    const explicitRate = rateMatch ? parseFloat(rateMatch[1]) : undefined;
+    const interestRate = explicitRate; // undefined = use FRED avg (handled in calculateFHA call)
 
-    // Income
-    const incomeMatch = text.match(/(?:income|makes?|earn|salary).*?\$?\s*([\d,]+)k?/i) ||
-        text.match(/\$?\s*([\d,]+)k?\s*(?:income|salary|year|annual)/i);
+    // Income — same robust regex as conventional calculator
+    const incomeMatch = text.match(/(?:i\s+earn|i\s+make|we\s+make|earn|makes?|income|salary)\s+[\$]?\s*([\d,]+)\s*k?\b/i) ||
+        text.match(/[\$]\s*([\d,]+)\s*k?\s*(?:income|salary|a\s+year|per\s+year|annually)/i);
     let annualIncome = incomeMatch ? parseFloat(incomeMatch[1].replace(/,/g, '')) : undefined;
-    if (annualIncome && text.includes('k') && annualIncome < 1000) {
-        annualIncome *= 1000;
-    }
+    if (annualIncome && annualIncome < 1000) annualIncome *= 1000;
 
     // Monthly debts
     const debtMatch = text.match(/\$\s*(\d+)\s*(?:car|student|debt|loan)\s*payment/i) ||
@@ -816,6 +817,168 @@ ${comparison ? `## 🆚 FHA vs Conventional Comparison
 }
 
 // ===== END FHA HELPERS =====
+
+// ===== DSCR / SCENARIO CALCULATOR HELPERS =====
+
+function isDSCRQuestion(q: string): boolean {
+    if (/\bfha\b/i.test(q)) return false;
+    if (isAffordabilityQuestion(q)) return false;
+    if (/\bfha\b/i.test(q)) return false;
+    return /dscr|debt.?service.?coverage|rental income|investment property|cash.?flow|gross rent|pitia/i.test(q) ||
+        (/rent/i.test(q) && /\$[\s\d,]+k?\b/i.test(q) && /home|house|property|loan|mortgage/i.test(q));
+}
+
+function extractDSCRParams(q: string, fredRate?: number) {
+    const priceMatch = q.match(/\$\s*([\d,]+)k?\b/i);
+    let purchasePrice = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : undefined;
+    if (purchasePrice && /\$\s*[\d]+k\b/i.test(q) && purchasePrice < 10000) purchasePrice *= 1000;
+
+    const downMatch = q.match(/(\d+\.?\d*)\s*%\s*down/i);
+    const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 20;
+
+    const rateMatch = q.match(/(?:rate|at|@)\s*(\d+\.?\d*)\s*%/i) || q.match(/(\d+\.?\d*)\s*%\s*(?:rate|interest)/i);
+    const rateFromFRED = !rateMatch;
+    const interestRate = rateMatch ? parseFloat(rateMatch[1]) : (fredRate || 6.5);
+
+    const rentMatch = q.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*([\d,]+)k?/i) ||
+        q.match(/\$\s*([\d,]+)k?\s*(?:\/mo|per\s*month|rent)/i);
+    let grossMonthlyRent = rentMatch ? parseFloat(rentMatch[1].replace(/,/g, '')) : undefined;
+    if (grossMonthlyRent && grossMonthlyRent < 100) grossMonthlyRent *= 1000;
+
+    const taxMatch = q.match(/(?:tax|taxes)\s*(?:rate|of)?\s*(\d+\.?\d*)\s*%/i);
+    const propertyTaxRate = taxMatch ? parseFloat(taxMatch[1]) : 1.1;
+
+    const hoaMatch = q.match(/hoa\s*[\$:]?\s*([\d,]+)/i) || q.match(/\$\s*([\d,]+)\s*hoa/i);
+    const hoaMonthly = hoaMatch ? parseFloat(hoaMatch[1].replace(/,/g, '')) : 0;
+
+    const hasInfo = !!(purchasePrice && grossMonthlyRent);
+    return { purchasePrice, downPaymentPct, interestRate, grossMonthlyRent, propertyTaxRate, annualInsurance: 1200, hoaMonthly, rateFromFRED, hasInfo };
+}
+
+function buildDSCRMarkdown(params: ReturnType<typeof extractDSCRParams>): object {
+    const { purchasePrice, downPaymentPct, interestRate, grossMonthlyRent, propertyTaxRate, annualInsurance, hoaMonthly, rateFromFRED } = params as any;
+
+    const downPayment = purchasePrice * (downPaymentPct / 100);
+    const loanAmount = purchasePrice - downPayment;
+    const monthlyRate = (interestRate / 100) / 12;
+    const n = 360;
+    const monthlyPI = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
+    const monthlyTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
+    const monthlyIns = (annualInsurance || 1200) / 12;
+    const monthlyHOA = hoaMonthly || 0;
+    const monthlyPITIA = monthlyPI + monthlyTax + monthlyIns + monthlyHOA;
+    const dscr = grossMonthlyRent / monthlyPITIA;
+    const monthlyCashFlow = grossMonthlyRent - monthlyPITIA;
+    const annualCashFlow = monthlyCashFlow * 12;
+    const totalInterest = (monthlyPI * 360) - loanAmount;
+
+    const dscrStatus = dscr >= 1.25 ? '✅ **Excellent** — most lenders approve at 1.25x+'
+        : dscr >= 1.0 ? '✅ **Qualifies** — meets minimum 1.0x (some lenders require 1.25x)'
+            : dscr >= 0.75 ? '⚠️ **Below 1.0x** — select lenders (LoanDepot, Griffin) allow 0.75x+ with reserves'
+                : '❌ **Does not qualify** — DSCR too low for standard programs';
+
+    // Amortization snapshot
+    const snapYears = [1, 5, 10, 15, 20, 30];
+    let balance = loanAmount;
+    const snapRows: string[] = [];
+    let cumPrincipal = 0;
+    for (let yr = 1; yr <= 30; yr++) {
+        let yrPrincipal = 0; let yrInterest = 0;
+        for (let mo = 0; mo < 12; mo++) {
+            const intPmt = balance * monthlyRate;
+            const prinPmt = monthlyPI - intPmt;
+            yrInterest += intPmt; yrPrincipal += prinPmt;
+            balance = Math.max(0, balance - prinPmt);
+        }
+        cumPrincipal += yrPrincipal;
+        if (snapYears.includes(yr)) {
+            snapRows.push(`| ${yr} | $${Math.round(cumPrincipal).toLocaleString()} | $${Math.round(yrInterest).toLocaleString()} | $${Math.round(balance).toLocaleString()} |`);
+        }
+    }
+
+    const rateNote = rateFromFRED ? ' (FRED avg)' : '';
+    const hoaRow = monthlyHOA > 0 ? `| HOA | $${monthlyHOA.toLocaleString()} |\n` : '';
+
+    const answer = `**DSCR Investment Property Analysis**
+
+**Property:** $${purchasePrice.toLocaleString()} | **Rent:** $${grossMonthlyRent.toLocaleString()}/mo | **Rate:** ${interestRate}%${rateNote}
+
+---
+
+## 🏠 Loan Structure
+
+| | |
+|--|--|
+| Purchase Price | $${purchasePrice.toLocaleString()} |
+| Down Payment | $${Math.round(downPayment).toLocaleString()} (${downPaymentPct}%) |
+| Loan Amount | $${Math.round(loanAmount).toLocaleString()} |
+| Interest Rate | ${interestRate}% (30-year fixed) |
+| Total Interest | $${Math.round(totalInterest).toLocaleString()} |
+
+---
+
+## 💰 Monthly PITIA Breakdown
+
+| Component | Amount |
+|-----------|--------|
+| Principal & Interest | $${Math.round(monthlyPI).toLocaleString()} |
+| Property Taxes (${propertyTaxRate}%) | $${Math.round(monthlyTax).toLocaleString()} |
+| Insurance | $${Math.round(monthlyIns).toLocaleString()} |
+${hoaRow}| **Total PITIA** | **$${Math.round(monthlyPITIA).toLocaleString()}** |
+
+---
+
+## 📊 DSCR Analysis
+
+| Metric | Value |
+|--------|-------|
+| Gross Monthly Rent | $${grossMonthlyRent.toLocaleString()} |
+| Monthly PITIA | $${Math.round(monthlyPITIA).toLocaleString()} |
+| **DSCR (Rent ÷ PITIA)** | **${dscr.toFixed(2)}x** |
+| Monthly Cash Flow | ${monthlyCashFlow >= 0 ? '+' : ''}$${Math.round(monthlyCashFlow).toLocaleString()} |
+| Annual Cash Flow | ${annualCashFlow >= 0 ? '+' : ''}$${Math.round(annualCashFlow).toLocaleString()} |
+
+${dscrStatus}
+
+**DSCR Lender Benchmarks:**
+- 1.25x+ → Most lenders (LoanDepot, Griffin, JMAC)
+- 1.0x → Minimum for standard programs
+- 0.75x–1.0x → Select lenders with 6–12 months reserves
+- <0.75x → Very limited options
+
+---
+
+## 📈 Amortization Snapshot
+
+| Year | Cum. Principal | Yr Interest | Balance |
+|------|----------------|-------------|---------|
+${snapRows.join('\n')}
+
+---
+
+## ⚠️ Key Risks
+
+${dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent, reserves required\n' : ''}${downPaymentPct < 20 ? '- **<20% down** — most DSCR programs require 20–25% minimum\n' : ''}- Vacancy (5–10% typical) not modeled — reduces effective DSCR
+- Maintenance/CapEx (1–2% annually) not included
+
+---
+
+**Next Steps:**
+1. **Compare DSCR lenders** — LoanDepot, Griffin, JMAC, Angel Oak
+2. **Verify rent** — lender requires lease or 1007 rent schedule appraisal
+3. **Reserves** — most programs require 6–12 months PITIA after closing`;
+
+    return {
+        answer,
+        next_step: `DSCR is ${dscr.toFixed(2)}x. ${dscr >= 1.0 ? 'Get quotes from DSCR lenders — LoanDepot, Griffin, JMAC.' : 'Rent needs to be ~$' + Math.ceil(monthlyPITIA * 1.0).toLocaleString() + '/mo to hit 1.0x DSCR.'}`,
+        follow_up: dscr >= 1.0
+            ? `Want to see how vacancy (5–10%) or maintenance costs affect your cash flow?`
+            : `Rent of $${Math.ceil(monthlyPITIA * 1.25).toLocaleString()}/mo would hit 1.25x DSCR. Is that achievable in your market?`,
+        confidence: '1.00 (calculated using DSCR formula: Rent ÷ PITIA)',
+    };
+}
+
+// ===== END DSCR HELPERS =====
 
 
 type Topic =
@@ -1497,8 +1660,13 @@ async function handle(req: NextRequest, intentParam?: string) {
 
 
     // DSCR override hook (fast short-circuit if your lender-specific logic can answer)
+    // Guard: never intercept FHA, conventional mortgage, or affordability questions
+    const skipDscrOverride = /\bfha\b/i.test(question) ||
+        isAffordabilityQuestion(question) ||
+        isFHAQuestion(question) ||
+        (/\$\s*[\d,]+k?\b/i.test(question) && /home|house|property|purchase|buying/i.test(question) && !/rent|rental|dscr|investment|cash flow/i.test(question));
     try {
-        const dscrOverride = await maybeBuildDscrOverrideAnswer(question);
+        const dscrOverride = !skipDscrOverride ? await maybeBuildDscrOverrideAnswer(question) : null;
         if (dscrOverride) {
             return noStore({
                 ok: true,
@@ -2265,6 +2433,45 @@ What's your scenario?`,
         }
     }
     // ========== END FHA CHECK ==========
+    // ========== DSCR / SCENARIO CHECK ==========
+    let dscrAnswer: any = null;
+    if (isDSCRQuestion(question)) {
+        console.log('[DSCR] Detected DSCR/investment question');
+        const params = extractDSCRParams(question, fred?.mort30Avg ?? undefined);
+        if (params.hasInfo) {
+            console.log('[DSCR] Calculating DSCR with params:', params);
+            dscrAnswer = buildDSCRMarkdown(params);
+            console.log('[DSCR] Generated DSCR analysis, DSCR =', (params.grossMonthlyRent! / ((params.purchasePrice! * (1 - params.downPaymentPct! / 100)) * ((params.interestRate! / 100 / 12) * Math.pow(1 + params.interestRate! / 100 / 12, 360)) / (Math.pow(1 + params.interestRate! / 100 / 12, 360) - 1) + (params.purchasePrice! * (params.propertyTaxRate! / 100)) / 12 + 100 + (params.hoaMonthly || 0))).toFixed(2));
+        } else {
+            console.log('[DSCR] Missing info, asking for rent');
+            dscrAnswer = {
+                answer: `**DSCR Investment Property Calculator**
+
+I can calculate DSCR (Debt Service Coverage Ratio), monthly PITIA, cash flow, and amortization instantly.
+
+**To calculate, I need:**
+- Purchase price
+- Gross monthly rent
+- Interest rate (or I'll use current FRED avg)
+
+**Optional:**
+- Down payment % (default 20%)
+- Property tax rate (default 1.1%)
+- HOA
+
+**Examples:**
+- "$450k property, rents for $3,200/mo at 7%"
+- "$600k investment property, 25% down, $3,800 rent, 7.25%"
+
+What's your scenario?`,
+                next_step: 'Share purchase price, monthly rent, and rate.',
+                follow_up: 'What is the purchase price and expected monthly rent?',
+                confidence: '1.00 (ready to calculate DSCR)',
+            };
+        }
+    }
+    // ========== END DSCR CHECK ==========
+
 
 
     // THEN, update the final check to include FHA:
@@ -2285,6 +2492,10 @@ What's your scenario?`,
         grokFinal = mortgageAnswer;
         debug = { requestedModel: "mortgage-calculator", servedModel: "mortgage-calculator", promptChars: question.length, elapsedMs: 0, requestId: "mort-" + Date.now(), parseMode: "direct", repaired: false };
         console.log('[Mortgage Calc] Returning direct answer, skipping Grok');
+    } else if (dscrAnswer) {
+        grokFinal = dscrAnswer;
+        debug = { requestedModel: "dscr-calculator", servedModel: "dscr-calculator", promptChars: question.length, elapsedMs: 0, requestId: "dscr-" + Date.now(), parseMode: "direct", repaired: false };
+        console.log('[DSCR Calc] Returning direct answer, skipping Grok');
     } else if (XAI_API_KEY) {
         // Normal Grok path...
 
