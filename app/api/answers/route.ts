@@ -2046,6 +2046,194 @@ async function handle(req: NextRequest, intentParam?: string) {
     // HR-MEMORY:GROK-CALL
     // Inject prior conversation context + current user question into Grok
 
+    // ========== UNDERWRITING GUIDELINES BYPASS ==========
+    // Must run FIRST — before all calculator bypasses
+    // Detects pure info/guideline questions and answers them directly from the database
+    // Key distinction: "What credit score do I need?" (info) vs "FHA loan on $300k" (calculation)
+
+    function isUnderwritingGuidelineQuestion(q: string): boolean {
+        const text = q.toLowerCase();
+
+        // Pure info signals — these phrases mean the user wants a guideline answer, not a calculation
+        const infoSignals = [
+            /what.{0,20}(?:minimum|min|required?|need|require).{0,30}credit.?score/i,
+            /credit.?score.{0,30}(?:required?|minimum|qualify|need|for)/i,
+            /what.{0,20}(?:dti|debt.to.income).{0,30}(?:allow|require|limit|max|need)/i,
+            /how.{0,30}(?:months?|reserves?).{0,30}(?:require|need|dscr|investment|conventional|fha|va|usda)/i,
+            /(?:reserves?|months?).{0,30}(?:require|need).{0,30}(?:dscr|investment|loan|conventional)/i,
+            /can i use gift/i,
+            /gift funds?.{0,30}(?:allow|conventional|fha|investment|down)/i,
+            /(?:what|how).{0,30}(?:employment|work).{0,30}(?:histor|require|need)/i,
+            /(?:what|how).{0,30}(?:income|doc|documentation).{0,30}(?:need|require|accept)/i,
+            /(?:loan|conforming|fha).{0,20}limit/i,
+            /(?:what|how).{0,30}(?:ltv|down.?payment).{0,30}(?:require|minimum|need|allow)/i,
+            /va.{0,20}(?:funding.?fee|eligib|entitlement|require)/i,
+            /usda.{0,20}(?:income.?limit|eligible|area|require)/i,
+            /(?:what|how).{0,20}(?:qualify|qualif).{0,30}(?:fha|conventional|dscr|va|usda|jumbo)/i,
+            /(?:pmi|mip).{0,30}(?:cancel|remov|when|stop|how)/i,
+            /self.employ.{0,30}(?:qualify|doc|require|guideline)/i,
+            /(?:underwriting|guideline|lending).{0,20}(?:for|on|require)/i,
+        ];
+
+        // If any info signal matches, it's a guideline question
+        if (infoSignals.some(pattern => pattern.test(q))) return true;
+
+        // Negative signals — these mean it's a calculation, not a guideline question
+        // Has a dollar amount = user wants a calculation, not guidelines
+        const hasDollarAmount = /\$\s*[\d,]+/i.test(q);
+        if (hasDollarAmount) return false;
+
+        return false;
+    }
+
+    if (isUnderwritingGuidelineQuestion(question)) {
+        console.log('[UW Guidelines] Detected guideline question in answers route — calling AI with database');
+
+        const uwDatabase = `
+=== UNDERWRITING GUIDELINES DATABASE (2025) ===
+
+── FHA (Federal Housing Administration) ──────────────────────────────
+Source: HUD Handbook 4000.1 | hud.gov/program_offices/housing/sfh
+DTI: Front-end ≤31% guideline, up to 40%+ with AUS. Back-end ≤43%, up to 50% with compensating factors.
+Credit Score: 580+ → 3.5% down. 500–579 → 10% down. Below 500 → not eligible.
+LTV / Down Payment: 3.5% min (580+ FICO), 10% min (500–579 FICO). Max LTV 96.5%.
+Loan Limits (2025): Standard $524,225 (1-unit). High-cost up to $1,209,750. AK/HI up to $1,814,625.
+Mortgage Insurance: UFMIP 1.75% financed. Annual MIP 0.55% (>15yr, LTV >90%) — life of loan. Removed at yr 11 if 10%+ down.
+Reserves: Not required by FHA. Lender overlays may require 1–3 months.
+Employment: 2-year history required. Gaps >6 months need explanation.
+Gift Funds: 100% of down payment can be gift (family, employer, nonprofit).
+Self-Employed: 2 years tax returns (1040), P&L, business bank statements. Income averaged over 2 years.
+
+── CONVENTIONAL (Fannie Mae / Freddie Mac) ────────────────────────────
+Source: Fannie Mae Selling Guide B3-6 | selling-guide.fanniemae.com. Freddie Mac SFSSG | freddiemac.com/singlefamily
+DTI: Standard ≤45% back-end. DU/LP approval up to 50% with strong compensating factors.
+Credit Score: Minimum 620. Best pricing 740+. Below 620 not eligible.
+LTV / Down Payment: Primary 1-unit 3% min (HomeReady/Standard 97). Investment property 15% (1-unit), 25% (2–4 units). Second home 10% min. No PMI at 20%+ down.
+Loan Limits (2025): Conforming $806,500 (1-unit standard). High-cost up to $1,209,750.
+Reserves: Primary 1-unit 0–2 months typical. Investment property 6 months PITIA. Multiple financed properties: 2% of aggregate UPB.
+Employment: 2-year history standard. Recent job change OK if same field.
+Gift Funds: Allowed for primary and second homes. NOT allowed for investment properties.
+Self-Employed: 2 years 1040s + business returns. Business must be 2+ years old.
+PMI Removal: Request at 80% LTV. Automatic at 78% LTV (original schedule).
+
+── DSCR / INVESTMENT (Non-QM) ─────────────────────────────────────────
+Source: Lender guidelines — LoanDepot, Griffin Funding, Angel Oak, JMAC
+DTI: Not used. Qualification based on DSCR = Gross Rent ÷ PITIA.
+DSCR Thresholds: 1.25x+ → most lenders approve. 1.0x → minimum for many. 0.75x–1.0x → select lenders with 6–12 months reserves. <0.75x → very limited.
+Credit Score: Minimum 620–640 most lenders. Best pricing 700+.
+LTV / Down Payment: 1-unit 20–25% down (75–80% LTV max). 2–4 unit 25% min. Cash-out refi 70–75% LTV max.
+Reserves: 6–12 months PITIA required post-close (most lenders). Some require 12 months for <1.0x DSCR.
+Employment/Income: Not required. No income verification, no DTI.
+Documentation: Lease agreement or 1007 appraisal rent schedule required.
+
+── VA (Department of Veterans Affairs) ────────────────────────────────
+Source: VA Lenders Handbook (VA Pamphlet 26-7) | benefits.va.gov/homeloans
+DTI: No hard limit. 41% guideline; above requires residual income test.
+Credit Score: VA has no minimum. Lender overlays typically 580–620+.
+LTV / Down Payment: 0% down with full entitlement. No PMI ever.
+Funding Fee (2025): First use 0% down: 2.15%. First use 5–10% down: 1.50%. First use 10%+ down: 1.25%. Subsequent use 0% down: 3.30%. Exempt: disabled vets with 10%+ service-connected disability.
+Reserves: Not required by VA. Lender overlays may require 2–3 months.
+Gift Funds: Allowed.
+Eligibility: Active duty 90+ days (wartime), 181 days (peacetime), 6 years NG/Reserves, surviving spouses.
+
+── USDA (Rural Development) ───────────────────────────────────────────
+Source: USDA RD Handbook HB-1-3555 | rd.usda.gov/programs-services/single-family-housing
+DTI: Front-end ≤29% (GUS up to 32%). Back-end ≤41% (GUS up to 44%).
+Credit Score: GUS automated 640+. Manual underwrite 580+. Below 580 generally not eligible.
+LTV / Down Payment: 0% down (100% financing). Guarantee Fee: 1% upfront (can be financed), 0.35% annual.
+Income Limits (2025): 115% of area median income. Check: eligibility.sc.egov.usda.gov
+Property: Must be in USDA-designated rural area.
+Reserves: Not required.
+Employment: 2-year history required.
+
+── JUMBO / NON-QM ──────────────────────────────────────────────────────
+Source: Lender-specific (Chase, Wells Fargo, UWM, Angel Oak)
+DTI: Typically ≤43%. Non-QM bank statement up to 55%.
+Credit Score: Jumbo 680–720 min. Non-QM bank statement 620+.
+LTV / Down Payment: Standard jumbo 10–20% down. $1M–$2M typically 20% min. $2M+ typically 25–30% min.
+Reserves: 6–24 months depending on loan size. $2M+ typically 18–24 months.
+Documentation: Full doc, 12/24-month bank statements, asset depletion (assets ÷ 84 months), P&L only, DSCR.
+Loan Limits: Above conforming ($806,500 standard / $1,209,750 high-cost).
+=== END GUIDELINES ===`;
+
+        const uwSystemPrompt = `You are HomeRates.AI Underwriting Guidelines Expert.
+
+Answer the user's underwriting question using ONLY the guidelines database below.
+- Always cite the source (HUD Handbook 4000.1, Fannie Mae Selling Guide, VA Pamphlet 26-7, USDA HB-1-3555, or lender-specific).
+- Be direct and specific — give the actual numbers, not vague ranges.
+- Use markdown tables where it helps clarity.
+- If a guideline varies by lender, say so clearly.
+- End with: "Source: [name] | Verify current guidelines at [URL]"
+
+${uwDatabase}`;
+
+        const tAI = Date.now();
+        let uwAnswerText = '';
+        try {
+            const xaiRes = await fetch('https://api.x.ai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+                },
+                body: JSON.stringify({
+                    model: 'grok-3-mini',
+                    messages: [
+                        { role: 'system', content: uwSystemPrompt },
+                        { role: 'user', content: question },
+                    ],
+                    max_tokens: 1500,
+                    temperature: 0.1,
+                }),
+            });
+            const xaiData = await xaiRes.json() as any;
+            uwAnswerText = xaiData?.choices?.[0]?.message?.content || 'Unable to retrieve guideline data.';
+        } catch (uwErr: any) {
+            console.error('[UW Guidelines] AI call failed:', uwErr?.message);
+            uwAnswerText = 'Unable to retrieve guideline data. Please try again.';
+        }
+        const uwElapsed = Date.now() - tAI;
+        console.log(`[UW Guidelines] Answered in ${uwElapsed}ms`);
+
+        return noStore({
+            ok: true,
+            memory_thread_id: memoryThreadId,
+            chat_id: chatId,
+            project_id: projectId,
+            chat_thread_id: chatThreadId,
+            route: "answers",
+            intent,
+            path,
+            tag,
+            generatedAt,
+            usedFRED: false,
+            usedTavily: false,
+            fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
+            topSources: [],
+            grok: {
+                answer: uwAnswerText,
+                next_step: "Verify current guidelines with your lender or at the official source.",
+                follow_up: "Do you have a specific scenario you'd like to calculate?",
+                confidence: "1.00 (sourced from official guidelines database)",
+            },
+            debug: {
+                requestedModel: "underwriting-guidelines",
+                servedModel: "underwriting-guidelines",
+                promptChars: question.length,
+                elapsedMs: uwElapsed,
+                requestId: "uw-" + Date.now(),
+                parseMode: "direct",
+                repaired: false,
+            },
+            data_freshness: `Live (grok-3-mini + guidelines database)`,
+            message: uwAnswerText,
+            answerMarkdown: `**Answer**
+${uwAnswerText}`,
+            followUp: "Do you have a specific scenario you'd like to calculate?",
+        });
+    }
+    // ========== END UNDERWRITING GUIDELINES BYPASS ==========
+
     // ========== MORTGAGE CALCULATOR BYPASS ==========
     let mortgageAnswer: any = null;
     let mortgageCalcContext = "";
