@@ -2456,8 +2456,19 @@ ${dtiSection}
 
     // Detect debt/savings change follow-ups that should re-run the affordability calculator
     // e.g. "what if I have $800 in monthly debt", "what if I pay off my car"
-    function isAffordabilityFollowUp(q: string): { isFollowUp: boolean; debtOverride?: number; savingsOverride?: number } {
+    function isAffordabilityFollowUp(q: string): { isFollowUp: boolean; debtOverride?: number; savingsOverride?: number; useCurrentRate?: boolean } {
         const t = q.toLowerCase();
+
+        // "base it on current/market/today's rates", "use current rates", "at today's rates"
+        const useCurrentRate = /(?:base|use|apply|calculate|run).{0,20}(?:current|today|market|live|fred|actual)\s*rates?/i.test(t) ||
+            /(?:current|today\'?s?|market|live)\s*(?:mortgage\s*)?rates?/i.test(t) ||
+            t === 'base it on current market rates' ||
+            /at\s+(?:current|today|market)\s*rates?/i.test(t);
+
+        if (useCurrentRate) {
+            return { isFollowUp: true, useCurrentRate: true };
+        }
+
         // "what if I have $X in monthly debt" / "add $X debt" / "with $X monthly debt"
         const debtMatch = t.match(/(?:what if|add|with|including|have|had)\s*(?:i have\s*)?[\$]?\s*(\d+)\s*(?:in\s*)?(?:monthly\s*)?(?:debt|payment|obligation)/i) ||
             t.match(/[\$]?\s*(\d+)\s*(?:\/mo|per month|monthly|a month)\s*(?:in\s*)?(?:debt|payments?)/i);
@@ -2492,17 +2503,21 @@ ${dtiSection}
         }
     }
 
-    if (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && priorAffordContext?.annualIncome)) {
+    if (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate))) {
         console.log('[Affordability] Detected affordability question');
 
         const affordParams = extractAffordabilityParams(question);
 
-        // If it's a follow-up with debt change, merge prior context
+        // If it's a follow-up (debt change OR "use current rates"), merge prior context
         if (affordFollowUp.isFollowUp && priorAffordContext?.annualIncome && !affordParams.hasInfo) {
             affordParams.annualIncome = priorAffordContext.annualIncome;
             affordParams.savings = priorAffordContext.savings || affordParams.savings || 10000;
-            affordParams.monthlyDebt = affordFollowUp.debtOverride ?? affordParams.monthlyDebt ?? 0;
+            affordParams.monthlyDebt = affordFollowUp.debtOverride ?? priorAffordContext.monthlyDebt ?? 0;
             (affordParams as any).hasInfo = true;
+            // "base it on current rates" — use live FRED rate (already default, but log it)
+            if (affordFollowUp.useCurrentRate) {
+                console.log('[Affordability] Re-running with FRED rate:', fred?.mort30Avg || 6.01);
+            }
             console.log('[Affordability] Follow-up override applied:', affordParams);
         }
 
