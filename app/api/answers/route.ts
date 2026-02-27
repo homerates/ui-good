@@ -383,38 +383,55 @@ async function generateAffordabilityScenarios(params: {
             if (maxPI <= 0) { maxPI = maxTotalHousing * 0.5; break; }
         }
 
-        const loanAmount = homePrice * (1 - downPct / 100);
+        const baseLoanAmount = homePrice * (1 - downPct / 100);
         const downPaymentAmount = homePrice * (downPct / 100);
-        const closingCosts = homePrice * closingCostPct;
-        const totalCashNeeded = downPaymentAmount + closingCosts;
+
+        // FHA UFMIP: 1.75% of base loan, financed into the loan
+        const isFHA = program === 'FHA';
+        const ufmip = isFHA ? Math.round(baseLoanAmount * 0.0175) : 0;
+        const loanAmount = baseLoanAmount + ufmip; // total financed amount
+
+        const closingCosts = homePrice * closingCostPct; // closing costs separate from UFMIP
+        const totalCashNeeded = downPaymentAmount + closingCosts; // UFMIP is financed, not cash
         const savingsGap = Math.max(0, totalCashNeeded - savings);
         const savingsAfterClose = Math.max(0, savings - totalCashNeeded);
 
         const mortgage = calculateMortgage({ price: homePrice, downPaymentPct: downPct, rate: currentRate, termYears: 30 });
+        // Recalculate P&I on the full financed amount (including UFMIP for FHA)
+        const rMonthly = (currentRate / 100) / 12;
+        const nPayments = 30 * 12;
+        const monthlyPI = loanAmount * (rMonthly * Math.pow(1 + rMonthly, nPayments)) / (Math.pow(1 + rMonthly, nPayments) - 1);
+
         const monthlyTax = (homePrice * 0.011) / 12;
         const monthlyInsurance = homePrice * 0.0035 / 12;
-        const monthlyPMI = downPct < 20 ? loanAmount * 0.005 / 12 : 0;
-        const totalMonthly = mortgage.monthlyPI + monthlyTax + monthlyInsurance + monthlyPMI;
+        // FHA MIP: 0.55%/yr on loan balance (for >15yr, LTV >90%)
+        // Conventional PMI: 0.5%/yr
+        const monthlyMI = isFHA ? (baseLoanAmount * 0.0055 / 12) : (downPct < 20 ? baseLoanAmount * 0.005 / 12 : 0);
+        const totalMonthly = monthlyPI + monthlyTax + monthlyInsurance + monthlyMI;
         const actualDTI = ((totalMonthly + monthlyDebt) / monthlyIncome) * 100;
+        const totalInterest = (monthlyPI * nPayments) - loanAmount;
 
         return {
             label, icon, program, dtiTarget,
             homePrice: Math.round(homePrice),
             downPaymentPct: downPct,
             downPaymentAmount: Math.round(downPaymentAmount),
+            baseLoanAmount: Math.round(baseLoanAmount),
+            ufmip: Math.round(ufmip),
+            loanAmount: Math.round(loanAmount),
             closingCosts: Math.round(closingCosts),
             totalCashNeeded: Math.round(totalCashNeeded),
             savingsGap: Math.round(savingsGap),
             savingsAfterClose: Math.round(savingsAfterClose),
-            loanAmount: Math.round(loanAmount),
-            monthlyPI: Math.round(mortgage.monthlyPI),
+            monthlyPI: Math.round(monthlyPI),
             monthlyTax: Math.round(monthlyTax),
             monthlyInsurance: Math.round(monthlyInsurance),
-            monthlyPMI: Math.round(monthlyPMI),
+            monthlyMI: Math.round(monthlyMI),
             totalMonthly: Math.round(totalMonthly),
-            totalInterest: Math.round(mortgage.totalInterest),
+            totalInterest: Math.round(totalInterest),
             dtiRatio: Math.round(actualDTI * 10) / 10,
             rate: currentRate,
+            isFHA,
         };
     }
 
@@ -482,8 +499,10 @@ function buildAffordabilityMarkdown(
 |--|--|
 | **Max Home Price** | **$${s.homePrice.toLocaleString()}** |
 | Down Payment (${s.downPaymentPct}%) | $${s.downPaymentAmount.toLocaleString()} |
+${s.isFHA ? `| Base Loan Amount | $${s.baseLoanAmount.toLocaleString()} |
+| + UFMIP (1.75%, financed) | +$${s.ufmip.toLocaleString()} |
+| **Total Loan Amount** | **$${s.loanAmount.toLocaleString()}** |` : `| Loan Amount | $${s.loanAmount.toLocaleString()} |`}
 | Closing Costs (~3%) | $${s.closingCosts.toLocaleString()} |
-| Loan Amount | $${s.loanAmount.toLocaleString()} |
 
 **Monthly Payment:**
 | Component | Amount |
@@ -491,11 +510,13 @@ function buildAffordabilityMarkdown(
 | Principal & Interest | $${s.monthlyPI.toLocaleString()} |
 | Property Taxes (est.) | $${s.monthlyTax.toLocaleString()} |
 | Home Insurance | $${s.monthlyInsurance.toLocaleString()} |
-${s.monthlyPMI > 0 ? `| PMI/MIP | $${s.monthlyPMI.toLocaleString()} |
-` : ''}| **Total PITI${s.monthlyPMI > 0 ? '+MI' : ''}** | **$${s.totalMonthly.toLocaleString()}/mo** |
+${s.monthlyMI > 0 ? `| ${s.isFHA ? 'FHA MIP (0.55%/yr)' : 'PMI (~0.5%/yr)'} | $${s.monthlyMI.toLocaleString()}/mo |
+` : ''}| **Total ${s.isFHA ? 'PITI + MIP' : s.monthlyMI > 0 ? 'PITI + PMI' : 'PITI'}** | **$${s.totalMonthly.toLocaleString()}/mo** |
 
-- DTI used: ${s.dtiRatio}% of $${monthlyGross.toLocaleString()}/mo gross
-- Total interest over 30yr: $${Math.round(s.totalInterest / 1000)}k
+${s.isFHA ? `> ⚠️ **FHA MIP never cancels** on loans with <10% down. At your income, refinancing to conventional once you hit 20% equity saves ~$${s.monthlyMI}/mo.` : s.monthlyMI > 0 ? `> 💡 **PMI cancels** at 80% LTV — saves you $${s.monthlyMI}/mo when it drops off.` : `> ✅ **No PMI** — 20% down eliminates mortgage insurance entirely.`}
+
+- DTI: **${s.dtiRatio}%** of $${monthlyGross.toLocaleString()}/mo gross
+- Total interest over 30yr: **$${Math.round(s.totalInterest / 1000)}k**
 ${cashNote(s)}`;
 
     return `**What You Can Afford — Income-Based Analysis**
@@ -531,11 +552,24 @@ ${scenarioBlock(conv20, ' — No PMI, best long-term rate')}
 
 ---
 
-**Next Steps:**
-1. **FHA** — best if savings are tight (3.5% down, flexible credit)
-2. **Conventional 3%** — no UFMIP, PMI cancels at 80% LTV
-3. **Conventional 20%** — no PMI, lowest monthly payment long-term
-4. Get pre-approved with 2–3 lenders to lock in your rate`;
+## 💡 Your Best Path Forward
+
+${fha.savingsGap === 0 && conv3.savingsGap === 0 ? `✅ **You're ready to buy now.** FHA and Conventional 3% are both within reach with your $${Math.round(params.savings / 1000)}k saved.
+- **Choose FHA** if your credit is under 680 — more lenient approval, 3.5% down
+- **Choose Conventional 3%** if your credit is 680+ — no UFMIP, PMI cancels, lower long-term cost
+- **The $${Math.round((conv20.homePrice - fha.homePrice) / 1000)}k difference** in max home price between FHA and 20% down shows your income's full purchasing power`
+            : fha.savingsGap > 0 ? `⚡ **You need $${Math.round(fha.savingsGap / 1000)}k more to close on FHA** — the fastest path to homeownership on your income.
+- At $500/mo savings: **${Math.ceil(fha.savingsGap / 500)} months** to closing-ready
+- At $1,000/mo savings: **${Math.ceil(fha.savingsGap / 1000)} months** to closing-ready
+- Alternative: Ask about **gift funds** — FHA allows 100% of down payment as a gift from family`
+                : `✅ **You can close on FHA today** — you have enough saved.`}
+
+${params.monthlyDebt > 200 ? `💳 **Your $${params.monthlyDebt}/mo in debt is costing you buying power.** Paying it off would add ~$${Math.round(params.monthlyDebt * 8 / 1000)}k to your max home price.` : ''}
+
+**What to do next:**
+1. Share your credit score → I'll tell you exactly which program you'll qualify for
+2. Share your target city/zip → I'll adjust for local property taxes and FHA loan limits  
+3. Ask me to run any specific home price → I'll show your DTI and whether you qualify`;
 }
 
 // ===== END AFFORDABILITY HELPERS =====
@@ -2079,9 +2113,12 @@ async function handle(req: NextRequest, intentParam?: string) {
         if (infoSignals.some(pattern => pattern.test(q))) return true;
 
         // Negative signals — these mean it's a calculation, not a guideline question
-        // Has a dollar amount = user wants a calculation, not guidelines
         const hasDollarAmount = /\$\s*[\d,]+/i.test(q);
         if (hasDollarAmount) return false;
+
+        // "use my scenario", "run my numbers", "calculate for me" = calculation intent
+        const isCalculationIntent = /use my scenario|run.{0,20}(?:numbers?|scenario|calc)|calculate.{0,20}for me|show me.{0,20}(?:fha|payment|cost)|what.{0,10}(?:would|will).{0,20}(?:payment|piti|cost)|can you.{0,20}(?:calc|run|show|use)|(?:use|apply|run).{0,20}(?:my|this|same|that).{0,20}(?:scenario|situation|numbers?|info|details?)|(?:for|with).{0,5}fha\b|fha.{0,20}(?:version|option|instead)|my scenario.{0,20}fha|can.{0,10}fha/i.test(q);
+        if (isCalculationIntent) return false;
 
         return false;
     }
