@@ -2297,8 +2297,11 @@ export async function POST(req: NextRequest) {
             const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : (prior?.down_payment_pct ?? 25);
 
             const rateMatch = message.match(/(?:rate|at|@)\s*(\d+\.?\d*)\s*%/i) || message.match(/(\d+\.?\d*)\s*%\s*(?:rate|interest)/i);
-            const interestRate = rateMatch ? parseFloat(rateMatch[1]) : (prior?.rate_used_pct ?? marketData?.thirtyYearFixed ?? 6.5);
-            const rateFromFRED = !rateMatch && !prior?.rate_used_pct;
+            const wantsCurrentRate = /current\s*rates?|today.?s\s*rates?|use\s*(?:the\s*)?(?:current|today|latest|live)\s*rates?/i.test(message);
+            const interestRate = rateMatch ? parseFloat(rateMatch[1])
+                : (wantsCurrentRate ? (marketData?.thirtyYearFixed ?? 6.5)
+                    : (prior?.rate_used_pct ?? marketData?.thirtyYearFixed ?? 6.5));
+            const rateFromFRED = !rateMatch && (wantsCurrentRate || !prior?.rate_used_pct);
 
             const rentMatch = message.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*([\d,]+)k?/i) ||
                 message.match(/\$\s*([\d,]+)k?\s*(?:\/mo|per\s*month|rent)/i);
