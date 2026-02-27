@@ -2269,33 +2269,47 @@ export async function POST(req: NextRequest) {
 
         // ===== DSCR / INVESTMENT CALCULATOR BYPASS =====
         // Pure math — no AI needed. Returns instantly.
+        // Also handles follow-ups by pulling prior DSCR scenario from memory.
+
+        // Check if prior scenario was a DSCR scenario
+        const priorIsDSCR = lastScenarioSnapshot?.scenario_inputs?.rent_monthly > 0;
+
+        // Detect: explicit DSCR question OR follow-up referencing a prior DSCR scenario
         const isDSCRMsg = /dscr|debt.?service.?coverage|rental income|investment property|cash.?flow|gross rent|pitia/i.test(message) ||
-            (/rent/i.test(message) && /\$[\s\d,]+k?\b/i.test(message) && /home|house|property|loan|mortgage/i.test(message));
+            (/rent/i.test(message) && /\$[\s\d,]+k?\b/i.test(message) && /home|house|property|loan|mortgage/i.test(message)) ||
+            (priorIsDSCR && /what if|change|instead|put down|down payment|rate|higher|lower|less|more/i.test(message));
 
         if (isDSCRMsg) {
             console.log('[DSCR Bypass] Detected DSCR/investment question — running calculator');
 
-            // Extract params
+            // Extract params — fall back to prior DSCR scenario for follow-ups
+            const prior = priorIsDSCR ? lastScenarioSnapshot?.scenario_inputs : null;
+            console.log('[DSCR Bypass] Prior scenario:', prior ? `price=${prior.price}, rent=${prior.rent_monthly}` : 'none');
+
             const priceMatch = message.match(/\$\s*([\d,]+)k?\b/i);
             let purchasePrice = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : undefined;
             if (purchasePrice && /\$\s*[\d,]+k\b/i.test(message) && purchasePrice < 10000) purchasePrice *= 1000;
+            if (!purchasePrice && prior?.price) purchasePrice = prior.price;
 
-            const downMatch = message.match(/(\d+\.?\d*)\s*%\s*down/i);
-            const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 25;
+            const downMatch = message.match(/(\d+\.?\d*)\s*%\s*down/i) ||
+                message.match(/(?:put|putting)\s*(\d+\.?\d*)\s*%/i) ||
+                message.match(/down\s*(?:payment)?\s*(?:of|to|is)?\s*(\d+\.?\d*)\s*%/i);
+            const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : (prior?.down_payment_pct ?? 25);
 
             const rateMatch = message.match(/(?:rate|at|@)\s*(\d+\.?\d*)\s*%/i) || message.match(/(\d+\.?\d*)\s*%\s*(?:rate|interest)/i);
-            const interestRate = rateMatch ? parseFloat(rateMatch[1]) : (marketData?.thirtyYearFixed || 6.5);
-            const rateFromFRED = !rateMatch;
+            const interestRate = rateMatch ? parseFloat(rateMatch[1]) : (prior?.rate_used_pct ?? marketData?.thirtyYearFixed ?? 6.5);
+            const rateFromFRED = !rateMatch && !prior?.rate_used_pct;
 
             const rentMatch = message.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*([\d,]+)k?/i) ||
                 message.match(/\$\s*([\d,]+)k?\s*(?:\/mo|per\s*month|rent)/i);
             let grossMonthlyRent = rentMatch ? parseFloat(rentMatch[1].replace(/,/g, '')) : undefined;
             if (grossMonthlyRent && grossMonthlyRent < 100) grossMonthlyRent *= 1000;
+            if (!grossMonthlyRent && prior?.rent_monthly) grossMonthlyRent = prior.rent_monthly;
 
             const taxMatch = message.match(/(?:tax|taxes)\s*(?:rate|of)?\s*(\d+\.?\d*)\s*%/i);
-            const propertyTaxRate = taxMatch ? parseFloat(taxMatch[1]) : 1.1;
+            const propertyTaxRate = taxMatch ? parseFloat(taxMatch[1]) : (prior?.property_tax_pct ?? 1.1);
             const hoaMatch = message.match(/hoa\s*[\$:]?\s*([\d,]+)/i);
-            const hoaMonthly = hoaMatch ? parseFloat(hoaMatch[1].replace(/,/g, '')) : 0;
+            const hoaMonthly = hoaMatch ? parseFloat(hoaMatch[1].replace(/,/g, '')) : (prior?.hoa_monthly ?? 0);
 
             if (purchasePrice && grossMonthlyRent) {
                 // Calculate
@@ -2409,6 +2423,30 @@ ${dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent, reserves requir
 3. **Reserves** — most programs require 6–12 months PITIA after closing`;
 
                 console.log('[DSCR Bypass] Returning direct answer, skipping AI. DSCR =', dscr.toFixed(2));
+
+                // Write to memory so follow-ups can reference this scenario
+                const dscrSnapshot = {
+                    scenario_inputs: {
+                        price: purchasePrice, down_payment_pct: downPaymentPct,
+                        loan_amount: Math.round(loanAmount), rate_used_pct: interestRate,
+                        term_years: 30, property_tax_pct: propertyTaxRate,
+                        rent_monthly: grossMonthlyRent, hoa_monthly: hoaMonthly,
+                        maintenance_pct: 0, vacancy_pct: 0, insurance_pct: 0,
+                    },
+                    monthly_payment: Math.round(monthlyPI),
+                    computed_financials: { monthly_pi: monthlyPI, monthly_pitia: monthlyPITIA, dscr_gross: dscr },
+                };
+                try {
+                    if (supabase && memoryThreadId) {
+                        await storeScenarioMemory(supabase, memoryThreadId, dscrSnapshot, message, {
+                            buildTag, requestId, provider: 'dscr-calculator', model: 'dscr-calculator', userId,
+                        });
+                        console.log('[DSCR Bypass] Stored scenario to memory');
+                    }
+                } catch (memErr: any) {
+                    console.warn('[DSCR Bypass] Memory write failed (non-fatal):', memErr?.message);
+                }
+
                 return respond({
                     success: true,
                     provider: 'dscr-calculator',
