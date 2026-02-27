@@ -2654,6 +2654,113 @@ YOU MUST OUTPUT ALL FIELDS:
             // swallow — memory must never break response
         }
 
+
+        // === BUILD RICH CARD MARKDOWN (matches calculator card style) ===
+        function buildScenarioCard(r: any, mktData: any): string {
+            const si = r?.scenario_inputs || {};
+            const cf = r?.computed_financials || {};
+            const price = Number(si.price || 0);
+            const downPct = Number(si.down_payment_pct || 0);
+            const downAmt = price * downPct / 100;
+            const loanAmt = Number(si.loan_amount || cf.loan_amount || 0);
+            const rate = Number(si.rate_used_pct || cf.rate_used_pct || 0);
+            const monthlyPI = Number(r.monthly_pi || cf.monthly_pi || r.monthly_payment || 0);
+            const monthlyTax = Number(cf.monthly_tax || 0);
+            const monthlyIns = Number(cf.monthly_ins || 0);
+            const monthlyHOA = Number(cf.monthly_hoa || 0);
+            const monthlyPITIA = Number(cf.monthly_pitia || (monthlyPI + monthlyTax + monthlyIns + monthlyHOA));
+            const totalInterest = Number(r.total_interest_over_term || 0);
+            const rentMonthly = Number(si.rent_monthly || 0);
+            const isInvestment = rentMonthly > 0;
+            const dscr = Number(r.dscr || cf.dscr_gross || 0);
+            const dscrLabel = dscr > 0 ? (dscr >= 1.25 ? '✅ Strong' : dscr >= 1.0 ? '⚠️ Tight' : '❌ Below threshold') : '';
+
+            const fmt = (n: number) => n > 0 ? '$' + Math.round(n).toLocaleString() : '$0';
+            const fmtRate = (n: number) => n.toFixed(2) + '%';
+
+            const amort = Array.isArray(r.amortization_summary) ? r.amortization_summary : [];
+            const amortRows = amort
+                .filter((a: any) => [1, 5, 10, 15, 20, 25, 30].includes(Number(a.year)))
+                .map((a: any) => `| ${a.year} | ${fmt(a.principal_paid)} | ${fmt(a.interest_paid)} | ${fmt(a.ending_balance)} |`)
+                .join('
+');
+
+            const pmiBullet = downPct < 20 && !isInvestment
+                ? `
+> ⚠️ **PMI applies** (~0.5-0.6%/yr) until you reach 80% LTV. Consider 20% down to eliminate it.` : '';
+
+            let cashFlowSection = '';
+            if (isInvestment) {
+                const monthlyCF = Number(cf.monthly_cash_flow || (rentMonthly - monthlyPITIA));
+                const annualCF = monthlyCF * 12;
+                const cfEmoji = monthlyCF >= 0 ? '✅' : '❌';
+                cashFlowSection = `
+---
+
+## 💵 Cash Flow Analysis
+
+| Metric | Amount |
+|--------|--------|
+| Gross Rent | ${fmt(rentMonthly)}/mo |
+| PITIA | ${fmt(monthlyPITIA)}/mo |
+| Net Cash Flow | **${monthlyCF >= 0 ? '+' : ''}${fmt(Math.abs(monthlyCF))}/mo** ${cfEmoji} |
+| Annual Cash Flow | **${annualCF >= 0 ? '+' : '-'}${fmt(Math.abs(annualCF))}/yr** |
+${dscr > 0 ? `| DSCR | **${dscr.toFixed(2)}x** ${dscrLabel} |` : ''}`;
+            }
+
+            const rateSource = mktData?.thirtyYearFixed ? ` (FRED avg ${fmtRate(mktData.thirtyYearFixed)}, ${mktData.date || 'live'})` : '';
+
+            return `## 🏡 Loan Details
+
+| | |
+|--|--|
+| Home Price | ${fmt(price)} |
+| Down Payment (${downPct}%) | ${fmt(downAmt)} |
+| Loan Amount | **${fmt(loanAmt)}** |
+| Interest Rate | **${fmtRate(rate)}**${rateSource} |
+| Loan Term | 30-year fixed |
+
+---
+
+## 💰 Monthly Payment
+
+| Component | Amount |
+|-----------|--------|
+| Principal & Interest | **${fmt(monthlyPI)}** |
+${monthlyTax > 0 ? `| Property Taxes | ${fmt(monthlyTax)} |` : '| Property Taxes | Not provided — add your local rate |'}
+${monthlyIns > 0 ? `| Home Insurance | ${fmt(monthlyIns)} |` : '| Home Insurance | Not provided |'}
+${monthlyHOA > 0 ? `| HOA | ${fmt(monthlyHOA)} |` : ''}| **Total PITIA** | **${fmt(monthlyPITIA)}/mo** |
+${pmiBullet}
+
+- Total interest over 30yr: **${fmt(totalInterest)}**
+${cashFlowSection}
+
+---
+
+## 📈 Amortization Snapshot
+
+| Year | Principal Paid | Interest Paid | Ending Balance |
+|------|---------------|---------------|----------------|
+${amortRows}
+
+---
+
+## 💡 What This Means
+
+${isInvestment ? `This is an **investment property** scenario.
+- DSCR of **${dscr.toFixed(2)}x** ${dscrLabel} — lenders typically require 1.0x minimum, 1.25x+ preferred
+- ${Number(cf.monthly_cash_flow || 0) >= 0 ? 'Positive cash flow — property covers its costs ✅' : `Negative cash flow of ${fmt(Math.abs(Number(cf.monthly_cash_flow || rentMonthly - monthlyPITIA)))}/mo — out-of-pocket monthly ⚠️`}
+- 20-25% down typically required for investment/DSCR loans`
+                    : `Your **P&I payment is ${fmt(monthlyPI)}/mo** on a ${fmt(price)} home at ${fmtRate(rate)}.
+- Add your local property tax and insurance to get your full PITI
+- Want to see what income you need to qualify? Share your annual income and I'll run a full DTI analysis`}
+
+**Ask me:** "What if I put down 20%?" | "What if rates drop to 5.5%?" | "What income do I need to qualify?"`;
+        }
+
+        const scenarioCardMarkdown = buildScenarioCard(result, marketData);
+        (result as any).scenarioCardMarkdown = scenarioCardMarkdown;
+
         return respond(
             {
                 success: true,
@@ -2661,6 +2768,13 @@ YOU MUST OUTPUT ALL FIELDS:
                 // ✅ Top-level parity
                 memory_thread_id: memoryThreadId,
                 result,
+                // Pre-built rich card markdown — matches calculator card style
+                // Frontend should use this as friendly/answerMarkdown when present
+                answerMarkdown: `## Smart Scenario
+
+${scenarioCardMarkdown}`,
+                message: scenarioCardMarkdown,
+                friendly: scenarioCardMarkdown,
                 marketData,
                 meta: {
                     build_tag: buildTag,
