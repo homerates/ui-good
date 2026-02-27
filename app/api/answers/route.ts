@@ -366,14 +366,22 @@ async function generateAffordabilityScenarios(params: {
     const annuityFactor = (Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n));
 
     // Helper: given DTI target and down%, compute income-qualified home price
+    // Uses iterative solver to hit DTI exactly — no approximation overshoot
     function calcScenario(dtiTarget: number, downPct: number, label: string, icon: string, program: string, closingCostPct: number = 0.03) {
-        const maxHousingPayment = (monthlyIncome * dtiTarget) - monthlyDebt;
-        // Back out taxes (1.1%/yr) + insurance (0.35%/yr) from PITI budget to get max P&I
-        // PITI = PI + (price * 0.0145/12). Since price = loan/(1-down%), iteratively solve:
-        // Approximate: PI ≈ maxHousingPayment * 0.80 (taxes+ins ~20% of payment at typical prices)
-        const maxPI = maxHousingPayment * 0.80;
-        const maxLoan = maxPI * annuityFactor;
-        const homePrice = maxLoan / (1 - downPct / 100);
+        const maxTotalHousing = (monthlyIncome * dtiTarget) - monthlyDebt; // max PITI+MI
+
+        // Iterative solve: start with PI = 85% of budget, refine 5x
+        // Each iteration: compute home price → actual taxes+ins+PMI → adjust PI budget
+        let maxPI = maxTotalHousing * 0.85;
+        let homePrice = 0;
+        for (let i = 0; i < 6; i++) {
+            const loan = maxPI * annuityFactor;
+            homePrice = loan / (1 - downPct / 100);
+            const monthlyTaxIns = (homePrice * (0.011 + 0.0035)) / 12;
+            const monthlyPMIest = downPct < 20 ? (loan * 0.005 / 12) : 0;
+            maxPI = maxTotalHousing - monthlyTaxIns - monthlyPMIest;
+            if (maxPI <= 0) { maxPI = maxTotalHousing * 0.5; break; }
+        }
 
         const loanAmount = homePrice * (1 - downPct / 100);
         const downPaymentAmount = homePrice * (downPct / 100);
