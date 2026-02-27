@@ -94,48 +94,81 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Upsert: if mapping exists for this user+thread (any project), update project_id.
-        // If no mapping exists, create one. Handles all cases without duplicate key errors.
-        const { data: upserted, error: upsertError } = await supabase
-            .from(THREADS_TABLE)
-            .upsert(
-                {
-                    clerk_user_id: userId,
-                    project_id: projectId,
-                    thread_id: threadId,
-                },
-                {
-                    onConflict: "clerk_user_id, thread_id",
-                    ignoreDuplicates: false, // false = update on conflict (merge)
-                }
-            )
-            .select("id, project_id, thread_id, created_at")
-            .single();
+        // IMPORTANT: We only update project_id — never delete or re-insert the row.
+        // The chat_threads row also holds memory_thread_id which links to the full
+        // conversation memory. Deleting it would orphan the memory history permanently.
+        //
+        // Strategy:
+        // 1) Update by thread_id (legacy identifier used by move-chat)
+        // 2) If 0 rows matched, try by chat_id (newer identifier, same value as thread_id in most cases)
+        // 3) If still 0 rows, insert a new minimal row (no memory yet — will be created on next chat turn)
 
-        if (upsertError) {
-            console.error(
-                "Supabase upsert error in POST /api/projects/move-chat:",
-                upsertError
-            );
-            return noStore(
-                {
-                    ok: false,
-                    reason: "supabase_error",
-                    stage: "upsert_mapping",
-                    error: upsertError.message,
-                },
-                500
-            );
+        // Step 1: update by thread_id
+        const { data: updatedByThread, error: updateThreadError } = await supabase
+            .from(THREADS_TABLE)
+            .update({ project_id: projectId, updated_at: new Date().toISOString() })
+            .eq("clerk_user_id", userId)
+            .eq("thread_id", threadId)
+            .select("id, project_id, thread_id, chat_id, memory_thread_id, created_at");
+
+        if (updateThreadError) {
+            console.error("move-chat: update by thread_id error:", updateThreadError);
+            return noStore({ ok: false, reason: "supabase_error", stage: "update_by_thread_id", error: updateThreadError.message }, 500);
         }
 
-        return noStore(
-            {
-                ok: true,
-                mapping: upserted,
-                mode: "upserted",
-            },
-            200
-        );
+        if (updatedByThread && updatedByThread.length > 0) {
+            return noStore({ ok: true, mapping: updatedByThread[0], mode: "updated_by_thread_id" }, 200);
+        }
+
+        // Step 2: update by chat_id (thread_id and chat_id are often the same value)
+        const { data: updatedByChat, error: updateChatError } = await supabase
+            .from(THREADS_TABLE)
+            .update({ project_id: projectId, updated_at: new Date().toISOString() })
+            .eq("clerk_user_id", userId)
+            .eq("chat_id", threadId)
+            .select("id, project_id, thread_id, chat_id, memory_thread_id, created_at");
+
+        if (updateChatError) {
+            console.error("move-chat: update by chat_id error:", updateChatError);
+            return noStore({ ok: false, reason: "supabase_error", stage: "update_by_chat_id", error: updateChatError.message }, 500);
+        }
+
+        if (updatedByChat && updatedByChat.length > 0) {
+            return noStore({ ok: true, mapping: updatedByChat[0], mode: "updated_by_chat_id" }, 200);
+        }
+
+        // Step 3: no existing row — insert minimal row. memory_thread_id will be
+        // created automatically on the next chat turn by answers/route.ts.
+        // Use ON CONFLICT DO NOTHING to safely handle any race conditions.
+        const { data: inserted, error: insertError } = await supabase
+            .from(THREADS_TABLE)
+            .insert({
+                clerk_user_id: userId,
+                project_id: projectId,
+                thread_id: threadId,
+                chat_id: threadId, // thread_id and chat_id are the same for new rows
+                updated_at: new Date().toISOString(),
+            })
+            .select("id, project_id, thread_id, chat_id, memory_thread_id, created_at")
+            .single();
+
+        if (insertError) {
+            // If we still hit a duplicate, it means a concurrent request beat us.
+            // Retry update by chat_id one more time to return the current state.
+            if (insertError.code === "23505") {
+                const { data: retryData } = await supabase
+                    .from(THREADS_TABLE)
+                    .update({ project_id: projectId, updated_at: new Date().toISOString() })
+                    .eq("clerk_user_id", userId)
+                    .eq("chat_id", threadId)
+                    .select("id, project_id, thread_id, chat_id, memory_thread_id, created_at");
+                return noStore({ ok: true, mapping: retryData?.[0] ?? null, mode: "retry_after_conflict" }, 200);
+            }
+            console.error("move-chat: insert error:", insertError);
+            return noStore({ ok: false, reason: "supabase_error", stage: "insert_mapping", error: insertError.message }, 500);
+        }
+
+        return noStore({ ok: true, mapping: inserted, mode: "inserted" }, 200);
     } catch (err) {
         console.error("Unhandled POST /api/projects/move-chat error:", err);
         return noStore(
