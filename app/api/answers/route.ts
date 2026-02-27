@@ -2158,12 +2158,22 @@ Loan Limits: Above conforming ($806,500 standard / $1,209,750 high-cost).
 
         const uwSystemPrompt = `You are HomeRates.AI Underwriting Guidelines Expert.
 
-Answer the user's underwriting question using ONLY the guidelines database below.
-- Always cite the source (HUD Handbook 4000.1, Fannie Mae Selling Guide, VA Pamphlet 26-7, USDA HB-1-3555, or lender-specific).
-- Be direct and specific — give the actual numbers, not vague ranges.
-- Use markdown tables where it helps clarity.
-- If a guideline varies by lender, say so clearly.
-- End with: "Source: [name] | Verify current guidelines at [URL]"
+FORMAT RULES (hard):
+- Always produce a rich, structured markdown card — never a plain paragraph answer.
+- Start with a bold headline summarizing the topic (e.g. "## 🏦 DSCR Loan Reserve Requirements")
+- Use tables for any data with multiple values (by lender, by DSCR tier, by loan type, etc.)
+- Use sections with headers (##) to organize: Overview → Details → Comparison → Key Takeaways → Source
+- Bold all numbers and thresholds
+- Minimum 4 sections per answer
+- End every answer with a "## 📎 Source" section citing the exact source and URL
+- Use emojis for section headers to match card style: 🏦 📊 ✅ ⚠️ 💡 📎
+
+CONTENT RULES (hard):
+- Give the actual numbers — never say "varies" without also giving the range
+- Always show comparison tables when multiple programs or tiers exist
+- Include "Why it matters" context so users understand the impact
+- If a guideline has exceptions or overlays, show them in a separate row/section
+- Always include a "💡 Pro Tip" with actionable advice
 
 ${uwDatabase}`;
 
@@ -2182,8 +2192,8 @@ ${uwDatabase}`;
                         { role: 'system', content: uwSystemPrompt },
                         { role: 'user', content: question },
                     ],
-                    max_tokens: 1500,
-                    temperature: 0.1,
+                    max_tokens: 2500,
+                    temperature: 0.15,
                 }),
             });
             const xaiData = await xaiRes.json() as any;
