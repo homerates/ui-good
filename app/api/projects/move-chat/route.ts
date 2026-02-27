@@ -94,64 +94,35 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 1) Try to update an existing mapping for this user + thread
-        const { data: updated, error: updateError } = await supabase
+        // Upsert: if mapping exists for this user+thread (any project), update project_id.
+        // If no mapping exists, create one. Handles all cases without duplicate key errors.
+        const { data: upserted, error: upsertError } = await supabase
             .from(THREADS_TABLE)
-            .update({ project_id: projectId })
-            .eq("clerk_user_id", userId)
-            .eq("thread_id", threadId)
-            .select("id, project_id, thread_id, created_at");
-
-        if (updateError) {
-            console.error(
-                "Supabase update error in POST /api/projects/move-chat:",
-                updateError
-            );
-            return noStore(
+            .upsert(
                 {
-                    ok: false,
-                    reason: "supabase_error",
-                    stage: "update_mapping",
-                    error: updateError.message,
+                    clerk_user_id: userId,
+                    project_id: projectId,
+                    thread_id: threadId,
                 },
-                500
-            );
-        }
-
-        if (updated && updated.length > 0) {
-            // Happy path: mapping existed and is now reassigned
-            return noStore(
                 {
-                    ok: true,
-                    mapping: updated[0],
-                    mode: "updated",
-                },
-                200
-            );
-        }
-
-        // 2) No existing mapping: create one (this can happen for older chats)
-        const { data: inserted, error: insertError } = await supabase
-            .from(THREADS_TABLE)
-            .insert({
-                clerk_user_id: userId,
-                project_id: projectId,
-                thread_id: threadId,
-            })
+                    onConflict: "clerk_user_id, thread_id",
+                    ignoreDuplicates: false, // false = update on conflict (merge)
+                }
+            )
             .select("id, project_id, thread_id, created_at")
             .single();
 
-        if (insertError) {
+        if (upsertError) {
             console.error(
-                "Supabase insert error in POST /api/projects/move-chat (create mapping):",
-                insertError
+                "Supabase upsert error in POST /api/projects/move-chat:",
+                upsertError
             );
             return noStore(
                 {
                     ok: false,
                     reason: "supabase_error",
-                    stage: "insert_mapping",
-                    error: insertError.message,
+                    stage: "upsert_mapping",
+                    error: upsertError.message,
                 },
                 500
             );
@@ -160,8 +131,8 @@ export async function POST(req: NextRequest) {
         return noStore(
             {
                 ok: true,
-                mapping: inserted,
-                mode: "inserted",
+                mapping: upserted,
+                mode: "upserted",
             },
             200
         );
