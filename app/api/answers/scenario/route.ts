@@ -2520,6 +2520,249 @@ What's your scenario?`,
         }
         // ===== END DSCR BYPASS =====
 
+        // ===== UNDERWRITING GUIDELINES BYPASS =====
+        // Detects guideline questions → injects database → AI answers with sources, no hallucination.
+
+        function isUnderwritingQuestion(q: string): boolean {
+            return /credit.?score|fico|minimum.?score|score.?requirement/i.test(q) ||
+                /dti|debt.?to.?income|front.?end|back.?end|housing.?ratio/i.test(q) ||
+                /reserve|months?.?(?:piti|payment|reserves?)|liquid.?asset/i.test(q) ||
+                /down.?payment|ltv|loan.?to.?value|minimum.?down/i.test(q) ||
+                /income.?doc|documentation|w.?2|self.?employ|bank.?statement|1099|profit.?loss|p&l/i.test(q) ||
+                /gift.?fund|gift.?money|down.?payment.?gift/i.test(q) ||
+                /employment.?histor|job.?histor|2.?year.?employ|work.?histor/i.test(q) ||
+                /qualify|qualif|guideline|underwr|lending.?standard|loan.?requirement/i.test(q) ||
+                /fha.?limit|loan.?limit|conforming.?limit|jumbo.?threshold/i.test(q) ||
+                /mip.?removal|pmi.?cancel|mortgage.?insurance.?remov/i.test(q) ||
+                /va.?funding.?fee|va.?entitlement|va.?eligib/i.test(q) ||
+                /usda.?income.?limit|usda.?eligible|rural.?develop/i.test(q) ||
+                /non.?qm|bank.?statement.?loan|asset.?depletion|dscr.?qualif/i.test(q);
+        }
+
+        if (isUnderwritingQuestion(message) && !isDSCRMsg) {
+            console.log('[UW Guidelines] Detected guideline question — injecting database + calling AI');
+
+            const uwDatabase = `
+=== UNDERWRITING GUIDELINES DATABASE (as of early 2025) ===
+
+── FHA (Federal Housing Administration) ──────────────────────────────
+Source: HUD Handbook 4000.1 | hud.gov/program_offices/housing/sfh
+DTI:
+  - Front-end (housing): ≤ 31% guideline, up to 40%+ with AUS approval
+  - Back-end (total): ≤ 43% guideline, up to 50% with compensating factors
+  - Compensating factors: 12 months reserves, residual income, minimal debt increase
+Credit Score:
+  - 580+ → 3.5% minimum down payment
+  - 500–579 → 10% minimum down payment
+  - Below 500 → not eligible
+LTV / Down Payment:
+  - 3.5% minimum (580+ FICO)
+  - 10% minimum (500–579 FICO)
+  - Max LTV: 96.5%
+Loan Limits (2025):
+  - Standard: $524,225 (1-unit)
+  - High-cost areas: up to $1,209,750
+  - Alaska/Hawaii: up to $1,814,625
+Mortgage Insurance:
+  - UFMIP: 1.75% of base loan (financed)
+  - Annual MIP: 0.55% (>15yr, LTV >90%) — life of loan
+  - Annual MIP: 0.50% (>15yr, LTV ≤90%) — 11 years then removed
+  - MIP removal: only if 10%+ down (removed at year 11)
+Reserves: Not required by FHA, but lenders may overlay 1–3 months
+Employment: 2-year employment history required; gaps >6 months need explanation
+Gift Funds: 100% of down payment can be gift from family, employer, nonprofit
+Self-Employed: 2 years tax returns (1040), P&L, business bank statements; income averaged over 2 years
+
+── CONVENTIONAL (Fannie Mae / Freddie Mac) ────────────────────────────
+Source: Fannie Mae Selling Guide B3-6 | selling-guide.fanniemae.com
+       Freddie Mac Single-Family Seller/Servicer Guide | freddiemac.com/singlefamily
+DTI:
+  - Standard: ≤ 45% back-end
+  - DU/LP approval: up to 50% with strong compensating factors (high credit, reserves, low LTV)
+  - Front-end: no hard limit (DTI is back-end focused)
+Credit Score:
+  - Minimum: 620 (standard)
+  - Best pricing: 740+
+  - <620: not eligible for conventional
+LTV / Down Payment:
+  - Primary 1-unit: 3% minimum (Fannie HomeReady / Standard 97)
+  - Primary multi-unit (2–4): 15–25% depending on units
+  - Investment property: 15% (1-unit), 25% (2–4 units)
+  - Second home: 10% minimum
+  - No PMI at 20%+ down; PMI auto-cancels at 80% LTV (Homeowners Protection Act)
+Loan Limits (2025):
+  - Conforming: $806,500 (1-unit, standard)
+  - High-cost: up to $1,209,750
+Reserves:
+  - Primary 1-unit: 0–2 months typical (2 months if DTI >45%)
+  - Investment property: 6 months PITIA
+  - Multiple financed properties: 2% of aggregate UPB
+Employment: 2-year history standard; recent job change OK if same field
+Gift Funds: Allowed for primary and second homes; NOT allowed for investment properties
+Self-Employed: 2 years 1040s + business returns; income averaged; business must be 2+ years old
+PMI Removal: Request at 80% LTV; automatic at 78% LTV (original amortization schedule)
+
+── DSCR / INVESTMENT (Non-QM) ─────────────────────────────────────────
+Source: Lender guidelines — LoanDepot, Griffin Funding, Angel Oak, JMAC
+DTI: Not used — qualification based on DSCR (rent ÷ PITIA)
+DSCR Thresholds:
+  - 1.25x+ → most lenders approve (LoanDepot, Griffin, JMAC, Angel Oak)
+  - 1.0x → minimum for many programs
+  - 0.75x–1.0x → select lenders with 6–12 months reserves
+  - <0.75x → very limited options; typically needs 40%+ down
+Credit Score:
+  - Minimum: 620–640 most lenders
+  - Best pricing: 700+; some programs require 680+
+LTV / Down Payment:
+  - 1-unit investment: 20–25% down (75–80% LTV max)
+  - 2–4 unit: 25% down minimum
+  - Cash-out refinance: 70–75% LTV max
+Loan Limits: No agency limits; lender-specific (many up to $3M–5M)
+Reserves: 6–12 months PITIA required post-close (most lenders)
+Employment/Income: Not required — no income verification, no DTI
+Documentation: Lease agreement or 1007 appraisal rent schedule required
+Eligible Properties: SFR, condo, 2–4 unit, multifamily (5–10 units varies by lender)
+Not Eligible: Primary residence (DSCR is investment only), owner-occupied
+
+── VA (Department of Veterans Affairs) ────────────────────────────────
+Source: VA Lenders Handbook (VA Pamphlet 26-7) | benefits.va.gov/homeloans
+DTI:
+  - No hard DTI limit in VA handbook
+  - 41% guideline; above 41% requires residual income test to pass
+  - Residual income test: varies by family size and region
+Credit Score:
+  - VA has no minimum; lender overlays typically require 580–620+
+  - Best pricing: 680+
+LTV / Down Payment:
+  - 0% down with full entitlement (no down payment required)
+  - No PMI ever — VA Funding Fee instead
+Funding Fee (2025):
+  - First use, 0% down: 2.15%
+  - First use, 5–10% down: 1.50%
+  - First use, 10%+ down: 1.25%
+  - Subsequent use, 0% down: 3.30%
+  - Exempt: disabled veterans with 10%+ service-connected disability
+Loan Limits: No loan limit with full entitlement (since 2020)
+Reserves: Not required by VA; lender overlays may require 2–3 months
+Employment: 2-year history standard; exceptions for recent discharge
+Gift Funds: Allowed for all amounts
+Self-Employed: 2 years tax returns; must show stable/increasing income
+Eligibility: Active duty 90+ days (wartime), 181 days (peacetime), 6 years National Guard/Reserves, surviving spouses
+
+── USDA (Rural Development) ───────────────────────────────────────────
+Source: USDA RD Handbook HB-1-3555 | rd.usda.gov/programs-services/single-family-housing
+DTI:
+  - Front-end: ≤ 29% (with GUS approval, up to 32%)
+  - Back-end: ≤ 41% (with GUS approval, up to 44%)
+Credit Score:
+  - GUS automated: 640+ (streamlined approval)
+  - Manual underwrite: 580+ (with compensating factors)
+  - Below 580: generally not eligible
+LTV / Down Payment:
+  - 0% down (100% financing)
+  - Max LTV: 100% of appraised value (plus guarantee fee can be financed)
+  - Guarantee Fee: 1% upfront (can be financed), 0.35% annual
+Income Limits (2025):
+  - Moderate income limits by county; typically 115% of area median income
+  - Check eligibility: eligibility.sc.egov.usda.gov
+Property Eligibility: Must be in USDA-designated rural area
+Reserves: Not required
+Employment: 2-year history required; must demonstrate stable income
+Gift Funds: Allowed
+
+── JUMBO / NON-QM ──────────────────────────────────────────────────────
+Source: Lender-specific (no agency backing); examples: Chase, Wells Fargo, UWM, Angel Oak
+DTI:
+  - Typically ≤ 43% (stricter than conventional for large balances)
+  - Some non-QM: up to 55% with bank statements
+Credit Score:
+  - Jumbo conforming: 680–720 minimum (lender varies)
+  - Non-QM bank statement loans: 620+
+LTV / Down Payment:
+  - Standard jumbo: 10–20% down
+  - $1M–$2M: typically 20% minimum
+  - $2M+: typically 25–30% minimum
+  - No PMI products available through some lenders
+Reserves: 6–24 months depending on loan size; $2M+ typically 18–24 months
+Documentation Types:
+  - Full doc (W-2/tax returns)
+  - Bank statement (12 or 24 months personal or business)
+  - Asset depletion (divide assets by 84 months = qualifying income)
+  - P&L only (some lenders for self-employed)
+  - DSCR (investment properties)
+Loan Limits: Above conforming ($806,500 standard / $1,209,750 high-cost)
+
+=== END GUIDELINES DATABASE ===
+`;
+
+            const uwSystemPrompt = `You are HomeRates.AI Underwriting Guidelines Expert.
+
+Your job: answer underwriting questions accurately using ONLY the guidelines database provided below.
+ALWAYS cite the source (HUD, Fannie Mae Selling Guide, VA Handbook, USDA HB-1-3555, or lender-specific).
+NEVER guess or invent numbers not in the database.
+Format answers in clear markdown with tables where helpful.
+If a guideline may have changed recently, say "Verify current limits at [source URL]".
+Keep answers concise and actionable — borrowers and LOs need to make decisions.
+
+${uwDatabase}
+
+Today's date: ${marketData?.date || new Date().toISOString().split('T')[0]}
+Current 30-yr FRED rate: ${marketData?.thirtyYearFixed?.toFixed(2) || 'N/A'}%`;
+
+            const tAI = Date.now();
+            let uwAnswer = '';
+            try {
+                const xaiRes = await fetch('https://api.x.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+                    },
+                    body: JSON.stringify({
+                        model: 'grok-3-mini',
+                        messages: [
+                            { role: 'system', content: uwSystemPrompt },
+                            { role: 'user', content: message },
+                        ],
+                        max_tokens: 2000,
+                        temperature: 0.1,
+                        stream: false,
+                    }),
+                });
+                const xaiData = await xaiRes.json() as any;
+                uwAnswer = xaiData?.choices?.[0]?.message?.content || '';
+            } catch (uwErr: any) {
+                console.error('[UW Guidelines] AI call failed:', uwErr?.message);
+                uwAnswer = 'Unable to retrieve guideline data. Please try again.';
+            }
+            ai_ms = Date.now() - tAI;
+
+            console.log(`[UW Guidelines] Answer generated in ${ai_ms}ms`);
+            return respond({
+                success: true,
+                provider: 'underwriting-guidelines',
+                result: {
+                    plain_english_summary: uwAnswer,
+                    scenario_inputs: null,
+                    monthly_payment: null,
+                    total_interest_over_term: null,
+                    computed_financials: null,
+                },
+                marketData,
+                meta: {
+                    build_tag: buildTag,
+                    requestId,
+                    userIdPresent: Boolean(userId),
+                    model: 'grok-3-mini',
+                    maxTokens: 2000,
+                    memory_thread_id: memoryThreadId,
+                    timing_ms: { fred_ms, ai_ms, parse_ms: 0, total_ms: Date.now() - t0 },
+                    complexity: 'guidelines',
+                },
+            });
+        }
+        // ===== END UNDERWRITING GUIDELINES =====
+
         // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
         // ===== MORTGAGE CALCULATOR PRE-CALCULATION =====
         let mortgageCalcContext = "";
