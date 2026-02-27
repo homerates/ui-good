@@ -2231,6 +2231,36 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // ===== ROUTE GUARD: FHA / Conventional questions belong in /api/answers =====
+        // These were being hijacked by the scenario engine — guard prevents that entirely.
+        const isFHAMsg = /\bfha\b/i.test(message);
+        const isConventionalPurchase = /\$\s*[\d,]+k?\b/i.test(message) &&
+            /home|house|property|purchase|buying|condo|townhouse/i.test(message) &&
+            !/rent|rental|dscr|investment property|cash.?flow|pitia/i.test(message);
+
+        if (isFHAMsg || isConventionalPurchase) {
+            console.log('[Scenario Guard] Rejecting FHA/conventional question, redirecting to /api/answers');
+            return respond(
+                {
+                    success: false,
+                    redirect: "/api/answers",
+                    error: {
+                        message: "This question is better handled by the mortgage calculator.",
+                        code: "REDIRECT_TO_ANSWERS",
+                        requestId,
+                    },
+                    meta: {
+                        build_tag: buildTag,
+                        requestId,
+                        memory_thread_id: memoryThreadId,
+                        timing_ms: { fred_ms: 0, ai_ms: 0, parse_ms: 0, total_ms: Date.now() - t0 },
+                    },
+                },
+                { status: 400, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+            );
+        }
+        // ===== END ROUTE GUARD =====
+
         // 1) FRED
         const tFred = Date.now();
         const marketData = await getCurrentMortgageData();
