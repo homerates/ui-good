@@ -2682,12 +2682,10 @@ YOU MUST OUTPUT ALL FIELDS:
             const amortRows = amort
                 .filter((a: any) => [1, 5, 10, 15, 20, 25, 30].includes(Number(a.year)))
                 .map((a: any) => `| ${a.year} | ${fmt(a.principal_paid)} | ${fmt(a.interest_paid)} | ${fmt(a.ending_balance)} |`)
-                .join('
-');
+                .join('\n');
 
             const pmiBullet = downPct < 20 && !isInvestment
-                ? `
-> ⚠️ **PMI applies** (~0.5-0.6%/yr) until you reach 80% LTV. Consider 20% down to eliminate it.` : '';
+                ? '\n> ⚠️ **PMI applies** (~0.5-0.6%/yr) until you reach 80% LTV. Consider 20% down to eliminate it.' : '';
 
             let cashFlowSection = '';
             if (isInvestment) {
