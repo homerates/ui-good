@@ -338,19 +338,29 @@ function extractAffordabilityParams(question: string): {
         text.match(/\$?\s*(\d+)k\s*(?:a year|year|salary|income)?/i);
     let annualIncome = incomeMatch ? parseFloat(incomeMatch[1]) : undefined;
 
-    if (annualIncome && text.includes('k') && annualIncome < 1000) {
+    if (incomeMatch && annualIncome && /k\b/i.test(incomeMatch[0]) && annualIncome < 1000) {
         annualIncome *= 1000;
     }
 
     // Savings: "$40k saved", "savings $15k", "$20k in the bank", "20k available", "$50k down"
-    const savingsMatch = text.match(/\$?\s*(\d+)k?\s*(?:saved|savings|in the bank|in savings|available|down payment)/i) ||
-        text.match(/(?:savings|saved)\s*(?:of\s*)?\$?\s*(\d+)k?/i) ||
-        text.match(/(?:have|with|got)\s*\$?\s*(\d+)k?\s*(?:saved|savings|in the bank|in savings|available|cash|liquid|set aside)/i) ||
-        text.match(/\$?\s*(\d+)k?\s*(?:in the bank|in savings|available|liquid|cash)/i) ||
-        text.match(/(?:have|saved)\s*\$?\s*(\d+)k?/i);
+    // IMPORTANT: Must NOT match debt patterns like "$700 monthly debts" or "$300 car payment"
+    const debtKeywords = /(?:monthly|month|\/mo|per month|debt|payment|loan|car|student|credit)/i;
+    const rawSavingsMatches = [
+        text.match(/\$?\s*(\d+(?:,\d{3})*)k?\s*(?:saved|savings|in the bank|in savings|available|down payment)/i),
+        text.match(/(?:savings|saved)\s*(?:of\s*)?\$?\s*(\d+(?:,\d{3})*)k?/i),
+        text.match(/(?:have|with|got)\s*\$?\s*(\d+(?:,\d{3})*)k?\s*(?:saved|savings|in the bank|in savings|available|cash|liquid|set aside)/i),
+        text.match(/\$?\s*(\d+(?:,\d{3})*)k?\s*(?:in the bank|in savings|available|liquid|cash)/i),
+    ];
+    // Filter out any match where the surrounding context looks like a debt amount
+    const savingsMatch = rawSavingsMatches.find(m => {
+        if (!m) return false;
+        const idx = m.index ?? 0;
+        const surrounding = text.slice(Math.max(0, idx - 5), idx + m[0].length + 25);
+        return !debtKeywords.test(surrounding);
+    }) || null;
     let savings = savingsMatch ? parseFloat(savingsMatch[1]) : undefined;
 
-    if (savings && text.includes('k') && savings < 1000) {
+    if (savingsMatch && savings && /k\b/i.test(savingsMatch[0]) && savings < 1000) {
         savings *= 1000;
     }
 
@@ -2521,7 +2531,10 @@ ${dtiSection}
         }
     }
 
-    if (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate))) {
+    // If query explicitly mentions FHA + a home price, skip affordability and let FHA calculator handle it
+    const hasFHAWithPrice = /\bfha\b/i.test(question) && /\$?\d+k?\s*(?:home|house|property|purchase|price)/i.test(question);
+
+    if (!hasFHAWithPrice && (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
         console.log('[Affordability] Detected affordability question');
 
         const affordParams = extractAffordabilityParams(question);
@@ -2676,11 +2689,54 @@ What's your situation?`,
             }
 
         } else {
-            // Need more info
-            console.log('[FHA] Asking for FHA info');
+            // Check if this is a knowledge question about MIP/FHA rules (not a calc request)
+            const mipKnowledgeQ = /(?:when|how long|does|will|would|can)\s+(?:my\s+)?(?:mip|mortgage insurance|fha insurance|mip drop|mip cancel|mip go away|mip end|mip expire|mip stop)/i.test(question) ||
+                /(?:mip|mortgage insurance)\s+(?:drop|cancel|go away|end|expire|stop|remove|come off)/i.test(question) ||
+                /(?:get rid of|eliminate|remove)\s+(?:mip|fha mortgage insurance)/i.test(question);
 
-            fhaAnswer = {
-                answer: `**FHA Loan Calculator**
+            if (mipKnowledgeQ) {
+                // Answer MIP duration rules directly from context
+                // Check if prior context has a down payment % to personalize
+                const histText = conversationHistory || '';
+                const hadLowDown = /3\.5%|3\.5 percent|three and a half/i.test(histText);
+                const had10Down = /10%|10 percent/i.test(histText);
+
+                const mipLowDownAnswer = `**FHA MIP Duration — Your Situation**
+
+With **3.5% down** (the minimum), FHA MIP lasts for the **life of the loan** — it never automatically cancels.
+
+**Your options to remove MIP:**
+1. **Refinance to conventional** once you reach 20% equity — this is the most common exit strategy
+   - Typically takes 7–10 years of normal payments to reach 20% equity
+2. **Pay down to 80% LTV faster** via extra principal payments, then refinance
+
+**Why FHA doesn't cancel MIP automatically:**
+FHA changed the rules in 2013 — loans with <10% down now carry MIP for the full 30 years (vs. conventional PMI which cancels at 80% LTV by law).
+
+> 💡 **Rule of thumb:** If your credit score is 680+ and you have 20% equity, refinancing to conventional is usually worth it.
+
+Want me to calculate your break-even point for a refinance?`;
+
+                const mipHighDownAnswer = `**FHA MIP Duration**
+
+With **≥10% down**: MIP cancels after **11 years** (132 payments)
+With **<10% down**: MIP lasts for the **life of the loan** (never cancels automatically)
+
+To remove MIP before 11 years: refinance to conventional once you reach 20% equity.`;
+
+                fhaAnswer = {
+                    answer: (hadLowDown || !had10Down) ? mipLowDownAnswer : mipHighDownAnswer,
+                    next_step: "To exit FHA MIP, refinance to conventional at 20% LTV.",
+                    follow_up: "Want me to calculate when you'd hit 20% equity and the refinance break-even point?",
+                    confidence: "1.00 (FHA MIP policy per HUD guidelines)"
+                };
+                console.log('[FHA] Answered MIP duration knowledge question');
+            } else {
+                // Need more info
+                console.log('[FHA] Asking for FHA info');
+
+                fhaAnswer = {
+                    answer: `**FHA Loan Calculator**
 
 I can help you calculate an FHA loan with all costs including:
 - ✅ UFMIP (Upfront Mortgage Insurance Premium)
@@ -2704,10 +2760,11 @@ I can help you calculate an FHA loan with all costs including:
 - "FHA with 3.5% down on $350k, credit score 620, property tax 1.5%"
 
 What's your scenario?`,
-                next_step: "Share property price and rate (or income for full DTI analysis).",
-                follow_up: "What's the purchase price and do you know your credit score?",
-                confidence: "1.00 (ready to calculate FHA loan)"
-            };
+                    next_step: "Share property price and rate (or income for full DTI analysis).",
+                    follow_up: "What's the purchase price and do you know your credit score?",
+                    confidence: "1.00 (ready to calculate FHA loan)"
+                };
+            } // end else (not MIP knowledge question)
         }
     }
     // ========== END FHA CHECK ==========
