@@ -292,6 +292,8 @@ function isAffordabilityQuestion(question: string): boolean {
         /what can i afford/i,
         /how much (home|house|property) can i (afford|buy)/i,
         /first.time buyer/i,
+        /first.time home/i,
+        /first home/i,
         /(my|our) budget/i,
         /afford.*home/i,
         /buying power/i,
@@ -307,7 +309,8 @@ function isAffordabilityQuestion(question: string): boolean {
     const hasIncome = /(?:make|earn|income|salary|i\s+make|we\s+make|gross|making|earning)\s*(?:is\s*|of\s*)?[\s\S]{0,20}[\$]?\s*\d[\d,k]+/i.test(text) ||
         /[\$]?\s*\d[\d,k]+\s*(?:income|salary|a year|\/year|per year|annually)/i.test(text);
     const hasSavings = /(?:have|saved|savings|got|saving)\s*[\$]?\s*\d[\d,k]+/i.test(text) ||
-        /[\$]?\s*\d[\d,k]+\s*(?:saved|savings|in savings|in the bank)/i.test(text);
+        /[\$]?\s*\d[\d,k]+\s*(?:saved|savings|in savings|in the bank|in the bank|available|liquid|cash)/i.test(text) ||
+        /(?:bank|savings).*\$?\s*\d[\d,k]+/i.test(text);
 
     if (hasIncome && hasSavings) return true;
 
@@ -339,10 +342,11 @@ function extractAffordabilityParams(question: string): {
         annualIncome *= 1000;
     }
 
-    // Savings: "$40k saved", "have $40,000", "savings $15k", "$15k savings", "down payment 50k"
-    const savingsMatch = text.match(/\$?\s*(\d+)k?\s*(?:saved|savings|down payment)/i) ||
+    // Savings: "$40k saved", "savings $15k", "$20k in the bank", "20k available", "$50k down"
+    const savingsMatch = text.match(/\$?\s*(\d+)k?\s*(?:saved|savings|in the bank|in savings|available|down payment)/i) ||
         text.match(/(?:savings|saved)\s*(?:of\s*)?\$?\s*(\d+)k?/i) ||
-        text.match(/(?:have|with)\s*\$?\s*(\d+)k?\s*(?:saved|savings|in savings|available)?/i) ||
+        text.match(/(?:have|with|got)\s*\$?\s*(\d+)k?\s*(?:saved|savings|in the bank|in savings|available|cash|liquid|set aside)/i) ||
+        text.match(/\$?\s*(\d+)k?\s*(?:in the bank|in savings|available|liquid|cash)/i) ||
         text.match(/(?:have|saved)\s*\$?\s*(\d+)k?/i);
     let savings = savingsMatch ? parseFloat(savingsMatch[1]) : undefined;
 
@@ -350,8 +354,11 @@ function extractAffordabilityParams(question: string): {
         savings *= 1000;
     }
 
-    // Debt: "$300 car payment", "$500/month debt"
-    const debtMatch = text.match(/\$?\s*(\d+)\s*(?:\/month|month|monthly)?\s*(?:car|debt|loan|payment)/i);
+    // Debt: "$300 car payment", "$500/month debt", "$800 in monthly debt"
+    const debtMatch = text.match(/\$?\s*(\d+)\s*(?:car|student|monthly|month|\/month)\s*(?:payment|debt|loan)/i) ||
+        text.match(/\$?\s*(\d+)\s*(?:\/mo|per month|monthly|a month|month)\s*(?:in\s*)?(?:debt|payments?|obligations?)/i) ||
+        text.match(/(?:car|student|credit)\s*(?:payment|loan|debt)[^\d]*\$?\s*(\d+)/i) ||
+        text.match(/\$?\s*(\d+)\s*(?:car payment|student loan|debt payment|loan payment)/i);
     const monthlyDebt = debtMatch ? parseFloat(debtMatch[1]) : 0;
 
     const hasInfo = !!(annualIncome && savings);
@@ -2490,10 +2497,21 @@ ${dtiSection}
     if (affordFollowUp.isFollowUp) {
         // Scan recent message history for income/savings values
         const historyText = conversationHistory || '';
-        const histIncome = historyText.match(/\$?([\d,]+)k?\s*(?:\/year|a year|per year|income|salary)/i) ||
-            historyText.match(/(?:make|earn|income|salary)[^\d]*\$?([\d,]+)k?/i);
-        const histSavings = historyText.match(/\$?([\d,]+)k?\s*(?:saved|savings|in the bank|in savings)/i) ||
-            historyText.match(/(?:have|with|savings)[^\d]*\$?([\d,]+)k?/i);
+        // Search history lines in reverse to get MOST RECENT income/savings values
+        const histLines = historyText.split('\n').reverse();
+        let histIncome: RegExpMatchArray | null = null;
+        let histSavings: RegExpMatchArray | null = null;
+        for (const line of histLines) {
+            if (!histIncome) {
+                histIncome = line.match(/\$?([\d,]+)k?\s*(?:\/year|a year|per year|income|salary)/i) ||
+                    line.match(/(?:make|earn|income|salary)[^\d]{0,10}\$?([\d,]+)k?/i);
+            }
+            if (!histSavings) {
+                histSavings = line.match(/\$?([\d,]+)k?\s*(?:saved|savings|in the bank|in savings|available)/i) ||
+                    line.match(/(?:have|with|savings|bank)[^\d]{0,10}\$?([\d,]+)k?/i);
+            }
+            if (histIncome && histSavings) break;
+        }
         if (histIncome || histSavings) {
             let inc = histIncome ? parseFloat(histIncome[1]) : undefined;
             let sav = histSavings ? parseFloat(histSavings[1]) : undefined;
