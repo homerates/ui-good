@@ -688,10 +688,15 @@ function extractFHAParams(question: string): {
     const text = question.toLowerCase();
 
     // Purchase price — handles "$500K", "$500,000", "$500k home", "purchase price $500k"
-    const priceMatch = text.match(/\$\s*([\d,]+)\s*k\b/i) ||
-        text.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ||
-        text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
-        text.match(/(?:price|purchase|home|house|property).*?\$?\s*([\d,]+)k?/i);
+    // NOTE: bare "$Xk" only matches if followed by home/house/property context OR the value is >= 50
+    //       (prevents matching "$84k" in "MIP from $84k lifetime" as a purchase price)
+    const priceMatchCtx = text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
+        text.match(/(?:price|purchase|home|house|property).*?\$?\s*([\d,]+)k?/i) ||
+        text.match(/\$\s*([\d,]+(?:,\d{3})+)/i);  // full number like $515,000
+    // Bare "$Xk" only if value looks like a home price (>= 50, meaning $50k+)
+    const priceMatchBare = text.match(/\$\s*([\d,]+)\s*k\b/i);
+    const priceMatchBareParsed = priceMatchBare ? parseFloat(priceMatchBare[1].replace(/,/g, '')) : 0;
+    const priceMatch = priceMatchCtx || (priceMatchBareParsed >= 50 ? priceMatchBare : null);
     let purchasePrice = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : undefined;
     if (purchasePrice && /\$\s*[\d,]+k\b/i.test(text) && purchasePrice < 10000) {
         purchasePrice *= 1000;
@@ -2809,29 +2814,29 @@ What's your situation?`,
                     });
                 } else if (fhaResult.mipDuration === 'Life of loan') {
                     chips.push({
-                        label: `10% down cuts MIP from $${totalMIP}k lifetime to $${mip10k}k — saves $${totalMIP - mip10k}k total. Show me.`,
-                        seed: `Show me 10% down on the $${priceK}k FHA loan`
+                        label: `10% down cuts MIP from $${totalMIP}k to $${mip10k}k lifetime — saves $${totalMIP - mip10k}k. Show me.`,
+                        seed: `Show me FHA with 10% down on a $${priceK}k home`
                     });
                     chips.push({
-                        label: `Compare FHA 3.5% vs conventional 5% — which wins long term?`,
-                        seed: `Compare FHA 3.5% down vs conventional 5% down on $${priceK}k home`
+                        label: `FHA 3.5% vs conventional 5% on $${priceK}k — which wins long term?`,
+                        seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home`
                     });
                     chips.push({
-                        label: `When does conventional become cheaper than FHA on this loan?`,
+                        label: `At what year does conventional beat FHA on a $${priceK}k home?`,
                         seed: `At what point does conventional beat FHA on a $${priceK}k home — year by year?`
                     });
                 } else if (fhaResult.mipDuration === '11 years') {
                     chips.push({
-                        label: `Now compare FHA 10% down vs conventional 10% down side-by-side`,
-                        seed: `Compare FHA 10% down vs conventional 10% down on $${priceK}k home`
+                        label: `FHA 10% down vs conventional 10% down on $${priceK}k — side-by-side`,
+                        seed: `Compare FHA 10% down vs conventional 10% down on a $${priceK}k home`
                     });
                     chips.push({
-                        label: `20% down = no PMI ever. How much more is that monthly vs right now?`,
-                        seed: `Show me conventional 20% down on $${priceK}k — what's the monthly vs FHA 10% down?`
+                        label: `20% down = no PMI ever on $${priceK}k. What's the monthly difference?`,
+                        seed: `Show me conventional 20% down on a $${priceK}k home vs FHA 10% down`
                     });
                     chips.push({
-                        label: `What income do I need to comfortably afford this at 10% down?`,
-                        seed: `What annual income do I need to comfortably qualify for $${priceK}k FHA at 10% down?`
+                        label: `What income do I need to qualify for $${priceK}k at 10% down?`,
+                        seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 10% down?`
                     });
                 }
 
