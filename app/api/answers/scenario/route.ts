@@ -2236,6 +2236,139 @@ export async function POST(req: NextRequest) {
         const marketData = await getCurrentMortgageData();
         fred_ms = Date.now() - tFred;
 
+
+        // ========== FHA vs CONVENTIONAL INTERCEPT ==========
+        // When query asks to compare FHA + conventional on a specific home (primary residence),
+        // short-circuit the scenario AI and return a structured comparison directly.
+        {
+            const hasFHA = /\bfha\b/i.test(message);
+            const hasConventional = /\bconventional\b|\bconv\b/i.test(message);
+            const hasNoRent = !/\brent\b|\bdscr\b|\binvestment property\b|\brental\b/i.test(message);
+
+            if (hasFHA && hasConventional && hasNoRent) {
+                const priceRaw = message.match(/\$\s*([\d,]+)\s*k\b/i) || message.match(/\$\s*([\d,]+(?:,\d{3})+)/i) || message.match(/\$([\d,]+)/i);
+                let homePrice = priceRaw ? parseFloat(priceRaw[1].replace(/,/g, '')) : 0;
+                if (homePrice < 10000 && /\$\s*\d+k/i.test(message)) homePrice *= 1000;
+
+                // Extract rates — look for all % values between 2 and 15
+                const rateMatches = [...message.matchAll(/(\d+\.?\d*)\s*%/gi)];
+                const rates = rateMatches.map(m => parseFloat(m[1])).filter(r => r > 2 && r < 15);
+                const fhaRate = rates.length > 0 ? rates[0] : (marketData?.thirtyYearFixed || 6.5);
+                const convRate = rates.length > 1 ? rates[1] : fhaRate + 0.25;
+
+                if (homePrice > 50000) {
+                    const today = new Date().toISOString().slice(0, 10);
+                    const fmt = (n: number) => '$' + Math.round(n).toLocaleString();
+                    const fmtK = (n: number) => '$' + Math.round(n / 1000) + 'k';
+
+                    // FHA 3.5% down
+                    const fhaDown = homePrice * 0.035;
+                    const fhaBaseLoan = homePrice - fhaDown;
+                    const fhaUFMIP = fhaBaseLoan * 0.0175;
+                    const fhaTotalLoan = fhaBaseLoan + fhaUFMIP;
+                    const fhaMthRate = (fhaRate / 100) / 12;
+                    const fhaMthPI = fhaTotalLoan * (fhaMthRate * Math.pow(1 + fhaMthRate, 360)) / (Math.pow(1 + fhaMthRate, 360) - 1);
+                    const fhaMthMIP = (fhaTotalLoan * 0.0055) / 12;
+                    const fhaMthTax = (homePrice * 0.011) / 12;
+                    const fhaMthIns = (homePrice * 0.003) / 12;
+                    const fhaTotalMonthly = fhaMthPI + fhaMthMIP + fhaMthTax + fhaMthIns;
+                    const fhaTotalInterest = (fhaMthPI * 360) - fhaTotalLoan;
+                    const fhaCashToClose = fhaDown + homePrice * 0.03;
+
+                    // Conventional 5% down
+                    const convDown5 = homePrice * 0.05;
+                    const convLoan5 = homePrice - convDown5;
+                    const convMthRate5 = (convRate / 100) / 12;
+                    const convMthPI5 = convLoan5 * (convMthRate5 * Math.pow(1 + convMthRate5, 360)) / (Math.pow(1 + convMthRate5, 360) - 1);
+                    const convMthPMI5 = (convLoan5 * 0.005) / 12;
+                    const convTotal5 = convMthPI5 + convMthPMI5 + fhaMthTax + fhaMthIns;
+                    const convTotalInterest5 = (convMthPI5 * 360) - convLoan5;
+                    const convCashToClose5 = convDown5 + homePrice * 0.03;
+
+                    // Conventional 20% down
+                    const convDown20 = homePrice * 0.20;
+                    const convLoan20 = homePrice - convDown20;
+                    const convMthRate20 = (convRate / 100) / 12;
+                    const convMthPI20 = convLoan20 * (convMthRate20 * Math.pow(1 + convMthRate20, 360)) / (Math.pow(1 + convMthRate20, 360) - 1);
+                    const convTotal20 = convMthPI20 + fhaMthTax + fhaMthIns;
+                    const convTotalInterest20 = (convMthPI20 * 360) - convLoan20;
+                    const convCashToClose20 = convDown20 + homePrice * 0.03;
+
+                    const answer = [
+                        `## 🏠 FHA vs Conventional — ${fmt(homePrice)} Home`,
+                        ``,
+                        `| | FHA (3.5% down) | Conv (5% down) | Conv (20% down) |`,
+                        `|--|--|--|--|`,
+                        `| **Rate** | **${fhaRate.toFixed(2)}%** | **${convRate.toFixed(2)}%** | **${convRate.toFixed(2)}%** |`,
+                        `| Down Payment | ${fmt(fhaDown)} | ${fmt(convDown5)} | ${fmt(convDown20)} |`,
+                        `| Base Loan | ${fmt(fhaBaseLoan)} | ${fmt(convLoan5)} | ${fmt(convLoan20)} |`,
+                        `| UFMIP (1.75%) | +${fmt(fhaUFMIP)} | — | — |`,
+                        `| **Total Loan** | **${fmt(fhaTotalLoan)}** | **${fmt(convLoan5)}** | **${fmt(convLoan20)}** |`,
+                        ``,
+                        `### 💰 Monthly Payment`,
+                        ``,
+                        `| Component | FHA | Conv 5% | Conv 20% |`,
+                        `|-----------|-----|---------|---------|`,
+                        `| P&I | ${fmt(fhaMthPI)} | ${fmt(convMthPI5)} | ${fmt(convMthPI20)} |`,
+                        `| MIP/PMI | ${fmt(fhaMthMIP)} (life of loan) | ${fmt(convMthPMI5)} (cancels ~yr 8) | None |`,
+                        `| Taxes (est.) | ${fmt(fhaMthTax)} | ${fmt(fhaMthTax)} | ${fmt(fhaMthTax)} |`,
+                        `| Insurance | ${fmt(fhaMthIns)} | ${fmt(fhaMthIns)} | ${fmt(fhaMthIns)} |`,
+                        `| **Total PITI** | **${fmt(fhaTotalMonthly)}** | **${fmt(convTotal5)}** | **${fmt(convTotal20)}** |`,
+                        ``,
+                        `### 📊 30-Year Cost Comparison`,
+                        ``,
+                        `| | FHA | Conv 5% | Conv 20% |`,
+                        `|--|--|--|--|`,
+                        `| Cash to close | ${fmtK(fhaCashToClose)} | ${fmtK(convCashToClose5)} | ${fmtK(convCashToClose20)} |`,
+                        `| 30yr interest | ${fmtK(fhaTotalInterest)} | ${fmtK(convTotalInterest5)} | ${fmtK(convTotalInterest20)} |`,
+                        `| Mortgage insurance | Life of loan | Cancels ~yr 8 | **None** |`,
+                        ``,
+                        `### 💡 Bottom Line`,
+                        ``,
+                        `- **FHA at ${fhaRate.toFixed(2)}%** → ${fmt(fhaTotalMonthly)}/mo — lowest cash-to-close (${fmtK(fhaCashToClose)}), but MIP never cancels with <10% down`,
+                        `- **Conv 5% at ${convRate.toFixed(2)}%** → ${fmt(convTotal5)}/mo — PMI auto-cancels at 80% LTV (saves ${fmt(convMthPMI5)}/mo after ~8 yrs)`,
+                        `- **Conv 20% at ${convRate.toFixed(2)}%** → ${fmt(convTotal20)}/mo — no PMI ever, lowest 30yr cost but needs ${fmt(convDown20)} down`,
+                        ``,
+                        `> ⚠️ FHA MIP lasts the **life of the loan** with <10% down. Refinancing to conventional at 20% equity is the exit strategy.`,
+                    ].join('\n');
+
+                    const fhaInterceptResult = {
+                        ok: true,
+                        memory_thread_id: memoryThreadId,
+                        path: "dynamic",
+                        data_freshness: `Live (FRED) as of ${today}`,
+                        grok: {
+                            scenario: false,
+                            provider: "fha-intercept",
+                            model: "built-in",
+                            build_tag: "scenario-proof-12-19-25-v5",
+                            marketData,
+                            meta: {
+                                build_tag: "scenario-proof-12-19-25-v5",
+                                requestId,
+                                userIdPresent: !!userId,
+                                timing_ms: { fred_ms, ai_ms: 0, parse_ms: 0, total_ms: Date.now() - t0 },
+                                complexity: "medium",
+                            },
+                            result: null,
+                            plain_english_summary: answer,
+                            scenarioCardMarkdown: answer,
+                        },
+                        message: answer,
+                        answerMarkdown: `## FHA vs Conventional Comparison\n\n${answer}`,
+                        followUp: `Which option fits your situation? Share your income and I'll add a full DTI qualification check.`,
+                    };
+
+                    const interceptRes = NextResponse.json(fhaInterceptResult);
+                    interceptRes.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+                    interceptRes.headers.set("Pragma", "no-cache");
+                    interceptRes.headers.set("Expires", "0");
+                    return interceptRes;
+                }
+            }
+        }
+        // ========== END FHA vs CONVENTIONAL INTERCEPT ==========
+
         // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
         // ===== MORTGAGE CALCULATOR PRE-CALCULATION =====
         let mortgageCalcContext = "";
@@ -2313,9 +2446,8 @@ ${mortgageCalcContext}
 ASSUMPTIONS (hard):
 
 ASSUMPTIONS (hard):
-- CRITICAL RATE RULE: A percentage in the context of "down payment" (e.g. "5% down", "20% down") is NEVER an interest rate. Interest rates must be explicitly labeled as "rate", "interest rate", "APR", or "at X%". If user says "5% down" with no explicit rate, use the FRED 30-year rate.
-- Use the user-provided rate ONLY if they explicitly state an interest rate (e.g. "at 6.5%", "interest rate 7%", "rate of 6.25%").
-- Only use live FRED 30-year rate if user did NOT provide an explicit interest rate — including when user only mentions a down payment percentage.
+- Use the user-provided rate if explicitly stated in the user prompt.
+- Only use live FRED 30-year rate if the user did NOT provide a rate.
 - If taxes/insurance/maintenance/vacancy are not provided by the user, treat them as 0 for calculation BUT explicitly state "not provided" in plain_english_summary.
 - Do NOT invent rent growth, expense growth, refinancing, or any changing cash flow assumptions unless the user explicitly provides growth assumptions.
 - cash_flow_table MUST be flat annual net cash flow values (same number each year) unless user explicitly provides growth assumptions. If no growth assumptions are provided, all years MUST match.
@@ -2654,111 +2786,6 @@ YOU MUST OUTPUT ALL FIELDS:
             // swallow — memory must never break response
         }
 
-
-        // === BUILD RICH CARD MARKDOWN (matches calculator card style) ===
-        function buildScenarioCard(r: any, mktData: any): string {
-            const si = r?.scenario_inputs || {};
-            const cf = r?.computed_financials || {};
-            const price = Number(si.price || 0);
-            const downPct = Number(si.down_payment_pct || 0);
-            const downAmt = price * downPct / 100;
-            const loanAmt = Number(si.loan_amount || cf.loan_amount || 0);
-            const rate = Number(si.rate_used_pct || cf.rate_used_pct || 0);
-            const monthlyPI = Number(r.monthly_pi || cf.monthly_pi || r.monthly_payment || 0);
-            const monthlyTax = Number(cf.monthly_tax || 0);
-            const monthlyIns = Number(cf.monthly_ins || 0);
-            const monthlyHOA = Number(cf.monthly_hoa || 0);
-            const monthlyPITIA = Number(cf.monthly_pitia || (monthlyPI + monthlyTax + monthlyIns + monthlyHOA));
-            const totalInterest = Number(r.total_interest_over_term || 0);
-            const rentMonthly = Number(si.rent_monthly || 0);
-            const isInvestment = rentMonthly > 0;
-            const dscr = Number(r.dscr || cf.dscr_gross || 0);
-            const dscrLabel = dscr > 0 ? (dscr >= 1.25 ? '✅ Strong' : dscr >= 1.0 ? '⚠️ Tight' : '❌ Below threshold') : '';
-
-            const fmt = (n: number) => n > 0 ? '$' + Math.round(n).toLocaleString() : '$0';
-            const fmtRate = (n: number) => n.toFixed(2) + '%';
-
-            const amort = Array.isArray(r.amortization_summary) ? r.amortization_summary : [];
-            const amortRows = amort
-                .filter((a: any) => [1, 5, 10, 15, 20, 25, 30].includes(Number(a.year)))
-                .map((a: any) => `| ${a.year} | ${fmt(a.principal_paid)} | ${fmt(a.interest_paid)} | ${fmt(a.ending_balance)} |`)
-                .join('\n');
-
-            const pmiBullet = downPct < 20 && !isInvestment
-                ? '\n> ⚠️ **PMI applies** (~0.5-0.6%/yr) until you reach 80% LTV. Consider 20% down to eliminate it.' : '';
-
-            let cashFlowSection = '';
-            if (isInvestment) {
-                const monthlyCF = Number(cf.monthly_cash_flow || (rentMonthly - monthlyPITIA));
-                const annualCF = monthlyCF * 12;
-                const cfEmoji = monthlyCF >= 0 ? '✅' : '❌';
-                cashFlowSection = `
----
-
-## 💵 Cash Flow Analysis
-
-| Metric | Amount |
-|--------|--------|
-| Gross Rent | ${fmt(rentMonthly)}/mo |
-| PITIA | ${fmt(monthlyPITIA)}/mo |
-| Net Cash Flow | **${monthlyCF >= 0 ? '+' : ''}${fmt(Math.abs(monthlyCF))}/mo** ${cfEmoji} |
-| Annual Cash Flow | **${annualCF >= 0 ? '+' : '-'}${fmt(Math.abs(annualCF))}/yr** |
-${dscr > 0 ? `| DSCR | **${dscr.toFixed(2)}x** ${dscrLabel} |` : ''}`;
-            }
-
-            const rateSource = mktData?.thirtyYearFixed ? ` (FRED avg ${fmtRate(mktData.thirtyYearFixed)}, ${mktData.date || 'live'})` : '';
-
-            return `## 🏡 Loan Details
-
-| | |
-|--|--|
-| Home Price | ${fmt(price)} |
-| Down Payment (${downPct}%) | ${fmt(downAmt)} |
-| Loan Amount | **${fmt(loanAmt)}** |
-| Interest Rate | **${fmtRate(rate)}**${rateSource} |
-| Loan Term | 30-year fixed |
-
----
-
-## 💰 Monthly Payment
-
-| Component | Amount |
-|-----------|--------|
-| Principal & Interest | **${fmt(monthlyPI)}** |
-${monthlyTax > 0 ? `| Property Taxes | ${fmt(monthlyTax)} |` : '| Property Taxes | Not provided — add your local rate |'}
-${monthlyIns > 0 ? `| Home Insurance | ${fmt(monthlyIns)} |` : '| Home Insurance | Not provided |'}
-${monthlyHOA > 0 ? `| HOA | ${fmt(monthlyHOA)} |` : ''}| **Total PITIA** | **${fmt(monthlyPITIA)}/mo** |
-${pmiBullet}
-
-- Total interest over 30yr: **${fmt(totalInterest)}**
-${cashFlowSection}
-
----
-
-## 📈 Amortization Snapshot
-
-| Year | Principal Paid | Interest Paid | Ending Balance |
-|------|---------------|---------------|----------------|
-${amortRows}
-
----
-
-## 💡 What This Means
-
-${isInvestment ? `This is an **investment property** scenario.
-- DSCR of **${dscr.toFixed(2)}x** ${dscrLabel} — lenders typically require 1.0x minimum, 1.25x+ preferred
-- ${Number(cf.monthly_cash_flow || 0) >= 0 ? 'Positive cash flow — property covers its costs ✅' : `Negative cash flow of ${fmt(Math.abs(Number(cf.monthly_cash_flow || rentMonthly - monthlyPITIA)))}/mo — out-of-pocket monthly ⚠️`}
-- 20-25% down typically required for investment/DSCR loans`
-                    : `Your **P&I payment is ${fmt(monthlyPI)}/mo** on a ${fmt(price)} home at ${fmtRate(rate)}.
-- Add your local property tax and insurance to get your full PITI
-- Want to see what income you need to qualify? Share your annual income and I'll run a full DTI analysis`}
-
-**Ask me:** "What if I put down 20%?" | "What if rates drop to 5.5%?" | "What income do I need to qualify?"`;
-        }
-
-        const scenarioCardMarkdown = buildScenarioCard(result, marketData);
-        (result as any).scenarioCardMarkdown = scenarioCardMarkdown;
-
         return respond(
             {
                 success: true,
@@ -2766,13 +2793,6 @@ ${isInvestment ? `This is an **investment property** scenario.
                 // ✅ Top-level parity
                 memory_thread_id: memoryThreadId,
                 result,
-                // Pre-built rich card markdown — matches calculator card style
-                // Frontend should use this as friendly/answerMarkdown when present
-                answerMarkdown: `## Smart Scenario
-
-${scenarioCardMarkdown}`,
-                message: scenarioCardMarkdown,
-                friendly: scenarioCardMarkdown,
                 marketData,
                 meta: {
                     build_tag: buildTag,
