@@ -187,8 +187,9 @@ type ApiResponse = {
 
     // ===== New fields for Grok + AnswerCard =====
     answerMarkdown?: string; // rich markdown answer we render in the card
-    followUp?: string;       // camelCase version from backend
-    follow_up?: string;      // snake_case version if Grok uses it
+    followUp?: string;       // camelCase version from backend (display text)
+    follow_up?: string;      // snake_case version if Grok uses it (display text)
+    follow_up_chips?: Array<{ label: string; seed: string }>; // clickable chips: label shown, seed fills pill
     grok?: any;              // full Grok JSON for confidence / next_step / follow_up
     data_freshness?: string; // e.g. "Live 2025–2026 (Grok 4.1)"
     topSources?: Array<{ title: string; url: string }>;
@@ -1803,29 +1804,79 @@ export default function Page() {
                                         {m.role === 'assistant' ? (
                                             // If this is a Grok-style answer with markdown, use GrokCard
                                             m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
-                                                <GrokCard
-                                                    data={{
-                                                        grok: m.meta.grok,
-                                                        answerMarkdown: sanitizeMarkdown(
-                                                            m.meta.answerMarkdown ??
-                                                            (typeof m.content === 'string' ? m.content : '')
-                                                        ),
-
-                                                        followUp: m.meta.followUp ?? m.meta.grok?.follow_up,
-                                                        data_freshness:
-                                                            m.meta.data_freshness ??
-                                                            m.meta.fred?.asOf ??
-
-                                                            '',
-                                                    }}
-                                                    onFollowUp={(q: string) => {
-                                                        if (!q) return;
-                                                        setInput(q);
-                                                        // Then you can review/edit and hit Enter or the Send button
-                                                    }}
-
-
-                                                />
+                                                <>
+                                                    <GrokCard
+                                                        data={{
+                                                            grok: m.meta.grok,
+                                                            answerMarkdown: sanitizeMarkdown(
+                                                                m.meta.answerMarkdown ??
+                                                                (typeof m.content === 'string' ? m.content : '')
+                                                            ),
+                                                            // If we have chips, suppress GrokCard's built-in followUp
+                                                            // to avoid showing both. Chips replace it entirely.
+                                                            followUp: m.meta.follow_up_chips?.length
+                                                                ? undefined
+                                                                : (m.meta.followUp ?? m.meta.grok?.follow_up),
+                                                            data_freshness:
+                                                                m.meta.data_freshness ??
+                                                                m.meta.fred?.asOf ??
+                                                                '',
+                                                        }}
+                                                        onFollowUp={(q: string) => {
+                                                            if (!q) return;
+                                                            setInput(q);
+                                                        }}
+                                                    />
+                                                    {/* Smart follow-up chips — match GrokCard's Ask: pill style exactly, stacked 3x */}
+                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && (
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: 6,
+                                                            marginTop: 4,
+                                                        }}>
+                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }, i: number) => (
+                                                                <button
+                                                                    key={i}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setInput(chip.seed);
+                                                                        setTimeout(() => {
+                                                                            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
+                                                                            if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+                                                                        }, 50);
+                                                                    }}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        display: 'block',
+                                                                        padding: '10px 16px',
+                                                                        borderRadius: 9999,
+                                                                        border: '1px solid rgba(156, 163, 175, 0.25)',
+                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                        color: 'inherit',
+                                                                        fontSize: 13,
+                                                                        cursor: 'pointer',
+                                                                        textAlign: 'center',
+                                                                        lineHeight: 1.45,
+                                                                        transition: 'background 0.12s, border-color 0.12s',
+                                                                        fontFamily: 'inherit',
+                                                                    }}
+                                                                    onMouseEnter={e => {
+                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
+                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.5)';
+                                                                    }}
+                                                                    onMouseLeave={e => {
+                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
+                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.25)';
+                                                                    }}
+                                                                >
+                                                                    <span style={{ opacity: 0.5, fontWeight: 500, marginRight: 4 }}>Ask:</span>
+                                                                    {chip.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </>
                                             ) : m.meta ? (
                                                 // Legacy / calc answers still use AnswerBlock (Grok card)
                                                 <GrokAnswerBlock

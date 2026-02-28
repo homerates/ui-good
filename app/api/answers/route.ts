@@ -479,25 +479,75 @@ async function generateAffordabilityScenarios(params: {
 function generateAffordabilityFollowUp(
     params: { annualIncome: number; savings: number; monthlyDebt: number },
     scenarios: any[]
-): string {
+): Array<{ label: string; seed: string }> {
     const [fha, conv3, conv20] = scenarios;
+
+    const chips: Array<{ label: string; seed: string }> = [];
+    const incomeK = Math.round(params.annualIncome / 1000);
+    const savingsK = Math.round(params.savings / 1000);
+    const fhaPriceK = Math.round(fha.homePrice / 1000);
+    const conv3PriceK = Math.round(conv3.homePrice / 1000);
 
     if (fha.savingsGap > 0) {
         const gapK = Math.round(fha.savingsGap / 1000);
-        return `You need $${gapK}k more to close on the FHA option. Want to see a savings timeline, or explore a lower-priced home that fits your current $${Math.round(params.savings / 1000)}k?`;
-    }
-
-    if (params.monthlyDebt >= 300) {
+        const months1k = Math.ceil(fha.savingsGap / 1000);
+        chips.push({
+            label: `$${gapK}k short of closing — what's the highest price I can buy TODAY with $${savingsK}k?`,
+            seed: `What's the highest home price I can close on right now with $${savingsK}k saved and $${incomeK}k income?`
+        });
+        chips.push({
+            label: `Can gift funds cover my FHA down payment gap?`,
+            seed: `Can gift funds cover my FHA down payment? I need $${gapK}k more with $${incomeK}k income`
+        });
+        chips.push({
+            label: `What if I save $1,500/mo — how many months to be ready?`,
+            seed: `How long until I can buy if I save $1,500/month? I need $${gapK}k more for FHA closing`
+        });
+    } else if (params.monthlyDebt >= 300) {
         const budgetIncrease = Math.round((params.monthlyDebt * 3.5) / 1000);
-        return `Paying off that $${params.monthlyDebt}/month debt could increase your budget by ~$${budgetIncrease}k. Want to see that scenario?`;
-    }
-
-    if (conv20.savingsGap > 0) {
+        chips.push({
+            label: `Pay off debt → budget jumps $${budgetIncrease}k. Show me that scenario.`,
+            seed: `Show me affordability with $0 monthly debt — I make $${incomeK}k and have $${savingsK}k saved`
+        });
+        chips.push({
+            label: `Run the numbers on a specific home price for me`,
+            seed: `I make $${incomeK}k/year with $${params.monthlyDebt}/mo debt — what's my monthly payment on a $${fhaPriceK}k home?`
+        });
+        chips.push({
+            label: `Which debt should I pay off first to maximize my budget?`,
+            seed: `I have $${params.monthlyDebt}/mo in debt and $${incomeK}k income — which to pay off first to maximize my home buying budget?`
+        });
+    } else if (conv20.savingsGap > 0) {
         const gapK = Math.round(conv20.savingsGap / 1000);
-        return `You're $${gapK}k away from 20% down (no PMI). Want to see a savings plan, or run the numbers on a specific home price?`;
+        chips.push({
+            label: `$${gapK}k more = 20% down, no PMI ever. FHA vs conventional side-by-side?`,
+            seed: `Compare FHA 3.5% down vs conventional 20% down — I make $${incomeK}k and have $${savingsK}k saved`
+        });
+        chips.push({
+            label: `Show me a specific home at $${fhaPriceK}k — what's the exact monthly?`,
+            seed: `FHA on a $${fhaPriceK}k home — I make $${incomeK}k/year and have $${savingsK}k saved`
+        });
+        chips.push({
+            label: `What if rates drop to 5.5% — how much more can I afford?`,
+            seed: `Recalculate my affordability at 5.5% — I make $${incomeK}k and have $${savingsK}k saved`
+        });
+    } else {
+        // Ready to buy — push toward action
+        chips.push({
+            label: `I'm ready — show me FHA on a $${fhaPriceK}k home with local taxes`,
+            seed: `FHA loan on a $${fhaPriceK}k home — I make $${incomeK}k/year and have $${savingsK}k saved`
+        });
+        chips.push({
+            label: `What if I wait and save $${savingsK + 20}k — how much more home do I get?`,
+            seed: `Recalculate affordability with $${savingsK + 20}k saved and $${incomeK}k income — how much more home can I afford?`
+        });
+        chips.push({
+            label: `What happens to my budget if rates drop to 5.5%?`,
+            seed: `Recalculate my affordability at 5.5% rate — I make $${incomeK}k and have $${savingsK}k saved`
+        });
     }
 
-    return "Want to run numbers on a specific home, location, or see how different rates affect your payment?";
+    return chips;
 }
 
 /**
@@ -2572,8 +2622,8 @@ ${dtiSection}
                 scenarios
             );
 
-            // Generate smart follow-up based on their situation
-            const smartFollowUp = generateAffordabilityFollowUp(
+            // Generate dynamic follow-up chips
+            const affordChips = generateAffordabilityFollowUp(
                 {
                     annualIncome: affordParams.annualIncome!,
                     savings: affordParams.savings!,
@@ -2585,7 +2635,8 @@ ${dtiSection}
             affordabilityAnswer = {
                 answer: affordabilityMarkdown,
                 next_step: "Get pre-approved with 2-3 lenders to compare rates and confirm qualification.",
-                follow_up: smartFollowUp,  // ← Make sure this line uses smartFollowUp
+                follow_up: affordChips[0]?.label ?? "Want to run numbers on a specific home or see how rates affect your budget?",
+                follow_up_chips: affordChips,
                 confidence: "1.00 (calculated using verified mortgage formulas + Fannie Mae DTI guidelines)"
             };
 
@@ -2721,24 +2772,98 @@ What's your situation?`,
                 // Build markdown answer
                 const fhaMarkdown = buildFHAMarkdown(fhaParams, fhaResult, comparison);
 
-                // Generate smart follow-up
-                let fhaFollowUp = "Want to see conventional loan comparison or explore different down payment scenarios?";
+                // Generate dynamic follow-up chips
+                // Each chip has: label (displayed to user) + seed (fills the Ask pill as a natural question)
+                const chips: Array<{ label: string; seed: string }> = [];
+                const price = fhaParams.purchasePrice!;
+                const priceK = Math.round(price / 1000);
+                const totalMIP = Math.round(fhaResult.monthlyMIP * (fhaResult.mipDuration === '11 years' ? 132 : 360) / 1000);
+                const mip10k = Math.round(fhaResult.monthlyMIP * 0.85 * 132 / 1000);
+                const extraUpfront10 = Math.round((price * 0.10 - price * 0.035) / 1000);
 
                 if (!fhaResult.qualifies && fhaResult.totalDTI) {
-                    fhaFollowUp = `Your DTI is ${fhaResult.totalDTI}% (max 43%). Want to see lower price ranges or debt payoff scenarios?`;
+                    chips.push({
+                        label: `DTI is ${fhaResult.totalDTI}% — above the 43% limit. What price do I actually qualify for?`,
+                        seed: `What's the max home price I qualify for with my income? DTI is ${fhaResult.totalDTI}%`
+                    });
+                    chips.push({
+                        label: `What if I paid off my debts first — how much more home could I afford?`,
+                        seed: `Show me FHA affordability on $${priceK}k with $0 monthly debt`
+                    });
+                    chips.push({
+                        label: `Show me the price range where I'm safely under 43% DTI`,
+                        seed: `What home price keeps my FHA DTI under 40% with my current income?`
+                    });
                 } else if (!fhaResult.meetsCreditRequirement) {
-                    fhaFollowUp = "Credit score below 580. Want to see options for building credit or alternative loan programs?";
+                    chips.push({
+                        label: `Credit under 580 — show me FHA with 10% down instead`,
+                        seed: `Show me FHA with 10% down on $${priceK}k — credit score is under 580`
+                    });
+                    chips.push({
+                        label: `What credit score do I need to get the 3.5% down rate?`,
+                        seed: `What credit score do I need for FHA 3.5% down on $${priceK}k?`
+                    });
+                    chips.push({
+                        label: `Are there other low-down-payment loans I might qualify for?`,
+                        seed: `What are my options besides FHA if my credit score is under 580?`
+                    });
                 } else if (fhaResult.mipDuration === 'Life of loan') {
-                    fhaFollowUp = `MIP lasts for life of loan with ${fhaResult.downPaymentPct}% down. Want to see 10% down scenario (removes MIP after 11 years)?`;
-                } else if (comparison) {
-                    const savings = comparison.conventional.downPayment - fhaResult.downPayment;
-                    fhaFollowUp = `FHA saves $${(savings / 1000).toFixed(0)}k upfront. Want detailed FHA vs Conventional comparison or see saving strategies?`;
+                    chips.push({
+                        label: `10% down cuts MIP from $${totalMIP}k lifetime to $${mip10k}k — saves $${totalMIP - mip10k}k total. Show me.`,
+                        seed: `Show me 10% down on the $${priceK}k FHA loan`
+                    });
+                    chips.push({
+                        label: `Compare FHA 3.5% vs conventional 5% — which wins long term?`,
+                        seed: `Compare FHA 3.5% down vs conventional 5% down on $${priceK}k home`
+                    });
+                    chips.push({
+                        label: `When does conventional become cheaper than FHA on this loan?`,
+                        seed: `At what point does conventional beat FHA on a $${priceK}k home — year by year?`
+                    });
+                } else if (fhaResult.mipDuration === '11 years') {
+                    chips.push({
+                        label: `Now compare FHA 10% down vs conventional 10% down side-by-side`,
+                        seed: `Compare FHA 10% down vs conventional 10% down on $${priceK}k home`
+                    });
+                    chips.push({
+                        label: `20% down = no PMI ever. How much more is that monthly vs right now?`,
+                        seed: `Show me conventional 20% down on $${priceK}k — what's the monthly vs FHA 10% down?`
+                    });
+                    chips.push({
+                        label: `What income do I need to comfortably afford this at 10% down?`,
+                        seed: `What annual income do I need to comfortably qualify for $${priceK}k FHA at 10% down?`
+                    });
                 }
+
+                if (comparison && chips.length < 3) {
+                    const convTotal = comparison.conventional?.monthlyPayment ?? 0;
+                    const convDown = comparison.conventional?.downPayment ?? 0;
+                    const monthlyDiff = Math.abs(Math.round(totalMonthly - convTotal));
+                    const downDiff = Math.abs(Math.round((convDown - fhaResult.downPayment) / 1000));
+                    const fhaWinsMonthly = totalMonthly < convTotal;
+                    chips.push({
+                        label: fhaWinsMonthly
+                            ? `FHA is $${monthlyDiff}/mo cheaper — add my income to see which I actually qualify for`
+                            : `Conventional saves $${monthlyDiff}/mo once PMI cancels — add income to see which I qualify for`,
+                        seed: `I make $${Math.round(price / 5 / 1000) * 10}k/year — FHA or conventional on $${priceK}k?`
+                    });
+                }
+
+                // Pad to 3 chips if needed
+                if (!fhaParams.annualIncome && chips.length < 3) {
+                    chips.push({
+                        label: `Add my income — tell me if I actually qualify for this payment`,
+                        seed: `I make $[income]/year — do I qualify for FHA on $${priceK}k home?`
+                    });
+                }
+
+                const fhaFollowUp = chips[0]?.label ?? "Want to explore different down payment or loan scenarios?";
 
                 fhaAnswer = {
                     answer: fhaMarkdown,
                     next_step: "Get FHA pre-approval from an FHA-approved lender. Check credit score and verify down payment source.",
                     follow_up: fhaFollowUp,
+                    follow_up_chips: chips,
                     confidence: "1.00 (calculated using official FHA guidelines and MIP rates)"
                 };
 
