@@ -1394,7 +1394,8 @@ export default function Page() {
             // Check if we have a previous route for this thread
             const lastRoute = tid ? lastRouteByThread[tid] : undefined;
 
-            // Detect follow-up indicators
+            // Detect follow-up indicators — covers suggested follow-up clicks like
+            // "show me 10% down scenario", "what if I put 10% down", "show me that option"
             const isFollowUp =
                 t.includes('what if') ||
                 t.includes('instead') ||
@@ -1402,20 +1403,30 @@ export default function Page() {
                 t.includes('same home') ||
                 t.includes('that property') ||
                 t.includes('that home') ||
-                t.includes('previous');
+                t.includes('previous') ||
+                t.includes('show me') ||
+                t.includes('run that') ||
+                t.includes('run it') ||
+                /^\s*(?:yes|yeah|yep|ok|okay|sure|do it|go ahead)\s*$/i.test(q);
 
             let useScenario = false;
 
-            // FHA questions (with or without conventional comparison) always stay in answers route.
-            // The answers route has dedicated FHA and affordability calculators.
+            // FHA questions (with or without conventional comparison) ALWAYS stay in answers route.
+            // Also: if last route was FHA/answers and this looks like a down-payment follow-up,
+            // keep it in answers (e.g. "show me 10% down scenario" after FHA analysis).
             const isFHAQuestion =
                 /\bfha\b/i.test(q) ||
                 /\bmip\b|\bufmip\b/i.test(q) ||
                 /3\.5\s*%\s*down/i.test(q);
 
-            if (isFHAQuestion) {
+            // Follow-up that changes down payment % while in FHA/affordability context
+            const isDownPaymentFollowUp =
+                lastRoute === 'answers' &&
+                /\b(\d+)\s*%\s*down\b/i.test(q);
+
+            if (isFHAQuestion || isDownPaymentFollowUp) {
                 useScenario = false;
-                console.log('[Routing] FHA question detected, forcing answers route');
+                console.log('[Routing] FHA/down-payment follow-up, forcing answers route');
             } else if (isFollowUp && lastRoute) {
                 // Follow-up: stick with previous route
                 useScenario = lastRoute === 'scenario';
@@ -1424,21 +1435,21 @@ export default function Page() {
                 // Forced via URL parameter
                 useScenario = true;
             } else {
-                // New question: detect route normally
+                // New question: detect route normally.
+                // NOTE: bare 'scenario' word removed — too broad, fires on borrower follow-ups like
+                // "show me a 10% down scenario". Real investment scenarios have DSCR/rent/cash flow context.
                 const looksLikeScenario =
-                    t.includes('scenario') ||
                     t.includes('compare') ||
                     t.includes(' vs ') ||
                     t.includes('cash out') ||
                     t.includes('cash-out') ||
-                    t.includes('equity') ||
                     t.includes('projection') ||
                     t.includes('stress test') ||
                     t.includes('10-year') ||
                     t.includes('10 year') ||
                     t.includes('5-year') ||
                     t.includes('5 year') ||
-                    // Investment / DSCR / rental math should always use Smart Scenario (single numeric authority)
+                    // Investment / DSCR / rental math — always use Smart Scenario
                     t.includes('dscr') ||
                     t.includes('pitia') ||
                     t.includes('amortization') ||
@@ -1450,7 +1461,8 @@ export default function Page() {
                     t.includes('vacancy') ||
                     t.includes('maintenance') ||
                     t.includes('property tax');
-                // NOTE: removed 'insurance' — too broad, fires on "home insurance" in affordability questions
+                // NOTE: removed 'scenario' (too broad) and 'insurance' (too broad)
+                // NOTE: removed bare 'equity' — fires on "do I have enough equity in savings"
 
                 const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
 
@@ -1568,7 +1580,7 @@ export default function Page() {
             if (tid) {
                 setLastRouteByThread(prev => ({
                     ...prev,
-                    [tid]: useScenario ? 'scenario' : 'general'
+                    [tid]: useScenario ? 'scenario' : 'answers'
                 }));
             }
         } catch (e) {

@@ -2646,16 +2646,49 @@ What's your situation?`,
                     monthlyDebts: fhaParams.monthlyDebts || 0,
                 });
 
-                // Generate comparison if we have income
+                // Generate comparison if:
+                // 1) we have income (always compare), OR
+                // 2) user explicitly asks to compare FHA vs conventional
+                const wantsComparison = /conventional|\bconv\b|compare|\bvs\b|both options/i.test(question);
                 let comparison = null;
+
+                // Extract the conventional rate if two rates are given (e.g. "FHA at 5.625% and conventional at 5.99%")
+                const allRates = [...question.matchAll(/(\d+\.?\.?\d*)\s*%/gi)]
+                    .map((m: RegExpMatchArray) => parseFloat(m[1])).filter((r: number) => r > 2 && r < 15);
+                const convRate = allRates.length > 1 ? allRates[1] : (fhaParams.interestRate || fred?.mort30Avg || 6.5);
+
                 if (fhaParams.annualIncome) {
+                    // Full comparison with DTI when income is known
                     comparison = compareFHAvsConventional(
                         fhaParams.purchasePrice,
-                        fhaParams.interestRate || fred?.mort30Avg || 6.5,
+                        convRate,
                         fhaParams.annualIncome,
                         fhaParams.monthlyDebts || 0,
                         fhaParams.propertyTaxRate || 1.1
                     );
+                } else if (wantsComparison) {
+                    // Build conventional numbers directly (no income needed — just payment math)
+                    const price = fhaParams.purchasePrice;
+                    const convDownPct = 5;
+                    const convDown = price * (convDownPct / 100);
+                    const convLoan = price - convDown;
+                    const convMthRate = (convRate / 100) / 12;
+                    const convPI = convLoan * (convMthRate * Math.pow(1 + convMthRate, 360)) / (Math.pow(1 + convMthRate, 360) - 1);
+                    const convPMI = (convLoan * 0.005) / 12;
+                    const convTax = (price * ((fhaParams.propertyTaxRate || 1.1) / 100)) / 12;
+                    const convIns = 100;
+                    const convTotal = Math.round(convPI + convPMI + convTax + convIns);
+                    comparison = {
+                        conventional: {
+                            downPayment: convDown,
+                            downPaymentPct: convDownPct,
+                            monthlyPayment: convTotal,
+                            monthlyPI: Math.round(convPI),
+                            monthlyMI: Math.round(convPMI),
+                            monthlyPMI: Math.round(convPMI),
+                            convRateUsed: convRate,
+                        }
+                    };
                 }
 
                 // Build markdown answer
