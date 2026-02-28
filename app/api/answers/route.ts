@@ -2826,28 +2826,28 @@ What's your situation?`,
                     });
                 } else if (fhaResult.mipDuration === 'Life of loan') {
                     chips.push({
-                        label: `10% down cuts MIP from $${totalMIP}k to $${mip10k}k lifetime — saves $${totalMIP - mip10k}k. Show me.`,
+                        label: `Show me 10% down — MIP cancels after 11 years instead of never`,
                         seed: `Show me FHA with 10% down on a $${priceK}k home`
                     });
                     chips.push({
-                        label: `FHA 3.5% vs conventional 5% on $${priceK}k — which wins long term?`,
+                        label: `Compare FHA vs conventional — which loan wins long term?`,
                         seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home`
                     });
                     chips.push({
-                        label: `At what year does conventional beat FHA on a $${priceK}k home?`,
+                        label: `At what year does conventional become cheaper than FHA?`,
                         seed: `At what point does conventional beat FHA on a $${priceK}k home — year by year?`
                     });
                 } else if (fhaResult.mipDuration === '11 years') {
                     chips.push({
-                        label: `FHA 10% down vs conventional 10% down on $${priceK}k — side-by-side`,
+                        label: `FHA 10% down vs conventional 10% down — side-by-side`,
                         seed: `Compare FHA 10% down vs conventional 10% down on a $${priceK}k home`
                     });
                     chips.push({
-                        label: `20% down = no PMI ever on $${priceK}k. What's the monthly difference?`,
+                        label: `Show me 20% down — no PMI ever, what's the monthly difference?`,
                         seed: `Show me conventional 20% down on a $${priceK}k home vs FHA 10% down`
                     });
                     chips.push({
-                        label: `What income do I need to qualify for $${priceK}k at 10% down?`,
+                        label: `What income do I need to comfortably qualify at 10% down?`,
                         seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 10% down?`
                     });
                 }
@@ -2861,8 +2861,8 @@ What's your situation?`,
                     const fhaWinsMonthly = fhaMonthly < convTotal;
                     chips.push({
                         label: fhaWinsMonthly
-                            ? `FHA is $${monthlyDiff}/mo cheaper — add my income to see which I actually qualify for`
-                            : `Conventional saves $${monthlyDiff}/mo once PMI cancels — add income to see which I qualify for`,
+                            ? `FHA is cheaper monthly — add my income to see which I actually qualify for`
+                            : `Conventional saves monthly once PMI cancels — add income to see which I qualify for`,
                         seed: `I make $${Math.round(price / 5 / 1000) * 10}k/year — FHA or conventional on $${priceK}k?`
                     });
                 }

@@ -1807,16 +1807,17 @@ export default function Page() {
                                                 <>
                                                     <GrokCard
                                                         data={{
-                                                            grok: m.meta.grok,
+                                                            // When chips exist: strip follow_up out of grok entirely
+                                                            // so GrokCard cannot render its own button at all.
+                                                            grok: m.meta.follow_up_chips?.length
+                                                                ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
+                                                                : m.meta.grok,
                                                             answerMarkdown: sanitizeMarkdown(
                                                                 m.meta.answerMarkdown ??
                                                                 (typeof m.content === 'string' ? m.content : '')
                                                             ),
-                                                            // When chips exist: pass empty string so GrokCard renders
-                                                            // no button text — our chips below are the only follow-ups.
-                                                            // When no chips: use the follow_up display text as normal.
                                                             followUp: m.meta.follow_up_chips?.length
-                                                                ? ''
+                                                                ? undefined
                                                                 : (m.meta.followUp ?? m.meta.grok?.follow_up),
                                                             data_freshness:
                                                                 m.meta.data_freshness ??
@@ -1824,8 +1825,8 @@ export default function Page() {
                                                                 '',
                                                         }}
                                                         onFollowUp={(q: string) => {
-                                                            // When chips exist, block GrokCard's built-in followUp click —
-                                                            // it fires with the label text (not the seed). Chips handle it.
+                                                            // When chips exist, ignore anything GrokCard fires —
+                                                            // chips are the only follow-up mechanism.
                                                             if (!q || m.meta?.follow_up_chips?.length) return;
                                                             setInput(q);
                                                         }}
