@@ -2838,7 +2838,7 @@ What's your situation?`,
                 if (comparison && chips.length < 3) {
                     const convTotal = comparison.conventional?.monthlyPayment ?? 0;
                     const convDown = comparison.conventional?.downPayment ?? 0;
-                    const fhaMonthly = fhaResult.totalMonthly ?? fhaResult.totalMonthlyPITIA ?? 0;
+                    const fhaMonthly = fhaResult.totalMonthly ?? 0;
                     const monthlyDiff = Math.abs(Math.round(fhaMonthly - convTotal));
                     const downDiff = Math.abs(Math.round((convDown - fhaResult.downPayment) / 1000));
                     const fhaWinsMonthly = fhaMonthly < convTotal;
