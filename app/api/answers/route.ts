@@ -2623,10 +2623,37 @@ What's your situation?`,
     // ========== FHA CALCULATOR CHECK ==========
     let fhaAnswer = null;
 
-    if (!affordabilityAnswer && isFHAQuestion(question)) {
+    // History-aware FHA detection: if prior conversation mentions FHA and current question
+    // is a down-payment follow-up ("show me 10% down", "what about 20% down"), treat as FHA question
+    const isFHAFollowUp = !isFHAQuestion(question) &&
+        /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(question) &&
+        /\bfha\b|\bmip\b|\bufmip\b/i.test(conversationHistory || '');
+
+    if (!affordabilityAnswer && (isFHAQuestion(question) || isFHAFollowUp)) {
         console.log('[FHA] Detected FHA question');
 
         const fhaParams = extractFHAParams(question);
+
+        // If this is a follow-up with no price in current question, pull price + rate from history
+        if (!fhaParams.purchasePrice && isFHAFollowUp && conversationHistory) {
+            const histPrice = conversationHistory.match(/\$\s*([\d,]+)\s*k?\s*(?:home|house|property|purchase|price|purchase price)/i) ||
+                conversationHistory.match(/(?:home|house|property|purchase price)[^$]*\$\s*([\d,]+)k?/i) ||
+                conversationHistory.match(/\$\s*([\d,]+)(?:,\d{3})*\s*(?:home|k)/i);
+            if (histPrice) {
+                let hp = parseFloat(histPrice[1].replace(/,/g, ''));
+                if (hp < 10000) hp *= 1000;
+                fhaParams.purchasePrice = hp;
+                fhaParams.hasInfo = true;
+            }
+            // Also pull prior rate if no rate in current question
+            if (!fhaParams.interestRate) {
+                const histRate = conversationHistory.match(/(?:fha|at)\s+(\d+\.?\d*)\s*%/i);
+                if (histRate) fhaParams.interestRate = parseFloat(histRate[1]);
+            }
+            // Override down payment from current question (e.g. "show me 10% down")
+            const followUpDown = question.match(/\b(\d+)\s*%\s*down\b/i);
+            if (followUpDown) fhaParams.downPaymentPct = parseFloat(followUpDown[1]);
+        }
 
         if (fhaParams.hasInfo && fhaParams.purchasePrice) {
             console.log('[FHA] Calculating FHA loan:', fhaParams);
