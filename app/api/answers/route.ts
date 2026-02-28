@@ -2692,14 +2692,26 @@ What's your situation?`,
 
         // If this is a follow-up with no price in current question, pull price + rate from history
         if (!fhaParams.purchasePrice && isFHAFollowUp && conversationHistory) {
-            const histPrice = conversationHistory.match(/\$\s*([\d,]+)\s*k?\s*(?:home|house|property|purchase|price|purchase price)/i) ||
+            // Look for price with home/purchase context first (most reliable)
+            const histPriceCtx = conversationHistory.match(/\$\s*([\d,]+)\s*k?\s*(?:home|house|property|purchase price)/i) ||
                 conversationHistory.match(/(?:home|house|property|purchase price)[^$]*\$\s*([\d,]+)k?/i) ||
-                conversationHistory.match(/\$\s*([\d,]+)(?:,\d{3})*\s*(?:home|k)/i);
-            if (histPrice) {
-                let hp = parseFloat(histPrice[1].replace(/,/g, ''));
+                conversationHistory.match(/\$\s*([\d,]+(?:,\d{3})+)/i); // full $515,000 format
+            // Bare $Xk only if value >= 100 (i.e. $100k+) to avoid matching MIP amounts like $84k, $26k
+            const histPriceBare = conversationHistory.match(/\$\s*(\d+)k\b/gi)
+                ?.map((m: string) => parseFloat(m.replace(/[\$k]/gi, '')))
+                .find((v: number) => v >= 100);
+            const histPriceVal = histPriceCtx
+                ? parseFloat(histPriceCtx[1].replace(/,/g, ''))
+                : (histPriceBare ?? null);
+
+            if (histPriceVal !== null && histPriceVal !== undefined) {
+                let hp = histPriceVal;
                 if (hp < 10000) hp *= 1000;
-                fhaParams.purchasePrice = hp;
-                fhaParams.hasInfo = true;
+                // Sanity check: home prices are $50k–$5M
+                if (hp >= 50000 && hp <= 5000000) {
+                    fhaParams.purchasePrice = hp;
+                    fhaParams.hasInfo = true;
+                }
             }
             // Also pull prior rate if no rate in current question
             if (!fhaParams.interestRate) {

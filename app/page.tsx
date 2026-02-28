@@ -1812,10 +1812,11 @@ export default function Page() {
                                                                 m.meta.answerMarkdown ??
                                                                 (typeof m.content === 'string' ? m.content : '')
                                                             ),
-                                                            // If we have chips, suppress GrokCard's built-in followUp
-                                                            // to avoid showing both. Chips replace it entirely.
+                                                            // When chips exist: pass empty string so GrokCard renders
+                                                            // no button text — our chips below are the only follow-ups.
+                                                            // When no chips: use the follow_up display text as normal.
                                                             followUp: m.meta.follow_up_chips?.length
-                                                                ? undefined
+                                                                ? ''
                                                                 : (m.meta.followUp ?? m.meta.grok?.follow_up),
                                                             data_freshness:
                                                                 m.meta.data_freshness ??
@@ -1823,7 +1824,9 @@ export default function Page() {
                                                                 '',
                                                         }}
                                                         onFollowUp={(q: string) => {
-                                                            if (!q) return;
+                                                            // When chips exist, block GrokCard's built-in followUp click —
+                                                            // it fires with the label text (not the seed). Chips handle it.
+                                                            if (!q || m.meta?.follow_up_chips?.length) return;
                                                             setInput(q);
                                                         }}
                                                     />
