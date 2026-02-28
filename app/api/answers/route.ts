@@ -2826,7 +2826,7 @@ What's your situation?`,
                     });
                 } else if (fhaResult.mipDuration === 'Life of loan') {
                     chips.push({
-                        label: `Show me 10% down — MIP cancels after 11 years instead of never`,
+                        label: `Show me FHA 10% down on this home`,
                         seed: `Show me FHA with 10% down on a $${priceK}k home`
                     });
                     chips.push({
@@ -3223,6 +3223,7 @@ Return valid JSON only:
         message,
         answerMarkdown: finalMarkdown,
         followUp: grokFinal?.follow_up || followUpFor(topic),
+        follow_up_chips: grokFinal?.follow_up_chips || null,
     });
 }
 
