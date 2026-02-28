@@ -1406,7 +1406,17 @@ export default function Page() {
 
             let useScenario = false;
 
-            if (isFollowUp && lastRoute) {
+            // FHA questions (with or without conventional comparison) always stay in answers route.
+            // The answers route has dedicated FHA and affordability calculators.
+            const isFHAQuestion =
+                /\bfha\b/i.test(q) ||
+                /\bmip\b|\bufmip\b/i.test(q) ||
+                /3\.5\s*%\s*down/i.test(q);
+
+            if (isFHAQuestion) {
+                useScenario = false;
+                console.log('[Routing] FHA question detected, forcing answers route');
+            } else if (isFollowUp && lastRoute) {
                 // Follow-up: stick with previous route
                 useScenario = lastRoute === 'scenario';
                 console.log('[Routing] Follow-up detected, using last route:', lastRoute);
@@ -1435,12 +1445,12 @@ export default function Page() {
                     t.includes('amortisation') ||
                     t.includes('cash flow') ||
                     t.includes('rental') ||
-                    t.includes('rent ') ||
+                    t.includes('rent') ||
                     t.includes('investment property') ||
                     t.includes('vacancy') ||
                     t.includes('maintenance') ||
-                    t.includes('property tax') ||
-                    t.includes('insurance');
+                    t.includes('property tax');
+                // NOTE: removed 'insurance' — too broad, fires on "home insurance" in affordability questions
 
                 const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
 
