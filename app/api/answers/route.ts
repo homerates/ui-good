@@ -2193,15 +2193,16 @@ async function handle(req: NextRequest, intentParam?: string) {
         ];
 
         // If any info signal matches, it's a guideline question
-        if (infoSignals.some(pattern => pattern.test(q))) return true;
-
-        // Negative signals — these mean it's a calculation, not a guideline question
+        // Negative signals — check FIRST before any positive match
+        // Questions with a dollar amount + FHA/price context are calculations, not guidelines
         const hasDollarAmount = /\$\s*[\d,]+/i.test(q);
         if (hasDollarAmount) return false;
 
         // "use my scenario", "run my numbers", "calculate for me" = calculation intent
         const isCalculationIntent = /use my scenario|run.{0,20}(?:numbers?|scenario|calc)|calculate.{0,20}for me|show me.{0,20}(?:fha|payment|cost)|what.{0,10}(?:would|will).{0,20}(?:payment|piti|cost)|can you.{0,20}(?:calc|run|show|use)|(?:use|apply|run).{0,20}(?:my|this|same|that).{0,20}(?:scenario|situation|numbers?|info|details?)|(?:for|with).{0,5}fha\b|fha.{0,20}(?:version|option|instead)|my scenario.{0,20}fha|can.{0,10}fha/i.test(q);
         if (isCalculationIntent) return false;
+
+        if (infoSignals.some(pattern => pattern.test(q))) return true;
 
         return false;
     }
@@ -2350,7 +2351,12 @@ ${uwDatabase}`;
             grok: {
                 answer: uwAnswerText,
                 next_step: "Verify current guidelines with your lender or at the official source.",
-                follow_up: "Do you have a specific scenario you'd like to calculate?",
+                follow_up: undefined,
+                follow_up_chips: [
+                    { label: "Run a real FHA scenario for me", seed: "FHA loan on a $450k home at 6.5% — show me full payment breakdown" },
+                    { label: "Compare FHA vs conventional on a specific home", seed: "Compare FHA 3.5% down vs conventional 5% down on a $450k home" },
+                    { label: "What can I afford with my income?", seed: "What can I afford as a first-time home buyer?" },
+                ],
                 confidence: "1.00 (sourced from official guidelines database)",
             },
             debug: {
