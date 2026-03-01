@@ -2719,8 +2719,11 @@ What's your situation?`,
                 if (histRate) fhaParams.interestRate = parseFloat(histRate[1]);
             }
             // Override down payment from current question (e.g. "show me 10% down")
-            const followUpDown = question.match(/\b(\d+)\s*%\s*down\b/i);
-            if (followUpDown) fhaParams.downPaymentPct = parseFloat(followUpDown[1]);
+            // Use decimal-aware regex; only override if it looks like an FHA-specific instruction
+            // (i.e. "fha X% down" or "X% down" without "conventional" right before it)
+            const followUpDownFHA = question.match(/fha\s+([\d.]+)\s*%\s*down/i) ||
+                question.match(/^[^\n]*?([\d.]+)\s*%\s*down(?![^\n]*conventional)/i);
+            if (followUpDownFHA) fhaParams.downPaymentPct = parseFloat(followUpDownFHA[1]);
         }
 
         if (fhaParams.hasInfo && fhaParams.purchasePrice) {
@@ -2835,7 +2838,7 @@ What's your situation?`,
                     });
                     chips.push({
                         label: `Add my income — tell me if I qualify for this payment`,
-                        seed: `I make $[income]/year — do I qualify for FHA on a $${priceK}k home?`
+                        seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home?`
                     });
                 } else if (fhaResult.mipDuration === '11 years') {
                     chips.push({
@@ -2848,7 +2851,7 @@ What's your situation?`,
                     });
                     chips.push({
                         label: `What income do I need to comfortably qualify at 10% down?`,
-                        seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 10% down?`
+                        seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home at 10% down?`
                     });
                 }
 
