@@ -2690,8 +2690,8 @@ What's your situation?`,
 
         const fhaParams = extractFHAParams(question);
 
-        // If this is a follow-up with no price in current question, pull price + rate from history
-        if (!fhaParams.purchasePrice && isFHAFollowUp && conversationHistory) {
+        // Pull price + rate from history when not found in current question
+        if ((!fhaParams.purchasePrice || !fhaParams.interestRate) && (isFHAFollowUp || isFHAQuestion(question)) && conversationHistory) {
             // Look for price with home/purchase context first (most reliable)
             const histPriceCtx = conversationHistory.match(/\$\s*([\d,]+)\s*k?\s*(?:home|house|property|purchase price)/i) ||
                 conversationHistory.match(/(?:home|house|property|purchase price)[^$]*\$\s*([\d,]+)k?/i) ||
@@ -2834,8 +2834,8 @@ What's your situation?`,
                         seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home`
                     });
                     chips.push({
-                        label: `At what year does conventional become cheaper than FHA?`,
-                        seed: `At what point does conventional beat FHA on a $${priceK}k home — year by year?`
+                        label: `Add my income — tell me if I qualify for this payment`,
+                        seed: `I make $[income]/year — do I qualify for FHA on a $${priceK}k home?`
                     });
                 } else if (fhaResult.mipDuration === '11 years') {
                     chips.push({

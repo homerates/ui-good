@@ -1831,14 +1831,17 @@ export default function Page() {
                                                             setInput(q);
                                                         }}
                                                     />
-                                                    {/* Smart follow-up chips — match GrokCard's Ask: pill style exactly, stacked 3x */}
-                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && (
+                                                    {/* Smart follow-up chips — only show when answer is complete (not loading) */}
+                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
                                                         <div style={{
                                                             display: 'flex',
                                                             flexDirection: 'column',
                                                             gap: 6,
-                                                            marginTop: 4,
+                                                            marginTop: 8,
+                                                            animation: 'chipFadeIn 0.5s ease forwards',
+                                                            opacity: 0,
                                                         }}>
+                                                            <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
                                                             {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }, i: number) => (
                                                                 <button
                                                                     key={i}
