@@ -888,7 +888,7 @@ ${result.qualifies !== undefined ? (result.qualifies ? '✅' : '❌') + ' DTI �
 
 ${comparison ? `## 🆚 FHA vs Conventional Comparison
 
-| Feature | FHA | Conventional (5% down) |
+| Feature | FHA | Conventional (${convDownPct}% down) |
 |---------|-----|------------------------|
 | Down payment | $${(result.downPayment / 1000).toFixed(0)}k (${result.downPaymentPct}%) | $${(convDown / 1000).toFixed(0)}k (${convDownPct}%) |
 | Monthly payment | $${totalMonthly.toLocaleString()} | $${convTotal.toLocaleString()} |
@@ -2792,10 +2792,17 @@ What's your situation?`,
                 const wantsComparison = /conventional|\bconv\b|compare|\bvs\b|both options/i.test(question);
                 let comparison = null;
 
-                // Extract the conventional rate if two rates are given (e.g. "FHA at 5.625% and conventional at 5.99%")
-                const allRates = [...question.matchAll(/(\d+\.?\.?\d*)\s*%/gi)]
+                // Extract the conventional rate only from DECIMAL percentages (e.g. "FHA at 5.625% and conventional at 5.99%")
+                // Whole-number % are almost always down payments, not rates — exclude them to avoid "10% down" being read as a rate
+                const allRates = [...question.matchAll(/(\d+\.\d+)\s*%/gi)]
                     .map((m: RegExpMatchArray) => parseFloat(m[1])).filter((r: number) => r > 2 && r < 15);
-                const convRate = allRates.length > 1 ? allRates[1] : (fhaParams.interestRate || fred?.mort30Avg || 6.5);
+                const fhaRate = fhaParams.interestRate || fred?.mort30Avg || 6.5;
+                const convRate = allRates.length > 1 ? allRates[1] : allRates.length === 1 ? allRates[0] : fhaRate;
+
+                // Extract conventional down payment from question — default to 5% if not specified
+                const convDownMatch = question.match(/conventional\s+(\d+)\s*%\s*down/i) ||
+                    question.match(/conv(?:entional)?\s+(\d+)\s*%\s*down/i);
+                const convDownPctFromQ = convDownMatch ? parseFloat(convDownMatch[1]) : null;
 
                 if (fhaParams.annualIncome) {
                     // Full comparison with DTI when income is known
@@ -2813,7 +2820,7 @@ What's your situation?`,
                 } else if (wantsComparison) {
                     // Build conventional numbers directly (no income needed — just payment math)
                     const price = fhaParams.purchasePrice;
-                    const convDownPct = 5;
+                    const convDownPct = convDownPctFromQ ?? 5;
                     const convDown = price * (convDownPct / 100);
                     const convLoan = price - convDown;
                     const convMthRate = (convRate / 100) / 12;
