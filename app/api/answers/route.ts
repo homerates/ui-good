@@ -766,7 +766,8 @@ function extractFHAParams(question: string): {
 function buildFHAMarkdown(
     params: any,
     result: any,
-    comparison?: any
+    comparison?: any,
+    assumptions?: { rate?: boolean; downPct?: boolean; ambiguous10pct?: boolean }
 ): string {
     const { annualIncome, monthlyDebts } = params;
 
@@ -783,9 +784,14 @@ function buildFHAMarkdown(
     const mipMonths = result.mipDuration === '11 years' ? 132 : result.mipDuration === 'Life of loan' ? 360 : 360;
     const totalMIPPaid = result.monthlyMIP * mipMonths;
 
+    const assumptionNotice = assumptions ? [
+        assumptions.ambiguous10pct ? `> 💡 **Assuming 3.5% down** (if you meant 10% down, try: *"FHA loan on a $${(result.purchasePrice / 1000).toFixed(0)}k home with 10% down"*)` : null,
+        assumptions.rate ? `> 💡 **Using current market rate (~${params.interestRate?.toFixed(2) ?? '6.5'}%)** — include a rate like *"at 6.25%"* to use a specific rate` : null,
+    ].filter(Boolean).join('\n') : '';
+
     return `**FHA Loan Analysis**
 
-${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k income${monthlyDebts > 0 ? `, $${monthlyDebts}/month debt` : ''}` : ''}
+${assumptionNotice ? assumptionNotice + '\n\n' : ''}${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k income${monthlyDebts > 0 ? `, $${monthlyDebts}/month debt` : ''}` : ''}
 
 ---
 
@@ -2732,8 +2738,13 @@ What's your situation?`,
             }
             // Also pull prior rate if no rate in current question
             if (!fhaParams.interestRate) {
-                const histRate = conversationHistory.match(/(?:fha|at)\s+(\d+\.?\d*)\s*%/i);
-                if (histRate) fhaParams.interestRate = parseFloat(histRate[1]);
+                // Only pull rate from history if it's a decimal (e.g. "at 6.25%") 
+                // Whole-number "at 10%" is ambiguous (could be down pct) — skip it
+                const histRate = conversationHistory.match(/(?:fha|at)\s+(\d+\.\d+)\s*%/i);
+                if (histRate) {
+                    const hVal = parseFloat(histRate[1]);
+                    if (hVal >= 2 && hVal <= 15) fhaParams.interestRate = hVal;
+                }
             }
             // Override down payment from current question (e.g. "show me 10% down")
             // Use decimal-aware regex; only override if it looks like an FHA-specific instruction
@@ -2810,8 +2821,20 @@ What's your situation?`,
                     };
                 }
 
+                // Detect which assumptions were made
+                const fhaAssumptions = {
+                    // "at 10%" with no "down" keyword — ambiguous, defaulted to 3.5%
+                    ambiguous10pct: !question.match(/(\d+\.?\d*)\s*%\s*down/i) &&
+                        !!question.match(/at\s+(\d+)\s*%/i) &&
+                        (fhaParams.downPaymentPct === 3.5 || !question.toLowerCase().includes('down')),
+                    // No explicit rate in question — using FRED/default
+                    rate: !fhaParams.interestRate || fhaParams.interestRate === (fred?.mort30Avg ?? 6.5),
+                };
+                // Only surface rate assumption if it's the sole issue (not if already ambiguous)
+                if (fhaAssumptions.ambiguous10pct) fhaAssumptions.rate = false;
+
                 // Build markdown answer
-                const fhaMarkdown = buildFHAMarkdown(fhaParams, fhaResult, comparison);
+                const fhaMarkdown = buildFHAMarkdown(fhaParams, fhaResult, comparison, fhaAssumptions);
 
                 // Generate dynamic follow-up chips
                 // Each chip has: label (displayed to user) + seed (fills the Ask pill as a natural question)
