@@ -2904,31 +2904,94 @@ What's your situation?`,
                         seed: `What are my options besides FHA if my credit score is under 580?`
                     });
                 } else if (fhaResult.mipDuration === 'Life of loan') {
-                    chips.push({
-                        label: `Show me FHA 10% down on this home`,
-                        seed: `Show me FHA with 10% down on a $${priceK}k home`
-                    });
-                    chips.push({
-                        label: `Compare FHA vs conventional — which loan wins long term?`,
-                        seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home`
-                    });
-                    chips.push({
-                        label: `Add my income — tell me if I qualify for this payment`,
-                        seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home?`
-                    });
+                    const askedIncome35 = /income|qualify|earn|afford/i.test(question);
+                    const askedCompare35 = /compare|vs\.?|conventional|conv\b/i.test(question);
+                    const asked10pct35 = /10\s*%\s*down/i.test(question);
+
+                    const pool35: Array<{ label: string; seed: string; skip: boolean }> = [
+                        {
+                            label: `Put 10% down — remove MIP after 11 years instead`,
+                            seed: `Show me FHA with 10% down on a $${priceK}k home`,
+                            skip: asked10pct35
+                        },
+                        {
+                            label: `FHA 3.5% vs conventional 5% down — total cost comparison`,
+                            seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home`,
+                            skip: askedCompare35
+                        },
+                        {
+                            label: `What income do I need to qualify at 3.5% down?`,
+                            seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 3.5% down`,
+                            skip: askedIncome35
+                        },
+                        {
+                            label: `How much is MIP costing me over 30 years — is it worth it?`,
+                            seed: `What's the total cost of FHA MIP on a $${priceK}k home over 30 years?`,
+                            skip: false
+                        },
+                        {
+                            label: `Add my income — tell me if I qualify for this payment`,
+                            seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home?`,
+                            skip: askedIncome35
+                        },
+                    ];
+
+                    for (const c of pool35) {
+                        if (!c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
+                    }
+                    for (const c of pool35) {
+                        if (c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
+                    }
                 } else if (fhaResult.mipDuration === '11 years') {
-                    chips.push({
-                        label: `FHA 10% down vs conventional 10% down — side-by-side`,
-                        seed: `Compare FHA 10% down vs conventional 10% down on a $${priceK}k home`
-                    });
-                    chips.push({
-                        label: `Show me 20% down — no PMI ever, what's the monthly difference?`,
-                        seed: `Show me conventional 20% down on a $${priceK}k home vs FHA 10% down`
-                    });
-                    chips.push({
-                        label: `What income do I need to comfortably qualify at 10% down?`,
-                        seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home at 10% down?`
-                    });
+                    // Context-aware chips: detect what this question already answered
+                    // and what comparisons are already visible, to avoid repeating chips
+                    const qLower = question.toLowerCase();
+                    const askedIncome = /income|qualify|earn|afford/i.test(question);
+                    const askedCompare = /compare|vs\.?|conventional|conv\b/i.test(question);
+                    const asked20pct = /20\s*%\s*down/i.test(question);
+                    const asked10vs10 = /fha.*10.*conv|conv.*10.*fha|10.*down.*vs.*10.*down/i.test(question);
+
+                    // Build a pool of candidate chips, then pick the ones NOT already answered
+                    const chipPool: Array<{ label: string; seed: string; skip: boolean }> = [
+                        {
+                            label: `FHA 10% down vs conventional 10% down — side-by-side`,
+                            seed: `Compare FHA 10% down vs conventional 10% down on a $${priceK}k home`,
+                            skip: askedCompare && asked10vs10
+                        },
+                        {
+                            label: `Conventional 20% down vs FHA 10% — monthly savings vs upfront cost`,
+                            seed: `Show me conventional 20% down on a $${priceK}k home vs FHA 10% down`,
+                            skip: asked20pct
+                        },
+                        {
+                            label: `What income do I need to qualify at 10% down?`,
+                            seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 10% down`,
+                            skip: askedIncome
+                        },
+                        {
+                            label: `What's the break-even point — when does conventional 10% beat FHA?`,
+                            seed: `When does conventional 10% down become cheaper than FHA 10% down on a $${priceK}k home?`,
+                            skip: false
+                        },
+                        {
+                            label: `How much does a 680 vs 740 credit score change my rate?`,
+                            seed: `How does my credit score affect FHA vs conventional on a $${priceK}k home?`,
+                            skip: false
+                        },
+                        {
+                            label: `Add my income — see if I actually qualify for this payment`,
+                            seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home at 10% down?`,
+                            skip: askedIncome
+                        },
+                    ];
+
+                    // Push non-skipped chips first, then skipped as backfill, up to 3
+                    for (const c of chipPool) {
+                        if (!c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
+                    }
+                    for (const c of chipPool) {
+                        if (c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
+                    }
                 }
 
                 if (comparison && chips.length < 3) {
