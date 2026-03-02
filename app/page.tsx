@@ -830,6 +830,9 @@ export default function Page() {
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+    // Tracks which message IDs have completed typewriter animation
+    const [typingDoneIds, setTypingDoneIds] = useState<Set<string>>(new Set());
+
     useEffect(() => {
         const el = scrollRef.current;
         if (!el) return;
@@ -976,12 +979,11 @@ export default function Page() {
         });
     }, [messages, activeId]);
 
-    // autoscroll
+    // autoscroll — instant assignment prevents smooth scroll being interrupted by rapid re-renders during typewriter
     useEffect(() => {
-        scrollRef.current?.scrollTo({
-            top: scrollRef.current.scrollHeight,
-            behavior: 'smooth',
-        });
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
     }, [messages]);
 
     // hotkeys
@@ -1283,6 +1285,14 @@ export default function Page() {
                             m.id === id ? { ...m, content: full } : m
                         )
                     );
+                    // Mark typing complete so chips can appear
+                    setTypingDoneIds((prev) => new Set([...prev, id]));
+                    // Final scroll after chip layout reflow
+                    setTimeout(() => {
+                        if (scrollRef.current) {
+                            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                        }
+                    }, 50);
                     return;
                 }
 
@@ -1813,8 +1823,9 @@ export default function Page() {
                                                                 ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                 : m.meta.grok,
                                                             answerMarkdown: sanitizeMarkdown(
-                                                                m.meta.answerMarkdown ??
-                                                                (typeof m.content === 'string' ? m.content : '')
+                                                                // Always use m.meta.answerMarkdown (set once on arrival, never changes)
+                                                                // Never fall back to m.content — it changes every 20ms during typewriter
+                                                                m.meta.answerMarkdown ?? ''
                                                             ),
                                                             followUp: m.meta.follow_up_chips?.length
                                                                 ? undefined
@@ -1831,8 +1842,8 @@ export default function Page() {
                                                             setInput(q);
                                                         }}
                                                     />
-                                                    {/* Smart follow-up chips — only show when answer is complete (not loading) */}
-                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
+                                                    {/* Smart follow-up chips — only show when typewriter animation is complete */}
+                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && typingDoneIds.has(m.id) && (
                                                         <div style={{
                                                             display: 'flex',
                                                             flexDirection: 'column',
