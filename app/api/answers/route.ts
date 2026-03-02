@@ -702,14 +702,25 @@ function extractFHAParams(question: string): {
         purchasePrice *= 1000;
     }
 
-    // Down payment %
-    const downMatch = text.match(/(\d+\.?\d*)\s*%\s*down/i);
-    const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 3.5; // FHA default
+    // Down payment % — match "X% down", "X% down payment", or "at X%" when 
+    // followed by "down" or when used in a down-payment context
+    const downMatch = text.match(/(\d+\.?\d*)\s*%\s*down/i) ||
+        text.match(/(?:at|with)\s+(\d+\.?\d*)\s*%(?=\s*down|\s*(?:down\s*payment)?\s*(?:on|for|of))/i) ||
+        (text.match(/(?:down\s*payment|put\s*down).*?(\d+\.?\d*)\s*%/i));
+    const downPaymentPct = downMatch ? parseFloat(downMatch[1] || downMatch[2] || downMatch[3]) : 3.5; // FHA default
 
     // Interest rate — treat "current rates" as FRED fallback (undefined → uses fred avg downstream)
     let rateMatch = text.match(/(?:rate|interest).*?(\d+\.?\d*)\s*%/i);
     if (!rateMatch) {
-        rateMatch = text.match(/at\s+(\d+\.?\d*)\s*%/i);
+        // "at X%" is a rate only if:
+        // - X contains a decimal (6.25%, 5.5%) — rates are almost never whole numbers
+        // - OR explicitly preceded by "rate of" / "interest of"
+        // Whole-number "at X%" (e.g. "at 10%") is treated as down payment context, not rate
+        const atPctMatch = text.match(/at\s+(\d+\.\d+)\s*%(?!\s*down)/i); // decimal only
+        if (atPctMatch) {
+            const val = parseFloat(atPctMatch[1]);
+            if (val >= 2 && val <= 15) rateMatch = atPctMatch;
+        }
     }
     const explicitRate = rateMatch ? parseFloat(rateMatch[1]) : undefined;
     const interestRate = explicitRate; // undefined = use FRED avg (handled in calculateFHA call)
@@ -2763,13 +2774,17 @@ What's your situation?`,
 
                 if (fhaParams.annualIncome) {
                     // Full comparison with DTI when income is known
-                    comparison = compareFHAvsConventional(
-                        fhaParams.purchasePrice,
-                        convRate,
-                        fhaParams.annualIncome,
-                        fhaParams.monthlyDebts || 0,
-                        fhaParams.propertyTaxRate || 1.1
-                    );
+                    // Only show comparison if DTI is within reason (< 55%) — otherwise redirect
+                    const dtiCheck = fhaResult.totalDTI ?? 0;
+                    if (dtiCheck < 55) {
+                        comparison = compareFHAvsConventional(
+                            fhaParams.purchasePrice,
+                            convRate,
+                            fhaParams.annualIncome,
+                            fhaParams.monthlyDebts || 0,
+                            fhaParams.propertyTaxRate || 1.1
+                        );
+                    }
                 } else if (wantsComparison) {
                     // Build conventional numbers directly (no income needed — just payment math)
                     const price = fhaParams.purchasePrice;
