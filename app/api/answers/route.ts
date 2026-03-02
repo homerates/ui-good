@@ -2759,10 +2759,12 @@ What's your situation?`,
 
             try {
                 // Calculate FHA loan
+                const _rateDebug = fhaParams.interestRate || fred?.mort30Avg || 6.5;
+                console.log('[FHA DEBUG] interestRate:', _rateDebug, '| fhaParams.interestRate:', fhaParams.interestRate, '| fred.mort30Avg:', fred?.mort30Avg);
                 const fhaResult = calculateFHA({
                     purchasePrice: fhaParams.purchasePrice,
                     downPaymentPct: fhaParams.downPaymentPct || 3.5,
-                    interestRate: fhaParams.interestRate || fred?.mort30Avg || 6.5,
+                    interestRate: _rateDebug,
                     creditScore: fhaParams.creditScore || 580,
                     loanTerm: 30,
                     propertyTaxRate: fhaParams.propertyTaxRate || 1.1,
