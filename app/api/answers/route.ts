@@ -767,7 +767,7 @@ function buildFHAMarkdown(
     params: any,
     result: any,
     comparison?: any,
-    assumptions?: { rate?: boolean; downPct?: boolean; ambiguous10pct?: boolean }
+    assumptions?: { rate?: boolean; downPct?: boolean; ambiguous10pct?: boolean; incomeNeeded?: boolean }
 ): string {
     const { annualIncome, monthlyDebts } = params;
 
@@ -837,7 +837,21 @@ ${result.mipDuration === 'Life of loan' ? `⚠️ **Note:** With ${result.downPa
 
 ---
 
-${annualIncome ? `## 📈 Debt-to-Income (DTI) Analysis
+${assumptions?.incomeNeeded && !annualIncome ? `## 💰 Minimum Income Required
+
+To qualify for this FHA payment under standard DTI guidelines:
+
+| DTI Guideline | Required Annual Income |
+|---------------|----------------------|
+| Conservative (31% front-end) | ~$${Math.round(result.totalMonthly / 0.31 * 12 / 1000)}k/year |
+| Standard (43% back-end) | ~$${Math.round(result.totalMonthly / 0.43 * 12 / 1000)}k/year |
+| Max with compensating factors (50%) | ~$${Math.round(result.totalMonthly / 0.50 * 12 / 1000)}k/year |
+
+💡 *Based on $${result.totalMonthly.toLocaleString()}/month PITI with no other monthly debts. Add monthly debts to increase the required income.*
+
+---
+
+` : ''}${annualIncome ? `## 📈 Debt-to-Income (DTI) Analysis
 
 **Housing Ratio (Front-End):** ${frontEndDTI}%
 - Your monthly payment ÷ gross income
@@ -2831,6 +2845,9 @@ What's your situation?`,
                         (fhaParams.downPaymentPct === 3.5 || !question.toLowerCase().includes('down')),
                     // No explicit rate in question — using FRED/default
                     rate: !fhaParams.interestRate || fhaParams.interestRate === (fred?.mort30Avg ?? 6.5),
+                    // User asked "what income do I need" but didn't provide their income
+                    incomeNeeded: !fhaParams.annualIncome &&
+                        /what.*income|income.*need|qualify.*income|need.*earn|earn.*qualify|how much.*(?:make|earn|income)/i.test(question),
                 };
                 // Only surface rate assumption if it's the sole issue (not if already ambiguous)
                 if (fhaAssumptions.ambiguous10pct) fhaAssumptions.rate = false;
@@ -3073,7 +3090,7 @@ What's your scenario?`,
         console.log('[Affordability] Returning direct answer, skipping Grok');
     } else if (fhaAnswer) {
         grokFinal = fhaAnswer;
-        debug = { requestedModel: "fha-calculator", servedModel: "fha-guidelines", promptChars: question.length, elapsedMs: 0, requestId: "fha-" + Date.now(), parseMode: "direct", repaired: false };
+        debug = { requestedModel: "fha-calculator", servedModel: "fha-calculator", promptChars: question.length, elapsedMs: 0, requestId: "fha-" + Date.now(), parseMode: "direct", repaired: false };
         console.log('[FHA] Returning FHA analysis, skipping Grok');
     } else if (mortgageAnswer) {
         grokFinal = mortgageAnswer;
