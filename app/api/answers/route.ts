@@ -786,7 +786,7 @@ function buildFHAMarkdown(
 
     const assumptionNotice = assumptions ? [
         assumptions.ambiguous10pct ? `> 💡 **Assuming 3.5% down** (if you meant 10% down, try: *"FHA loan on a $${(result.purchasePrice / 1000).toFixed(0)}k home with 10% down"*)` : null,
-        assumptions.rate ? `> 💡 **Using current market rate (~${params.interestRate?.toFixed(2) ?? '6.5'}%)** — include a rate like *"at 6.25%"* to use a specific rate` : null,
+        assumptions.rate ? `> 💡 **Using current market rate (~${params.interestRate?.toFixed(2) ?? '6.5'}%)** — add a specific rate to your question (e.g. *"at 6.75%"*) to override` : null,
     ].filter(Boolean).join('\n') : '';
 
     return `**FHA Loan Analysis**
@@ -2752,9 +2752,14 @@ What's your situation?`,
             }
             // Also pull prior rate if no rate in current question
             if (!fhaParams.interestRate) {
-                // Only pull rate from history if it's a decimal (e.g. "at 6.25%") 
-                // Whole-number "at 10%" is ambiguous (could be down pct) — skip it
-                const histRate = conversationHistory.match(/(?:fha|at)\s+(\d+\.\d+)\s*%/i);
+                // Only pull rate from history USER questions, not assistant answers
+                // Extract only "User:" lines to avoid matching example rates in our own notices
+                const histUserLines = conversationHistory
+                    .split('\n')
+                    .filter((l: string) => /^(User:|Turn \d+\nUser:)/i.test(l.trim()) ||
+                        (l.trim().startsWith('User:')))
+                    .join(' ');
+                const histRate = histUserLines.match(/(?:fha|at)\s+(\d+\.\d+)\s*%/i);
                 if (histRate) {
                     const hVal = parseFloat(histRate[1]);
                     if (hVal >= 2 && hVal <= 15) fhaParams.interestRate = hVal;
@@ -2825,7 +2830,10 @@ What's your situation?`,
                     const convLoan = price - convDown;
                     const convMthRate = (convRate / 100) / 12;
                     const convPI = convLoan * (convMthRate * Math.pow(1 + convMthRate, 360)) / (Math.pow(1 + convMthRate, 360) - 1);
-                    const convPMI = (convLoan * 0.005) / 12;
+                    // PMI: 0 at 80% LTV (20%+ down), 0.5% at 85-90% LTV, 0.65% above 90%
+                    const convLTV = (convLoan / price) * 100;
+                    const convPMIRate = convLTV <= 80 ? 0 : convLTV <= 90 ? 0.005 : 0.0065;
+                    const convPMI = (convLoan * convPMIRate) / 12;
                     const convTax = (price * ((fhaParams.propertyTaxRate || 1.1) / 100)) / 12;
                     const convIns = 100;
                     const convTotal = Math.round(convPI + convPMI + convTax + convIns);
