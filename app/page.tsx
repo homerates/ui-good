@@ -830,18 +830,9 @@ export default function Page() {
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const isUserTypingRef = useRef(false);
     // Tracks which message IDs have completed typewriter animation
     const [typingDoneIds, setTypingDoneIds] = useState<Set<string>>(new Set());
-
-    useEffect(() => {
-        const el = scrollRef.current;
-        if (!el) return;
-
-        // run after DOM updates so scrollHeight is correct
-        requestAnimationFrame(() => {
-            el.scrollTop = el.scrollHeight;
-        });
-    }, [messages, loading]);
 
     // If the user came from a shared answer card, pre-fill the composer with that question
     useEffect(() => {
@@ -979,8 +970,9 @@ export default function Page() {
         });
     }, [messages, activeId]);
 
-    // autoscroll — instant assignment prevents smooth scroll being interrupted by rapid re-renders during typewriter
+    // Single unified autoscroll — only fires on message changes, never during user typing
     useEffect(() => {
+        if (isUserTypingRef.current) return;
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
@@ -1287,9 +1279,9 @@ export default function Page() {
                     );
                     // Mark typing complete so chips can appear
                     setTypingDoneIds((prev) => new Set([...prev, id]));
-                    // Final scroll after chip layout reflow
+                    // Final scroll after chip layout reflow (only if user not typing)
                     setTimeout(() => {
-                        if (scrollRef.current) {
+                        if (!isUserTypingRef.current && scrollRef.current) {
                             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
                         }
                     }, 50);
@@ -1823,8 +1815,7 @@ export default function Page() {
                                                                 ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                 : m.meta.grok,
                                                             answerMarkdown: sanitizeMarkdown(
-                                                                // Always use m.meta.answerMarkdown (set once on arrival, never changes)
-                                                                // Never fall back to m.content — it changes every 20ms during typewriter
+                                                                // Always use m.meta.answerMarkdown (set once, never changes during typewriter)
                                                                 m.meta.answerMarkdown ?? ''
                                                             ),
                                                             followUp: m.meta.follow_up_chips?.length
@@ -1982,6 +1973,8 @@ export default function Page() {
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
+                            onFocus={() => { isUserTypingRef.current = true; }}
+                            onBlur={() => { isUserTypingRef.current = false; }}
                             onKeyDown={onKey}
                             style={{
                                 flex: '1 1 auto',
