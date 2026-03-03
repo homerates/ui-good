@@ -831,11 +831,16 @@ export default function Page() {
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const [typingDoneIds, setTypingDoneIds] = useState<Set<string>>(new Set());
+    const messageCountRef = useRef(0);
 
     useEffect(() => {
         const el = scrollRef.current;
         if (!el) return;
-        el.scrollTop = el.scrollHeight;
+        // Only scroll when a new message is added (count increases), not on every typewriter tick
+        if (messages.length > messageCountRef.current) {
+            messageCountRef.current = messages.length;
+            el.scrollTop = el.scrollHeight;
+        }
     }, [messages, loading]);
 
     // If the user came from a shared answer card, pre-fill the composer with that question
@@ -1273,6 +1278,8 @@ export default function Page() {
                             m.id === id ? { ...m, content: full } : m
                         )
                     );
+                    // Mark done so chips appear
+                    setTypingDoneIds((prev) => new Set([...prev, id]));
                     return;
                 }
 
@@ -1563,16 +1570,12 @@ export default function Page() {
                 }
             }
 
-            // GrokCard renders answerMarkdown directly — no typewriter needed, mark done immediately
+            // Run typewriter for all answers (fills m.content with friendly text)
+            // For GrokCard answers, also mark typingDoneIds immediately so chips appear
+            // while typewriter runs (GrokCard renders answerMarkdown, not m.content)
+            typeOutAssistant(answerId, friendly);
             if (meta.answerMarkdown) {
-                setMessages((prev) =>
-                    prev.map((m) =>
-                        m.id === answerId ? { ...m, content: friendly } : m
-                    )
-                );
                 setTypingDoneIds((prev) => new Set([...prev, answerId]));
-            } else {
-                typeOutAssistant(answerId, friendly);
             }
 
             // Save which route we used for this thread
