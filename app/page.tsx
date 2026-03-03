@@ -1563,8 +1563,7 @@ export default function Page() {
                 }
             }
 
-            // GrokCard answers have full answerMarkdown already — typewriter is redundant
-            // and causes 100+ setMessages calls = scroll chaos. Skip it, mark done immediately.
+            // GrokCard renders answerMarkdown directly — no typewriter needed, mark done immediately
             if (meta.answerMarkdown) {
                 setMessages((prev) =>
                     prev.map((m) =>
@@ -1832,45 +1831,13 @@ export default function Page() {
                                                         }}
                                                     />
                                                     {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && typingDoneIds.has(m.id) && (
-                                                        <div style={{
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: 6,
-                                                            marginTop: 8,
-                                                            animation: 'chipFadeIn 0.5s ease forwards',
-                                                            opacity: 0,
-                                                        }}>
-                                                            <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
-                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }, i: number) => (
+                                                        <div className="follow-up-chips">
+                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }) => (
                                                                 <button
-                                                                    key={i}
+                                                                    key={chip.seed}
                                                                     type="button"
-                                                                    onClick={() => {
-                                                                        setInput(chip.seed);
-                                                                    }}
-                                                                    style={{
-                                                                        width: '100%',
-                                                                        display: 'block',
-                                                                        padding: '10px 16px',
-                                                                        borderRadius: 9999,
-                                                                        border: '1px solid rgba(156, 163, 175, 0.25)',
-                                                                        background: 'rgba(255,255,255,0.04)',
-                                                                        color: 'inherit',
-                                                                        fontSize: 13,
-                                                                        cursor: 'pointer',
-                                                                        textAlign: 'center',
-                                                                        lineHeight: 1.45,
-                                                                        transition: 'background 0.12s, border-color 0.12s',
-                                                                        fontFamily: 'inherit',
-                                                                    }}
-                                                                    onMouseEnter={e => {
-                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
-                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.5)';
-                                                                    }}
-                                                                    onMouseLeave={e => {
-                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
-                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.25)';
-                                                                    }}
+                                                                    className="follow-up-chip-btn"
+                                                                    onClick={() => setInput(chip.seed)}
                                                                 >
                                                                     <span style={{ opacity: 0.5, fontWeight: 500, marginRight: 4 }}>Ask:</span>
                                                                     {chip.label}

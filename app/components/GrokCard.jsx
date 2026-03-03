@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 
 // ===== MiniChart ===========================================================
@@ -295,46 +295,9 @@ export default function GrokCard({ data, onFollowUp }) {
 
     const preparedFull = useMemo(() => injectMiniChartMarkers(answerMarkdown || ""), [answerMarkdown]);
 
-    // STREAMING STATE
-    const [displayedText, setDisplayedText] = useState(preparedFull);
-    const [isStreaming, setIsStreaming] = useState(false);
-
-    useEffect(() => {
-        if (!grok || !preparedFull || preparedFull.length < 80) {
-            setDisplayedText(preparedFull);
-            setIsStreaming(false);
-            return;
-        }
-
-        let cancelled = false;
-        const chars = Array.from(preparedFull);
-        const total = chars.length;
-
-        setDisplayedText("");
-        setIsStreaming(true);
-
-        let index = 0;
-        const tick = () => {
-            if (cancelled) return;
-
-            index += 24;
-            if (index >= total) {
-                setDisplayedText(preparedFull);
-                setIsStreaming(false);
-                return;
-            }
-
-            setDisplayedText(chars.slice(0, index).join(""));
-            window.setTimeout(tick, 20);
-        };
-
-        window.setTimeout(tick, 20);
-        return () => {
-            cancelled = true;
-        };
-    }, [preparedFull, grok]);
-
-    // Only split into blocks when not streaming (so we never parse half a table)
+    // Always render full blocks — internal typewriter removed.
+    // It was causing scroll chaos: every page.tsx re-render (including setInput keypresses)
+    // could re-trigger the useEffect, flipping isStreaming and causing layout shifts.
     const blocks = useMemo(() => {
         try {
             return splitMarkdownIntoBlocks(preparedFull);
@@ -370,110 +333,103 @@ export default function GrokCard({ data, onFollowUp }) {
                 {data_freshness && <span>{data_freshness}</span>}
             </div>
 
-            {/* Streaming: plain text only (safe).
-          Done: render blocks (markdown + modern tables). */}
-            {isStreaming ? (
-                <div style={{ whiteSpace: "pre-wrap", fontSize: "13px", lineHeight: 1.55 }}>
-                    {displayedText}
-                </div>
-            ) : (
-                <div>
-                    {blocks.map((b, idx) => {
-                        if (b.type === "table") {
-                            const { headers, rows } = b.table || {};
-                            if (!headers || !headers.length) return null;
-                            return <ModernTable key={`t-${idx}`} headers={headers} rows={rows || []} />;
-                        }
+            {/* Always render full markdown blocks — no streaming state */}
+            <div>
+                {blocks.map((b, idx) => {
+                    if (b.type === "table") {
+                        const { headers, rows } = b.table || {};
+                        if (!headers || !headers.length) return null;
+                        return <ModernTable key={`t-${idx}`} headers={headers} rows={rows || []} />;
+                    }
 
-                        return (
-                            <ReactMarkdown
-                                key={`m-${idx}`}
-                                className="grok-markdown"
-                                components={{
-                                    p({ children }) {
-                                        const raw = Array.isArray(children) ? children.join("") : String(children ?? "");
+                    return (
+                        <ReactMarkdown
+                            key={`m-${idx}`}
+                            className="grok-markdown"
+                            components={{
+                                p({ children }) {
+                                    const raw = Array.isArray(children) ? children.join("") : String(children ?? "");
 
-                                        if (raw.includes("[[MINICHART:")) {
-                                            const match = raw.match(/\[\[MINICHART:(.*?)\]\]/);
-                                            if (!match) {
-                                                return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
-                                            }
-
-                                            const nums = match[1]
-                                                .split(",")
-                                                .map((v) => parseFloat(v.trim()))
-                                                .filter((v) => !isNaN(v));
-
-                                            const cleaned = raw.replace(match[0], "").trim();
-
-                                            return (
-                                                <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>
-                                                    {cleaned}
-                                                    <MiniChart values={nums} />
-                                                </p>
-                                            );
+                                    if (raw.includes("[[MINICHART:")) {
+                                        const match = raw.match(/\[\[MINICHART:(.*?)\]\]/);
+                                        if (!match) {
+                                            return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
                                         }
 
-                                        return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
-                                    },
+                                        const nums = match[1]
+                                            .split(",")
+                                            .map((v) => parseFloat(v.trim()))
+                                            .filter((v) => !isNaN(v));
 
-                                    h1({ children }) {
-                                        return <h1 style={{ margin: "10px 0 6px", fontSize: "18px" }}>{children}</h1>;
-                                    },
-                                    h2({ children }) {
-                                        return <h2 style={{ margin: "10px 0 6px", fontSize: "16px" }}>{children}</h2>;
-                                    },
-                                    h3({ children }) {
-                                        return <h3 style={{ margin: "10px 0 6px", fontSize: "14px" }}>{children}</h3>;
-                                    },
+                                        const cleaned = raw.replace(match[0], "").trim();
 
-                                    ul({ children }) {
-                                        return <ul style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ul>;
-                                    },
-                                    ol({ children }) {
-                                        return <ol style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ol>;
-                                    },
-                                    li({ children }) {
-                                        return <li style={{ margin: "4px 0" }}>{children}</li>;
-                                    },
-
-                                    code({ inline, children }) {
-                                        if (inline) {
-                                            return (
-                                                <code
-                                                    style={{
-                                                        fontSize: "0.95em",
-                                                        background: "rgba(0,0,0,0.04)",
-                                                        padding: "1px 6px",
-                                                        borderRadius: "6px",
-                                                    }}
-                                                >
-                                                    {children}
-                                                </code>
-                                            );
-                                        }
                                         return (
-                                            <pre
+                                            <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>
+                                                {cleaned}
+                                                <MiniChart values={nums} />
+                                            </p>
+                                        );
+                                    }
+
+                                    return <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{children}</p>;
+                                },
+
+                                h1({ children }) {
+                                    return <h1 style={{ margin: "10px 0 6px", fontSize: "18px" }}>{children}</h1>;
+                                },
+                                h2({ children }) {
+                                    return <h2 style={{ margin: "10px 0 6px", fontSize: "16px" }}>{children}</h2>;
+                                },
+                                h3({ children }) {
+                                    return <h3 style={{ margin: "10px 0 6px", fontSize: "14px" }}>{children}</h3>;
+                                },
+
+                                ul({ children }) {
+                                    return <ul style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ul>;
+                                },
+                                ol({ children }) {
+                                    return <ol style={{ margin: "8px 0", paddingLeft: "18px" }}>{children}</ol>;
+                                },
+                                li({ children }) {
+                                    return <li style={{ margin: "4px 0" }}>{children}</li>;
+                                },
+
+                                code({ inline, children }) {
+                                    if (inline) {
+                                        return (
+                                            <code
                                                 style={{
-                                                    margin: "10px 0",
-                                                    padding: "10px 12px",
+                                                    fontSize: "0.95em",
                                                     background: "rgba(0,0,0,0.04)",
-                                                    borderRadius: "10px",
-                                                    overflowX: "auto",
+                                                    padding: "1px 6px",
+                                                    borderRadius: "6px",
                                                 }}
                                             >
-                                                <code>{children}</code>
-                                            </pre>
+                                                {children}
+                                            </code>
                                         );
-                                    },
-                                }}
-                            >
-                                {b.content}
-                            </ReactMarkdown>
-                        );
-                    })}
-                </div>
-            )}
+                                    }
+                                    return (
+                                        <pre
+                                            style={{
+                                                margin: "10px 0",
+                                                padding: "10px 12px",
+                                                background: "rgba(0,0,0,0.04)",
+                                                borderRadius: "10px",
+                                                overflowX: "auto",
+                                            }}
+                                        >
+                                            <code>{children}</code>
+                                        </pre>
+                                    );
+                                },
+                            }}
+                        >
+                            {b.content}
+                        </ReactMarkdown>
+                    );
+                })}
+            </div>
 
             {/* Follow-up CTA */}
             {followUp && onFollowUp && (
@@ -488,7 +444,6 @@ export default function GrokCard({ data, onFollowUp }) {
                             border: "1px solid rgba(0,0,0,0.12)",
                             background: "#f9fafb",
                             cursor: "pointer",
-                            opacity: isStreaming ? 0.7 : 1,
                         }}
                     >
                         Ask: {followUp}
