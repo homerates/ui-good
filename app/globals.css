@@ -118,11 +118,7 @@ body {
 }
 
 /* ---------- Main area ---------- */
-.main {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
+/* .main sizing is defined later in the .app flex layout block — do not set min-height here */
 
 .center {
   /* narrower main view */
@@ -133,12 +129,7 @@ body {
   padding: 16px 12px 28px;
 }
 
-.scroll {
-  /* container that owns the scroll */
-  flex: 1;
-  padding-bottom: calc(var(--footer-h, 40px) + 84px);
-  overflow-y: auto;
-}
+/* .scroll sizing defined later in the .app flex layout block */
 
 
 
@@ -846,6 +837,7 @@ body {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  /* overflow-y: hidden is set at the top — do not override it here */
 }
 
 #__next {
@@ -854,7 +846,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Global horizontal clamp to avoid "squeeze to size" on mobile */
+/* Global horizontal clamp — overflow-y stays hidden (set at top of file) */
 html,
 body {
   margin: 0;
