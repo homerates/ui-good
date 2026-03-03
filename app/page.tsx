@@ -1563,12 +1563,9 @@ export default function Page() {
                 }
             }
 
-            // Type out the actual answer text into the existing assistant bubble
-            // BUT: if answerMarkdown is present, GrokCard already renders the full answer —
-            // running the typewriter simultaneously causes 50+ setMessages calls = scroll chaos.
-            // In that case, skip typewriter entirely and mark as done immediately.
+            // GrokCard answers have full answerMarkdown already — typewriter is redundant
+            // and causes 100+ setMessages calls = scroll chaos. Skip it, mark done immediately.
             if (meta.answerMarkdown) {
-                // GrokCard path: set content once, mark done so chips appear
                 setMessages((prev) =>
                     prev.map((m) =>
                         m.id === answerId ? { ...m, content: friendly } : m
@@ -1576,7 +1573,6 @@ export default function Page() {
                 );
                 setTypingDoneIds((prev) => new Set([...prev, answerId]));
             } else {
-                // Bare text path (e.g. First Time Buyer): typewriter as normal
                 typeOutAssistant(answerId, friendly);
             }
 
@@ -1753,7 +1749,8 @@ export default function Page() {
             <section
                 className="main"
                 style={{
-                    minHeight: '100dvh',
+                    height: '100dvh',
+                    overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
                 }}
@@ -1834,7 +1831,6 @@ export default function Page() {
                                                             setInput(q);
                                                         }}
                                                     />
-                                                    {/* Chips: gated on per-message done flag — never toggled by global loading */}
                                                     {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && typingDoneIds.has(m.id) && (
                                                         <div style={{
                                                             display: 'flex',
