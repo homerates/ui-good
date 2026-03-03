@@ -830,9 +830,11 @@ export default function Page() {
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const isUserTypingRef = useRef(false);
-    // Tracks which message IDs have completed typewriter animation
-    const [typingDoneIds, setTypingDoneIds] = useState<Set<string>>(new Set());
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+    }, [messages, loading]);
 
     // If the user came from a shared answer card, pre-fill the composer with that question
     useEffect(() => {
@@ -969,14 +971,6 @@ export default function Page() {
             return arr;
         });
     }, [messages, activeId]);
-
-    // Single unified autoscroll — only fires on message changes, never during user typing
-    useEffect(() => {
-        if (isUserTypingRef.current) return;
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages]);
 
     // hotkeys
     useEffect(() => {
@@ -1277,14 +1271,6 @@ export default function Page() {
                             m.id === id ? { ...m, content: full } : m
                         )
                     );
-                    // Mark typing complete so chips can appear
-                    setTypingDoneIds((prev) => new Set([...prev, id]));
-                    // Final scroll after chip layout reflow (only if user not typing)
-                    setTimeout(() => {
-                        if (!isUserTypingRef.current && scrollRef.current) {
-                            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-                        }
-                    }, 50);
                     return;
                 }
 
@@ -1815,8 +1801,8 @@ export default function Page() {
                                                                 ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                 : m.meta.grok,
                                                             answerMarkdown: sanitizeMarkdown(
-                                                                // Always use m.meta.answerMarkdown (set once, never changes during typewriter)
-                                                                m.meta.answerMarkdown ?? ''
+                                                                m.meta.answerMarkdown ??
+                                                                (typeof m.content === 'string' ? m.content : '')
                                                             ),
                                                             followUp: m.meta.follow_up_chips?.length
                                                                 ? undefined
@@ -1833,50 +1819,24 @@ export default function Page() {
                                                             setInput(q);
                                                         }}
                                                     />
-                                                    {/* Smart follow-up chips — only show when typewriter animation is complete */}
-                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && typingDoneIds.has(m.id) && (
-                                                        <div style={{
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: 6,
-                                                            marginTop: 8,
-                                                            animation: 'chipFadeIn 0.5s ease forwards',
-                                                            opacity: 0,
-                                                        }}>
-                                                            <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
+                                                    {/* Smart follow-up chips — only show when answer is complete (not loading) */}
+                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
+                                                        <div className="follow-up-chips">
                                                             {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }, i: number) => (
                                                                 <button
-                                                                    key={i}
+                                                                    key={chip.seed}
                                                                     type="button"
                                                                     onClick={() => {
                                                                         setInput(chip.seed);
-                                                                        setTimeout(() => {
-                                                                            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
-                                                                            if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
-                                                                        }, 50);
                                                                     }}
-                                                                    style={{
-                                                                        width: '100%',
-                                                                        display: 'block',
-                                                                        padding: '10px 16px',
-                                                                        borderRadius: 9999,
-                                                                        border: '1px solid rgba(156, 163, 175, 0.25)',
-                                                                        background: 'rgba(255,255,255,0.04)',
-                                                                        color: 'inherit',
-                                                                        fontSize: 13,
-                                                                        cursor: 'pointer',
-                                                                        textAlign: 'center',
-                                                                        lineHeight: 1.45,
-                                                                        transition: 'background 0.12s, border-color 0.12s',
-                                                                        fontFamily: 'inherit',
-                                                                    }}
+                                                                    className="follow-up-chip-btn"
                                                                     onMouseEnter={e => {
                                                                         (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
                                                                         (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.5)';
                                                                     }}
                                                                     onMouseLeave={e => {
-                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
-                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.25)';
+                                                                        (e.currentTarget as HTMLButtonElement).style.background = '';
+                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = '';
                                                                     }}
                                                                 >
                                                                     <span style={{ opacity: 0.5, fontWeight: 500, marginRight: 4 }}>Ask:</span>
@@ -1973,8 +1933,6 @@ export default function Page() {
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            onFocus={() => { isUserTypingRef.current = true; }}
-                            onBlur={() => { isUserTypingRef.current = false; }}
                             onKeyDown={onKey}
                             style={{
                                 flex: '1 1 auto',

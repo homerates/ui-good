@@ -118,7 +118,11 @@ body {
 }
 
 /* ---------- Main area ---------- */
-/* .main sizing is defined later in the .app flex layout block — do not set min-height here */
+.main {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
 
 .center {
   /* narrower main view */
@@ -129,7 +133,12 @@ body {
   padding: 16px 12px 28px;
 }
 
-/* .scroll sizing defined later in the .app flex layout block */
+.scroll {
+  /* container that owns the scroll */
+  flex: 1;
+  padding-bottom: calc(var(--footer-h, 40px) + 84px);
+  overflow-y: auto;
+}
 
 
 
@@ -837,7 +846,6 @@ body {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
-  /* overflow-y: hidden is set at the top — do not override it here */
 }
 
 #__next {
@@ -846,7 +854,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Global horizontal clamp — overflow-y stays hidden (set at top of file) */
+/* Global horizontal clamp to avoid "squeeze to size" on mobile */
 html,
 body {
   margin: 0;
@@ -1058,4 +1066,46 @@ body {
   .sidebar-legal-title {
     color: #9ca3af;
   }
+}
+
+/* === Follow-up chips (stable CSS — not inline to avoid re-render animation glitch) === */
+@keyframes chipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.follow-up-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  animation: chipFadeIn 0.5s ease forwards;
+}
+
+.follow-up-chip-btn {
+  width: 100%;
+  display: block;
+  padding: 10px 16px;
+  border-radius: 9999px;
+  border: 1px solid rgba(156, 163, 175, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.45;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.follow-up-chip-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(156, 163, 175, 0.5);
 }
