@@ -830,8 +830,6 @@ export default function Page() {
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
-    // Tracks which message IDs have finished typewriter — used to gate chip visibility
-    // stable per-message, never toggled back, so chips never disappear once shown
     const [typingDoneIds, setTypingDoneIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
@@ -1275,8 +1273,6 @@ export default function Page() {
                             m.id === id ? { ...m, content: full } : m
                         )
                     );
-                    // Mark this message as done — chips will now appear and never disappear
-                    setTypingDoneIds((prev) => new Set([...prev, id]));
                     return;
                 }
 
@@ -1568,8 +1564,21 @@ export default function Page() {
             }
 
             // Type out the actual answer text into the existing assistant bubble
-            const fullText = friendly;
-            typeOutAssistant(answerId, fullText);
+            // BUT: if answerMarkdown is present, GrokCard already renders the full answer —
+            // running the typewriter simultaneously causes 50+ setMessages calls = scroll chaos.
+            // In that case, skip typewriter entirely and mark as done immediately.
+            if (meta.answerMarkdown) {
+                // GrokCard path: set content once, mark done so chips appear
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === answerId ? { ...m, content: friendly } : m
+                    )
+                );
+                setTypingDoneIds((prev) => new Set([...prev, answerId]));
+            } else {
+                // Bare text path (e.g. First Time Buyer): typewriter as normal
+                typeOutAssistant(answerId, friendly);
+            }
 
             // Save which route we used for this thread
             if (tid) {
@@ -1825,7 +1834,7 @@ export default function Page() {
                                                             setInput(q);
                                                         }}
                                                     />
-                                                    {/* Chips gated on per-message typing completion — never disappear when next question loads */}
+                                                    {/* Chips: gated on per-message done flag — never toggled by global loading */}
                                                     {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && typingDoneIds.has(m.id) && (
                                                         <div style={{
                                                             display: 'flex',
