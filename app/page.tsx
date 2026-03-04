@@ -1862,8 +1862,11 @@ export default function Page() {
                                                                 ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                 : m.meta.grok,
                                                             answerMarkdown: sanitizeMarkdown(
-                                                                m.meta.answerMarkdown ??
-                                                                (typeof m.content === 'string' ? m.content : '')
+                                                                // Use m.content while typewriter is animating (non-empty),
+                                                                // fall back to m.meta.answerMarkdown once typing completes
+                                                                (typeof m.content === 'string' && m.content.length > 0)
+                                                                    ? m.content
+                                                                    : (m.meta.answerMarkdown ?? '')
                                                             ),
                                                             followUp: m.meta.follow_up_chips?.length
                                                                 ? undefined
