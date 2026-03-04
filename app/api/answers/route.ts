@@ -2715,7 +2715,12 @@ To give you accurate scenarios, I need:
 What's your situation?`,
                 next_step: "Share your income and savings so I can show you 3 affordability scenarios (Conservative, Comfortable, Aggressive).",
                 follow_up: "What's your annual income and how much do you have saved?",
-                confidence: "1.00 (interactive advisor - ready to calculate)"
+                confidence: "1.00 (interactive advisor - ready to calculate)",
+                follow_up_chips: [
+                    { label: "I make $95k/year and have $40k saved", seed: "I make $95k/year and have $40k saved" },
+                    { label: "I make $120k, $20k saved, $300/mo car payment", seed: "I make $120k/year, have $20k saved, and pay $300/month in car payments" },
+                    { label: "I make $75k/year and have $25k saved", seed: "I make $75k/year and have $25k saved" },
+                ]
             };
         }
     }
