@@ -2436,17 +2436,24 @@ MEMORY RULES (for follow-up questions):
 
         // ============================================================
         // REFI INTERCEPT v2 — full smart advisor, catches before scenario math
-        // ============================================================
+        // Detect if last memory snapshot was a refi
+        const lastWasRefi = memoryHistory?.[0]?.scenario_inputs?.refi_type != null ||
+            memoryHistory?.[0]?.scenario_inputs?.current_rate_pct != null;
+
         const isRefiQ = (q: string): boolean => {
             const t = q.toLowerCase();
-            return /\b(?:refinanc|refi\b)/.test(t) ||
-                (/(?:current rate|my rate)/.test(t) && /(?:rates?\s+(?:go|drop|hit|reach)|to\s+\d+\.?\d*%)/.test(t)) ||
-                /(?:save|saving).{0,30}(?:refi|refinanc)/i.test(q) ||
-                /(?:cash.?out|arm.*reset|fha.*conventional|remove\s*mip)/.test(t);
+            if (/\b(?:refinanc|refi\b)/.test(t)) return true;
+            if (/(?:current rate|my rate)/.test(t) && /(?:rates?\s+(?:go|drop|hit|reach)|to\s+\d+\.?\d*%)/.test(t)) return true;
+            if (/(?:save|saving).{0,30}(?:refi|refinanc)/i.test(q)) return true;
+            if (/(?:cash.?out|arm.*reset|fha.*conventional|remove\s*mip)/.test(t)) return true;
+            // Context-aware: follow-up on a prior refi session
+            if (lastWasRefi && /(?:what about|what if|show me|compare|now vs|wait|trigger|breakeven|20.?year|15.?year|shorten|no.?cost|lender credit|extra pay|principal pay)/i.test(q)) return true;
+            return false;
         };
 
         if (isRefiQ(message)) {
-            // ============================================================
+            // Pull stored refi context from memory for follow-up questions
+            const memRefi = lastWasRefi ? memoryHistory[0]?.scenario_inputs : null;
             // SMART REFI ADVISOR v2 — AI-powered decision engine
             // Not a calculator. A verdict.
             // ============================================================
@@ -2504,6 +2511,8 @@ MEMORY RULES (for follow-up questions):
                     balance = mSuf ? n * 1_000_000 : kSuf ? n * 1000 : n;
                 }
             }
+            // Memory fallback — pull balance from prior refi snapshot if not in message
+            if (!balance && memRefi?.loan_amount) balance = memRefi.loan_amount;
 
             // Current rate — handles "current rate is 6.5%" / "at 6.5%" / "6.5% rate"
             const curRM =
@@ -2514,7 +2523,8 @@ MEMORY RULES (for follow-up questions):
                     const all = [...qFull.matchAll(/(\d+\.?\d*)\s*%/g)].map(m => parseFloat(m[1])).filter(r => r > 1 && r < 20);
                     return all.length >= 1 ? { 1: String(all[0]) } as any : null;
                 })();
-            const currentRate = curRM ? parseFloat(curRM[1]) : null;
+            let currentRate = curRM ? parseFloat(curRM[1]) : null;
+            if (!currentRate && memRefi?.current_rate_pct) currentRate = memRefi.current_rate_pct;
 
             // New/target rate
             const newRM =
@@ -2870,23 +2880,77 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
                 ];
             }
 
-            return noStore({
-                ok: true, memory_thread_id: memoryThreadId, route: "answers",
-                grok: {
-                    answer: md,
-                    next_step: "Get 2–3 lender quotes and compare closing costs — rates are meaningless without the cost comparison.",
-                    follow_up: refiChips[0].label,
-                    follow_up_chips: refiChips,
-                    confidence: `1.00 (refi calc: ${f$(balance)} @ ${fPct(currentRate)}→${fPct(effNewRate)}, ${(monthsLeft / 12).toFixed(0)}yr remaining, costs=${f$(effCosts)})`,
+
+            // === REFI MEMORY SAVE — store snapshot so follow-up questions work ===
+            if (supabase && memoryThreadId) {
+                const refiSnapshot = {
+                    scenario_inputs: {
+                        loan_amount: balance,
+                        rate_used_pct: effNewRate,
+                        current_rate_pct: currentRate,
+                        term_years: monthsLeft / 12,
+                        price: balance,
+                        down_payment_pct: 0,
+                        refi_type: refiType,
+                        years_in: yearsIn ?? null,
+                        closing_costs: effCosts,
+                    },
+                    monthly_payment: newPI,
+                    plain_english_summary: md,
+                };
+                try {
+                    await storeScenarioMemory(supabase, memoryThreadId, refiSnapshot, message, {
+                        buildTag, requestId, provider: "refi_advisor", model: "local", userId,
+                    });
+                    console.log('[Memory] Stored refi advisor snapshot');
+                } catch (err) {
+                    console.error('[Memory] Failed to store refi snapshot:', err);
+                }
+            }
+
+            return respond(
+                {
+                    success: true,
+                    provider: "refi_advisor",
+                    memory_thread_id: memoryThreadId,
+                    result: {
+                        plain_english_summary: md,
+                        scenario_inputs: {
+                            loan_amount: balance,
+                            rate_used_pct: effNewRate,
+                            current_rate_pct: currentRate,
+                            term_years: monthsLeft / 12,
+                            price: balance,
+                            refi_type: refiType,
+                            years_in: yearsIn ?? null,
+                            closing_costs: effCosts,
+                        },
+                        monthly_payment: newPI,
+                        refi_verdict: vTitle,
+                        follow_up_chips: refiChips,
+                    },
+                    marketData: marketData,
+                    meta: {
+                        build_tag: buildTag,
+                        requestId,
+                        memory_thread_id: memoryThreadId,
+                        bypass: "refi_advisor_v2",
+                        refiType,
+                        verdict: vTitle,
+                        // Chips here so scenarioToApiResponse → meta → GrokCard can find them
+                        followUp: refiChips[0].label,
+                        follow_up_chips: refiChips,
+                        grok: {
+                            answer: md,
+                            follow_up: refiChips[0].label,
+                            follow_up_chips: refiChips,
+                            confidence: `1.00 (refi: ${f$(balance)} @ ${fPct(currentRate)}→${fPct(effNewRate)})`,
+                        },
+                        timing_ms: { fred_ms: 0, ai_ms: 0, parse_ms: 0, total_ms: 0 },
+                    },
                 },
-                debug: {
-                    bypass: "refi_advisor_v2",
-                    refiType, verdict: vTitle,
-                    parsed: { balance, currentRate, newRate: effNewRate, monthsLeft, yearsIn, closingCosts: effCosts, monthlySavings: Math.round(save), beMonths: beM ? Math.round(beM) : null, triggerRates: { yr2: trig2yr, yr3: trig3yr, yr5: trig5yr } },
-                },
-                message: md, answerMarkdown: `**Answer**\n${md}`,
-                followUp: refiChips[0].label, follow_up_chips: refiChips,
-            });
+                { headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
+            );
         }
         // ── END REFI INTERCEPT ──
 
