@@ -1570,13 +1570,13 @@ export default function Page() {
                 }
             }
 
-            // Run typewriter for all answers (fills m.content with friendly text)
-            // For GrokCard answers, also mark typingDoneIds immediately so chips appear
-            // while typewriter runs (GrokCard renders answerMarkdown, not m.content)
-            typeOutAssistant(answerId, friendly);
-            if (meta.answerMarkdown) {
-                setTypingDoneIds((prev) => new Set([...prev, answerId]));
-            }
+            // For GrokCard answers: type answerMarkdown so user sees it build up
+            // For bare text: type friendly summary
+            // typingDoneIds is set by typeOutAssistant on completion — never early
+            const textToType = meta.answerMarkdown
+                ? sanitizeMarkdown(meta.answerMarkdown)
+                : friendly;
+            typeOutAssistant(answerId, textToType);
 
             // Save which route we used for this thread
             if (tid) {
@@ -1815,11 +1815,11 @@ export default function Page() {
                                                                 ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                 : m.meta.grok,
                                                             answerMarkdown: sanitizeMarkdown(
-                                                                // During typewriter: show m.content (the typed text)
-                                                                // After done (typingDoneIds): show full answerMarkdown
-                                                                typingDoneIds.has(m.id)
-                                                                    ? (m.meta.answerMarkdown ?? (typeof m.content === 'string' ? m.content : ''))
-                                                                    : (typeof m.content === 'string' && m.content ? m.content : (m.meta.answerMarkdown ?? ''))
+                                                                // While typing: m.content grows char by char (typewriter)
+                                                                // When done (typingDoneIds set): show full answerMarkdown
+                                                                !typingDoneIds.has(m.id) && typeof m.content === 'string' && m.content
+                                                                    ? m.content
+                                                                    : (m.meta.answerMarkdown ?? (typeof m.content === 'string' ? m.content : ''))
                                                             ),
                                                             followUp: m.meta.follow_up_chips?.length
                                                                 ? undefined
