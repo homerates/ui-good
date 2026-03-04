@@ -2510,12 +2510,8 @@ ${uwDatabase}`;
             grok: {
                 answer: uwAnswerText,
                 next_step: "Verify current guidelines with your lender or at the official source.",
-                follow_up: undefined,
-                follow_up_chips: [
-                    { label: "Run a real FHA scenario for me", seed: "FHA loan on a $450k home at 6.5% — show me full payment breakdown" },
-                    { label: "Compare FHA vs conventional on a specific home", seed: "Compare FHA 3.5% down vs conventional 5% down on a $450k home" },
-                    { label: "What can I afford with my income?", seed: "What can I afford as a first-time home buyer?" },
-                ],
+                follow_up: generateFallbackChips(question, conversationHistory)[0]?.label ?? "What can I afford with my income?",
+                follow_up_chips: generateFallbackChips(question, conversationHistory),
                 confidence: "1.00 (sourced from official guidelines database)",
             },
             debug: {
@@ -2531,7 +2527,8 @@ ${uwDatabase}`;
             message: uwAnswerText,
             answerMarkdown: `**Answer**
 ${uwAnswerText}`,
-            followUp: "Do you have a specific scenario you'd like to calculate?",
+            followUp: generateFallbackChips(question, conversationHistory)[0]?.label ?? "What can I afford?",
+            follow_up_chips: generateFallbackChips(question, conversationHistory),
         });
     }
     // ========== END UNDERWRITING GUIDELINES BYPASS ==========
@@ -2935,30 +2932,32 @@ What's your situation?`,
 
         const fhaParams = extractFHAParams(question);
 
-        // Pull price + rate from history when not found in current question
-        if ((!fhaParams.purchasePrice || !fhaParams.interestRate) && (isFHAFollowUp || isFHAQuestion(question)) && conversationHistory) {
-            // Look for price with home/purchase context first (most reliable)
-            const histPriceCtx = conversationHistory.match(/\$\s*([\d,]+)\s*k?\s*(?:home|house|property|purchase price)/i) ||
-                conversationHistory.match(/(?:home|house|property|purchase price)[^$]*\$\s*([\d,]+)k?/i) ||
-                conversationHistory.match(/\$\s*([\d,]+(?:,\d{3})+)/i); // full $515,000 format
-            // Bare $Xk only if value >= 100 (i.e. $100k+) to avoid matching MIP amounts like $84k, $26k
-            const histPriceBare = conversationHistory.match(/\$\s*(\d+)k\b/gi)
-                ?.map((m: string) => parseFloat(m.replace(/[\$k]/gi, '')))
-                .find((v: number) => v >= 100);
-            const histPriceVal = histPriceCtx
-                ? parseFloat(histPriceCtx[1].replace(/,/g, ''))
-                : (histPriceBare ?? null);
+        // Pull price + rate from history — price only if missing, rate only if missing (guards are independent)
+        if ((isFHAFollowUp || isFHAQuestion(question)) && conversationHistory) {
+            // Only pull price from history if price NOT found in current question
+            if (!fhaParams.purchasePrice) {
+                const histPriceCtx = conversationHistory.match(/\$\s*([\d,]+)\s*k?\s*(?:home|house|property|purchase price)/i) ||
+                    conversationHistory.match(/(?:home|house|property|purchase price)[^$]*\$\s*([\d,]+)k?/i) ||
+                    conversationHistory.match(/\$\s*([\d,]+(?:,\d{3})+)/i); // full $515,000 format
+                // Bare $Xk only if value >= 100 (i.e. $100k+) to avoid matching MIP amounts like $84k, $26k
+                const histPriceBare = conversationHistory.match(/\$\s*(\d+)k\b/gi)
+                    ?.map((m: string) => parseFloat(m.replace(/[\$k]/gi, '')))
+                    .find((v: number) => v >= 100);
+                const histPriceVal = histPriceCtx
+                    ? parseFloat(histPriceCtx[1].replace(/,/g, ''))
+                    : (histPriceBare ?? null);
 
-            if (histPriceVal !== null && histPriceVal !== undefined) {
-                let hp = histPriceVal;
-                if (hp < 10000) hp *= 1000;
-                // Sanity check: home prices are $50k–$5M
-                if (hp >= 50000 && hp <= 5000000) {
-                    fhaParams.purchasePrice = hp;
-                    fhaParams.hasInfo = true;
+                if (histPriceVal !== null && histPriceVal !== undefined) {
+                    let hp = histPriceVal;
+                    if (hp < 10000) hp *= 1000;
+                    // Sanity check: home prices are $50k–$5M
+                    if (hp >= 50000 && hp <= 5000000) {
+                        fhaParams.purchasePrice = hp;
+                        fhaParams.hasInfo = true;
+                    }
                 }
-            }
-            // Also pull prior rate if no rate in current question
+                // Also pull prior rate if no rate in current question
+            } // end if (!fhaParams.purchasePrice)
             if (!fhaParams.interestRate) {
                 // Only pull rate from history USER questions, not assistant answers
                 // Extract only "User:" lines to avoid matching example rates in our own notices
