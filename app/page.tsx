@@ -538,9 +538,22 @@ function scenarioToApiResponse(s: any): ApiResponse {
             ? (meta.confidence === 'high' ? 'high' : meta.confidence === 'low' ? 'low' : 'med')
             : 'med';
 
-    // Pass through chips from refi advisor (stored in result/meta/meta.grok)
-    const chips = result?.follow_up_chips ?? meta?.follow_up_chips ?? meta?.grok?.follow_up_chips ?? undefined;
-    const followUpLabel = meta?.followUp ?? meta?.grok?.follow_up ?? undefined;
+    // Pass through chips — refi advisor stores them in multiple places depending on route version:
+    // NEW shape (respond): result.follow_up_chips, meta.follow_up_chips, meta.grok.follow_up_chips
+    // OLD shape (noStore):  s.grok.follow_up_chips, s.follow_up_chips, s.followUp
+    const chips =
+        result?.follow_up_chips ??
+        meta?.follow_up_chips ??
+        meta?.grok?.follow_up_chips ??
+        (s as any)?.grok?.follow_up_chips ??
+        (s as any)?.follow_up_chips ??
+        undefined;
+    const followUpLabel =
+        meta?.followUp ??
+        meta?.grok?.follow_up ??
+        (s as any)?.grok?.follow_up ??
+        (s as any)?.followUp ??
+        undefined;
 
     return {
         path: 'dynamic',
@@ -1407,6 +1420,7 @@ export default function Page() {
             // "show me 10% down scenario", "what if I put 10% down", "show me that option"
             const isFollowUp =
                 t.includes('what if') ||
+                t.includes('what about') ||
                 t.includes('instead') ||
                 t.includes('same property') ||
                 t.includes('same home') ||
@@ -1416,6 +1430,22 @@ export default function Page() {
                 t.includes('show me') ||
                 t.includes('run that') ||
                 t.includes('run it') ||
+                // Refi follow-up patterns
+                t.includes('break even') ||
+                t.includes('breakeven') ||
+                t.includes('break-even') ||
+                t.includes('closing cost') ||
+                t.includes('lender credit') ||
+                t.includes('no cost') ||
+                t.includes('no-cost') ||
+                t.includes('trigger rate') ||
+                t.includes('shorten') ||
+                t.includes('15 year') ||
+                t.includes('15-year') ||
+                t.includes('20 year') ||
+                t.includes('20-year') ||
+                t.includes('extra pay') ||
+                t.includes('principal pay') ||
                 /^\s*(?:yes|yeah|yep|ok|okay|sure|do it|go ahead)\s*$/i.test(q);
 
             let useScenario = false;
@@ -1515,6 +1545,7 @@ export default function Page() {
                 raw?.memory_thread_id ||
                 raw?.answer?.memory_thread_id ||
                 raw?.meta?.memory_thread_id ||
+                raw?.grok?.meta?.memory_thread_id ||
                 meta?.grok?.meta?.memory_thread_id;
 
             if (returnedMemoryThreadId && tid) {
