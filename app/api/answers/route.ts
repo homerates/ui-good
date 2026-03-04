@@ -2574,6 +2574,10 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
 
         // Pure info signals — these phrases mean the user wants a guideline answer, not a calculation
         const infoSignals = [
+            // "Ask Underwriting:" prefix — always routes to guidelines, never a calculator
+            /^ask\s+underwriting[:\-]/i,
+            // Explanation/educational intent — "explain MIP", "what is UFMIP", "how does FHA work"
+            /\b(?:explain|what\s+is|what\s+are|how\s+does|how\s+do|tell\s+me\s+about|walk\s+me\s+through)\b.{0,60}\b(?:mip|ufmip|fha|pmi|dti|ltv|dscr|va|usda|guideline|underwriting|mortgage\s+insurance)/i,
             /what.{0,20}(?:minimum|min|required?|need|require).{0,30}credit.?score/i,
             /credit.?score.{0,30}(?:required?|minimum|qualify|need|for)/i,
             /what.{0,20}(?:dti|debt.to.income).{0,30}(?:allow|require|limit|max|need)/i,
@@ -2597,7 +2601,8 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
         // Negative signals — check FIRST before any positive match
         // Questions with a dollar amount + FHA/price context are calculations, not guidelines
         const hasDollarAmount = /\$\s*[\d,]+/i.test(q);
-        if (hasDollarAmount) return false;
+        // "Ask Underwriting:" prefix overrides the dollar-amount guard — always a guideline question
+        if (hasDollarAmount && !/^ask\s+underwriting[:\-]/i.test(q)) return false;
 
         // "use my scenario", "run my numbers", "calculate for me" = calculation intent
         const isCalculationIntent = /use my scenario|run.{0,20}(?:numbers?|scenario|calc)|calculate.{0,20}for me|show me.{0,20}(?:fha|payment|cost)|what.{0,10}(?:would|will).{0,20}(?:payment|piti|cost)|can you.{0,20}(?:calc|run|show|use)|(?:use|apply|run).{0,20}(?:my|this|same|that).{0,20}(?:scenario|situation|numbers?|info|details?)|(?:for|with).{0,5}fha\b|fha.{0,20}(?:version|option|instead)|my scenario.{0,20}fha|can.{0,10}fha/i.test(q);
