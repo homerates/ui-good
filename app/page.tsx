@@ -538,6 +538,10 @@ function scenarioToApiResponse(s: any): ApiResponse {
             ? (meta.confidence === 'high' ? 'high' : meta.confidence === 'low' ? 'low' : 'med')
             : 'med';
 
+    // Pass through chips — refi advisor stores them in result/meta/meta.grok
+    const chips = result?.follow_up_chips ?? meta?.follow_up_chips ?? meta?.grok?.follow_up_chips ?? undefined;
+    const followUpLabel = meta?.followUp ?? meta?.grok?.follow_up ?? undefined;
+
     return {
         path: 'dynamic',
         usedFRED: marketData?.usedFallbacks === false || Boolean(marketData?.date),
@@ -547,6 +551,8 @@ function scenarioToApiResponse(s: any): ApiResponse {
         answer: summary,
         answerMarkdown: md.join('\n'),
         data_freshness: marketData?.date ? `Live (FRED) as of ${marketData.date}` : undefined,
+        followUp: followUpLabel,
+        follow_up_chips: chips,
         grok: {
             scenario: true,
             provider: s?.provider,
@@ -555,6 +561,8 @@ function scenarioToApiResponse(s: any): ApiResponse {
             marketData,
             meta,
             result,
+            follow_up: followUpLabel,
+            follow_up_chips: chips,
         },
     };
 }
@@ -830,17 +838,14 @@ export default function Page() {
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const [typingDoneIds, setTypingDoneIds] = useState<Set<string>>(new Set());
-    const messageCountRef = useRef(0);
-
     useEffect(() => {
         const el = scrollRef.current;
         if (!el) return;
-        // Only scroll when a new message is added (count increases), not on every typewriter tick
-        if (messages.length > messageCountRef.current) {
-            messageCountRef.current = messages.length;
+
+        // run after DOM updates so scrollHeight is correct
+        requestAnimationFrame(() => {
             el.scrollTop = el.scrollHeight;
-        }
+        });
     }, [messages, loading]);
 
     // If the user came from a shared answer card, pre-fill the composer with that question
@@ -978,6 +983,14 @@ export default function Page() {
             return arr;
         });
     }, [messages, activeId]);
+
+    // autoscroll
+    useEffect(() => {
+        scrollRef.current?.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: 'smooth',
+        });
+    }, [messages]);
 
     // hotkeys
     useEffect(() => {
@@ -1278,8 +1291,6 @@ export default function Page() {
                             m.id === id ? { ...m, content: full } : m
                         )
                     );
-                    // Mark done so chips appear
-                    setTypingDoneIds((prev) => new Set([...prev, id]));
                     return;
                 }
 
@@ -1570,13 +1581,9 @@ export default function Page() {
                 }
             }
 
-            // For GrokCard answers: type answerMarkdown so user sees it build up
-            // For bare text: type friendly summary
-            // typingDoneIds is set by typeOutAssistant on completion — never early
-            const textToType = meta.answerMarkdown
-                ? sanitizeMarkdown(meta.answerMarkdown)
-                : friendly;
-            typeOutAssistant(answerId, textToType);
+            // Type out the actual answer text into the existing assistant bubble
+            const fullText = friendly;
+            typeOutAssistant(answerId, fullText);
 
             // Save which route we used for this thread
             if (tid) {
@@ -1751,8 +1758,7 @@ export default function Page() {
             <section
                 className="main"
                 style={{
-                    height: '100dvh',
-                    overflow: 'hidden',
+                    minHeight: '100dvh',
                     display: 'flex',
                     flexDirection: 'column',
                 }}
@@ -1815,11 +1821,8 @@ export default function Page() {
                                                                 ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                 : m.meta.grok,
                                                             answerMarkdown: sanitizeMarkdown(
-                                                                // While typing: m.content grows char by char (typewriter)
-                                                                // When done (typingDoneIds set): show full answerMarkdown
-                                                                !typingDoneIds.has(m.id) && typeof m.content === 'string' && m.content
-                                                                    ? m.content
-                                                                    : (m.meta.answerMarkdown ?? (typeof m.content === 'string' ? m.content : ''))
+                                                                m.meta.answerMarkdown ??
+                                                                (typeof m.content === 'string' ? m.content : '')
                                                             ),
                                                             followUp: m.meta.follow_up_chips?.length
                                                                 ? undefined
@@ -1836,14 +1839,51 @@ export default function Page() {
                                                             setInput(q);
                                                         }}
                                                     />
-                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && typingDoneIds.has(m.id) && (
-                                                        <div className="follow-up-chips">
-                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }) => (
+                                                    {/* Smart follow-up chips — only show when answer is complete (not loading) */}
+                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: 6,
+                                                            marginTop: 8,
+                                                            animation: 'chipFadeIn 0.5s ease forwards',
+                                                            opacity: 0,
+                                                        }}>
+                                                            <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
+                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }, i: number) => (
                                                                 <button
-                                                                    key={chip.seed}
+                                                                    key={i}
                                                                     type="button"
-                                                                    className="follow-up-chip-btn"
-                                                                    onClick={() => setInput(chip.seed)}
+                                                                    onClick={() => {
+                                                                        setInput(chip.seed);
+                                                                        setTimeout(() => {
+                                                                            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
+                                                                            if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+                                                                        }, 50);
+                                                                    }}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        display: 'block',
+                                                                        padding: '10px 16px',
+                                                                        borderRadius: 9999,
+                                                                        border: '1px solid rgba(156, 163, 175, 0.25)',
+                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                        color: 'inherit',
+                                                                        fontSize: 13,
+                                                                        cursor: 'pointer',
+                                                                        textAlign: 'center',
+                                                                        lineHeight: 1.45,
+                                                                        transition: 'background 0.12s, border-color 0.12s',
+                                                                        fontFamily: 'inherit',
+                                                                    }}
+                                                                    onMouseEnter={e => {
+                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
+                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.5)';
+                                                                    }}
+                                                                    onMouseLeave={e => {
+                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
+                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.25)';
+                                                                    }}
                                                                 >
                                                                     <span style={{ opacity: 0.5, fontWeight: 500, marginRight: 4 }}>Ask:</span>
                                                                     {chip.label}
