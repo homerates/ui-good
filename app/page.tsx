@@ -1446,6 +1446,10 @@ export default function Page() {
                 t.includes('20-year') ||
                 t.includes('extra pay') ||
                 t.includes('principal pay') ||
+                t.includes('sell in') ||
+                t.includes('if i sell') ||
+                t.includes('if we sell') ||
+                t.includes('plan to sell') ||
                 /^\s*(?:yes|yeah|yep|ok|okay|sure|do it|go ahead)\s*$/i.test(q);
 
             let useScenario = false;
@@ -1617,10 +1621,16 @@ export default function Page() {
             typeOutAssistant(answerId, fullText);
 
             // Save which route we used for this thread
+            // If the response was a refi intercept (from either route), always treat as 'scenario'
+            const isRefiBypass =
+                raw?.debug?.bypass === 'refi_advisor_v2' ||
+                raw?.grok?.debug?.bypass === 'refi_advisor_v2' ||
+                (raw?.grok?.confidence as string)?.includes('refi calc') ||
+                (raw?.grok?.confidence as string)?.includes('refi:');
             if (tid) {
                 setLastRouteByThread(prev => ({
                     ...prev,
-                    [tid]: useScenario ? 'scenario' : 'answers'
+                    [tid]: (useScenario || isRefiBypass) ? 'scenario' : 'answers'
                 }));
             }
         } catch (e) {
