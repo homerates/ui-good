@@ -1851,8 +1851,8 @@ async function handle(req: NextRequest, intentParam?: string) {
 
         jumbo:
             "You are Jumbo Loan Expert — Grok 4.1 Fast Non-Reasoning mode.\n" +
-            "Parse user location for limits (e.g., CA high-cost $1,209,750 2025).\n" +
-            "Use conforming baselines ($806,500 2025). Jumbo pricing 0.20–0.50% over conforming; stricter: 700+ credit, 20%+ down, 6–12 months reserves.\n" +
+            "Parse user location for limits (e.g., CA high-cost up to $1,249,125 in 2026; standard $806,500).\n" +
+            "Use conforming baselines ($806,500 standard / up to $1,249,125 high-balance in CA, 2026). Jumbo pricing 0.20–0.50% over conforming; stricter: 720+ credit, 20%+ down, 12–24 months reserves.\n" +
             "Focus on structure, eligibility, risk — no sales. Table limits by county if CA. Respond in 150-250 words max. End with disclaimer.",
 
         underwriting:
@@ -1879,9 +1879,15 @@ async function handle(req: NextRequest, intentParam?: string) {
         qualify:
             "You are Qualification Lab — fast, accurate, memory-aware, Grok 4.1 Fast Non-Reasoning mode.\n" +
             "Parse conversation: income, debts, credit score, target payment — use ONLY given; ask once if missing.\n" +
-            "Label illustrations 'Example Scenario'. Assume 6.25% 30yr fixed unless specified.\n" +
-            "Use DTI guides (28/36 front/back, 31/43 FHA) for max PITI. Cite [Zillow] or [Bankrate] for calcs.\n" +
-            "Table: max PITI, max loan, max home price (20% down). No fluff, no re-ask. Tone: calm, decisive. Respond in 150-250 words max. End with disclaimer.",
+            "Label illustrations 'Example Scenario'. Use FRED live rate if provided in context; otherwise assume current market ~6.0%.\n" +
+            "CRITICAL — Use ACTUAL 2026 guidelines, NOT outdated 28/36 rule:\n" +
+            "  • Conventional (Fannie Mae/Freddie Mac): 45% back-end max (DU approval up to 50% with compensating factors). [singlefamily.fanniemae.com]\n" +
+            "  • FHA: 43% back-end max (up to 50% with compensating factors per HUD 4000.1). [hud.gov]\n" +
+            "  • Back-end = (PITI + all monthly debts) ÷ gross monthly income.\n" +
+            "  • NEVER use 28/36 — that is an outdated rule of thumb, not current lender guidelines.\n" +
+            "INCOME BACK-SOLVE: When user asks how much income needed, calculate: required gross = PITI ÷ 0.43 × 12 (FHA) or PITI ÷ 0.45 × 12 (conventional).\n" +
+            "LOAN LIMITS: $807,500 on $850k home — check if county is high-balance (CA most counties $832,750+). Jumbo if over county limit.\n" +
+            "Table: max PITI, required income at 43% DTI, required income at 45% DTI. Cite [Fannie Mae Selling Guide] or [HUD 4000.1]. No fluff. Tone: calm, decisive. Respond in 150-250 words max. End with disclaimer.",
 
         about:
             "You are the dedicated About HomeRates.ai module — Grok 4.1 Fast Non-Reasoning mode.\n" +
@@ -1964,8 +1970,15 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     usedTavily = tav.ok && (tav.answer !== null || tav.results.length > 0);
 
-    // FRED snapshot only when topic indicates rates
-    const wantFred = topic === "rates";
+    // FRED snapshot for rate questions AND mortgage/qualify/FHA topics
+    // These calcs need the live rate — without it they default to hardcoded values
+    const wantFred = topic === "rates" ||
+        module === "qualify" ||
+        module === "jumbo" ||
+        isFHAQuestion(question) ||
+        isMortgageCalculation(question) ||
+        isAffordabilityQuestion(question) ||
+        /\b(rate|rates|\d+\.\d+\s*%)\b/i.test(question);
     fred = wantFred
         ? await getFredSnapshot()
         : { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
@@ -2116,9 +2129,20 @@ async function handle(req: NextRequest, intentParam?: string) {
     // Compact context blocks hard
     const today = new Date().toISOString().slice(0, 10);
 
-    const fredContext = usedFRED
-        ? `FRED (${fred.asOf || today}): 30Y fixed avg=${fred.mort30Avg}%, 10Y=${fred.tenYearYield}%, spread=${fred.spread}%`
-        : "FRED data unavailable";
+    // fredContext: always show rate if available (even if usedFRED=false due to partial fetch)
+    const fredRateStr = fred.mort30Avg != null
+        ? `${fred.mort30Avg}%`
+        : "~6.0% (estimate — FRED unavailable)";
+    const fredContext = fred.mort30Avg != null
+        ? `FRED (${fred.asOf || today}): 30Y fixed avg=${fred.mort30Avg}%, 10Y=${fred.tenYearYield ?? "n/a"}%, spread=${fred.spread ?? "n/a"}%`
+        : "FRED data unavailable — use ~6.0% as rate estimate";
+    // Inject live rate into qualify prompt so model stops using its hardcoded 6.25%
+    if (module === "qualify" && modulePrompts["qualify"]) {
+        modulePrompts["qualify"] = modulePrompts["qualify"].replace(
+            "Use FRED live rate if provided in context; otherwise assume current market ~6.0%.",
+            `Use FRED live rate: ${fredRateStr} (30yr fixed avg as of ${fred.asOf || today}).`
+        );
+    }
 
     const tavilyContextRaw =
         Array.isArray(tav.results) && tav.results.length
@@ -2789,8 +2813,8 @@ Source: HUD Handbook 4000.1 | hud.gov/program_offices/housing/sfh
 DTI: Front-end ≤31% guideline, up to 40%+ with AUS. Back-end ≤43%, up to 50% with compensating factors.
 Credit Score: 580+ → 3.5% down. 500–579 → 10% down. Below 500 → not eligible.
 LTV / Down Payment: 3.5% min (580+ FICO), 10% min (500–579 FICO). Max LTV 96.5%.
-Loan Limits (2026): Floor $541,287 (1-unit, low-cost areas). High-cost ceiling $1,249,125 (1-unit). CA counties range from $541,287 to $1,249,125 depending on county. AK/HI/Guam/USVI may exceed ceiling. Source: HUD No. 25-145, effective Jan 1 2026.
-Mortgage Insurance: UFMIP 1.75% financed. Annual MIP 0.55% (>15yr, LTV >90%) — life of loan. Removed at yr 11 if 10%+ down.
+Loan Limits (2026 — EXACT HUD VALUES, do not interpolate):\nNational floor: 1-unit $541,287 | 2-unit $693,050 | 3-unit $837,700 | 4-unit $1,041,125.\nHigh-cost ceiling: 1-unit $1,249,125 | 2-unit $1,599,375 | 3-unit $1,933,200 | 4-unit $2,402,625.\nCA: most counties at FHA ceiling (match conforming). Low-cost CA counties at floor ($541,287 1-unit). AK/HI/Guam/USVI may exceed ceiling. Source: HUD No. 25-145, effective Jan 1 2026.
+Mortgage Insurance: UFMIP 1.75% financed. Annual MIP 0.55% (>15yr, LTV >90%, loan >$150,400) — life of loan if <10% down; removed after 11 years if 10%+ down. Source: HUD Mortgagee Letter 2023-05, effective March 20 2023.
 Reserves: Not required by FHA. Lender overlays may require 1–3 months.
 Employment: 2-year history required. Gaps >6 months need explanation.
 Gift Funds: 100% of down payment can be gift (family, employer, nonprofit).
@@ -2801,7 +2825,7 @@ Source: Fannie Mae Selling Guide B3-6 | selling-guide.fanniemae.com. Freddie Mac
 DTI: Standard ≤45% back-end. DU/LP approval up to 50% with strong compensating factors.
 Credit Score: Minimum 620. Best pricing 740+. Below 620 not eligible.
 LTV / Down Payment: Primary 1-unit 3% min (HomeReady/Standard 97). Investment property 15% (1-unit), 25% (2–4 units). Second home 10% min. No PMI at 20%+ down.
-Loan Limits (2026): Standard conforming $806,500 (1-unit, non-high-balance). High-balance limit varies by county — CA ranges from $832,750 to $1,249,125. Source: FHFA CY2026, effective Jan 1 2026.
+Loan Limits (2026 — EXACT FHFA VALUES, do not interpolate):\nStandard (non-high-balance): 1-unit $806,500 | 2-unit $1,032,650 | 3-unit $1,248,150 | 4-unit $1,551,250.\nCA high-balance ceiling (e.g. LA, OC, SF, SB, SC, SM, SC, Alameda, Contra Costa, Marin, San Benito, Santa Clara): 1-unit $1,249,125 | 2-unit $1,599,375 | 3-unit $1,933,200 | 4-unit $2,402,625.\nCA mid-tier examples: San Diego 1-unit $1,104,000 | Ventura $1,035,000 | Napa $1,017,750 | SLO $1,000,500 | Santa Barbara $941,850 | Sonoma $897,000 | all other CA counties $832,750.\nSource: FHFA CY2026, effective Jan 1 2026.
 Reserves: Primary 1-unit 0–2 months typical. Investment property 6 months PITIA. Multiple financed properties: 2% of aggregate UPB.
 Employment: 2-year history standard. Recent job change OK if same field.
 Gift Funds: Allowed for primary and second homes. NOT allowed for investment properties.
