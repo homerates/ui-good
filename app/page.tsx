@@ -1492,35 +1492,50 @@ export default function Page() {
                 // New question: detect route normally.
                 // NOTE: bare 'scenario' word removed — too broad, fires on borrower follow-ups like
                 // "show me a 10% down scenario". Real investment scenarios have DSCR/rent/cash flow context.
-                const looksLikeScenario =
-                    t.includes('compare') ||
-                    t.includes(' vs ') ||
-                    t.includes('cash out') ||
-                    t.includes('cash-out') ||
-                    t.includes('projection') ||
-                    t.includes('stress test') ||
-                    t.includes('10-year') ||
-                    t.includes('10 year') ||
-                    t.includes('5-year') ||
-                    t.includes('5 year') ||
-                    // Investment / DSCR / rental math — always use Smart Scenario
-                    t.includes('dscr') ||
-                    t.includes('pitia') ||
-                    t.includes('amortization') ||
-                    t.includes('amortisation') ||
-                    t.includes('cash flow') ||
-                    t.includes('rental') ||
-                    t.includes('rent') ||
-                    t.includes('investment property') ||
-                    t.includes('vacancy') ||
-                    t.includes('maintenance') ||
-                    t.includes('property tax');
-                // NOTE: removed 'scenario' (too broad) and 'insurance' (too broad)
-                // NOTE: removed bare 'equity' — fires on "do I have enough equity in savings"
 
-                const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
+                // Rate/market questions ALWAYS go to answers (FRED) — never scenario
+                // "30 year fixed", "10 year note/treasury", "current rates", "what are rates"
+                const isRateMarketQuestion =
+                    /\b(30|15|20)\s*[- ]?year\s*(fixed|mortgage|rate|loan)?/i.test(q) ||
+                    /\b10\s*[- ]?year\s*(note|treasury|yield|bond|t-?note)/i.test(q) ||
+                    /\b(current|today.?s?|what.?s?|where.?s?)\s+(mortgage\s+)?rate/i.test(q) ||
+                    /\bfed\s+(rate|fund|funds)/i.test(q) ||
+                    /\b(rate|rates)\s+(right now|today|currently)/i.test(q) ||
+                    /what.{0,20}(10|ten).{0,20}(note|treasury|yield)/i.test(q);
 
-                useScenario = looksLikeScenario && hasNumbersContext;
+                if (isRateMarketQuestion) {
+                    useScenario = false;
+                    console.log('[Routing] Rate/market question — forcing answers route');
+                } else {
+
+                    const looksLikeScenario =
+                        t.includes('compare') ||
+                        t.includes(' vs ') ||
+                        t.includes('cash out') ||
+                        t.includes('cash-out') ||
+                        t.includes('projection') ||
+                        t.includes('stress test') ||
+                        // Investment / DSCR / rental math — always use Smart Scenario
+                        t.includes('dscr') ||
+                        t.includes('pitia') ||
+                        t.includes('amortization') ||
+                        t.includes('amortisation') ||
+                        t.includes('cash flow') ||
+                        t.includes('rental') ||
+                        t.includes('rent') ||
+                        t.includes('investment property') ||
+                        t.includes('vacancy') ||
+                        t.includes('maintenance') ||
+                        t.includes('property tax');
+                    // NOTE: removed '10-year'/'10 year'/'5-year'/'5 year' — these fire on
+                    // rate questions like "30 year fixed" and "10 year note/treasury"
+                    // NOTE: removed 'scenario' (too broad) and 'insurance' (too broad)
+                    // NOTE: removed bare 'equity' — fires on "do I have enough equity in savings"
+
+                    const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
+
+                    useScenario = looksLikeScenario && hasNumbersContext;
+                } // end !isRateMarketQuestion
             }
 
             // Endpoint + payload
