@@ -2564,45 +2564,87 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
     // HR-MEMORY:GROK-CALL
     // Inject prior conversation context + current user question into Grok
 
-    // ========== UNDERWRITING GUIDELINES BYPASS ==========
-    // Must run FIRST — before all calculator bypasses
-
-    // Generates guideline/explanation chips that STAY in the UW oracle path.
-    // No dollar amounts, no calc seeds — every chip is a knowledge question.
+    // Generates guideline/explanation chips that stay in the UW oracle path — no calc seeds, no dollar amounts.
     function generateUWChips(q: string): Array<{ label: string; seed: string }> {
-        const t = q.toLowerCase();
-
-        const isMIP = /mip|ufmip|mortgage insurance premium/i.test(q);
-        const isFHA = /fha/i.test(q);
+        const isMIP = /\bmip\b|ufmip|mortgage insurance premium/i.test(q);
+        const isFHA = /\bfha\b/i.test(q);
         const isConv = /conventional|fannie|freddie/i.test(q);
-        const isVA = /va|veteran/i.test(q);
-        const isUSDA = /usda|rural/i.test(q);
-        const isDSCR = /dscr|debt service/i.test(q);
-        const isDTI = /dti|debt.to.income/i.test(q);
+        const isVA = /\bva\b|veteran/i.test(q);
+        const isUSDA = /\busda\b|rural/i.test(q);
+        const isDSCR = /\bdscr\b|debt service/i.test(q);
+        const isDTI = /\bdti\b|debt.to.income/i.test(q);
         const isCredit = /credit score|fico/i.test(q);
         const isDown = /down payment|ltv|loan.to.value/i.test(q);
         const isReserve = /reserve|months/i.test(q);
         const isGift = /gift fund/i.test(q);
         const isSelfEmp = /self.employ/i.test(q);
         const isJumbo = /jumbo|non.?conforming/i.test(q);
-        const isPMI = /pmi/i.test(q);
+        const isPMI = /\bpmi\b/i.test(q);
 
-        if (isMIP || (isFHA && !isConv)) {
+        // Sub-topic detection — avoids repeating the chip that was just answered
+        const isPMICancel = /cancel|remov|drop|stop|go away|78|80/i.test(q) && isPMI;
+        const isConvDTI = isDTI && isConv;
+        const isConvGift = isGift && isConv;
+        const isFHARemove = /remov|cancel|get rid|eliminate/i.test(q) && isMIP;
+        const isFHACredit = isCredit && isFHA;
+        const isFHAvsConv = isFHA && isConv;
+
+        if (isFHAvsConv) {
             return [
-                { label: "How does FHA MIP compare to conventional PMI?", seed: "Ask Underwriting: how does FHA MIP compare to conventional PMI — when does each cancel?" },
-                { label: "What credit score do I need for FHA?", seed: "Ask Underwriting: what credit score is required for FHA and how does it affect my down payment?" },
-                { label: "Can I remove FHA MIP — what are the rules?", seed: "Ask Underwriting: when and how can I remove MIP on an FHA loan?" },
+                { label: "What are FHA vs conventional loan limits in 2025?", seed: "Ask Underwriting: what are the FHA and conventional conforming loan limits for 2025?" },
+                { label: "How does self-employed income differ for FHA vs conventional?", seed: "Ask Underwriting: how does self-employed income documentation differ between FHA and conventional?" },
+                { label: "FHA gift funds vs conventional — which is more flexible?", seed: "Ask Underwriting: compare gift fund rules for FHA vs conventional loans" },
             ];
         }
-
+        if (isPMICancel) {
+            return [
+                { label: "Can home appreciation help remove PMI early?", seed: "Ask Underwriting: can a new appraisal help me remove PMI before 78% LTV on a conventional loan?" },
+                { label: "How does PMI cost compare to FHA MIP long-term?", seed: "Ask Underwriting: how does the total cost of conventional PMI compare to FHA MIP over time?" },
+                { label: "What is lender-paid PMI and when does it make sense?", seed: "Ask Underwriting: what is lender-paid PMI and how does it compare to borrower-paid PMI?" },
+            ];
+        }
+        if (isConvDTI) {
+            return [
+                { label: "What compensating factors allow DTI above 45%?", seed: "Ask Underwriting: what compensating factors allow a conventional loan to be approved above 45% DTI?" },
+                { label: "How is DTI calculated for self-employed borrowers?", seed: "Ask Underwriting: how is DTI calculated differently for self-employed borrowers on conventional loans?" },
+                { label: "How do FHA and VA DTI limits compare to conventional?", seed: "Ask Underwriting: compare DTI limits across FHA, VA, USDA, and conventional loans" },
+            ];
+        }
+        if (isConvGift) {
+            return [
+                { label: "Can gift funds be used for investment properties?", seed: "Ask Underwriting: are gift funds allowed for investment property down payments on any loan type?" },
+                { label: "What documentation is required for gift funds?", seed: "Ask Underwriting: what documentation is required to use gift funds for a conventional mortgage?" },
+                { label: "How do FHA gift fund rules differ from conventional?", seed: "Ask Underwriting: how do FHA gift fund rules compare to conventional — which is more flexible?" },
+            ];
+        }
+        if (isMIP || (isFHA && !isConv)) {
+            if (isFHARemove) {
+                return [
+                    { label: "Can I refinance out of FHA MIP into conventional?", seed: "Ask Underwriting: when can I refinance from FHA to conventional to eliminate MIP permanently?" },
+                    { label: "What LTV do I need to remove FHA MIP?", seed: "Ask Underwriting: what LTV is required to remove MIP on an FHA loan originated after 2013?" },
+                    { label: "How does FHA MIP cost compare to conventional PMI?", seed: "Ask Underwriting: compare the total cost of FHA MIP vs conventional PMI over 5 and 10 years" },
+                ];
+            }
+            if (isFHACredit) {
+                return [
+                    { label: "What happens to my FHA rate at 580 vs 620 vs 640?", seed: "Ask Underwriting: how does credit score affect FHA mortgage rate and terms at 580 vs 620 vs 640?" },
+                    { label: "FHA after bankruptcy — what are the waiting periods?", seed: "Ask Underwriting: what are the FHA waiting period requirements after bankruptcy or foreclosure?" },
+                    { label: "What is manual underwriting and when is it required?", seed: "Ask Underwriting: what is manual underwriting and when does FHA require it instead of AUS?" },
+                ];
+            }
+            return [
+                { label: "How does FHA MIP compare to conventional PMI?", seed: "Ask Underwriting: how does FHA MIP compare to conventional PMI — rates, duration, and cancellation?" },
+                { label: "What credit score do I need for FHA?", seed: "Ask Underwriting: what credit score is required for FHA and how does it affect my down payment?" },
+                { label: "When can I remove FHA MIP?", seed: "Ask Underwriting: when and how can I remove MIP on an FHA loan — what changed after 2013?" },
+            ];
+        }
         if (isPMI || (isConv && !isFHA)) {
             return [
-                { label: "When does PMI automatically cancel on conventional?", seed: "Ask Underwriting: when does PMI automatically cancel on a conventional loan?" },
+                { label: "Can appreciation help me remove PMI early?", seed: "Ask Underwriting: can a new appraisal help me cancel PMI before 78% LTV on a conventional loan?" },
                 { label: "What DTI limits apply to conventional loans?", seed: "Ask Underwriting: what are the DTI limits for conventional loans with Fannie Mae and Freddie Mac?" },
                 { label: "How do conventional gift fund rules work?", seed: "Ask Underwriting: what are the gift fund rules for conventional loans?" },
             ];
         }
-
         if (isVA) {
             return [
                 { label: "What is the VA funding fee — who is exempt?", seed: "Ask Underwriting: explain the VA funding fee — rates, exemptions, and when it applies" },
@@ -2610,15 +2652,13 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
                 { label: "VA vs conventional — key underwriting differences", seed: "Ask Underwriting: what are the main underwriting differences between VA and conventional loans?" },
             ];
         }
-
         if (isUSDA) {
             return [
                 { label: "How do USDA income limits work?", seed: "Ask Underwriting: how are USDA income limits calculated and where do I check eligibility?" },
-                { label: "USDA vs FHA — which has lower costs?", seed: "Ask Underwriting: compare USDA and FHA loan costs, fees, and eligibility requirements" },
-                { label: "What areas qualify for USDA loans?", seed: "Ask Underwriting: how do I determine if a property is eligible for a USDA loan?" },
+                { label: "USDA vs FHA — which has lower total costs?", seed: "Ask Underwriting: compare USDA and FHA loan costs, fees, and eligibility requirements" },
+                { label: "What properties qualify for USDA?", seed: "Ask Underwriting: how do I determine if a property is eligible for a USDA loan?" },
             ];
         }
-
         if (isDSCR) {
             return [
                 { label: "What DSCR ratio do most lenders require?", seed: "Ask Underwriting: what DSCR ratio is required and how does it change approval terms?" },
@@ -2626,39 +2666,27 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
                 { label: "DSCR vs conventional investment loan — key differences", seed: "Ask Underwriting: what are the underwriting differences between DSCR and conventional investment loans?" },
             ];
         }
-
         if (isDTI) {
             return [
                 { label: "How do FHA and conventional DTI limits compare?", seed: "Ask Underwriting: compare DTI limits for FHA, conventional, VA, and USDA loans" },
-                { label: "What counts as debt in DTI calculation?", seed: "Ask Underwriting: what debts are included in DTI calculation for mortgage underwriting?" },
-                { label: "Can compensating factors override DTI limits?", seed: "Ask Underwriting: what compensating factors can allow higher DTI approval?" },
+                { label: "What debts count in DTI calculation?", seed: "Ask Underwriting: what debts are included in DTI calculation for mortgage underwriting?" },
+                { label: "Can compensating factors override DTI limits?", seed: "Ask Underwriting: what compensating factors can allow higher DTI approval for conventional loans?" },
             ];
         }
-
         if (isCredit) {
             return [
-                { label: "How does credit score affect rate by loan type?", seed: "Ask Underwriting: how does credit score affect mortgage rate and terms across FHA, conventional, and VA?" },
-                { label: "What is a manual underwrite and when is it used?", seed: "Ask Underwriting: what is manual underwriting and when does a lender require it?" },
-                { label: "What are the credit score minimums by loan type?", seed: "Ask Underwriting: what are the minimum credit score requirements for FHA, conventional, VA, and USDA?" },
+                { label: "How does credit score affect rate across loan types?", seed: "Ask Underwriting: how does credit score affect mortgage rate and terms across FHA, conventional, and VA?" },
+                { label: "What is manual underwriting and when is it used?", seed: "Ask Underwriting: what is manual underwriting and when does a lender require it?" },
+                { label: "Credit score minimums by loan type", seed: "Ask Underwriting: what are the minimum credit score requirements for FHA, conventional, VA, and USDA?" },
             ];
         }
-
-        if (isDown || isPMI) {
+        if (isJumbo) {
             return [
-                { label: "How does LTV affect PMI and MIP requirements?", seed: "Ask Underwriting: how does loan-to-value ratio affect mortgage insurance requirements?" },
-                { label: "What are the minimum down payments by loan type?", seed: "Ask Underwriting: what are the minimum down payment requirements for each loan type?" },
-                { label: "Can gift funds cover the full down payment?", seed: "Ask Underwriting: what are the gift fund rules for down payments across loan types?" },
+                { label: "What are jumbo loan reserve requirements?", seed: "Ask Underwriting: what are the reserve and documentation requirements for jumbo loans?" },
+                { label: "How do jumbo DTI limits compare to conforming?", seed: "Ask Underwriting: how do jumbo loan DTI and credit score requirements differ from conforming?" },
+                { label: "What is the jumbo loan limit in 2025?", seed: "Ask Underwriting: what are the conforming and jumbo loan limits for 2025?" },
             ];
         }
-
-        if (isReserve) {
-            return [
-                { label: "How are reserve requirements different for investment vs primary?", seed: "Ask Underwriting: how do reserve requirements differ for primary, second home, and investment properties?" },
-                { label: "What assets count as reserves?", seed: "Ask Underwriting: what types of assets count as mortgage reserves in underwriting?" },
-                { label: "Do DSCR loans require more reserves than conventional?", seed: "Ask Underwriting: compare reserve requirements for DSCR vs conventional investment loans" },
-            ];
-        }
-
         if (isSelfEmp) {
             return [
                 { label: "How is self-employed income calculated for mortgage?", seed: "Ask Underwriting: how do lenders calculate qualifying income for self-employed borrowers?" },
@@ -2666,15 +2694,13 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
                 { label: "Can I use bank statements instead of tax returns?", seed: "Ask Underwriting: how does bank statement loan underwriting work for self-employed borrowers?" },
             ];
         }
-
-        if (isJumbo) {
+        if (isReserve) {
             return [
-                { label: "What are jumbo loan reserve requirements?", seed: "Ask Underwriting: what are the reserve and documentation requirements for jumbo loans?" },
-                { label: "How do jumbo DTI limits compare to conforming?", seed: "Ask Underwriting: how do jumbo loan DTI and credit score requirements differ from conforming loans?" },
-                { label: "What is the jumbo loan limit in 2025?", seed: "Ask Underwriting: what are the conforming and jumbo loan limits for 2025?" },
+                { label: "How do reserve requirements differ for investment vs primary?", seed: "Ask Underwriting: how do reserve requirements differ for primary, second home, and investment properties?" },
+                { label: "What assets count as reserves?", seed: "Ask Underwriting: what types of assets count as mortgage reserves in underwriting?" },
+                { label: "Do DSCR loans require more reserves than conventional?", seed: "Ask Underwriting: compare reserve requirements for DSCR vs conventional investment loans" },
             ];
         }
-
         if (isGift) {
             return [
                 { label: "Can gift funds be used for investment properties?", seed: "Ask Underwriting: are gift funds allowed for investment property down payments?" },
@@ -2682,14 +2708,16 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
                 { label: "Gift fund rules — FHA vs conventional vs VA", seed: "Ask Underwriting: compare gift fund rules across FHA, conventional, VA, and USDA loans" },
             ];
         }
-
-        // Generic UW fallback — broad guideline questions, no numbers
+        // Generic — broad guideline questions, no numbers, no calc seeds
         return [
             { label: "FHA vs conventional — key underwriting differences", seed: "Ask Underwriting: what are the main underwriting differences between FHA and conventional loans?" },
             { label: "What credit score minimums apply by loan type?", seed: "Ask Underwriting: what are the minimum credit score requirements for FHA, conventional, VA, and USDA?" },
             { label: "How do reserve requirements work for investment properties?", seed: "Ask Underwriting: what are the reserve requirements for investment property and DSCR loans?" },
         ];
     }
+
+    // ========== UNDERWRITING GUIDELINES BYPASS ==========
+    // Must run FIRST — before all calculator bypasses
     // Detects pure info/guideline questions and answers them directly from the database
     // Key distinction: "What credit score do I need?" (info) vs "FHA loan on $300k" (calculation)
 
@@ -2802,6 +2830,33 @@ LTV / Down Payment: Standard jumbo 10–20% down. $1M–$2M typically 20% min. $
 Reserves: 6–24 months depending on loan size. $2M+ typically 18–24 months.
 Documentation: Full doc, 12/24-month bank statements, asset depletion (assets ÷ 84 months), P&L only, DSCR.
 Loan Limits: Above conforming ($806,500 standard / $1,209,750 high-cost).
+── MORTGAGE FORMS & TERMINOLOGY ────────────────────────────────────────
+1003 / URLA: Uniform Residential Loan Application (Fannie Mae Form 1003). The standard mortgage application form used by all lenders. Collects borrower identity, employment, income, assets, liabilities, property info, and loan details. Required for every mortgage application regardless of loan type.
+1004: Uniform Residential Appraisal Report — standard appraisal form for single-family homes.
+1007: Single-Family Comparable Rent Schedule — used to establish market rent for DSCR/investment properties.
+1008: Transmittal Summary — summarizes loan file data sent to Fannie/Freddie.
+4506-C: IRS transcript request form — lenders use to verify tax returns directly with the IRS.
+AUS: Automated Underwriting System. DU (Desktop Underwriter) = Fannie Mae. LP (Loan Product Advisor) = Freddie Mac. GUS = USDA. Provides Approve/Eligible or Refer findings.
+CD / Closing Disclosure: TRID-required disclosure showing final loan terms, closing costs, and cash to close. Borrower must receive 3 business days before closing.
+Clear to Close (CTC): Final underwriting approval — all conditions satisfied, loan is ready to fund.
+Commitment Letter: Lender's conditional or final approval stating loan terms and any remaining conditions.
+Compensating Factors: Strengths that offset a weakness (high DTI, thin credit). Examples: significant reserves, low LTV, large down payment, residual income, long employment history.
+DSCR: Debt Service Coverage Ratio = Gross Monthly Rent ÷ PITIA. Measures whether rental income covers the mortgage payment.
+DTI: Debt-to-Income Ratio. Front-end = housing payment ÷ gross income. Back-end = all monthly debts ÷ gross income.
+Escrow: Account held by servicer to pay property taxes and insurance from borrower's monthly payment.
+GFE: Good Faith Estimate — pre-TRID disclosure (replaced by Loan Estimate in 2015).
+HUD-1: Settlement statement used before TRID (2015). Now replaced by Closing Disclosure.
+LE / Loan Estimate: TRID-required 3-page disclosure of estimated loan terms and closing costs. Must be issued within 3 business days of application.
+LTV: Loan-to-Value Ratio = Loan Amount ÷ Appraised Value. Drives PMI, MIP, and pricing.
+PITIA: Principal + Interest + Taxes + Insurance + HOA. Full housing payment used in DTI and DSCR calculations.
+PITI: Principal + Interest + Taxes + Insurance (no HOA).
+QM / ATR: Qualified Mortgage / Ability-to-Repay rule. CFPB rule requiring lenders to verify borrower can repay. Most conventional/FHA/VA loans are QM loans.
+Rate Lock: Agreement fixing the interest rate for a specified period (30, 45, 60 days). Protects borrower from rate increases before closing.
+RESPA: Real Estate Settlement Procedures Act. Governs disclosure of settlement costs and prohibits kickbacks.
+TILA: Truth in Lending Act. Requires disclosure of APR, total loan cost, and payment schedule.
+TRID: TILA-RESPA Integrated Disclosure rule. Combines mortgage disclosures into Loan Estimate and Closing Disclosure.
+Title Insurance: Protects lender (lender's policy) and/or owner (owner's policy) against title defects or liens.
+UPB: Unpaid Principal Balance — remaining loan balance at any point.
 === END GUIDELINES ===`;
 
         const uwSystemPrompt = `You are HomeRates.AI Underwriting Guidelines Expert.
@@ -2810,10 +2865,11 @@ STRICT RULES — violations are not acceptable:
 - NEVER introduce yourself or mention HomeRates.AI in your response
 - NEVER say "Welcome" or any greeting
 - Jump straight into the content with the headline
-- ONLY use information from the guidelines database below — do not add outside tools, resources, websites, or services not listed in the database
+- For program guidelines (DTI, credit scores, LTV, MIP, reserves, loan limits, gift funds, employment): use ONLY the guidelines database below
+- For standard mortgage industry terminology, forms, and concepts (1003, URLA, GFE, CD, AUS, DU, LP, appraisal, title, escrow, note, deed of trust, RESPA, TILA, QM, ATR, rate lock, commitment letter, clear to close, HUD-1, closing disclosure, etc.): answer from your expert knowledge — these are industry-standard and do not require the database
 - Do NOT recommend Credit Karma, credit counseling services, apps, or any third-party tools
 - Do NOT invent lender names, programs, or requirements not in the database
-- If something is not in the database, say "Not specified in guidelines — verify with lender"
+- Only say "Not specified in guidelines — verify with lender" for program-specific lender overlays, never for standard mortgage industry terminology or forms
 
 FORMAT RULES (hard):
 - Always produce a rich, structured markdown card — never a plain paragraph answer
