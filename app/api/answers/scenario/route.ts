@@ -2641,9 +2641,12 @@ To give you a real verdict (not just math), I need:
             const trig3yr = triggerRate(balance, currentRate, effCosts, 3, monthsLeft);
             const trig5yr = triggerRate(balance, currentRate, effCosts, 5, monthsLeft);
 
-            // Wait scenarios (0.5% and 1.0% below target)
-            const wr1 = Math.max(effNewRate - 0.5, 2.0);
-            const wr2 = Math.max(effNewRate - 1.0, 2.0);
+            // Wait scenarios — anchor below currentRate (not effNewRate)
+            // When market > current (Hold verdict), effNewRate > currentRate so
+            // wait rows must anchor to currentRate to show meaningful savings
+            const waitAnchor = Math.min(currentRate, effNewRate);
+            const wr1 = Math.max(waitAnchor - 0.5, 2.0);
+            const wr2 = Math.max(waitAnchor - 1.0, 2.0);
             const piW1 = mpi(balance, wr1, monthsLeft);
             const piW2 = mpi(balance, wr2, monthsLeft);
             const svW1 = curPI - piW1;
@@ -2777,7 +2780,7 @@ ${resetWarning}
 | ${fPct(wr1)} *(if you wait 0.5% more)* | ${fD(piW1)} | ${f$(svW1)}/mo | ${beW1 ? Math.ceil(beW1) + ' mo' : 'N/A'} | ${f$(totIntCur - (piW1 * monthsLeft - balance) - effCosts)} |
 | ${fPct(wr2)} *(stretch — wait 1% more)* | ${fD(piW2)} | ${f$(svW2)}/mo | ${beW2 ? Math.ceil(beW2) + ' mo' : 'N/A'} | ${f$(totIntCur - (piW2 * monthsLeft - balance) - effCosts)} |
 
-${extraMoW1 > 0 ? `> 💡 **Refi now vs wait for ${fPct(wr1)}:** Waiting earns you an extra **${f$(extraMoW1)}/mo** more savings. But every month at ${fPct(currentRate)} costs **${f$(save)}** in lost opportunity. Waiting only pays back if ${fPct(wr1)} arrives within **${moToRecoverW1} months**. After that, refi-now wins.` : ''}
+${(extraMoW1 > 0 && save > 0) ? `> 💡 **Refi now vs wait for ${fPct(wr1)}:** Waiting earns you an extra **${f$(extraMoW1)}/mo** more savings. But every month at ${fPct(currentRate)} costs **${f$(save)}** in lost opportunity. Waiting only pays if ${fPct(wr1)} arrives within **${moToRecoverW1} months**.` : ''}
 
 ---
 
@@ -2803,7 +2806,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
                 refiChips = [
                     { label: `What rate is my trigger? Show ${fPct(trig3yr ?? currentRate - 1)} analysis`, seed: `What rate do I need to see to refi my ${f$(balance)} at ${fPct(currentRate)} with a 3-year breakeven?` },
                     { label: "Make extra payments instead — show payoff comparison", seed: `Compare making extra principal payments vs refinancing on my ${f$(balance)} at ${fPct(currentRate)}` },
-                    { label: "What if rates hit 5.5%? Full refi analysis", seed: `Full refi analysis on my ${f$(balance)} at ${fPct(currentRate)} if rates drop to 5.5%` },
+                    { label: `What if rates drop to ${trig3yr ? fPct(trig3yr) : '4.00%'}? Full refi analysis`, seed: `Full refi analysis on my ${f$(balance)} at ${fPct(currentRate)} if rates drop to ${trig3yr ? fPct(trig3yr) : '4.00%'}` },
                 ];
             } else if (vEmoji === "🔴" && rateDrop < 0.375) {
                 // Spread too thin
