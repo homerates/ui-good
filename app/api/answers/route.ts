@@ -356,7 +356,7 @@ function extractAffordabilityParams(question: string): {
     const savingsMatch = rawSavingsMatches.find(m => {
         if (!m) return false;
         const idx = m.index ?? 0;
-        const surrounding = text.slice(Math.max(0, idx - 5), idx + m[0].length + 25);
+        const surrounding = text.slice(Math.max(0, idx - 5), idx + m[0].length + 12);
         return !debtKeywords.test(surrounding);
     }) || null;
     let savings = savingsMatch ? parseFloat(savingsMatch[1]) : undefined;
@@ -2430,22 +2430,19 @@ ${uwAnswerText}`,
 
     // For mortgage follow-ups like "what if the home is $560k", check if conversation
     // has income/savings context. If so, flag for FHA reroute (processed in FHA block below).
-    let mortgageRerouteToFHA: { price: number; income: number; savings: number; rate?: number } | null = null;
+    let mortgageRerouteToFHA: { price: number; income: number; savings: number } | null = null;
     if (isMortgageCalculation(question)) {
         const histText = conversationHistory || '';
-        // Extract income from history or current question
         const incMatch = question.match(/(?:make|earn|income|salary)[^\d]*\$?\s*([\d,]+)\s*k?\b/i) ||
             histText.match(/(?:make|earn|income|salary)[^\d]*\$?\s*([\d,]+)\s*k?\b/i);
         let ctxIncome = incMatch ? parseFloat(incMatch[1].replace(/,/g, '')) : 0;
         if (ctxIncome && ctxIncome < 1000) ctxIncome *= 1000;
 
-        // Extract savings from history or current question
         const savMatch = question.match(/\$?\s*([\d,]+)\s*k?\s*(?:saved|savings)\b/i) ||
             histText.match(/\$?\s*([\d,]+)\s*k?\s*(?:saved|savings)\b/i);
         let ctxSavings = savMatch ? parseFloat(savMatch[1].replace(/,/g, '')) : 0;
         if (ctxSavings && ctxSavings < 1000) ctxSavings *= 1000;
 
-        // Extract price from current question
         const priceMatch2 = question.match(/\$\s*([\d,]+)\s*k?\b/i);
         let ctxPrice = priceMatch2 ? parseFloat(priceMatch2[1].replace(/,/g, '')) : 0;
         if (ctxPrice && ctxPrice < 10000) ctxPrice *= 1000;
