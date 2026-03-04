@@ -538,7 +538,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
             ? (meta.confidence === 'high' ? 'high' : meta.confidence === 'low' ? 'low' : 'med')
             : 'med';
 
-    // Pass through chips — refi advisor stores them in result/meta/meta.grok
+    // Pass through chips from refi advisor (stored in result/meta/meta.grok)
     const chips = result?.follow_up_chips ?? meta?.follow_up_chips ?? meta?.grok?.follow_up_chips ?? undefined;
     const followUpLabel = meta?.followUp ?? meta?.grok?.follow_up ?? undefined;
 
@@ -1506,7 +1506,7 @@ export default function Page() {
 
             const raw = await safeJson(r);
             const meta: ApiResponse = useScenario
-                ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.grok ?? raw)
+                ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.answer ?? raw?.grok ?? raw)
                 : (raw as ApiResponse);
 
 
