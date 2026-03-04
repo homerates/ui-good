@@ -2415,8 +2415,6 @@ ${uwAnswerText}`,
     // ========== END UNDERWRITING GUIDELINES BYPASS ==========
 
     // ========== MORTGAGE CALCULATOR BYPASS ==========
-    let affordabilityAnswer: any = null;
-    let fhaAnswer: any = null;
     let mortgageAnswer: any = null;
     let mortgageCalcContext = "";
 
@@ -2431,79 +2429,6 @@ ${uwAnswerText}`,
     }
 
     if (isMortgageCalculation(question)) {
-        // Before running generic mortgage calc, check if conversation has income/savings context
-        // If so, route to FHA calc which gives a much better personalized answer
-        const histText = conversationHistory || '';
-        const histIncomeMatch = histText.match(/(?:make|earn|income|salary)[^\d]*\$?\s*(\d+)k?/i);
-        let histIncome = histIncomeMatch ? parseFloat(histIncomeMatch[1]) : 0;
-        if (histIncome && histIncome < 1000) histIncome *= 1000;
-        const histSavingsMatch = histText.match(/\$?\s*(\d+)k?\s*(?:saved|savings)/i);
-        let histSavings = histSavingsMatch ? parseFloat(histSavingsMatch[1]) : 0;
-        if (histSavings && histSavings < 1000) histSavings *= 1000;
-
-        // Also check current question for income/savings
-        const qIncomeMatch = question.match(/(?:make|earn|income|salary)[^\d]*\$?\s*(\d+)k?/i);
-        let qIncome = qIncomeMatch ? parseFloat(qIncomeMatch[1]) : 0;
-        if (qIncome && qIncome < 1000) qIncome *= 1000;
-        const qSavingsMatch = question.match(/\$?\s*(\d+)k?\s*(?:saved|savings)/i);
-        let qSavings = qSavingsMatch ? parseFloat(qSavingsMatch[1]) : 0;
-        if (qSavings && qSavings < 1000) qSavings *= 1000;
-
-        const contextIncome = qIncome || histIncome;
-        const contextSavings = qSavings || histSavings;
-
-        // Extract the specific price from the question
-        const mortPriceMatch = question.match(/\$\s*([\d,]+)k?\b/i);
-        let mortPrice = mortPriceMatch ? parseFloat(mortPriceMatch[1].replace(/,/g, '')) : 0;
-        if (mortPrice && mortPrice < 10000) mortPrice *= 1000;
-
-        if (contextIncome && mortPrice) {
-            // Re-route to FHA calculator with inherited context
-            console.log('[Mortgage->FHA] Rerouting to FHA calc with history context:', { mortPrice, contextIncome, contextSavings });
-            const fhaReroute = extractFHAParams(question);
-            fhaReroute.purchasePrice = mortPrice;
-            fhaReroute.annualIncome = contextIncome;
-            if (contextSavings) (fhaReroute as any).savings = contextSavings;
-            (fhaReroute as any).hasInfo = true;
-            // Temporarily set question context so FHA block picks it up below
-            // We do this by pushing into fhaAnswer directly
-            if (!affordabilityAnswer && !fhaAnswer) {
-                try {
-                    const fhaResult = calculateFHA({
-                        purchasePrice: mortPrice,
-                        downPaymentPct: fhaReroute.downPaymentPct || 3.5,
-                        interestRate: fhaReroute.interestRate || fred?.mort30Avg || 6.5,
-                        creditScore: fhaReroute.creditScore || 580,
-                        loanTerm: 30,
-                        propertyTaxRate: fhaReroute.propertyTaxRate || 1.1,
-                        homeInsuranceAnnual: 1200,
-                        hoaMonthly: 0,
-                        annualIncome: contextIncome,
-                        monthlyDebts: fhaReroute.monthlyDebts || 0,
-                    });
-                    const fhaMarkdown = buildFHAMarkdown(fhaReroute, fhaResult, null, { ambiguous10pct: false, rate: !fhaReroute.interestRate, incomeNeeded: false });
-                    const priceK = Math.round(mortPrice / 1000);
-                    const incK = Math.round(contextIncome / 1000);
-                    const savK = Math.round(contextSavings / 1000);
-                    fhaAnswer = {
-                        answer: fhaMarkdown,
-                        next_step: "Get FHA pre-approval from an FHA-approved lender.",
-                        follow_up: `Compare FHA vs conventional on this $${priceK}k home`,
-                        follow_up_chips: [
-                            { label: `FHA vs conventional on $${priceK}k — side-by-side`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home — I make $${incK}k/year` },
-                            { label: `What if I put 10% down instead?`, seed: `Show me FHA with 10% down on a $${priceK}k home — I make $${incK}k/year and have $${savK}k saved` },
-                            { label: `What income do I need to qualify for this home?`, seed: `What income do I need to qualify for a $${priceK}k home with FHA 3.5% down?` },
-                        ],
-                        confidence: "1.00 (calculated using FHA guidelines)"
-                    };
-                } catch (e: any) {
-                    console.warn('[Mortgage->FHA] Reroute failed, falling through to mortgage calc:', e.message);
-                }
-            }
-        }
-    }
-
-    if (!fhaAnswer && isMortgageCalculation(question)) {
         const params = extractMortgageParams(question, fred?.mort30Avg ?? undefined);
 
         if (params && params.price) {
@@ -2642,6 +2567,7 @@ ${dtiSection}
     }
     // ========== END MORTGAGE CALCULATOR BYPASS ==========
     // ========== AFFORDABILITY ADVISOR CHECK ==========
+    let affordabilityAnswer = null;
 
     // Detect debt/savings change follow-ups that should re-run the affordability calculator
     // e.g. "what if I have $800 in monthly debt", "what if I pay off my car"
@@ -2703,11 +2629,8 @@ ${dtiSection}
         }
     }
 
-    // If query mentions a specific home price (not just income/savings), skip affordability and route to FHA/mortgage calc
-    // e.g. "Show me my monthly payment on a $460k home — I make $95k/year and have $40k saved"
-    const hasSpecificPrice = /\$\s*[\d,]+(?:k|,\d{3})?\b/i.test(question) &&
-        /home|house|property|purchase|price|payment on/i.test(question);
-    const hasFHAWithPrice = (/\bfha\b/i.test(question) && hasSpecificPrice) || hasSpecificPrice;
+    // If query explicitly mentions FHA + a home price, skip affordability and let FHA calculator handle it
+    const hasFHAWithPrice = /\bfha\b/i.test(question) && /\$?\d+k?\s*(?:home|house|property|purchase|price)/i.test(question);
 
     if (!hasFHAWithPrice && (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
         console.log('[Affordability] Detected affordability question');
@@ -2792,7 +2715,12 @@ To give you accurate scenarios, I need:
 What's your situation?`,
                 next_step: "Share your income and savings so I can show you 3 affordability scenarios (Conservative, Comfortable, Aggressive).",
                 follow_up: "What's your annual income and how much do you have saved?",
-                confidence: "1.00 (interactive advisor - ready to calculate)"
+                confidence: "1.00 (interactive advisor - ready to calculate)",
+                follow_up_chips: [
+                    { label: "I make $95k/year and have $40k saved", seed: "I make $95k/year and have $40k saved" },
+                    { label: "I make $120k, $20k saved, $300/mo car payment", seed: "I make $120k/year, have $20k saved, and pay $300/month in car payments" },
+                    { label: "I make $75k/year and have $25k saved", seed: "I make $75k/year and have $25k saved" },
+                ]
             };
         }
     }
@@ -2801,6 +2729,7 @@ What's your situation?`,
     // Add to app/api/answers/route.ts AFTER the affordability check (around line 1820)
 
     // ========== FHA CALCULATOR CHECK ==========
+    let fhaAnswer = null;
 
     // History-aware FHA detection: if prior conversation mentions FHA and current question
     // is a down-payment follow-up ("show me 10% down", "what about 20% down"), treat as FHA question
