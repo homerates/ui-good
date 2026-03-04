@@ -3142,6 +3142,21 @@ ${dtiSection}
     function isAffordabilityFollowUp(q: string): { isFollowUp: boolean; debtOverride?: number; savingsOverride?: number; useCurrentRate?: boolean } {
         const t = q.toLowerCase();
 
+        // Pure rate info questions are NEVER affordability follow-ups.
+        // "what are current rates", "30 year fixed", "10 year note/treasury" — they ask
+        // about rates as data, not asking to recalculate affordability using current rates.
+        const isPureRateInfoQuestion =
+            /\b(30|15|20)\s*[- ]?year\s*(fixed|mortgage|rate|loan)?/i.test(q) ||
+            /\b10\s*[- ]?year\s*(note|treasury|yield|bond)/i.test(q) ||
+            /what\s*(are|is)\s*(current|today|mortgage|the)\s*rate/i.test(q) ||
+            /where\s*(is|are)\s*(rate|rates|the\s*10|mortgage)/i.test(q) ||
+            /\bfed\s+(rate|fund)/i.test(q) ||
+            /what\s*.{0,20}(10|ten).{0,20}(note|treasury|yield)/i.test(q);
+
+        if (isPureRateInfoQuestion) {
+            return { isFollowUp: false };
+        }
+
         // "base it on current/market/today's rates", "use current rates", "at today's rates"
         const useCurrentRate = /(?:base|use|apply|calculate|run).{0,20}(?:current|today|market|live|fred|actual)\s*rates?/i.test(t) ||
             /(?:current|today\'?s?|market|live)\s*(?:mortgage\s*)?rates?/i.test(t) ||
@@ -3203,7 +3218,15 @@ ${dtiSection}
         /\b(?:home|house|property|purchase|payment on|on a)\b/i.test(question);
     const hasFHAWithPrice = /\bfha\b/i.test(question) ? true : hasSpecificHomePrice;
 
-    if (!hasFHAWithPrice && (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
+    // Pure rate info questions never enter affordability — they want FRED data
+    const isPureRateInfo =
+        /\b(30|15|20)\s*[- ]?year\s*(fixed|mortgage|rate|loan)?/i.test(question) ||
+        /\b10\s*[- ]?year\s*(note|treasury|yield|bond)/i.test(question) ||
+        /what\s*(are|is)\s*(current|today|mortgage|the)\s*rate/i.test(question) ||
+        /where\s*(is|are)\s*(rate|rates|the\s*10|mortgage)/i.test(question) ||
+        /what\s*.{0,20}(10|ten).{0,20}(note|treasury|yield)/i.test(question);
+
+    if (!hasFHAWithPrice && !isPureRateInfo && (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
         console.log('[Affordability] Detected affordability question');
 
         const affordParams = extractAffordabilityParams(question);
