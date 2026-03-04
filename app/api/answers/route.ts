@@ -700,10 +700,18 @@ function extractFHAParams(question: string): {
         text.match(/(?:price|purchase|home|house|property).*?\$?\s*([\d,]+)k?/i) ||
         text.match(/\$\s*([\d,]+(?:,\d{3})+)/i);  // full number like $515,000
     // Bare "$Xk" only if value looks like a home price (>= 50, meaning $50k+)
-    const priceMatchBare = text.match(/\$\s*([\d,]+)\s*k\b/i);
-    const priceMatchBareParsed = priceMatchBare ? parseFloat(priceMatchBare[1].replace(/,/g, '')) : 0;
-    const priceMatch = priceMatchCtx || (priceMatchBareParsed >= 50 ? priceMatchBare : null);
-    let purchasePrice = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : undefined;
+    // AND the surrounding context doesn't mark it as income/salary
+    const incomeContextRe = /(?:income|salary|earn|make|making)\s{0,5}\$[\d,]+\s*k\b|\$[\d,]+\s*k\s{0,5}(?:income|salary)\b/i;
+    const allBareKMatches = Array.from(text.matchAll(/\$(\s*[\d,]+)\s*k\b/gi));
+    const bestBarePriceMatch = allBareKMatches.find(m => {
+        const val = parseFloat(m[1].replace(/,/g, ''));
+        if (val < 50) return false; // too small to be a home price
+        const idx = m.index ?? 0;
+        const surrounding = text.slice(Math.max(0, idx - 15), idx + m[0].length + 15);
+        return !incomeContextRe.test(surrounding); // exclude if income context nearby
+    }) || null;
+    const priceMatch = priceMatchCtx || bestBarePriceMatch;
+    let purchasePrice = priceMatch ? parseFloat((priceMatch[1] as string).replace(/,/g, '')) : undefined;
     if (purchasePrice && /\$\s*[\d,]+k\b/i.test(text) && purchasePrice < 10000) {
         purchasePrice *= 1000;
     }
@@ -1352,6 +1360,120 @@ ${prompt}
 }
 
 /* ===== Core handler ===== */
+/**
+ * Universal fallback chip generator — fires for ANY response that doesn't already have chips.
+ * Reads question + conversation history to produce contextual next-step suggestions.
+ */
+function generateFallbackChips(
+    question: string,
+    conversationHistory: string
+): Array<{ label: string; seed: string }> {
+    const q = question.toLowerCase();
+    const hist = (conversationHistory || '').toLowerCase();
+    const combined = hist + ' ' + q;
+
+    // Extract financial context from history + question
+    const incMatch = combined.match(/(?:make|earn|income|salary)[^\d]*\$?\s*([\d,]+)\s*k?\b/i);
+    let income = incMatch ? parseFloat(incMatch[1].replace(/,/g, '')) : 0;
+    if (income && income < 1000) income *= 1000;
+
+    const savMatch = combined.match(/\$?\s*([\d,]+)\s*k?\s*(?:saved|savings)\b/i);
+    let savings = savMatch ? parseFloat(savMatch[1].replace(/,/g, '')) : 0;
+    if (savings && savings < 1000) savings *= 1000;
+
+    const priceMatch = combined.match(/\$\s*([\d,]+(?:,\d{3})*)\s*k?\s*(?:home|house|property|purchase)?/i);
+    let price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : 0;
+    if (price && price < 10000) price *= 1000;
+
+    const incK = income ? Math.round(income / 1000) : 0;
+    const savK = savings ? Math.round(savings / 1000) : 0;
+    const priceK = price ? Math.round(price / 1000) : 0;
+
+    // Context-aware chips based on topic
+    const isDTI = /\bdti\b|debt.to.income|debt to income/i.test(q);
+    const isMIP = /\bmip\b|mortgage insurance|fha insurance/i.test(q);
+    const isGiftFunds = /gift fund/i.test(q);
+    const isRate = /rate|interest|refinanc/i.test(q);
+    const isCreditScore = /credit score|fico/i.test(q);
+    const isComparison = /compare|vs\b|versus/i.test(q);
+    const hasPrice = priceK >= 50;
+    const hasIncome = incK >= 30;
+
+    // --- Topic-specific chip sets ---
+
+    if (isDTI && hasIncome) {
+        return [
+            { label: `Run full affordability — $${incK}k income`, seed: `What can I afford with $${incK}k/year income${savK ? ` and $${savK}k saved` : ''}?` },
+            { label: `How does my $300/mo car payment affect DTI?`, seed: `Show me how a $300/month car payment changes my DTI and max home price — I make $${incK}k/year` },
+            { label: `What income do I need for a $${hasPrice ? priceK : 500}k home?`, seed: `What annual income do I need to qualify for a $${hasPrice ? priceK : 500}k home with FHA 3.5% down?` },
+        ];
+    }
+
+    if (isMIP && hasPrice) {
+        return [
+            { label: `FHA 10% down — MIP drops off after 11 years`, seed: `Show me FHA with 10% down on a $${priceK}k home${hasIncome ? ` — I make $${incK}k/year` : ''}` },
+            { label: `FHA vs conventional — total 10-year cost`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home — total cost over 10 years` },
+            { label: `When can I refinance out of FHA MIP?`, seed: `When can I refinance from FHA to conventional to remove MIP on a $${priceK}k home?` },
+        ];
+    }
+
+    if (isGiftFunds && hasIncome) {
+        return [
+            { label: `Show me FHA affordability — $${incK}k income`, seed: `What's the max FHA home price with $${incK}k/year income${savK ? ` and $${savK}k saved` : ''}?` },
+            { label: `FHA gift fund rules — what's allowed?`, seed: `What are FHA gift fund rules for down payment? Who can give and what documentation is needed?` },
+            { label: `Compare FHA vs conventional gift fund rules`, seed: `How do FHA and conventional loan gift fund rules differ for down payment?` },
+        ];
+    }
+
+    if (isRate && hasIncome) {
+        return [
+            { label: `How much more can I afford at 5.5%?`, seed: `Recalculate my affordability at 5.5% — I make $${incK}k${savK ? ` and have $${savK}k saved` : ''}` },
+            { label: `Lock now vs wait — rate outlook`, seed: `Should I lock my mortgage rate now or wait? I'm buying a $${hasPrice ? priceK : 500}k home` },
+            { label: `Every 0.5% rate drop = how much more home?`, seed: `How much does each 0.5% rate drop increase my buying power? I make $${incK}k/year` },
+        ];
+    }
+
+    if (isCreditScore && hasIncome) {
+        return [
+            { label: `FHA with 580 credit score`, seed: `FHA loan with 580 credit score — what are my options?${hasPrice ? ` Home price $${priceK}k` : ''}` },
+            { label: `How to improve credit score fast for mortgage`, seed: `What's the fastest way to improve my credit score to qualify for a better mortgage rate?` },
+            { label: `Score impact on rate — 620 vs 680 vs 740`, seed: `How does credit score affect my mortgage rate and monthly payment? Compare 620, 680, and 740 FICO` },
+        ];
+    }
+
+    if (isComparison && hasPrice) {
+        return [
+            { label: `Run this at current market rates`, seed: `${question} — use today's current market rate` },
+            { label: `20% down — eliminate PMI entirely`, seed: `Show me conventional 20% down on a $${priceK}k home${hasIncome ? ` — I make $${incK}k/year` : ''}` },
+            { label: `Which has lower total 30-year cost?`, seed: `Which has lower total cost over 30 years: FHA 3.5% down or conventional 5% down on a $${priceK}k home?` },
+        ];
+    }
+
+    // --- Generic fallback with context ---
+    if (hasIncome && hasPrice) {
+        return [
+            { label: `FHA vs conventional on $${priceK}k — side-by-side`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home — I make $${incK}k/year` },
+            { label: `What if rates drop to 5.5%?`, seed: `Recalculate at 5.5% — I make $${incK}k/year${savK ? ` and have $${savK}k saved` : ''}` },
+            { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${priceK}k home with FHA 3.5% down?` },
+        ];
+    }
+
+    if (hasIncome) {
+        return [
+            { label: `Run my full affordability breakdown`, seed: `What can I afford? I make $${incK}k/year${savK ? ` and have $${savK}k saved` : ''}` },
+            { label: `Show me FHA 3.5% down options`, seed: `FHA 3.5% down — what's my max home price at $${incK}k/year income?` },
+            { label: `Compare loan types for my situation`, seed: `Compare FHA vs conventional loan options for $${incK}k/year income${savK ? ` and $${savK}k saved` : ''}` },
+        ];
+    }
+
+    // Generic FTHB fallback (no context available)
+    return [
+        { label: `What can I afford as a first-time buyer?`, seed: `What can I afford as a first-time home buyer?` },
+        { label: `FHA vs conventional — which is better for me?`, seed: `Compare FHA 3.5% down vs conventional 5% down — pros and cons for first-time buyers` },
+        { label: `How much do I need saved to buy a home?`, seed: `How much money do I need saved to buy a home? Include down payment and closing costs` },
+    ];
+}
+
 async function handle(req: NextRequest, intentParam?: string) {
     type Body = {
         question?: string;
@@ -3451,7 +3573,11 @@ Return valid JSON only:
         message,
         answerMarkdown: finalMarkdown,
         followUp: grokFinal?.follow_up || followUpFor(topic),
-        follow_up_chips: grokFinal?.follow_up_chips || null,
+        follow_up_chips: (() => {
+            const chips = grokFinal?.follow_up_chips;
+            if (chips && chips.length > 0) return chips;
+            return generateFallbackChips(question, conversationHistory);
+        })(),
     });
 }
 
