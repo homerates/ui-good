@@ -267,7 +267,7 @@ function extractMortgageParams(question: string, fredMort30Avg?: number): {
     if (!rateMatch) {
         rateMatch = question.match(/(\d+(?:\.\d+)?)\s*%/); // Any percentage
     }
-    const rate = rateMatch ? parseFloat(rateMatch[1]) : (fredMort30Avg || 6.0);
+    const rate = rateMatch ? parseFloat(rateMatch[1]) : (fredMort30Avg || 6.5); // Prefer FRED live rate; 6.5 as last-resort only
 
     // Extract term: "30 year" or "15-year"
     const termMatch = question.match(/(\d+)[\s-]?year/i);
@@ -668,7 +668,6 @@ function isFHAQuestion(question: string): boolean {
     const text = question.toLowerCase();
 
     // Conceptual/comparison/educational — never route to FHA calc
-    // "Compare FHA vs conventional pros and cons", "which is better for first-time buyers"
     const isConceptual =
         /pros.{0,10}cons|which is better|should i (use|choose|go with)|compare.*for.*buyer/i.test(text) ||
         /what.{0,20}differ|advantages|disadvantages|overview of fha|explain fha/i.test(text);
@@ -746,10 +745,20 @@ function extractFHAParams(question: string): {
     const explicitRate = rateMatch ? parseFloat(rateMatch[1]) : undefined;
     const interestRate = explicitRate; // undefined = use FRED avg (handled in calculateFHA call)
 
-    // Income — same robust regex as conventional calculator
-    const incomeMatch = text.match(/(?:i\s+earn|i\s+make|we\s+make|earn|makes?|income|salary)\s+[\$]?\s*([\d,]+)\s*k?\b/i) ||
-        text.match(/[\$]\s*([\d,]+)\s*k?\s*(?:income|salary|a\s+year|per\s+year|annually)/i);
-    let annualIncome = incomeMatch ? parseFloat(incomeMatch[1].replace(/,/g, '')) : undefined;
+    // Income — must have dollar/number directly tied to income keyword
+    // Guard: "how much income do I need" should NOT match — income keyword with no adjacent amount
+    // Valid: "I make $95k", "income $95k", "$95k salary", "$95k/year"
+    // Invalid: "what income do I need for this $850k home" → $850k is price, not income
+    const incomeMatch =
+        text.match(/(?:i\s+earn|i\s+make|we\s+make|make|earn)\s+[\$]?\s*([\d,]+)\s*k?\b/i) ||
+        text.match(/[\$]\s*([\d,]+)\s*k?\s*(?:income|salary|a\s+year|per\s+year|annually|\/year)/i) ||
+        text.match(/(?:salary|income)\s+(?:is\s+|of\s+)?[\$]?\s*([\d,]+)\s*k?\b/i);
+    // Reject if the matched value is the purchase price context (e.g. "how much income for $850k home")
+    const incomeVal = incomeMatch ? parseFloat((incomeMatch[1] as string).replace(/,/g, '')) : null;
+    const priceAlreadyFound = !!(purchasePrice);
+    const isIncomeAmbiguous = incomeVal !== null && priceAlreadyFound &&
+        Math.abs((incomeVal < 1000 ? incomeVal * 1000 : incomeVal) - (purchasePrice || 0)) < 1000;
+    let annualIncome = (incomeMatch && !isIncomeAmbiguous) ? parseFloat((incomeMatch[1] as string).replace(/,/g, '')) : undefined;
     if (annualIncome && annualIncome < 1000) annualIncome *= 1000;
 
     // Monthly debts
@@ -1773,7 +1782,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     ) {
         module = "refi";
     } else if (
-        /(how much.*qualify|qualify for|how much.*afford|afford.*home|income.*qualify|debt.*ratio|credit score.*qualify|pre.?approve)/i.test(
+        /(how much.*qualify|qualify for|how much.*afford|afford.*home|income.*qualify|income.*need.*(?:home|house|mortgage)|how much income|what income.*need|what salary.*need|debt.*ratio|credit score.*qualify|pre.?approve)/i.test(
             q
         )
     ) {
@@ -2598,7 +2607,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
 
         if (isFHAvsConv) {
             return [
-                { label: "What are FHA vs conventional loan limits in 2025?", seed: "Ask Underwriting: what are the FHA and conventional conforming loan limits for 2025?" },
+                { label: "What are FHA vs conventional loan limits in 2026?", seed: "Ask Underwriting: what are the FHA and conventional conforming loan limits for 2026?" },
                 { label: "How does self-employed income differ for FHA vs conventional?", seed: "Ask Underwriting: how does self-employed income documentation differ between FHA and conventional?" },
                 { label: "FHA gift funds vs conventional — which is more flexible?", seed: "Ask Underwriting: compare gift fund rules for FHA vs conventional loans" },
             ];
@@ -2691,7 +2700,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
             return [
                 { label: "What are jumbo loan reserve requirements?", seed: "Ask Underwriting: what are the reserve and documentation requirements for jumbo loans?" },
                 { label: "How do jumbo DTI limits compare to conforming?", seed: "Ask Underwriting: how do jumbo loan DTI and credit score requirements differ from conforming?" },
-                { label: "What is the jumbo loan limit in 2025?", seed: "Ask Underwriting: what are the conforming and jumbo loan limits for 2025?" },
+                { label: "What is the jumbo loan limit in 2026?", seed: "Ask Underwriting: what are the conforming and jumbo loan limits for 2026?" },
             ];
         }
         if (isSelfEmp) {
@@ -2780,7 +2789,7 @@ Source: HUD Handbook 4000.1 | hud.gov/program_offices/housing/sfh
 DTI: Front-end ≤31% guideline, up to 40%+ with AUS. Back-end ≤43%, up to 50% with compensating factors.
 Credit Score: 580+ → 3.5% down. 500–579 → 10% down. Below 500 → not eligible.
 LTV / Down Payment: 3.5% min (580+ FICO), 10% min (500–579 FICO). Max LTV 96.5%.
-Loan Limits (2025): Standard $524,225 (1-unit). High-cost up to $1,209,750. AK/HI up to $1,814,625.
+Loan Limits (2026): Floor $541,287 (1-unit, low-cost areas). High-cost ceiling $1,249,125 (1-unit). CA counties range from $541,287 to $1,249,125 depending on county. AK/HI/Guam/USVI may exceed ceiling. Source: HUD No. 25-145, effective Jan 1 2026.
 Mortgage Insurance: UFMIP 1.75% financed. Annual MIP 0.55% (>15yr, LTV >90%) — life of loan. Removed at yr 11 if 10%+ down.
 Reserves: Not required by FHA. Lender overlays may require 1–3 months.
 Employment: 2-year history required. Gaps >6 months need explanation.
@@ -2792,7 +2801,7 @@ Source: Fannie Mae Selling Guide B3-6 | selling-guide.fanniemae.com. Freddie Mac
 DTI: Standard ≤45% back-end. DU/LP approval up to 50% with strong compensating factors.
 Credit Score: Minimum 620. Best pricing 740+. Below 620 not eligible.
 LTV / Down Payment: Primary 1-unit 3% min (HomeReady/Standard 97). Investment property 15% (1-unit), 25% (2–4 units). Second home 10% min. No PMI at 20%+ down.
-Loan Limits (2025): Conforming $806,500 (1-unit standard). High-cost up to $1,209,750.
+Loan Limits (2026): Standard conforming $806,500 (1-unit, non-high-balance). High-balance limit varies by county — CA ranges from $832,750 to $1,249,125. Source: FHFA CY2026, effective Jan 1 2026.
 Reserves: Primary 1-unit 0–2 months typical. Investment property 6 months PITIA. Multiple financed properties: 2% of aggregate UPB.
 Employment: 2-year history standard. Recent job change OK if same field.
 Gift Funds: Allowed for primary and second homes. NOT allowed for investment properties.
@@ -2836,7 +2845,7 @@ Credit Score: Jumbo 680–720 min. Non-QM bank statement 620+.
 LTV / Down Payment: Standard jumbo 10–20% down. $1M–$2M typically 20% min. $2M+ typically 25–30% min.
 Reserves: 6–24 months depending on loan size. $2M+ typically 18–24 months.
 Documentation: Full doc, 12/24-month bank statements, asset depletion (assets ÷ 84 months), P&L only, DSCR.
-Loan Limits: Above conforming ($806,500 standard / $1,209,750 high-cost).
+Loan Limits (2026): Jumbo = above conforming for the county. Standard counties: above $806,500. CA high-balance counties: above county limit (e.g. LA/SF/OC above $1,249,125). No FHA or GSE backing — private lender only.
 ── MORTGAGE FORMS & TERMINOLOGY ────────────────────────────────────────
 1003 / URLA: Uniform Residential Loan Application (Fannie Mae Form 1003). The standard mortgage application form used by all lenders. Collects borrower identity, employment, income, assets, liabilities, property info, and loan details. Required for every mortgage application regardless of loan type.
 1004: Uniform Residential Appraisal Report — standard appraisal form for single-family homes.
@@ -2969,13 +2978,31 @@ ${uwAnswerText}`,
     let mortgageCalcContext = "";
 
     // Broad detection - any question with a price + mortgage context
+    /**
+     * Returns years until PMI can be requested for removal at 80% LTV of home value.
+     * Uses actual amortization schedule — not a formula approximation.
+     */
+    function calcPMIRemovalYears(loanAmount: number, homePrice: number, annualRate: number, termYears: number): number {
+        const target = homePrice * 0.80;
+        const monthlyRate = annualRate / 100 / 12;
+        const n = termYears * 12;
+        const payment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
+        let balance = loanAmount;
+        for (let month = 1; month <= n; month++) {
+            balance -= (payment - balance * monthlyRate);
+            if (balance <= target) return Math.round(month / 12 * 10) / 10;
+        }
+        return termYears;
+    }
+
     function isMortgageCalculation(q: string): boolean {
         const hasPrice = /\$\s*[\d,]+k?\b/i.test(q);
         const hasMortgageContext = /home|house|property|loan|mortgage|buying|purchase|condo|townhouse/i.test(q);
-        // Exclude FHA (handled separately) and affordability (no specific price)
         const isFHA = /\bfha\b/i.test(q);
         const isAffordability = isAffordabilityQuestion(q);
-        return hasPrice && hasMortgageContext && !isFHA && !isAffordability;
+        // Income qualification questions need income back-calculation, not payment breakdown
+        const isIncomeQualify = /how much income|what income|what salary|income.*(?:need|qualify|required?)|(?:need|qualify).{0,20}income/i.test(q);
+        return hasPrice && hasMortgageContext && !isFHA && !isAffordability && !isIncomeQualify;
     }
 
     // For mortgage follow-ups like "what if the home is $560k", check if conversation
@@ -3098,7 +3125,7 @@ ${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k inco
 | Home Insurance | $${monthlyIns} |
 ${pmiLine}| **Total Monthly (PITI${monthlyPMI > 0 ? '+PMI' : ''})** | **$${totalMonthly.toLocaleString()}** |
 
-${monthlyPMI > 0 ? `⚠️ **PMI applies** — less than 20% down. Removed automatically at 80% LTV (~${Math.round((result.loanAmount * 0.8) / (result.homePrice * 0.003) / 12)} years).` : '✅ **No PMI** — 20%+ down payment.'}
+${monthlyPMI > 0 ? `⚠️ **PMI applies** — less than 20% down. You can request removal once balance reaches 80% of home value (~${calcPMIRemovalYears(result.loanAmount, result.homePrice, params.rate!, params.termYears!)} years). Auto-cancels at 78% LTV per federal law.` : '✅ **No PMI** — 20%+ down payment.'}
 
 ---
 
@@ -3149,8 +3176,6 @@ ${dtiSection}
     function isAffordabilityFollowUp(q: string): { isFollowUp: boolean; debtOverride?: number; savingsOverride?: number; useCurrentRate?: boolean } {
         const t = q.toLowerCase();
 
-        // Pure rate info questions are NEVER affordability follow-ups.
-        // "what are current rates", "30 year fixed", "10 year note/treasury"
         const isPureRateInfoQuestion =
             /\b(30|15|20)\s*[- ]?year\s*(fixed|mortgage|rate|loan)?/i.test(q) ||
             /\b10\s*[- ]?year\s*(note|treasury|yield|bond)/i.test(q) ||
@@ -3158,10 +3183,7 @@ ${dtiSection}
             /where\s*(is|are)\s*(rate|rates|the\s*10|mortgage)/i.test(q) ||
             /\bfed\s+(rate|fund)/i.test(q) ||
             /what\s*.{0,20}(10|ten).{0,20}(note|treasury|yield)/i.test(q);
-
-        if (isPureRateInfoQuestion) {
-            return { isFollowUp: false };
-        }
+        if (isPureRateInfoQuestion) return { isFollowUp: false };
 
         // "base it on current/market/today's rates", "use current rates", "at today's rates"
         const useCurrentRate = /(?:base|use|apply|calculate|run).{0,20}(?:current|today|market|live|fred|actual)\s*rates?/i.test(t) ||
@@ -3224,7 +3246,6 @@ ${dtiSection}
         /\b(?:home|house|property|purchase|payment on|on a)\b/i.test(question);
     const hasFHAWithPrice = /\bfha\b/i.test(question) ? true : hasSpecificHomePrice;
 
-    // Pure rate info questions never enter affordability — they want FRED data
     const isPureRateInfo =
         /\b(30|15|20)\s*[- ]?year\s*(fixed|mortgage|rate|loan)?/i.test(question) ||
         /\b10\s*[- ]?year\s*(note|treasury|yield|bond)/i.test(question) ||
