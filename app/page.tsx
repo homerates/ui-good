@@ -1815,8 +1815,11 @@ export default function Page() {
                                                                 ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                 : m.meta.grok,
                                                             answerMarkdown: sanitizeMarkdown(
-                                                                m.meta.answerMarkdown ??
-                                                                (typeof m.content === 'string' ? m.content : '')
+                                                                // During typewriter: show m.content (the typed text)
+                                                                // After done (typingDoneIds): show full answerMarkdown
+                                                                typingDoneIds.has(m.id)
+                                                                    ? (m.meta.answerMarkdown ?? (typeof m.content === 'string' ? m.content : ''))
+                                                                    : (typeof m.content === 'string' && m.content ? m.content : (m.meta.answerMarkdown ?? ''))
                                                             ),
                                                             followUp: m.meta.follow_up_chips?.length
                                                                 ? undefined
