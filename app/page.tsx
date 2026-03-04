@@ -37,6 +37,11 @@ const ANON_DAILY_LIMIT = 3;
 const SIGNED_METER_KEY = 'hr.signed.q.v1';
 const SIGNED_DAILY_LIMIT = 100; // signed-in, triggers Upgrade modal
 
+// Admin users — unlimited, bypasses all rate limiting and upgrade modals
+const ADMIN_USER_IDS = new Set([
+    'user_35xDE51bR0NTaKEpwZMbHtn752O',
+]);
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
     iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
@@ -101,6 +106,9 @@ function bumpAnonCounterOrBlock(): boolean {
  */
 function bumpSignedCounterOrBlock(userId: string | null | undefined): boolean {
     try {
+        // Admin users are never rate-limited
+        if (userId && ADMIN_USER_IDS.has(userId)) return true;
+
         if (typeof window === 'undefined') return true;
 
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -1334,10 +1342,13 @@ export default function Page() {
                 return;
             }
         } else {
-            const allowed = bumpSignedCounterOrBlock(user?.id);
-            if (!allowed) {
-                setShowUpgradeRequired(true);
-                return;
+            const isAdmin = !!user?.id && ADMIN_USER_IDS.has(user.id);
+            if (!isAdmin) {
+                const allowed = bumpSignedCounterOrBlock(user?.id);
+                if (!allowed) {
+                    setShowUpgradeRequired(true);
+                    return;
+                }
             }
         }
 
