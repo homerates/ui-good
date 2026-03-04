@@ -2415,6 +2415,8 @@ ${uwAnswerText}`,
     // ========== END UNDERWRITING GUIDELINES BYPASS ==========
 
     // ========== MORTGAGE CALCULATOR BYPASS ==========
+    let affordabilityAnswer: any = null;
+    let fhaAnswer: any = null;
     let mortgageAnswer: any = null;
     let mortgageCalcContext = "";
 
@@ -2640,7 +2642,6 @@ ${dtiSection}
     }
     // ========== END MORTGAGE CALCULATOR BYPASS ==========
     // ========== AFFORDABILITY ADVISOR CHECK ==========
-    let affordabilityAnswer = null;
 
     // Detect debt/savings change follow-ups that should re-run the affordability calculator
     // e.g. "what if I have $800 in monthly debt", "what if I pay off my car"
@@ -2800,7 +2801,6 @@ What's your situation?`,
     // Add to app/api/answers/route.ts AFTER the affordability check (around line 1820)
 
     // ========== FHA CALCULATOR CHECK ==========
-    let fhaAnswer = null;
 
     // History-aware FHA detection: if prior conversation mentions FHA and current question
     // is a down-payment follow-up ("show me 10% down", "what about 20% down"), treat as FHA question
