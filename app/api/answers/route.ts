@@ -328,6 +328,7 @@ function extractAffordabilityParams(question: string): {
     annualIncome?: number;
     savings?: number;
     monthlyDebt?: number;
+    rateOverride?: number;
     hasInfo: boolean;
 } {
     const text = question.toLowerCase();
@@ -373,7 +374,12 @@ function extractAffordabilityParams(question: string): {
 
     const hasInfo = !!(annualIncome && savings);
 
-    return { annualIncome, savings, monthlyDebt, hasInfo };
+    // Rate override: "at 5.5%", "recalculate at 5.5%", "if rates drop to 5.5%"
+    const rateMatch = text.match(/(?:at|recalculate.*at|rates?.*drop.*to|if.*rate.*is|rate.*of)\s*([\d.]+)\s*%/i) ||
+        text.match(/(\d+\.\d+)\s*%\s*(?:rate|interest)/i);
+    const rateOverride = rateMatch ? parseFloat(rateMatch[1]) : undefined;
+
+    return { annualIncome, savings, monthlyDebt, rateOverride, hasInfo };
 }
 
 /**
@@ -521,11 +527,11 @@ function generateAffordabilityFollowUp(
         const gapK = Math.round(conv20.savingsGap / 1000);
         chips.push({
             label: `$${gapK}k more = 20% down, no PMI ever. FHA vs conventional side-by-side?`,
-            seed: `Compare FHA 3.5% down vs conventional 20% down — I make $${incomeK}k and have $${savingsK}k saved`
+            seed: `Compare FHA 3.5% down vs conventional 20% down — I make $${incomeK}k/year and have $${savingsK}k saved`
         });
         chips.push({
             label: `Show me a specific home at $${fhaPriceK}k — what's the exact monthly?`,
-            seed: `FHA on a $${fhaPriceK}k home — I make $${incomeK}k/year and have $${savingsK}k saved`
+            seed: `Show me my monthly payment on a $${fhaPriceK}k home — I make $${incomeK}k/year and have $${savingsK}k saved`
         });
         chips.push({
             label: `What if rates drop to 5.5% — how much more can I afford?`,
@@ -2641,6 +2647,9 @@ ${dtiSection}
             if (affordFollowUp.useCurrentRate) {
                 console.log('[Affordability] Re-running with FRED rate:', fred?.mort30Avg || 6.01);
             }
+            // Preserve any rate override from the follow-up question
+            const followUpRate = extractAffordabilityParams(question).rateOverride;
+            if (followUpRate) (affordParams as any).rateOverride = followUpRate;
             console.log('[Affordability] Follow-up override applied:', affordParams);
         }
 
@@ -2648,11 +2657,12 @@ ${dtiSection}
             // User provided income and savings - generate scenarios
             console.log('[Affordability] Generating scenarios:', affordParams);
 
+            const rateToUse = (affordParams as any).rateOverride || fred?.mort30Avg || 6.01;
             const scenarios = await generateAffordabilityScenarios({
                 annualIncome: affordParams.annualIncome!,
                 savings: affordParams.savings!,
                 monthlyDebt: affordParams.monthlyDebt || 0,
-                currentRate: fred?.mort30Avg || 6.01
+                currentRate: rateToUse
             });
 
             const affordabilityMarkdown = buildAffordabilityMarkdown(
@@ -2705,12 +2715,7 @@ To give you accurate scenarios, I need:
 What's your situation?`,
                 next_step: "Share your income and savings so I can show you 3 affordability scenarios (Conservative, Comfortable, Aggressive).",
                 follow_up: "What's your annual income and how much do you have saved?",
-                confidence: "1.00 (interactive advisor - ready to calculate)",
-                follow_up_chips: [
-                    { label: "I make $95k/year and have $40k saved", seed: "I make $95k/year and have $40k saved" },
-                    { label: "I make $120k, $20k saved, $300/mo car payment", seed: "I make $120k/year, have $20k saved, and pay $300/month in car payments" },
-                    { label: "I make $75k/year and have $25k saved", seed: "I make $75k/year and have $25k saved" },
-                ]
+                confidence: "1.00 (interactive advisor - ready to calculate)"
             };
         }
     }
