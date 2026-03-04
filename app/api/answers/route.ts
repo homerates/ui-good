@@ -667,6 +667,13 @@ ${params.monthlyDebt > 200 ? `💳 **Your $${params.monthlyDebt}/mo in debt is c
 function isFHAQuestion(question: string): boolean {
     const text = question.toLowerCase();
 
+    // Conceptual/comparison/educational — never route to FHA calc
+    // "Compare FHA vs conventional pros and cons", "which is better for first-time buyers"
+    const isConceptual =
+        /pros.{0,10}cons|which is better|should i (use|choose|go with)|compare.*for.*buyer/i.test(text) ||
+        /what.{0,20}differ|advantages|disadvantages|overview of fha|explain fha/i.test(text);
+    if (isConceptual) return false;
+
     // Strong FHA indicators
     const hasFHA = /\bfha\b/i.test(text);
     const hasMIP = /\bmip\b|\bmortagage insurance premium\b|\bupfront.*premium\b|\bufmip\b/i.test(text);
@@ -2569,7 +2576,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
         const isMIP = /\bmip\b|ufmip|mortgage insurance premium/i.test(q);
         const isFHA = /\bfha\b/i.test(q);
         const isConv = /conventional|fannie|freddie/i.test(q);
-        const isVA = /\bva\b|veteran/i.test(q);
+        const isVA = /\bva\b|veteran|certificate of eligibility|\bcoe\b|entitlement|funding fee/i.test(q);
         const isUSDA = /\busda\b|rural/i.test(q);
         const isDSCR = /\bdscr\b|debt service/i.test(q);
         const isDTI = /\bdti\b|debt.to.income/i.test(q);
@@ -3143,8 +3150,7 @@ ${dtiSection}
         const t = q.toLowerCase();
 
         // Pure rate info questions are NEVER affordability follow-ups.
-        // "what are current rates", "30 year fixed", "10 year note/treasury" — they ask
-        // about rates as data, not asking to recalculate affordability using current rates.
+        // "what are current rates", "30 year fixed", "10 year note/treasury"
         const isPureRateInfoQuestion =
             /\b(30|15|20)\s*[- ]?year\s*(fixed|mortgage|rate|loan)?/i.test(q) ||
             /\b10\s*[- ]?year\s*(note|treasury|yield|bond)/i.test(q) ||
