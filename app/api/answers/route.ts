@@ -2119,205 +2119,447 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     // Refi guardrail: ask for inputs only if missing; otherwise compute locally (no Grok)
     if (module === "refi") {
-        // ---- helpers (scoped only to refi, so we don’t impact the rest of the file) ----
-        const parseMoney = (s: string) => {
-            const cleaned = s.replace(/[, ]/g, "").replace(/\$/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : null;
+        // ============================================================
+        // SMART REFI ADVISOR v2 — AI-powered decision engine
+        // Not a calculator. A verdict.
+        // ============================================================
+
+        // ── Math helpers ──
+        const mpi = (p: number, r: number, n: number): number => {
+            const mr = (r / 100) / 12;
+            if (n <= 0 || p <= 0) return 0;
+            if (mr === 0) return p / n;
+            const pw = Math.pow(1 + mr, n);
+            return p * (mr * pw) / (pw - 1);
         };
 
-        const parsePercent = (s: string) => {
-            const cleaned = s.replace(/[% ]/g, "");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : null;
+        const remainBal = (origBal: number, rPct: number, totalMo: number, paidMo: number): number => {
+            const r = (rPct / 100) / 12;
+            if (r === 0) return origBal * (1 - paidMo / totalMo);
+            const pw = Math.pow(1 + r, totalMo);
+            const pwp = Math.pow(1 + r, paidMo);
+            const pmt = origBal * (r * pw) / (pw - 1);
+            return pmt * (pw - pwp) / (r * pw);
         };
 
-        const parseYearsLeft = (text: string) => {
-            const s = text.toLowerCase();
-
-            // Examples:
-            // "25 years left"
-            // "years left 25"
-            // "remaining term 25 years"
-            const m1 = s.match(/(\d+(?:\.\d+)?)\s*(?:years?|yrs?)\s*(?:left|remaining)?/i);
-            if (m1?.[1]) {
-                const y = Number(m1[1]);
-                return Number.isFinite(y) ? Math.round(y * 12) : null;
+        // What rate achieves a target breakeven (binary search)
+        const triggerRate = (bal: number, curRatePct: number, costs: number, targetBeYears: number, moLeft: number): number | null => {
+            const curPmt = mpi(bal, curRatePct, moLeft);
+            for (let r10 = Math.floor(curRatePct * 10) - 1; r10 >= 15; r10--) {
+                const r = r10 / 10;
+                const newPmt = mpi(bal, r, moLeft);
+                const save = curPmt - newPmt;
+                if (save > 0 && costs / save <= targetBeYears * 12) return r;
             }
-
-            // Examples:
-            // "300 months left"
-            // "months remaining 240"
-            const m2 = s.match(/(\d+)\s*(?:months?|mos?)\s*(?:left|remaining)?/i);
-            if (m2?.[1]) {
-                const mo = Number(m2[1]);
-                return Number.isFinite(mo) ? Math.round(mo) : null;
-            }
-
             return null;
         };
 
-        const monthlyPI = (principal: number, annualRatePct: number, months: number) => {
-            const r = (annualRatePct / 100) / 12;
-            if (months <= 0) return null;
-            if (r === 0) return principal / months;
-            const pow = Math.pow(1 + r, months);
-            return principal * (r * pow) / (pow - 1);
-        };
+        const f$ = (n: number) => `$${Math.round(n).toLocaleString()}`;
+        const fD = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const fPct = (n: number) => `${n.toFixed(2)}%`;
 
-        const qText = question;
+        // ── Parse inputs ──
+        const qFull = question;
 
-        // Try to infer the 5 inputs from a single prompt.
-        // We accept loose phrasing like:
-        // "balance $650,000 at 3.75%, 25 years left, $6,000 costs, new rate 6.25%"
-        const balanceMatch = qText.match(/\b(balance|loan balance|principal)\b[^0-9$]*\$?\s*([\d,]+(?:\.\d+)?)/i) ?? qText.match(/\$\s*([\d,]+(?:\.\d+)?)/);
-        const currentRateMatch = qText.match(/\b(?:current\s*rate|at)\b[^0-9]*([\d.]+)\s*%/i);
-        const newRateMatch =
-            qText.match(/\b(?:new\s*rate|to|refi\s*to|considering)\b[^0-9]*([\d.]+)\s*%/i) ??
+        // Balance — handles $1,280,000 / $1.28M / $580k / on my $X
+        const balM =
+            qFull.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ??
+            qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*[Mm]\b/) ??
+            qFull.match(/\bon\s+(?:my\s+)?\$\s*(\d+(?:\.\d+)?)\s*k?\b/i) ??
+            qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*k\b/i);
+        let balance: number | null = null;
+        if (balM) {
+            const raw = balM[1].replace(/,/g, '');
+            const n = parseFloat(raw);
+            if (isFinite(n)) {
+                const mSuf = /\$\s*\d+(?:\.\d+)?\s*[Mm]\b/.test(qFull);
+                const kSuf = /\$\s*\d+(?:\.\d+)?\s*k\b/i.test(balM[0]);
+                balance = mSuf ? n * 1_000_000 : kSuf ? n * 1000 : n;
+            }
+        }
+
+        // Current rate — handles "current rate is 6.5%" / "at 6.5%" / "6.5% rate"
+        const curRM =
+            qFull.match(/\b(?:current\s*rate|my\s*rate)\b\s*(?:is\s+)?(\d+\.?\d*)\s*%/i) ??
+            qFull.match(/\bat\s+(\d+\.?\d*)\s*%/i) ??
+            qFull.match(/(\d+\.?\d*)\s*%\s*(?:rate|interest|on\s*my|current)/i) ??
             (() => {
-                // fallback: if two % appear, treat first as current and second as new
-                const all = Array.from(qText.matchAll(/([\d.]+)\s*%/g)).map((m) => m[1]);
-                return all.length >= 2 ? ({ 1: all[all.length - 1] } as any) : null;
+                const all = [...qFull.matchAll(/(\d+\.?\d*)\s*%/g)].map(m => parseFloat(m[1])).filter(r => r > 1 && r < 20);
+                return all.length >= 1 ? { 1: String(all[0]) } as any : null;
             })();
+        const currentRate = curRM ? parseFloat(curRM[1]) : null;
 
-        const costsMatch =
-            qText.match(/\b(?:costs?|closing costs?|fees?)\b[^0-9$]*\$?\s*([\d,]+(?:\.\d+)?)/i) ??
-            qText.match(/\b\$?\s*([\d,]+(?:\.\d+)?)\s*(?:costs?|fees?)\b/i);
+        // New/target rate
+        const newRM =
+            qFull.match(/\b(?:refi(?:nance)?\s+(?:to|at|when)|new\s*rate)\s+(\d+\.?\d*)\s*%/i) ??
+            qFull.match(/(?:go\s+(?:down\s+)?to|drop\s+to|hit|reach|down\s+to)\s*(\d+\.?\d*)\s*%/i) ??
+            qFull.match(/when.*?rates?.*?(?:go|drop|hit|reach|become|are).*?(?:to|at)?\s*(\d+\.?\d*)\s*%/i) ??
+            (() => {
+                const all = [...qFull.matchAll(/(\d+\.?\d*)\s*%/g)].map(m => parseFloat(m[1])).filter(r => r > 1 && r < 20);
+                return all.length >= 2 ? { 1: String(all[all.length - 1]) } as any : null;
+            })();
+        const newRate = newRM ? parseFloat((newRM as any)[1]) : null;
 
-        const monthsLeft = parseYearsLeft(qText);
+        // Years info
+        const ylM = qFull.match(/(\d+)\s*(?:years?|yrs?)\s*(?:left|remaining|to\s*go)/i);
+        const yiM = qFull.match(/(\d+)\s*years?\s*(?:in|into|ago)/i) ??
+            qFull.match(/(?:bought|purchased|got\s*(?:the\s*)?loan)\s*(\d+)\s*years?\s*ago/i);
+        const yearsLeft = ylM ? parseInt(ylM[1]) : null;
+        const yearsIn = yiM ? parseInt(yiM[1]) : null;
+        const monthsLeft = yearsLeft ? yearsLeft * 12 : yearsIn ? (30 - yearsIn) * 12 : 360;
 
-        const balance =
-            balanceMatch
-                ? parseMoney(balanceMatch[2] ?? balanceMatch[1] ?? "")
-                : null;
+        // Closing costs, home value, loan type signals
+        const costsM = qFull.match(/\b(?:costs?|closing\s*costs?|fees?)\s*\$?\s*([\d,]+)/i);
+        const closingCosts = costsM ? parseFloat(costsM[1].replace(/,/g, '')) : null;
 
-        const currentRate =
-            currentRateMatch?.[1] ? parsePercent(currentRateMatch[1]) : null;
+        const homeValM = qFull.match(/(?:home|house|property|value|worth)\s+(?:is\s+|worth\s+)?\$?\s*([\d,]+)\s*k?\b/i);
+        const homeValue = homeValM ? parseFloat(homeValM[1].replace(/,/g, '')) * (homeValM[1].length <= 4 ? 1000 : 1) : null;
 
-        const newRate =
-            (newRateMatch as any)?.[1] ? parsePercent((newRateMatch as any)[1]) : null;
+        // Refi TYPE detection
+        const qLow = qFull.toLowerCase();
+        const isCashOut = /cash.?out|pull\s*(?:out|equity)|access\s*equity|take\s*out\s*\$/.test(qLow);
+        const isFHAtoConv = /fha.{0,20}(?:conventional|conv)|remove\s*mip|drop\s*mip|get\s*rid.*mip/.test(qLow);
+        const isARMtoFixed = /\b(?:arm|5\/1|7\/1|10\/1|adjustable|reset|fixed\s*rate\s*(?:security|peace))\b/.test(qLow);
+        const isRateWatch = /tell\s*me\s*when|rate\s*alert|when\s+(?:should|to)\s+refi|trigger\s+rate|watch\s+for/.test(qLow);
+        const isStreamline = /streamline|irrrl|va\s*refi|fha\s*streamline/.test(qLow);
+        const isShorten = /(?:shorten|shorter|20.?year|15.?year|pay\s*off\s*(?:faster|sooner)|reduce\s*term)/.test(qLow);
 
-        const closingCosts =
-            costsMatch?.[1] ? parseMoney(costsMatch[1]) : null;
+        const refiType = isCashOut ? "cash_out" : isFHAtoConv ? "fha_to_conv" : isARMtoFixed ? "arm_to_fixed" : isStreamline ? "streamline" : "rate_term";
 
-        const missing: string[] = [];
-        if (!balance) missing.push("current loan balance");
-        if (!currentRate) missing.push("current interest rate");
-        if (!monthsLeft) missing.push("remaining term (years or months left)");
-        if (closingCosts === null) missing.push("estimated closing costs (or lender credit)");
-        if (!newRate) missing.push("new interest rate you’re considering");
+        // Live FRED market data
+        const marketRate = fred?.mort30Avg ?? null;
+        const fredAsOf = fred?.asOf ?? generatedAt.slice(0, 10);
 
-        // If any are missing, keep your existing “ask for 5 inputs” behavior.
-        if (missing.length > 0) {
-            const followUp =
-                "Reply with: current loan balance, current interest rate, remaining term (years or months), estimated closing costs (or lender credit), and the new rate you’re considering.";
+        // ── If missing key inputs — smart ask with context ──
+        if (!balance || !currentRate) {
+            const marketNote = marketRate
+                ? `\n\n> 📡 **Today's market rate: ${fPct(marketRate)}** (FRED, live ${fredAsOf})`
+                : '';
+
+            const contextChips = isFHAtoConv
+                ? [
+                    { label: "FHA→conventional to kill MIP — show me the math", seed: "I have an FHA loan at 6.5% on a $450k home — is it worth refinancing to conventional to remove MIP?" },
+                    { label: "How much equity do I need to remove MIP?", seed: "How much equity do I need to refinance FHA to conventional and remove MIP?" },
+                    { label: "FHA→conventional at same rate — is it worth it?", seed: "Would it make sense to refi FHA to conventional at the same rate just to remove MIP on my $500k loan?" },
+                ]
+                : isARMtoFixed
+                    ? [
+                        { label: "ARM reset worst-case — show me the numbers", seed: "My 7/1 ARM is resetting — what's my worst-case payment if rates stay at 6.5%?" },
+                        { label: "Lock to fixed now vs ride out the ARM", seed: "Should I lock my 5/1 ARM at 6% to a 30yr fixed at 5.99%, or ride it out?" },
+                        { label: "ARM cap protection — what rate am I exposed to?", seed: "My ARM has a 2/2/5 cap structure at 4.5% start rate — what's my max payment exposure?" },
+                    ]
+                    : [
+                        { label: "Tell me when a refi makes sense — what's my trigger rate?", seed: `What rate would I need to see to make a refi worth it on my $650,000 mortgage at ${currentRate ?? 6.5}%?` },
+                        { label: "Refi now vs wait for a better rate — show the math", seed: "I have a $780k balance at 6.75% — compare refinancing to 5.99% now vs waiting for 5.5%" },
+                        { label: "Should I make extra payments instead of refinancing?", seed: "I have a $500k balance at 6.5% — compare refinancing to 5.5% vs making extra principal payments" },
+                    ];
+
+            const askMsg = `## 🏦 Refi Advisor — What's Your Situation?${marketNote}
+
+To give you a real verdict (not just math), I need:
+
+- **Current loan balance** (e.g. $650,000)
+- **Your current interest rate** (e.g. 6.5%)
+- **Target rate or timeframe** you're considering
+
+**Optional but powerful:**
+- How many years you've been in the loan (affects amortization reset analysis)
+- Home value (needed for cash-out or FHA→conventional analysis)
+- How long you plan to stay
+
+**Example:** *"Balance $780k at 6.75%, want to refi to 5.99%, bought 3 years ago, plan to stay 7 more years"*`;
 
             return noStore({
-                ok: true,
-                memory_thread_id: memoryThreadId,
-                route: "answers",
-                intent,
-                path,
-                tag,
-                generatedAt,
-                usedFRED,
-                usedTavily,
-                fred,
-                topSources,
-                grok: null,
-                debug: { bypass: "refi_missing_inputs_guardrail", missing },
-                message: followUp,
-                answerMarkdown:
-                    "**Refi Lab needs 5 inputs**\n\n" +
-                    "- Current loan balance\n" +
-                    "- Current interest rate\n" +
-                    "- Remaining term (years or months left)\n" +
-                    "- Estimated closing costs (or lender credit)\n" +
-                    "- New interest rate you’re considering\n\n" +
-                    "Once you send those, I’ll calculate current vs new P&I, monthly savings, breakeven, and payment sensitivity.",
-                followUp,
+                ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
+                generatedAt, usedFRED, usedTavily, fred, topSources,
+                grok: { answer: askMsg, follow_up: contextChips[0].label, follow_up_chips: contextChips, confidence: "needs_input" },
+                debug: { bypass: "refi_needs_input", refiType, parsed: { balance, currentRate, newRate, monthsLeft } },
+                message: askMsg, answerMarkdown: `**Answer**\n${askMsg}`,
+                followUp: contextChips[0].label, follow_up_chips: contextChips,
             });
         }
 
-        // Otherwise compute locally (NO Grok).
-        const curPI = monthlyPI(balance!, currentRate!, monthsLeft!);
-        const newPI = monthlyPI(balance!, newRate!, monthsLeft!);
+        // ── FULL CALCULATION ENGINE ──
+        const effNewRate = newRate ?? marketRate ?? (currentRate - 0.5);
+        const effCosts = closingCosts ?? balance * 0.02;
+        const amortReset = yearsIn && yearsIn >= 10; // warn if resetting significant amortization
 
-        // Safety
-        if (curPI == null || newPI == null) {
-            const followUp =
-                "Quick check: confirm your balance, current rate, years/months left, costs/credit, and the new rate you’re considering.";
-            return noStore({
-                ok: true,
-                memory_thread_id: memoryThreadId,
-                route: "answers",
-                intent,
-                path,
-                tag,
-                generatedAt,
-                usedFRED,
-                usedTavily,
-                fred,
-                topSources,
-                grok: null,
-                debug: { bypass: "refi_calc_failed" },
-                message: followUp,
-                answerMarkdown: `**Answer**\nI couldn’t safely compute the payment from what I parsed. ${followUp}\n`,
-                followUp,
-            });
+        // Core payments
+        const curPI = mpi(balance, currentRate, monthsLeft);
+        const newPI = mpi(balance, effNewRate, monthsLeft);
+        const save = curPI - newPI;
+        const annSav = save * 12;
+        const beM = save > 0 ? effCosts / save : null;
+        const beYrs = beM ? beM / 12 : null;
+
+        // Total interest comparison (remaining term)
+        const totIntCur = (curPI * monthsLeft) - balance;
+        const totIntNew = (newPI * monthsLeft) - balance;
+        const lifeSave = totIntCur - totIntNew - effCosts;
+
+        // Amortization reset cost — what they pay extra in interest by restarting 30yr
+        let resetPenalty = 0;
+        let resetWarning = "";
+        if (yearsIn && yearsIn >= 5) {
+            const moLeft20 = Math.max(monthsLeft, 0);
+            const totalIf30yr = newPI * 360;
+            const totalIfRemaining = curPI * monthsLeft;
+            resetPenalty = totalIf30yr - totalIfRemaining;
+            if (resetPenalty > 0 && yearsIn >= 10) {
+                resetWarning = `\n> ⚠️ **Amortization reset penalty:** You're **${yearsIn} years in** — refinancing to a new 30yr restarts your clock. You'd pay an extra **${f$(resetPenalty)}** in total interest vs finishing your current loan. Consider a 20yr or 15yr refi instead.`;
+            }
         }
 
-        const monthlyChange = newPI - curPI;
-        const monthlySavings = curPI - newPI;
-        const breakevenMonths =
-            closingCosts! > 0 && monthlySavings > 0 ? (closingCosts! / monthlySavings) : null;
+        // Trigger rates (what rate achieves X-year breakeven)
+        const trig2yr = triggerRate(balance, currentRate, effCosts, 2, monthsLeft);
+        const trig3yr = triggerRate(balance, currentRate, effCosts, 3, monthsLeft);
+        const trig5yr = triggerRate(balance, currentRate, effCosts, 5, monthsLeft);
 
-        const fmt = (n: number) =>
-            n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Wait scenarios (0.5% and 1.0% below target)
+        const wr1 = Math.max(effNewRate - 0.5, 2.0);
+        const wr2 = Math.max(effNewRate - 1.0, 2.0);
+        const piW1 = mpi(balance, wr1, monthsLeft);
+        const piW2 = mpi(balance, wr2, monthsLeft);
+        const svW1 = curPI - piW1;
+        const svW2 = curPI - piW2;
+        const beW1 = svW1 > 0 ? effCosts / svW1 : null;
+        const beW2 = svW2 > 0 ? effCosts / svW2 : null;
+        const extraMoW1 = svW1 - save;
+        const moToRecoverW1 = extraMoW1 > 0 ? Math.ceil(save / extraMoW1) : 999;
 
-        const beLine =
-            breakevenMonths == null
-                ? "Breakeven: not applicable (either costs are $0, or the new payment is not lower)."
-                : `Breakeven: ~${Math.ceil(breakevenMonths)} months (~${fmt(Math.ceil(breakevenMonths) / 12)} years)`;
+        // Shorten to 20yr
+        const pi20 = mpi(balance, effNewRate, 240);
+        const int20 = (pi20 * 240) - balance;
+        const int20saved = totIntNew - int20;
 
-        const followUp =
-            "Do you want this as (A) payment-only P&I or (B) full PITI with taxes/insurance/HOA and any PMI?";
+        // Net savings milestones
+        const net5 = (save * 60) - effCosts;
+        const net10 = (save * 120) - effCosts;
+
+        // FHA MIP context
+        let mipNote = "";
+        if (isFHAtoConv) {
+            const estMIP = balance * 0.0055 / 12;
+            mipNote = `\n\n---\n\n## 🎯 FHA → Conventional: The Real Play\n\nAt ${fPct(effNewRate)}, this isn't just about the rate — it's about **permanently eliminating MIP**.\n\n| | FHA (current) | Conventional (refi) |\n|--|--|--|\n| Rate | ${fPct(currentRate)} | ${fPct(effNewRate)} |\n| Monthly MIP | ~${f$(estMIP)}/mo | ❌ Gone |\n| PMI at 20% equity | — | Auto-cancels |\n| Combined savings | — | **${f$(save + estMIP)}/mo** |\n\n> ✅ Even if the rate savings alone are marginal, **MIP removal saves ~${f$(estMIP * 12)}/yr forever**. This changes the calculus entirely — a breakeven that looks like 6 years becomes 3 years when you factor in MIP.`;
+        }
+
+        // ARM context
+        let armNote = "";
+        if (isARMtoFixed) {
+            const armResetRaw = qFull.match(/(\d+)\/(\d+)\s*arm/i);
+            const fixedYrs = armResetRaw ? parseInt(armResetRaw[1]) : 5;
+            const adjCap = currentRate + 2; // typical 2% periodic cap
+            const lifeCap = currentRate + 5; // typical 5% lifetime cap
+            const piWorstCase = mpi(balance, lifeCap, monthsLeft);
+            armNote = `\n\n---\n\n## ⚠️ ARM Reset Risk\n\nWith a ${fixedYrs}/1 ARM, your rate adjusts annually after year ${fixedYrs}. **Worst case at caps:**\n\n| Scenario | Rate | Monthly P&I |\n|--|--|--|\n| Today (fixed period) | ${fPct(currentRate)} | ${fD(curPI)} |\n| First reset (+2% cap) | ${fPct(adjCap)} | ${fD(mpi(balance, adjCap, monthsLeft))} |\n| Lifetime cap (+5%) | ${fPct(lifeCap)} | ${fD(piWorstCase)} |\n| **Fixed at ${fPct(effNewRate)}** | **${fPct(effNewRate)}** | **${fD(newPI)}** |\n\n> 🔒 Locking to a fixed rate at ${fPct(effNewRate)} costs you ${f$(newPI - curPI > 0 ? newPI - curPI : 0)}/mo more now but **caps your worst-case exposure** at ${fD(piWorstCase - newPI)}/mo vs staying on the ARM.`;
+        }
+
+        // Cash-out context  
+        let cashOutNote = "";
+        if (isCashOut) {
+            const cashM = qFull.match(/(?:cash\s*out|pull|take\s*out)\s*\$?\s*([\d,]+)\s*k?\b/i);
+            const cashAmt = cashM ? parseFloat(cashM[1]) * (cashM[1].length <= 3 ? 1000 : 1) : null;
+            cashOutNote = `\n\n---\n\n## 💵 Cash-Out: What Lenders Won't Tell You\n\n${cashAmt ? `You want to pull **${f$(cashAmt)}** out of equity.` : 'You want to pull equity out.'} Here's the true cost comparison:\n\n| Option | Rate | Monthly cost | True cost of $${cashAmt ? cashAmt / 1000 : 'X'}k |\n|--|--|--|--|\n| Cash-out refi (new 30yr) | ~${fPct(effNewRate)} | Higher P&I | ${cashAmt ? f$(cashAmt * (effNewRate / 100)) + '/yr in interest' : 'depends on amount'} |\n| HELOC (variable) | Prime+1% (~9-10%) | Interest-only option | Higher rate, flexible draw |\n| Personal loan | 8-15% | Fixed short-term | Best for amounts < $50k |\n\n> ⚠️ **Tax note:** Cash-out interest is only deductible if proceeds are used for home improvement. Debt consolidation or other uses lost deductibility under TCJA 2017.\n\n> 💡 **Pro move:** If your current rate is below 5%, think carefully — a cash-out refi replaces your entire loan at the new (higher) rate. A HELOC keeps your low first mortgage intact.`;
+        }
+
+        // FRED live market comparison
+        const fredNote = marketRate
+            ? save <= 0 && marketRate >= currentRate
+                ? `\n> 📡 **Today's market rate: ${fPct(marketRate)}** (FRED, live) — it's *above* your current rate. **Don't refi right now.**`
+                : `\n> 📡 **Today's market rate: ${fPct(marketRate)}** (FRED, live ${fredAsOf})${Math.abs(marketRate - effNewRate) < 0.1 ? ' — your target rate is **available right now**.' : ` — your target (${fPct(effNewRate)}) is ${effNewRate > marketRate ? fPct(effNewRate - marketRate) + ' above' : fPct(marketRate - effNewRate) + ' below'} today's market.`}`
+            : '';
+
+        // ── VERDICT LOGIC ──
+        const rateDrop = currentRate - effNewRate;
+        let vEmoji: string, vTitle: string, vBody: string;
+
+        // Special: market rate is above/at current rate — don't refi at all
+        if (marketRate && marketRate >= currentRate && !newRate) {
+            vEmoji = "⛔";
+            vTitle = "Hold — today's rates are not better than yours";
+            vBody = `Market is at ${fPct(marketRate)} vs your ${fPct(currentRate)}. Refinancing now would increase your payment. The right move is to wait and watch for your trigger rate.`;
+        } else if (save <= 0) {
+            vEmoji = "⛔";
+            vTitle = "This refi doesn't pencil";
+            vBody = `At ${fPct(effNewRate)} your payment rises by ${f$(Math.abs(save))}/mo. Only makes sense for cash-out, term shortening, or removing MIP.`;
+        } else if (rateDrop < 0.375) {
+            vEmoji = "🔴";
+            vTitle = "Not worth it — spread is too thin";
+            vBody = `A ${fPct(rateDrop)} drop saves ${f$(save)}/mo but breakeven is ${beYrs ? beYrs.toFixed(1) : '?'} years. The general rule of thumb: refi needs at least a 0.5%–0.75% improvement to cover costs. Your trigger rate for a 3-year breakeven is **${trig3yr ? fPct(trig3yr) : 'not achievable at current costs'}**.`;
+        } else if (beYrs && beYrs <= 2.5) {
+            vEmoji = "✅";
+            vTitle = "Strong refi — pull the trigger";
+            vBody = `Breakeven in **${beYrs.toFixed(1)} years** saving ${f$(save)}/mo. This is a clear win if you're staying more than 2–3 years.`;
+        } else if (beYrs && beYrs <= 4) {
+            vEmoji = "✅";
+            vTitle = "Good refi — solid if staying 4+ years";
+            vBody = `Breakeven in **${beYrs.toFixed(1)} years**. At ${f$(save)}/mo and ${f$(annSav)}/yr, this pencils as long as you're not planning to sell soon.`;
+        } else if (beYrs && beYrs <= 6) {
+            vEmoji = "🟡";
+            vTitle = "Marginal — depends on your timeline";
+            vBody = `Breakeven is **${beYrs.toFixed(1)} years**. If you're staying 7+ years, it works. If you might sell in 3–4 years, you'll likely be underwater on the costs.`;
+        } else {
+            vEmoji = "🔴";
+            vTitle = "Long breakeven — not recommended unless staying long-term";
+            vBody = `Breakeven is **${beYrs ? beYrs.toFixed(1) : '?'} years**. That's a long time to recover closing costs. Your trigger rate for a 5-year breakeven is **${trig5yr ? fPct(trig5yr) : 'not available at 2% costs'}**.`;
+        }
+
+        // Rate-watch verdict
+        const rateWatchSection = `\n\n---\n\n## 📡 Your Rate-Watch Trigger Points\n\n| Target Breakeven | Rate You Need | Monthly Savings at That Rate |\n|--|--|--|\n| 2-year breakeven | **${trig2yr ? fPct(trig2yr) : 'N/A'}** | ${trig2yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig2yr, monthsLeft)) + '/mo' : '—'} |\n| 3-year breakeven | **${trig3yr ? fPct(trig3yr) : 'N/A'}** | ${trig3yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig3yr, monthsLeft)) + '/mo' : '—'} |\n| 5-year breakeven | **${trig5yr ? fPct(trig5yr) : 'N/A'}** | ${trig5yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig5yr, monthsLeft)) + '/mo' : '—'} |\n\n${fredNote}`;
+
+        // What lenders won't tell you section
+        const costsNote = closingCosts
+            ? `your provided ${f$(closingCosts)} cost figure`
+            : `2% estimate (${f$(effCosts)}) — get actual lender quotes, jumbo loans often run 1.5–2.5%`;
+        const lenderSection = `\n\n---\n\n## 🔍 What Lenders Won't Tell You\n\n${amortReset ? `- **Amortization reset:** You're ${yearsIn} years in. Resetting to 30yr means your early payments are mostly interest again — potentially ${f$(resetPenalty)} in extra lifetime interest.\n` : ''}${pi20 < curPI ? `- **20yr refi trick:** A 20yr refi at ${fPct(effNewRate)} (${fD(pi20)}/mo) is *still lower* than your current payment (${fD(curPI)}/mo) and saves **${f$(int20saved)}** in interest.\n` : ''}${isFHAtoConv ? '' : `- **No-cost refi option:** Ask lenders about lender credits (typically 0.25–0.5% higher rate). On a ${f$(balance)} loan, this can eliminate closing costs entirely — breakeven becomes month 1.\n`}- **Lock timing:** Once decided, lock within 5–7 business days. Float-down options cost ~0.1–0.25% but protect you if rates drop before close.\n- **Lender cost variance:** On jumbo loans, closing costs vary $5k–$15k between lenders. Get 3 quotes minimum.`;
+
+        // ── MAIN OUTPUT ──
+        const costsUsedNote = closingCosts ? `your ${f$(closingCosts)} quote` : `2% estimate (${f$(effCosts)})`;
+        const md = `## ${vEmoji} Refi Analysis — ${fPct(currentRate)} → ${fPct(effNewRate)}
+${fredNote}
+
+---
+
+## 💰 Monthly Savings Breakdown
+
+| | Current (${fPct(currentRate)}) | Refi to ${fPct(effNewRate)} | Change |
+|--|--|--|--|
+| P&I payment | ${fD(curPI)}/mo | ${fD(newPI)}/mo | **${save >= 0 ? '+' : ''}${f$(save)}/mo** |
+| Annual savings | — | — | **${f$(annSav)}/yr** |
+| Closing costs | — | ~${f$(effCosts)} | ${costsNote} |
+| **Breakeven** | — | — | **${beM ? `${Math.ceil(beM)} months (${beYrs!.toFixed(1)} yrs)` : 'N/A — payment rises'}** |
+
+---
+
+## 🎯 ${vTitle}
+
+${vBody}
+
+**5-year net:** ${net5 >= 0 ? `✅ +${f$(net5)} ahead` : `⚠️ ${f$(Math.abs(net5))} short of breakeven — not there yet`}
+**10-year net:** ${net10 >= 0 ? `✅ +${f$(net10)} ahead` : `⚠️ ${f$(Math.abs(net10))} — still not recovered`}
+**Lifetime interest saved (${(monthsLeft / 12).toFixed(0)} yrs remaining):** **${f$(lifeSave)}** after costs
+${resetWarning}
+
+---
+
+## 📊 Refi Now vs Wait — Full Scenario Table
+
+| Rate | Monthly P&I | Saved vs Current | Breakeven | Lifetime Savings |
+|--|--|--|--|--|
+| ${fPct(currentRate)} *(current)* | ${fD(curPI)} | — | — | — |
+| **${fPct(effNewRate)} *(your target)*** | **${fD(newPI)}** | **${f$(save)}/mo** | **${beM ? Math.ceil(beM) + ' mo' : 'N/A'}** | **${f$(lifeSave)}** |
+| ${fPct(wr1)} *(if you wait 0.5% more)* | ${fD(piW1)} | ${f$(svW1)}/mo | ${beW1 ? Math.ceil(beW1) + ' mo' : 'N/A'} | ${f$(totIntCur - (piW1 * monthsLeft - balance) - effCosts)} |
+| ${fPct(wr2)} *(stretch — wait 1% more)* | ${fD(piW2)} | ${f$(svW2)}/mo | ${beW2 ? Math.ceil(beW2) + ' mo' : 'N/A'} | ${f$(totIntCur - (piW2 * monthsLeft - balance) - effCosts)} |
+
+${extraMoW1 > 0 ? `> 💡 **Refi now vs wait for ${fPct(wr1)}:** Waiting earns you an extra **${f$(extraMoW1)}/mo** more savings. But every month at ${fPct(currentRate)} costs **${f$(save)}** in lost opportunity. Waiting only pays back if ${fPct(wr1)} arrives within **${moToRecoverW1} months**. After that, refi-now wins.` : ''}
+
+---
+
+## 🔁 Should You Shorten to 20 Years?
+
+| | 30yr at ${fPct(effNewRate)} | 20yr at ${fPct(effNewRate)} | Difference |
+|--|--|--|--|
+| Monthly P&I | ${fD(newPI)} | ${fD(pi20)} | +${f$(pi20 - newPI)}/mo |
+| Total interest | ${f$(totIntNew)} | ${f$(int20)} | **Save ${f$(int20saved)}** |
+
+${pi20 < curPI ? `> ✅ **Hidden win:** 20yr payment (${fD(pi20)}) is *still lower* than your current payment (${fD(curPI)}). You'd pay off 10 years faster and save ${f$(int20saved)} in interest — for *less* than you pay today.` : `> ⚠️ 20yr payment (${fD(pi20)}) is higher than current (${fD(curPI)}) — budget accordingly.`}
+${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
+
+---
+
+**Next steps:** Get 2–3 lender quotes · Ask about no-cost refi option · Lock when you're ready`;
+
+        // ── DYNAMIC CHIPS based on scenario verdict ──
+        let refiChips: Array<{ label: string; seed: string }>;
+
+        if (vEmoji === "⛔" && marketRate && marketRate >= currentRate) {
+            // Hold — market worse than current
+            refiChips = [
+                { label: `What rate is my trigger? Show ${fPct(trig3yr ?? currentRate - 1)} analysis`, seed: `What rate do I need to see to refi my ${f$(balance)} at ${fPct(currentRate)} with a 3-year breakeven?` },
+                { label: "Make extra payments instead — show payoff comparison", seed: `Compare making extra principal payments vs refinancing on my ${f$(balance)} at ${fPct(currentRate)}` },
+                { label: "What if rates hit 5.5%? Full refi analysis", seed: `Full refi analysis on my ${f$(balance)} at ${fPct(currentRate)} if rates drop to 5.5%` },
+            ];
+        } else if (vEmoji === "🔴" && rateDrop < 0.375) {
+            // Spread too thin
+            refiChips = [
+                { label: `My trigger rate is ${trig3yr ? fPct(trig3yr) : '5.5%'} — show full analysis at that rate`, seed: `Refi analysis on ${f$(balance)} at ${fPct(currentRate)} if rates drop to ${trig3yr ? fPct(trig3yr) : '5.5%'}` },
+                { label: "Extra principal payments vs waiting for trigger rate — which wins?", seed: `Compare making extra payments vs waiting to refi on my ${f$(balance)} at ${fPct(currentRate)}` },
+                { label: "No-cost refi — does lender credit change this calculus?", seed: `If the lender covers closing costs on my ${f$(balance)} at ${fPct(currentRate)} refi to ${fPct(effNewRate)}, does it pencil?` },
+            ];
+        } else if (vEmoji === "✅" && beYrs && beYrs <= 2.5) {
+            // Strong — lock focused chips
+            refiChips = [
+                pi20 < curPI
+                    ? { label: `20yr at ${fPct(effNewRate)} — still lower payment + save ${f$(int20saved)}?`, seed: `Show me 20yr vs 30yr refi at ${fPct(effNewRate)} on ${f$(balance)} — I heard 20yr might still be cheaper than my current payment` }
+                    : { label: `Lock now vs float-down — what's the rate risk?`, seed: `Should I lock at ${fPct(effNewRate)} now or use a float-down option on my ${f$(balance)} refi? What's the cost?` },
+                { label: "No-cost refi — eliminate closing costs with lender credit", seed: `What rate do I need for a no-cost refi on my ${f$(balance)}? Show me the lender credit breakeven vs paying ${f$(effCosts)} upfront` },
+                { label: `Refi again if rates hit ${fPct(wr1)} — double-refi math`, seed: `If I refi now to ${fPct(effNewRate)} and rates later hit ${fPct(wr1)} on my ${f$(balance)}, does a second refi make sense?` },
+            ];
+        } else if (vEmoji === "✅") {
+            // Good — timeline chips
+            refiChips = [
+                { label: `How many years do I need to stay for this to pay off?`, seed: `I have a ${f$(balance)} at ${fPct(currentRate)} and want to refi to ${fPct(effNewRate)} — how many years do I need to stay for it to make sense?` },
+                pi20 < curPI
+                    ? { label: `20yr refi = lower payment + ${f$(int20saved)} saved — show full breakdown`, seed: `20yr refi at ${fPct(effNewRate)} on ${f$(balance)} vs 30yr — I heard 20yr might cost less per month` }
+                    : { label: `No-cost refi option — lender credit eliminates closing costs`, seed: `What rate for a no-cost refi on ${f$(balance)}? Show me breakeven on lender credit vs ${f$(effCosts)} upfront` },
+                { label: `What if I sell in 3 years — does this refi lose money?`, seed: `If I refi my ${f$(balance)} from ${fPct(currentRate)} to ${fPct(effNewRate)} and sell in 3 years, am I ahead or behind?` },
+            ];
+        } else if (vEmoji === "🟡") {
+            // Marginal — decision chips
+            refiChips = [
+                { label: `How many years until this breaks even?`, seed: `At what year does a refi from ${fPct(currentRate)} to ${fPct(effNewRate)} on ${f$(balance)} break even? Show me a year-by-year table` },
+                { label: `My trigger rate for 3yr breakeven: ${trig3yr ? fPct(trig3yr) : 'show me'}`, seed: `What rate do I need for a 3-year breakeven on my ${f$(balance)} at ${fPct(currentRate)}? Show me the trigger rate analysis.` },
+                { label: "No-cost refi — changes everything at marginal spreads", seed: `If closing costs are zero on my ${f$(balance)} refi from ${fPct(currentRate)} to ${fPct(effNewRate)}, does the math change?` },
+            ];
+        } else {
+            // Long breakeven / default
+            refiChips = [
+                { label: `Trigger rate for 3yr breakeven: ${trig3yr ? fPct(trig3yr) : 'calculate it'}`, seed: `What rate do I need for a 3-year breakeven on my ${f$(balance)} at ${fPct(currentRate)}?` },
+                { label: "Extra principal payments vs refi — which builds equity faster?", seed: `Compare making $500/mo extra payments vs refinancing my ${f$(balance)} from ${fPct(currentRate)} to ${fPct(effNewRate)}` },
+                { label: `What if I wait until rates hit ${fPct(trig3yr ?? effNewRate - 0.5)}?`, seed: `Refi analysis if I wait until rates reach ${fPct(trig3yr ?? effNewRate - 0.5)} on my ${f$(balance)} at ${fPct(currentRate)}` },
+            ];
+        }
+
+        // Override chips for special refi types
+        if (isFHAtoConv) {
+            refiChips = [
+                { label: `FHA→conventional at same rate — MIP removal alone worth it?`, seed: `If I refi my FHA to conventional at ${fPct(effNewRate)} on ${f$(balance)} just to remove MIP, what's the breakeven?` },
+                { label: `How long until 20% equity at current paydown speed?`, seed: `At ${fPct(currentRate)} on ${f$(balance)}, how many months until I hit 20% equity? How does refi speed this up?` },
+                { label: `What's my total MIP cost if I stay FHA vs refi now?`, seed: `Show me total MIP cost remaining on my ${f$(balance)} FHA loan at ${fPct(currentRate)} vs refinancing to conventional at ${fPct(effNewRate)}` },
+            ];
+        } else if (isARMtoFixed) {
+            refiChips = [
+                { label: "ARM worst-case payment at lifetime cap — show me the number", seed: `My ARM balance is ${f$(balance)} at ${fPct(currentRate)} — what's my worst-case payment at the lifetime cap?` },
+                { label: "Lock to fixed now vs ride the ARM — breakeven comparison", seed: `Should I lock my ${f$(balance)} ARM at ${fPct(currentRate)} to a 30yr fixed at ${fPct(effNewRate)} or ride it out? Show the math.` },
+                { label: "What if my ARM resets to 2% higher — payment shock analysis", seed: `My ARM is ${f$(balance)} at ${fPct(currentRate)} — show me payment shock if it resets to ${fPct(currentRate + 2)}` },
+            ];
+        } else if (isCashOut) {
+            refiChips = [
+                { label: "HELOC vs cash-out refi — total cost comparison", seed: `Compare HELOC vs cash-out refi on my ${f$(balance)} home at ${fPct(currentRate)} — I need to pull out $100k` },
+                { label: "Cash-out refi — what rate makes it worth the reset?", seed: `If I do a cash-out refi on my ${f$(balance)} from ${fPct(currentRate)} to ${fPct(effNewRate)}, what's the true cost of the equity I'm pulling out?` },
+                { label: "Tax deductibility of cash-out — what's actually deductible?", seed: `I'm doing a cash-out refi on my ${f$(balance)} home — is the new mortgage interest tax deductible? What are the rules?` },
+            ];
+        }
 
         return noStore({
-            ok: true,
-            memory_thread_id: memoryThreadId,
-            route: "answers",
-            intent,
-            path,
-            tag,
-            generatedAt,
-            usedFRED,
-            usedTavily,
-            fred,
-            topSources,
-            grok: null,
-            debug: { bypass: "refi_local_math", parsed: { balance, currentRate, monthsLeft, closingCosts, newRate } },
-            message: "Refi comparison computed.",
-            answerMarkdown:
-                `**Answer**\n` +
-                `**Summary**\n` +
-                `Here’s the payment impact using your provided inputs (principal + interest only).\n\n` +
-                `**Key Numbers**\n` +
-                `- Current P&I: $${fmt(curPI)}\n` +
-                `- New P&I: $${fmt(newPI)}\n` +
-                `- Monthly change (new - current): $${fmt(monthlyChange)}\n` +
-                `- Closing costs assumed: $${fmt(closingCosts!)}\n` +
-                `- ${beLine}\n\n` +
-                `**Comparison Table**\n` +
-                `| Item | Current | New |\n` +
-                `|---|---:|---:|\n` +
-                `| Rate | ${fmt(currentRate!)}% | ${fmt(newRate!)}% |\n` +
-                `| Term remaining | ${monthsLeft!} months | ${monthsLeft!} months |\n` +
-                `| P&I payment | $${fmt(curPI)} | $${fmt(newPI)} |\n\n` +
-                `**What This Means For You**\n` +
-                `If the new rate is higher, the payment rises and breakeven typically won’t exist unless the refinance accomplishes something else (cash-out, term reset, removing MI, etc.). If you want the full picture, I can add taxes, insurance, HOA, and any MI.\n`,
-            followUp,
+            ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
+            generatedAt, usedFRED, usedTavily, fred, topSources,
+            grok: {
+                answer: md,
+                next_step: "Get 2–3 lender quotes and compare closing costs — rates are meaningless without the cost comparison.",
+                follow_up: refiChips[0].label,
+                follow_up_chips: refiChips,
+                confidence: `1.00 (refi calc: ${f$(balance)} @ ${fPct(currentRate)}→${fPct(effNewRate)}, ${(monthsLeft / 12).toFixed(0)}yr remaining, costs=${f$(effCosts)})`,
+            },
+            debug: {
+                bypass: "refi_advisor_v2",
+                refiType, verdict: vTitle,
+                parsed: { balance, currentRate, newRate: effNewRate, monthsLeft, yearsIn, closingCosts: effCosts, monthlySavings: Math.round(save), beMonths: beM ? Math.round(beM) : null, triggerRates: { yr2: trig2yr, yr3: trig3yr, yr5: trig5yr } },
+            },
+            message: md, answerMarkdown: `**Answer**\n${md}`,
+            followUp: refiChips[0].label, follow_up_chips: refiChips,
         });
+
     }
     // HR-MEMORY:GROK-CALL
     // Inject prior conversation context + current user question into Grok
