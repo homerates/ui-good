@@ -2535,7 +2535,10 @@ MEMORY RULES (for follow-up questions):
                     const all = [...qFull.matchAll(/(\d+\.?\d*)\s*%/g)].map(m => parseFloat(m[1])).filter(r => r > 1 && r < 20);
                     return all.length >= 2 ? { 1: String(all[all.length - 1]) } as any : null;
                 })();
-            const newRate = newRM ? parseFloat((newRM as any)[1]) : null;
+            let newRate = newRM ? parseFloat((newRM as any)[1]) : null;
+            // Fall back to stored offered rate from memory (so follow-ups like "what if 5 years"
+            // keep the original offered rate rather than defaulting to market rate)
+            if (!newRate && memRefi?.rate_used_pct) newRate = memRefi.rate_used_pct;
 
             // Years info
             const ylM = qFull.match(/(\d+)\s*(?:years?|yrs?)\s*(?:left|remaining|to\s*go)/i);
