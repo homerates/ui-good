@@ -3052,6 +3052,9 @@ ${uwAnswerText}`,
         return hasPrice && hasMortgageContext && !isFHA && !isAffordability && !isIncomeQualify;
     }
 
+    // HARD OVERRIDE: "Ask Underwriting:" prefix bypasses ALL calculators
+    const isAskUnderwriting = /^\s*ask\s+underwriting\s*:/i.test(question);
+
     // For mortgage follow-ups like "what if the home is $560k", check if conversation
     // has income/savings context. If so, flag for FHA reroute (processed in FHA block below).
     let mortgageRerouteToFHA: { price: number; income: number; savings: number } | null = null;
@@ -3447,9 +3450,6 @@ What's your situation?`,
     const isFHAFollowUp = !isFHAQuestion(question) &&
         /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(question) &&
         /\bfha\b|\bmip\b|\bufmip\b/i.test(conversationHistory || '');
-
-    // HARD OVERRIDE: "Ask Underwriting:" prefix bypasses ALL calculators
-    const isAskUnderwriting = /^\s*ask\s+underwriting\s*:/i.test(question);
 
     if (!isAskUnderwriting && !affordabilityAnswer && (isFHAQuestion(question) || isFHAFollowUp)) {
         console.log('[FHA] Detected FHA question');
