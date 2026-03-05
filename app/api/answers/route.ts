@@ -667,6 +667,22 @@ ${params.monthlyDebt > 200 ? `💳 **Your $${params.monthlyDebt}/mo in debt is c
 function isFHAQuestion(question: string): boolean {
     const text = question.toLowerCase();
 
+    // "Ask Underwriting:" prefix — always UW, never FHA calc
+    if (/^\s*ask\s+underwriting\s*:/i.test(question)) return false;
+
+    // Savings timeline / planning questions — never FHA calc
+    // e.g. "how long until I can buy if I save $1,500/month"
+    const isSavingsTimeline =
+        /how.{0,10}long.{0,20}(save|saving|until|buy|afford)|how.{0,10}many.{0,10}month|when.{0,15}(buy|afford|ready)|save.{0,20}month/i.test(text) ||
+        /saving.{0,20}month|months.{0,20}(to|until|before).{0,20}(buy|close|afford)/i.test(text);
+    if (isSavingsTimeline) return false;
+
+    // Pure educational / underwriting questions — never FHA calc
+    const isEducational =
+        /chapter.{0,5}(7|11|13)|bankrupt|bk\b|foreclosur|deed.in.lieu|short sale|waiting period/i.test(text) ||
+        /credit.{0,10}event|derogatory|explain.{0,20}(fha|mip|ufmip)|difference.{0,20}between/i.test(text);
+    if (isEducational) return false;
+
     // Conceptual/comparison/educational — never route to FHA calc
     const isConceptual =
         /pros.{0,10}cons|which is better|should i (use|choose|go with)|compare.*for.*buyer/i.test(text) ||
@@ -1881,11 +1897,18 @@ async function handle(req: NextRequest, intentParam?: string) {
             "Parse conversation: income, debts, credit score, target payment — use ONLY given; ask once if missing.\n" +
             "Label illustrations 'Example Scenario'. Use FRED live rate if provided in context; otherwise assume current market ~6.0%.\n" +
             "CRITICAL — Use ACTUAL 2026 guidelines, NOT outdated 28/36 rule:\n" +
-            "  • Conventional (Fannie Mae/Freddie Mac): 45% back-end max (DU approval up to 50% with compensating factors). [singlefamily.fanniemae.com]\n" +
-            "  • FHA: 43% back-end max (up to 50% with compensating factors per HUD 4000.1). [hud.gov]\n" +
+            "  • DEFAULT 43% back-end — standard threshold for FHA and conventional baseline. [HUD 4000.1 / Fannie B3-6]\n" +
+            "  • STRETCH 45% back-end — Fannie/Freddie DU may approve with compensating factors (720+ FICO, 6mo reserves). [singlefamily.fanniemae.com]\n" +
+            "  • MAX 50% — DU exception only, not a standard path.\n" +
             "  • Back-end = (PITI + all monthly debts) ÷ gross monthly income.\n" +
-            "  • NEVER use 28/36 — that is an outdated rule of thumb, not current lender guidelines.\n" +
-            "INCOME BACK-SOLVE: When user asks how much income needed, calculate: required gross = PITI ÷ 0.43 × 12 (FHA) or PITI ÷ 0.45 × 12 (conventional).\n" +
+            "  • NEVER use 28/36 — outdated rule of thumb, not current lender guidelines.\n" +
+            "INCOME BACK-SOLVE — MANDATORY STEPS:\n" +
+            "  1) P&I: amortization formula M = L×[r(1+r)^n/((1+r)^n-1)], r=rate/12, n=360\n" +
+            "  2) PITI: P&I + taxes(1.25%/yr÷12) + ins($150/mo) + PMI if <20% down (0.7%/yr÷12)\n" +
+            "  3) Income: (PITI + other debts) ÷ DTI × 12. PRIMARY at 43% DTI. Secondary at 45%.\n" +
+            "  CRITICAL: PMI must be in PITI for <20% down — do NOT omit it.\n" +
+            "  Verified: 5.98% on $807,500 → P&I=$4,831 + Tax=$885 + PMI=$538 = PITI=$6,254\n" +
+            "  Correct income at 43%: $6,254÷0.43×12 = $174,600/yr\n" +
             "LOAN LIMITS: $807,500 on $850k home — check if county is high-balance (CA most counties $832,750+). Jumbo if over county limit.\n" +
             "Table: max PITI, required income at 43% DTI, required income at 45% DTI. Cite [Fannie Mae Selling Guide] or [HUD 4000.1]. No fluff. Tone: calm, decisive. Respond in 150-250 words max. End with disclaimer.",
 
@@ -3032,7 +3055,7 @@ ${uwAnswerText}`,
     // For mortgage follow-ups like "what if the home is $560k", check if conversation
     // has income/savings context. If so, flag for FHA reroute (processed in FHA block below).
     let mortgageRerouteToFHA: { price: number; income: number; savings: number } | null = null;
-    if (isMortgageCalculation(question)) {
+    if (!isAskUnderwriting && isMortgageCalculation(question)) {
         const histText = conversationHistory || '';
         const incMatch = question.match(/(?:make|earn|income|salary)[^\d]*\$?\s*([\d,]+)\s*k?\b/i) ||
             histText.match(/(?:make|earn|income|salary)[^\d]*\$?\s*([\d,]+)\s*k?\b/i);
@@ -3054,7 +3077,7 @@ ${uwAnswerText}`,
         }
     }
 
-    if (!mortgageRerouteToFHA && isMortgageCalculation(question)) {
+    if (!isAskUnderwriting && !mortgageRerouteToFHA && isMortgageCalculation(question)) {
         const params = extractMortgageParams(question, fred?.mort30Avg ?? undefined);
 
         if (params && params.price) {
@@ -3425,7 +3448,10 @@ What's your situation?`,
         /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(question) &&
         /\bfha\b|\bmip\b|\bufmip\b/i.test(conversationHistory || '');
 
-    if (!affordabilityAnswer && (isFHAQuestion(question) || isFHAFollowUp)) {
+    // HARD OVERRIDE: "Ask Underwriting:" prefix bypasses ALL calculators
+    const isAskUnderwriting = /^\s*ask\s+underwriting\s*:/i.test(question);
+
+    if (!isAskUnderwriting && !affordabilityAnswer && (isFHAQuestion(question) || isFHAFollowUp)) {
         console.log('[FHA] Detected FHA question');
 
         const fhaParams = extractFHAParams(question);
