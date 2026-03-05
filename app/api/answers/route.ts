@@ -3459,6 +3459,9 @@ What's your situation?`,
         /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(question) &&
         /\bfha\b|\bmip\b|\bufmip\b/i.test(conversationHistory || '');
 
+    // Detect compare FHA vs conventional — will run both calcs below
+    const isCompareWithConv = /compare.{0,30}(?:fha.{0,30}conv|conv.{0,30}fha)|fha.{0,20}vs.{0,20}conv|vs.{0,20}conventional/i.test(question);
+
     if (!isAskUnderwriting && !affordabilityAnswer && (isFHAQuestion(question) || isFHAFollowUp)) {
         console.log('[FHA] Detected FHA question');
 
@@ -3517,10 +3520,16 @@ What's your situation?`,
 
             try {
                 // Calculate FHA loan
+                // Resolve rate: explicit > FRED live > last-resort 6.5
+                // Mutate fhaParams so buildFHAMarkdown template shows the real rate
+                if (!fhaParams.interestRate) {
+                    fhaParams.interestRate = fred?.mort30Avg || 6.5;
+                }
+
                 const fhaResult = calculateFHA({
                     purchasePrice: fhaParams.purchasePrice,
                     downPaymentPct: fhaParams.downPaymentPct || 3.5,
-                    interestRate: fhaParams.interestRate || fred?.mort30Avg || 6.5,
+                    interestRate: fhaParams.interestRate,
                     creditScore: fhaParams.creditScore || 580,
                     loanTerm: 30,
                     propertyTaxRate: fhaParams.propertyTaxRate || 1.1,
@@ -3606,6 +3615,38 @@ What's your situation?`,
 
                 // Build markdown answer
                 const fhaMarkdown = buildFHAMarkdown(fhaParams, fhaResult, comparison, fhaAssumptions);
+
+                // If user asked "compare FHA vs conventional", append conventional side
+                let comparisonAppend = '';
+                if (isCompareWithConv && fhaParams.purchasePrice) {
+                    const convPrice = fhaParams.purchasePrice;
+                    const convDown = /5\s*%/i.test(question) ? 0.05 : /10\s*%/i.test(question) ? 0.10 : /20\s*%/i.test(question) ? 0.20 : 0.05;
+                    const convDownAmt = Math.round(convPrice * convDown);
+                    const convLoan = convPrice - convDownAmt;
+                    const convRate = fhaParams.interestRate / 100;
+                    const r = convRate / 12; const n = 360;
+                    const convPI = Math.round(convLoan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+                    const convPMI = convDown < 0.20 ? Math.round(convLoan * 0.006 / 12) : 0;
+                    const convTax = Math.round(convPrice * 0.011 / 12);
+                    const convIns = 150;
+                    const convTotal = convPI + convPMI + convTax + convIns;
+                    const convDTI = fhaParams.annualIncome ? ((convTotal / (fhaParams.annualIncome / 12)) * 100).toFixed(1) : '—';
+                    const convCash = convDownAmt + Math.round(convPrice * 0.03);
+                    comparisonAppend = `\n\n---\n\n## 🏛️ Conventional (${Math.round(convDown * 100)}% down) — Side-by-Side\n\n` +
+                        `| Component | Amount |\n|-----------|--------|\n` +
+                        `| Down Payment (${Math.round(convDown * 100)}%) | $${convDownAmt.toLocaleString()} |\n` +
+                        `| Loan Amount | $${convLoan.toLocaleString()} |\n` +
+                        `| Principal & Interest | $${convPI.toLocaleString()} |\n` +
+                        `${convPMI ? `| PMI (~0.6%/yr) | $${convPMI.toLocaleString()}/mo |\n` : '| PMI | ❌ None (20%+ down) |\n'}` +
+                        `| Property Taxes (est.) | $${convTax.toLocaleString()} |\n` +
+                        `| Home Insurance | $${convIns} |\n` +
+                        `| **Total Monthly** | **$${convTotal.toLocaleString()}** |\n\n` +
+                        `- DTI: **${convDTI}%** of gross monthly income\n` +
+                        `- Cash needed: $${convCash.toLocaleString()} (down + ~3% closing)\n` +
+                        `${convPMI ? `- PMI cancels at 80% LTV (~\$${Math.round(convLoan * 0.0006 * 12).toLocaleString()}/yr savings)\n` : ''}` +
+                        `\n> 💡 **FHA vs Conventional:** FHA has lower down (3.5% vs ${Math.round(convDown * 100)}%) but MIP lasts life of loan. Conventional PMI cancels at 80% LTV.\n` +
+                        `\n**[Fannie Mae Selling Guide B3-6](https://selling-guide.fanniemae.com) | [HUD 4000.1](https://www.hud.gov/handbook/4000-1)**`;
+                }
 
                 // Generate dynamic follow-up chips
                 // Each chip has: label (displayed to user) + seed (fills the Ask pill as a natural question)
@@ -3759,7 +3800,7 @@ What's your situation?`,
                 const fhaFollowUp = chips[0]?.label ?? "Want to explore different down payment or loan scenarios?";
 
                 fhaAnswer = {
-                    answer: fhaMarkdown,
+                    answer: fhaMarkdown + comparisonAppend,
                     next_step: "Get FHA pre-approval from an FHA-approved lender. Check credit score and verify down payment source.",
                     follow_up: fhaFollowUp,
                     follow_up_chips: chips,
