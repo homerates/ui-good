@@ -603,7 +603,7 @@ ${s.monthlyMI > 0 ? `| ${s.isFHA ? 'FHA MIP (0.55%/yr)' : 'PMI (~0.5%/yr)'} | $$
 
 ${s.isFHA ? `> ⚠️ **FHA MIP never cancels** on loans with <10% down. At your income, refinancing to conventional once you hit 20% equity saves ~$${s.monthlyMI}/mo.` : s.monthlyMI > 0 ? `> 💡 **PMI cancels** at 80% LTV — saves you $${s.monthlyMI}/mo when it drops off.` : `> ✅ **No PMI** — 20% down eliminates mortgage insurance entirely.`}
 
-- DTI: **${s.dtiRatio}%** housing${params.monthlyDebt > 0 ? ` + $${params.monthlyDebt}/mo debt = **${((s.totalMonthly + params.monthlyDebt) / monthlyGross * 100).toFixed(1)}% back-end**` : ''} of $${monthlyGross.toLocaleString()}/mo gross
+- DTI: **${(s.totalMonthly / monthlyGross * 100).toFixed(1)}%** housing${params.monthlyDebt > 0 ? ` + $${params.monthlyDebt}/mo debt = **${s.dtiRatio}% back-end**` : ''} of $${monthlyGross.toLocaleString()}/mo gross
 - Total interest over 30yr: **$${Math.round(s.totalInterest / 1000)}k**
 ${cashNote(s)}`;
 
@@ -994,12 +994,16 @@ function extractDSCRParams(q: string, fredRate?: number) {
     const hoaMatch = q.match(/hoa\s*[\$:]?\s*([\d,]+)/i) || q.match(/\$\s*([\d,]+)\s*hoa/i);
     const hoaMonthly = hoaMatch ? parseFloat(hoaMatch[1].replace(/,/g, '')) : 0;
 
+    const vacancyMatch = q.match(/(\d+\.?\d*)\s*%\s*vacanc/i) ||
+        q.match(/vacanc\w*\s*(?:rate|loss|factor)?\s*(?:of\s*)?(\d+\.?\d*)\s*%/i);
+    const vacancyRate = vacancyMatch ? parseFloat(vacancyMatch[1]) / 100 : 0;
+
     const hasInfo = !!(purchasePrice && grossMonthlyRent);
-    return { purchasePrice, downPaymentPct, interestRate, grossMonthlyRent, propertyTaxRate, annualInsurance: 1200, hoaMonthly, rateFromFRED, hasInfo };
+    return { purchasePrice, downPaymentPct, interestRate, grossMonthlyRent, vacancyRate, propertyTaxRate, annualInsurance: 1200, hoaMonthly, rateFromFRED, hasInfo };
 }
 
 function buildDSCRMarkdown(params: ReturnType<typeof extractDSCRParams>): object {
-    const { purchasePrice, downPaymentPct, interestRate, grossMonthlyRent, propertyTaxRate, annualInsurance, hoaMonthly, rateFromFRED } = params as any;
+    const { purchasePrice, downPaymentPct, interestRate, grossMonthlyRent, vacancyRate, propertyTaxRate, annualInsurance, hoaMonthly, rateFromFRED } = params as any;
 
     const downPayment = purchasePrice * (downPaymentPct / 100);
     const loanAmount = purchasePrice - downPayment;
@@ -1010,8 +1014,11 @@ function buildDSCRMarkdown(params: ReturnType<typeof extractDSCRParams>): object
     const monthlyIns = (annualInsurance || 1200) / 12;
     const monthlyHOA = hoaMonthly || 0;
     const monthlyPITIA = monthlyPI + monthlyTax + monthlyIns + monthlyHOA;
-    const dscr = grossMonthlyRent / monthlyPITIA;
-    const monthlyCashFlow = grossMonthlyRent - monthlyPITIA;
+    // EGI = Effective Gross Income after vacancy loss
+    const vacPct = (vacancyRate || 0);
+    const egi = grossMonthlyRent * (1 - vacPct);
+    const dscr = egi / monthlyPITIA;
+    const monthlyCashFlow = egi - monthlyPITIA;
     const annualCashFlow = monthlyCashFlow * 12;
     const totalInterest = (monthlyPI * 360) - loanAmount;
 
@@ -1076,8 +1083,10 @@ ${hoaRow}| **Total PITIA** | **$${Math.round(monthlyPITIA).toLocaleString()}** |
 | Metric | Value |
 |--------|-------|
 | Gross Monthly Rent | $${grossMonthlyRent.toLocaleString()} |
+${vacPct > 0 ? `| Vacancy Loss (${Math.round(vacPct * 100)}%) | -$${Math.round(grossMonthlyRent * vacPct).toLocaleString()} |` : ''}${vacPct > 0 ? `
+| **Effective Gross Income (EGI)** | **$${Math.round(egi).toLocaleString()}** |` : ''}
 | Monthly PITIA | $${Math.round(monthlyPITIA).toLocaleString()} |
-| **DSCR (Rent ÷ PITIA)** | **${dscr.toFixed(2)}x** |
+| **DSCR (EGI ÷ PITIA)** | **${dscr.toFixed(2)}x** |
 | Monthly Cash Flow | ${monthlyCashFlow >= 0 ? '+' : ''}$${Math.round(monthlyCashFlow).toLocaleString()} |
 | Annual Cash Flow | ${annualCashFlow >= 0 ? '+' : ''}$${Math.round(annualCashFlow).toLocaleString()} |
 
@@ -3061,7 +3070,9 @@ ${uwAnswerText}`,
         // "Show me my monthly payment on a $Xk home" — specific-home payment lookup → fha-calculator
         // Without this, general AI recycles prior rate scenario numbers (e.g. Q14 5.5% numbers used at 5.98%)
         const isPaymentLookup = /(?:show me|what.?s|what is|calculate|tell me).{0,20}(?:monthly|payment).{0,30}\$\s*[\d,]+|monthly payment on.{0,20}\$\s*[\d,]+/i.test(q);
-        return (hasPrice && hasMortgageContext && !isFHA && !isAffordability && !isIncomeQualify) || isPaymentLookup;
+        const isDSCR = isDSCRQuestion(q);
+        // DSCR/investment questions must never route to mortgage calc — they need their own handler
+        return (hasPrice && hasMortgageContext && !isFHA && !isAffordability && !isIncomeQualify && !isDSCR) || isPaymentLookup;
     }
 
     // HARD OVERRIDE: "Ask Underwriting:" prefix bypasses ALL calculators
@@ -3465,6 +3476,41 @@ What's your situation?`,
 
     // Detect compare FHA vs conventional — will run both calcs below
     const isCompareWithConv = /compare.{0,30}(?:fha.{0,30}conv|conv.{0,30}fha)|fha.{0,20}vs.{0,20}conv|vs.{0,20}conventional/i.test(question);
+
+    // Standalone savings timeline: "$Xk gap, save $Y/month — how long?"
+    const stGapMatch = question.match(/(?:need|short|gap|require)[^.]*?\$?\s*([\d,]+)k?\s*(?:more|short|gap)/i) ||
+        question.match(/\$?\s*([\d,]+)k?\s*(?:more|short)\s*(?:for|to|until)/i);
+    const stRateMatch = question.match(/save\s*\$?\s*([\d,]+)\s*(?:\/month|\/mo|per month|a month|month)/i) ||
+        question.match(/saving\s*\$?\s*([\d,]+)\s*(?:\/month|\/mo|per month|a month|month)/i);
+    const stHasHowLong = /how.{0,15}long|how.{0,10}many.{0,10}month|when.{0,15}(ready|buy|close)|months.{0,10}(until|to)/i.test(question);
+
+    if (!isAskUnderwriting && !affordabilityAnswer && stGapMatch && stRateMatch && stHasHowLong) {
+        const rawGap = stGapMatch[1].replace(/,/g, '');
+        const gapAmt = parseFloat(rawGap) * (/k\b/i.test(stGapMatch[0]) ? 1000 : 1);
+        const monthlyRate = parseFloat(stRateMatch[1].replace(/,/g, ''));
+        if (gapAmt > 0 && monthlyRate > 0) {
+            const months = Math.ceil(gapAmt / monthlyRate);
+            const readyDate = new Date();
+            readyDate.setMonth(readyDate.getMonth() + months);
+            const readyStr = readyDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const half = Math.round(months / 2);
+            const halfway = Math.round(monthlyRate * half);
+            const interestEst = Math.round(gapAmt * 0.045 / 12 * months / 2);
+            const stAnswer = {
+                answer: `**Savings Timeline**\n\nSaving **$${monthlyRate.toLocaleString()}/month** to close a **$${Math.round(gapAmt / 1000)}k gap**:\n\n| Metric | Value |\n|--------|-------|\n| Cash gap | $${Math.round(gapAmt).toLocaleString()} |\n| Monthly savings | $${monthlyRate.toLocaleString()} |\n| **Months to close** | **${months}** |\n| Ready-to-buy | **${readyStr}** |\n\n**Milestones:**\n\n| Milestone | Month | Saved |\n|-----------|-------|-------|\n| Halfway | ${half} | $${halfway.toLocaleString()} |\n| **Done** | **${months}** | **$${Math.round(gapAmt).toLocaleString()}** |\n\n> 💡 In a 4.5% HYSA your savings earn ~$${interestEst} in interest over this period — can shave a month off the timeline.\n\n**[FHA Gift Funds — HUD 4000.1](https://www.hud.gov/handbook/4000-1)** | Can a family gift accelerate your timeline?`,
+                next_step: `Open a high-yield savings account and automate $${monthlyRate.toLocaleString()}/mo transfers.`,
+                follow_up: `What's your credit score? It determines FHA approval odds.`,
+                follow_up_chips: [
+                    { label: `What if I save $${Math.round(monthlyRate * 1.5).toLocaleString()}/mo instead?`, seed: `How long until I can buy if I save $${Math.round(monthlyRate * 1.5).toLocaleString()}/month? I need $${Math.round(gapAmt / 1000)}k more for FHA closing` },
+                    { label: `Can gift funds cover my gap?`, seed: `Can gift funds cover my FHA down payment? I need $${Math.round(gapAmt / 1000)}k more` },
+                    { label: `What if rates drop to 5.5%?`, seed: `What happens to my FHA payment if rates drop to 5.5%?` }
+                ],
+                confidence: `1.00 — $${Math.round(gapAmt).toLocaleString()} / $${monthlyRate.toLocaleString()}/mo = ${months} months`
+            };
+            affordabilityAnswer = stAnswer;
+            console.log(`[SavingsTimeline] gap=${gapAmt} rate=${monthlyRate}/mo -> ${months} months`);
+        }
+    }
 
     if (!isAskUnderwriting && !affordabilityAnswer && (isFHAQuestion(question) || isFHAFollowUp)) {
         console.log('[FHA] Detected FHA question');
