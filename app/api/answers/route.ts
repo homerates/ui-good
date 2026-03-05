@@ -356,7 +356,7 @@ function extractAffordabilityParams(question: string): {
     const savingsMatch = rawSavingsMatches.find(m => {
         if (!m) return false;
         const idx = m.index ?? 0;
-        const surrounding = text.slice(Math.max(0, idx - 5), idx + m[0].length + 12);
+        const surrounding = text.slice(Math.max(0, idx - 15), idx + m[0].length);
         return !debtKeywords.test(surrounding);
     }) || null;
     let savings = savingsMatch ? parseFloat(savingsMatch[1]) : undefined;
