@@ -915,7 +915,7 @@ ${result.qualifies ? '✅ **You qualify** based on DTI!' : '⚠️ **DTI too hig
 
 ${result.meetsCreditRequirement ? '✅' : '❌'} Credit score ≥ 580 (for 3.5% down) or ≥ 500 (for 10% down)
 ${result.meetsDownPaymentRequirement ? '✅' : '❌'} Down payment ≥ 3.5%
-${result.withinLimits ? '✅' : '❌'} Loan amount ≤ $${(result.fhaLoanLimit / 1000).toFixed(0)}k (FHA limit)
+${result.withinLimits ? '✅' : '❌'} Loan amount ≤ $${((result.fhaLoanLimit && result.fhaLoanLimit > 500000 ? result.fhaLoanLimit : 541287) / 1000).toFixed(0)}k (FHA 2026 floor; high-cost areas up to $1,249k)
 ${result.qualifies !== undefined ? (result.qualifies ? '✅' : '❌') + ' DTI ≤ 43%' : ''}
 
 **FHA Advantages:**
@@ -1413,9 +1413,14 @@ function generateFallbackChips(
     let savings = savMatch ? parseFloat(savMatch[1].replace(/,/g, '')) : 0;
     if (savings && savings < 1000) savings *= 1000;
 
-    const priceMatch = combined.match(/\$\s*([\d,]+(?:,\d{3})*)\s*k?\s*(?:home|house|property|purchase)?/i);
-    let price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : 0;
+    // Price: prefer explicit home/property context; exclude if income keyword nearby
+    const priceMatchCtxChip = combined.match(/\$\s*([\d,]+(?:,\d{3})*)\s*k?\s*(?:home|house|property|purchase)/i);
+    const incomeNearbyChip = /(?:income|salary|earn|make|making|year|annual)[^$]{0,20}\$[\d,]+|\$[\d,]+[^$]{0,20}(?:income|salary|year|annual)/i.test(combined);
+    const priceMatch = priceMatchCtxChip || (!incomeNearbyChip ? combined.match(/\$\s*([\d,]+(?:,\d{3})*)\s*k?/i) : null);
+    let price = priceMatch ? parseFloat((priceMatch[1] as string).replace(/,/g, '')) : 0;
     if (price && price < 10000) price *= 1000;
+    // Guard: if extracted price equals income, it's likely the income value not a home price
+    if (income && price && Math.abs(price - income) < 1000) price = 0;
 
     const incK = income ? Math.round(income / 1000) : 0;
     const savK = savings ? Math.round(savings / 1000) : 0;
@@ -2848,7 +2853,7 @@ Source: Fannie Mae Selling Guide B3-6 | selling-guide.fanniemae.com. Freddie Mac
 DTI: Standard ≤45% back-end. DU/LP approval up to 50% with strong compensating factors.
 Credit Score: Minimum 620. Best pricing 740+. Below 620 not eligible.
 LTV / Down Payment: Primary 1-unit 3% min (HomeReady/Standard 97). Investment property 15% (1-unit), 25% (2–4 units). Second home 10% min. No PMI at 20%+ down.
-Loan Limits (2026 — EXACT FHFA VALUES, do not interpolate):\nStandard (non-high-balance): 1-unit $806,500 | 2-unit $1,032,650 | 3-unit $1,248,150 | 4-unit $1,551,250.\nCA high-balance ceiling (e.g. LA, OC, SF, SB, SC, SM, SC, Alameda, Contra Costa, Marin, San Benito, Santa Clara): 1-unit $1,249,125 | 2-unit $1,599,375 | 3-unit $1,933,200 | 4-unit $2,402,625.\nCA mid-tier examples: San Diego 1-unit $1,104,000 | Ventura $1,035,000 | Napa $1,017,750 | SLO $1,000,500 | Santa Barbara $941,850 | Sonoma $897,000 | all other CA counties $832,750.\nSource: FHFA CY2026, effective Jan 1 2026.
+Loan Limits (2026 — EXACT FHFA VALUES, do not interpolate):\nStandard (non-high-balance): 1-unit $806,500 | 2-unit $1,032,650 | 3-unit $1,248,150 | 4-unit $1,551,250.\nCA high-balance ceiling (e.g. LA, OC, SF, SB, SC, SM, SC, Alameda, Contra Costa, Marin, San Benito, Santa Clara): 1-unit $1,249,125 | 2-unit $1,599,375 | 3-unit $1,933,200 | 4-unit $2,402,625.\nCA mid-tier examples (1-unit / 2-unit / 3-unit / 4-unit):\n  San Diego: $1,104,000 / $1,413,400 / $1,708,050 / $2,123,900\n  Ventura: $1,035,000 / $1,325,000 / $1,601,600 / $1,990,450\n  Napa: $1,017,750 / $1,303,100 / $1,574,950 / $1,957,650\n  SLO: $1,000,500 / $1,280,800 / $1,548,350 / $1,923,950\n  Santa Barbara: $941,850 / $1,205,900 / $1,457,600 / $1,811,750\n  Sonoma: $897,000 / $1,148,400 / $1,388,200 / $1,725,350\n  All other CA counties: $832,750 / $1,066,250 / $1,288,900 / $1,601,950.\nSource: FHFA CY2026, effective Jan 1 2026.
 Reserves: Primary 1-unit 0–2 months typical. Investment property 6 months PITIA. Multiple financed properties: 2% of aggregate UPB.
 Employment: 2-year history standard. Recent job change OK if same field.
 Gift Funds: Allowed for primary and second homes. NOT allowed for investment properties.
@@ -3049,7 +3054,10 @@ ${uwAnswerText}`,
         const isAffordability = isAffordabilityQuestion(q);
         // Income qualification questions need income back-calculation, not payment breakdown
         const isIncomeQualify = /how much income|what income|what salary|income.*(?:need|qualify|required?)|(?:need|qualify).{0,20}income/i.test(q);
-        return hasPrice && hasMortgageContext && !isFHA && !isAffordability && !isIncomeQualify;
+        // "Show me my monthly payment on a $Xk home" — specific-home payment lookup → fha-calculator
+        // Without this, general AI recycles prior rate scenario numbers (e.g. Q14 5.5% numbers used at 5.98%)
+        const isPaymentLookup = /(?:show me|what.?s|what is|calculate|tell me).{0,20}(?:monthly|payment).{0,30}\$\s*[\d,]+|monthly payment on.{0,20}\$\s*[\d,]+/i.test(q);
+        return (hasPrice && hasMortgageContext && !isFHA && !isAffordability && !isIncomeQualify) || isPaymentLookup;
     }
 
     // HARD OVERRIDE: "Ask Underwriting:" prefix bypasses ALL calculators
