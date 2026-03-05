@@ -365,8 +365,12 @@ function extractAffordabilityParams(question: string): {
         savings *= 1000;
     }
 
-    // Debt: "$300 car payment", "$500/month debt", "$800 in monthly debt"
+    // Debt: "$300 car payment", "$500/month debt", "$800 in monthly debt",
+    //       "pay $300/month in car payments", "$300/month in debt"
     const debtMatch = text.match(/\$?\s*(\d+)\s*(?:car|student|monthly|month|\/month)\s*(?:payment|debt|loan)/i) ||
+        text.match(/(?:pay|paying)\s*\$?\s*(\d+)\s*(?:\/month|\/mo|per month|a month|month)/i) ||
+        text.match(/\$?\s*(\d+)\s*\/month\s*(?:in\s*)?(?:car|debt|student|credit|loan)/i) ||
+        text.match(/\$?\s*(\d+)\s*(?:month|monthly)\s*(?:in\s*)?(?:car|debt|loan|payments?)/i) ||
         text.match(/\$?\s*(\d+)\s*(?:\/mo|per month|monthly|a month|month)\s*(?:in\s*)?(?:debt|payments?|obligations?)/i) ||
         text.match(/(?:car|student|credit)\s*(?:payment|loan|debt)[^\d]*\$?\s*(\d+)/i) ||
         text.match(/\$?\s*(\d+)\s*(?:car payment|student loan|debt payment|loan payment)/i);
@@ -599,7 +603,7 @@ ${s.monthlyMI > 0 ? `| ${s.isFHA ? 'FHA MIP (0.55%/yr)' : 'PMI (~0.5%/yr)'} | $$
 
 ${s.isFHA ? `> ⚠️ **FHA MIP never cancels** on loans with <10% down. At your income, refinancing to conventional once you hit 20% equity saves ~$${s.monthlyMI}/mo.` : s.monthlyMI > 0 ? `> 💡 **PMI cancels** at 80% LTV — saves you $${s.monthlyMI}/mo when it drops off.` : `> ✅ **No PMI** — 20% down eliminates mortgage insurance entirely.`}
 
-- DTI: **${s.dtiRatio}%** of $${monthlyGross.toLocaleString()}/mo gross
+- DTI: **${s.dtiRatio}%** housing${params.monthlyDebt > 0 ? ` + $${params.monthlyDebt}/mo debt = **${((s.totalMonthly + params.monthlyDebt) / monthlyGross * 100).toFixed(1)}% back-end**` : ''} of $${monthlyGross.toLocaleString()}/mo gross
 - Total interest over 30yr: **$${Math.round(s.totalInterest / 1000)}k**
 ${cashNote(s)}`;
 
@@ -3617,8 +3621,13 @@ What's your situation?`,
                 const fhaMarkdown = buildFHAMarkdown(fhaParams, fhaResult, comparison, fhaAssumptions);
 
                 // If user asked "compare FHA vs conventional", append conventional side
+                // Guard: skip if AI already generated a comparison table (avoids duplicates)
                 let comparisonAppend = '';
-                if (isCompareWithConv && fhaParams.purchasePrice) {
+                const aiAlreadyHasComparison = fhaMarkdown.includes('🆚') ||
+                    /vs\.?\s*conventional comparison/i.test(fhaMarkdown) ||
+                    fhaMarkdown.includes('Side-by-Side') ||
+                    fhaMarkdown.includes('FHA vs Conventional');
+                if (isCompareWithConv && fhaParams.purchasePrice && !aiAlreadyHasComparison) {
                     const convPrice = fhaParams.purchasePrice;
                     const convDown = /5\s*%/i.test(question) ? 0.05 : /10\s*%/i.test(question) ? 0.10 : /20\s*%/i.test(question) ? 0.20 : 0.05;
                     const convDownAmt = Math.round(convPrice * convDown);
