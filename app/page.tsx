@@ -37,6 +37,11 @@ const ANON_DAILY_LIMIT = 3;
 const SIGNED_METER_KEY = 'hr.signed.q.v1';
 const SIGNED_DAILY_LIMIT = 100; // signed-in, triggers Upgrade modal
 
+// Admin users — unlimited, bypasses all rate limiting and upgrade modals
+const ADMIN_USER_IDS = new Set([
+    'user_35xDE51bR0NTaKEpwZMbHtn752O',
+]);
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
     iso ? iso.replace('T', ' ').replace('Z', 'Z') : 'n/a';
@@ -101,6 +106,9 @@ function bumpAnonCounterOrBlock(): boolean {
  */
 function bumpSignedCounterOrBlock(userId: string | null | undefined): boolean {
     try {
+        // Admin users are never rate-limited
+        if (userId && ADMIN_USER_IDS.has(userId)) return true;
+
         if (typeof window === 'undefined') return true;
 
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -187,8 +195,9 @@ type ApiResponse = {
 
     // ===== New fields for Grok + AnswerCard =====
     answerMarkdown?: string; // rich markdown answer we render in the card
-    followUp?: string;       // camelCase version from backend
-    follow_up?: string;      // snake_case version if Grok uses it
+    followUp?: string;       // camelCase version from backend (display text)
+    follow_up?: string;      // snake_case version if Grok uses it (display text)
+    follow_up_chips?: Array<{ label: string; seed: string }>; // clickable chips: label shown, seed fills pill
     grok?: any;              // full Grok JSON for confidence / next_step / follow_up
     data_freshness?: string; // e.g. "Live 2025–2026 (Grok 4.1)"
     topSources?: Array<{ title: string; url: string }>;
@@ -537,6 +546,23 @@ function scenarioToApiResponse(s: any): ApiResponse {
             ? (meta.confidence === 'high' ? 'high' : meta.confidence === 'low' ? 'low' : 'med')
             : 'med';
 
+    // Pass through chips — refi advisor stores them in multiple places depending on route version:
+    // NEW shape (respond): result.follow_up_chips, meta.follow_up_chips, meta.grok.follow_up_chips
+    // OLD shape (noStore):  s.grok.follow_up_chips, s.follow_up_chips, s.followUp
+    const chips =
+        result?.follow_up_chips ??
+        meta?.follow_up_chips ??
+        meta?.grok?.follow_up_chips ??
+        (s as any)?.grok?.follow_up_chips ??
+        (s as any)?.follow_up_chips ??
+        undefined;
+    const followUpLabel =
+        meta?.followUp ??
+        meta?.grok?.follow_up ??
+        (s as any)?.grok?.follow_up ??
+        (s as any)?.followUp ??
+        undefined;
+
     return {
         path: 'dynamic',
         usedFRED: marketData?.usedFallbacks === false || Boolean(marketData?.date),
@@ -546,6 +572,8 @@ function scenarioToApiResponse(s: any): ApiResponse {
         answer: summary,
         answerMarkdown: md.join('\n'),
         data_freshness: marketData?.date ? `Live (FRED) as of ${marketData.date}` : undefined,
+        followUp: followUpLabel,
+        follow_up_chips: chips,
         grok: {
             scenario: true,
             provider: s?.provider,
@@ -554,6 +582,8 @@ function scenarioToApiResponse(s: any): ApiResponse {
             marketData,
             meta,
             result,
+            follow_up: followUpLabel,
+            follow_up_chips: chips,
         },
     };
 }
@@ -944,57 +974,6 @@ export default function Page() {
         }
     }, []);
 
-    // ── Supabase hydration: restore history + memory thread map on login ──────
-    // Runs once after sign-in. Only fills in what localStorage is missing so an
-    // active session is never clobbered. This is what makes follow-up memory
-    // survive across sessions and devices.
-    useEffect(() => {
-        if (!isSignedIn || !user?.id) return;
-        (async () => {
-            try {
-                const res = await fetch('/api/chat-threads');
-                if (!res.ok) return;
-                const data = await res.json();
-                const rows: any[] = data?.threads ?? [];
-                if (!rows.length) return;
-
-                // Build memoryThreadId map and history from DB rows
-                const dbMemMap: Record<string, string> = {};
-                const dbHistory: { id: string; title: string; updatedAt: number }[] = [];
-                const dbThreads: Record<string, any[]> = {};
-
-                for (const row of rows) {
-                    if (!row.chat_id) continue;
-                    if (row.memory_thread_id) dbMemMap[row.chat_id] = row.memory_thread_id;
-                    if (row.title) dbHistory.push({
-                        id: row.chat_id,
-                        title: row.title,
-                        updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
-                    });
-                    if (Array.isArray(row.messages) && row.messages.length) {
-                        dbThreads[row.chat_id] = row.messages;
-                    }
-                }
-
-                // Merge: localStorage wins if it has data (same-session activity takes priority)
-                setMemoryThreadByChatId(prev =>
-                    Object.keys(prev).length > 0 ? prev : dbMemMap
-                );
-                setHistory(prev =>
-                    Array.isArray(prev) && prev.length > 0 ? prev : dbHistory
-                );
-                setThreads(prev =>
-                    Object.keys(prev).length > 0 ? prev : dbThreads
-                );
-
-                console.log('[chat-threads] Hydrated from Supabase:', rows.length, 'threads');
-            } catch (e) {
-                console.warn('[chat-threads] Hydration failed:', e);
-            }
-        })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSignedIn, user?.id]);
-
     // persist
     useEffect(() => {
         try {
@@ -1363,10 +1342,13 @@ export default function Page() {
                 return;
             }
         } else {
-            const allowed = bumpSignedCounterOrBlock(user?.id);
-            if (!allowed) {
-                setShowUpgradeRequired(true);
-                return;
+            const isAdmin = !!user?.id && ADMIN_USER_IDS.has(user.id);
+            if (!isAdmin) {
+                const allowed = bumpSignedCounterOrBlock(user?.id);
+                if (!allowed) {
+                    setShowUpgradeRequired(true);
+                    return;
+                }
             }
         }
 
@@ -1445,19 +1427,61 @@ export default function Page() {
             // Check if we have a previous route for this thread
             const lastRoute = tid ? lastRouteByThread[tid] : undefined;
 
-            // Detect follow-up indicators
+            // Detect follow-up indicators — covers suggested follow-up clicks like
+            // "show me 10% down scenario", "what if I put 10% down", "show me that option"
             const isFollowUp =
                 t.includes('what if') ||
+                t.includes('what about') ||
                 t.includes('instead') ||
                 t.includes('same property') ||
                 t.includes('same home') ||
                 t.includes('that property') ||
                 t.includes('that home') ||
-                t.includes('previous');
+                t.includes('previous') ||
+                t.includes('show me') ||
+                t.includes('run that') ||
+                t.includes('run it') ||
+                // Refi follow-up patterns
+                t.includes('break even') ||
+                t.includes('breakeven') ||
+                t.includes('break-even') ||
+                t.includes('closing cost') ||
+                t.includes('lender credit') ||
+                t.includes('no cost') ||
+                t.includes('no-cost') ||
+                t.includes('trigger rate') ||
+                t.includes('shorten') ||
+                t.includes('15 year') ||
+                t.includes('15-year') ||
+                t.includes('20 year') ||
+                t.includes('20-year') ||
+                t.includes('extra pay') ||
+                t.includes('principal pay') ||
+                t.includes('sell in') ||
+                t.includes('if i sell') ||
+                t.includes('if we sell') ||
+                t.includes('plan to sell') ||
+                /^\s*(?:yes|yeah|yep|ok|okay|sure|do it|go ahead)\s*$/i.test(q);
 
             let useScenario = false;
 
-            if (isFollowUp && lastRoute) {
+            // FHA questions (with or without conventional comparison) ALWAYS stay in answers route.
+            // Also: if last route was FHA/answers and this looks like a down-payment follow-up,
+            // keep it in answers (e.g. "show me 10% down scenario" after FHA analysis).
+            const isFHAQuestion =
+                /\bfha\b/i.test(q) ||
+                /\bmip\b|\bufmip\b/i.test(q) ||
+                /3\.5\s*%\s*down/i.test(q);
+
+            // Follow-up that changes down payment % while in FHA/affordability context
+            const isDownPaymentFollowUp =
+                lastRoute === 'answers' &&
+                /\b(\d+)\s*%\s*down\b/i.test(q);
+
+            if (isFHAQuestion || isDownPaymentFollowUp) {
+                useScenario = false;
+                console.log('[Routing] FHA/down-payment follow-up, forcing answers route');
+            } else if (isFollowUp && lastRoute) {
                 // Follow-up: stick with previous route
                 useScenario = lastRoute === 'scenario';
                 console.log('[Routing] Follow-up detected, using last route:', lastRoute);
@@ -1465,37 +1489,53 @@ export default function Page() {
                 // Forced via URL parameter
                 useScenario = true;
             } else {
-                // New question: detect route normally
-                const looksLikeScenario =
-                    t.includes('scenario') ||
-                    t.includes('compare') ||
-                    t.includes(' vs ') ||
-                    t.includes('cash out') ||
-                    t.includes('cash-out') ||
-                    t.includes('equity') ||
-                    t.includes('projection') ||
-                    t.includes('stress test') ||
-                    t.includes('10-year') ||
-                    t.includes('10 year') ||
-                    t.includes('5-year') ||
-                    t.includes('5 year') ||
-                    // Investment / DSCR / rental math should always use Smart Scenario (single numeric authority)
-                    t.includes('dscr') ||
-                    t.includes('pitia') ||
-                    t.includes('amortization') ||
-                    t.includes('amortisation') ||
-                    t.includes('cash flow') ||
-                    t.includes('rental') ||
-                    t.includes('rent ') ||
-                    t.includes('investment property') ||
-                    t.includes('vacancy') ||
-                    t.includes('maintenance') ||
-                    t.includes('property tax') ||
-                    t.includes('insurance');
+                // New question: detect route normally.
+                // NOTE: bare 'scenario' word removed — too broad, fires on borrower follow-ups like
+                // "show me a 10% down scenario". Real investment scenarios have DSCR/rent/cash flow context.
 
-                const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
+                // Rate/market questions ALWAYS go to answers (FRED) — never scenario
+                // "30 year fixed", "10 year note/treasury", "current rates", "what are rates"
+                const isRateMarketQuestion =
+                    /\b(30|15|20)\s*[- ]?year\s*(fixed|mortgage|rate|loan)?/i.test(q) ||
+                    /\b10\s*[- ]?year\s*(note|treasury|yield|bond|t-?note)/i.test(q) ||
+                    /\b(current|today.?s?|what.?s?|where.?s?)\s+(mortgage\s+)?rate/i.test(q) ||
+                    /\bfed\s+(rate|fund|funds)/i.test(q) ||
+                    /\b(rate|rates)\s+(right now|today|currently)/i.test(q) ||
+                    /what.{0,20}(10|ten).{0,20}(note|treasury|yield)/i.test(q);
 
-                useScenario = looksLikeScenario && hasNumbersContext;
+                if (isRateMarketQuestion) {
+                    useScenario = false;
+                    console.log('[Routing] Rate/market question — forcing answers route');
+                } else {
+
+                    const looksLikeScenario =
+                        t.includes('compare') ||
+                        t.includes(' vs ') ||
+                        t.includes('cash out') ||
+                        t.includes('cash-out') ||
+                        t.includes('projection') ||
+                        t.includes('stress test') ||
+                        // Investment / DSCR / rental math — always use Smart Scenario
+                        t.includes('dscr') ||
+                        t.includes('pitia') ||
+                        t.includes('amortization') ||
+                        t.includes('amortisation') ||
+                        t.includes('cash flow') ||
+                        t.includes('rental') ||
+                        t.includes('rent') ||
+                        t.includes('investment property') ||
+                        t.includes('vacancy') ||
+                        t.includes('maintenance') ||
+                        t.includes('property tax');
+                    // NOTE: removed '10-year'/'10 year'/'5-year'/'5 year' — these fire on
+                    // rate questions like "30 year fixed" and "10 year note/treasury"
+                    // NOTE: removed 'scenario' (too broad) and 'insurance' (too broad)
+                    // NOTE: removed bare 'equity' — fires on "do I have enough equity in savings"
+
+                    const hasNumbersContext = /\$\s?\d+|\d+%|\b\d+\s*(yr|yrs|year|years)\b/.test(t);
+
+                    useScenario = looksLikeScenario && hasNumbersContext;
+                } // end !isRateMarketQuestion
             }
 
             // Endpoint + payload
@@ -1526,7 +1566,7 @@ export default function Page() {
 
             const raw = await safeJson(r);
             const meta: ApiResponse = useScenario
-                ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.grok ?? raw)
+                ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.answer ?? raw?.grok ?? raw)
                 : (raw as ApiResponse);
 
 
@@ -1535,6 +1575,7 @@ export default function Page() {
                 raw?.memory_thread_id ||
                 raw?.answer?.memory_thread_id ||
                 raw?.meta?.memory_thread_id ||
+                raw?.grok?.meta?.memory_thread_id ||
                 meta?.grok?.meta?.memory_thread_id;
 
             if (returnedMemoryThreadId && tid) {
@@ -1542,19 +1583,6 @@ export default function Page() {
                     ...prev,
                     [tid]: returnedMemoryThreadId
                 }));
-
-                // Persist memory_thread_id + title to Supabase so it survives new sessions.
-                // Fire-and-forget — never blocks the UI.
-                const chatTitle = history.find(h => h.id === tid)?.title ?? title;
-                fetch('/api/chat-threads', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: tid,
-                        title: chatTitle,
-                        memory_thread_id: returnedMemoryThreadId,
-                    }),
-                }).catch(() => { /* non-fatal */ });
             }
 
             // Attach Grok metadata to the assistant message (under m.meta)
@@ -1619,10 +1647,16 @@ export default function Page() {
             typeOutAssistant(answerId, fullText);
 
             // Save which route we used for this thread
+            // If the response was a refi intercept (from either route), always treat as 'scenario'
+            const isRefiBypass =
+                raw?.debug?.bypass === 'refi_advisor_v2' ||
+                raw?.grok?.debug?.bypass === 'refi_advisor_v2' ||
+                (raw?.grok?.confidence as string)?.includes('refi calc') ||
+                (raw?.grok?.confidence as string)?.includes('refi:');
             if (tid) {
                 setLastRouteByThread(prev => ({
                     ...prev,
-                    [tid]: useScenario ? 'scenario' : 'general'
+                    [tid]: (useScenario || isRefiBypass) ? 'scenario' : 'answers'
                 }));
             }
         } catch (e) {
@@ -1845,29 +1879,89 @@ export default function Page() {
                                         {m.role === 'assistant' ? (
                                             // If this is a Grok-style answer with markdown, use GrokCard
                                             m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
-                                                <GrokCard
-                                                    data={{
-                                                        grok: m.meta.grok,
-                                                        answerMarkdown: sanitizeMarkdown(
-                                                            m.meta.answerMarkdown ??
-                                                            (typeof m.content === 'string' ? m.content : '')
-                                                        ),
-
-                                                        followUp: m.meta.followUp ?? m.meta.grok?.follow_up,
-                                                        data_freshness:
-                                                            m.meta.data_freshness ??
-                                                            m.meta.fred?.asOf ??
-
-                                                            '',
-                                                    }}
-                                                    onFollowUp={(q: string) => {
-                                                        if (!q) return;
-                                                        setInput(q);
-                                                        // Then you can review/edit and hit Enter or the Send button
-                                                    }}
-
-
-                                                />
+                                                <>
+                                                    <GrokCard
+                                                        data={{
+                                                            // When chips exist: strip follow_up out of grok entirely
+                                                            // so GrokCard cannot render its own button at all.
+                                                            grok: m.meta.follow_up_chips?.length
+                                                                ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
+                                                                : m.meta.grok,
+                                                            answerMarkdown: sanitizeMarkdown(
+                                                                // Use m.content while typewriter is animating (non-empty),
+                                                                // fall back to m.meta.answerMarkdown once typing completes
+                                                                (typeof m.content === 'string' && m.content.length > 0)
+                                                                    ? m.content
+                                                                    : (m.meta.answerMarkdown ?? '')
+                                                            ),
+                                                            followUp: m.meta.follow_up_chips?.length
+                                                                ? undefined
+                                                                : (m.meta.followUp ?? m.meta.grok?.follow_up),
+                                                            data_freshness:
+                                                                m.meta.data_freshness ??
+                                                                m.meta.fred?.asOf ??
+                                                                '',
+                                                        }}
+                                                        onFollowUp={(q: string) => {
+                                                            // When chips exist, ignore anything GrokCard fires —
+                                                            // chips are the only follow-up mechanism.
+                                                            if (!q || m.meta?.follow_up_chips?.length) return;
+                                                            setInput(q);
+                                                        }}
+                                                    />
+                                                    {/* Smart follow-up chips — only show when answer is complete (not loading) */}
+                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: 6,
+                                                            marginTop: 8,
+                                                            animation: 'chipFadeIn 0.5s ease forwards',
+                                                            opacity: 0,
+                                                        }}>
+                                                            <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
+                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }, i: number) => (
+                                                                <button
+                                                                    key={i}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setInput(chip.seed);
+                                                                        setTimeout(() => {
+                                                                            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
+                                                                            if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+                                                                        }, 50);
+                                                                    }}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        display: 'block',
+                                                                        padding: '10px 16px',
+                                                                        borderRadius: 9999,
+                                                                        border: '1px solid rgba(156, 163, 175, 0.25)',
+                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                        color: 'inherit',
+                                                                        fontSize: 13,
+                                                                        cursor: 'pointer',
+                                                                        textAlign: 'center',
+                                                                        lineHeight: 1.45,
+                                                                        transition: 'background 0.12s, border-color 0.12s',
+                                                                        fontFamily: 'inherit',
+                                                                    }}
+                                                                    onMouseEnter={e => {
+                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
+                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.5)';
+                                                                    }}
+                                                                    onMouseLeave={e => {
+                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
+                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.25)';
+                                                                    }}
+                                                                >
+                                                                    <span style={{ opacity: 0.5, fontWeight: 500, marginRight: 4 }}>Ask:</span>
+                                                                    {chip.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </>
                                             ) : m.meta ? (
                                                 // Legacy / calc answers still use AnswerBlock (Grok card)
                                                 <GrokAnswerBlock
