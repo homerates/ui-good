@@ -589,7 +589,9 @@ function buildAffordabilityMarkdown(
     params: { annualIncome: number; savings: number; monthlyDebt: number },
     scenarios: any[]
 ): string {
-    const [fha, conv3, conv20] = scenarios;
+    const [s0, s1, s2] = scenarios;
+    // Use dynamic aliases — scenario order varies when downPctOverride is set
+    const fha = s0; const conv3 = s1; const conv20 = s2;
     const monthlyGross = Math.round(params.annualIncome / 12);
 
     const cashNote = (s: any) => {
@@ -651,28 +653,29 @@ ${scenarioBlock(conv20, ' — No PMI, best long-term rate')}
 
 ## 📊 Side-by-Side Comparison
 
-| | FHA 3.5% | Conv 3% | Conv 20% |
+| | ${s0.shortLabel || s0.label.replace(/ — .*/, '')} | ${s1.shortLabel || s1.label.replace(/ — .*/, '')} | ${s2.shortLabel || s2.label.replace(/ — .*/, '')} |
 |--|--|--|--|
-| Max home price | $${Math.round(fha.homePrice / 1000)}k | $${Math.round(conv3.homePrice / 1000)}k | $${Math.round(conv20.homePrice / 1000)}k |
-| Cash needed | $${Math.round(fha.totalCashNeeded / 1000)}k | $${Math.round(conv3.totalCashNeeded / 1000)}k | $${Math.round(conv20.totalCashNeeded / 1000)}k |
+| Max home price | $${Math.round(s0.homePrice / 1000)}k | $${Math.round(s1.homePrice / 1000)}k | $${Math.round(s2.homePrice / 1000)}k |
+| Cash needed | $${Math.round(s0.totalCashNeeded / 1000)}k | $${Math.round(s1.totalCashNeeded / 1000)}k | $${Math.round(s2.totalCashNeeded / 1000)}k |
 | You have | $${Math.round(params.savings / 1000)}k | $${Math.round(params.savings / 1000)}k | $${Math.round(params.savings / 1000)}k |
-| Gap to close | ${fha.savingsGap > 0 ? `**$${Math.round(fha.savingsGap / 1000)}k more**` : `✅ Ready`} | ${conv3.savingsGap > 0 ? `**$${Math.round(conv3.savingsGap / 1000)}k more**` : `✅ Ready`} | ${conv20.savingsGap > 0 ? `**$${Math.round(conv20.savingsGap / 1000)}k more**` : `✅ Ready`} |
-| Monthly PITI | $${fha.totalMonthly.toLocaleString()} | $${conv3.totalMonthly.toLocaleString()} | $${conv20.totalMonthly.toLocaleString()} |
-| PMI/MIP | Yes (life of loan) | Yes (until 80% LTV) | ❌ None |
+| Gap to close | ${s0.savingsGap > 0 ? `**$${Math.round(s0.savingsGap / 1000)}k more**` : `✅ Ready`} | ${s1.savingsGap > 0 ? `**$${Math.round(s1.savingsGap / 1000)}k more**` : `✅ Ready`} | ${s2.savingsGap > 0 ? `**$${Math.round(s2.savingsGap / 1000)}k more**` : `✅ Ready`} |
+| Monthly PITI | $${s0.totalMonthly.toLocaleString()} | $${s1.totalMonthly.toLocaleString()} | $${s2.totalMonthly.toLocaleString()} |
+| PMI/MIP | ${s0.monthlyMI > 0 ? (s0.isFHA ? 'Yes (life of loan)' : 'Yes (until 80% LTV)') : '❌ None'} | ${s1.monthlyMI > 0 ? (s1.isFHA ? 'Yes (life of loan)' : 'Yes (until 80% LTV)') : '❌ None'} | ${s2.monthlyMI > 0 ? (s2.isFHA ? 'Yes (life of loan)' : 'Yes (until 80% LTV)') : '❌ None'} |
 
 ---
 
 ## 💡 Your Best Path Forward
 
-${fha.savingsGap === 0 && conv3.savingsGap === 0 ? `✅ **You're ready to buy now.** FHA and Conventional 3% are both within reach with your $${Math.round(params.savings / 1000)}k saved.
+${s0.savingsGap === 0 && s1.savingsGap === 0 ? `✅ **You're ready to buy now.** ${s0.label.replace(/ — .*/, '')} and ${s1.label.replace(/ — .*/, '')} are both within reach with your $${Math.round(params.savings / 1000)}k saved.
 - **Choose FHA** if your credit is under 680 — more lenient approval, 3.5% down
 - **Choose Conventional 3%** if your credit is 680+ — no UFMIP, PMI cancels, lower long-term cost
 - **The $${Math.round((conv20.homePrice - fha.homePrice) / 1000)}k difference** in max home price between FHA and 20% down shows your income's full purchasing power`
-            : fha.savingsGap > 0 ? `⚡ **You need $${Math.round(fha.savingsGap / 1000)}k more to close on FHA** — the fastest path to homeownership on your income.
-- At $500/mo savings: **${Math.ceil(fha.savingsGap / 500)} months** to closing-ready
-- At $1,000/mo savings: **${Math.ceil(fha.savingsGap / 1000)} months** to closing-ready
-- Alternative: Ask about **gift funds** — FHA allows 100% of down payment as a gift from family`
-                : `✅ **You can close on FHA today** — you have enough saved.`}
+            : (() => {
+                const best = [s0, s1, s2].filter(s => s.savingsGap > 0).sort((a, b) => a.savingsGap - b.savingsGap)[0] || s0; return best.savingsGap > 0 ? `⚡ **You need $${Math.round(best.savingsGap / 1000)}k more to close on ${best.label.replace(/ — .*/, '').replace(/[🏠🎯🛡️]/g, '').trim()}** — the fastest path to homeownership on your income.
+- At $500/mo savings: **${Math.ceil(best.savingsGap / 500)} months** to closing-ready
+- At $1,000/mo savings: **${Math.ceil(best.savingsGap / 1000)} months** to closing-ready
+- Alternative: Ask about **gift funds** — FHA allows 100% of down payment as a gift from family` : `✅ **You can close today** — you have enough saved.`;
+            })()}
 
 ${params.monthlyDebt > 200 ? `💳 **Your $${params.monthlyDebt}/mo in debt is costing you buying power.** Paying it off would add ~$${Math.round(params.monthlyDebt * 8 / 1000)}k to your max home price.` : ''}
 
@@ -3325,8 +3328,10 @@ ${dtiSection}
                     line.match(/(?:make|earn|income|salary)[^\d]{0,10}\$?([\d,]+)k?/i);
             }
             if (!histSavings) {
-                histSavings = line.match(/\$?([\d,]+)k?\s*(?:saved|savings|in the bank|in savings|available)/i) ||
-                    line.match(/(?:have|with|savings|bank)[^\d]{0,10}\$?([\d,]+)k?/i);
+                // Prioritize canonical 'You have $Xk' line from affordability answers
+                histSavings = line.match(/You have \$([\d,]+)k?/i) ||
+                    line.match(/\$?([\d,]+)k?\s*(?:saved|savings|in the bank|in savings|available)/i) ||
+                    line.match(/(?:have|saved|savings)\s*\$([\d,]+)k\b/i);
             }
             if (histIncome && histSavings) break;
         }
@@ -3384,6 +3389,7 @@ ${dtiSection}
             const followUpRate = extractAffordabilityParams(question).rateOverride;
             if (followUpRate) (affordParams as any).rateOverride = followUpRate;
             console.log('[Affordability] Follow-up override applied:', affordParams);
+            console.log('[Affordability] priorAffordContext:', priorAffordContext);
         }
 
         if (affordParams.hasInfo) {
@@ -4259,3 +4265,4 @@ export async function GET(req: NextRequest) {
     return handle(req, intent);
 }// build: 2026-03-06-1500
 // build: 2026-03-06-1501
+// build: 2026-03-06-1600
