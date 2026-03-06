@@ -403,8 +403,9 @@ async function generateAffordabilityScenarios(params: {
     savings: number;
     monthlyDebt: number;
     currentRate: number;
+    downPctOverride?: number;
 }) {
-    const { annualIncome, savings, monthlyDebt, currentRate } = params;
+    const { annualIncome, savings, monthlyDebt, currentRate, downPctOverride } = params;
     const monthlyIncome = annualIncome / 12;
 
     // Income-based annuity factor (shared)
@@ -483,11 +484,23 @@ async function generateAffordabilityScenarios(params: {
     }
 
     // 3 scenarios: FHA 3.5%, Conventional 3%, Conventional 20%
-    const results = [
-        calcScenario(0.43, 3.5, 'FHA (3.5% down)', '🏠', 'FHA'),
-        calcScenario(0.43, 3.0, 'Conventional (3% down)', '🎯', 'Conventional'),
-        calcScenario(0.43, 20.0, 'Conventional (20% down)', '🛡️', 'Conventional'),
-    ];
+    // If downPctOverride given (follow-up like "what if 10% down"), show that pct + 20% + FHA comparison
+    let results;
+    if (downPctOverride !== undefined) {
+        const pctLabel = (downPctOverride * 100).toFixed(0);
+        const isFHAPct = downPctOverride <= 0.035;
+        results = [
+            calcScenario(0.43, downPctOverride * 100, `${isFHAPct ? 'FHA' : 'Conventional'} (${pctLabel}% down)`, isFHAPct ? '🏠' : '🎯', isFHAPct ? 'FHA' : 'Conventional'),
+            calcScenario(0.43, 20.0, 'Conventional (20% down)', '🛡️', 'Conventional'),
+            calcScenario(0.43, 3.5, 'FHA (3.5% down) — for comparison', '🏠', 'FHA'),
+        ];
+    } else {
+        results = [
+            calcScenario(0.43, 3.5, 'FHA (3.5% down)', '🏠', 'FHA'),
+            calcScenario(0.43, 3.0, 'Conventional (3% down)', '🎯', 'Conventional'),
+            calcScenario(0.43, 20.0, 'Conventional (20% down)', '🛡️', 'Conventional'),
+        ];
+    }
 
     return results;
 }
@@ -3285,8 +3298,12 @@ ${dtiSection}
         // "what if I pay off my car/debt" → debt = 0
         const payOff = /pay\s*off|zero\s*debt|no\s*debt|without\s*debt|debt.{0,10}free/i.test(t);
 
-        const hasMutator = !!(debtOverride !== undefined || payOff);
-        return { isFollowUp: hasMutator, debtOverride: payOff ? 0 : debtOverride };
+        // "what if 10% down", "put 20% down", "with 5% down" → re-run affordability with new down pct
+        const downPctFollowMatch = t.match(/(?:what if|put|with|use|at|try|show)\s*(?:i\s*(?:put|use)\s*)?(?:a\s*)?(\d+(?:\.\d+)?)\s*%\s*down/i);
+        const downPctOverride = downPctFollowMatch ? parseFloat(downPctFollowMatch[1]) / 100 : undefined;
+
+        const hasMutator = !!(debtOverride !== undefined || payOff || downPctOverride !== undefined);
+        return { isFollowUp: hasMutator, debtOverride: payOff ? 0 : debtOverride, downPctOverride };
     }
 
     // Check debt/savings follow-up FIRST — may override params from memory
@@ -3354,6 +3371,10 @@ ${dtiSection}
             affordParams.annualIncome = priorAffordContext.annualIncome;
             affordParams.savings = priorAffordContext.savings || affordParams.savings || 10000;
             affordParams.monthlyDebt = affordFollowUp.debtOverride ?? priorAffordContext.monthlyDebt ?? 0;
+            // Apply down payment % override (e.g. "what if 10% down")
+            if ((affordFollowUp as any).downPctOverride !== undefined) {
+                (affordParams as any).downPctOverride = (affordFollowUp as any).downPctOverride;
+            }
             (affordParams as any).hasInfo = true;
             // "base it on current rates" — use live FRED rate (already default, but log it)
             if (affordFollowUp.useCurrentRate) {
@@ -3374,7 +3395,8 @@ ${dtiSection}
                 annualIncome: affordParams.annualIncome!,
                 savings: affordParams.savings!,
                 monthlyDebt: affordParams.monthlyDebt || 0,
-                currentRate: rateToUse
+                currentRate: rateToUse,
+                downPctOverride: (affordParams as any).downPctOverride,
             });
 
             const affordabilityMarkdown = buildAffordabilityMarkdown(
@@ -3488,7 +3510,9 @@ What's your situation?`,
 
     // History-aware FHA detection: if prior conversation mentions FHA and current question
     // is a down-payment follow-up ("show me 10% down", "what about 20% down"), treat as FHA question
+    // GUARD: skip if we already produced an affordability answer (don't steal affordability down-pct follow-ups)
     const isFHAFollowUp = !isFHAQuestion(question) &&
+        !affordabilityAnswer &&
         /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(question) &&
         /\bfha\b|\bmip\b|\bufmip\b/i.test(conversationHistory || '');
 
@@ -4233,5 +4257,4 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
     const intent = req.nextUrl.searchParams.get("intent") || undefined;
     return handle(req, intent);
-}
-// build: 2026-03-06-1400
+}// build: 2026-03-06-1500
