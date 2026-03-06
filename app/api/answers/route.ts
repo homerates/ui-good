@@ -3268,7 +3268,7 @@ ${dtiSection}
 
     // Detect debt/savings change follow-ups that should re-run the affordability calculator
     // e.g. "what if I have $800 in monthly debt", "what if I pay off my car"
-    function isAffordabilityFollowUp(q: string): { isFollowUp: boolean; debtOverride?: number; savingsOverride?: number; useCurrentRate?: boolean } {
+    function isAffordabilityFollowUp(q: string): { isFollowUp: boolean; debtOverride?: number; savingsOverride?: number; useCurrentRate?: boolean; downPctOverride?: number } {
         const t = q.toLowerCase();
 
         const isPureRateInfoQuestion =
@@ -4258,3 +4258,4 @@ export async function GET(req: NextRequest) {
     const intent = req.nextUrl.searchParams.get("intent") || undefined;
     return handle(req, intent);
 }// build: 2026-03-06-1500
+// build: 2026-03-06-1501
