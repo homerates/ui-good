@@ -974,6 +974,55 @@ export default function Page() {
         }
     }, []);
 
+    // ── Supabase hydration: restore history + memory thread map on login ──────
+    // Runs once on sign-in. Only fills what localStorage is missing so an active
+    // session is never clobbered. Makes follow-up memory survive across sessions.
+    useEffect(() => {
+        if (!isSignedIn || !user?.id) return;
+        (async () => {
+            try {
+                const res = await fetch('/api/chat-threads');
+                if (!res.ok) return;
+                const data = await res.json();
+                const rows: any[] = data?.threads ?? [];
+                if (!rows.length) return;
+
+                const dbMemMap: Record<string, string> = {};
+                const dbHistory: { id: string; title: string; updatedAt: number }[] = [];
+                const dbThreads: Record<string, any[]> = {};
+
+                for (const row of rows) {
+                    if (!row.chat_id) continue;
+                    if (row.memory_thread_id) dbMemMap[row.chat_id] = row.memory_thread_id;
+                    if (row.title) dbHistory.push({
+                        id: row.chat_id,
+                        title: row.title,
+                        updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
+                    });
+                    if (Array.isArray(row.messages) && row.messages.length) {
+                        dbThreads[row.chat_id] = row.messages;
+                    }
+                }
+
+                // localStorage wins if it already has data (active session takes priority)
+                setMemoryThreadByChatId(prev =>
+                    Object.keys(prev).length > 0 ? prev : dbMemMap
+                );
+                setHistory(prev =>
+                    Array.isArray(prev) && prev.length > 0 ? prev : dbHistory
+                );
+                setThreads(prev =>
+                    Object.keys(prev).length > 0 ? prev : dbThreads
+                );
+
+                console.log('[chat-threads] Hydrated from Supabase:', rows.length, 'threads');
+            } catch (e) {
+                console.warn('[chat-threads] Hydration failed:', e);
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSignedIn, user?.id]);
+
     // persist
     useEffect(() => {
         try {
@@ -1583,6 +1632,19 @@ export default function Page() {
                     ...prev,
                     [tid]: returnedMemoryThreadId
                 }));
+
+                // Persist to Supabase so memory_thread_id survives new sessions.
+                // Fire-and-forget — never blocks the UI.
+                const chatTitle = history.find(h => h.id === tid)?.title ?? title;
+                fetch('/api/chat-threads', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: tid,
+                        title: chatTitle,
+                        memory_thread_id: returnedMemoryThreadId,
+                    }),
+                }).catch(() => { /* non-fatal */ });
             }
 
             // Attach Grok metadata to the assistant message (under m.meta)
