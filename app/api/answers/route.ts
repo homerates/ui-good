@@ -376,6 +376,15 @@ function extractAffordabilityParams(question: string): {
         text.match(/\$?\s*(\d+)\s*(?:car payment|student loan|debt payment|loan payment)/i);
     const monthlyDebt = debtMatch ? parseFloat(debtMatch[1]) : 0;
 
+    // If user stated a down payment % but no savings, derive savings from down %
+    // so hasInfo passes — generateAffordabilityScenarios uses downPct directly
+    const downPctMatch = text.match(/(\d+(?:\.\d+)?)\s*%\s*down/i);
+    const statedDownPct = downPctMatch ? parseFloat(downPctMatch[1]) / 100 : undefined;
+    if (!savings && statedDownPct && annualIncome) {
+        // Estimate savings from income-based max price at stated down %
+        const estPrice = (annualIncome / 12) * 0.43 / 0.006 * 0.9; // rough DTI-based price
+        savings = Math.round(estPrice * statedDownPct);
+    }
     const hasInfo = !!(annualIncome && savings);
 
     // Rate override: "at 5.5%", "recalculate at 5.5%", "if rates drop to 5.5%"
@@ -3315,7 +3324,16 @@ ${dtiSection}
 
     // Skip affordability when question has a specific home price — route to FHA/mortgage calc instead
     // e.g. "Show me my monthly payment on a $460k home — I make $95k/year and have $40k saved"
-    const hasSpecificHomePrice = /\$\s*[\d,]+(?:k|,\d{3})?\b/i.test(question) &&
+    // GUARD: exclude income amounts like '$210K per year' from matching as a home price
+    const hasNonIncomePrice = (() => {
+        const priceMatches = [...question.matchAll(/\$\s*([\d,]+)\s*k?\b/gi)];
+        return priceMatches.some(m => {
+            const before = question.slice(Math.max(0, m.index! - 30), m.index!).toLowerCase();
+            const isIncome = /make|earn|income|salary|gross|per year|a year|\/year/.test(before);
+            return !isIncome;
+        });
+    })();
+    const hasSpecificHomePrice = hasNonIncomePrice &&
         /\b(?:home|house|property|purchase|payment on|on a)\b/i.test(question);
     const hasFHAWithPrice = /\bfha\b/i.test(question) ? true : hasSpecificHomePrice;
 
