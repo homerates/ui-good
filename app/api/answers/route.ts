@@ -3340,9 +3340,19 @@ ${dtiSection}
         // "what if I pay off my car/debt" → debt = 0
         const payOff = /pay\s*off|zero\s*debt|no\s*debt|without\s*debt|debt.{0,10}free/i.test(t);
 
-        // "what if 10% down", "put 20% down", "with 5% down" → re-run affordability with new down pct
-        const downPctFollowMatch = t.match(/(?:what if|put|with|use|at|try|show)\s*(?:i\s*(?:put|use)\s*)?(?:a\s*)?(\d+(?:\.\d+)?)\s*%\s*down/i);
+        // "what if 10% down", "put 20% down", "put down 20%", "20% down", "20 percent down"
+        // 4 patterns cover all word orders including "put down 20%"
+        const downPctFollowMatch =
+            t.match(/(?:what\s*if|put|with|use|at|try|show)[\s\w]{0,20}?(\d+(?:\.\d+)?)\s*%\s*down/i) ||
+            t.match(/(\d+(?:\.\d+)?)\s*%\s*down/i) ||
+            t.match(/down\s*(\d+(?:\.\d+)?)\s*%/i) ||
+            t.match(/(\d+(?:\.\d+)?)\s*percent\s*down/i);
         const downPctOverride = downPctFollowMatch ? parseFloat(downPctFollowMatch[1]) / 100 : undefined;
+
+        // Self-contained guard: questions with income or affordability intent are NOT follow-ups
+        const hasIncomeInQuestion = /\b(?:make|earn|income|salary|making|earning)\b/i.test(t);
+        const hasAffordIntent = /how much|what can i afford|can i afford|max.*price|what.*home.*price/i.test(t);
+        if (hasIncomeInQuestion || hasAffordIntent) { return { isFollowUp: false }; }
 
         const hasMutator = !!(debtOverride !== undefined || payOff || downPctOverride !== undefined);
         return { isFollowUp: hasMutator, debtOverride: payOff ? 0 : debtOverride, downPctOverride };
@@ -3413,7 +3423,10 @@ ${dtiSection}
         // If it's a follow-up (debt change OR "use current rates"), merge prior context
         if (affordFollowUp.isFollowUp && priorAffordContext?.annualIncome && !affordParams.hasInfo) {
             affordParams.annualIncome = priorAffordContext.annualIncome;
-            affordParams.savings = priorAffordContext.savings || affordParams.savings || 10000;
+            const derivedFallback = priorAffordContext.annualIncome
+                ? Math.round((priorAffordContext.annualIncome / 12) * 0.43 / 0.006 * 0.9 * 0.10)
+                : 10000;
+            affordParams.savings = priorAffordContext.savings || affordParams.savings || derivedFallback;
             affordParams.monthlyDebt = affordFollowUp.debtOverride ?? priorAffordContext.monthlyDebt ?? 0;
             // Apply down payment % override (e.g. "what if 10% down")
             if ((affordFollowUp as any).downPctOverride !== undefined) {
@@ -4310,3 +4323,23 @@ export async function GET(req: NextRequest) {
 // build: 2026-03-06-1620
 
 // build: 2026-03-06-1640
+// =============================================================================
+// VERSION HISTORY
+// =============================================================================
+// v2026-03-06-1640  (base production build)
+//   - hasNonIncomePrice: excludes income $ from home price routing
+//   - statedDownPct / savingsWasAssumed: derives savings when only % given
+//   - downPctOverride: follow-up "what if 10% down" re-runs affordability calc
+//   - Loan limit enforcement in calcScenario
+//   - Supabase chat_threads cross-session memory
+//
+// v2026-03-07  Session 2f (this build)
+//   - FIX: "what if put down 20%" (down before %) now triggers follow-up
+//     Upgraded to 4-pattern downPctFollowMatch regex
+//   - FIX: self-contained guard in isAffordabilityFollowUp
+//     Questions with income keywords or affordability intent never misrouted
+//   - FIX: "what's my max home price with FHA?" routes to affordability
+//     isAskingForMaxPrice guard on hasFHAWithPrice
+//   - FIX: $10k savings fallback replaced with income-derived savings
+//     Follow-up answers no longer show "You have $10k" for high-income users
+// =============================================================================
