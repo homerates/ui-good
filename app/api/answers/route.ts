@@ -398,14 +398,42 @@ function extractAffordabilityParams(question: string): {
 /**
  * Generate 3 affordability scenarios with Fannie Mae DTI guidelines
  */
+// 2026 loan limits
+const FHA_FLOOR = 541287;         // national floor (standard county)
+const FHA_CEILING = 1249125;      // high-cost ceiling
+const CONF_STANDARD = 806500;     // conforming standard
+const CONF_HIGH_BALANCE = 1249125; // CA high-balance ceiling
+
+/** Detect if question mentions a high-cost area — returns loan limits for that area */
+function detectLoanLimits(question: string): { fhaLimit: number; confLimit: number; locationLabel: string } {
+    const q = question.toLowerCase();
+    // High-cost CA counties by keyword
+    const highCostCA = /\b(los angeles|la county|orange county|san francisco|sf|bay area|san jose|oakland|marin|alameda|contra costa|santa clara|san mateo|santa cruz|san benito|napa|ventura|san diego|santa barbara|sonoma|slo|san luis obispo)\b/i;
+    // Standard CA counties (high-balance but not ceiling)
+    const midCA = /\b(riverside|san bernardino|fresno|kern|sacramento|stockton|modesto|bakersfield)\b/i;
+    // Other known high-cost metros
+    const highCostOther = /\b(new york|nyc|seattle|washington dc|dc|miami|boston|denver|austin|nashville|hawaii|honolulu|alaska)\b/i;
+
+    if (highCostCA.test(q) || highCostOther.test(q)) {
+        return { fhaLimit: FHA_CEILING, confLimit: CONF_HIGH_BALANCE, locationLabel: 'high-cost area' };
+    }
+    if (midCA.test(q)) {
+        return { fhaLimit: 832750, confLimit: 832750, locationLabel: 'mid-cost CA county' };
+    }
+    // No location → use national floor (conservative)
+    return { fhaLimit: FHA_FLOOR, confLimit: CONF_STANDARD, locationLabel: '' };
+}
+
 async function generateAffordabilityScenarios(params: {
     annualIncome: number;
     savings: number;
     monthlyDebt: number;
     currentRate: number;
     downPctOverride?: number;
+    question?: string;   // for loan limit detection
 }) {
-    const { annualIncome, savings, monthlyDebt, currentRate, downPctOverride } = params;
+    const { annualIncome, savings, monthlyDebt, currentRate, downPctOverride, question: affordQuestion } = params;
+    const { fhaLimit, confLimit, locationLabel } = detectLoanLimits(affordQuestion || '');
     const monthlyIncome = annualIncome / 12;
 
     // Income-based annuity factor (shared)
@@ -430,6 +458,14 @@ async function generateAffordabilityScenarios(params: {
             maxPI = maxTotalHousing - monthlyTaxIns - monthlyPMIest;
             if (maxPI <= 0) { maxPI = maxTotalHousing * 0.5; break; }
         }
+
+        // Cap home price at loan limit for the program
+        const isFHAprog = program === 'FHA';
+        const loanLimitForProgram = isFHAprog ? fhaLimit : confLimit;
+        // Max home price given down %: loanLimit / (1 - downPct/100) [for FHA: pre-UFMIP base loan]
+        const maxHomePriceForLimit = loanLimitForProgram / (1 - downPct / 100);
+        const wasLimitCapped = homePrice > maxHomePriceForLimit;
+        if (wasLimitCapped) homePrice = maxHomePriceForLimit;
 
         const baseLoanAmount = homePrice * (1 - downPct / 100);
         const downPaymentAmount = homePrice * (downPct / 100);
@@ -480,6 +516,9 @@ async function generateAffordabilityScenarios(params: {
             dtiRatio: Math.round(actualDTI * 10) / 10,
             rate: currentRate,
             isFHA,
+            wasLimitCapped,
+            loanLimitForProgram,
+            locationLabel,
         };
     }
 
@@ -625,7 +664,7 @@ ${s.isFHA ? `| Base Loan Amount | $${s.baseLoanAmount.toLocaleString()} |
 ${s.monthlyMI > 0 ? `| ${s.isFHA ? 'FHA MIP (0.55%/yr)' : 'PMI (~0.5%/yr)'} | $${s.monthlyMI.toLocaleString()}/mo |
 ` : ''}| **Total ${s.isFHA ? 'PITI + MIP' : s.monthlyMI > 0 ? 'PITI + PMI' : 'PITI'}** | **$${s.totalMonthly.toLocaleString()}/mo** |
 
-${s.isFHA ? `> ⚠️ **FHA MIP never cancels** on loans with <10% down. At your income, refinancing to conventional once you hit 20% equity saves ~$${s.monthlyMI}/mo.` : s.monthlyMI > 0 ? `> 💡 **PMI cancels** at 80% LTV — saves you $${s.monthlyMI}/mo when it drops off.` : `> ✅ **No PMI** — 20% down eliminates mortgage insurance entirely.`}
+${s.isFHA ? `> ⚠️ **FHA MIP never cancels** on loans with <10% down. At your income, refinancing to conventional once you hit 20% equity saves ~$${s.monthlyMI}/mo.` : s.monthlyMI > 0 ? `> 💡 **PMI cancels** at 80% LTV — saves you $${s.monthlyMI}/mo when it drops off.` : `> ✅ **No PMI** — 20% down eliminates mortgage insurance entirely.`}${s.wasLimitCapped ? `\n\n> 🏛️ **Loan limit applied** ($${Math.round(s.loanLimitForProgram / 1000)}k ${s.isFHA ? 'FHA' : 'conforming'} limit${s.locationLabel ? ' — ' + s.locationLabel : ' — standard county'}). Your income qualifies for more — share your zip for high-cost area limits.` : ''}
 
 - DTI: **${(s.totalMonthly / monthlyGross * 100).toFixed(1)}%** housing${params.monthlyDebt > 0 ? ` + $${params.monthlyDebt}/mo debt = **${s.dtiRatio}% back-end**` : ''} of $${monthlyGross.toLocaleString()}/mo gross
 - Total interest over 30yr: **$${Math.round(s.totalInterest / 1000)}k**
@@ -651,7 +690,7 @@ ${scenarioBlock(conv20, ' — No PMI, best long-term rate')}
 
 ---
 
-## 📊 Side-by-Side Comparison
+## 📊 Side-by-Side Comparison${(s0.wasLimitCapped || s1.wasLimitCapped || s2.wasLimitCapped) ? ' — ⚠️ loan limits applied (no zip provided)' : ''}
 
 | | ${s0.shortLabel || s0.label.replace(/ — .*/, '')} | ${s1.shortLabel || s1.label.replace(/ — .*/, '')} | ${s2.shortLabel || s2.label.replace(/ — .*/, '')} |
 |--|--|--|--|
@@ -1478,7 +1517,7 @@ function generateFallbackChips(
 
     if (isDTI && hasIncome) {
         return [
-            { label: `Run full affordability — $${incK}k income`, seed: `What can I afford with $${incK}k/year income${savK ? ` and $${savK}k saved` : ''}?` },
+            { label: `Run full affordability — $${incK}k income`, seed: `I make $${incK}k/year${savK ? ` and have $${savK}k saved` : ''} — what can I afford?` },
             { label: `How does my $300/mo car payment affect DTI?`, seed: `Show me how a $300/month car payment changes my DTI and max home price — I make $${incK}k/year` },
             { label: `What income do I need for a $${hasPrice ? priceK : 500}k home?`, seed: `What annual income do I need to qualify for a $${hasPrice ? priceK : 500}k home with FHA 3.5% down?` },
         ];
@@ -1494,7 +1533,7 @@ function generateFallbackChips(
 
     if (isGiftFunds && hasIncome) {
         return [
-            { label: `Show me FHA affordability — $${incK}k income`, seed: `What's the max FHA home price with $${incK}k/year income${savK ? ` and $${savK}k saved` : ''}?` },
+            { label: `Show me FHA affordability — $${incK}k income`, seed: `I make $${incK}k/year${savK ? ` and have $${savK}k saved` : ''} — what's the max FHA home price?` },
             { label: `FHA gift fund rules — what's allowed?`, seed: `What are FHA gift fund rules for down payment? Who can give and what documentation is needed?` },
             { label: `Compare FHA vs conventional gift fund rules`, seed: `How do FHA and conventional loan gift fund rules differ for down payment?` },
         ];
@@ -1536,8 +1575,8 @@ function generateFallbackChips(
     if (hasIncome) {
         return [
             { label: `Run my full affordability breakdown`, seed: `What can I afford? I make $${incK}k/year${savK ? ` and have $${savK}k saved` : ''}` },
-            { label: `Show me FHA 3.5% down options`, seed: `FHA 3.5% down — what's my max home price at $${incK}k/year income?` },
-            { label: `Compare loan types for my situation`, seed: `Compare FHA vs conventional loan options for $${incK}k/year income${savK ? ` and $${savK}k saved` : ''}` },
+            { label: `Show me FHA 3.5% down options`, seed: `I make $${incK}k/year — what's my max home price with FHA 3.5% down?` },
+            { label: `Compare loan types for my situation`, seed: `I make $${incK}k/year${savK ? ` and have $${savK}k saved` : ''} — compare FHA vs conventional loan options` },
         ];
     }
 
@@ -3403,6 +3442,7 @@ ${dtiSection}
                 monthlyDebt: affordParams.monthlyDebt || 0,
                 currentRate: rateToUse,
                 downPctOverride: (affordParams as any).downPctOverride,
+                question,
             });
 
             const affordabilityMarkdown = buildAffordabilityMarkdown(
@@ -4266,3 +4306,7 @@ export async function GET(req: NextRequest) {
 }// build: 2026-03-06-1500
 // build: 2026-03-06-1501
 // build: 2026-03-06-1600
+
+// build: 2026-03-06-1620
+
+// build: 2026-03-06-1640
