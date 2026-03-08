@@ -1104,21 +1104,37 @@ export default function Page() {
     }, []);
 
     // history select
-    function onSelectHistory(id: string) {
+    async function onSelectHistory(id: string) {
         setActiveId(id);
         const thread = threads[id];
         if (Array.isArray(thread) && thread.length) {
             setMessages(thread);
-        } else {
-            setMessages([
-                {
-                    id: uid(),
-                    role: 'assistant',
-                    content:
-                        'Restored chat (no snapshot found). Start typing to continue.',
-                },
-            ]);
+            setShowLibrary(false);
+            return;
         }
+        // Not in localStorage — try Supabase (full messages[] incl. meta)
+        if (isSignedIn) {
+            try {
+                const res = await fetch(`/api/chat-threads?chat_id=${encodeURIComponent(id)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const row = (data?.threads ?? [])[0];
+                    if (row && Array.isArray(row.messages) && row.messages.length) {
+                        setMessages(row.messages);
+                        setThreads(prev => ({ ...prev, [id]: row.messages }));
+                        setShowLibrary(false);
+                        return;
+                    }
+                }
+            } catch { /* non-fatal */ }
+        }
+        setMessages([
+            {
+                id: uid(),
+                role: 'assistant',
+                content: 'Restored chat (no snapshot found). Start typing to continue.',
+            },
+        ]);
         setShowLibrary(false);
     }
 
@@ -1343,7 +1359,7 @@ export default function Page() {
 
     // === Typewriter helper for a "streaming" feel ===
     const typeOutAssistant = React.useCallback(
-        (id: string, full: string) => {
+        (id: string, full: string, onComplete?: (finalMessages: ChatMsg[]) => void) => {
             if (!full) return;
 
             // Use Array.from to be safe with emoji / unicode
@@ -1356,11 +1372,13 @@ export default function Page() {
                 index += 24; // chars per tick; tweak for speed
                 if (index >= total) {
                     // Final update with full string
-                    setMessages((prev) =>
-                        prev.map((m) =>
+                    setMessages((prev) => {
+                        const next = prev.map((m) =>
                             m.id === id ? { ...m, content: full } : m
-                        )
-                    );
+                        );
+                        if (onComplete) window.setTimeout(() => onComplete(next), 0);
+                        return next;
+                    });
                     return;
                 }
 
@@ -1632,20 +1650,11 @@ export default function Page() {
                     ...prev,
                     [tid]: returnedMemoryThreadId
                 }));
-
-                // Persist to Supabase so memory_thread_id survives new sessions.
-                // Fire-and-forget — never blocks the UI.
-                const chatTitle = history.find(h => h.id === tid)?.title ?? title;
-                fetch('/api/chat-threads', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: tid,
-                        title: chatTitle,
-                        memory_thread_id: returnedMemoryThreadId,
-                    }),
-                }).catch(() => { /* non-fatal */ });
             }
+
+            // Persist to Supabase for ALL routes — fire-and-forget after typewriter completes
+            // so messages[] contains full content + meta (not the empty placeholder).
+            // Uses local `title` var to avoid stale history-state race.
 
             // Attach Grok metadata to the assistant message (under m.meta)
             setMessages((prev) =>
@@ -1706,7 +1715,19 @@ export default function Page() {
 
             // Type out the actual answer text into the existing assistant bubble
             const fullText = friendly;
-            typeOutAssistant(answerId, fullText);
+            typeOutAssistant(answerId, fullText, (finalMsgs) => {
+                if (!tid) return;
+                fetch('/api/chat-threads', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: tid,
+                        title,
+                        memory_thread_id: returnedMemoryThreadId ?? null,
+                        messages: finalMsgs,
+                    }),
+                }).catch(() => { /* non-fatal */ });
+            });
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
@@ -2720,3 +2741,4 @@ export default function Page() {
         </>
     );
 }
+// version: 2026-03-08-03
