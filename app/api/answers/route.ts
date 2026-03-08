@@ -2911,6 +2911,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
             /(?:pmi|mip).{0,30}(?:cancel|remov|when|stop|how)/i,
             /self.employ.{0,30}(?:qualify|doc|require|guideline)/i,
             /(?:underwriting|guideline|lending).{0,20}(?:for|on|require)/i,
+            /\b(?:explain|what\s+is|what\s+are|what\s+does|how\s+does|how\s+do|how\s+long|tell\s+me\s+about|walk\s+me\s+through|difference\s+between)\b.{0,80}\b(?:respa|trid|arm|heloc|escrow|amortization|closing\s+costs?|closing\s+take|closing\s+process|title\s+insurance|apr|preapproval|pre.approval|jumbo|buydown|buy.down|refinanc|mortgage|points?|origination|rate\s+lock|appraisal|underwriting|down\s+payment|equity|second\s+lien|piggyback|subordinat|forbearance|modification|assumption|deed|lien|hardship|hud|fannie|freddie|ginnie|conforming|non.qm|bank\s+statement|stated\s+income|asset\s+depletion|reserve)/i,
         ];
 
         // If any info signal matches, it's a guideline question
