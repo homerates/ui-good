@@ -5,8 +5,20 @@ export const dynamic = "force-dynamic";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
-import { calculateMortgage, compareRates } from "../../../lib/mortgageCalculator";
-import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculator";
+import { calculateMortgage, compareRates } from "../../../lib/mortgageCalculator";   // keep for now — will remove after validation
+import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculator"; // keep for now — will remove after validation
+// NEW unified calc engine
+import {
+    calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
+    calcDSCR, calcFHAvsConv, runCalcTests,
+} from "../../../lib/calcEngine";
+import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
+import {
+    buildConventionalCard, buildFHACard, buildRefiCard, buildRefiNeedsInputCard,
+    buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
+    buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
+    buildUWCard, type UWCardInput,
+} from "../../../lib/cardBuilders";
 import {
     getGuidelineContextForQuestion,
     maybeBuildDscrOverrideAnswer,
@@ -17,7 +29,17 @@ import {
     buildSystemPromptWithMemory,
     isFollowUpQuestion,
 } from "../../../lib/memory";
-
+// Verify calc engine on cold start — logs failures, never throws
+try {
+    const testResult = runCalcTests();
+    if (!testResult.passed) {
+        console.error('[CalcEngine] VERIFICATION FAILURES:', testResult.failures);
+    } else {
+        console.log('[CalcEngine] All verification tests passed ✓');
+    }
+} catch (e) {
+    console.error('[CalcEngine] Test runner threw:', e);
+}
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });
@@ -2248,7 +2270,130 @@ async function handle(req: NextRequest, intentParam?: string) {
             `Use FRED live rate: ${fredRateStr} (30yr fixed avg as of ${fred.asOf || today}).`
         );
     }
+    // ============================================================
+    // UNIFIED CALC ENGINE DISPATCH
+    // Runs before module routing. Priority: refi > fha > dscr > conv > affordability
+    // If matched: returns deterministic card, skips Grok entirely.
+    // If no match or error: falls through to old system below.
+    // ============================================================
+    const calcDispatch = dispatch(question, conversationHistory ?? '', fred?.mort30Avg ?? undefined);
+    const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
 
+    {
+        let calcCard: any = null;
+        let calcDebugModel = '';
+        const calcAssumptions = calcDispatch.assumptions;
+
+        try {
+            if (calcDispatch.type === 'refi' && calcDispatch.params) {
+                const result = calcRefi(calcDispatch.params as any);
+                calcCard = buildRefiCard(result, calcAssumptions, fredRateForCard,
+                    (calcDispatch.params as any).isFHAtoConv ? 'fha_to_conv' : undefined);
+                calcDebugModel = 'calcEngine-refi';
+
+            } else if (calcDispatch.type === 'refi_needs_input') {
+                calcCard = buildRefiNeedsInputCard(
+                    calcDispatch.params as any,
+                    fred?.mort30Avg ?? undefined,
+                    fred?.asOf ?? undefined,
+                );
+                calcDebugModel = 'refi_needs_input';
+
+            } else if (calcDispatch.type === 'fha_vs_conv' && calcDispatch.params) {
+                const result = calcFHAvsConv(calcDispatch.params as any);
+                calcCard = buildFHACard(result.fha, calcAssumptions, result, fredRateForCard);
+                calcDebugModel = 'calcEngine-fha_vs_conv';
+
+            } else if (calcDispatch.type === 'fha' && calcDispatch.params) {
+                const result = calcFHA(calcDispatch.params as any);
+                calcCard = buildFHACard(result, calcAssumptions, undefined, fredRateForCard);
+                calcDebugModel = 'calcEngine-fha';
+
+            } else if (calcDispatch.type === 'mip_duration_knowledge') {
+                calcCard = buildMIPDurationCard(conversationHistory ?? '');
+                calcDebugModel = 'mip_duration_knowledge';
+
+            } else if (calcDispatch.type === 'fha_needs_input') {
+                calcCard = buildFHANeedsInputCard(calcDispatch.params as any, fred?.mort30Avg ?? undefined);
+                calcDebugModel = 'fha_needs_input';
+
+            } else if (calcDispatch.type === 'dscr' && calcDispatch.params) {
+                const result = calcDSCR(calcDispatch.params as any);
+                calcCard = buildDSCRCard(result, calcAssumptions);
+                calcDebugModel = 'calcEngine-dscr';
+
+            } else if (calcDispatch.type === 'dscr_needs_input') {
+                calcCard = buildDSCRNeedsInputCard(fred?.mort30Avg ?? undefined);
+                calcDebugModel = 'dscr_needs_input';
+
+            } else if (calcDispatch.type === 'conventional' && calcDispatch.params) {
+                const result = calcConventional(calcDispatch.params as any);
+                calcCard = buildConventionalCard(result, calcAssumptions, fredRateForCard);
+                calcDebugModel = 'calcEngine-conventional';
+
+            } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
+                const result = calcAffordability(calcDispatch.params as any);
+                calcCard = buildAffordabilityCard(result, calcAssumptions);
+                calcDebugModel = 'calcEngine-affordability';
+
+            } else if (calcDispatch.type === 'affordability_needs_input') {
+                calcCard = buildAffordabilityNeedsInputCard(fred?.mort30Avg ?? undefined);
+                calcDebugModel = 'affordability_needs_input';
+            }
+
+        } catch (calcErr: any) {
+            console.error('[CalcEngine] Error:', calcDispatch.type, calcErr?.message);
+            calcCard = null; // fall through to old system on error
+        }
+
+        if (calcCard) {
+            const answerWithSources = calcCard.answer
+                + (fred.mort30Avg != null
+                    ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield}%, 30y mtg avg=${fred.mort30Avg}%, spread=${fred.spread} (${fred.asOf})`
+                    : '');
+
+            return noStore({
+                ok: true,
+                memory_thread_id: memoryThreadId,
+                chat_id: chatId,
+                project_id: projectId,
+                chat_thread_id: chatThreadId,
+                route: 'answers',
+                intent,
+                path,
+                tag,
+                generatedAt,
+                usedFRED,
+                usedTavily,
+                fred,
+                topSources,
+                grok: {
+                    answer: calcCard.answer,
+                    next_step: calcCard.next_step,
+                    follow_up: calcCard.follow_up,
+                    follow_up_chips: calcCard.follow_up_chips,
+                    confidence: calcCard.confidence,
+                },
+                debug: {
+                    requestedModel: 'calcEngine',
+                    servedModel: calcDebugModel,
+                    promptChars: question.length,
+                    elapsedMs: 0,
+                    requestId: `calc-${Date.now()}`,
+                    parseMode: 'deterministic',
+                    repaired: false,
+                },
+                data_freshness: `Live (calcEngine-deterministic)`,
+                message: calcCard.answer,
+                answerMarkdown: `**Answer**\n${answerWithSources}`,
+                followUp: calcCard.follow_up,
+                follow_up_chips: calcCard.follow_up_chips,
+            });
+        }
+    }
+    // ============================================================
+    // END UNIFIED CALC ENGINE DISPATCH — old system continues below
+    // ============================================================
     const tavilyContextRaw =
         Array.isArray(tav.results) && tav.results.length
             ? tav.results
@@ -3076,13 +3221,16 @@ ${uwDatabase}`;
             usedTavily: false,
             fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
             topSources: [],
-            grok: {
-                answer: uwAnswerText,
-                next_step: "Verify current guidelines with your lender or at the official source.",
-                follow_up: generateUWChips(question)[0]?.label,
-                follow_up_chips: generateUWChips(question),
-                confidence: "1.00 (sourced from official guidelines database)",
-            },
+            grok: (() => {
+                const uwCard = buildUWCard({ question, answerMarkdown: uwAnswerText });
+                return {
+                    answer: uwCard.answer,
+                    next_step: uwCard.next_step,
+                    follow_up: uwCard.follow_up,
+                    follow_up_chips: uwCard.follow_up_chips,
+                    confidence: uwCard.confidence,
+                };
+            })(),
             debug: {
                 requestedModel: "underwriting-guidelines",
                 servedModel: "underwriting-guidelines",
@@ -3096,8 +3244,8 @@ ${uwDatabase}`;
             message: uwAnswerText,
             answerMarkdown: `**Answer**
 ${uwAnswerText}`,
-            followUp: generateUWChips(question)[0]?.label,
-            follow_up_chips: generateUWChips(question),
+            followUp: buildUWCard({ question, answerMarkdown: uwAnswerText }).follow_up,
+            follow_up_chips: buildUWCard({ question, answerMarkdown: uwAnswerText }).follow_up_chips,
         });
     }
     // ========== END UNDERWRITING GUIDELINES BYPASS ==========
@@ -4142,6 +4290,8 @@ Current question:
 ABSOLUTE RULES:
 - Do NOT invent numbers, rates, payments, fees, or scenario facts unless the user explicitly asks for an example.
 - If MORTGAGE CALCULATION context is provided above, use those numbers EXACTLY. Do not recalculate.
+- NEVER use your own formulas for amortization, DTI, UFMIP, MIP, or breakeven — these are always pre-calculated.
+- If a calc result is provided, your ONLY job is to explain it in plain language, not recompute it.
 - When user does NOT specify a rate, use the FRED 30Y fixed average rate shown above. Do NOT use rates from "Latest signals" unless user asks for current market rates.
 - Markdown only inside the "answer" field. Never output HTML.
 - Keep total length around 180–350 words unless asked for more.
