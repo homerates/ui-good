@@ -29,19 +29,26 @@ export async function GET(req: NextRequest) {
             return noStore({ ok: false, error: "unauthenticated" }, { status: 401 });
         }
 
+        const chatIdParam = req.nextUrl.searchParams.get("chat_id");
+
         const supabase = getSupabase();
         if (!supabase) {
             return noStore({ ok: false, error: "supabase_not_configured" }, { status: 503 });
         }
 
-        const { data, error } = await supabase
+        let query = supabase
             .from("chat_threads")
-            .select("chat_id, title, memory_thread_id, messages, updated_at")
+            .select("chat_id, title, memory_thread_id, messages, updated_at, created_at")
             .eq("clerk_user_id", userId)
-            .not("chat_id", "is", null)
-            .not("title", "is", null)
-            .order("updated_at", { ascending: false })
-            .limit(50);
+            .not("chat_id", "is", null);
+
+        if (chatIdParam) {
+            query = query.eq("chat_id", chatIdParam).limit(1);
+        } else {
+            query = query.order("created_at", { ascending: false }).limit(50);
+        }
+
+        const { data, error } = await (query as any);
 
         if (error) {
             console.warn("[chat-threads GET] Supabase error:", error.message);
@@ -105,3 +112,5 @@ export async function PUT(req: NextRequest) {
         return noStore({ ok: false, error: "internal" }, { status: 500 });
     }
 }
+
+// version: 2026-03-08-02
