@@ -5,8 +5,6 @@ export const dynamic = "force-dynamic";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
-import { calculateMortgage, compareRates } from "../../../lib/mortgageCalculator";   // keep for now — will remove after validation
-import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculator"; // keep for now — will remove after validation
 // NEW unified calc engine
 import {
     calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
