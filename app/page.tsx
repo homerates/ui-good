@@ -73,7 +73,7 @@ function DebugPanel({ meta, raw }: { meta: any; raw: any }) {
         ['savings', calc.savings ?? grok?.savings ?? '—'],
         ['memory_thread_id', meta?.memory_thread_id ?? '—'],
         ['chat_id', meta?.chat_id ?? '—'],
-    ].filter(([, v]) => v !== '—');
+    ].filter((entry): entry is [string, any] => entry[1] !== '—');
 
     const panelStyle: React.CSSProperties = {
         marginTop: 8,
@@ -2857,3 +2857,4 @@ export default function Page() {
     );
 }
 // version: 2026-03-08-04-debug
+// version: 2026-03-08-05
