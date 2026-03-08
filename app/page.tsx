@@ -25,6 +25,137 @@ import {
 
 
 /* =========================
+   Admin Debug Panel
+   Only renders for ADMIN_USER_IDS. Shows raw API response JSON
+   with math fields highlighted. Toggle with the bug button.
+========================= */
+function DebugPanel({ meta, raw }: { meta: any; raw: any }) {
+    const [open, setOpen] = React.useState(false);
+    const [copied, setCopied] = React.useState(false);
+    const [tab, setTab] = React.useState<'math' | 'raw'>('math');
+
+    const copy = () => {
+        navigator.clipboard.writeText(JSON.stringify(raw ?? meta, null, 2));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
+    // Extract the key math fields from wherever they live in the response
+    const grok = meta?.grok ?? {};
+    const fred = meta?.fred ?? {};
+    const debug = meta?.debug ?? grok?.debug ?? {};
+    const calc = grok?.calc ?? meta?.calc ?? {};
+
+    const mathFields: [string, any][] = [
+        ['path / route', meta?.path ?? meta?.route ?? '—'],
+        ['confidence', grok?.confidence ?? meta?.confidence ?? '—'],
+        ['intent', meta?.intent ?? '—'],
+        ['usedFRED', String(meta?.usedFRED ?? '—')],
+        ['usedTavily', String(meta?.usedTavily ?? '—')],
+        ['10Y yield', fred.tenYearYield != null ? `${fred.tenYearYield}%` : '—'],
+        ['30Y mtg avg', fred.mort30Avg != null ? `${fred.mort30Avg}%` : '—'],
+        ['spread', fred.spread != null ? `${fred.spread}%` : '—'],
+        ['fred.asOf', fred.asOf ?? '—'],
+        ['requestedModel', debug.requestedModel ?? '—'],
+        ['servedModel', debug.servedModel ?? '—'],
+        ['parseMode', debug.parseMode ?? '—'],
+        ['elapsedMs', debug.elapsedMs ?? '—'],
+        ['promptChars', debug.promptChars ?? '—'],
+        ['bypass', debug.bypass ?? '—'],
+        // Affordability / calc fields
+        ['homePrice', calc.homePrice ?? grok?.homePrice ?? '—'],
+        ['downPct', calc.downPct ?? grok?.downPct ?? '—'],
+        ['loanAmount', calc.loanAmount ?? grok?.loanAmount ?? '—'],
+        ['rate', calc.rate ?? grok?.rate ?? '—'],
+        ['monthlyPayment', calc.monthlyPayment ?? grok?.monthlyPayment ?? '—'],
+        ['dti', calc.dti ?? grok?.dti ?? '—'],
+        ['income', calc.income ?? grok?.income ?? grok?.annualIncome ?? '—'],
+        ['savings', calc.savings ?? grok?.savings ?? '—'],
+        ['memory_thread_id', meta?.memory_thread_id ?? '—'],
+        ['chat_id', meta?.chat_id ?? '—'],
+    ].filter(([, v]) => v !== '—');
+
+    const panelStyle: React.CSSProperties = {
+        marginTop: 8,
+        borderRadius: 8,
+        border: '1px solid #2a2a3a',
+        background: '#0d0d14',
+        fontFamily: 'monospace',
+        fontSize: 11,
+        color: '#a0a8c0',
+        overflow: 'hidden',
+    };
+    const headerStyle: React.CSSProperties = {
+        display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
+        borderBottom: open ? '1px solid #2a2a3a' : 'none',
+        cursor: 'pointer', userSelect: 'none',
+        background: '#13131f',
+    };
+    const tabStyle = (active: boolean): React.CSSProperties => ({
+        padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10,
+        background: active ? '#2a2a5a' : 'transparent',
+        color: active ? '#7090ff' : '#606080',
+        border: active ? '1px solid #3a3a7a' : '1px solid transparent',
+    });
+
+    return (
+        <div style={panelStyle}>
+            <div style={headerStyle} onClick={() => setOpen(o => !o)}>
+                <span style={{ fontSize: 13 }}>🐛</span>
+                <span style={{ color: '#5060a0', fontWeight: 600, fontSize: 10, letterSpacing: '0.05em' }}>
+                    DEBUG
+                </span>
+                <span style={{ color: '#303050', fontSize: 10 }}>
+                    {meta?.path ?? meta?.route ?? ''} · {debug.servedModel ?? debug.requestedModel ?? ''}
+                </span>
+                <span style={{ marginLeft: 'auto', fontSize: 10, color: '#404060' }}>
+                    {open ? '▲' : '▼'}
+                </span>
+            </div>
+            {open && (
+                <div style={{ padding: 8 }}>
+                    {/* Tab bar */}
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                        <span style={tabStyle(tab === 'math')} onClick={() => setTab('math')}>Math fields</span>
+                        <span style={tabStyle(tab === 'raw')} onClick={() => setTab('raw')}>Raw JSON</span>
+                        <span
+                            style={{ marginLeft: 'auto', ...tabStyle(false), color: copied ? '#40c080' : '#606080' }}
+                            onClick={copy}
+                        >
+                            {copied ? '✓ copied' : '⎘ copy'}
+                        </span>
+                    </div>
+
+                    {tab === 'math' && (
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody>
+                                {mathFields.map(([k, v]) => (
+                                    <tr key={k} style={{ borderBottom: '1px solid #1a1a2a' }}>
+                                        <td style={{ padding: '2px 8px 2px 0', color: '#506080', whiteSpace: 'nowrap' }}>{k}</td>
+                                        <td style={{ padding: '2px 0', color: '#c0d0ff', wordBreak: 'break-all' }}>
+                                            {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {tab === 'raw' && (
+                        <pre style={{
+                            margin: 0, padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                            maxHeight: 400, overflowY: 'auto', color: '#8090b0', fontSize: 10,
+                        }}>
+                            {JSON.stringify(raw ?? meta, null, 2)}
+                        </pre>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* =========================
    Small helpers
 ========================= */
 const LS_KEY = 'hr.chat.v1';
@@ -1104,37 +1235,21 @@ export default function Page() {
     }, []);
 
     // history select
-    async function onSelectHistory(id: string) {
+    function onSelectHistory(id: string) {
         setActiveId(id);
         const thread = threads[id];
         if (Array.isArray(thread) && thread.length) {
             setMessages(thread);
-            setShowLibrary(false);
-            return;
+        } else {
+            setMessages([
+                {
+                    id: uid(),
+                    role: 'assistant',
+                    content:
+                        'Restored chat (no snapshot found). Start typing to continue.',
+                },
+            ]);
         }
-        // Not in localStorage — try Supabase (full messages[] incl. meta)
-        if (isSignedIn) {
-            try {
-                const res = await fetch(`/api/chat-threads?chat_id=${encodeURIComponent(id)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    const row = (data?.threads ?? [])[0];
-                    if (row && Array.isArray(row.messages) && row.messages.length) {
-                        setMessages(row.messages);
-                        setThreads(prev => ({ ...prev, [id]: row.messages }));
-                        setShowLibrary(false);
-                        return;
-                    }
-                }
-            } catch { /* non-fatal */ }
-        }
-        setMessages([
-            {
-                id: uid(),
-                role: 'assistant',
-                content: 'Restored chat (no snapshot found). Start typing to continue.',
-            },
-        ]);
         setShowLibrary(false);
     }
 
@@ -1359,7 +1474,7 @@ export default function Page() {
 
     // === Typewriter helper for a "streaming" feel ===
     const typeOutAssistant = React.useCallback(
-        (id: string, full: string, onComplete?: (finalMessages: ChatMsg[]) => void) => {
+        (id: string, full: string) => {
             if (!full) return;
 
             // Use Array.from to be safe with emoji / unicode
@@ -1372,13 +1487,11 @@ export default function Page() {
                 index += 24; // chars per tick; tweak for speed
                 if (index >= total) {
                     // Final update with full string
-                    setMessages((prev) => {
-                        const next = prev.map((m) =>
+                    setMessages((prev) =>
+                        prev.map((m) =>
                             m.id === id ? { ...m, content: full } : m
-                        );
-                        if (onComplete) window.setTimeout(() => onComplete(next), 0);
-                        return next;
-                    });
+                        )
+                    );
                     return;
                 }
 
@@ -1650,11 +1763,20 @@ export default function Page() {
                     ...prev,
                     [tid]: returnedMemoryThreadId
                 }));
-            }
 
-            // Persist to Supabase for ALL routes — fire-and-forget after typewriter completes
-            // so messages[] contains full content + meta (not the empty placeholder).
-            // Uses local `title` var to avoid stale history-state race.
+                // Persist to Supabase so memory_thread_id survives new sessions.
+                // Fire-and-forget — never blocks the UI.
+                const chatTitle = history.find(h => h.id === tid)?.title ?? title;
+                fetch('/api/chat-threads', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: tid,
+                        title: chatTitle,
+                        memory_thread_id: returnedMemoryThreadId,
+                    }),
+                }).catch(() => { /* non-fatal */ });
+            }
 
             // Attach Grok metadata to the assistant message (under m.meta)
             setMessages((prev) =>
@@ -1663,6 +1785,7 @@ export default function Page() {
                         ? {
                             ...m,
                             meta,      // <--- meta now lives under m.meta
+                            raw,       // <--- full raw response for debug panel
                             content: '', // typewriter will fill summary, not markdown
                         }
                         : m
@@ -1715,19 +1838,7 @@ export default function Page() {
 
             // Type out the actual answer text into the existing assistant bubble
             const fullText = friendly;
-            typeOutAssistant(answerId, fullText, (finalMsgs) => {
-                if (!tid) return;
-                fetch('/api/chat-threads', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: tid,
-                        title,
-                        memory_thread_id: returnedMemoryThreadId ?? null,
-                        messages: finalMsgs,
-                    }),
-                }).catch(() => { /* non-fatal */ });
-            });
+            typeOutAssistant(answerId, fullText);
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
@@ -1992,6 +2103,10 @@ export default function Page() {
                                                             setInput(q);
                                                         }}
                                                     />
+                                                    {/* Admin debug panel — shows raw JSON + math fields */}
+                                                    {ADMIN_USER_IDS.has(user?.id ?? '') && (
+                                                        <DebugPanel meta={m.meta} raw={(m as any).raw} />
+                                                    )}
                                                     {/* Smart follow-up chips — only show when answer is complete (not loading) */}
                                                     {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
                                                         <div style={{
@@ -2741,4 +2856,4 @@ export default function Page() {
         </>
     );
 }
-// version: 2026-03-08-03
+// version: 2026-03-08-04-debug
