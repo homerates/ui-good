@@ -1666,6 +1666,7 @@ export default function Page() {
             // sidebar thread restore work on a new device or cleared localStorage.
 
             const friendly =
+                meta.message ??
                 meta.summary ??
                 (meta.fred &&
                     meta.fred.tenYearYield != null &&
