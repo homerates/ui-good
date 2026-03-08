@@ -1104,42 +1104,21 @@ export default function Page() {
     }, []);
 
     // history select
-    async function onSelectHistory(id: string) {
+    function onSelectHistory(id: string) {
         setActiveId(id);
         const thread = threads[id];
         if (Array.isArray(thread) && thread.length) {
             setMessages(thread);
-            setShowLibrary(false);
-            return;
+        } else {
+            setMessages([
+                {
+                    id: uid(),
+                    role: 'assistant',
+                    content:
+                        'Restored chat (no snapshot found). Start typing to continue.',
+                },
+            ]);
         }
-
-        // Not in localStorage — restore from Supabase chat_threads.messages JSONB.
-        // These are the full messages[] including content + meta, identical to what
-        // was in localStorage, so GrokCard renders exactly as it did originally.
-        if (isSignedIn) {
-            try {
-                const res = await fetch(`/api/chat-threads?chat_id=${encodeURIComponent(id)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    const row = (data?.threads ?? [])[0];
-                    if (row && Array.isArray(row.messages) && row.messages.length) {
-                        setMessages(row.messages);
-                        // Cache back into local state so subsequent clicks are instant
-                        setThreads(prev => ({ ...prev, [id]: row.messages }));
-                        setShowLibrary(false);
-                        return;
-                    }
-                }
-            } catch { /* non-fatal */ }
-        }
-
-        setMessages([
-            {
-                id: uid(),
-                role: 'assistant',
-                content: 'Restored chat (no snapshot found). Start typing to continue.',
-            },
-        ]);
         setShowLibrary(false);
     }
 
@@ -1364,7 +1343,7 @@ export default function Page() {
 
     // === Typewriter helper for a "streaming" feel ===
     const typeOutAssistant = React.useCallback(
-        (id: string, full: string, onComplete?: (finalMessages: ChatMsg[]) => void) => {
+        (id: string, full: string) => {
             if (!full) return;
 
             // Use Array.from to be safe with emoji / unicode
@@ -1377,15 +1356,11 @@ export default function Page() {
                 index += 24; // chars per tick; tweak for speed
                 if (index >= total) {
                     // Final update with full string
-                    setMessages((prev) => {
-                        const next = prev.map((m) =>
+                    setMessages((prev) =>
+                        prev.map((m) =>
                             m.id === id ? { ...m, content: full } : m
-                        );
-                        // Fire onComplete with the fully-typed message array so callers
-                        // can persist the real content (not the empty placeholder).
-                        if (onComplete) window.setTimeout(() => onComplete(next), 0);
-                        return next;
-                    });
+                        )
+                    );
                     return;
                 }
 
@@ -1657,13 +1632,34 @@ export default function Page() {
                     ...prev,
                     [tid]: returnedMemoryThreadId
                 }));
+
+                // Persist to Supabase so memory_thread_id survives new sessions.
+                // Fire-and-forget — never blocks the UI.
+                const chatTitle = history.find(h => h.id === tid)?.title ?? title;
+                fetch('/api/chat-threads', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: tid,
+                        title: chatTitle,
+                        memory_thread_id: returnedMemoryThreadId,
+                    }),
+                }).catch(() => { /* non-fatal */ });
             }
 
-            // Type out the actual answer text into the existing assistant bubble.
-            // onComplete fires after the final character lands — at that point
-            // every message has its real content AND meta, so we persist the full
-            // thread to Supabase (chat_threads.messages JSONB). This is what makes
-            // sidebar thread restore work on a new device or cleared localStorage.
+            // Attach Grok metadata to the assistant message (under m.meta)
+            setMessages((prev) =>
+                prev.map((m) =>
+                    m.id === answerId && m.role === 'assistant'
+                        ? {
+                            ...m,
+                            meta,      // <--- meta now lives under m.meta
+                            content: '', // typewriter will fill summary, not markdown
+                        }
+                        : m
+                )
+            );
+
 
             const friendly =
                 meta.message ??
@@ -1708,23 +1704,9 @@ export default function Page() {
                 }
             }
 
-            // Type out the actual answer text into the existing assistant bubble.
-            // onComplete fires after the final character lands — messages[] at that
-            // point contain real content + meta, so Supabase gets the full thread.
+            // Type out the actual answer text into the existing assistant bubble
             const fullText = friendly;
-            typeOutAssistant(answerId, fullText, (finalMsgs) => {
-                if (!tid) return;
-                fetch('/api/chat-threads', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: tid,
-                        title,                                       // local var — never stale
-                        memory_thread_id: returnedMemoryThreadId ?? null,
-                        messages: finalMsgs,                         // full content + meta
-                    }),
-                }).catch(() => { /* non-fatal */ });
-            });
+            typeOutAssistant(answerId, fullText);
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
@@ -2738,5 +2720,3 @@ export default function Page() {
         </>
     );
 }
-
-// version: 2026-03-08-02
