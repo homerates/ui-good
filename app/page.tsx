@@ -1694,19 +1694,7 @@ export default function Page() {
                         t.includes('cash out') ||
                         t.includes('cash-out') ||
                         t.includes('projection') ||
-                        t.includes('stress test') ||
-                        // Investment / DSCR / rental math — always use Smart Scenario
-                        t.includes('dscr') ||
-                        t.includes('pitia') ||
-                        t.includes('amortization') ||
-                        t.includes('amortisation') ||
-                        t.includes('cash flow') ||
-                        t.includes('rental') ||
-                        t.includes('rent') ||
-                        t.includes('investment property') ||
-                        t.includes('vacancy') ||
-                        t.includes('maintenance') ||
-                        t.includes('property tax');
+                        t.includes('stress test');
                     // NOTE: removed '10-year'/'10 year'/'5-year'/'5 year' — these fire on
                     // rate questions like "30 year fixed" and "10 year note/treasury"
                     // NOTE: removed 'scenario' (too broad) and 'insurance' (too broad)
