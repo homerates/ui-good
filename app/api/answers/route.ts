@@ -3231,6 +3231,28 @@ ${uwAnswerText}`,
                     ? `\n\n**FRED snapshot**: 10y=${fred.tenYearYield}%, 30y mtg avg=${fred.mort30Avg}%, spread=${fred.spread} (${fred.asOf})`
                     : '');
 
+            // HR-MEMORY:WRITE — store calc result to memory_items so follow-ups can read it
+            if (supabase && memoryThreadId && calcCard.memoryPayload) {
+                try {
+                    await supabase.from('memory_items').insert({
+                        memory_thread_id: memoryThreadId,
+                        kind: 'scenario_snapshot',
+                        content_text: calcCard.memoryPayload.plain_english_summary || question,
+                        content_json: {
+                            scenario_inputs: calcCard.memoryPayload.scenario_inputs ?? null,
+                            computed_financials: calcCard.memoryPayload.computed_financials ?? null,
+                            monthly_payment: calcCard.memoryPayload.monthly_payment ?? null,
+                            question: question,
+                            model: calcDebugModel,
+                            userId,
+                        },
+                        tags: ['scenario', 'auto'],
+                    });
+                } catch (memErr: any) {
+                    console.warn('[CalcEngine] memory_items write failed:', memErr?.message);
+                }
+            }
+
             return noStore({
                 ok: true,
                 memory_thread_id: memoryThreadId,
