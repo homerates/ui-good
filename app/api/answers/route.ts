@@ -2222,30 +2222,52 @@ async function handle(req: NextRequest, intentParam?: string) {
     let conversationHistory = "";
     if (userId && supabase) {
         try {
-            const { data: history } = await supabase
-                // HR-MEMORY:LOAD-CONTEXT:SUPABASE
-
-                .from("user_answers")
-                .select("question, answer_summary, answer, content_text")
-                .eq("clerk_user_id", userId)
+            // First try memory_items (scenario_snapshot) — richest context
+            const { data: memItems } = await supabase
+                .from("memory_items")
+                .select("content_text, content_json, created_at")
                 .eq("memory_thread_id", memoryThreadId)
-                .or("tool_id.is.null,tool_id.neq.library_route")
+                .eq("kind", "scenario_snapshot")
                 .order("created_at", { ascending: false })
                 .limit(3);
 
-            if (history?.length) {
-                conversationHistory = history
+            if (memItems?.length) {
+                conversationHistory = [...memItems]
                     .reverse()
-                    .map((entry: any) => {
-                        const prev =
-                            entry.content_text ||
-                            entry.answer_summary ||
-                            (typeof entry.answer === "object" && entry.answer?.answer
-                                ? String(entry.answer.answer).slice(0, 200) + "…"
-                                : "Previous answer");
-                        return `User: ${entry.question}\nAssistant: ${prev}`;
+                    .map((item: any) => {
+                        const text = item.content_text ||
+                            (item.content_json ? JSON.stringify(item.content_json).slice(0, 300) : "");
+                        return text.trim();
                     })
+                    .filter(Boolean)
                     .join("\n\n");
+            }
+
+            // Fall back to user_answers if no memory_items found
+            if (!conversationHistory) {
+                const { data: history } = await supabase
+                    .from("user_answers")
+                    .select("question, answer_summary, answer, content_text")
+                    .eq("clerk_user_id", userId)
+                    .eq("memory_thread_id", memoryThreadId)
+                    .or("tool_id.is.null,tool_id.neq.library_route")
+                    .order("created_at", { ascending: false })
+                    .limit(3);
+
+                if (history?.length) {
+                    conversationHistory = history
+                        .reverse()
+                        .map((entry: any) => {
+                            const prev =
+                                entry.content_text ||
+                                entry.answer_summary ||
+                                (typeof entry.answer === "object" && entry.answer?.answer
+                                    ? String(entry.answer.answer).slice(0, 200) + "…"
+                                    : "Previous answer");
+                            return `User: ${entry.question}\nAssistant: ${prev}`;
+                        })
+                        .join("\n\n");
+                }
             }
         } catch (err: any) {
             console.warn("ANSWERS: history fetch failed", err?.message || err);
