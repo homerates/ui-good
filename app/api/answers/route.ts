@@ -3274,6 +3274,16 @@ ${uwAnswerText}`,
     }
 
     function isMortgageCalculation(q: string): boolean {
+        // Follow-up phrasing without explicit loan type — let Grok handle with thread memory
+        const isFollowUpPhrasing =
+            /\bwhat\s+if\b/i.test(q) ||
+            /\bprice\s+is\s+now\b/i.test(q) ||
+            /\bnow\s+\$[\d,]+/i.test(q) ||
+            /\binstead\b/i.test(q) ||
+            /\bsame\s+(property|home|house|but|scenario)\b/i.test(q);
+        const hasExplicitLoanType = /\bfha\b|\bconventional\b|\bva\b|\busda\b|\bjumbo\b|\bdscr\b/i.test(q);
+        if (isFollowUpPhrasing && !hasExplicitLoanType) return false;
+
         const hasPrice = /\$\s*[\d,]+k?\b/i.test(q);
         const hasMortgageContext = /home|house|property|loan|mortgage|buying|purchase|condo|townhouse/i.test(q);
         const isFHA = /\bfha\b/i.test(q);
