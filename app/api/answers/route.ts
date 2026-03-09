@@ -2226,7 +2226,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 // HR-MEMORY:LOAD-CONTEXT:SUPABASE
 
                 .from("user_answers")
-                .select("question, answer_summary, answer")
+                .select("question, answer_summary, answer, content_text")
                 .eq("clerk_user_id", userId)
                 .eq("memory_thread_id", memoryThreadId)
                 .or("tool_id.is.null,tool_id.neq.library_route")
@@ -2238,6 +2238,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                     .reverse()
                     .map((entry: any) => {
                         const prev =
+                            entry.content_text ||
                             entry.answer_summary ||
                             (typeof entry.answer === "object" && entry.answer?.answer
                                 ? String(entry.answer.answer).slice(0, 200) + "…"
