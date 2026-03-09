@@ -45,7 +45,8 @@ export type CalcType =
     | 'fha_needs_input'
     | 'affordability_needs_input'
     | 'dscr_needs_input'
-    | 'mip_duration_knowledge';
+    | 'mip_duration_knowledge'
+    | 'no_calc_match';
 
 export interface DispatchResult {
     type: CalcType;
@@ -327,6 +328,24 @@ export function dispatch(
     const assumptions: string[] = [];
     const fallbackRate = fredRate ?? 6.5;
 
+    // ── 0. FOLLOW-UP GUARD ──
+    // Questions like "what if price is $450k", "what if rate drops", "same but 10% down"
+    // have no explicit loan type — let Grok handle with thread memory context.
+    const isFollowUpPhrasing =
+        /\bwhat\s+if\b/i.test(q) ||
+        /\bwhat\s+about\b/i.test(q) ||
+        /\bprice\s+is\s+now\b/i.test(q) ||
+        /\bnow\s+\$[\d,]+[kKmM]?\b/i.test(q) ||
+        /\binstead\b/i.test(q) ||
+        /\bsame\s+(property|home|house|but|scenario)\b/i.test(q) ||
+        /\bif\s+(?:i|the|rates?|price)\b.{0,30}\b(?:drop|goes?|change|lower|higher|was|were)\b/i.test(q);
+
+    const hasExplicitLoanType = /\bfha\b|\bconventional\b|\bva\b|\busda\b|\bjumbo\b|\bdscr\b/i.test(q);
+
+    if (isFollowUpPhrasing && !hasExplicitLoanType) {
+        return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+    }
+
     // ── 1. REFI (highest priority — must run before affordability/conventional) ──
     if (isRefiQuestion(q)) {
         const balance = extractBalance(q) ?? extractBalance(hist) ?? null;
@@ -527,8 +546,8 @@ export function dispatch(
         };
     }
 
-    // No calc type matched
-    return { type: 'affordability_needs_input' as CalcType, params: null, confidence: 0, assumptions: [] };
+    // No calc type matched — let UW / Grok handle it
+    return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
 }
 
 // version: (new)
