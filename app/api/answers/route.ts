@@ -3177,25 +3177,81 @@ ${uwAnswerText}`,
     // If matched: returns deterministic card, skips Grok entirely.
     // If no match or error: falls through to old system below.
     // ============================================================
-    // HR-MEMORY:DISPATCH-CONTEXT — prepend most recent scenario_snapshot so dispatcher
-    // sees structured loan type context, not raw markdown that may contain FHA/MIP keywords
+    // HR-MEMORY:DISPATCH-CONTEXT — read last scenario_snapshot to lock loan type for follow-ups
     let dispatchHistory = recallTurnsText || conversationHistory || '';
+    let snapshotLoanType: string | null = null;
+    let snapshotJson: any = null;
     if (supabase && memoryThreadId) {
         try {
             const { data: recentSnap } = await supabase
                 .from('memory_items')
-                .select('content_text')
+                .select('content_text, content_json')
                 .eq('memory_thread_id', memoryThreadId)
                 .eq('kind', 'scenario_snapshot')
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .single();
-            if (recentSnap?.content_text) {
-                dispatchHistory = `[Prior scenario: ${recentSnap.content_text}]\n\n` + dispatchHistory;
+            if (recentSnap?.content_json?.model) {
+                snapshotLoanType = recentSnap.content_json.model; // e.g. "calcEngine-dscr"
+                snapshotJson = recentSnap.content_json;
             }
         } catch { /* silent */ }
     }
     const calcDispatch = dispatch(question, dispatchHistory, fred?.mort30Avg ?? undefined);
+
+    // HR-MEMORY:FOLLOW-UP-LOCK — if dispatcher returned no_calc_match or wrong type,
+    // and this looks like a follow-up, override with snapshot loan type
+    const isFollowUp = /what if|what about|instead|same but/i.test(question);
+    if (isFollowUp && snapshotLoanType &&
+        (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
+        if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
+            const si = snapshotJson.scenario_inputs;
+            const newPrice = calcDispatch.params ? (calcDispatch.params as any).purchasePrice : null;
+            const newRent = calcDispatch.params ? (calcDispatch.params as any).grossMonthlyRent : null;
+            const newRate = calcDispatch.params ? (calcDispatch.params as any).annualRatePct : null;
+            const newDown = calcDispatch.params ? (calcDispatch.params as any).downPaymentPct : null;
+            (calcDispatch as any).type = 'dscr';
+            (calcDispatch as any).params = {
+                purchasePrice: newPrice ?? si.price ?? si.purchasePrice,
+                grossMonthlyRent: newRent ?? si.rent_monthly ?? si.grossMonthlyRent,
+                downPaymentPct: newDown ?? si.down_payment_pct ?? 25,
+                annualRatePct: newRate ?? si.rate_used_pct ?? 6.5,
+                vacancyRate: 0,
+            };
+        } else if (snapshotLoanType === 'calcEngine-fha' && snapshotJson?.scenario_inputs) {
+            const si = snapshotJson.scenario_inputs;
+            const newPrice = calcDispatch.params ? (calcDispatch.params as any).purchasePrice : null;
+            const newRate = calcDispatch.params ? (calcDispatch.params as any).annualRatePct : null;
+            const newDown = calcDispatch.params ? (calcDispatch.params as any).downPaymentPct : null;
+            (calcDispatch as any).type = 'fha';
+            (calcDispatch as any).params = {
+                purchasePrice: newPrice ?? si.price ?? si.purchasePrice,
+                downPaymentPct: newDown ?? si.down_payment_pct ?? 3.5,
+                annualRatePct: newRate ?? si.rate_used_pct ?? 6.5,
+            };
+        } else if (snapshotLoanType === 'calcEngine-conventional' && snapshotJson?.scenario_inputs) {
+            const si = snapshotJson.scenario_inputs;
+            const newPrice = calcDispatch.params ? (calcDispatch.params as any).purchasePrice : null;
+            const newRate = calcDispatch.params ? (calcDispatch.params as any).annualRatePct : null;
+            const newDown = calcDispatch.params ? (calcDispatch.params as any).downPaymentPct : null;
+            (calcDispatch as any).type = 'conventional';
+            (calcDispatch as any).params = {
+                purchasePrice: newPrice ?? si.price ?? si.purchasePrice,
+                downPaymentPct: newDown ?? si.down_payment_pct ?? 20,
+                annualRatePct: newRate ?? si.rate_used_pct ?? 6.5,
+            };
+        } else if (snapshotLoanType === 'refi_advisor_v2' && snapshotJson?.scenario_inputs) {
+            const si = snapshotJson.scenario_inputs;
+            const newRate = calcDispatch.params ? (calcDispatch.params as any).newRatePct : null;
+            (calcDispatch as any).type = 'refi';
+            (calcDispatch as any).params = {
+                currentBalance: si.loan_amount,
+                currentRatePct: si.current_rate_pct,
+                newRatePct: newRate ?? si.rate_used_pct,
+                remainingMonths: (si.term_years ?? 30) * 12,
+            };
+        }
+    }
     const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
 
     {
