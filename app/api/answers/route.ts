@@ -2730,6 +2730,28 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
             ];
         }
 
+        // HR-MEMORY:WRITE — store refi result so follow-ups stay on refi path
+        if (supabase && memoryThreadId) {
+            try {
+                await supabase.from('memory_items').insert({
+                    memory_thread_id: memoryThreadId,
+                    kind: 'scenario_snapshot',
+                    content_text: `Refi: ${f$(balance)} balance, ${fPct(currentRate)} → ${fPct(effNewRate)}. Monthly savings: ${f$(Math.round(save))}. Breakeven: ${beM ? Math.round(beM) + ' months' : 'n/a'}.`,
+                    content_json: {
+                        scenario_inputs: { loan_amount: balance, current_rate_pct: currentRate, rate_used_pct: effNewRate, term_years: Math.round(monthsLeft / 12) },
+                        computed_financials: { monthly_savings: Math.round(save), break_even_months: beM ? Math.round(beM) : null, monthly_pi: Math.round(newPI) },
+                        monthly_payment: Math.round(newPI),
+                        question,
+                        model: 'refi_advisor_v2',
+                        userId,
+                    },
+                    tags: ['scenario', 'auto'],
+                });
+            } catch (memErr: any) {
+                console.warn('[Refi] memory_items write failed:', memErr?.message);
+            }
+        }
+
         return noStore({
             ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
             generatedAt, usedFRED, usedTavily, fred, topSources,
@@ -3155,7 +3177,7 @@ ${uwAnswerText}`,
     // If matched: returns deterministic card, skips Grok entirely.
     // If no match or error: falls through to old system below.
     // ============================================================
-    const calcDispatch = dispatch(question, conversationHistory ?? '', fred?.mort30Avg ?? undefined);
+    const calcDispatch = dispatch(question, recallTurnsText || conversationHistory || '', fred?.mort30Avg ?? undefined);
     const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
 
     {
