@@ -3257,7 +3257,7 @@ ${uwAnswerText}`,
         ? parseFloat((question.match(/(?:new rate|refi to|drop to|down to|rates?\s+(?:go|drop|fall|come)?\s*to)\s*([\d]+\.?\d*)\s*%/i)
             ?? question.match(/(?:at|to)\s+([\d]+\.?\d*)\s*%/i))![1]) : null;
 
-    const isFollowUp = /what if|what about|instead|same but/i.test(question);
+    const isFollowUp = /what if|what about|instead|same but|show me|if rates?|rates? drop|rates? go|rates? fall|drop to|down to/i.test(question);
     if (isFollowUp && snapshotLoanType &&
         (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
         if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
