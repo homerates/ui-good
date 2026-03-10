@@ -3201,53 +3201,58 @@ ${uwAnswerText}`,
 
     // HR-MEMORY:FOLLOW-UP-LOCK — if dispatcher returned no_calc_match or wrong type,
     // and this looks like a follow-up, override with snapshot loan type
+    // Extract changed params from the follow-up question itself — before any override
+    const followUpPrice = (() => { try { return (dispatch(question, '', fred?.mort30Avg ?? undefined).params as any)?.purchasePrice; } catch { return null; } })();
+    const followUpDown = question.match(/(\d+\.?\d*)\s*%\s*down/i) ? parseFloat(question.match(/(\d+\.?\d*)\s*%\s*down/i)![1]) : null;
+    const followUpRate = question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i) ? parseFloat(question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i)![1]) : null;
+    const followUpRent = question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)k?/i) ? parseFloat(question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)k?/i)![1].replace(/,/g, '')) * (question.match(/rent\s*(?:is\s*)?\$?\s*[\d,]+k/i) ? 1000 : 1) : null;
+
+    // Extract changed params directly from the follow-up question — source of truth
+    const qLower = question.toLowerCase();
+    const fuDown = question.match(/(\d+\.?\d*)\s*%\s*down/i) ? parseFloat(question.match(/(\d+\.?\d*)\s*%\s*down/i)![1]) : null;
+    const fuRate = question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i) ? parseFloat(question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i)![1]) : null;
+    const fuPrice = question.match(/\$\s*([\d,]+)\s*k\b/i) ? parseFloat(question.match(/\$\s*([\d,]+)\s*k\b/i)![1]) * 1000
+        : question.match(/\$\s*([\d,]{6,})/i) ? parseFloat(question.match(/\$\s*([\d,]{6,})/i)![1].replace(/,/g, '')) : null;
+    const fuRent = question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)\s*k\b/i) ? parseFloat(question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)\s*k\b/i)![1]) * 1000
+        : question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)/i) ? parseFloat(question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)/i)![1].replace(/,/g, '')) : null;
+    const fuNewRate = question.match(/(?:new rate|refi to|drop to|down to)\s+(\d+\.?\d*)\s*%/i) ? parseFloat(question.match(/(?:new rate|refi to|drop to|down to)\s+(\d+\.?\d*)\s*%/i)![1]) : null;
+
     const isFollowUp = /what if|what about|instead|same but/i.test(question);
     if (isFollowUp && snapshotLoanType &&
         (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
         if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
-            const newPrice = calcDispatch.params ? (calcDispatch.params as any).purchasePrice : null;
-            const newRent = calcDispatch.params ? (calcDispatch.params as any).grossMonthlyRent : null;
-            const newRate = calcDispatch.params ? (calcDispatch.params as any).annualRatePct : null;
-            const newDown = calcDispatch.params ? (calcDispatch.params as any).downPaymentPct : null;
             (calcDispatch as any).type = 'dscr';
             (calcDispatch as any).params = {
-                purchasePrice: newPrice ?? si.price ?? si.purchasePrice,
-                grossMonthlyRent: newRent ?? si.rent_monthly ?? si.grossMonthlyRent,
-                downPaymentPct: newDown ?? si.down_payment_pct ?? 25,
-                annualRatePct: newRate ?? si.rate_used_pct ?? 6.5,
+                purchasePrice: fuPrice ?? si.price ?? si.purchasePrice,
+                grossMonthlyRent: fuRent ?? si.rent_monthly ?? si.grossMonthlyRent,
+                downPaymentPct: fuDown ?? si.down_payment_pct ?? 25,
+                annualRatePct: fuRate ?? si.rate_used_pct ?? 6.5,
                 vacancyRate: 0,
             };
         } else if (snapshotLoanType === 'calcEngine-fha' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
-            const newPrice = calcDispatch.params ? (calcDispatch.params as any).purchasePrice : null;
-            const newRate = calcDispatch.params ? (calcDispatch.params as any).annualRatePct : null;
-            const newDown = calcDispatch.params ? (calcDispatch.params as any).downPaymentPct : null;
             (calcDispatch as any).type = 'fha';
             (calcDispatch as any).params = {
-                purchasePrice: newPrice ?? si.price ?? si.purchasePrice,
-                downPaymentPct: newDown ?? si.down_payment_pct ?? 3.5,
-                annualRatePct: newRate ?? si.rate_used_pct ?? 6.5,
+                purchasePrice: fuPrice ?? si.price ?? si.purchasePrice,
+                downPaymentPct: fuDown ?? si.down_payment_pct ?? 3.5,
+                annualRatePct: fuRate ?? si.rate_used_pct ?? 6.5,
             };
         } else if (snapshotLoanType === 'calcEngine-conventional' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
-            const newPrice = calcDispatch.params ? (calcDispatch.params as any).purchasePrice : null;
-            const newRate = calcDispatch.params ? (calcDispatch.params as any).annualRatePct : null;
-            const newDown = calcDispatch.params ? (calcDispatch.params as any).downPaymentPct : null;
             (calcDispatch as any).type = 'conventional';
             (calcDispatch as any).params = {
-                purchasePrice: newPrice ?? si.price ?? si.purchasePrice,
-                downPaymentPct: newDown ?? si.down_payment_pct ?? 20,
-                annualRatePct: newRate ?? si.rate_used_pct ?? 6.5,
+                purchasePrice: fuPrice ?? si.price ?? si.purchasePrice,
+                downPaymentPct: fuDown ?? si.down_payment_pct ?? 20,
+                annualRatePct: fuRate ?? si.rate_used_pct ?? 6.5,
             };
         } else if (snapshotLoanType === 'refi_advisor_v2' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
-            const newRate = calcDispatch.params ? (calcDispatch.params as any).newRatePct : null;
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
-                currentBalance: si.loan_amount,
+                currentBalance: fuPrice ?? si.loan_amount,
                 currentRatePct: si.current_rate_pct,
-                newRatePct: newRate ?? si.rate_used_pct,
+                newRatePct: fuNewRate ?? fuRate ?? si.rate_used_pct,
                 remainingMonths: (si.term_years ?? 30) * 12,
             };
         }
