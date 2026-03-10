@@ -3197,6 +3197,7 @@ ${uwAnswerText}`,
     let dispatchHistory = recallTurnsText || conversationHistory || '';
     let snapshotLoanType: string | null = null;
     let snapshotJson: any = null;
+    let snapshotText = '';
     if (supabase && memoryThreadId) {
         try {
             const { data: recentSnap } = await supabase
@@ -3211,6 +3212,7 @@ ${uwAnswerText}`,
             if (recentSnap?.content_json?.model) {
                 snapshotLoanType = recentSnap.content_json.model; // e.g. "calcEngine-dscr"
                 snapshotJson = recentSnap.content_json;
+                snapshotText = recentSnap.content_text ?? '';
             }
         } catch { /* silent */ }
     }
@@ -3224,18 +3226,36 @@ ${uwAnswerText}`,
     const followUpRate = question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i) ? parseFloat(question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i)![1]) : null;
     const followUpRent = question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)k?/i) ? parseFloat(question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)k?/i)![1].replace(/,/g, '')) * (question.match(/rent\s*(?:is\s*)?\$?\s*[\d,]+k/i) ? 1000 : 1) : null;
 
-    // Extract changed params directly from the follow-up question — source of truth
+    // Extract BASELINE params from snapshot content_text — authoritative source
+    const snapshotPrice = snapshotText.match(/\$([\d,]+(?:\.\d+)?k?)\s*purchase/i)
+        ? parseFloat(snapshotText.match(/\$([\d,]+(?:\.\d+)?k?)\s*purchase/i)![1].replace(/,/g, '')) * (snapshotText.match(/k\s*purchase/i) ? 1000 : 1) : null;
+    const snapshotDown = snapshotText.match(/([\d.]+)%\s*down/i)
+        ? parseFloat(snapshotText.match(/([\d.]+)%\s*down/i)![1]) : null;
+    const snapshotRate = snapshotText.match(/([\d.]+)%\s*·\s*\d+.year/i)
+        ? parseFloat(snapshotText.match(/([\d.]+)%\s*·\s*\d+.year/i)![1]) : null;
+    const snapshotTerm = snapshotText.match(/(\d+).year/i)
+        ? parseInt(snapshotText.match(/(\d+).year/i)![1]) : 30;
+    const snapshotRent = snapshotText.match(/rent[^\d$]*\$([\d,]+)/i)
+        ? parseFloat(snapshotText.match(/rent[^\d$]*\$([\d,]+)/i)![1].replace(/,/g, '')) : null;
+
+    // Extract ONLY what changed from the follow-up question
     const qLower = question.toLowerCase();
-    const fuDown = question.match(/(\d+\.?\d*)\s*%\s*down/i) ? parseFloat(question.match(/(\d+\.?\d*)\s*%\s*down/i)![1]) : null;
-    const fuRate = question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i) ? parseFloat(question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i)![1]) : null;
-    const fuPriceRaw = question.match(/\$\s*([\d,]+)\s*k\b/i) ? parseFloat(question.match(/\$\s*([\d,]+)\s*k\b/i)![1]) * 1000
-        : question.match(/\$\s*([\d,]{6,})/i) ? parseFloat(question.match(/\$\s*([\d,]{6,})/i)![1].replace(/,/g, '')) : null;
-    // Reject fuPrice if it matches the snapshot loan_amount within 2% — it's leaking from prior response, not user intent
-    const snapLoanAmt = snapshotJson?.loan_amount ?? snapshotJson?.scenario_inputs?.loan_amount ?? null;
-    const fuPrice = (fuPriceRaw && snapLoanAmt && Math.abs(fuPriceRaw - snapLoanAmt) / snapLoanAmt < 0.02) ? null : fuPriceRaw;
-    const fuRent = question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)\s*k\b/i) ? parseFloat(question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)\s*k\b/i)![1]) * 1000
-        : question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)/i) ? parseFloat(question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)/i)![1].replace(/,/g, '')) : null;
-    const fuNewRate = question.match(/(?:new rate|refi to|drop to|down to)\s+(\d+\.?\d*)\s*%/i) ? parseFloat(question.match(/(?:new rate|refi to|drop to|down to)\s+(\d+\.?\d*)\s*%/i)![1]) : null;
+    const fuDown = question.match(/([\d]+\.?\d*)\s*%\s*down/i)
+        ? parseFloat(question.match(/([\d]+\.?\d*)\s*%\s*down/i)![1]) : null;
+    const fuRate = question.match(/(?:rate|at|to|drop(?:s)?\s+to|down\s+to)\s+([\d]+\.?\d*)\s*%/i)
+        ? parseFloat(question.match(/(?:rate|at|to|drop(?:s)?\s+to|down\s+to)\s+([\d]+\.?\d*)\s*%/i)![1]) : null;
+    const fuPrice = question.match(/\$([\d,]+(?:\.\d+)?k?)\b/i) ? (() => {
+        const raw = parseFloat(question.match(/\$([\d,]+(?:\.\d+)?k?)\b/i)![1].replace(/,/g, '')) * (question.match(/\$[\d,]+k\b/i) ? 1000 : 1);
+        // Reject if within 2% of snapshot loan amount — leakage from prior card
+        const snapLoan = snapshotJson?.loan_amount ?? snapshotJson?.scenario_inputs?.loan_amount ?? null;
+        return (snapLoan && Math.abs(raw - snapLoan) / snapLoan < 0.02) ? null : raw;
+    })() : null;
+    const fuRent = question.match(/rent\s*\$?([\d,]+)k?\b/i)
+        ? parseFloat(question.match(/rent\s*\$?([\d,]+)k?\b/i)![1].replace(/,/g, '')) * (question.match(/rent\s*\$?[\d,]+k\b/i) ? 1000 : 1) : null;
+    const fuNewRate = question.match(/(?:new rate|refi to|drop to|down to|rates?\s+(?:go|drop|fall|come)?\s*to)\s*([\d]+\.?\d*)\s*%/i)
+        ?? question.match(/(?:at|to)\s+([\d]+\.?\d*)\s*%/i)
+        ? parseFloat((question.match(/(?:new rate|refi to|drop to|down to|rates?\s+(?:go|drop|fall|come)?\s*to)\s*([\d]+\.?\d*)\s*%/i)
+            ?? question.match(/(?:at|to)\s+([\d]+\.?\d*)\s*%/i))![1]) : null;
 
     const isFollowUp = /what if|what about|instead|same but/i.test(question);
     if (isFollowUp && snapshotLoanType &&
