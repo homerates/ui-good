@@ -3228,8 +3228,11 @@ ${uwAnswerText}`,
     const qLower = question.toLowerCase();
     const fuDown = question.match(/(\d+\.?\d*)\s*%\s*down/i) ? parseFloat(question.match(/(\d+\.?\d*)\s*%\s*down/i)![1]) : null;
     const fuRate = question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i) ? parseFloat(question.match(/(?:rate|at)\s+(\d+\.?\d*)\s*%/i)![1]) : null;
-    const fuPrice = question.match(/\$\s*([\d,]+)\s*k\b/i) ? parseFloat(question.match(/\$\s*([\d,]+)\s*k\b/i)![1]) * 1000
+    const fuPriceRaw = question.match(/\$\s*([\d,]+)\s*k\b/i) ? parseFloat(question.match(/\$\s*([\d,]+)\s*k\b/i)![1]) * 1000
         : question.match(/\$\s*([\d,]{6,})/i) ? parseFloat(question.match(/\$\s*([\d,]{6,})/i)![1].replace(/,/g, '')) : null;
+    // Reject fuPrice if it matches the snapshot loan_amount within 2% — it's leaking from prior response, not user intent
+    const snapLoanAmt = snapshotJson?.loan_amount ?? snapshotJson?.scenario_inputs?.loan_amount ?? null;
+    const fuPrice = (fuPriceRaw && snapLoanAmt && Math.abs(fuPriceRaw - snapLoanAmt) / snapLoanAmt < 0.02) ? null : fuPriceRaw;
     const fuRent = question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)\s*k\b/i) ? parseFloat(question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)\s*k\b/i)![1]) * 1000
         : question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)/i) ? parseFloat(question.match(/rent\s*(?:is\s*)?\$?\s*([\d,]+)/i)![1].replace(/,/g, '')) : null;
     const fuNewRate = question.match(/(?:new rate|refi to|drop to|down to)\s+(\d+\.?\d*)\s*%/i) ? parseFloat(question.match(/(?:new rate|refi to|drop to|down to)\s+(\d+\.?\d*)\s*%/i)![1]) : null;
