@@ -2747,12 +2747,17 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
                     kind: 'scenario_snapshot',
                     content_text: `Refi: ${f$(balance)} balance, ${fPct(currentRate)} → ${fPct(effNewRate)}. Monthly savings: ${f$(Math.round(save))}. Breakeven: ${beM ? Math.round(beM) + ' months' : 'n/a'}.`,
                     content_json: {
-                        scenario_inputs: { loan_amount: balance, current_rate_pct: currentRate, rate_used_pct: effNewRate, term_years: Math.round(monthsLeft / 12) },
-                        computed_financials: { monthly_savings: Math.round(save), break_even_months: beM ? Math.round(beM) : null, monthly_pi: Math.round(newPI) },
+                        loan_amount: balance,
+                        current_rate_pct: currentRate,
+                        rate_used_pct: effNewRate,
+                        term_years: Math.round(monthsLeft / 12),
                         monthly_payment: Math.round(newPI),
+                        monthly_savings: Math.round(save),
+                        break_even_months: beM ? Math.round(beM) : null,
                         question,
                         model: 'refi_advisor_v2',
                         userId,
+                        chat_id: chatId,
                     },
                     tags: ['scenario', 'auto'],
                 });
@@ -3197,7 +3202,7 @@ ${uwAnswerText}`,
                 .select('content_text, content_json')
                 .eq('memory_thread_id', memoryThreadId)
                 .eq('kind', 'scenario_snapshot')
-                .eq('content_json->>chat_id', chatId)
+                .or(`content_json->>chat_id.eq.${chatId},content_json->>chat_id.is.null`)
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .single();
