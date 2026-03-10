@@ -2607,6 +2607,8 @@ To give you a real verdict (not just math), I need:
         const md = `## ${vEmoji} Refi Analysis — ${fPct(currentRate)} → ${fPct(effNewRate)}
 ${fredNote}
 
+**Loan Balance: ${f$(balance)}** · ${(monthsLeft / 12).toFixed(0)}-year remaining term
+
 ---
 
 ## 💰 Monthly Savings Breakdown
@@ -3261,14 +3263,15 @@ ${uwAnswerText}`,
                 downPaymentPct: fuDown ?? si.down_payment_pct ?? 20,
                 annualRatePct: fuRate ?? si.rate_used_pct ?? 6.5,
             };
-        } else if (snapshotLoanType === 'refi_advisor_v2' && snapshotJson?.scenario_inputs) {
-            const si = snapshotJson.scenario_inputs;
+        } else if (snapshotLoanType === 'refi_advisor_v2') {
+            // Refi follow-up — re-run refi_advisor_v2 with changed rate
+            // Force module = 'refi' so the refi bypass in route.ts fires
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
-                currentBalance: fuPrice ?? si.loan_amount,
-                currentRatePct: si.current_rate_pct,
-                newRatePct: fuNewRate ?? fuRate ?? si.rate_used_pct,
-                remainingMonths: (si.term_years ?? 30) * 12,
+                currentBalance: snapshotJson?.loan_amount ?? null,
+                currentRatePct: snapshotJson?.current_rate_pct ?? null,
+                newRatePct: fuNewRate ?? snapshotJson?.rate_used_pct ?? null,
+                remainingMonths: (snapshotJson?.term_years ?? 30) * 12,
             };
         }
     }
