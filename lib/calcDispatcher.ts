@@ -343,6 +343,79 @@ export function dispatch(
     const hasExplicitLoanType = /\bfha\b|\bconventional\b|\bva\b|\busda\b|\bjumbo\b|\bdscr\b/i.test(q);
 
     if (isFollowUpPhrasing && !hasExplicitLoanType) {
+        // Try to identify prior loan type from history and re-run with merged params
+        const histLower = hist.toLowerCase();
+        const priorIsFHA = /\bfha\b|\bufmip\b|\bmip\b/.test(histLower);
+        const priorIsDSCR = /\bdscr\b|investment property|rental|pitia/.test(histLower);
+        const priorIsRefi = /refi\b|refinanc/.test(histLower);
+        const priorIsConventional = /conventional/.test(histLower);
+
+        // Extract what changed in the follow-up question
+        const newPrice = extractPrice(q);
+        const newRate = extractRate(q);
+        const newDown = extractDownPct(q);
+        const newRent = extractRentAmount(q);
+
+        // Pull baseline values from history
+        const histPrice = pullFromHistory(hist, extractPrice);
+        const histRate = pullFromHistory(hist, extractRate);
+        const histDown = extractDownPct(hist);
+        const histRent = pullFromHistory(hist, extractRentAmount);
+
+        const mergedPrice = newPrice ?? histPrice;
+        const mergedRate = newRate ?? histRate ?? fallbackRate;
+        const mergedDown = newDown ?? histDown;
+        const mergedRent = newRent ?? histRent;
+
+        if (!mergedPrice && !priorIsRefi) {
+            return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+        }
+
+        if (newRate && newRate !== histRate) assumptions.push(`rate updated to ${newRate}%`);
+        if (newPrice && newPrice !== histPrice) assumptions.push(`price updated to $${newPrice.toLocaleString()}`);
+        if (newDown && newDown !== histDown) assumptions.push(`down payment updated to ${newDown}%`);
+
+        if (priorIsDSCR && mergedPrice && mergedRent) {
+            return {
+                type: 'dscr',
+                params: {
+                    purchasePrice: mergedPrice,
+                    grossMonthlyRent: mergedRent,
+                    downPaymentPct: mergedDown ?? 25,
+                    annualRatePct: mergedRate,
+                    vacancyRate: 0,
+                } as DSCRInput,
+                confidence: 0.9,
+                assumptions,
+            };
+        }
+
+        if (priorIsFHA && mergedPrice) {
+            return {
+                type: 'fha',
+                params: {
+                    purchasePrice: mergedPrice,
+                    downPaymentPct: mergedDown ?? 3.5,
+                    annualRatePct: mergedRate,
+                } as FHAInput,
+                confidence: 0.9,
+                assumptions,
+            };
+        }
+
+        if (mergedPrice) {
+            return {
+                type: 'conventional',
+                params: {
+                    purchasePrice: mergedPrice,
+                    downPaymentPct: mergedDown ?? 20,
+                    annualRatePct: mergedRate,
+                } as ConventionalInput,
+                confidence: 0.9,
+                assumptions,
+            };
+        }
+
         return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
     }
 
