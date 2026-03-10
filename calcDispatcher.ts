@@ -45,8 +45,7 @@ export type CalcType =
     | 'fha_needs_input'
     | 'affordability_needs_input'
     | 'dscr_needs_input'
-    | 'mip_duration_knowledge'
-    | 'no_calc_match';
+    | 'mip_duration_knowledge';
 
 export interface DispatchResult {
     type: CalcType;
@@ -328,98 +327,6 @@ export function dispatch(
     const assumptions: string[] = [];
     const fallbackRate = fredRate ?? 6.5;
 
-    // ── 0. FOLLOW-UP GUARD ──
-    // Questions like "what if price is $450k", "what if rate drops", "same but 10% down"
-    // have no explicit loan type — let Grok handle with thread memory context.
-    const isFollowUpPhrasing =
-        /\bwhat\s+if\b/i.test(q) ||
-        /\bwhat\s+about\b/i.test(q) ||
-        /\bprice\s+is\s+now\b/i.test(q) ||
-        /\bnow\s+\$[\d,]+[kKmM]?\b/i.test(q) ||
-        /\binstead\b/i.test(q) ||
-        /\bsame\s+(property|home|house|but|scenario)\b/i.test(q) ||
-        /\bif\s+(?:i|the|rates?|price)\b.{0,30}\b(?:drop|goes?|change|lower|higher|was|were)\b/i.test(q);
-
-    const hasExplicitLoanType = /\bfha\b|\bconventional\b|\bva\b|\busda\b|\bjumbo\b|\bdscr\b/i.test(q);
-
-    if (isFollowUpPhrasing && !hasExplicitLoanType) {
-        // Try to identify prior loan type from history and re-run with merged params
-        const histLower = hist.toLowerCase();
-        const priorIsRefi = /refi\b|refinanc/.test(histLower);
-        const priorIsDSCR = /\bdscr\b|investment property|pitia|dscr.*rent|rent.*dscr/.test(histLower) ||
-            (/rent/i.test(histLower) && /pitia|dscr|investment/i.test(histLower));
-        const priorIsFHA = !priorIsDSCR && /\bfha\b|\bufmip\b|\bmip\b/.test(histLower);
-        const priorIsConventional = !priorIsDSCR && !priorIsFHA && /conventional/.test(histLower);
-
-        // Extract what changed in the follow-up question
-        const newPrice = extractPrice(q);
-        const newRate = extractRate(q);
-        const newDown = extractDownPct(q);
-        const newRent = extractRentAmount(q);
-
-        // Pull baseline values from history
-        const histPrice = pullFromHistory(hist, extractPrice);
-        const histRate = pullFromHistory(hist, extractRate);
-        const histDown = extractDownPct(hist);
-        const histRent = pullFromHistory(hist, extractRentAmount);
-
-        const mergedPrice = newPrice ?? histPrice;
-        const mergedRate = newRate ?? histRate ?? fallbackRate;
-        const mergedDown = newDown ?? histDown;
-        const mergedRent = newRent ?? histRent;
-
-        if (!mergedPrice && !priorIsRefi) {
-            return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
-        }
-
-        if (newRate && newRate !== histRate) assumptions.push(`rate updated to ${newRate}%`);
-        if (newPrice && newPrice !== histPrice) assumptions.push(`price updated to $${newPrice.toLocaleString()}`);
-        if (newDown && newDown !== histDown) assumptions.push(`down payment updated to ${newDown}%`);
-
-        if (priorIsRefi) {
-            return {
-                type: 'dscr',
-                params: {
-                    purchasePrice: mergedPrice,
-                    grossMonthlyRent: mergedRent,
-                    downPaymentPct: mergedDown ?? 25,
-                    annualRatePct: mergedRate,
-                    vacancyRate: 0,
-                } as DSCRInput,
-                confidence: 0.9,
-                assumptions,
-            };
-        }
-
-        if (priorIsFHA && mergedPrice) {
-            return {
-                type: 'fha',
-                params: {
-                    purchasePrice: mergedPrice,
-                    downPaymentPct: mergedDown ?? 3.5,
-                    annualRatePct: mergedRate,
-                } as FHAInput,
-                confidence: 0.9,
-                assumptions,
-            };
-        }
-
-        if (mergedPrice) {
-            return {
-                type: 'conventional',
-                params: {
-                    purchasePrice: mergedPrice,
-                    downPaymentPct: mergedDown ?? 20,
-                    annualRatePct: mergedRate,
-                } as ConventionalInput,
-                confidence: 0.9,
-                assumptions,
-            };
-        }
-
-        return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
-    }
-
     // ── 1. REFI (highest priority — must run before affordability/conventional) ──
     if (isRefiQuestion(q)) {
         const balance = extractBalance(q) ?? extractBalance(hist) ?? null;
@@ -497,7 +404,11 @@ export function dispatch(
     }
 
     // ── 3. FHA ──
-    if (isFHAQuestion(q)) {
+    if (isFHAQuestion(q) || (
+        // FHA follow-up: prior conversation was FHA + current question adjusts down pct
+        /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(q) &&
+        /\bfha\b|\bmip\b|\bufmip\b/i.test(hist)
+    )) {
         // MIP duration knowledge question — no calc needed
         if (isMIPKnowledgeQuestion(q)) {
             return { type: 'mip_duration_knowledge', params: null, confidence: 1.0, assumptions: [] };
@@ -616,8 +527,8 @@ export function dispatch(
         };
     }
 
-    // No calc type matched — let UW / Grok handle it
-    return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+    // No calc type matched
+    return { type: 'affordability_needs_input' as CalcType, params: null, confidence: 0, assumptions: [] };
 }
 
 // version: (new)
