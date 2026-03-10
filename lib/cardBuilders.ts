@@ -40,6 +40,12 @@ export interface BuiltCard {
     follow_up: string;
     follow_up_chips: Array<{ label: string; seed: string }>;
     confidence: string;
+    memoryPayload?: {
+        plain_english_summary: string;
+        scenario_inputs: Record<string, any>;
+        computed_financials: Record<string, any>;
+        monthly_payment: number;
+    };
 }
 
 // ─────────────────────────────────────────────
@@ -132,6 +138,12 @@ ${dtiSection}
         follow_up: chips[0].label,
         follow_up_chips: chips,
         confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `Conventional: ${f$(r.purchasePrice)} purchase, ${r.downPaymentPct}% down, ${rateStr}, ${r.termYears}yr fixed. Monthly P&I: ${f$(r.monthlyPI)}, total: ${f$(r.totalMonthly)}.`,
+            scenario_inputs: { price: r.purchasePrice, down_payment_pct: r.downPaymentPct, loan_amount: r.loanAmount, rate_used_pct: r.annualRatePct, term_years: r.termYears },
+            computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly },
+            monthly_payment: r.totalMonthly,
+        },
     };
 }
 
@@ -270,6 +282,12 @@ ${dtiSection}${incomeSection}${compSection}
         follow_up: chips[0].label,
         follow_up_chips: chips,
         confidence: '1.00 (calculated per HUD FHA guidelines — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `FHA: ${f$(r.purchasePrice)} purchase, ${r.downPaymentPct}% down, ${rateStr}, ${r.termYears}yr fixed. Monthly P&I: ${f$(r.monthlyPI)}, total: ${f$(r.totalMonthly)}.`,
+            scenario_inputs: { price: r.purchasePrice, down_payment_pct: r.downPaymentPct, loan_amount: r.baseLoanAmount, rate_used_pct: r.annualRatePct, term_years: r.termYears },
+            computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly },
+            monthly_payment: r.totalMonthly,
+        },
     };
 }
 
@@ -395,6 +413,12 @@ ${mipSection}${resetSection}${waitSection}
         follow_up: chips[0].label,
         follow_up_chips: chips,
         confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `Refi: ${f$(r.currentBalance)} balance, ${fPct(r.currentRatePct)} → ${fPct(r.newRatePct)}. New monthly P&I: ${f$(r.newMonthlyPI)}. Breakeven: ${r.breakEvenYears ? fYr(r.breakEvenYears) : 'n/a'}.`,
+            scenario_inputs: { loan_amount: r.currentBalance, current_rate_pct: r.currentRatePct, rate_used_pct: r.newRatePct, term_years: r.termYears },
+            computed_financials: { monthly_pi: r.newMonthlyPI, monthly_savings: r.monthlyPISavings, break_even_months: r.breakEvenMonths },
+            monthly_payment: r.newMonthlyPI,
+        },
     };
 }
 
@@ -809,6 +833,12 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
         follow_up: chips[0].label,
         follow_up_chips: chips,
         confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `DSCR: ${f$(r.purchasePrice)} property, ${r.downPaymentPct}% down, ${f$(r.grossMonthlyRent)}/mo rent, ${rateStr}. DSCR: ${r.dscr.toFixed(2)}x. Monthly PITIA: ${f$(r.monthlyPITIA)}.`,
+            scenario_inputs: { price: r.purchasePrice, down_payment_pct: r.downPaymentPct, loan_amount: r.loanAmount, rate_used_pct: r.annualRatePct, rent_monthly: r.grossMonthlyRent },
+            computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.monthlyPITIA, dscr_gross: r.dscr, monthly_cash_flow: r.monthlyCashFlow },
+            monthly_payment: r.monthlyPITIA,
+        },
     };
 }
 
