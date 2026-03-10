@@ -2731,10 +2731,19 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
         }
 
         // HR-MEMORY:WRITE — store refi result so follow-ups stay on refi path
-        if (supabase && memoryThreadId) {
-            try {
+        if (supabase && (memoryThreadId || chatId)) {
+            const resolvedThreadId = memoryThreadId ?? await (async () => {
+                // look up memory_thread_id from chat_threads table using chatId
+                const { data } = await supabase
+                    .from('chat_threads')
+                    .select('memory_thread_id')
+                    .eq('chat_id', chatId)
+                    .single();
+                return data?.memory_thread_id ?? null;
+            })();
+            if (resolvedThreadId) try {
                 await supabase.from('memory_items').insert({
-                    memory_thread_id: memoryThreadId,
+                    memory_thread_id: resolvedThreadId,
                     kind: 'scenario_snapshot',
                     content_text: `Refi: ${f$(balance)} balance, ${fPct(currentRate)} → ${fPct(effNewRate)}. Monthly savings: ${f$(Math.round(save))}. Breakeven: ${beM ? Math.round(beM) + ' months' : 'n/a'}.`,
                     content_json: {
