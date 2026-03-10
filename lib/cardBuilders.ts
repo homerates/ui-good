@@ -415,7 +415,7 @@ ${mipSection}${resetSection}${waitSection}
         confidence: '1.00 (calculated — no LLM)',
         memoryPayload: {
             plain_english_summary: `Refi: ${f$(r.currentBalance)} balance, ${fPct(r.currentRatePct)} → ${fPct(r.newRatePct)}. New monthly P&I: ${f$(r.newMonthlyPI)}. Breakeven: ${r.breakEvenYears ? fYr(r.breakEvenYears) : 'n/a'}.`,
-            scenario_inputs: { loan_amount: r.currentBalance, current_rate_pct: r.currentRatePct, rate_used_pct: r.newRatePct, term_years: r.termYears },
+            scenario_inputs: { loan_amount: r.currentBalance, current_rate_pct: r.currentRatePct, rate_used_pct: r.newRatePct, term_years: 30 },
             computed_financials: { monthly_pi: r.newMonthlyPI, monthly_savings: r.monthlyPISavings, break_even_months: r.breakEvenMonths },
             monthly_payment: r.newMonthlyPI,
         },
