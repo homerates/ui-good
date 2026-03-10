@@ -496,11 +496,7 @@ export function dispatch(
     }
 
     // ── 3. FHA ──
-    if (isFHAQuestion(q) || (
-        // FHA follow-up: prior conversation was FHA + current question adjusts down pct
-        /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(q) &&
-        /\bfha\b|\bmip\b|\bufmip\b/i.test(hist)
-    )) {
+    if (isFHAQuestion(q)) {
         // MIP duration knowledge question — no calc needed
         if (isMIPKnowledgeQuestion(q)) {
             return { type: 'mip_duration_knowledge', params: null, confidence: 1.0, assumptions: [] };
