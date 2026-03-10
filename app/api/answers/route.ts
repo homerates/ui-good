@@ -3361,6 +3361,7 @@ ${uwAnswerText}`,
                             question: question,
                             model: calcDebugModel,
                             userId,
+                            chat_id: chatId,
                         },
                         tags: ['scenario', 'auto'],
                     });
