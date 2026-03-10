@@ -3177,7 +3177,25 @@ ${uwAnswerText}`,
     // If matched: returns deterministic card, skips Grok entirely.
     // If no match or error: falls through to old system below.
     // ============================================================
-    const calcDispatch = dispatch(question, recallTurnsText || conversationHistory || '', fred?.mort30Avg ?? undefined);
+    // HR-MEMORY:DISPATCH-CONTEXT — prepend most recent scenario_snapshot so dispatcher
+    // sees structured loan type context, not raw markdown that may contain FHA/MIP keywords
+    let dispatchHistory = recallTurnsText || conversationHistory || '';
+    if (supabase && memoryThreadId) {
+        try {
+            const { data: recentSnap } = await supabase
+                .from('memory_items')
+                .select('content_text')
+                .eq('memory_thread_id', memoryThreadId)
+                .eq('kind', 'scenario_snapshot')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+            if (recentSnap?.content_text) {
+                dispatchHistory = `[Prior scenario: ${recentSnap.content_text}]\n\n` + dispatchHistory;
+            }
+        } catch { /* silent */ }
+    }
+    const calcDispatch = dispatch(question, dispatchHistory, fred?.mort30Avg ?? undefined);
     const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
 
     {
