@@ -1068,6 +1068,8 @@ export default function Page() {
     const [memoryThreadByChatId, setMemoryThreadByChatId] = useState<Record<string, string>>({});
     const [activeId, setActiveId] = useState<string | null>(null);
     const [lastRouteByThread, setLastRouteByThread] = useState<Record<string, string>>({});
+    // Structured param overrides from chip clicks — avoids parsing question text for numbers
+    const [pendingParamOverrides, setPendingParamOverrides] = useState<Record<string, any> | null>(null);
     // overlays
     const [showSearch, setShowSearch] = useState(false);
     const [showLibrary, setShowLibrary] = useState(false);
@@ -1724,7 +1726,12 @@ export default function Page() {
                     ...body,
                     chat_id: activeId || tid,
                     memory_thread_id: existingMemoryThreadId,
+                    // Structured overrides from chip click — route.ts reads these directly
+                    ...(pendingParamOverrides ? { paramOverrides: pendingParamOverrides } : {}),
                 };
+
+            // Clear pending overrides — they're now in the payload, one-shot use
+            setPendingParamOverrides(null);
 
             // === End scenario routing ===
 
@@ -2116,6 +2123,8 @@ export default function Page() {
                                                                     type="button"
                                                                     onClick={() => {
                                                                         setInput(chip.seed);
+                                                                        // Capture structured overrides so route.ts can skip text parsing
+                                                                        setPendingParamOverrides((chip as any).paramOverrides ?? null);
                                                                         setTimeout(() => {
                                                                             const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
                                                                             if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }

@@ -38,7 +38,7 @@ export interface BuiltCard {
     answer: string;
     next_step: string;
     follow_up: string;
-    follow_up_chips: Array<{ label: string; seed: string }>;
+    follow_up_chips: Array<{ label: string; seed: string; paramOverrides?: Record<string, number | string> }>;
     confidence: string;
     memoryPayload?: {
         plain_english_summary: string;
@@ -127,9 +127,25 @@ ${dtiSection}
 3. Factor in closing costs (~${fK(r.purchasePrice * 0.025)})`;
 
     const chips: BuiltCard['follow_up_chips'] = [
-        { label: `FHA vs conventional on ${fK(r.purchasePrice)}`, seed: `Compare FHA 3.5% down vs conventional ${r.downPaymentPct}% down on a ${fK(r.purchasePrice)} home at ${rateStr}` },
-        { label: `What if rates drop to ${(r.annualRatePct - 0.5).toFixed(2)}%?`, seed: `Show me the payment on a ${fK(r.purchasePrice)} home if rates drop to ${(r.annualRatePct - 0.5).toFixed(2)}%` },
-        { label: `What's my break-even on buying points?`, seed: `Should I buy points to lower my rate on a ${f$(r.loanAmount)} loan at ${rateStr}?` },
+        {
+            label: `Rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}% — new payment?`,
+            seed: `Same home, rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}%`,
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct }
+        },
+        {
+            label: `Rate drops to ${(r.annualRatePct - 1).toFixed(2)}% — new payment?`,
+            seed: `Same home, rate drops to ${(r.annualRatePct - 1).toFixed(2)}%`,
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 1).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct }
+        },
+        {
+            label: `What if I put ${r.downPaymentPct < 20 ? '20' : '10'}% down?`,
+            seed: `Same home with ${r.downPaymentPct < 20 ? '20' : '10'}% down`,
+            paramOverrides: { downPaymentPct: r.downPaymentPct < 20 ? 20 : 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct }
+        },
+        {
+            label: `FHA vs conventional on ${fK(r.purchasePrice)}`,
+            seed: `Compare FHA 3.5% down vs conventional ${r.downPaymentPct}% down on a ${fK(r.purchasePrice)} home at ${rateStr}`
+        },
     ];
 
     return {
@@ -271,9 +287,24 @@ ${dtiSection}${incomeSection}${compSection}
 **Considerations:** MIP ${r.mipDuration} · UFMIP adds to loan · Property must meet FHA standards`;
 
     const chips: BuiltCard['follow_up_chips'] = [
-        { label: `FHA vs conventional on ${fK(r.purchasePrice)}`, seed: `Compare FHA ${r.downPaymentPct}% down vs conventional 5% down on ${fK(r.purchasePrice)} at ${rateStr}` },
-        { label: `What if I put 10% down instead?`, seed: `FHA loan on ${fK(r.purchasePrice)} home with 10% down at ${rateStr}` },
-        { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for FHA on a ${fK(r.purchasePrice)} home at ${rateStr}?` },
+        {
+            label: `Rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}% — new FHA payment?`,
+            seed: `Same FHA loan, rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}%`,
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct }
+        },
+        {
+            label: `What if I put 10% down instead?`,
+            seed: `FHA loan on ${fK(r.purchasePrice)} home with 10% down at ${rateStr}`,
+            paramOverrides: { downPaymentPct: 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct }
+        },
+        {
+            label: `FHA vs conventional — which is cheaper?`,
+            seed: `Compare FHA ${r.downPaymentPct}% down vs conventional 5% down on ${fK(r.purchasePrice)} at ${rateStr}`
+        },
+        {
+            label: `What income do I need to qualify?`,
+            seed: `What income do I need to qualify for FHA on a ${fK(r.purchasePrice)} home at ${rateStr}?`
+        },
     ];
 
     return {
@@ -400,9 +431,24 @@ ${mipSection}${resetSection}${waitSection}
 
     const balK = Math.round(r.currentBalance / 1000);
     const chips: BuiltCard['follow_up_chips'] = [
-        { label: `What rate triggers a refi on my ${fK(r.currentBalance)} loan?`, seed: `What rate would I need to make refinancing worth it on my ${fK(r.currentBalance)} balance at ${fPct(r.currentRatePct)}?` },
-        { label: `20yr refi vs 30yr — show me the math`, seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}` },
-        { label: `Extra payments vs refi — what's better?`, seed: `Compare refinancing ${fK(r.currentBalance)} at ${fPct(r.currentRatePct)} to ${fPct(r.newRatePct)} vs making extra principal payments` },
+        {
+            label: `What if rates drop to ${(r.newRatePct - 0.5).toFixed(2)}%?`,
+            seed: `Same refi but rates drop to ${(r.newRatePct - 0.5).toFixed(2)}%`,
+            paramOverrides: { newRatePct: parseFloat((r.newRatePct - 0.5).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct }
+        },
+        {
+            label: `What if rates drop to ${(r.newRatePct - 1).toFixed(2)}%?`,
+            seed: `Same refi but rates drop to ${(r.newRatePct - 1).toFixed(2)}%`,
+            paramOverrides: { newRatePct: parseFloat((r.newRatePct - 1).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct }
+        },
+        {
+            label: `20yr refi vs 30yr — show me the math`,
+            seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}`
+        },
+        {
+            label: `Extra payments vs refi — what wins?`,
+            seed: `Compare refinancing ${fK(r.currentBalance)} at ${fPct(r.currentRatePct)} to ${fPct(r.newRatePct)} vs making extra principal payments`
+        },
     ];
 
     return {
@@ -820,9 +866,25 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
 - Maintenance/CapEx (1–2%/yr) not included`;
 
     const chips: BuiltCard['follow_up_chips'] = [
-        { label: `What rent hits 1.25x DSCR on ${fK(r.purchasePrice)}?`, seed: `What monthly rent do I need for 1.25x DSCR on a ${fK(r.purchasePrice)} property at ${rateStr} with ${r.downPaymentPct}% down?` },
-        { label: `How does 5% vacancy affect cash flow?`, seed: `Show me DSCR and cash flow with 5% vacancy on ${fK(r.purchasePrice)} at ${f$(r.grossMonthlyRent)}/mo rent` },
-        { label: `Compare DSCR lenders for this deal`, seed: `Which DSCR lenders would approve a ${r.dscr.toFixed(2)}x DSCR property at ${fK(r.purchasePrice)}?` },
+        {
+            label: `What if rent drops to ${f$(Math.round(r.grossMonthlyRent * 0.9))}/mo?`,
+            seed: `Same property, rent drops to ${f$(Math.round(r.grossMonthlyRent * 0.9))}/mo`,
+            paramOverrides: { grossMonthlyRent: Math.round(r.grossMonthlyRent * 0.9), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct }
+        },
+        {
+            label: `What if rate goes to ${(r.annualRatePct + 0.5).toFixed(2)}%?`,
+            seed: `Same DSCR deal at ${(r.annualRatePct + 0.5).toFixed(2)}%`,
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct + 0.5).toFixed(2)), purchasePrice: r.purchasePrice, grossMonthlyRent: r.grossMonthlyRent, downPaymentPct: r.downPaymentPct }
+        },
+        {
+            label: `What if I put 30% down?`,
+            seed: `Same property with 30% down`,
+            paramOverrides: { downPaymentPct: 30, purchasePrice: r.purchasePrice, grossMonthlyRent: r.grossMonthlyRent, annualRatePct: r.annualRatePct }
+        },
+        {
+            label: `What rent hits 1.25x DSCR?`,
+            seed: `What monthly rent do I need for 1.25x DSCR on a ${fK(r.purchasePrice)} property at ${rateStr} with ${r.downPaymentPct}% down?`
+        },
     ];
 
     return {
