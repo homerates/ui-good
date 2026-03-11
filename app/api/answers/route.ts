@@ -1049,7 +1049,7 @@ ${comparison ? `## 🆚 FHA vs Conventional Comparison
 
 // ===== DSCR / SCENARIO CALCULATOR HELPERS =====
 
-export function isDSCRQuestion(q: string): boolean {
+function isDSCRQuestion(q: string): boolean {
     if (isFHAQuestion(q)) return false;
     if (isAffordabilityQuestion(q)) return false;
     // Require explicit DSCR/rental signal — "investment property" alone with no rent is not enough
