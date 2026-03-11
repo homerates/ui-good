@@ -1144,9 +1144,7 @@ export default function Page() {
                 setHistory(prev =>
                     Array.isArray(prev) && prev.length > 0 ? prev : dbHistory
                 );
-                setThreads(prev =>
-                    Object.keys(prev).length > 0 ? prev : dbThreads
-                );
+                setThreads(prev => ({ ...dbThreads, ...prev }));
 
                 console.log('[chat-threads] Hydrated from Supabase:', rows.length, 'threads');
             } catch (e) {
