@@ -240,6 +240,7 @@ function extractRemainingMonths(text: string): number {
 
 function extractRentAmount(text: string): number | undefined {
     const m = text.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*([\d,]+)k?/i) ||
+        text.match(/\$\s*([\d,]+)\s*k?\s*\/mo\s*rent/i) ||
         text.match(/\$?\s*([\d,]+)\s*k?\s*(?:\/mo|per month|monthly rent|rent)/i);
     if (!m) return undefined;
     let v = parseFloat(m[1].replace(/,/g, ''));
