@@ -144,8 +144,8 @@ function extractRate(text: string): number | undefined {
     // Explicit "rate" keyword
     let m = text.match(/(?:rate|interest)\s*(?:of\s*)?(\d+\.?\d*)\s*%/i);
     if (m) { const v = parseFloat(m[1]); if (v >= 2 && v <= 15) return v; }
-    // Decimal "at X.XX%" — decimals only (whole numbers are usually down pcts)
-    m = text.match(/\bat\s+(\d+\.\d+)\s*%(?!\s*down)/i);
+    // "at X%" or "at X.XX%" — exclude if followed by "down"
+    m = text.match(/\bat\s+(\d+\.?\d*)\s*%(?!\s*down)/i);
     if (m) { const v = parseFloat(m[1]); if (v >= 2 && v <= 15) return v; }
     // "X.XX% rate/interest"
     m = text.match(/(\d+\.\d+)\s*%\s*(?:rate|interest|fixed|30.?year)/i);
