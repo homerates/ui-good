@@ -3216,7 +3216,23 @@ ${uwAnswerText}`,
             }
         } catch { /* silent */ }
     }
+    // PRIORITY: structured paramOverrides from chip click — bypasses all text parsing
+    const paramOverrides = (body as any)?.paramOverrides ?? null;
+
     const calcDispatch = dispatch(question, dispatchHistory, fred?.mort30Avg ?? undefined);
+
+    // Apply paramOverrides immediately after dispatch — chip params win over parsed params
+    if (paramOverrides && calcDispatch.params) {
+        const p = calcDispatch.params as any;
+        if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
+        if (paramOverrides.annualRatePct != null) p.annualRatePct = paramOverrides.annualRatePct;
+        if (paramOverrides.downPaymentPct != null) p.downPaymentPct = paramOverrides.downPaymentPct;
+        if (paramOverrides.annualIncome != null) p.annualIncome = paramOverrides.annualIncome;
+        if (paramOverrides.savings != null) p.savings = paramOverrides.savings;
+        if (paramOverrides.currentBalance != null) p.currentBalance = paramOverrides.currentBalance;
+        if (paramOverrides.currentRatePct != null) p.currentRatePct = paramOverrides.currentRatePct;
+        if (paramOverrides.newRatePct != null) p.newRatePct = paramOverrides.newRatePct;
+    }
 
     // HR-MEMORY:FOLLOW-UP-LOCK — if dispatcher returned no_calc_match or wrong type,
     // and this looks like a follow-up, override with snapshot loan type
@@ -3298,6 +3314,20 @@ ${uwAnswerText}`,
             };
         }
     }
+
+    // paramOverrides second pass — if follow-up-lock rewrote calcDispatch.params, re-apply chip overrides on top
+    if (paramOverrides && calcDispatch.params) {
+        const p = calcDispatch.params as any;
+        if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
+        if (paramOverrides.annualRatePct != null) p.annualRatePct = paramOverrides.annualRatePct;
+        if (paramOverrides.downPaymentPct != null) p.downPaymentPct = paramOverrides.downPaymentPct;
+        if (paramOverrides.annualIncome != null) p.annualIncome = paramOverrides.annualIncome;
+        if (paramOverrides.savings != null) p.savings = paramOverrides.savings;
+        if (paramOverrides.currentBalance != null) p.currentBalance = paramOverrides.currentBalance;
+        if (paramOverrides.currentRatePct != null) p.currentRatePct = paramOverrides.currentRatePct;
+        if (paramOverrides.newRatePct != null) p.newRatePct = paramOverrides.newRatePct;
+    }
+
     const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
 
     {
