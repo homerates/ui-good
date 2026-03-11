@@ -1049,12 +1049,14 @@ ${comparison ? `## 🆚 FHA vs Conventional Comparison
 
 // ===== DSCR / SCENARIO CALCULATOR HELPERS =====
 
-function isDSCRQuestion(q: string): boolean {
-    if (/\bfha\b/i.test(q)) return false;
+export function isDSCRQuestion(q: string): boolean {
+    if (isFHAQuestion(q)) return false;
     if (isAffordabilityQuestion(q)) return false;
-    if (/\bfha\b/i.test(q)) return false;
-    return /dscr|debt.?service.?coverage|rental income|investment property|cash.?flow|gross rent|pitia/i.test(q) ||
-        (/rent/i.test(q) && /\$[\s\d,]+k?\b/i.test(q) && /home|house|property|loan|mortgage/i.test(q));
+    // Require explicit DSCR/rental signal — "investment property" alone with no rent is not enough
+    const hasHardDSCR = /dscr|debt.?service.?coverage|cash.?flow|gross rent|pitia/i.test(q);
+    const hasRentSignal = /rent/i.test(q) && /\$[\s\d,]+k?\b/i.test(q);
+    const hasInvestmentWithRent = /investment property/i.test(q) && hasRentSignal;
+    return hasHardDSCR || hasRentSignal && /home|house|property|loan|mortgage/i.test(q) || hasInvestmentWithRent;
 }
 
 function extractDSCRParams(q: string, fredRate?: number) {

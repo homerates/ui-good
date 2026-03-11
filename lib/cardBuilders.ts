@@ -809,7 +809,7 @@ export function buildDSCRCard(r: DSCRResult, assumptions: string[] = []): BuiltC
 
     const answer = `**DSCR Investment Property Analysis**
 ${assumptionNote}
-**${f$(r.purchasePrice)} · ${r.downPaymentPct}% down · ${f$(r.grossMonthlyRent)}/mo rent · ${rateStr}**
+**${f$(r.purchasePrice)} · ${r.downPaymentPct}% down · ${safeRent ? f$(safeRent) + '/mo rent' : 'rent TBD'} · ${rateStr}**
 
 ---
 
@@ -839,7 +839,7 @@ ${hoaRow}| **Total PITIA** | **${f$(r.monthlyPITIA)}** |
 
 | Metric | Value |
 |--------|-------|
-| Gross Monthly Rent | ${f$(r.grossMonthlyRent)} |
+| Gross Monthly Rent | ${safeRent ? f$(safeRent) : '—'} |
 ${vacancyRow}| Monthly PITIA | ${f$(r.monthlyPITIA)} |
 | **DSCR (Rent ÷ PITIA)** | **${r.dscr.toFixed(2)}x** |
 | Monthly Cash Flow | ${r.monthlyCashFlow >= 0 ? '+' : ''}${f$(r.monthlyCashFlow)} |
@@ -865,21 +865,24 @@ ${snapRows}
 ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves required\n' : ''}${r.downPaymentPct < 20 ? '- **<20% down** — most DSCR programs require 20–25% minimum\n' : ''}- Vacancy (5–10% typical) reduces effective DSCR
 - Maintenance/CapEx (1–2%/yr) not included`;
 
+    const safeRent = (Number.isFinite(r.grossMonthlyRent) && r.grossMonthlyRent > 0) ? r.grossMonthlyRent : null;
+    const rent90 = safeRent ? Math.round(safeRent * 0.9) : null;
+
     const chips: BuiltCard['follow_up_chips'] = [
-        {
-            label: `What if rent drops to ${f$(Math.round(r.grossMonthlyRent * 0.9))}/mo?`,
-            seed: `Same property, rent drops to ${f$(Math.round(r.grossMonthlyRent * 0.9))}/mo`,
-            paramOverrides: { grossMonthlyRent: Math.round(r.grossMonthlyRent * 0.9), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct }
-        },
+        ...(safeRent && rent90 ? [{
+            label: `What if rent drops to ${f$(rent90)}/mo?`,
+            seed: `Same property, rent drops to ${f$(rent90)}/mo`,
+            paramOverrides: { grossMonthlyRent: rent90, purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct }
+        }] : []),
         {
             label: `What if rate goes to ${(r.annualRatePct + 0.5).toFixed(2)}%?`,
             seed: `Same DSCR deal at ${(r.annualRatePct + 0.5).toFixed(2)}%`,
-            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct + 0.5).toFixed(2)), purchasePrice: r.purchasePrice, grossMonthlyRent: r.grossMonthlyRent, downPaymentPct: r.downPaymentPct }
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct + 0.5).toFixed(2)), purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), downPaymentPct: r.downPaymentPct }
         },
         {
             label: `What if I put 30% down?`,
             seed: `Same property with 30% down`,
-            paramOverrides: { downPaymentPct: 30, purchasePrice: r.purchasePrice, grossMonthlyRent: r.grossMonthlyRent, annualRatePct: r.annualRatePct }
+            paramOverrides: { downPaymentPct: 30, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
         },
         {
             label: `What rent hits 1.25x DSCR?`,
