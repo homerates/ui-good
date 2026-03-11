@@ -802,6 +802,8 @@ export function buildDSCRCard(r: DSCRResult, assumptions: string[] = []): BuiltC
 
     const rentNeeded100 = Math.ceil(r.monthlyPITIA * 1.0);
     const rentNeeded125 = Math.ceil(r.monthlyPITIA * 1.25);
+    const safeRent = (Number.isFinite(r.grossMonthlyRent) && r.grossMonthlyRent > 0) ? r.grossMonthlyRent : null;
+    const rent90 = safeRent ? Math.round(safeRent * 0.9) : null;
 
 
     const snapRows = r.amortSnap
@@ -866,8 +868,6 @@ ${snapRows}
 ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves required\n' : ''}${r.downPaymentPct < 20 ? '- **<20% down** — most DSCR programs require 20–25% minimum\n' : ''}- Vacancy (5–10% typical) reduces effective DSCR
 - Maintenance/CapEx (1–2%/yr) not included`;
 
-    const safeRent = (Number.isFinite(r.grossMonthlyRent) && r.grossMonthlyRent > 0) ? r.grossMonthlyRent : null;
-    const rent90 = safeRent ? Math.round(safeRent * 0.9) : null;
 
     const chips: BuiltCard['follow_up_chips'] = [
         ...(safeRent && rent90 ? [{
