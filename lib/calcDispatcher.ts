@@ -238,6 +238,7 @@ function extractRemainingMonths(text: string): number {
     return 360;
 }
 
+// v2 — fixed rent pattern for "$3,200/mo rent" format
 function extractRentAmount(text: string): number | undefined {
     const m = text.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*([\d,]+)k?/i) ||
         text.match(/\$\s*([\d,]+)\s*\/mo\s+rent/i) ||
