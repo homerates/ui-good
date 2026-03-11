@@ -107,15 +107,8 @@ function extractPrice(text: string): number | undefined {
         const v = parseFloat(fullMatch[1].replace(/,/g, ''));
         if (v >= 50000 && v <= 10000000) return v;
     }
-    // Context-anchored: "$500k home", "purchase price $500k", "$500K property"
-    const ctxMatch = text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
-        text.match(/(?:price|purchase|home|house|property)[^$]*\$?\s*([\d,]+)k?/i);
-    if (ctxMatch) {
-        const v = parseFloat(ctxMatch[1].replace(/,/g, ''));
-        const val = v < 10000 ? v * 1000 : v;
-        if (val >= 50000 && val <= 10000000) return val;
-    }
-    // Bare $Xk — only if >= $50k and not income context
+    // Bare $Xk — try this FIRST before context match to avoid grabbing rent amounts
+    // e.g. "$450k investment property, $3,200/mo rent" — must return 450000 not 3200000
     const incomeRe = /(?:income|salary|earn|make|making)\s{0,5}\$[\d,]+\s*k\b|\$[\d,]+\s*k\s{0,5}(?:income|salary)\b/i;
     const bareMatches = Array.from(text.matchAll(/\$([\d,]+)\s*k\b/gi));
     const best = bareMatches.find(m => {
@@ -128,6 +121,14 @@ function extractPrice(text: string): number | undefined {
     if (best) {
         const v = parseFloat(best[1].replace(/,/g, '')) * 1000;
         if (v >= 50000 && v <= 10000000) return v;
+    }
+    // Context-anchored fallback: "$500k home", "purchase price $500k", "$500K property"
+    const ctxMatch = text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
+        text.match(/(?:price|purchase|home|house|property)[^$]*\$?\s*([\d,]+)k?/i);
+    if (ctxMatch) {
+        const v = parseFloat(ctxMatch[1].replace(/,/g, ''));
+        const val = v < 10000 ? v * 1000 : v;
+        if (val >= 50000 && val <= 10000000) return val;
     }
     return undefined;
 }
@@ -238,11 +239,16 @@ function extractRemainingMonths(text: string): number {
     return 360;
 }
 
-// v2 — fixed rent pattern for "$3,200/mo rent" format
+// v3 — explicit ordered patterns, no regex escaping ambiguity
 function extractRentAmount(text: string): number | undefined {
-    const m = text.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*([\d,]+)k?/i) ||
-        text.match(/\$\s*([\d,]+)\s*\/mo\s+rent/i) ||
-        text.match(/\$?\s*([\d,]+)\s*k?\s*(?:\/mo|per month|monthly rent|rent)/i);
+    // Pattern 1: "rent $3,200" or "rental $3,200"
+    let m = text.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*([\d,]+)k?/i);
+    // Pattern 2: "$3,200/mo rent" — dollar amount before /mo then rent keyword
+    if (!m) m = text.match(/\$([\d,]+)\s*\/mo\s+rent/i);
+    // Pattern 3: "$3,200/mo" or "$3,200 per month" or "$3,200 monthly rent"
+    if (!m) m = text.match(/\$([\d,]+)\s*(?:\/mo|per\s+month|monthly\s+rent)/i);
+    // Pattern 4: "3200/mo" no dollar sign
+    if (!m) m = text.match(/([\d,]+)\s*\/mo\b/i);
     if (!m) return undefined;
     let v = parseFloat(m[1].replace(/,/g, ''));
     if (v < 100) v *= 1000;
