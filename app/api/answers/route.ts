@@ -3207,7 +3207,7 @@ ${uwAnswerText}`,
                 .select('content_text, content_json')
                 .eq('memory_thread_id', memoryThreadId)
                 .eq('kind', 'scenario_snapshot')
-                .or(`content_json->>chat_id.eq.${chatId},content_json->>chat_id.is.null`)
+                .eq('content_json->>chat_id', chatId)
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .single();

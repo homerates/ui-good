@@ -803,6 +803,7 @@ export function buildDSCRCard(r: DSCRResult, assumptions: string[] = []): BuiltC
     const rentNeeded100 = Math.ceil(r.monthlyPITIA * 1.0);
     const rentNeeded125 = Math.ceil(r.monthlyPITIA * 1.25);
 
+
     const snapRows = r.amortSnap
         .map(s => `| ${s.year} | ${f$(s.cumPrincipal)} | ${f$(s.yearInterest)} | ${f$(s.balance)} |`)
         .join('\n');
