@@ -1,5 +1,5 @@
 // ==== WEB-FIRST + GROK + SUPABASE (UI-SAFE): app/api/answers/route.ts ====
-export const runtime = "nodejs";
+export const runtime = "nodejs"; // v2
 export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
