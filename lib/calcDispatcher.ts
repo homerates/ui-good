@@ -241,8 +241,8 @@ function extractRemainingMonths(text: string): number {
 
 // v3 — explicit ordered patterns, no regex escaping ambiguity
 function extractRentAmount(text: string): number | undefined {
-    // Pattern 1: "rent $3,200" or "rental $3,200"
-    let m = text.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*([\d,]+)k?/i);
+    // Pattern 1: "rent $3,200" or "rental $3,200" — require digit before optional comma
+    let m = text.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*(\d[\d,]*\d|\d+)k?/i);
     // Pattern 2: "$3,200/mo rent" — dollar amount before /mo then rent keyword
     if (!m) m = text.match(/\$([\d,]+)\s*\/mo\s+rent/i);
     // Pattern 3: "$3,200/mo" or "$3,200 per month" or "$3,200 monthly rent"
