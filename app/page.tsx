@@ -1787,6 +1787,7 @@ export default function Page() {
                         chat_id: tid,
                         title: chatTitle,
                         memory_thread_id: returnedMemoryThreadId,
+                        messages: [...(threads[tid] ?? []), ...messages],
                     }),
                 }).catch(() => { /* non-fatal */ });
             }
