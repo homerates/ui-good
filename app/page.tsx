@@ -1235,21 +1235,37 @@ export default function Page() {
     }, []);
 
     // history select
-    function onSelectHistory(id: string) {
+    async function onSelectHistory(id: string) {
         setActiveId(id);
         const thread = threads[id];
         if (Array.isArray(thread) && thread.length) {
             setMessages(thread);
-        } else {
-            setMessages([
-                {
-                    id: uid(),
-                    role: 'assistant',
-                    content:
-                        'Restored chat (no snapshot found). Start typing to continue.',
-                },
-            ]);
+            setShowLibrary(false);
+            return;
         }
+        // Not in local state — fetch from DB
+        try {
+            const res = await fetch(`/api/chat-threads?chat_id=${id}`);
+            if (res.ok) {
+                const data = await res.json();
+                const row = data?.threads?.[0];
+                if (Array.isArray(row?.messages) && row.messages.length) {
+                    setThreads(prev => ({ ...prev, [id]: row.messages }));
+                    setMessages(row.messages);
+                    setShowLibrary(false);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('[onSelectHistory] DB fetch failed:', e);
+        }
+        setMessages([
+            {
+                id: uid(),
+                role: 'assistant',
+                content: 'Restored chat (no snapshot found). Start typing to continue.',
+            },
+        ]);
         setShowLibrary(false);
     }
 
