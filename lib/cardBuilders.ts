@@ -735,7 +735,6 @@ ${debtNote}
             seed: `Compare total cost of FHA vs conventional on a ${fK(fhaS.homePrice)} home at ${fPct(r.rate)} over 7 years — I make ${f$(r.annualIncome)}`,
         });
     }
-
     return {
         answer,
         next_step: sFast.savingsGap <= 0
@@ -744,6 +743,20 @@ ${debtNote}
         follow_up: chips[0].label,
         follow_up_chips: chips,
         confidence: `1.00 (calculated using verified mortgage formulas + Fannie Mae DTI guidelines)`,
+        memoryPayload: {
+            plain_english_summary: `Affordability: ${f$(r.annualIncome)}/yr income, ${f$(r.savings)} saved, ${f$(r.monthlyDebts)}/mo debts, ${fPct(r.rate)} rate. Max home (FHA): ${f$(r.scenarios[0]?.homePrice ?? 0)}. Monthly PITI: ${f$(r.scenarios[0]?.totalMonthly ?? 0)}.`,
+            scenario_inputs: {
+                annual_income: r.annualIncome,
+                savings: r.savings,
+                monthly_debts: r.monthlyDebts,
+                rate_used_pct: r.rate,
+            },
+            computed_financials: {
+                max_home_price_fha: r.scenarios[0]?.homePrice ?? 0,
+                monthly_piti_fha: r.scenarios[0]?.totalMonthly ?? 0,
+            },
+            monthly_payment: r.scenarios[0]?.totalMonthly ?? 0,
+        },
     };
 }
 
