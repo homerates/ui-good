@@ -328,7 +328,7 @@ type ApiResponse = {
     answerMarkdown?: string; // rich markdown answer we render in the card
     followUp?: string;       // camelCase version from backend (display text)
     follow_up?: string;      // snake_case version if Grok uses it (display text)
-    follow_up_chips?: Array<{ label: string; seed: string }>; // clickable chips: label shown, seed fills pill
+    follow_up_chips?: Array<{ label: string; seed: string; paramOverrides?: Record<string, any> }>; // clickable chips: label shown, seed fills pill
     grok?: any;              // full Grok JSON for confidence / next_step / follow_up
     data_freshness?: string; // e.g. "Live 2025–2026 (Grok 4.1)"
     topSources?: Array<{ title: string; url: string }>;
@@ -1779,6 +1779,11 @@ export default function Page() {
 
                 // Persist to Supabase so memory_thread_id survives new sessions.
                 // Fire-and-forget — never blocks the UI.
+                // CRITICAL: messages must be included here — this is the only place
+                // chat messages are persisted to Supabase. Without this, onSelectHistory
+                // finds threads[id] empty and shows "Restored chat (no snapshot found)".
+                // DO NOT remove messages from this payload. Sanity check: open Supabase
+                // chat_threads table and confirm messages column is not null for recent chats.
                 const chatTitle = history.find(h => h.id === tid)?.title ?? title;
                 fetch('/api/chat-threads', {
                     method: 'PUT',
@@ -2132,7 +2137,7 @@ export default function Page() {
                                                             opacity: 0,
                                                         }}>
                                                             <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
-                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string }, i: number) => (
+                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
                                                                 <button
                                                                     key={i}
                                                                     type="button"
