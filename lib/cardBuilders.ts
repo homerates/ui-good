@@ -715,6 +715,13 @@ ${debtNote}
         chips.push({
             label: `What if rates drop to ${fPct(r.rate - 0.5)}?`,
             seed: `What happens to my affordability if rates drop to ${fPct(r.rate - 0.5)}? I make ${f$(r.annualIncome)} and have ${f$(r.savings)} saved`,
+            paramOverrides: {
+                annualIncome: r.annualIncome,
+                savings: r.savings,
+                monthlyDebts: r.monthlyDebts,
+                annualRatePct: Math.round((r.rate - 0.5) * 100) / 100,
+            },
+            changedKeys: ['annualRatePct'],
         });
     }
 
@@ -723,6 +730,13 @@ ${debtNote}
         chips.push({
             label: `Pay off ${f$(r.monthlyDebts)}/mo debt first — how much more home?`,
             seed: `What can I afford if I pay off my ${f$(r.monthlyDebts)}/mo debt? I make ${f$(r.annualIncome)}/yr and have ${f$(r.savings)} saved at ${fPct(r.rate)}`,
+            paramOverrides: {
+                annualIncome: r.annualIncome,
+                savings: r.savings,
+                monthlyDebts: 0,
+                annualRatePct: r.rate,
+            },
+            changedKeys: ['monthlyDebts'],
         });
     } else if (conv20 && conv20.savingsGap > 0) {
         chips.push({
