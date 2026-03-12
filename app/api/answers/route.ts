@@ -3220,6 +3220,7 @@ ${uwAnswerText}`,
     }
     // PRIORITY: structured paramOverrides from chip click — bypasses all text parsing
     const paramOverrides = (body as any)?.paramOverrides ?? null;
+    console.log('[PARAM-OVERRIDES]', paramOverrides);
 
     const calcDispatch = dispatch(question, dispatchHistory, fred?.mort30Avg ?? undefined);
 
