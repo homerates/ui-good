@@ -395,6 +395,8 @@ You've built significant equity — a new 30-year term restarts the clock.
 
     const answer = `## ${verdictEmoji} Refi Analysis — ${fPct(r.currentRatePct)} → ${fPct(r.newRatePct)}
 ${fredNote}${assumptionNote}
+**Loan Balance: ${f$(r.currentBalance)}** · ${r.termYears ?? 30}-year remaining term
+
 ---
 
 ## 💰 Monthly Savings
