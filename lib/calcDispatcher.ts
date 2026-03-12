@@ -123,8 +123,9 @@ function extractPrice(text: string): number | undefined {
         if (v >= 50000 && v <= 10000000) return v;
     }
     // Context-anchored fallback: "$500k home", "purchase price $500k", "$500K property"
+    // [^$\n]{0,40} — tightly bounded, never spans past rent/mo signals
     const ctxMatch = text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
-        text.match(/(?:price|purchase|home|house|property)[^$]*\$?\s*([\d,]+)k?/i);
+        text.match(/(?:price|purchase|home|house|property)[^$\n]{0,40}\$?\s*([\d,]+)k?(?!\s*\/mo)/i);
     if (ctxMatch) {
         const v = parseFloat(ctxMatch[1].replace(/,/g, ''));
         const val = v < 10000 ? v * 1000 : v;
