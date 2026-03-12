@@ -3278,6 +3278,20 @@ ${uwAnswerText}`,
                 currentBalance: `balance updated to $${paramOverrides.currentBalance?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if (paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            (calcDispatch as any).type = 'conventional';
+            (calcDispatch as any).params = {
+                purchasePrice: paramOverrides.purchasePrice,
+                downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20,
+                annualRatePct: paramOverrides.annualRatePct,
+            };
+            const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _labelMap: Record<string, string> = {
+                annualRatePct: `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if (calcDispatch.params) {
             const p = calcDispatch.params as any;
             if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
@@ -3445,6 +3459,20 @@ ${uwAnswerText}`,
             const _labelMap: Record<string, string> = {
                 newRatePct: `rate updated to ${paramOverrides.newRatePct}%`,
                 currentBalance: `balance updated to $${paramOverrides.currentBalance?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if (paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            (calcDispatch as any).type = 'conventional';
+            (calcDispatch as any).params = {
+                purchasePrice: paramOverrides.purchasePrice,
+                downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20,
+                annualRatePct: paramOverrides.annualRatePct,
+            };
+            const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _labelMap: Record<string, string> = {
+                annualRatePct: `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if (calcDispatch.params) {
