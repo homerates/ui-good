@@ -2309,7 +2309,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     const conversationTrim = clampText(compactWhitespace(conversationHistory || ""), 320);
 
     // Refi guardrail: ask for inputs only if missing; otherwise compute locally (no Grok)
-    if (module === "refi") {
+    if (module === "refi" && !((body as any)?.paramOverrides?.newRatePct != null && (body as any)?.paramOverrides?.currentBalance != null)) {
         // ============================================================
         // SMART REFI ADVISOR v2 — AI-powered decision engine
         // Not a calculator. A verdict.
