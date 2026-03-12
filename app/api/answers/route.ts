@@ -3220,21 +3220,32 @@ ${uwAnswerText}`,
     }
     // PRIORITY: structured paramOverrides from chip click — bypasses all text parsing
     const paramOverrides = (body as any)?.paramOverrides ?? null;
-    console.log('[PARAM-OVERRIDES]', paramOverrides);
 
     const calcDispatch = dispatch(question, dispatchHistory, fred?.mort30Avg ?? undefined);
 
     // Apply paramOverrides immediately after dispatch — chip params win over parsed params
-    if (paramOverrides && calcDispatch.params) {
-        const p = calcDispatch.params as any;
-        if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
-        if (paramOverrides.annualRatePct != null) p.annualRatePct = paramOverrides.annualRatePct;
-        if (paramOverrides.downPaymentPct != null) p.downPaymentPct = paramOverrides.downPaymentPct;
-        if (paramOverrides.annualIncome != null) p.annualIncome = paramOverrides.annualIncome;
-        if (paramOverrides.savings != null) p.savings = paramOverrides.savings;
-        if (paramOverrides.currentBalance != null) p.currentBalance = paramOverrides.currentBalance;
-        if (paramOverrides.currentRatePct != null) p.currentRatePct = paramOverrides.currentRatePct;
-        if (paramOverrides.newRatePct != null) p.newRatePct = paramOverrides.newRatePct;
+    if (paramOverrides) {
+        // If override carries grossMonthlyRent, this is a DSCR chip — force type and rebuild params
+        if (paramOverrides.grossMonthlyRent != null) {
+            (calcDispatch as any).type = 'dscr';
+            (calcDispatch as any).params = {
+                purchasePrice: paramOverrides.purchasePrice ?? (calcDispatch.params as any)?.purchasePrice,
+                grossMonthlyRent: paramOverrides.grossMonthlyRent,
+                downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 25,
+                annualRatePct: paramOverrides.annualRatePct ?? (calcDispatch.params as any)?.annualRatePct ?? 6.5,
+                vacancyRate: 0,
+            };
+        } else if (calcDispatch.params) {
+            const p = calcDispatch.params as any;
+            if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
+            if (paramOverrides.annualRatePct != null) p.annualRatePct = paramOverrides.annualRatePct;
+            if (paramOverrides.downPaymentPct != null) p.downPaymentPct = paramOverrides.downPaymentPct;
+            if (paramOverrides.annualIncome != null) p.annualIncome = paramOverrides.annualIncome;
+            if (paramOverrides.savings != null) p.savings = paramOverrides.savings;
+            if (paramOverrides.currentBalance != null) p.currentBalance = paramOverrides.currentBalance;
+            if (paramOverrides.currentRatePct != null) p.currentRatePct = paramOverrides.currentRatePct;
+            if (paramOverrides.newRatePct != null) p.newRatePct = paramOverrides.newRatePct;
+        }
     }
 
     // HR-MEMORY:FOLLOW-UP-LOCK — if dispatcher returned no_calc_match or wrong type,
@@ -3318,17 +3329,28 @@ ${uwAnswerText}`,
         }
     }
 
-    // paramOverrides second pass — if follow-up-lock rewrote calcDispatch.params, re-apply chip overrides on top
-    if (paramOverrides && calcDispatch.params) {
-        const p = calcDispatch.params as any;
-        if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
-        if (paramOverrides.annualRatePct != null) p.annualRatePct = paramOverrides.annualRatePct;
-        if (paramOverrides.downPaymentPct != null) p.downPaymentPct = paramOverrides.downPaymentPct;
-        if (paramOverrides.annualIncome != null) p.annualIncome = paramOverrides.annualIncome;
-        if (paramOverrides.savings != null) p.savings = paramOverrides.savings;
-        if (paramOverrides.currentBalance != null) p.currentBalance = paramOverrides.currentBalance;
-        if (paramOverrides.currentRatePct != null) p.currentRatePct = paramOverrides.currentRatePct;
-        if (paramOverrides.newRatePct != null) p.newRatePct = paramOverrides.newRatePct;
+    // paramOverrides second pass — re-apply after follow-up-lock block
+    if (paramOverrides) {
+        if (paramOverrides.grossMonthlyRent != null) {
+            (calcDispatch as any).type = 'dscr';
+            (calcDispatch as any).params = {
+                purchasePrice: paramOverrides.purchasePrice ?? (calcDispatch.params as any)?.purchasePrice,
+                grossMonthlyRent: paramOverrides.grossMonthlyRent,
+                downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 25,
+                annualRatePct: paramOverrides.annualRatePct ?? (calcDispatch.params as any)?.annualRatePct ?? 6.5,
+                vacancyRate: 0,
+            };
+        } else if (calcDispatch.params) {
+            const p = calcDispatch.params as any;
+            if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
+            if (paramOverrides.annualRatePct != null) p.annualRatePct = paramOverrides.annualRatePct;
+            if (paramOverrides.downPaymentPct != null) p.downPaymentPct = paramOverrides.downPaymentPct;
+            if (paramOverrides.annualIncome != null) p.annualIncome = paramOverrides.annualIncome;
+            if (paramOverrides.savings != null) p.savings = paramOverrides.savings;
+            if (paramOverrides.currentBalance != null) p.currentBalance = paramOverrides.currentBalance;
+            if (paramOverrides.currentRatePct != null) p.currentRatePct = paramOverrides.currentRatePct;
+            if (paramOverrides.newRatePct != null) p.newRatePct = paramOverrides.newRatePct;
+        }
     }
 
     const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
