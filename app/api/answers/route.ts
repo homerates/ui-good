@@ -3335,6 +3335,19 @@ ${uwAnswerText}`,
                 newRatePct: fuNewRate ?? snapshotJson?.rate_used_pct ?? null,
                 remainingMonths: (snapshotJson?.term_years ?? 30) * 12,
             };
+        } else if (snapshotLoanType === 'calcEngine-affordability' && snapshotJson?.scenario_inputs) {
+            const si = snapshotJson.scenario_inputs;
+            (calcDispatch as any).type = 'affordability';
+            (calcDispatch as any).params = {
+                annualIncome: si.annual_income,
+                savings: si.savings,
+                monthlyDebts: si.monthly_debts ?? 0,
+                annualRatePct: fuRate ?? si.rate_used_pct ?? 6.5,
+                downPctOverride: undefined,
+                fhaLoanLimit: undefined,
+                confLoanLimit: undefined,
+                locationLabel: undefined,
+            };
         }
     }
 
