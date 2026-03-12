@@ -436,12 +436,14 @@ ${mipSection}${resetSection}${waitSection}
         {
             label: `What if rates drop to ${(r.newRatePct - 0.5).toFixed(2)}%?`,
             seed: `Same refi but rates drop to ${(r.newRatePct - 0.5).toFixed(2)}%`,
-            paramOverrides: { newRatePct: parseFloat((r.newRatePct - 0.5).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct }
+            paramOverrides: { newRatePct: parseFloat((r.newRatePct - 0.5).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
+            changedKeys: ['newRatePct'],
         },
         {
             label: `What if rates drop to ${(r.newRatePct - 1).toFixed(2)}%?`,
             seed: `Same refi but rates drop to ${(r.newRatePct - 1).toFixed(2)}%`,
-            paramOverrides: { newRatePct: parseFloat((r.newRatePct - 1).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct }
+            paramOverrides: { newRatePct: parseFloat((r.newRatePct - 1).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
+            changedKeys: ['newRatePct'],
         },
         {
             label: `20yr refi vs 30yr — show me the math`,
