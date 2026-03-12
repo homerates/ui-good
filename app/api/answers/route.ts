@@ -3244,6 +3244,26 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if (paramOverrides.annualIncome != null) {
+            (calcDispatch as any).type = 'affordability';
+            (calcDispatch as any).params = {
+                annualIncome: paramOverrides.annualIncome,
+                savings: paramOverrides.savings ?? (calcDispatch.params as any)?.savings ?? 0,
+                monthlyDebts: paramOverrides.monthlyDebts ?? (calcDispatch.params as any)?.monthlyDebts ?? 0,
+                annualRatePct: paramOverrides.annualRatePct ?? (calcDispatch.params as any)?.annualRatePct ?? 6.5,
+                downPctOverride: undefined,
+                fhaLoanLimit: undefined,
+                confLoanLimit: undefined,
+                locationLabel: undefined,
+            };
+            const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _labelMap: Record<string, string> = {
+                annualIncome: `income updated to $${paramOverrides.annualIncome?.toLocaleString()}/yr`,
+                savings: `savings updated to $${paramOverrides.savings?.toLocaleString()}`,
+                annualRatePct: `rate updated to ${paramOverrides.annualRatePct}%`,
+                monthlyDebts: `monthly debts updated to $${paramOverrides.monthlyDebts?.toLocaleString()}/mo`,
+            };
+            (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if (calcDispatch.params) {
             const p = calcDispatch.params as any;
             if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
@@ -3368,6 +3388,26 @@ ${uwAnswerText}`,
                 annualRatePct: `rate updated to ${paramOverrides.annualRatePct}%`,
                 downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if (paramOverrides.annualIncome != null) {
+            (calcDispatch as any).type = 'affordability';
+            (calcDispatch as any).params = {
+                annualIncome: paramOverrides.annualIncome,
+                savings: paramOverrides.savings ?? (calcDispatch.params as any)?.savings ?? 0,
+                monthlyDebts: paramOverrides.monthlyDebts ?? (calcDispatch.params as any)?.monthlyDebts ?? 0,
+                annualRatePct: paramOverrides.annualRatePct ?? (calcDispatch.params as any)?.annualRatePct ?? 6.5,
+                downPctOverride: undefined,
+                fhaLoanLimit: undefined,
+                confLoanLimit: undefined,
+                locationLabel: undefined,
+            };
+            const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _labelMap: Record<string, string> = {
+                annualIncome: `income updated to $${paramOverrides.annualIncome?.toLocaleString()}/yr`,
+                savings: `savings updated to $${paramOverrides.savings?.toLocaleString()}`,
+                annualRatePct: `rate updated to ${paramOverrides.annualRatePct}%`,
+                monthlyDebts: `monthly debts updated to $${paramOverrides.monthlyDebts?.toLocaleString()}/mo`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if (calcDispatch.params) {
