@@ -3235,6 +3235,15 @@ ${uwAnswerText}`,
                 annualRatePct: paramOverrides.annualRatePct ?? (calcDispatch.params as any)?.annualRatePct ?? 6.5,
                 vacancyRate: 0,
             };
+            // Rebuild assumptions using changedKeys — only show what actually changed
+            const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _labelMap: Record<string, string> = {
+                grossMonthlyRent: `rent updated to $${paramOverrides.grossMonthlyRent?.toLocaleString()}/mo`,
+                annualRatePct: `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if (calcDispatch.params) {
             const p = calcDispatch.params as any;
             if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
@@ -3340,6 +3349,14 @@ ${uwAnswerText}`,
                 annualRatePct: paramOverrides.annualRatePct ?? (calcDispatch.params as any)?.annualRatePct ?? 6.5,
                 vacancyRate: 0,
             };
+            const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _labelMap: Record<string, string> = {
+                grossMonthlyRent: `rent updated to $${paramOverrides.grossMonthlyRent?.toLocaleString()}/mo`,
+                annualRatePct: `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if (calcDispatch.params) {
             const p = calcDispatch.params as any;
             if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
