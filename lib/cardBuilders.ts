@@ -130,17 +130,20 @@ ${dtiSection}
         {
             label: `Rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}% — new payment?`,
             seed: `Same home, rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}%`,
-            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct }
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct },
+            changedKeys: ['annualRatePct'],
         },
         {
             label: `Rate drops to ${(r.annualRatePct - 1).toFixed(2)}% — new payment?`,
             seed: `Same home, rate drops to ${(r.annualRatePct - 1).toFixed(2)}%`,
-            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 1).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct }
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 1).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct },
+            changedKeys: ['annualRatePct'],
         },
         {
             label: `What if I put ${r.downPaymentPct < 20 ? '20' : '10'}% down?`,
             seed: `Same home with ${r.downPaymentPct < 20 ? '20' : '10'}% down`,
-            paramOverrides: { downPaymentPct: r.downPaymentPct < 20 ? 20 : 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct }
+            paramOverrides: { downPaymentPct: r.downPaymentPct < 20 ? 20 : 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct },
+            changedKeys: ['downPaymentPct'],
         },
         {
             label: `FHA vs conventional on ${fK(r.purchasePrice)}`,
