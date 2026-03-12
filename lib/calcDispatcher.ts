@@ -548,7 +548,6 @@ export function dispatch(
     if (isDSCRQuestion(q)) {
         const price = extractPrice(q);
         const rent = extractRentAmount(q);
-        console.log('[DSCR-DISPATCH]', { q, price, rent });
         if (!price || !rent) {
             return { type: 'dscr_needs_input', params: null, confidence: 0, assumptions: [] };
         }
