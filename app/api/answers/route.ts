@@ -3264,6 +3264,20 @@ ${uwAnswerText}`,
                 monthlyDebts: `monthly debts updated to $${paramOverrides.monthlyDebts?.toLocaleString()}/mo`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
+            (calcDispatch as any).type = 'refi';
+            (calcDispatch as any).params = {
+                currentBalance: paramOverrides.currentBalance,
+                currentRatePct: paramOverrides.currentRatePct ?? (calcDispatch.params as any)?.currentRatePct ?? null,
+                newRatePct: paramOverrides.newRatePct,
+                remainingMonths: (calcDispatch.params as any)?.remainingMonths ?? 360,
+            };
+            const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _labelMap: Record<string, string> = {
+                newRatePct: `rate updated to ${paramOverrides.newRatePct}%`,
+                currentBalance: `balance updated to $${paramOverrides.currentBalance?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if (calcDispatch.params) {
             const p = calcDispatch.params as any;
             if (paramOverrides.purchasePrice != null) p.purchasePrice = paramOverrides.purchasePrice;
@@ -3417,6 +3431,20 @@ ${uwAnswerText}`,
                 savings: `savings updated to $${paramOverrides.savings?.toLocaleString()}`,
                 annualRatePct: `rate updated to ${paramOverrides.annualRatePct}%`,
                 monthlyDebts: `monthly debts updated to $${paramOverrides.monthlyDebts?.toLocaleString()}/mo`,
+            };
+            (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
+            (calcDispatch as any).type = 'refi';
+            (calcDispatch as any).params = {
+                currentBalance: paramOverrides.currentBalance,
+                currentRatePct: paramOverrides.currentRatePct ?? (calcDispatch.params as any)?.currentRatePct ?? null,
+                newRatePct: paramOverrides.newRatePct,
+                remainingMonths: (calcDispatch.params as any)?.remainingMonths ?? 360,
+            };
+            const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _labelMap: Record<string, string> = {
+                newRatePct: `rate updated to ${paramOverrides.newRatePct}%`,
+                currentBalance: `balance updated to $${paramOverrides.currentBalance?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if (calcDispatch.params) {
