@@ -3355,6 +3355,15 @@ ${uwAnswerText}`,
                 newRatePct: fuNewRate ?? snapshotJson?.rate_used_pct ?? null,
                 remainingMonths: (snapshotJson?.term_years ?? 30) * 12,
             };
+        } else if (snapshotLoanType === 'calcEngine-refi' && snapshotJson?.scenario_inputs) {
+            const si = snapshotJson.scenario_inputs;
+            (calcDispatch as any).type = 'refi';
+            (calcDispatch as any).params = {
+                currentBalance: si.loan_amount ?? null,
+                currentRatePct: si.current_rate_pct ?? null,
+                newRatePct: fuNewRate ?? fuRate ?? si.rate_used_pct ?? null,
+                remainingMonths: (si.term_years ?? 30) * 12,
+            };
         } else if (snapshotLoanType === 'calcEngine-affordability' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
             (calcDispatch as any).type = 'affordability';
