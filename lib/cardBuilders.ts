@@ -1429,27 +1429,30 @@ export function buildAboutTrustCard(): BuiltCard {
 export function buildAboutDifferenceCard(): BuiltCard {
     const answer = `## ⚡ What Makes HomeRates.ai Different?
 
-**Not a lender. Not a broker. Not a lead generator.** HomeRates.ai has no products to sell, no commissions to earn, and no affiliate relationships that bias our answers.
+**AI-curated. Unbiased. Built to inform.** HomeRates.ai uses artificial intelligence to synthesize primary mortgage data into clear, actionable answers — so borrowers arrive at every conversation better prepared and more confident.
 
-| | HomeRates.ai | Typical mortgage app | Typical AI chatbot |
+**The informed borrower advantage.** When borrowers understand their numbers before the conversation starts, the entire process improves. They ask better questions, evaluate options more clearly, and make decisions with confidence rather than anxiety.
+
+| | HomeRates.ai | Generic AI tools | Rate aggregators |
 |---|---|---|---|
-| Revenue model | None — no ads, no leads | Referral fees from lenders | Ad revenue / subscriptions |
-| Rate source | Live FRED + Freddie Mac PMMS | Lender-submitted quotes | Training data (often stale) |
-| Guideline source | Fannie Mae, FHA, VA, USDA directly | Marketing summaries | Generic web content |
-| Calc engine | Deterministic — same inputs = same output | Black box | Hallucination-prone |
-| Memory | Session + cross-session via Supabase | None | None |
-| Conflict of interest | Zero | High | Low but uninformed |
+| Data source | Live FRED + agency guidelines directly | General web training data | Lender-submitted quotes |
+| Calc accuracy | Deterministic — verified outputs | Generative — can vary | Static rate tables |
+| Guideline depth | Fannie Mae, FHA, VA, USDA primary sources | Surface-level summaries | Not covered |
+| Market context | FRED economic data — rates, spreads, housing | None | Rates only |
+| Memory | Session + cross-session continuity | None | None |
 
-**The calcEngine difference.** Most mortgage answers from AI tools are generated text — they can vary run to run and hallucinate numbers. HomeRates.ai uses a deterministic calc engine for every payment, MIP, DTI, and breakeven calculation. Same inputs always produce the same verified output.
+**The calcEngine difference.** Every payment, MIP, DTI, and breakeven calculation runs through a deterministic engine — same inputs always produce the same verified output. No hallucinated numbers, no approximations.
 
-**The data difference.** Answers draw from the actual Fannie Mae Selling Guide, FHA Handbook 4000.1, VA Lenders Handbook, and live FRED economic data — not summaries of summaries.
+**The curation difference.** Answers draw from the actual Fannie Mae Selling Guide, FHA Handbook 4000.1, VA Lenders Handbook, and live FRED economic data — primary sources synthesized by AI into plain language anyone can act on.
+
+> *Better informed borrowers make better decisions. HomeRates.ai exists to make that happen.*
 
 ---
 *Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
 
     return {
         answer,
-        next_step: 'Run your own scenario — see the difference firsthand.',
+        next_step: 'Run your own scenario — see the data in action.',
         follow_up: ABOUT_CHIPS[2].label,
         follow_up_chips: ABOUT_CHIPS,
         confidence: '1.00 (HomeRates.ai — static difference card)',
