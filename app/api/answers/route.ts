@@ -1921,7 +1921,14 @@ async function handle(req: NextRequest, intentParam?: string) {
     // Always present for UI contract
     let usedFRED = false;
     let usedTavily = false;
-    let fred: FredSnap = { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
+    let fred: FredSnap = {
+        tenYearYield: null, mort30Avg: null, spread: null, asOf: null,
+        mort15Avg: null, arm5Avg: null, dgs2: null, dgs30: null, t10y2y: null,
+        fedFunds: null, sofr: null, cpi: null, corePCE: null, cpiShelter: null,
+        housingStarts: null, existingHomeSales: null, medianHomePrice: null,
+        monthsSupply: null, caseShiller: null, rentalVacancy: null,
+        unemployment: null, hourlyEarnings: null,
+    };
     let topSources: Array<{ title: string; url: string }> = [];
 
     if (!question) {
