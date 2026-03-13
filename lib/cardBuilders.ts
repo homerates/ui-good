@@ -38,6 +38,7 @@ export interface BuiltCard {
     answer: string;
     next_step: string;
     follow_up: string;
+    follow_up_chips: Array<{ label: string; seed: string; paramOverrides?: Record<string, number | string | boolean>; changedKeys?: string[] }>;
     confidence: string;
     memoryPayload?: {
         plain_english_summary: string;
