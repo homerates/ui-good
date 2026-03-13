@@ -1372,3 +1372,165 @@ export function buildAboutCard(): BuiltCard {
         confidence: '1.00 (HomeRates.ai — static about card)',
     };
 }
+
+const ABOUT_CHIPS = [
+    {
+        label: 'Why is mortgage info so hard to trust?',
+        seed: 'About HomeRates: why is mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?',
+    },
+    {
+        label: 'What does HomeRates.ai do differently?',
+        seed: 'About HomeRates: how is HomeRates.ai different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?',
+    },
+    {
+        label: 'What live data does HomeRates.ai use?',
+        seed: 'About HomeRates: what live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?',
+    },
+    {
+        label: 'Who built this and why?',
+        seed: 'About HomeRates: who is the founder and what problem were they trying to solve for borrowers?',
+    },
+    {
+        label: 'Show me what it can do',
+        seed: 'Show me the HomeRates Lab',
+    },
+];
+
+export function buildAboutTrustCard(): BuiltCard {
+    const answer = `## ❓ Why Is Mortgage Info So Hard to Trust?
+
+**The incentive problem.** Every lender, broker, and mortgage website has a financial incentive to get you to their product. That means the "information" you receive is filtered through a sales lens — not an objective one.
+
+**How conflicting quotes happen.** For the exact same borrower profile, lenders can legally quote rates 0.25–0.50% apart. Here's why:
+
+| Factor | What lenders control | Impact on your quote |
+|---|---|---|
+| Yield spread premium | Lender marks up rate above par | +0.125–0.375% hidden in rate |
+| Lender overlays | Stricter DTI/credit rules than guidelines require | May disqualify or reprice you |
+| Lock period | 30 vs 45 vs 60 day lock | +0.125–0.25% per tier |
+| Points/credits | Lender buries costs in rate | Rate looks low, fees are high |
+
+**Regulation Z (TILA)** requires lenders to disclose APR and fees — but it does not require them to show you the best rate they could offer. They show you what they want you to see.
+
+**What this means for you.** The only defense is independent data. When you know the FRED benchmark (30Y fixed avg), the Fannie Mae/Freddie Mac guideline DTI limits, and current lender overlays — you can spot an inflated quote in 60 seconds.
+
+---
+*Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
+
+    return {
+        answer,
+        next_step: 'Ask HomeRates.ai to check your scenario against current rate benchmarks.',
+        follow_up: ABOUT_CHIPS[1].label,
+        follow_up_chips: ABOUT_CHIPS,
+        confidence: '1.00 (HomeRates.ai — static trust card)',
+    };
+}
+
+export function buildAboutDifferenceCard(): BuiltCard {
+    const answer = `## ⚡ What Makes HomeRates.ai Different?
+
+**Not a lender. Not a broker. Not a lead generator.** HomeRates.ai has no products to sell, no commissions to earn, and no affiliate relationships that bias our answers.
+
+| | HomeRates.ai | Typical mortgage app | Typical AI chatbot |
+|---|---|---|---|
+| Revenue model | None — no ads, no leads | Referral fees from lenders | Ad revenue / subscriptions |
+| Rate source | Live FRED + Freddie Mac PMMS | Lender-submitted quotes | Training data (often stale) |
+| Guideline source | Fannie Mae, FHA, VA, USDA directly | Marketing summaries | Generic web content |
+| Calc engine | Deterministic — same inputs = same output | Black box | Hallucination-prone |
+| Memory | Session + cross-session via Supabase | None | None |
+| Conflict of interest | Zero | High | Low but uninformed |
+
+**The calcEngine difference.** Most mortgage answers from AI tools are generated text — they can vary run to run and hallucinate numbers. HomeRates.ai uses a deterministic calc engine for every payment, MIP, DTI, and breakeven calculation. Same inputs always produce the same verified output.
+
+**The data difference.** Answers draw from the actual Fannie Mae Selling Guide, FHA Handbook 4000.1, VA Lenders Handbook, and live FRED economic data — not summaries of summaries.
+
+---
+*Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
+
+    return {
+        answer,
+        next_step: 'Run your own scenario — see the difference firsthand.',
+        follow_up: ABOUT_CHIPS[2].label,
+        follow_up_chips: ABOUT_CHIPS,
+        confidence: '1.00 (HomeRates.ai — static difference card)',
+    };
+}
+
+export function buildAboutDataCard(): BuiltCard {
+    const answer = `## 📡 What Live Data Does HomeRates.ai Use?
+
+HomeRates.ai pulls from primary sources — not aggregators, not scrapers.
+
+**Rate data (FRED — Federal Reserve Economic Data)**
+
+| Series | What it measures | Updates |
+|---|---|---|
+| MORTGAGE30US | 30Y fixed avg (Freddie Mac PMMS) | Weekly (Thu) |
+| MORTGAGE15US | 15Y fixed avg | Weekly (Thu) |
+| MORTGAGE5US | 5/1 ARM avg | Weekly (Thu) |
+| DGS10 | 10Y Treasury yield | Daily |
+| DGS2 | 2Y Treasury yield | Daily |
+| T10Y2Y | Yield curve (10Y minus 2Y) | Daily |
+| FEDFUNDS | Federal funds rate | Monthly |
+| SOFR | Secured overnight rate (ARM index) | Daily |
+
+**Economic context (FRED)**
+
+| Series | What it measures | Updates |
+|---|---|---|
+| CPIAUCSL | Consumer price index (inflation) | Monthly |
+| PCEPILFE | Core PCE — Fed's inflation target | Monthly |
+| UNRATE | Unemployment rate | Monthly |
+| MSPUS | Median US home sales price | Quarterly |
+| HOUST | Housing starts | Monthly |
+
+**Underwriting guidelines (direct from agencies)**
+- Fannie Mae Selling Guide (singlefamily.fanniemae.com)
+- Freddie Mac Seller/Servicer Guide (guide.freddiemac.com)
+- FHA Handbook 4000.1 (hud.gov)
+- VA Lenders Handbook (benefits.va.gov)
+- USDA HB-1-3555 (rd.usda.gov)
+
+**Lender overlays** tracked from LoanDepot, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, and Newrez public bulletins.
+
+---
+*Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
+
+    return {
+        answer,
+        next_step: 'Ask about current rates — HomeRates.ai will pull live FRED data for your answer.',
+        follow_up: ABOUT_CHIPS[3].label,
+        follow_up_chips: ABOUT_CHIPS,
+        confidence: '1.00 (HomeRates.ai — static data card)',
+    };
+}
+
+export function buildAboutFounderCard(): BuiltCard {
+    const answer = `## 👤 Who Built HomeRates.ai and Why?
+
+**Rayaan Arif** — Founder & CEO
+**NMLS #366082** — Licensed mortgage professional
+
+**The problem he kept seeing.** As a serial entrepreneur and licensed mortgage professional, Rayaan watched the same story play out repeatedly: borrowers making the biggest financial decision of their lives with incomplete, biased, or conflicting information. Lenders had every incentive to obscure pricing. Borrowers had no independent anchor.
+
+**The gap.** Institutional investors — hedge funds, REITs, private equity — have access to Bloomberg terminals, agency data feeds, and dedicated analysts to evaluate mortgage instruments. Individual borrowers get a sales call and a rate sheet.
+
+**The mission.** Close that gap. Give every borrower — first-time buyer, seasoned investor, or anyone in between — access to the same quality of analysis that institutional players have. No commissions. No conflicts. No confusion.
+
+> *"Borrowers deserve the same clarity institutional investors get. We built HomeRates.ai to close that gap."*
+> — Rayaan Arif, Founder
+
+**What HomeRates.ai is not.** It is not a lender, broker, or lead generation platform. It will never quote you a rate to earn a commission, refer you to a lender for a fee, or filter information to favor a product.
+
+---
+*Educational only — not financial advice. Eligibility and rates vary by profile and lender. Consult an NMLS-licensed loan consultant.*`;
+
+    return {
+        answer,
+        next_step: 'Test-drive HomeRates.ai on your own scenario.',
+        follow_up: ABOUT_CHIPS[0].label,
+        follow_up_chips: ABOUT_CHIPS,
+        confidence: '1.00 (HomeRates.ai — static founder card)',
+    };
+}
+

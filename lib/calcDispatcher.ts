@@ -48,6 +48,10 @@ export type CalcType =
     | 'mip_duration_knowledge'
     | 'lab'
     | 'about'
+    | 'about_trust'
+    | 'about_difference'
+    | 'about_data'
+    | 'about_founder'
     | 'no_calc_match';
 
 export interface DispatchResult {
@@ -330,9 +334,23 @@ export function isLabQuestion(q: string): boolean {
 }
 
 function isAboutQuestion(q: string): boolean {
-    // Match initial About triggers only — NOT the "About HomeRates:" chip follow-up prefix
-    // Chip follow-ups use that prefix and are handled by Grok directly
     return /^(what is homerates|heard about homerates|who built homerates|who created homerates|who made homerates|founder of homerates|what makes you different|tell me about this site)/i.test(q.trim());
+}
+
+function isAboutTrustQuestion(q: string): boolean {
+    return /^about homerates:.*trust|^about homerates:.*conflicting|^about homerates:.*hard to trust/i.test(q.trim());
+}
+
+function isAboutDifferenceQuestion(q: string): boolean {
+    return /^about homerates:.*different|^about homerates:.*lender|^about homerates:.*chatgpt/i.test(q.trim());
+}
+
+function isAboutDataQuestion(q: string): boolean {
+    return /^about homerates:.*data|^about homerates:.*fred|^about homerates:.*sources/i.test(q.trim());
+}
+
+function isAboutFounderQuestion(q: string): boolean {
+    return /^about homerates:.*founder|^about homerates:.*who is|^about homerates:.*built/i.test(q.trim());
 }
 // ─────────────────────────────────────────────
 // MAIN DISPATCHER
@@ -354,6 +372,18 @@ export function dispatch(
     }
     if (isAboutQuestion(q)) {
         return { type: 'about', params: null, confidence: 1, assumptions: [] };
+    }
+    if (isAboutTrustQuestion(q)) {
+        return { type: 'about_trust', params: null, confidence: 1, assumptions: [] };
+    }
+    if (isAboutDifferenceQuestion(q)) {
+        return { type: 'about_difference', params: null, confidence: 1, assumptions: [] };
+    }
+    if (isAboutDataQuestion(q)) {
+        return { type: 'about_data', params: null, confidence: 1, assumptions: [] };
+    }
+    if (isAboutFounderQuestion(q)) {
+        return { type: 'about_founder', params: null, confidence: 1, assumptions: [] };
     }
     // ── 0. FOLLOW-UP GUARD ──
     // Questions like "what if price is $450k", "what if rate drops", "same but 10% down"

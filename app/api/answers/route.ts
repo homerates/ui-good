@@ -18,6 +18,7 @@ import {
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
+    buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
 } from "../../../lib/cardBuilders";
 import {
     getGuidelineContextForQuestion,
@@ -3707,6 +3708,18 @@ ${uwAnswerText}`,
             } else if (calcDispatch.type === 'about') {
                 calcCard = buildAboutCard();
                 calcDebugModel = 'calcEngine-about';
+            } else if (calcDispatch.type === 'about_trust') {
+                calcCard = buildAboutTrustCard();
+                calcDebugModel = 'calcEngine-about-trust';
+            } else if (calcDispatch.type === 'about_difference') {
+                calcCard = buildAboutDifferenceCard();
+                calcDebugModel = 'calcEngine-about-difference';
+            } else if (calcDispatch.type === 'about_data') {
+                calcCard = buildAboutDataCard();
+                calcDebugModel = 'calcEngine-about-data';
+            } else if (calcDispatch.type === 'about_founder') {
+                calcCard = buildAboutFounderCard();
+                calcDebugModel = 'calcEngine-about-founder';
             }
 
         } catch (calcErr: any) {
