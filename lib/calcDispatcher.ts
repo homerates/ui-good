@@ -41,6 +41,7 @@ export type CalcType =
     | 'conventional'
     | 'affordability'
     | 'dscr'
+    | 'lab'
     | 'refi_needs_input'
     | 'fha_needs_input'
     | 'affordability_needs_input'
@@ -323,6 +324,10 @@ export function isMIPKnowledgeQuestion(q: string): boolean {
         /(?:get rid of|eliminate|remove)\s+(?:mip|fha mortgage insurance)/i.test(q);
 }
 
+export function isLabQuestion(q: string): boolean {
+    return /show\s+me\s+the\s+homerates\s+lab/i.test(q);
+}
+
 // ─────────────────────────────────────────────
 // MAIN DISPATCHER
 // ─────────────────────────────────────────────
@@ -336,6 +341,11 @@ export function dispatch(
     const hist = conversationHistory;
     const assumptions: string[] = [];
     const fallbackRate = fredRate ?? 6.5;
+
+    // ── -1. LAB CARD ──
+    if (isLabQuestion(q)) {
+        return { type: 'lab', params: null, confidence: 1, assumptions: [] };
+    }
 
     // ── 0. FOLLOW-UP GUARD ──
     // Questions like "what if price is $450k", "what if rate drops", "same but 10% down"
