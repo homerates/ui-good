@@ -4990,7 +4990,6 @@ Return valid JSON only:
                 if (isUnderwritingGuidelineQuestion(question)) {
                     return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
                 }
-                // FRED market answer — keep user in rates/market experience
                 if (usedFRED && (topic === 'rates' || module === 'rate')) {
                     const r30 = fred.mort30Avg != null ? `${fred.mort30Avg}%` : 'current';
                     const r15 = fred.mort15Avg != null ? `${fred.mort15Avg}%` : null;
