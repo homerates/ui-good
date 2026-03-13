@@ -5007,15 +5007,15 @@ Return valid JSON only:
                     },
                     {
                         label: curve ? `Yield curve at ${curve} — what does it mean for rates?` : 'What does the yield curve mean for mortgage rates?',
-                        seed: `The 10Y-2Y yield curve is at ${curve ?? 'current levels'} — what does this signal for mortgage rate direction over the next 6-12 months?`,
+                        seed: `Yield curve update: 10Y-2Y spread is currently ${curve ?? 'near flat'} — analyze the rate outlook for the next 6-12 months based on FRED data`,
                     },
                     {
                         label: `At ${r30}, can I afford ${medPrice}?`,
-                        seed: `Can I afford a ${medPrice} home at ${r30}? What income and down payment do I need?`,
+                        seed: `Affordability check at today's ${r30} rate on a ${medPrice} home — what income and down payment do I need?`,
                     },
                     {
                         label: 'When will the Fed cut rates again?',
-                        seed: `Given current Fed funds rate, CPI, and unemployment — when are mortgage rates likely to drop and by how much?`,
+                        seed: `Rate outlook: with Fed funds at ${fred.fedFunds ?? '3.64'}%, CPI at ${fred.cpi ?? 'current levels'}, and unemployment ${fred.unemployment ?? '4.4'}% — when will mortgage rates drop and by how much?`,
                     },
                 ];
             }
