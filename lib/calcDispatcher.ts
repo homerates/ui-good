@@ -41,12 +41,13 @@ export type CalcType =
     | 'conventional'
     | 'affordability'
     | 'dscr'
-    | 'lab'
     | 'refi_needs_input'
     | 'fha_needs_input'
     | 'affordability_needs_input'
     | 'dscr_needs_input'
     | 'mip_duration_knowledge'
+    | 'lab'
+    | 'about'
     | 'no_calc_match';
 
 export interface DispatchResult {
@@ -328,6 +329,9 @@ export function isLabQuestion(q: string): boolean {
     return /show\s+me\s+the\s+homerates\s+lab/i.test(q);
 }
 
+function isAboutQuestion(q: string): boolean {
+    return /what is homerates|heard about homerates|who built homerates|who created homerates|who made homerates|founder of homerates|what makes you different|about homerates:|tell me about this site/i.test(q);
+}
 // ─────────────────────────────────────────────
 // MAIN DISPATCHER
 // ─────────────────────────────────────────────
@@ -346,7 +350,9 @@ export function dispatch(
     if (isLabQuestion(q)) {
         return { type: 'lab', params: null, confidence: 1, assumptions: [] };
     }
-
+    if (isAboutQuestion(q)) {
+        return { type: 'about', params: null, confidence: 1, assumptions: [] };
+    }
     // ── 0. FOLLOW-UP GUARD ──
     // Questions like "what if price is $450k", "what if rate drops", "same but 10% down"
     // have no explicit loan type — let Grok handle with thread memory context.
