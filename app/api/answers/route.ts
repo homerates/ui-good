@@ -2002,7 +2002,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     ) {
         module = "dscr";
     } else if (
-        /(what is homerates|heard about homerates|tell me about this site|what makes you different|who is the founder|who built homerates|who created homerates|who made homerates|founder of homerates|^about homerates:/i.test(
+        /(what is homerates|heard about homerates|tell me about this site|what makes you different|who is the founder|who built homerates|who created homerates|who made homerates|founder of homerates|about homerates:)/i.test(
             q
         )
     ) {
