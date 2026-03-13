@@ -17,7 +17,7 @@ import {
     buildConventionalCard, buildFHACard, buildRefiCard, buildRefiNeedsInputCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
-    buildUWCard, type UWCardInput,
+    buildUWCard, type UWCardInput, buildLabCard,
 } from "../../../lib/cardBuilders";
 import {
     getGuidelineContextForQuestion,
@@ -3578,6 +3578,10 @@ ${uwAnswerText}`,
             } else if (calcDispatch.type === 'affordability_needs_input') {
                 calcCard = buildAffordabilityNeedsInputCard(fred?.mort30Avg ?? undefined);
                 calcDebugModel = 'affordability_needs_input';
+
+            } else if (calcDispatch.type === 'lab') {
+                calcCard = buildLabCard();
+                calcDebugModel = 'calcEngine-lab';
             }
 
         } catch (calcErr: any) {

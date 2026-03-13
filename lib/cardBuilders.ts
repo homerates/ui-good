@@ -38,7 +38,6 @@ export interface BuiltCard {
     answer: string;
     next_step: string;
     follow_up: string;
-    follow_up_chips: Array<{ label: string; seed: string; paramOverrides?: Record<string, number | string | boolean>; changedKeys?: string[] }>;
     confidence: string;
     memoryPayload?: {
         plain_english_summary: string;
@@ -1293,3 +1292,32 @@ export function buildUWCard(input: UWCardInput): BuiltCard {
 
 // version: cardBuilders-2026-03-08-01
 // version: cardBuilders-2026-03-08-02
+
+export function buildLabCard(): BuiltCard {
+    const modules = [
+        { label: 'Home Purchase', desc: '$832,750 · 10% down · 6.5%', seed: 'Conventional loan $832,750 home 10% down at 6.5%' },
+        { label: 'FHA Loan', desc: '$541,287 · 3.5% down · 6.25%', seed: 'FHA loan $541,287 home 3.5% down at 6.25%' },
+        { label: 'Rental Property', desc: '$750k · 25% down · rent $4,800/mo', seed: 'DSCR loan $750,000 rental property 25% down 7.25% rate rent $4,800/mo' },
+        { label: 'Refinance', desc: '$750k balance · 7.75% → 6.75%', seed: 'Refinance $750,000 balance from 7.75% down to 6.75%' },
+        { label: 'Affordability', desc: '$200k income · $100k savings', seed: 'How much home can I afford on $200,000 income $100,000 savings' },
+    ];
+
+    const rows = modules.map(m =>
+        `| **${m.label}** | ${m.desc} |`
+    ).join('\n');
+
+    const answer = `## 🧪 HomeRates Lab\n\nRun any scenario. Get instant answers.\n\n| Module | Example scenario |\n|--------|------------------|\n${rows}\n\n> Pro tip — click any module below to run the example, then click the result chips or type your own numbers to keep going.`;
+
+    const follow_up_chips = modules.map(m => ({
+        label: m.label,
+        seed: m.seed,
+    }));
+
+    return {
+        answer,
+        next_step: 'Select a module below to run an instant scenario.',
+        follow_up: follow_up_chips[0].label,
+        follow_up_chips,
+        confidence: '1.00 (HomeRates Lab — module picker)',
+    };
+}
