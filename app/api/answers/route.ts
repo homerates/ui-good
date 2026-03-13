@@ -1306,46 +1306,115 @@ async function askTavily(
 
 /* ===== FRED snapshot (for rate questions) ===== */
 type FredSnap = {
-    tenYearYield: number | null;
-    mort30Avg: number | null;
-    spread: number | null;
+    // Core — always fetched
+    tenYearYield: number | null;    // DGS10
+    mort30Avg: number | null;       // MORTGAGE30US
+    spread: number | null;          // mort30Avg - tenYearYield
     asOf: string | null;
+    // Rates tier
+    mort15Avg: number | null;       // MORTGAGE15US
+    arm5Avg: number | null;         // MORTGAGE5US
+    dgs2: number | null;            // DGS2  — 2Y yield
+    dgs30: number | null;           // DGS30 — 30Y yield
+    t10y2y: number | null;          // T10Y2Y — yield curve spread
+    // Policy
+    fedFunds: number | null;        // FEDFUNDS
+    sofr: number | null;            // SOFR
+    // Inflation
+    cpi: number | null;             // CPIAUCSL
+    corePCE: number | null;         // PCEPILFE
+    cpiShelter: number | null;      // CUSR0000SAH1
+    // Housing
+    housingStarts: number | null;   // HOUST (thousands, SAAR)
+    existingHomeSales: number | null; // EXHOSLUSM495S (millions, SAAR)
+    medianHomePrice: number | null; // MSPUS (dollars)
+    monthsSupply: number | null;    // MSACSR
+    caseShiller: number | null;     // CSUSHPINSA
+    rentalVacancy: number | null;   // RRVRUSQ156N (%)
+    // Labor
+    unemployment: number | null;    // UNRATE
+    hourlyEarnings: number | null;  // CES0500000003
 };
 
-async function getFredSnapshot(): Promise<FredSnap> {
-    if (!FRED_API_KEY) {
-        return { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
-    }
+async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
+    const empty: FredSnap = {
+        tenYearYield: null, mort30Avg: null, spread: null, asOf: null,
+        mort15Avg: null, arm5Avg: null, dgs2: null, dgs30: null, t10y2y: null,
+        fedFunds: null, sofr: null,
+        cpi: null, corePCE: null, cpiShelter: null,
+        housingStarts: null, existingHomeSales: null, medianHomePrice: null,
+        monthsSupply: null, caseShiller: null, rentalVacancy: null,
+        unemployment: null, hourlyEarnings: null,
+    };
+    if (!FRED_API_KEY) return empty;
 
-    const [dgs10, m30] = await Promise.all([
-        fetch(
-            `https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`,
-            { cache: "no-store" }
-        )
-            .then((r) => r.json())
-            .catch(() => null),
-        fetch(
-            `https://api.stlouisfed.org/fred/series/observations?series_id=MORTGAGE30US&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`,
-            { cache: "no-store" }
-        )
-            .then((r) => r.json())
-            .catch(() => null),
-    ]);
+    const wantRates = topics.includes('rates') || topics.includes('refi') || topics.includes('arm');
+    const wantHousing = topics.includes('housing') || topics.includes('affordability') || topics.includes('dscr') || topics.includes('qualify');
+    const wantMacro = topics.includes('macro') || topics.includes('rates') || topics.includes('inflation');
 
-    const d = (dgs10?.observations?.[0]?.value ?? null) as string | null;
-    const m = (m30?.observations?.[0]?.value ?? null) as string | null;
-    const asOf = (m30?.observations?.[0]?.date ??
-        dgs10?.observations?.[0]?.date ??
-        null) as string | null;
+    // Helper: fetch one FRED series, return parsed value + date or null
+    const fredFetch = async (seriesId: string): Promise<{ value: number | null; date: string | null }> => {
+        try {
+            const r = await fetch(
+                `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`,
+                { cache: "no-store" }
+            );
+            const j = await r.json();
+            const raw = j?.observations?.[0]?.value ?? null;
+            const date = j?.observations?.[0]?.date ?? null;
+            const value = raw && raw !== '.' ? Number(raw) : null;
+            return { value, date };
+        } catch {
+            return { value: null, date: null };
+        }
+    };
 
-    const tenYearYield = d && d !== "." ? Number(d) : null;
-    const mort30Avg = m && m !== "." ? Number(m) : null;
-    const spread =
-        tenYearYield != null && mort30Avg != null
-            ? Number((mort30Avg - tenYearYield).toFixed(2))
-            : null;
+    // Tier 1 — always fetch (6 series, parallel)
+    const coreIds = ['DGS10', 'MORTGAGE30US', 'FEDFUNDS', 'UNRATE', 'CPIAUCSL', 'MSPUS'];
 
-    return { tenYearYield, mort30Avg, spread, asOf };
+    // Tier 2 — topic-gated
+    const enrichIds: string[] = [];
+    if (wantRates) enrichIds.push('MORTGAGE15US', 'MORTGAGE5US', 'DGS2', 'DGS30', 'T10Y2Y', 'SOFR');
+    if (wantHousing) enrichIds.push('HOUST', 'EXHOSLUSM495S', 'MSACSR', 'CSUSHPINSA', 'RRVRUSQ156N');
+    if (wantMacro) enrichIds.push('PCEPILFE', 'CUSR0000SAH1');
+
+    const allIds = [...new Set([...coreIds, ...enrichIds])];
+    const results = await Promise.allSettled(allIds.map(id => fredFetch(id)));
+
+    const byId: Record<string, { value: number | null; date: string | null }> = {};
+    allIds.forEach((id, i) => {
+        const r = results[i];
+        byId[id] = r.status === 'fulfilled' ? r.value : { value: null, date: null };
+    });
+
+    const g = (id: string) => byId[id]?.value ?? null;
+    const tenYearYield = g('DGS10');
+    const mort30Avg = g('MORTGAGE30US');
+    const spread = tenYearYield != null && mort30Avg != null
+        ? Number((mort30Avg - tenYearYield).toFixed(2)) : null;
+    const asOf = byId['MORTGAGE30US']?.date ?? byId['DGS10']?.date ?? null;
+
+    return {
+        tenYearYield, mort30Avg, spread, asOf,
+        mort15Avg: g('MORTGAGE15US'),
+        arm5Avg: g('MORTGAGE5US'),
+        dgs2: g('DGS2'),
+        dgs30: g('DGS30'),
+        t10y2y: g('T10Y2Y'),
+        fedFunds: g('FEDFUNDS'),
+        sofr: g('SOFR'),
+        cpi: g('CPIAUCSL'),
+        corePCE: g('PCEPILFE'),
+        cpiShelter: g('CUSR0000SAH1'),
+        housingStarts: g('HOUST'),
+        existingHomeSales: g('EXHOSLUSM495S'),
+        medianHomePrice: g('MSPUS'),
+        monthsSupply: g('MSACSR'),
+        caseShiller: g('CSUSHPINSA'),
+        rentalVacancy: g('RRVRUSQ156N'),
+        unemployment: g('UNRATE'),
+        hourlyEarnings: g('CES0500000003'),
+    };
 }
 
 /* ===== OpenAI summarizer for Tavily text (fallback) ===== */
@@ -2101,16 +2170,26 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     // FRED snapshot for rate questions AND mortgage/qualify/FHA topics
     // These calcs need the live rate — without it they default to hardcoded values
-    const wantFred = topic === "rates" ||
-        module === "qualify" ||
-        module === "jumbo" ||
-        isFHAQuestion(question) ||
-        isMortgageCalculation(question) ||
-        isAffordabilityQuestion(question) ||
-        /\b(rate|rates|\d+\.\d+\s*%)\b/i.test(question);
+    const fredTopics: string[] = [];
+    if (topic === 'rates' || module === 'rate' || /\b(rate|rates|\d+\.\d+\s*%)\b/i.test(question)) fredTopics.push('rates');
+    if (module === 'refi') fredTopics.push('refi');
+    if (module === 'arm') fredTopics.push('arm');
+    if (isAffordabilityQuestion(question) || module === 'qualify') fredTopics.push('affordability', 'housing');
+    if (isDSCRQuestion(question)) fredTopics.push('dscr', 'housing');
+    if (isFHAQuestion(question) || isMortgageCalculation(question) || module === 'jumbo') fredTopics.push('housing');
+    if (/\b(inflation|cpi|pce|prices?)\b/i.test(question)) fredTopics.push('inflation', 'macro');
+    if (/\b(housing|home\s*price|inventory|supply|starts|market)\b/i.test(question)) fredTopics.push('housing');
+    const wantFred = fredTopics.length > 0;
     fred = wantFred
-        ? await getFredSnapshot()
-        : { tenYearYield: null, mort30Avg: null, spread: null, asOf: null };
+        ? await getFredSnapshot(fredTopics)
+        : {
+            tenYearYield: null, mort30Avg: null, spread: null, asOf: null,
+            mort15Avg: null, arm5Avg: null, dgs2: null, dgs30: null, t10y2y: null,
+            fedFunds: null, sofr: null, cpi: null, corePCE: null, cpiShelter: null,
+            housingStarts: null, existingHomeSales: null, medianHomePrice: null,
+            monthsSupply: null, caseShiller: null, rentalVacancy: null,
+            unemployment: null, hourlyEarnings: null
+        };
 
     usedFRED = wantFred && (fred.tenYearYield !== null || fred.mort30Avg !== null);
 
@@ -2285,8 +2364,28 @@ async function handle(req: NextRequest, intentParam?: string) {
     const fredRateStr = fred.mort30Avg != null
         ? `${fred.mort30Avg}%`
         : "~6.0% (estimate — FRED unavailable)";
-    const fredContext = fred.mort30Avg != null
-        ? `FRED (${fred.asOf || today}): 30Y fixed avg=${fred.mort30Avg}%, 10Y=${fred.tenYearYield ?? "n/a"}%, spread=${fred.spread ?? "n/a"}%`
+    const fredLines: string[] = [];
+    if (fred.mort30Avg != null) fredLines.push(`30Y fixed=${fred.mort30Avg}% (Freddie Mac PMMS, ${fred.asOf ?? today})`);
+    if (fred.mort15Avg != null) fredLines.push(`15Y fixed=${fred.mort15Avg}%`);
+    if (fred.arm5Avg != null) fredLines.push(`5/1 ARM=${fred.arm5Avg}%`);
+    if (fred.tenYearYield != null) fredLines.push(`10Y Treasury=${fred.tenYearYield}%`);
+    if (fred.dgs2 != null) fredLines.push(`2Y Treasury=${fred.dgs2}%`);
+    if (fred.t10y2y != null) fredLines.push(`yield curve (10Y-2Y)=${fred.t10y2y}% ${fred.t10y2y < 0 ? '(INVERTED)' : ''}`);
+    if (fred.spread != null) fredLines.push(`mtg-treasury spread=${fred.spread}%`);
+    if (fred.fedFunds != null) fredLines.push(`Fed funds=${fred.fedFunds}%`);
+    if (fred.sofr != null) fredLines.push(`SOFR=${fred.sofr}%`);
+    if (fred.cpi != null) fredLines.push(`CPI=${fred.cpi}%`);
+    if (fred.corePCE != null) fredLines.push(`core PCE=${fred.corePCE}%`);
+    if (fred.cpiShelter != null) fredLines.push(`CPI shelter=${fred.cpiShelter}%`);
+    if (fred.unemployment != null) fredLines.push(`unemployment=${fred.unemployment}%`);
+    if (fred.housingStarts != null) fredLines.push(`housing starts=${fred.housingStarts}k SAAR`);
+    if (fred.existingHomeSales != null) fredLines.push(`existing home sales=${fred.existingHomeSales}M SAAR`);
+    if (fred.medianHomePrice != null) fredLines.push(`median home price=$${fred.medianHomePrice.toLocaleString()}`);
+    if (fred.monthsSupply != null) fredLines.push(`months supply=${fred.monthsSupply}mo`);
+    if (fred.caseShiller != null) fredLines.push(`Case-Shiller HPI=${fred.caseShiller}`);
+    if (fred.rentalVacancy != null) fredLines.push(`rental vacancy=${fred.rentalVacancy}%`);
+    const fredContext = fredLines.length > 0
+        ? `FRED LIVE DATA:\n${fredLines.join('\n')}`
         : "FRED data unavailable — use ~6.0% as rate estimate";
     // Inject live rate into qualify prompt so model stops using its hardcoded 6.25%
     if (module === "qualify" && modulePrompts["qualify"]) {
