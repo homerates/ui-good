@@ -4990,6 +4990,36 @@ Return valid JSON only:
                 if (isUnderwritingGuidelineQuestion(question)) {
                     return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
                 }
+                // FRED market answer — keep user in rates/market experience
+                if (usedFRED && (topic === 'rates' || module === 'rate')) {
+                    const r30 = fred.mort30Avg != null ? `${fred.mort30Avg}%` : 'current';
+                    const r15 = fred.mort15Avg != null ? `${fred.mort15Avg}%` : null;
+                    const spread = fred.spread != null ? `${fred.spread}%` : null;
+                    const curve = fred.t10y2y != null ? `${fred.t10y2y}%` : null;
+                    const medPrice = fred.medianHomePrice != null ? `$${Math.round(fred.medianHomePrice / 1000)}k` : '$405k';
+                    return [
+                        {
+                            label: r15 ? `15Y fixed at ${r15} — is it worth it?` : 'Is a 15-year fixed worth it at current rates?',
+                            seed: `Is a 15-year fixed mortgage worth it right now? Compare the payment difference vs 30-year at current rates`,
+                        },
+                        {
+                            label: spread ? `Why is the mortgage-Treasury spread ${spread}?` : 'Why are mortgage rates so high vs Treasury yields?',
+                            seed: `Why is the spread between mortgage rates and the 10-year Treasury yield ${spread ?? 'elevated'}? What drives it and when does it compress?`,
+                        },
+                        {
+                            label: curve ? `Yield curve at ${curve} — what does it mean for rates?` : 'What does the yield curve mean for mortgage rates?',
+                            seed: `The 10Y-2Y yield curve is at ${curve ?? 'current levels'} — what does this signal for mortgage rate direction over the next 6-12 months?`,
+                        },
+                        {
+                            label: `At ${r30}, can I afford ${medPrice}?`,
+                            seed: `Can I afford a ${medPrice} home at ${r30}? What income and down payment do I need?`,
+                        },
+                        {
+                            label: 'When will the Fed cut rates again?',
+                            seed: `Given current Fed funds rate, CPI, and unemployment — when are mortgage rates likely to drop and by how much?`,
+                        },
+                    ];
+                }
                 return chips;
             }
             return generateFallbackChips(question, conversationHistory);
