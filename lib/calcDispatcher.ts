@@ -330,7 +330,9 @@ export function isLabQuestion(q: string): boolean {
 }
 
 function isAboutQuestion(q: string): boolean {
-    return /what is homerates|heard about homerates|who built homerates|who created homerates|who made homerates|founder of homerates|what makes you different|about homerates:|tell me about this site/i.test(q);
+    // Match initial About triggers only — NOT the "About HomeRates:" chip follow-up prefix
+    // Chip follow-ups use that prefix and are handled by Grok directly
+    return /^(what is homerates|heard about homerates|who built homerates|who created homerates|who made homerates|founder of homerates|what makes you different|tell me about this site)/i.test(q.trim());
 }
 // ─────────────────────────────────────────────
 // MAIN DISPATCHER
