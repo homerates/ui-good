@@ -2416,7 +2416,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .join("\n")
             : "No recent sources";
 
-    const specialistPrefix = clampText(compactWhitespace(modulePrompts[module] ?? ""), 450);
+    const specialistPrefix = clampText(compactWhitespace(modulePrompts[module] ?? ""), module === 'about' ? 1200 : 450);
     const guidelineCtxTrim = clampText(compactWhitespace(guidelineContext || ""), 300);
     const tavilyCtxTrim = clampText(compactWhitespace(tavilyContextRaw), 240);
     const conversationTrim = clampText(compactWhitespace(conversationHistory || ""), 320);
