@@ -2002,7 +2002,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     ) {
         module = "dscr";
     } else if (
-        /(what is homerates|heard about homerates|tell me about this site|what makes you different|who is the founder|who built homerates|who created homerates|who made homerates|founder of homerates)/i.test(
+        /(what is homerates|heard about homerates|tell me about this site|what makes you different|who is the founder|who built homerates|who created homerates|who made homerates|founder of homerates|^about homerates:/i.test(
             q
         )
     ) {
@@ -3101,7 +3101,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
         if (isLiveRateQuestion) return false;
 
         // About HomeRates.ai — never route to UW bypass
-        if (/homerates|who built|who created|who made|founder of|this site|this app|this platform|makes.{0,20}different/i.test(q)) return false;
+        if (/homerates|about homerates|who built|who created|who made|founder of|this site|this app|this platform|makes.{0,20}different/i.test(q)) return false;
 
         if (infoSignals.some(pattern => pattern.test(q))) return true;
 
@@ -4998,19 +4998,19 @@ Return valid JSON only:
                 return [
                     {
                         label: 'Why is mortgage info so hard to trust?',
-                        seed: 'What makes mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?',
+                        seed: 'About HomeRates: why is mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?',
                     },
                     {
                         label: 'What does HomeRates.ai do differently?',
-                        seed: 'What is HomeRates.ai and how is it different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?',
+                        seed: 'About HomeRates: how is HomeRates.ai different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?',
                     },
                     {
                         label: 'What live data does HomeRates.ai use?',
-                        seed: 'What live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?',
+                        seed: 'About HomeRates: what live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?',
                     },
                     {
                         label: 'Who built this and why?',
-                        seed: 'Who is the founder of HomeRates.ai and what problem were they trying to solve for borrowers?',
+                        seed: 'About HomeRates: who is the founder and what problem were they trying to solve for borrowers?',
                     },
                     {
                         label: 'Show me what it can do',
