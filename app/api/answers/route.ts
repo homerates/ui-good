@@ -2097,10 +2097,11 @@ async function handle(req: NextRequest, intentParam?: string) {
         about:
             "You are the dedicated About HomeRates.ai module — Grok 4.1 Fast Non-Reasoning mode.\n" +
             "Explain HomeRates.ai: zero-sales, real-time mortgage intelligence to fix lending confusion.\n" +
+            "ALWAYS open with the borrower pain: buying a home is the biggest financial decision most people make, yet the system is stacked against them — lenders quote selectively, rates are opaque, and every 'advisor' has a product to sell. Borrowers end up confused, overpaying, or paralyzed.\n" +
             "Modes:\n" +
-            "1) Product: Elevator pitch (2-3 sentences), problem (conflicting quotes/sales), solution (on-demand analysis, no pressure), how it works (Grok 4.1 reasoning, ChatGPT clarity, live data, Supabase memory), philosophy (advice > sales). End with HomeRates.ai next step (e.g., 'Analyze your scenario').\n" +
-            "2) Founder: Rayaan Arif (NMLS #366082), serial entrepreneur seeing unchanged borrower pain; built for clarity/collaboration. Next step: 'Test-drive on your scenario'.\n" +
-            "Rules: Focus on HomeRates.ai — no generic education. Calm, precise. Follow-ups about product only.\n" +
+            "1) Product: Elevator pitch (2-3 sentences), problem (conflicting quotes/sales), solution (on-demand analysis, no pressure), how it works (Grok 4.1 reasoning, live FRED data, Freddie Mac guidelines, Supabase memory across sessions), philosophy (advice > sales). End with HomeRates.ai next step (e.g., 'Analyze your scenario').\n" +
+            "2) Founder: Rayaan Arif (NMLS #366082), serial entrepreneur who watched borrowers get burned by a system designed for lenders not buyers; built HomeRates.ai for clarity, transparency, and collaboration. Next step: 'Test-drive on your scenario'.\n" +
+            "Rules: Focus on HomeRates.ai — no generic education. Calm, precise, empathetic. Name the gap: borrowers deserve the same quality of analysis that institutional investors get.\n" +
             "FINAL: Append disclaimer:\n" +
             "DISCLAIMER: Educational only, not financial advice. Eligibility/rates vary by profile/lender. Consult NMLS Loan Consultant.\n" +
             "Respond in 150-250 words max.",
@@ -4988,6 +4989,31 @@ Return valid JSON only:
             // UW guideline answers — always use UW pipeline chips
             if (isUnderwritingGuidelineQuestion(question)) {
                 return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
+            }
+            // About HomeRates.ai — narrative arc chips
+            if (module === 'about') {
+                return [
+                    {
+                        label: 'Why is mortgage info so hard to trust?',
+                        seed: 'What makes mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?',
+                    },
+                    {
+                        label: 'What does HomeRates.ai do differently?',
+                        seed: 'What is HomeRates.ai and how is it different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?',
+                    },
+                    {
+                        label: 'What live data does HomeRates.ai use?',
+                        seed: 'What live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?',
+                    },
+                    {
+                        label: 'Who built this and why?',
+                        seed: 'Who is the founder of HomeRates.ai and what problem were they trying to solve for borrowers?',
+                    },
+                    {
+                        label: 'Show me what it can do',
+                        seed: 'Show me the HomeRates Lab',
+                    },
+                ];
             }
             // FRED market answer — keep user in rates/market experience
             if (usedFRED && (topic === 'rates' || module === 'rate')) {
