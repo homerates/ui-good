@@ -1322,3 +1322,53 @@ export function buildLabCard(): BuiltCard {
         confidence: '1.00 (HomeRates Lab — module picker)',
     };
 }
+
+
+export function buildAboutCard(): BuiltCard {
+    const answer = `## 🏦 About HomeRates.ai
+
+**The problem.** Buying a home is the biggest financial decision most people make — yet the system is stacked against them. Lenders quote selectively, rates are opaque, and every "advisor" has a product to sell. Borrowers end up confused, overpaying, or paralyzed.
+
+**The solution.** HomeRates.ai is zero-sales, real-time mortgage intelligence built to fix lending confusion. No commissions. No affiliate links. No products to push. Just transparent data on rates, guidelines, and market signals so you can negotiate from strength.
+
+**How it works.** Every answer draws from live FRED data (Freddie Mac PMMS, 10Y Treasury, Fed funds rate), official agency underwriting guidelines (Fannie Mae, Freddie Mac, FHA, VA, USDA), and lender overlays — updated continuously.
+
+**Who built it.** Rayaan Arif (NMLS #366082) — serial entrepreneur and licensed mortgage professional who watched borrowers repeatedly get burned by a system designed for lenders, not buyers. He built HomeRates.ai to give every borrower access to the same quality of analysis that institutional players have.
+
+> *"Borrowers deserve the same clarity institutional investors get. We built HomeRates.ai to close that gap."*
+> — Rayaan Arif, Founder
+
+---
+*Educational only — not financial advice. Eligibility and rates vary by profile and lender. Consult an NMLS-licensed loan consultant.*`;
+
+    const follow_up_chips = [
+        {
+            label: 'Why is mortgage info so hard to trust?',
+            seed: 'About HomeRates: why is mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?',
+        },
+        {
+            label: 'What does HomeRates.ai do differently?',
+            seed: 'About HomeRates: how is HomeRates.ai different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?',
+        },
+        {
+            label: 'What live data does HomeRates.ai use?',
+            seed: 'About HomeRates: what live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?',
+        },
+        {
+            label: 'Who built this and why?',
+            seed: 'About HomeRates: who is the founder and what problem were they trying to solve for borrowers?',
+        },
+        {
+            label: 'Show me what it can do',
+            seed: 'Show me the HomeRates Lab',
+        },
+    ];
+
+    return {
+        answer,
+        next_step: 'Try a scenario — ask about your home purchase, refi, or affordability.',
+        follow_up: follow_up_chips[0].label,
+        follow_up_chips,
+        confidence: '1.00 (HomeRates.ai — static about card)',
+    };
+}
