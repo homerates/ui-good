@@ -50,7 +50,7 @@ export type SidebarProps = {
   onSearch: () => void;
   onLibrary: () => void;
   onNewProject: () => void;
-  onMortgageCalc: () => void;
+  onLabSeed?: (seed: string) => void;
 
   // Optional underwriting seed handler from page.tsx
   onAskUnderwriting?: () => void;
@@ -108,7 +108,6 @@ export default function Sidebar(props: SidebarProps) {
     onSearch: rawOnSearch,
     onLibrary: rawOnLibrary,
     onNewProject: rawOnNewProject,
-    onMortgageCalc: rawOnMortgageCalc,
     onAskUnderwriting: rawOnAskUnderwriting,
     onAboutHomeRates: rawOnAboutHomeRates,
     onKnowledgeTool: rawOnKnowledgeTool,
@@ -143,7 +142,6 @@ export default function Sidebar(props: SidebarProps) {
   const onSearch = autoWrap(rawOnSearch);
   const onLibrary = autoWrap(rawOnLibrary);
   const onNewProject = autoWrap(rawOnNewProject);
-  const onMortgageCalc = autoWrap(rawOnMortgageCalc);
   const onSettings = autoWrap(rawOnSettings);
   const onAboutHomeRates = rawOnAboutHomeRates
     ? autoWrap(rawOnAboutHomeRates)
@@ -359,8 +357,18 @@ export default function Sidebar(props: SidebarProps) {
           <button className="btn" onClick={onNewProject} type="button">
             New Project +
           </button>
-          <button className="btn" onClick={onMortgageCalc} type="button">
-            🏠 First-Time Buyer Advisor
+          <button
+            className="btn"
+            type="button"
+            onClick={() => props.onLabSeed?.('Show me the HomeRates Lab')}
+            style={{
+              background: '#0C447C',
+              color: '#E6F1FB',
+              fontWeight: 500,
+              border: 'none',
+            }}
+          >
+            HomeRates Lab
           </button>
 
           {/* Ask Underwriting pill – uses onAskUnderwriting if provided, otherwise onKnowledgeTool */}
