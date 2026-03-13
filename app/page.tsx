@@ -2132,7 +2132,7 @@ export default function Page() {
                                                             opacity: 0,
                                                         }}>
                                                             <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
-                                                            {m.meta.follow_up_chips.slice(0, 3).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
+                                                            {m.meta.follow_up_chips.slice(0, 5).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
                                                                 <button
                                                                     key={i}
                                                                     type="button"
