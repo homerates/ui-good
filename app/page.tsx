@@ -1966,14 +1966,9 @@ export default function Page() {
         })();
     }
 
-    function onMortgageCalc() {
-        // Seed the affordability question
-        const seed = "What can I afford as a first-time home buyer?";
+    function onLabSeed(seed: string) {
         setInput(seed);
-
-        // Auto-submit after brief delay
         setTimeout(() => {
-            // Trigger the form submission
             const form = document.querySelector('form');
             if (form) {
                 const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
@@ -2024,7 +2019,7 @@ export default function Page() {
                 onSearch={onSearch}
                 onLibrary={onLibrary}
                 onNewProject={onNewProject}
-                onMortgageCalc={onMortgageCalc}
+                onLabSeed={onLabSeed}
                 onAskUnderwriting={onAskUnderwriting}
                 onAboutHomeRates={onAboutHomeRates}
                 onProjectAction={handleProjectAction}
