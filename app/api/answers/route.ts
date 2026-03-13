@@ -4874,7 +4874,12 @@ Return valid JSON only:
         followUp: grokFinal?.follow_up || followUpFor(topic),
         follow_up_chips: (() => {
             const chips = grokFinal?.follow_up_chips;
-            if (chips && chips.length > 0) return chips;
+            if (chips && chips.length > 0) {
+                if (isUnderwritingGuidelineQuestion(question)) {
+                    return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
+                }
+                return chips;
+            }
             return generateFallbackChips(question, conversationHistory);
         })(),
     });
