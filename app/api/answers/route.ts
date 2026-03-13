@@ -3093,6 +3093,12 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
         const isCalculationIntent = /use my scenario|run.{0,20}(?:numbers?|scenario|calc)|calculate.{0,20}for me|show me.{0,20}(?:fha|payment|cost)|what.{0,10}(?:would|will).{0,20}(?:payment|piti|cost)|can you.{0,20}(?:calc|run|show|use)|(?:use|apply|run).{0,20}(?:my|this|same|that).{0,20}(?:scenario|situation|numbers?|info|details?)|(?:use|apply|run|show|calc).{0,10}(?:for|with).{0,5}fha\b|fha.{0,20}(?:version|option|instead)|my scenario.{0,20}fha|can.{0,10}fha/i.test(q);
         if (isCalculationIntent) return false;
 
+        // Live market/rate questions — always need FRED, never route to UW guidelines
+        const isLiveRateQuestion = /(?:what|where|how).{0,30}(?:mortgage|30.?year|15.?year|interest).{0,20}rates?.{0,30}(?:today|now|this week|right now|current|lately|these days)/i.test(q)
+            || /rates?.{0,20}(?:this week|today|right now|currently|as of)/i.test(q)
+            || /(?:current|today'?s?|latest|live).{0,20}(?:mortgage|interest).{0,20}rates?/i.test(q);
+        if (isLiveRateQuestion) return false;
+
         if (infoSignals.some(pattern => pattern.test(q))) return true;
 
         return false;
