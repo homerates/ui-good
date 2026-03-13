@@ -3100,6 +3100,9 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
             || /(?:current|today'?s?|latest|live).{0,20}(?:mortgage|interest).{0,20}rates?/i.test(q);
         if (isLiveRateQuestion) return false;
 
+        // About HomeRates.ai — never route to UW bypass
+        if (/homerates|who built|who created|who made|founder of|this site|this app|this platform|makes.{0,20}different/i.test(q)) return false;
+
         if (infoSignals.some(pattern => pattern.test(q))) return true;
 
         return false;
