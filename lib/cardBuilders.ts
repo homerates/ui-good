@@ -293,12 +293,12 @@ ${dtiSection}${incomeSection}${compSection}
         {
             label: `Rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}% — new FHA payment?`,
             seed: `Same FHA loan, rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}%`,
-            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct }
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, isFHA: true }
         },
         {
             label: `What if I put 10% down instead?`,
             seed: `FHA loan on ${fK(r.purchasePrice)} home with 10% down at ${rateStr}`,
-            paramOverrides: { downPaymentPct: 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct }
+            paramOverrides: { downPaymentPct: 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct, isFHA: true }
         },
         {
             label: `FHA vs conventional — which is cheaper?`,
