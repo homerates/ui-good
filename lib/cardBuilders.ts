@@ -1537,3 +1537,33 @@ export function buildAboutFounderCard(): BuiltCard {
     };
 }
 
+
+
+export function buildUWStarterCard(): BuiltCard {
+    const topics = [
+        { label: 'DTI limits by loan type', desc: 'FHA, conventional, VA, USDA — max ratios + compensating factors', seed: 'Ask Underwriting: what are the DTI limits for FHA, conventional, VA, and USDA loans including compensating factors?' },
+        { label: 'Credit score minimums', desc: 'Minimum FICO by program — 500, 580, 620, 640', seed: 'Ask Underwriting: what are the minimum credit score requirements for FHA, conventional, VA, and USDA?' },
+        { label: 'Gift fund rules', desc: 'Who allows gifts, what docs are required', seed: 'Ask Underwriting: can gift funds be used for a down payment on FHA and conventional loans — what are the rules and documentation required?' },
+        { label: 'Self-employed income', desc: 'How lenders calculate qualifying income', seed: 'Ask Underwriting: how is self-employed income calculated for mortgage qualification — what documents are required?' },
+        { label: 'Reserve requirements', desc: 'Months of PITIA required by loan type', seed: 'Ask Underwriting: what are the reserve requirements for conventional, FHA, and investment property loans?' },
+    ];
+
+    const rows = topics.map(t =>
+        `| **${t.label}** | ${t.desc} |`
+    ).join('\n');
+
+    const answer = `## 📋 Ask Underwriting\n\nGet instant answers from agency guidelines — Fannie Mae, FHA, VA, USDA, and lender overlays.\n\n| Topic | What it covers |\n|-------|----------------|\n${rows}\n\n> Ask any underwriting question in plain English. Answers cite the exact guideline source.`;
+
+    const follow_up_chips = topics.map(t => ({
+        label: t.label,
+        seed: t.seed,
+    }));
+
+    return {
+        answer,
+        next_step: 'Select a topic below or type your own underwriting question.',
+        follow_up: follow_up_chips[0].label,
+        follow_up_chips,
+        confidence: '1.00 (HomeRates.ai — UW starter card)',
+    };
+}

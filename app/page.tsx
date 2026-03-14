@@ -1992,11 +1992,10 @@ export default function Page() {
 
     // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
     function onAskUnderwriting() {
-        const seed =
-            'Ask Underwriting: ';
-
-        // Just pre-fill the composer – user can edit then hit Enter / Send.
+        const seed = 'Show me Ask Underwriting';
+        newChat();
         setInput(seed);
+        setTimeout(() => send(seed), 50);
     }
     // ABOUT HOMERATES: seeds the composer to trigger the "about" module
     function onAboutHomeRates() {
