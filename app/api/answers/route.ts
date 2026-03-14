@@ -19,6 +19,7 @@ import {
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
     buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
+    buildUWStarterCard,
 } from "../../../lib/cardBuilders";
 import {
     getGuidelineContextForQuestion,
@@ -3112,8 +3113,8 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
             || /(?:current|today'?s?|latest|live).{0,20}(?:mortgage|interest).{0,20}rates?/i.test(q);
         if (isLiveRateQuestion) return false;
 
-        // About HomeRates.ai — never route to UW bypass
-        if (/homerates|about homerates|who built|who created|who made|founder of|this site|this app|this platform|makes.{0,20}different/i.test(q)) return false;
+        // About HomeRates.ai and UW starter — never route to UW bypass
+        if (/homerates|about homerates|who built|who created|who made|founder of|this site|this app|this platform|makes.{0,20}different|open the homerates underwriting/i.test(q)) return false;
 
         // Income/affordability qualification questions — always route to affordability/qualify module
         if (/how\s+much\s+(?:income|money|salary|do\s+i\s+need)|what\s+income|what\s+salary|income\s+(?:do\s+i\s+need|required|needed|to\s+qualify)|how\s+much\s+(?:can\s+i\s+afford|home\s+can)/i.test(q)) return false;
@@ -3718,6 +3719,9 @@ ${uwAnswerText}`,
             } else if (calcDispatch.type === 'lab') {
                 calcCard = buildLabCard();
                 calcDebugModel = 'calcEngine-lab';
+            } else if (calcDispatch.type === 'uw_starter') {
+                calcCard = buildUWStarterCard();
+                calcDebugModel = 'calcEngine-uw-starter';
             } else if (calcDispatch.type === 'about') {
                 calcCard = buildAboutCard();
                 calcDebugModel = 'calcEngine-about';
