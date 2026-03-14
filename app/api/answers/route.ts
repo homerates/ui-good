@@ -3488,7 +3488,7 @@ ${uwAnswerText}`,
         ? parseFloat((question.match(/(?:new rate|refi to|drop to|down to|rates?\s+(?:go|drop|fall|come)?\s*to)\s*([\d]+\.?\d*)\s*%/i)
             ?? question.match(/(?:at|to)\s+([\d]+\.?\d*)\s*%/i))![1]) : null;
 
-    const isFollowUp = /what if|what about|instead|same but|show me|if rates?|rates? drop|rates? go|rates? fall|drop to|down to/i.test(question);
+    const isFollowUp = /what if|what about|instead|same but|show me|if rates?|rates? drop|rates? go|rates? fall|drop to|down to|how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify/i.test(question);
     if (isFollowUp && snapshotLoanType &&
         (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
         if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
@@ -3511,12 +3511,15 @@ ${uwAnswerText}`,
             };
         } else if (snapshotLoanType === 'calcEngine-conventional' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
-            (calcDispatch as any).type = 'conventional';
-            (calcDispatch as any).params = {
-                purchasePrice: fuPrice ?? si.price ?? si.purchasePrice,
-                downPaymentPct: fuDown ?? si.down_payment_pct ?? 20,
-                annualRatePct: fuRate ?? si.rate_used_pct ?? 6.5,
-            };
+            const isIncomeQuery = /how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify/i.test(question);
+            if (!isIncomeQuery) {
+                (calcDispatch as any).type = 'conventional';
+                (calcDispatch as any).params = {
+                    purchasePrice: fuPrice ?? si.price ?? si.purchasePrice,
+                    downPaymentPct: fuDown ?? si.down_payment_pct ?? 20,
+                    annualRatePct: fuRate ?? si.rate_used_pct ?? 6.5,
+                };
+            }
         } else if (snapshotLoanType === 'refi_advisor_v2') {
             // Refi follow-up — re-run refi_advisor_v2 with changed rate
             // Force module = 'refi' so the refi bypass in route.ts fires
