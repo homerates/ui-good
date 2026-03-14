@@ -3110,6 +3110,9 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
         // About HomeRates.ai — never route to UW bypass
         if (/homerates|about homerates|who built|who created|who made|founder of|this site|this app|this platform|makes.{0,20}different/i.test(q)) return false;
 
+        // Income/affordability qualification questions — always route to affordability/qualify module
+        if (/how\s+much\s+(?:income|money|salary|do\s+i\s+need)|what\s+income|what\s+salary|income\s+(?:do\s+i\s+need|required|needed|to\s+qualify)|how\s+much\s+(?:can\s+i\s+afford|home\s+can)/i.test(q)) return false;
+
         if (infoSignals.some(pattern => pattern.test(q))) return true;
 
         return false;
