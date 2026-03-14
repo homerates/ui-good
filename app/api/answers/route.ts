@@ -4204,12 +4204,9 @@ ${dtiSection}
                 follow_up_chips: affordChips,
                 confidence: "1.00 (calculated using verified mortgage formulas + Fannie Mae DTI guidelines)"
             };
-
         } else {
-            // Check if there's a prior calc scenario to answer income question against
             const isIncomeQuery = /how much income|what income do i need|what salary|income.*(?:need|qualify|required)|do i qualify|what income.*with.*(?:debts?|payment|car|student)/i.test(question);
-            const priorMonthlyPayment = snapshotJson?.computed_financials?.total_monthly_piti
-                ?? snapshotJson?.computed_financials?.monthly_piti
+            const priorMonthlyPayment = snapshotJson?.computed_financials?.monthly_pitia
                 ?? snapshotJson?.monthly_payment;
 
             if (isIncomeQuery && priorMonthlyPayment && snapshotLoanType) {
@@ -4243,9 +4240,7 @@ ${dtiSection}
                     confidence: '1.00 (calculated from prior scenario snapshot)',
                 };
             } else {
-                // User asked about affordability but didn't provide info yet
                 console.log('[Affordability] Asking for info');
-
                 affordabilityAnswer = {
                     answer: `**Let's figure out what you can afford!**
 
@@ -4274,473 +4269,472 @@ What's your situation?`,
             }
         }
     }
-}
-// ========== END AFFORDABILITY CHECK ==========
-// ===== FHA CALCULATOR INTEGRATION =====
-// Add to app/api/answers/route.ts AFTER the affordability check (around line 1820)
+    // ========== END AFFORDABILITY CHECK ==========
+    // ===== FHA CALCULATOR INTEGRATION =====
+    // Add to app/api/answers/route.ts AFTER the affordability check (around line 1820)
 
-// ========== FHA CALCULATOR CHECK ==========
-let fhaAnswer = null;
+    // ========== FHA CALCULATOR CHECK ==========
+    let fhaAnswer = null;
 
-// Consume mortgage->FHA reroute flag (set before mortgageAnswer block above)
-if (mortgageRerouteToFHA && !affordabilityAnswer) {
-    try {
-        const { price: rPrice, income: rIncome, savings: rSavings } = mortgageRerouteToFHA;
-        const rFHAParams = extractFHAParams(question);
-        const rResult = calculateFHA({
-            purchasePrice: rPrice,
-            downPaymentPct: rFHAParams.downPaymentPct || 3.5,
-            interestRate: rFHAParams.interestRate || fred?.mort30Avg || 6.5,
-            creditScore: rFHAParams.creditScore || 580,
-            loanTerm: 30,
-            propertyTaxRate: rFHAParams.propertyTaxRate || 1.1,
-            homeInsuranceAnnual: 1200,
-            hoaMonthly: 0,
-            annualIncome: rIncome,
-            monthlyDebts: rFHAParams.monthlyDebts || 0,
-        });
-        const rMarkdown = buildFHAMarkdown(
-            { ...rFHAParams, purchasePrice: rPrice, annualIncome: rIncome },
-            rResult,
-            null,
-            { ambiguous10pct: false, rate: !rFHAParams.interestRate, incomeNeeded: false }
-        );
-        const priceK = Math.round(rPrice / 1000);
-        const incK = Math.round(rIncome / 1000);
-        const savK = Math.round(rSavings / 1000);
-        fhaAnswer = {
-            answer: rMarkdown,
-            next_step: "Get FHA pre-approval from an FHA-approved lender.",
-            follow_up: `Compare FHA vs conventional on this $${priceK}k home`,
-            follow_up_chips: [
-                { label: `FHA vs conventional on $${priceK}k — side-by-side`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home — I make $${incK}k/year` },
-                { label: `What if I put 10% down instead?`, seed: `Show me FHA with 10% down on a $${priceK}k home — I make $${incK}k/year and have $${savK}k saved` },
-                { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${priceK}k home with FHA 3.5% down?` },
-            ],
-            confidence: "1.00 (calculated using FHA guidelines)"
-        };
-        console.log('[Mortgage->FHA] Reroute successful, fhaAnswer set');
-    } catch (e: any) {
-        console.warn('[Mortgage->FHA] Reroute failed:', e.message);
-    }
-}
-
-// History-aware FHA detection: if prior conversation mentions FHA and current question
-// is a down-payment follow-up ("show me 10% down", "what about 20% down"), treat as FHA question
-// GUARD: skip if we already produced an affordability answer (don't steal affordability down-pct follow-ups)
-const isFHAFollowUp = !isFHAQuestion(question) &&
-    !affordabilityAnswer &&
-    /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(question) &&
-    /\bfha\b|\bmip\b|\bufmip\b/i.test(conversationHistory || '');
-
-// Detect compare FHA vs conventional — will run both calcs below
-const isCompareWithConv = /compare.{0,30}(?:fha.{0,30}conv|conv.{0,30}fha)|fha.{0,20}vs.{0,20}conv|vs.{0,20}conventional/i.test(question);
-
-// Standalone savings timeline: "$Xk gap, save $Y/month — how long?"
-const stGapMatch = question.match(/(?:need|short|gap|require)[^.]*?\$?\s*([\d,]+)k?\s*(?:more|short|gap)/i) ||
-    question.match(/\$?\s*([\d,]+)k?\s*(?:more|short)\s*(?:for|to|until)/i);
-const stRateMatch = question.match(/save\s*\$?\s*([\d,]+)\s*(?:\/month|\/mo|per month|a month|month)/i) ||
-    question.match(/saving\s*\$?\s*([\d,]+)\s*(?:\/month|\/mo|per month|a month|month)/i);
-const stHasHowLong = /how.{0,15}long|how.{0,10}many.{0,10}month|when.{0,15}(ready|buy|close)|months.{0,10}(until|to)/i.test(question);
-
-if (!isAskUnderwriting && !affordabilityAnswer && stGapMatch && stRateMatch && stHasHowLong) {
-    const rawGap = stGapMatch[1].replace(/,/g, '');
-    const gapAmt = parseFloat(rawGap) * (/k\b/i.test(stGapMatch[0]) ? 1000 : 1);
-    const monthlyRate = parseFloat(stRateMatch[1].replace(/,/g, ''));
-    if (gapAmt > 0 && monthlyRate > 0) {
-        const months = Math.ceil(gapAmt / monthlyRate);
-        const readyDate = new Date();
-        readyDate.setMonth(readyDate.getMonth() + months);
-        const readyStr = readyDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const half = Math.round(months / 2);
-        const halfway = Math.round(monthlyRate * half);
-        const interestEst = Math.round(gapAmt * 0.045 / 12 * months / 2);
-        const stAnswer = {
-            answer: `**Savings Timeline**\n\nSaving **$${monthlyRate.toLocaleString()}/month** to close a **$${Math.round(gapAmt / 1000)}k gap**:\n\n| Metric | Value |\n|--------|-------|\n| Cash gap | $${Math.round(gapAmt).toLocaleString()} |\n| Monthly savings | $${monthlyRate.toLocaleString()} |\n| **Months to close** | **${months}** |\n| Ready-to-buy | **${readyStr}** |\n\n**Milestones:**\n\n| Milestone | Month | Saved |\n|-----------|-------|-------|\n| Halfway | ${half} | $${halfway.toLocaleString()} |\n| **Done** | **${months}** | **$${Math.round(gapAmt).toLocaleString()}** |\n\n> 💡 In a 4.5% HYSA your savings earn ~$${interestEst} in interest over this period — can shave a month off the timeline.\n\n**[FHA Gift Funds — HUD 4000.1](https://www.hud.gov/handbook/4000-1)** | Can a family gift accelerate your timeline?`,
-            next_step: `Open a high-yield savings account and automate $${monthlyRate.toLocaleString()}/mo transfers.`,
-            follow_up: `What's your credit score? It determines FHA approval odds.`,
-            follow_up_chips: [
-                { label: `What if I save $${Math.round(monthlyRate * 1.5).toLocaleString()}/mo instead?`, seed: `How long until I can buy if I save $${Math.round(monthlyRate * 1.5).toLocaleString()}/month? I need $${Math.round(gapAmt / 1000)}k more for FHA closing` },
-                { label: `Can gift funds cover my gap?`, seed: `Can gift funds cover my FHA down payment? I need $${Math.round(gapAmt / 1000)}k more` },
-                { label: `What if rates drop to 5.5%?`, seed: `What happens to my FHA payment if rates drop to 5.5%?` }
-            ],
-            confidence: `1.00 — $${Math.round(gapAmt).toLocaleString()} / $${monthlyRate.toLocaleString()}/mo = ${months} months`
-        };
-        affordabilityAnswer = stAnswer;
-        console.log(`[SavingsTimeline] gap=${gapAmt} rate=${monthlyRate}/mo -> ${months} months`);
-    }
-}
-
-if (!isAskUnderwriting && !affordabilityAnswer && (isFHAQuestion(question) || isFHAFollowUp)) {
-    console.log('[FHA] Detected FHA question');
-
-    const fhaParams = extractFHAParams(question);
-
-    // Pull price + rate from history — price only if missing, rate only if missing (guards are independent)
-    if ((isFHAFollowUp || isFHAQuestion(question)) && conversationHistory) {
-        // Only pull price from history if price NOT found in current question
-        if (!fhaParams.purchasePrice) {
-            const histPriceCtx = conversationHistory.match(/\$\s*([\d,]+)\s*k?\s*(?:home|house|property|purchase price)/i) ||
-                conversationHistory.match(/(?:home|house|property|purchase price)[^$]*\$\s*([\d,]+)k?/i) ||
-                conversationHistory.match(/\$\s*([\d,]+(?:,\d{3})+)/i); // full $515,000 format
-            // Bare $Xk only if value >= 100 (i.e. $100k+) to avoid matching MIP amounts like $84k, $26k
-            const histPriceBare = conversationHistory.match(/\$\s*(\d+)k\b/gi)
-                ?.map((m: string) => parseFloat(m.replace(/[\$k]/gi, '')))
-                .find((v: number) => v >= 100);
-            const histPriceVal = histPriceCtx
-                ? parseFloat(histPriceCtx[1].replace(/,/g, ''))
-                : (histPriceBare ?? null);
-
-            if (histPriceVal !== null && histPriceVal !== undefined) {
-                let hp = histPriceVal;
-                if (hp < 10000) hp *= 1000;
-                // Sanity check: home prices are $50k–$5M
-                if (hp >= 50000 && hp <= 5000000) {
-                    fhaParams.purchasePrice = hp;
-                    fhaParams.hasInfo = true;
-                }
-            }
-            // Also pull prior rate if no rate in current question
-        } // end if (!fhaParams.purchasePrice)
-        if (!fhaParams.interestRate) {
-            // Only pull rate from history USER questions, not assistant answers
-            // Extract only "User:" lines to avoid matching example rates in our own notices
-            const histUserLines = conversationHistory
-                .split('\n')
-                .filter((l: string) => /^(User:|Turn \d+\nUser:)/i.test(l.trim()) ||
-                    (l.trim().startsWith('User:')))
-                .join(' ');
-            const histRate = histUserLines.match(/(?:fha|at)\s+(\d+\.\d+)\s*%/i);
-            if (histRate) {
-                const hVal = parseFloat(histRate[1]);
-                if (hVal >= 2 && hVal <= 15) fhaParams.interestRate = hVal;
-            }
-        }
-        // Override down payment from current question (e.g. "show me 10% down")
-        // Use decimal-aware regex; only override if it looks like an FHA-specific instruction
-        // (i.e. "fha X% down" or "X% down" without "conventional" right before it)
-        const followUpDownFHA = question.match(/fha\s+([\d.]+)\s*%\s*down/i) ||
-            question.match(/^[^\n]*?([\d.]+)\s*%\s*down(?![^\n]*conventional)/i);
-        if (followUpDownFHA) fhaParams.downPaymentPct = parseFloat(followUpDownFHA[1]);
-    }
-
-    if (fhaParams.hasInfo && fhaParams.purchasePrice) {
-        console.log('[FHA] Calculating FHA loan:', fhaParams);
-
+    // Consume mortgage->FHA reroute flag (set before mortgageAnswer block above)
+    if (mortgageRerouteToFHA && !affordabilityAnswer) {
         try {
-            // Calculate FHA loan
-            // Resolve rate: explicit > FRED live > last-resort 6.5
-            // Mutate fhaParams so buildFHAMarkdown template shows the real rate
-            if (!fhaParams.interestRate) {
-                fhaParams.interestRate = fred?.mort30Avg || 6.5;
-            }
-
-            const fhaResult = calculateFHA({
-                purchasePrice: fhaParams.purchasePrice,
-                downPaymentPct: fhaParams.downPaymentPct || 3.5,
-                interestRate: fhaParams.interestRate,
-                creditScore: fhaParams.creditScore || 580,
+            const { price: rPrice, income: rIncome, savings: rSavings } = mortgageRerouteToFHA;
+            const rFHAParams = extractFHAParams(question);
+            const rResult = calculateFHA({
+                purchasePrice: rPrice,
+                downPaymentPct: rFHAParams.downPaymentPct || 3.5,
+                interestRate: rFHAParams.interestRate || fred?.mort30Avg || 6.5,
+                creditScore: rFHAParams.creditScore || 580,
                 loanTerm: 30,
-                propertyTaxRate: fhaParams.propertyTaxRate || 1.1,
+                propertyTaxRate: rFHAParams.propertyTaxRate || 1.1,
                 homeInsuranceAnnual: 1200,
                 hoaMonthly: 0,
-                annualIncome: fhaParams.annualIncome,
-                monthlyDebts: fhaParams.monthlyDebts || 0,
+                annualIncome: rIncome,
+                monthlyDebts: rFHAParams.monthlyDebts || 0,
             });
-
-            // Generate comparison if:
-            // 1) we have income (always compare), OR
-            // 2) user explicitly asks to compare FHA vs conventional
-            const wantsComparison = /conventional|\bconv\b|compare|\bvs\b|both options/i.test(question);
-            let comparison = null;
-
-            // Extract the conventional rate only from DECIMAL percentages (e.g. "FHA at 5.625% and conventional at 5.99%")
-            // Whole-number % are almost always down payments, not rates — exclude them to avoid "10% down" being read as a rate
-            const allRates = [...question.matchAll(/(\d+\.\d+)\s*%/gi)]
-                .map((m: RegExpMatchArray) => parseFloat(m[1])).filter((r: number) => r > 2 && r < 15);
-            const fhaRate = fhaParams.interestRate || fred?.mort30Avg || 6.5;
-            const convRate = allRates.length > 1 ? allRates[1] : allRates.length === 1 ? allRates[0] : fhaRate;
-
-            // Extract conventional down payment from question — default to 5% if not specified
-            const convDownMatch = question.match(/conventional\s+(\d+)\s*%\s*down/i) ||
-                question.match(/conv(?:entional)?\s+(\d+)\s*%\s*down/i);
-            const convDownPctFromQ = convDownMatch ? parseFloat(convDownMatch[1]) : null;
-
-            if (fhaParams.annualIncome) {
-                // Full comparison with DTI when income is known
-                // Only show comparison if DTI is within reason (< 55%) — otherwise redirect
-                const dtiCheck = fhaResult.totalDTI ?? 0;
-                if (dtiCheck < 55) {
-                    comparison = compareFHAvsConventional(
-                        fhaParams.purchasePrice,
-                        convRate,
-                        fhaParams.annualIncome,
-                        fhaParams.monthlyDebts || 0,
-                        fhaParams.propertyTaxRate || 1.1
-                    );
-                }
-            } else if (wantsComparison) {
-                // Build conventional numbers directly (no income needed — just payment math)
-                const price = fhaParams.purchasePrice;
-                const convDownPct = convDownPctFromQ ?? 5;
-                const convDown = price * (convDownPct / 100);
-                const convLoan = price - convDown;
-                const convMthRate = (convRate / 100) / 12;
-                const convPI = convLoan * (convMthRate * Math.pow(1 + convMthRate, 360)) / (Math.pow(1 + convMthRate, 360) - 1);
-                // PMI: 0 at 80% LTV (20%+ down), 0.5% at 85-90% LTV, 0.65% above 90%
-                const convLTV = (convLoan / price) * 100;
-                const convPMIRate = convLTV <= 80 ? 0 : convLTV <= 90 ? 0.005 : 0.0065;
-                const convPMI = (convLoan * convPMIRate) / 12;
-                const convTax = (price * ((fhaParams.propertyTaxRate || 1.1) / 100)) / 12;
-                const convIns = 100;
-                const convTotal = Math.round(convPI + convPMI + convTax + convIns);
-                comparison = {
-                    conventional: {
-                        downPayment: convDown,
-                        downPaymentPct: convDownPct,
-                        monthlyPayment: convTotal,
-                        monthlyPI: Math.round(convPI),
-                        monthlyMI: Math.round(convPMI),
-                        monthlyPMI: Math.round(convPMI),
-                        convRateUsed: convRate,
-                    }
-                };
-            }
-
-            // Detect which assumptions were made
-            const fhaAssumptions = {
-                // "at 10%" with no "down" keyword — ambiguous, defaulted to 3.5%
-                ambiguous10pct: !question.match(/(\d+\.?\d*)\s*%\s*down/i) &&
-                    !!question.match(/at\s+(\d+)\s*%/i) &&
-                    (fhaParams.downPaymentPct === 3.5 || !question.toLowerCase().includes('down')),
-                // No explicit rate in question — using FRED/default
-                rate: !fhaParams.interestRate || fhaParams.interestRate === (fred?.mort30Avg ?? 6.5),
-                // User asked "what income do I need" but didn't provide their income
-                incomeNeeded: !fhaParams.annualIncome &&
-                    /what.*income|income.*need|qualify.*income|need.*earn|earn.*qualify|how much.*(?:make|earn|income)/i.test(question),
-            };
-            // Only surface rate assumption if it's the sole issue (not if already ambiguous)
-            if (fhaAssumptions.ambiguous10pct) fhaAssumptions.rate = false;
-
-            // Build markdown answer
-            const fhaMarkdown = buildFHAMarkdown(fhaParams, fhaResult, comparison, fhaAssumptions);
-
-            // If user asked "compare FHA vs conventional", append conventional side
-            // Guard: skip if AI already generated a comparison table (avoids duplicates)
-            let comparisonAppend = '';
-            const aiAlreadyHasComparison = fhaMarkdown.includes('🆚') ||
-                /vs\.?\s*conventional comparison/i.test(fhaMarkdown) ||
-                fhaMarkdown.includes('Side-by-Side') ||
-                fhaMarkdown.includes('FHA vs Conventional');
-            if (isCompareWithConv && fhaParams.purchasePrice && !aiAlreadyHasComparison) {
-                const convPrice = fhaParams.purchasePrice;
-                const convDown = /5\s*%/i.test(question) ? 0.05 : /10\s*%/i.test(question) ? 0.10 : /20\s*%/i.test(question) ? 0.20 : 0.05;
-                const convDownAmt = Math.round(convPrice * convDown);
-                const convLoan = convPrice - convDownAmt;
-                const convRate = fhaParams.interestRate / 100;
-                const r = convRate / 12; const n = 360;
-                const convPI = Math.round(convLoan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
-                const convPMI = convDown < 0.20 ? Math.round(convLoan * 0.006 / 12) : 0;
-                const convTax = Math.round(convPrice * 0.011 / 12);
-                const convIns = 150;
-                const convTotal = convPI + convPMI + convTax + convIns;
-                const convDTI = fhaParams.annualIncome ? ((convTotal / (fhaParams.annualIncome / 12)) * 100).toFixed(1) : '—';
-                const convCash = convDownAmt + Math.round(convPrice * 0.03);
-                comparisonAppend = `\n\n---\n\n## 🏛️ Conventional (${Math.round(convDown * 100)}% down) — Side-by-Side\n\n` +
-                    `| Component | Amount |\n|-----------|--------|\n` +
-                    `| Down Payment (${Math.round(convDown * 100)}%) | $${convDownAmt.toLocaleString()} |\n` +
-                    `| Loan Amount | $${convLoan.toLocaleString()} |\n` +
-                    `| Principal & Interest | $${convPI.toLocaleString()} |\n` +
-                    `${convPMI ? `| PMI (~0.6%/yr) | $${convPMI.toLocaleString()}/mo |\n` : '| PMI | ❌ None (20%+ down) |\n'}` +
-                    `| Property Taxes (est.) | $${convTax.toLocaleString()} |\n` +
-                    `| Home Insurance | $${convIns} |\n` +
-                    `| **Total Monthly** | **$${convTotal.toLocaleString()}** |\n\n` +
-                    `- DTI: **${convDTI}%** of gross monthly income\n` +
-                    `- Cash needed: $${convCash.toLocaleString()} (down + ~3% closing)\n` +
-                    `${convPMI ? `- PMI cancels at 80% LTV (~\$${Math.round(convLoan * 0.0006 * 12).toLocaleString()}/yr savings)\n` : ''}` +
-                    `\n> 💡 **FHA vs Conventional:** FHA has lower down (3.5% vs ${Math.round(convDown * 100)}%) but MIP lasts life of loan. Conventional PMI cancels at 80% LTV.\n` +
-                    `\n**[Fannie Mae Selling Guide B3-6](https://selling-guide.fanniemae.com) | [HUD 4000.1](https://www.hud.gov/handbook/4000-1)**`;
-            }
-
-            // Generate dynamic follow-up chips
-            // Each chip has: label (displayed to user) + seed (fills the Ask pill as a natural question)
-            const chips: Array<{ label: string; seed: string }> = [];
-            const price = fhaParams.purchasePrice!;
-            const priceK = Math.round(price / 1000);
-            const totalMIP = Math.round(fhaResult.monthlyMIP * (fhaResult.mipDuration === '11 years' ? 132 : 360) / 1000);
-            const mip10k = Math.round(fhaResult.monthlyMIP * 0.85 * 132 / 1000);
-            const extraUpfront10 = Math.round((price * 0.10 - price * 0.035) / 1000);
-
-            if (!fhaResult.qualifies && fhaResult.totalDTI) {
-                chips.push({
-                    label: `DTI is ${fhaResult.totalDTI}% — above the 43% limit. What price do I actually qualify for?`,
-                    seed: `What's the max home price I qualify for with my income? DTI is ${fhaResult.totalDTI}%`
-                });
-                chips.push({
-                    label: `What if I paid off my debts first — how much more home could I afford?`,
-                    seed: `Show me FHA affordability on $${priceK}k with $0 monthly debt`
-                });
-                chips.push({
-                    label: `Show me the price range where I'm safely under 43% DTI`,
-                    seed: `What home price keeps my FHA DTI under 40% with my current income?`
-                });
-            } else if (!fhaResult.meetsCreditRequirement) {
-                chips.push({
-                    label: `Credit under 580 — show me FHA with 10% down instead`,
-                    seed: `Show me FHA with 10% down on $${priceK}k — credit score is under 580`
-                });
-                chips.push({
-                    label: `What credit score do I need to get the 3.5% down rate?`,
-                    seed: `What credit score do I need for FHA 3.5% down on $${priceK}k?`
-                });
-                chips.push({
-                    label: `Are there other low-down-payment loans I might qualify for?`,
-                    seed: `What are my options besides FHA if my credit score is under 580?`
-                });
-            } else if (fhaResult.mipDuration === 'Life of loan') {
-                const askedIncome35 = /income|qualify|earn|afford/i.test(question);
-                const askedCompare35 = /compare|vs\.?|conventional|conv\b/i.test(question);
-                const asked10pct35 = /10\s*%\s*down/i.test(question);
-
-                const pool35: Array<{ label: string; seed: string; skip: boolean }> = [
-                    {
-                        label: `Put 10% down — remove MIP after 11 years instead`,
-                        seed: `Show me FHA with 10% down on a $${priceK}k home`,
-                        skip: asked10pct35
-                    },
-                    {
-                        label: `FHA 3.5% vs conventional 5% down — total cost comparison`,
-                        seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home`,
-                        skip: askedCompare35
-                    },
-                    {
-                        label: `What income do I need to qualify at 3.5% down?`,
-                        seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 3.5% down`,
-                        skip: askedIncome35
-                    },
-                    {
-                        label: `How much is MIP costing me over 30 years — is it worth it?`,
-                        seed: `What's the total cost of FHA MIP on a $${priceK}k home over 30 years?`,
-                        skip: false
-                    },
-                    {
-                        label: `Add my income — tell me if I qualify for this payment`,
-                        seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home?`,
-                        skip: askedIncome35
-                    },
-                ];
-
-                for (const c of pool35) {
-                    if (!c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
-                }
-                for (const c of pool35) {
-                    if (c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
-                }
-            } else if (fhaResult.mipDuration === '11 years') {
-                // Context-aware chips: detect what this question already answered
-                // and what comparisons are already visible, to avoid repeating chips
-                const qLower = question.toLowerCase();
-                const askedIncome = /income|qualify|earn|afford/i.test(question);
-                const askedCompare = /compare|vs\.?|conventional|conv\b/i.test(question);
-                const asked20pct = /20\s*%\s*down/i.test(question);
-                const asked10vs10 = /fha.*10.*conv|conv.*10.*fha|10.*down.*vs.*10.*down/i.test(question);
-
-                // Build a pool of candidate chips, then pick the ones NOT already answered
-                const chipPool: Array<{ label: string; seed: string; skip: boolean }> = [
-                    {
-                        label: `FHA 10% down vs conventional 10% down — side-by-side`,
-                        seed: `Compare FHA 10% down vs conventional 10% down on a $${priceK}k home`,
-                        skip: askedCompare && asked10vs10
-                    },
-                    {
-                        label: `Conventional 20% down vs FHA 10% — monthly savings vs upfront cost`,
-                        seed: `Show me conventional 20% down on a $${priceK}k home vs FHA 10% down`,
-                        skip: asked20pct
-                    },
-                    {
-                        label: `What income do I need to qualify at 10% down?`,
-                        seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 10% down`,
-                        skip: askedIncome
-                    },
-                    {
-                        label: `What's the break-even point — when does conventional 10% beat FHA?`,
-                        seed: `When does conventional 10% down become cheaper than FHA 10% down on a $${priceK}k home?`,
-                        skip: false
-                    },
-                    {
-                        label: `How much does a 680 vs 740 credit score change my rate?`,
-                        seed: `How does my credit score affect FHA vs conventional on a $${priceK}k home?`,
-                        skip: false
-                    },
-                    {
-                        label: `Add my income — see if I actually qualify for this payment`,
-                        seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home at 10% down?`,
-                        skip: askedIncome
-                    },
-                ];
-
-                // Push non-skipped chips first, then skipped as backfill, up to 3
-                for (const c of chipPool) {
-                    if (!c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
-                }
-                for (const c of chipPool) {
-                    if (c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
-                }
-            }
-
-            if (comparison && chips.length < 3) {
-                const convTotal = comparison.conventional?.monthlyPayment ?? 0;
-                const convDown = comparison.conventional?.downPayment ?? 0;
-                const fhaMonthly = fhaResult.totalMonthly ?? 0;
-                const monthlyDiff = Math.abs(Math.round(fhaMonthly - convTotal));
-                const downDiff = Math.abs(Math.round((convDown - fhaResult.downPayment) / 1000));
-                const fhaWinsMonthly = fhaMonthly < convTotal;
-                chips.push({
-                    label: fhaWinsMonthly
-                        ? `FHA is cheaper monthly — add my income to see which I actually qualify for`
-                        : `Conventional saves monthly once PMI cancels — add income to see which I qualify for`,
-                    seed: `I make $${Math.round(price / 5 / 1000) * 10}k/year — FHA or conventional on $${priceK}k?`
-                });
-            }
-
-            // Pad to 3 chips if needed
-            if (!fhaParams.annualIncome && chips.length < 3) {
-                chips.push({
-                    label: `Add my income — tell me if I actually qualify for this payment`,
-                    seed: `I make $[income]/year — do I qualify for FHA on $${priceK}k home?`
-                });
-            }
-
-            const fhaFollowUp = chips[0]?.label ?? "Want to explore different down payment or loan scenarios?";
-
+            const rMarkdown = buildFHAMarkdown(
+                { ...rFHAParams, purchasePrice: rPrice, annualIncome: rIncome },
+                rResult,
+                null,
+                { ambiguous10pct: false, rate: !rFHAParams.interestRate, incomeNeeded: false }
+            );
+            const priceK = Math.round(rPrice / 1000);
+            const incK = Math.round(rIncome / 1000);
+            const savK = Math.round(rSavings / 1000);
             fhaAnswer = {
-                answer: fhaMarkdown + comparisonAppend,
-                next_step: "Get FHA pre-approval from an FHA-approved lender. Check credit score and verify down payment source.",
-                follow_up: fhaFollowUp,
-                follow_up_chips: chips,
-                confidence: "1.00 (calculated using official FHA guidelines and MIP rates)"
+                answer: rMarkdown,
+                next_step: "Get FHA pre-approval from an FHA-approved lender.",
+                follow_up: `Compare FHA vs conventional on this $${priceK}k home`,
+                follow_up_chips: [
+                    { label: `FHA vs conventional on $${priceK}k — side-by-side`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home — I make $${incK}k/year` },
+                    { label: `What if I put 10% down instead?`, seed: `Show me FHA with 10% down on a $${priceK}k home — I make $${incK}k/year and have $${savK}k saved` },
+                    { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${priceK}k home with FHA 3.5% down?` },
+                ],
+                confidence: "1.00 (calculated using FHA guidelines)"
             };
+            console.log('[Mortgage->FHA] Reroute successful, fhaAnswer set');
+        } catch (e: any) {
+            console.warn('[Mortgage->FHA] Reroute failed:', e.message);
+        }
+    }
 
-            console.log('[FHA] Generated FHA analysis');
+    // History-aware FHA detection: if prior conversation mentions FHA and current question
+    // is a down-payment follow-up ("show me 10% down", "what about 20% down"), treat as FHA question
+    // GUARD: skip if we already produced an affordability answer (don't steal affordability down-pct follow-ups)
+    const isFHAFollowUp = !isFHAQuestion(question) &&
+        !affordabilityAnswer &&
+        /\b(\d+)\s*%\s*down\b|show me.*down|down payment/i.test(question) &&
+        /\bfha\b|\bmip\b|\bufmip\b/i.test(conversationHistory || '');
 
-        } catch (err: any) {
-            console.error('[FHA] Calculation error:', err.message);
+    // Detect compare FHA vs conventional — will run both calcs below
+    const isCompareWithConv = /compare.{0,30}(?:fha.{0,30}conv|conv.{0,30}fha)|fha.{0,20}vs.{0,20}conv|vs.{0,20}conventional/i.test(question);
+
+    // Standalone savings timeline: "$Xk gap, save $Y/month — how long?"
+    const stGapMatch = question.match(/(?:need|short|gap|require)[^.]*?\$?\s*([\d,]+)k?\s*(?:more|short|gap)/i) ||
+        question.match(/\$?\s*([\d,]+)k?\s*(?:more|short)\s*(?:for|to|until)/i);
+    const stRateMatch = question.match(/save\s*\$?\s*([\d,]+)\s*(?:\/month|\/mo|per month|a month|month)/i) ||
+        question.match(/saving\s*\$?\s*([\d,]+)\s*(?:\/month|\/mo|per month|a month|month)/i);
+    const stHasHowLong = /how.{0,15}long|how.{0,10}many.{0,10}month|when.{0,15}(ready|buy|close)|months.{0,10}(until|to)/i.test(question);
+
+    if (!isAskUnderwriting && !affordabilityAnswer && stGapMatch && stRateMatch && stHasHowLong) {
+        const rawGap = stGapMatch[1].replace(/,/g, '');
+        const gapAmt = parseFloat(rawGap) * (/k\b/i.test(stGapMatch[0]) ? 1000 : 1);
+        const monthlyRate = parseFloat(stRateMatch[1].replace(/,/g, ''));
+        if (gapAmt > 0 && monthlyRate > 0) {
+            const months = Math.ceil(gapAmt / monthlyRate);
+            const readyDate = new Date();
+            readyDate.setMonth(readyDate.getMonth() + months);
+            const readyStr = readyDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const half = Math.round(months / 2);
+            const halfway = Math.round(monthlyRate * half);
+            const interestEst = Math.round(gapAmt * 0.045 / 12 * months / 2);
+            const stAnswer = {
+                answer: `**Savings Timeline**\n\nSaving **$${monthlyRate.toLocaleString()}/month** to close a **$${Math.round(gapAmt / 1000)}k gap**:\n\n| Metric | Value |\n|--------|-------|\n| Cash gap | $${Math.round(gapAmt).toLocaleString()} |\n| Monthly savings | $${monthlyRate.toLocaleString()} |\n| **Months to close** | **${months}** |\n| Ready-to-buy | **${readyStr}** |\n\n**Milestones:**\n\n| Milestone | Month | Saved |\n|-----------|-------|-------|\n| Halfway | ${half} | $${halfway.toLocaleString()} |\n| **Done** | **${months}** | **$${Math.round(gapAmt).toLocaleString()}** |\n\n> 💡 In a 4.5% HYSA your savings earn ~$${interestEst} in interest over this period — can shave a month off the timeline.\n\n**[FHA Gift Funds — HUD 4000.1](https://www.hud.gov/handbook/4000-1)** | Can a family gift accelerate your timeline?`,
+                next_step: `Open a high-yield savings account and automate $${monthlyRate.toLocaleString()}/mo transfers.`,
+                follow_up: `What's your credit score? It determines FHA approval odds.`,
+                follow_up_chips: [
+                    { label: `What if I save $${Math.round(monthlyRate * 1.5).toLocaleString()}/mo instead?`, seed: `How long until I can buy if I save $${Math.round(monthlyRate * 1.5).toLocaleString()}/month? I need $${Math.round(gapAmt / 1000)}k more for FHA closing` },
+                    { label: `Can gift funds cover my gap?`, seed: `Can gift funds cover my FHA down payment? I need $${Math.round(gapAmt / 1000)}k more` },
+                    { label: `What if rates drop to 5.5%?`, seed: `What happens to my FHA payment if rates drop to 5.5%?` }
+                ],
+                confidence: `1.00 — $${Math.round(gapAmt).toLocaleString()} / $${monthlyRate.toLocaleString()}/mo = ${months} months`
+            };
+            affordabilityAnswer = stAnswer;
+            console.log(`[SavingsTimeline] gap=${gapAmt} rate=${monthlyRate}/mo -> ${months} months`);
+        }
+    }
+
+    if (!isAskUnderwriting && !affordabilityAnswer && (isFHAQuestion(question) || isFHAFollowUp)) {
+        console.log('[FHA] Detected FHA question');
+
+        const fhaParams = extractFHAParams(question);
+
+        // Pull price + rate from history — price only if missing, rate only if missing (guards are independent)
+        if ((isFHAFollowUp || isFHAQuestion(question)) && conversationHistory) {
+            // Only pull price from history if price NOT found in current question
+            if (!fhaParams.purchasePrice) {
+                const histPriceCtx = conversationHistory.match(/\$\s*([\d,]+)\s*k?\s*(?:home|house|property|purchase price)/i) ||
+                    conversationHistory.match(/(?:home|house|property|purchase price)[^$]*\$\s*([\d,]+)k?/i) ||
+                    conversationHistory.match(/\$\s*([\d,]+(?:,\d{3})+)/i); // full $515,000 format
+                // Bare $Xk only if value >= 100 (i.e. $100k+) to avoid matching MIP amounts like $84k, $26k
+                const histPriceBare = conversationHistory.match(/\$\s*(\d+)k\b/gi)
+                    ?.map((m: string) => parseFloat(m.replace(/[\$k]/gi, '')))
+                    .find((v: number) => v >= 100);
+                const histPriceVal = histPriceCtx
+                    ? parseFloat(histPriceCtx[1].replace(/,/g, ''))
+                    : (histPriceBare ?? null);
+
+                if (histPriceVal !== null && histPriceVal !== undefined) {
+                    let hp = histPriceVal;
+                    if (hp < 10000) hp *= 1000;
+                    // Sanity check: home prices are $50k–$5M
+                    if (hp >= 50000 && hp <= 5000000) {
+                        fhaParams.purchasePrice = hp;
+                        fhaParams.hasInfo = true;
+                    }
+                }
+                // Also pull prior rate if no rate in current question
+            } // end if (!fhaParams.purchasePrice)
+            if (!fhaParams.interestRate) {
+                // Only pull rate from history USER questions, not assistant answers
+                // Extract only "User:" lines to avoid matching example rates in our own notices
+                const histUserLines = conversationHistory
+                    .split('\n')
+                    .filter((l: string) => /^(User:|Turn \d+\nUser:)/i.test(l.trim()) ||
+                        (l.trim().startsWith('User:')))
+                    .join(' ');
+                const histRate = histUserLines.match(/(?:fha|at)\s+(\d+\.\d+)\s*%/i);
+                if (histRate) {
+                    const hVal = parseFloat(histRate[1]);
+                    if (hVal >= 2 && hVal <= 15) fhaParams.interestRate = hVal;
+                }
+            }
+            // Override down payment from current question (e.g. "show me 10% down")
+            // Use decimal-aware regex; only override if it looks like an FHA-specific instruction
+            // (i.e. "fha X% down" or "X% down" without "conventional" right before it)
+            const followUpDownFHA = question.match(/fha\s+([\d.]+)\s*%\s*down/i) ||
+                question.match(/^[^\n]*?([\d.]+)\s*%\s*down(?![^\n]*conventional)/i);
+            if (followUpDownFHA) fhaParams.downPaymentPct = parseFloat(followUpDownFHA[1]);
         }
 
-    } else {
-        // Check if this is a knowledge question about MIP/FHA rules (not a calc request)
-        const mipKnowledgeQ = /(?:when|how long|does|will|would|can)\s+(?:my\s+)?(?:mip|mortgage insurance|fha insurance|mip drop|mip cancel|mip go away|mip end|mip expire|mip stop)/i.test(question) ||
-            /(?:mip|mortgage insurance)\s+(?:drop|cancel|go away|end|expire|stop|remove|come off)/i.test(question) ||
-            /(?:get rid of|eliminate|remove)\s+(?:mip|fha mortgage insurance)/i.test(question);
+        if (fhaParams.hasInfo && fhaParams.purchasePrice) {
+            console.log('[FHA] Calculating FHA loan:', fhaParams);
 
-        if (mipKnowledgeQ) {
-            // Answer MIP duration rules directly from context
-            // Check if prior context has a down payment % to personalize
-            const histText = conversationHistory || '';
-            const hadLowDown = /3\.5%|3\.5 percent|three and a half/i.test(histText);
-            const had10Down = /10%|10 percent/i.test(histText);
+            try {
+                // Calculate FHA loan
+                // Resolve rate: explicit > FRED live > last-resort 6.5
+                // Mutate fhaParams so buildFHAMarkdown template shows the real rate
+                if (!fhaParams.interestRate) {
+                    fhaParams.interestRate = fred?.mort30Avg || 6.5;
+                }
 
-            const mipLowDownAnswer = `**FHA MIP Duration — Your Situation**
+                const fhaResult = calculateFHA({
+                    purchasePrice: fhaParams.purchasePrice,
+                    downPaymentPct: fhaParams.downPaymentPct || 3.5,
+                    interestRate: fhaParams.interestRate,
+                    creditScore: fhaParams.creditScore || 580,
+                    loanTerm: 30,
+                    propertyTaxRate: fhaParams.propertyTaxRate || 1.1,
+                    homeInsuranceAnnual: 1200,
+                    hoaMonthly: 0,
+                    annualIncome: fhaParams.annualIncome,
+                    monthlyDebts: fhaParams.monthlyDebts || 0,
+                });
+
+                // Generate comparison if:
+                // 1) we have income (always compare), OR
+                // 2) user explicitly asks to compare FHA vs conventional
+                const wantsComparison = /conventional|\bconv\b|compare|\bvs\b|both options/i.test(question);
+                let comparison = null;
+
+                // Extract the conventional rate only from DECIMAL percentages (e.g. "FHA at 5.625% and conventional at 5.99%")
+                // Whole-number % are almost always down payments, not rates — exclude them to avoid "10% down" being read as a rate
+                const allRates = [...question.matchAll(/(\d+\.\d+)\s*%/gi)]
+                    .map((m: RegExpMatchArray) => parseFloat(m[1])).filter((r: number) => r > 2 && r < 15);
+                const fhaRate = fhaParams.interestRate || fred?.mort30Avg || 6.5;
+                const convRate = allRates.length > 1 ? allRates[1] : allRates.length === 1 ? allRates[0] : fhaRate;
+
+                // Extract conventional down payment from question — default to 5% if not specified
+                const convDownMatch = question.match(/conventional\s+(\d+)\s*%\s*down/i) ||
+                    question.match(/conv(?:entional)?\s+(\d+)\s*%\s*down/i);
+                const convDownPctFromQ = convDownMatch ? parseFloat(convDownMatch[1]) : null;
+
+                if (fhaParams.annualIncome) {
+                    // Full comparison with DTI when income is known
+                    // Only show comparison if DTI is within reason (< 55%) — otherwise redirect
+                    const dtiCheck = fhaResult.totalDTI ?? 0;
+                    if (dtiCheck < 55) {
+                        comparison = compareFHAvsConventional(
+                            fhaParams.purchasePrice,
+                            convRate,
+                            fhaParams.annualIncome,
+                            fhaParams.monthlyDebts || 0,
+                            fhaParams.propertyTaxRate || 1.1
+                        );
+                    }
+                } else if (wantsComparison) {
+                    // Build conventional numbers directly (no income needed — just payment math)
+                    const price = fhaParams.purchasePrice;
+                    const convDownPct = convDownPctFromQ ?? 5;
+                    const convDown = price * (convDownPct / 100);
+                    const convLoan = price - convDown;
+                    const convMthRate = (convRate / 100) / 12;
+                    const convPI = convLoan * (convMthRate * Math.pow(1 + convMthRate, 360)) / (Math.pow(1 + convMthRate, 360) - 1);
+                    // PMI: 0 at 80% LTV (20%+ down), 0.5% at 85-90% LTV, 0.65% above 90%
+                    const convLTV = (convLoan / price) * 100;
+                    const convPMIRate = convLTV <= 80 ? 0 : convLTV <= 90 ? 0.005 : 0.0065;
+                    const convPMI = (convLoan * convPMIRate) / 12;
+                    const convTax = (price * ((fhaParams.propertyTaxRate || 1.1) / 100)) / 12;
+                    const convIns = 100;
+                    const convTotal = Math.round(convPI + convPMI + convTax + convIns);
+                    comparison = {
+                        conventional: {
+                            downPayment: convDown,
+                            downPaymentPct: convDownPct,
+                            monthlyPayment: convTotal,
+                            monthlyPI: Math.round(convPI),
+                            monthlyMI: Math.round(convPMI),
+                            monthlyPMI: Math.round(convPMI),
+                            convRateUsed: convRate,
+                        }
+                    };
+                }
+
+                // Detect which assumptions were made
+                const fhaAssumptions = {
+                    // "at 10%" with no "down" keyword — ambiguous, defaulted to 3.5%
+                    ambiguous10pct: !question.match(/(\d+\.?\d*)\s*%\s*down/i) &&
+                        !!question.match(/at\s+(\d+)\s*%/i) &&
+                        (fhaParams.downPaymentPct === 3.5 || !question.toLowerCase().includes('down')),
+                    // No explicit rate in question — using FRED/default
+                    rate: !fhaParams.interestRate || fhaParams.interestRate === (fred?.mort30Avg ?? 6.5),
+                    // User asked "what income do I need" but didn't provide their income
+                    incomeNeeded: !fhaParams.annualIncome &&
+                        /what.*income|income.*need|qualify.*income|need.*earn|earn.*qualify|how much.*(?:make|earn|income)/i.test(question),
+                };
+                // Only surface rate assumption if it's the sole issue (not if already ambiguous)
+                if (fhaAssumptions.ambiguous10pct) fhaAssumptions.rate = false;
+
+                // Build markdown answer
+                const fhaMarkdown = buildFHAMarkdown(fhaParams, fhaResult, comparison, fhaAssumptions);
+
+                // If user asked "compare FHA vs conventional", append conventional side
+                // Guard: skip if AI already generated a comparison table (avoids duplicates)
+                let comparisonAppend = '';
+                const aiAlreadyHasComparison = fhaMarkdown.includes('🆚') ||
+                    /vs\.?\s*conventional comparison/i.test(fhaMarkdown) ||
+                    fhaMarkdown.includes('Side-by-Side') ||
+                    fhaMarkdown.includes('FHA vs Conventional');
+                if (isCompareWithConv && fhaParams.purchasePrice && !aiAlreadyHasComparison) {
+                    const convPrice = fhaParams.purchasePrice;
+                    const convDown = /5\s*%/i.test(question) ? 0.05 : /10\s*%/i.test(question) ? 0.10 : /20\s*%/i.test(question) ? 0.20 : 0.05;
+                    const convDownAmt = Math.round(convPrice * convDown);
+                    const convLoan = convPrice - convDownAmt;
+                    const convRate = fhaParams.interestRate / 100;
+                    const r = convRate / 12; const n = 360;
+                    const convPI = Math.round(convLoan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+                    const convPMI = convDown < 0.20 ? Math.round(convLoan * 0.006 / 12) : 0;
+                    const convTax = Math.round(convPrice * 0.011 / 12);
+                    const convIns = 150;
+                    const convTotal = convPI + convPMI + convTax + convIns;
+                    const convDTI = fhaParams.annualIncome ? ((convTotal / (fhaParams.annualIncome / 12)) * 100).toFixed(1) : '—';
+                    const convCash = convDownAmt + Math.round(convPrice * 0.03);
+                    comparisonAppend = `\n\n---\n\n## 🏛️ Conventional (${Math.round(convDown * 100)}% down) — Side-by-Side\n\n` +
+                        `| Component | Amount |\n|-----------|--------|\n` +
+                        `| Down Payment (${Math.round(convDown * 100)}%) | $${convDownAmt.toLocaleString()} |\n` +
+                        `| Loan Amount | $${convLoan.toLocaleString()} |\n` +
+                        `| Principal & Interest | $${convPI.toLocaleString()} |\n` +
+                        `${convPMI ? `| PMI (~0.6%/yr) | $${convPMI.toLocaleString()}/mo |\n` : '| PMI | ❌ None (20%+ down) |\n'}` +
+                        `| Property Taxes (est.) | $${convTax.toLocaleString()} |\n` +
+                        `| Home Insurance | $${convIns} |\n` +
+                        `| **Total Monthly** | **$${convTotal.toLocaleString()}** |\n\n` +
+                        `- DTI: **${convDTI}%** of gross monthly income\n` +
+                        `- Cash needed: $${convCash.toLocaleString()} (down + ~3% closing)\n` +
+                        `${convPMI ? `- PMI cancels at 80% LTV (~\$${Math.round(convLoan * 0.0006 * 12).toLocaleString()}/yr savings)\n` : ''}` +
+                        `\n> 💡 **FHA vs Conventional:** FHA has lower down (3.5% vs ${Math.round(convDown * 100)}%) but MIP lasts life of loan. Conventional PMI cancels at 80% LTV.\n` +
+                        `\n**[Fannie Mae Selling Guide B3-6](https://selling-guide.fanniemae.com) | [HUD 4000.1](https://www.hud.gov/handbook/4000-1)**`;
+                }
+
+                // Generate dynamic follow-up chips
+                // Each chip has: label (displayed to user) + seed (fills the Ask pill as a natural question)
+                const chips: Array<{ label: string; seed: string }> = [];
+                const price = fhaParams.purchasePrice!;
+                const priceK = Math.round(price / 1000);
+                const totalMIP = Math.round(fhaResult.monthlyMIP * (fhaResult.mipDuration === '11 years' ? 132 : 360) / 1000);
+                const mip10k = Math.round(fhaResult.monthlyMIP * 0.85 * 132 / 1000);
+                const extraUpfront10 = Math.round((price * 0.10 - price * 0.035) / 1000);
+
+                if (!fhaResult.qualifies && fhaResult.totalDTI) {
+                    chips.push({
+                        label: `DTI is ${fhaResult.totalDTI}% — above the 43% limit. What price do I actually qualify for?`,
+                        seed: `What's the max home price I qualify for with my income? DTI is ${fhaResult.totalDTI}%`
+                    });
+                    chips.push({
+                        label: `What if I paid off my debts first — how much more home could I afford?`,
+                        seed: `Show me FHA affordability on $${priceK}k with $0 monthly debt`
+                    });
+                    chips.push({
+                        label: `Show me the price range where I'm safely under 43% DTI`,
+                        seed: `What home price keeps my FHA DTI under 40% with my current income?`
+                    });
+                } else if (!fhaResult.meetsCreditRequirement) {
+                    chips.push({
+                        label: `Credit under 580 — show me FHA with 10% down instead`,
+                        seed: `Show me FHA with 10% down on $${priceK}k — credit score is under 580`
+                    });
+                    chips.push({
+                        label: `What credit score do I need to get the 3.5% down rate?`,
+                        seed: `What credit score do I need for FHA 3.5% down on $${priceK}k?`
+                    });
+                    chips.push({
+                        label: `Are there other low-down-payment loans I might qualify for?`,
+                        seed: `What are my options besides FHA if my credit score is under 580?`
+                    });
+                } else if (fhaResult.mipDuration === 'Life of loan') {
+                    const askedIncome35 = /income|qualify|earn|afford/i.test(question);
+                    const askedCompare35 = /compare|vs\.?|conventional|conv\b/i.test(question);
+                    const asked10pct35 = /10\s*%\s*down/i.test(question);
+
+                    const pool35: Array<{ label: string; seed: string; skip: boolean }> = [
+                        {
+                            label: `Put 10% down — remove MIP after 11 years instead`,
+                            seed: `Show me FHA with 10% down on a $${priceK}k home`,
+                            skip: asked10pct35
+                        },
+                        {
+                            label: `FHA 3.5% vs conventional 5% down — total cost comparison`,
+                            seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home`,
+                            skip: askedCompare35
+                        },
+                        {
+                            label: `What income do I need to qualify at 3.5% down?`,
+                            seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 3.5% down`,
+                            skip: askedIncome35
+                        },
+                        {
+                            label: `How much is MIP costing me over 30 years — is it worth it?`,
+                            seed: `What's the total cost of FHA MIP on a $${priceK}k home over 30 years?`,
+                            skip: false
+                        },
+                        {
+                            label: `Add my income — tell me if I qualify for this payment`,
+                            seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home?`,
+                            skip: askedIncome35
+                        },
+                    ];
+
+                    for (const c of pool35) {
+                        if (!c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
+                    }
+                    for (const c of pool35) {
+                        if (c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
+                    }
+                } else if (fhaResult.mipDuration === '11 years') {
+                    // Context-aware chips: detect what this question already answered
+                    // and what comparisons are already visible, to avoid repeating chips
+                    const qLower = question.toLowerCase();
+                    const askedIncome = /income|qualify|earn|afford/i.test(question);
+                    const askedCompare = /compare|vs\.?|conventional|conv\b/i.test(question);
+                    const asked20pct = /20\s*%\s*down/i.test(question);
+                    const asked10vs10 = /fha.*10.*conv|conv.*10.*fha|10.*down.*vs.*10.*down/i.test(question);
+
+                    // Build a pool of candidate chips, then pick the ones NOT already answered
+                    const chipPool: Array<{ label: string; seed: string; skip: boolean }> = [
+                        {
+                            label: `FHA 10% down vs conventional 10% down — side-by-side`,
+                            seed: `Compare FHA 10% down vs conventional 10% down on a $${priceK}k home`,
+                            skip: askedCompare && asked10vs10
+                        },
+                        {
+                            label: `Conventional 20% down vs FHA 10% — monthly savings vs upfront cost`,
+                            seed: `Show me conventional 20% down on a $${priceK}k home vs FHA 10% down`,
+                            skip: asked20pct
+                        },
+                        {
+                            label: `What income do I need to qualify at 10% down?`,
+                            seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 10% down`,
+                            skip: askedIncome
+                        },
+                        {
+                            label: `What's the break-even point — when does conventional 10% beat FHA?`,
+                            seed: `When does conventional 10% down become cheaper than FHA 10% down on a $${priceK}k home?`,
+                            skip: false
+                        },
+                        {
+                            label: `How much does a 680 vs 740 credit score change my rate?`,
+                            seed: `How does my credit score affect FHA vs conventional on a $${priceK}k home?`,
+                            skip: false
+                        },
+                        {
+                            label: `Add my income — see if I actually qualify for this payment`,
+                            seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home at 10% down?`,
+                            skip: askedIncome
+                        },
+                    ];
+
+                    // Push non-skipped chips first, then skipped as backfill, up to 3
+                    for (const c of chipPool) {
+                        if (!c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
+                    }
+                    for (const c of chipPool) {
+                        if (c.skip && chips.length < 3) chips.push({ label: c.label, seed: c.seed });
+                    }
+                }
+
+                if (comparison && chips.length < 3) {
+                    const convTotal = comparison.conventional?.monthlyPayment ?? 0;
+                    const convDown = comparison.conventional?.downPayment ?? 0;
+                    const fhaMonthly = fhaResult.totalMonthly ?? 0;
+                    const monthlyDiff = Math.abs(Math.round(fhaMonthly - convTotal));
+                    const downDiff = Math.abs(Math.round((convDown - fhaResult.downPayment) / 1000));
+                    const fhaWinsMonthly = fhaMonthly < convTotal;
+                    chips.push({
+                        label: fhaWinsMonthly
+                            ? `FHA is cheaper monthly — add my income to see which I actually qualify for`
+                            : `Conventional saves monthly once PMI cancels — add income to see which I qualify for`,
+                        seed: `I make $${Math.round(price / 5 / 1000) * 10}k/year — FHA or conventional on $${priceK}k?`
+                    });
+                }
+
+                // Pad to 3 chips if needed
+                if (!fhaParams.annualIncome && chips.length < 3) {
+                    chips.push({
+                        label: `Add my income — tell me if I actually qualify for this payment`,
+                        seed: `I make $[income]/year — do I qualify for FHA on $${priceK}k home?`
+                    });
+                }
+
+                const fhaFollowUp = chips[0]?.label ?? "Want to explore different down payment or loan scenarios?";
+
+                fhaAnswer = {
+                    answer: fhaMarkdown + comparisonAppend,
+                    next_step: "Get FHA pre-approval from an FHA-approved lender. Check credit score and verify down payment source.",
+                    follow_up: fhaFollowUp,
+                    follow_up_chips: chips,
+                    confidence: "1.00 (calculated using official FHA guidelines and MIP rates)"
+                };
+
+                console.log('[FHA] Generated FHA analysis');
+
+            } catch (err: any) {
+                console.error('[FHA] Calculation error:', err.message);
+            }
+
+        } else {
+            // Check if this is a knowledge question about MIP/FHA rules (not a calc request)
+            const mipKnowledgeQ = /(?:when|how long|does|will|would|can)\s+(?:my\s+)?(?:mip|mortgage insurance|fha insurance|mip drop|mip cancel|mip go away|mip end|mip expire|mip stop)/i.test(question) ||
+                /(?:mip|mortgage insurance)\s+(?:drop|cancel|go away|end|expire|stop|remove|come off)/i.test(question) ||
+                /(?:get rid of|eliminate|remove)\s+(?:mip|fha mortgage insurance)/i.test(question);
+
+            if (mipKnowledgeQ) {
+                // Answer MIP duration rules directly from context
+                // Check if prior context has a down payment % to personalize
+                const histText = conversationHistory || '';
+                const hadLowDown = /3\.5%|3\.5 percent|three and a half/i.test(histText);
+                const had10Down = /10%|10 percent/i.test(histText);
+
+                const mipLowDownAnswer = `**FHA MIP Duration — Your Situation**
 
 With **3.5% down** (the minimum), FHA MIP lasts for the **life of the loan** — it never automatically cancels.
 
@@ -4756,26 +4750,26 @@ FHA changed the rules in 2013 — loans with <10% down now carry MIP for the ful
 
 Want me to calculate your break-even point for a refinance?`;
 
-            const mipHighDownAnswer = `**FHA MIP Duration**
+                const mipHighDownAnswer = `**FHA MIP Duration**
 
 With **≥10% down**: MIP cancels after **11 years** (132 payments)
 With **<10% down**: MIP lasts for the **life of the loan** (never cancels automatically)
 
 To remove MIP before 11 years: refinance to conventional once you reach 20% equity.`;
 
-            fhaAnswer = {
-                answer: (hadLowDown || !had10Down) ? mipLowDownAnswer : mipHighDownAnswer,
-                next_step: "To exit FHA MIP, refinance to conventional at 20% LTV.",
-                follow_up: "Want me to calculate when you'd hit 20% equity and the refinance break-even point?",
-                confidence: "1.00 (FHA MIP policy per HUD guidelines)"
-            };
-            console.log('[FHA] Answered MIP duration knowledge question');
-        } else {
-            // Need more info
-            console.log('[FHA] Asking for FHA info');
+                fhaAnswer = {
+                    answer: (hadLowDown || !had10Down) ? mipLowDownAnswer : mipHighDownAnswer,
+                    next_step: "To exit FHA MIP, refinance to conventional at 20% LTV.",
+                    follow_up: "Want me to calculate when you'd hit 20% equity and the refinance break-even point?",
+                    confidence: "1.00 (FHA MIP policy per HUD guidelines)"
+                };
+                console.log('[FHA] Answered MIP duration knowledge question');
+            } else {
+                // Need more info
+                console.log('[FHA] Asking for FHA info');
 
-            fhaAnswer = {
-                answer: `**FHA Loan Calculator**
+                fhaAnswer = {
+                    answer: `**FHA Loan Calculator**
 
 I can help you calculate an FHA loan with all costs including:
 - ✅ UFMIP (Upfront Mortgage Insurance Premium)
@@ -4799,27 +4793,27 @@ I can help you calculate an FHA loan with all costs including:
 - "FHA with 3.5% down on $350k, credit score 620, property tax 1.5%"
 
 What's your scenario?`,
-                next_step: "Share property price and rate (or income for full DTI analysis).",
-                follow_up: "What's the purchase price and do you know your credit score?",
-                confidence: "1.00 (ready to calculate FHA loan)"
-            };
-        } // end else (not MIP knowledge question)
+                    next_step: "Share property price and rate (or income for full DTI analysis).",
+                    follow_up: "What's the purchase price and do you know your credit score?",
+                    confidence: "1.00 (ready to calculate FHA loan)"
+                };
+            } // end else (not MIP knowledge question)
+        }
     }
-}
-// ========== END FHA CHECK ==========
-// ========== DSCR / SCENARIO CHECK ==========
-let dscrAnswer: any = null;
-if (isDSCRQuestion(question)) {
-    console.log('[DSCR] Detected DSCR/investment question');
-    const params = extractDSCRParams(question, fred?.mort30Avg ?? undefined);
-    if (params.hasInfo) {
-        console.log('[DSCR] Calculating DSCR with params:', params);
-        dscrAnswer = buildDSCRMarkdown(params);
-        console.log('[DSCR] Generated DSCR analysis, DSCR =', (params.grossMonthlyRent! / ((params.purchasePrice! * (1 - params.downPaymentPct! / 100)) * ((params.interestRate! / 100 / 12) * Math.pow(1 + params.interestRate! / 100 / 12, 360)) / (Math.pow(1 + params.interestRate! / 100 / 12, 360) - 1) + (params.purchasePrice! * (params.propertyTaxRate! / 100)) / 12 + 100 + (params.hoaMonthly || 0))).toFixed(2));
-    } else {
-        console.log('[DSCR] Missing info, asking for rent');
-        dscrAnswer = {
-            answer: `**DSCR Investment Property Calculator**
+    // ========== END FHA CHECK ==========
+    // ========== DSCR / SCENARIO CHECK ==========
+    let dscrAnswer: any = null;
+    if (isDSCRQuestion(question)) {
+        console.log('[DSCR] Detected DSCR/investment question');
+        const params = extractDSCRParams(question, fred?.mort30Avg ?? undefined);
+        if (params.hasInfo) {
+            console.log('[DSCR] Calculating DSCR with params:', params);
+            dscrAnswer = buildDSCRMarkdown(params);
+            console.log('[DSCR] Generated DSCR analysis, DSCR =', (params.grossMonthlyRent! / ((params.purchasePrice! * (1 - params.downPaymentPct! / 100)) * ((params.interestRate! / 100 / 12) * Math.pow(1 + params.interestRate! / 100 / 12, 360)) / (Math.pow(1 + params.interestRate! / 100 / 12, 360) - 1) + (params.purchasePrice! * (params.propertyTaxRate! / 100)) / 12 + 100 + (params.hoaMonthly || 0))).toFixed(2));
+        } else {
+            console.log('[DSCR] Missing info, asking for rent');
+            dscrAnswer = {
+                answer: `**DSCR Investment Property Calculator**
 
 I can calculate DSCR (Debt Service Coverage Ratio), monthly PITIA, cash flow, and amortization instantly.
 
@@ -4838,43 +4832,43 @@ I can calculate DSCR (Debt Service Coverage Ratio), monthly PITIA, cash flow, an
 - "$600k investment property, 25% down, $3,800 rent, 7.25%"
 
 What's your scenario?`,
-            next_step: 'Share purchase price, monthly rent, and rate.',
-            follow_up: 'What is the purchase price and expected monthly rent?',
-            confidence: '1.00 (ready to calculate DSCR)',
-        };
+                next_step: 'Share purchase price, monthly rent, and rate.',
+                follow_up: 'What is the purchase price and expected monthly rent?',
+                confidence: '1.00 (ready to calculate DSCR)',
+            };
+        }
     }
-}
-// ========== END DSCR CHECK ==========
+    // ========== END DSCR CHECK ==========
 
 
 
-// THEN, update the final check to include FHA:
+    // THEN, update the final check to include FHA:
 
-let grokFinal: any = null;
-let debug: any = null;
+    let grokFinal: any = null;
+    let debug: any = null;
 
-let sourcesInjected = false;
-if (affordabilityAnswer) {
-    grokFinal = affordabilityAnswer;
-    debug = { requestedModel: "affordability-calculator", servedModel: "dti-scenarios", promptChars: question.length, elapsedMs: 0, requestId: "afford-" + Date.now(), parseMode: "direct", repaired: false };
-    console.log('[Affordability] Returning direct answer, skipping Grok');
-} else if (fhaAnswer) {
-    grokFinal = fhaAnswer;
-    debug = { requestedModel: "fha-calculator", servedModel: "fha-calculator", promptChars: question.length, elapsedMs: 0, requestId: "fha-" + Date.now(), parseMode: "direct", repaired: false };
-    console.log('[FHA] Returning FHA analysis, skipping Grok');
-} else if (mortgageAnswer) {
-    grokFinal = mortgageAnswer;
-    debug = { requestedModel: "mortgage-calculator", servedModel: "mortgage-calculator", promptChars: question.length, elapsedMs: 0, requestId: "mort-" + Date.now(), parseMode: "direct", repaired: false };
-    console.log('[Mortgage Calc] Returning direct answer, skipping Grok');
-} else if (dscrAnswer) {
-    grokFinal = dscrAnswer;
-    debug = { requestedModel: "dscr-calculator", servedModel: "dscr-calculator", promptChars: question.length, elapsedMs: 0, requestId: "dscr-" + Date.now(), parseMode: "direct", repaired: false };
-    console.log('[DSCR Calc] Returning direct answer, skipping Grok');
-} else if (XAI_API_KEY) {
-    // Normal Grok path...
+    let sourcesInjected = false;
+    if (affordabilityAnswer) {
+        grokFinal = affordabilityAnswer;
+        debug = { requestedModel: "affordability-calculator", servedModel: "dti-scenarios", promptChars: question.length, elapsedMs: 0, requestId: "afford-" + Date.now(), parseMode: "direct", repaired: false };
+        console.log('[Affordability] Returning direct answer, skipping Grok');
+    } else if (fhaAnswer) {
+        grokFinal = fhaAnswer;
+        debug = { requestedModel: "fha-calculator", servedModel: "fha-calculator", promptChars: question.length, elapsedMs: 0, requestId: "fha-" + Date.now(), parseMode: "direct", repaired: false };
+        console.log('[FHA] Returning FHA analysis, skipping Grok');
+    } else if (mortgageAnswer) {
+        grokFinal = mortgageAnswer;
+        debug = { requestedModel: "mortgage-calculator", servedModel: "mortgage-calculator", promptChars: question.length, elapsedMs: 0, requestId: "mort-" + Date.now(), parseMode: "direct", repaired: false };
+        console.log('[Mortgage Calc] Returning direct answer, skipping Grok');
+    } else if (dscrAnswer) {
+        grokFinal = dscrAnswer;
+        debug = { requestedModel: "dscr-calculator", servedModel: "dscr-calculator", promptChars: question.length, elapsedMs: 0, requestId: "dscr-" + Date.now(), parseMode: "direct", repaired: false };
+        console.log('[DSCR Calc] Returning direct answer, skipping Grok');
+    } else if (XAI_API_KEY) {
+        // Normal Grok path...
 
-    let grokPrompt = compactWhitespace(
-        `
+        let grokPrompt = compactWhitespace(
+            `
 ${specialistPrefix}
 
 You are HomeRates.ai. Calm, precise, data-first. Never sell. Never hype.
@@ -4914,219 +4908,219 @@ Return valid JSON only:
   "confidence": "0.00–1.00 numeric score plus a short reason."
 }
 `.trim()
-    );
+        );
 
 
 
 
 
-    mark("before Grok call");
+        mark("before Grok call");
 
-    let scenarioMemoryContext = "";
-    try {
-        if (supabase && memoryThreadId && isFollowUpQuestion(question)) {
-            const scenarioHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 3);
-            if (scenarioHistory && scenarioHistory.length > 0) {
-                scenarioMemoryContext = buildSystemPromptWithMemory("", question, scenarioHistory);
-                console.log('[Memory] Added scenario context from', scenarioHistory.length, 'previous scenarios');
+        let scenarioMemoryContext = "";
+        try {
+            if (supabase && memoryThreadId && isFollowUpQuestion(question)) {
+                const scenarioHistory = await getRecentScenarioHistory(supabase, memoryThreadId, 3);
+                if (scenarioHistory && scenarioHistory.length > 0) {
+                    scenarioMemoryContext = buildSystemPromptWithMemory("", question, scenarioHistory);
+                    console.log('[Memory] Added scenario context from', scenarioHistory.length, 'previous scenarios');
+                }
+            }
+        } catch (err) {
+            console.warn('[Memory] Failed to fetch scenario context:', err);
+        }
+
+        if (typeof recallTurnsText === "string" && recallTurnsText.trim()) {
+            grokPrompt =
+                "Prior conversation context (same user, same memory_thread_id):\n" +
+                recallTurnsText +
+                "\n\nIMPORTANT: When answering the current question below, use the MOST RECENT values from the conversation above. " +
+                "If the user is asking 'what if X changes', keep all other values from the most recent turn and only change X. " +
+                "Reference the previous scenario in your answer (e.g., 'Based on your previous scenario...').\n\n" +
+                "Current question:\n" +
+                grokPrompt;
+        }
+
+        if (scenarioMemoryContext) {
+            grokPrompt = scenarioMemoryContext + "\n\n" + grokPrompt;
+        }
+
+
+        const result = await callGrokWithRepair(grokPrompt);
+        debug = {
+            ...result.debug,
+            repaired: result.repaired,
+            debugFirst: (result as any).debugFirst ?? null,
+        };
+
+        if (result.ok) {
+            grokFinal = result.grokFinal;
+            if (
+                !grokFinal ||
+                typeof grokFinal !== "object" ||
+                !grokFinal.answer ||
+                !grokFinal.next_step ||
+                !grokFinal.follow_up ||
+                !grokFinal.confidence
+            ) {
+                debug.error = debug.error || "Missing required fields in Grok JSON";
+                grokFinal = null;
             }
         }
-    } catch (err) {
-        console.warn('[Memory] Failed to fetch scenario context:', err);
+    } else {
+        debug = { bypass: "missing_XAI_API_KEY" };
     }
 
-    if (typeof recallTurnsText === "string" && recallTurnsText.trim()) {
-        grokPrompt =
-            "Prior conversation context (same user, same memory_thread_id):\n" +
-            recallTurnsText +
-            "\n\nIMPORTANT: When answering the current question below, use the MOST RECENT values from the conversation above. " +
-            "If the user is asking 'what if X changes', keep all other values from the most recent turn and only change X. " +
-            "Reference the previous scenario in your answer (e.g., 'Based on your previous scenario...').\n\n" +
-            "Current question:\n" +
-            grokPrompt;
-    }
+    mark("after Grok call");
 
-    if (scenarioMemoryContext) {
-        grokPrompt = scenarioMemoryContext + "\n\n" + grokPrompt;
-    }
+    if (grokFinal) {
+        try {
+            const bundle = await generateSourcesBundle({
+                topic: `${question} ${module}`,
+                reqUrl: req.url,
+            });
 
-
-    const result = await callGrokWithRepair(grokPrompt);
-    debug = {
-        ...result.debug,
-        repaired: result.repaired,
-        debugFirst: (result as any).debugFirst ?? null,
-    };
-
-    if (result.ok) {
-        grokFinal = result.grokFinal;
-        if (
-            !grokFinal ||
-            typeof grokFinal !== "object" ||
-            !grokFinal.answer ||
-            !grokFinal.next_step ||
-            !grokFinal.follow_up ||
-            !grokFinal.confidence
-        ) {
-            debug.error = debug.error || "Missing required fields in Grok JSON";
-            grokFinal = null;
-        }
-    }
-} else {
-    debug = { bypass: "missing_XAI_API_KEY" };
-}
-
-mark("after Grok call");
-
-if (grokFinal) {
-    try {
-        const bundle = await generateSourcesBundle({
-            topic: `${question} ${module}`,
-            reqUrl: req.url,
-        });
-
-        if (bundle.mode === "core") {
-            topSources = bundle.sources.map((s: { title: string; url: string }) => ({
-                title: s.title,
-                url: s.url,
-            }));
-        }
-    } catch (e: any) {
-        console.warn("Sources bundle failed", e?.message || e);
-    }
-}
-
-if (grokFinal && userId && supabase) {
-    try {
-        let projectIdForAnswer = projectId;
-
-        if (!projectIdForAnswer && chatThreadId) {
-            const { data: threadData } = await supabase
-                .from('chat_threads')
-                .select('project_id')
-                .eq('id', chatThreadId)
-                .single();
-
-            if (threadData?.project_id) {
-                projectIdForAnswer = threadData.project_id;
-                console.log('[Project Link] Got project_id from chat_threads:', projectIdForAnswer);
+            if (bundle.mode === "core") {
+                topSources = bundle.sources.map((s: { title: string; url: string }) => ({
+                    title: s.title,
+                    url: s.url,
+                }));
             }
+        } catch (e: any) {
+            console.warn("Sources bundle failed", e?.message || e);
         }
-
-        await supabase.from("user_answers").insert({
-            clerk_user_id: userId,
-            chat_thread_id: chatThreadId,
-            memory_thread_id: memoryThreadId,
-            project_id: projectIdForAnswer,
-            question,
-            answer: grokFinal,
-            answer_summary:
-                typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
-            model: XAI_MODEL,
-            created_at: new Date().toISOString(),
-        });
-    } catch (err: any) {
-        console.warn("ANSWERS: save failed", err?.message || err);
     }
-}
 
-const finalMarkdown = grokFinal
-    ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
-        grokFinal.confidence
-    )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
-    : legacyAnswerMarkdown;
+    if (grokFinal && userId && supabase) {
+        try {
+            let projectIdForAnswer = projectId;
 
-const message = grokFinal?.answer || legacyAnswer;
+            if (!projectIdForAnswer && chatThreadId) {
+                const { data: threadData } = await supabase
+                    .from('chat_threads')
+                    .select('project_id')
+                    .eq('id', chatThreadId)
+                    .single();
 
-mark("end (before return)");
+                if (threadData?.project_id) {
+                    projectIdForAnswer = threadData.project_id;
+                    console.log('[Project Link] Got project_id from chat_threads:', projectIdForAnswer);
+                }
+            }
 
-return noStore({
-    ok: true,
-    memory_thread_id: memoryThreadId,
-    chat_id: chatId,
-    project_id: projectId,
-    chat_thread_id: chatThreadId,
-    route: "answers",
-    intent,
-    path,
-    tag,
-    generatedAt,
-    usedFRED,
-    usedTavily,
-    fred,
-    topSources,
-    grok: grokFinal || null,
-    debug,
-    data_freshness: grokFinal ? `Live (${XAI_MODEL})` : "Legacy stack",
-    message,
-    answerMarkdown: finalMarkdown,
-    followUp: grokFinal?.follow_up || followUpFor(topic),
-    follow_up_chips: (() => {
-        // UW guideline answers — always use UW pipeline chips
-        if (isUnderwritingGuidelineQuestion(question)) {
-            return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
+            await supabase.from("user_answers").insert({
+                clerk_user_id: userId,
+                chat_thread_id: chatThreadId,
+                memory_thread_id: memoryThreadId,
+                project_id: projectIdForAnswer,
+                question,
+                answer: grokFinal,
+                answer_summary:
+                    typeof grokFinal.answer === "string" ? String(grokFinal.answer).slice(0, 320) + "…" : "",
+                model: XAI_MODEL,
+                created_at: new Date().toISOString(),
+            });
+        } catch (err: any) {
+            console.warn("ANSWERS: save failed", err?.message || err);
         }
-        // About HomeRates.ai — narrative arc chips
-        if (module === 'about') {
-            return [
-                {
-                    label: 'Why is mortgage info so hard to trust?',
-                    seed: 'About HomeRates: why is mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?',
-                },
-                {
-                    label: 'What does HomeRates.ai do differently?',
-                    seed: 'About HomeRates: how is HomeRates.ai different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?',
-                },
-                {
-                    label: 'What live data does HomeRates.ai use?',
-                    seed: 'About HomeRates: what live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?',
-                },
-                {
-                    label: 'Who built this and why?',
-                    seed: 'About HomeRates: who is the founder and what problem were they trying to solve for borrowers?',
-                },
-                {
-                    label: 'Show me what it can do',
-                    seed: 'Show me the HomeRates Lab',
-                },
-            ];
-        }
-        // FRED market answer — keep user in rates/market experience
-        if (usedFRED && (topic === 'rates' || module === 'rate')) {
-            const r30 = fred.mort30Avg != null ? `${fred.mort30Avg}%` : 'current';
-            const r15 = fred.mort15Avg != null ? `${fred.mort15Avg}%` : null;
-            const spread = fred.spread != null ? `${fred.spread}%` : null;
-            const curve = fred.t10y2y != null ? `${fred.t10y2y}%` : null;
-            const medPrice = fred.medianHomePrice != null ? `$${Math.round(fred.medianHomePrice / 1000)}k` : '$405k';
-            return [
-                {
-                    label: r15 ? `15Y fixed at ${r15} — is it worth it?` : 'Is a 15-year fixed worth it at current rates?',
-                    seed: `Is a 15-year fixed mortgage worth it right now? Compare the payment difference vs 30-year at current rates`,
-                },
-                {
-                    label: spread ? `Why is the mortgage-Treasury spread ${spread}?` : 'Why are mortgage rates so high vs Treasury yields?',
-                    seed: `Why is the spread between mortgage rates and the 10-year Treasury yield ${spread ?? 'elevated'}? What drives it and when does it compress?`,
-                },
-                {
-                    label: curve ? `Yield curve at ${curve} — what does it mean for rates?` : 'What does the yield curve mean for mortgage rates?',
-                    seed: `Yield curve update: 10Y-2Y spread is currently ${curve ?? 'near flat'} — analyze the rate outlook for the next 6-12 months based on FRED data`,
-                },
-                {
-                    label: `At ${r30}, can I afford ${medPrice}?`,
-                    seed: `Affordability check at today's ${r30} rate on a ${medPrice} home — what income and down payment do I need?`,
-                },
-                {
-                    label: 'When will the Fed cut rates again?',
-                    seed: `Rate outlook: with Fed funds at ${fred.fedFunds ?? '3.64'}%, CPI at ${fred.cpi ?? 'current levels'}, and unemployment ${fred.unemployment ?? '4.4'}% — when will mortgage rates drop and by how much?`,
-                },
-            ];
-        }
-        // LLM-generated chips if present
-        const chips = grokFinal?.follow_up_chips;
-        if (chips && chips.length > 0) return chips;
-        return generateFallbackChips(question, conversationHistory);
-    })(),
-});
+    }
+
+    const finalMarkdown = grokFinal
+        ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
+            grokFinal.confidence
+        )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
+        : legacyAnswerMarkdown;
+
+    const message = grokFinal?.answer || legacyAnswer;
+
+    mark("end (before return)");
+
+    return noStore({
+        ok: true,
+        memory_thread_id: memoryThreadId,
+        chat_id: chatId,
+        project_id: projectId,
+        chat_thread_id: chatThreadId,
+        route: "answers",
+        intent,
+        path,
+        tag,
+        generatedAt,
+        usedFRED,
+        usedTavily,
+        fred,
+        topSources,
+        grok: grokFinal || null,
+        debug,
+        data_freshness: grokFinal ? `Live (${XAI_MODEL})` : "Legacy stack",
+        message,
+        answerMarkdown: finalMarkdown,
+        followUp: grokFinal?.follow_up || followUpFor(topic),
+        follow_up_chips: (() => {
+            // UW guideline answers — always use UW pipeline chips
+            if (isUnderwritingGuidelineQuestion(question)) {
+                return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
+            }
+            // About HomeRates.ai — narrative arc chips
+            if (module === 'about') {
+                return [
+                    {
+                        label: 'Why is mortgage info so hard to trust?',
+                        seed: 'About HomeRates: why is mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?',
+                    },
+                    {
+                        label: 'What does HomeRates.ai do differently?',
+                        seed: 'About HomeRates: how is HomeRates.ai different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?',
+                    },
+                    {
+                        label: 'What live data does HomeRates.ai use?',
+                        seed: 'About HomeRates: what live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?',
+                    },
+                    {
+                        label: 'Who built this and why?',
+                        seed: 'About HomeRates: who is the founder and what problem were they trying to solve for borrowers?',
+                    },
+                    {
+                        label: 'Show me what it can do',
+                        seed: 'Show me the HomeRates Lab',
+                    },
+                ];
+            }
+            // FRED market answer — keep user in rates/market experience
+            if (usedFRED && (topic === 'rates' || module === 'rate')) {
+                const r30 = fred.mort30Avg != null ? `${fred.mort30Avg}%` : 'current';
+                const r15 = fred.mort15Avg != null ? `${fred.mort15Avg}%` : null;
+                const spread = fred.spread != null ? `${fred.spread}%` : null;
+                const curve = fred.t10y2y != null ? `${fred.t10y2y}%` : null;
+                const medPrice = fred.medianHomePrice != null ? `$${Math.round(fred.medianHomePrice / 1000)}k` : '$405k';
+                return [
+                    {
+                        label: r15 ? `15Y fixed at ${r15} — is it worth it?` : 'Is a 15-year fixed worth it at current rates?',
+                        seed: `Is a 15-year fixed mortgage worth it right now? Compare the payment difference vs 30-year at current rates`,
+                    },
+                    {
+                        label: spread ? `Why is the mortgage-Treasury spread ${spread}?` : 'Why are mortgage rates so high vs Treasury yields?',
+                        seed: `Why is the spread between mortgage rates and the 10-year Treasury yield ${spread ?? 'elevated'}? What drives it and when does it compress?`,
+                    },
+                    {
+                        label: curve ? `Yield curve at ${curve} — what does it mean for rates?` : 'What does the yield curve mean for mortgage rates?',
+                        seed: `Yield curve update: 10Y-2Y spread is currently ${curve ?? 'near flat'} — analyze the rate outlook for the next 6-12 months based on FRED data`,
+                    },
+                    {
+                        label: `At ${r30}, can I afford ${medPrice}?`,
+                        seed: `Affordability check at today's ${r30} rate on a ${medPrice} home — what income and down payment do I need?`,
+                    },
+                    {
+                        label: 'When will the Fed cut rates again?',
+                        seed: `Rate outlook: with Fed funds at ${fred.fedFunds ?? '3.64'}%, CPI at ${fred.cpi ?? 'current levels'}, and unemployment ${fred.unemployment ?? '4.4'}% — when will mortgage rates drop and by how much?`,
+                    },
+                ];
+            }
+            // LLM-generated chips if present
+            const chips = grokFinal?.follow_up_chips;
+            if (chips && chips.length > 0) return chips;
+            return generateFallbackChips(question, conversationHistory);
+        })(),
+    });
 }
 
 export async function POST(req: NextRequest) {
