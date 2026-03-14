@@ -323,7 +323,11 @@ function isAffordabilityQuestion(question: string): boolean {
         /qualify.*amount/i,
         /pre.*approval.*range/i,
         /income.*afford/i,
-        /afford.*calculator/i
+        /afford.*calculator/i,
+        /how much income.{0,30}(?:qualify|need|afford|buy|purchase)/i,
+        /what income.{0,30}(?:need|qualify|required|to buy)/i,
+        /what salary.{0,30}(?:need|qualify|required|to buy)/i,
+        /income.{0,20}(?:need|required).{0,20}(?:qualify|home|house|mortgage)/i,
     ];
 
     if (triggers.some(pattern => pattern.test(text))) return true;
