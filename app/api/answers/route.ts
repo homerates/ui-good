@@ -4228,9 +4228,17 @@ ${dtiSection}
                     : snapshotText
                         ? snapshotText + '\n'
                         : '';
+                const debtMatch = question.match(/\$\s*([\d,]+)\s*(?:\/mo|per month|month|monthly)\s*(?:in\s+)?(?:other\s+)?(?:debts?|payments?|car|student)/i)
+                    ?? question.match(/(?:debts?|payments?)\s+of\s+\$\s*([\d,]+)/i);
+                const monthlyDebt = debtMatch ? Math.round(parseFloat(debtMatch[1].replace(/,/g, ''))) : 0;
+                const totalMonthly = piti + monthlyDebt;
+                const scenarioHeader = `**${scenarioLine.trim()}**`;
+                const debtNote = monthlyDebt > 0
+                    ? `\n> 💡 Includes **$${monthlyDebt.toLocaleString()}/mo** in other debts added to housing payment.`
+                    : '';
                 affordabilityAnswer = {
-                    answer: `**Income needed to qualify — ${scenarioDesc} scenario**\n${scenarioLine}\nBased on a monthly payment of **$${piti.toLocaleString()}**, here is the income required at standard DTI thresholds:\n\n| DTI threshold | Monthly income needed | Annual income needed |\n|---|---|---|\n| 43% (standard max) | $${Math.round(piti / 0.43).toLocaleString()} | **$${Math.round((piti / 0.43) * 12).toLocaleString()}** |\n| 36% (conservative) | $${Math.round(piti / 0.36).toLocaleString()} | **$${Math.round((piti / 0.36) * 12).toLocaleString()}** |\n| 28% (front-end only) | $${Math.round(piti / 0.28).toLocaleString()} | **$${Math.round((piti / 0.28) * 12).toLocaleString()}** |\n\n*Assumes no other monthly debts. Each $500/mo in existing debt adds ~$14k to the annual income requirement at 43% DTI.*`,
-                    next_step: 'Share your monthly debts for a precise income requirement.',
+                    answer: `## 💰 Income to Qualify — ${scenarioDesc.charAt(0).toUpperCase() + scenarioDesc.slice(1)}\n\n${scenarioHeader}${debtNote}\n\n---\n\n## 📊 DTI Qualification Table\n\n| DTI threshold | Monthly income needed | Annual income needed |\n|---|---|---|\n| **43%** (standard max) | $${Math.round(totalMonthly / 0.43).toLocaleString()} | **$${Math.round((totalMonthly / 0.43) * 12).toLocaleString()}** |\n| **36%** (conservative) | $${Math.round(totalMonthly / 0.36).toLocaleString()} | **$${Math.round((totalMonthly / 0.36) * 12).toLocaleString()}** |\n| **28%** (front-end only) | $${Math.round(totalMonthly / 0.28).toLocaleString()} | **$${Math.round((totalMonthly / 0.28) * 12).toLocaleString()}** |\n\n---\n\n## 🏠 Payment Breakdown\n\n| Component | Amount |\n|---|---|\n| Monthly PITI | $${piti.toLocaleString()} |${monthlyDebt > 0 ? `\n| Other debts | $${monthlyDebt.toLocaleString()} |\n| **Total obligations** | **$${totalMonthly.toLocaleString()}** |` : ''}\n| Min income @ 43% DTI | $${Math.round(totalMonthly / 0.43).toLocaleString()}/mo |\n\n> Each additional $500/mo in debts adds ~**$${Math.round((500 / 0.43) * 12).toLocaleString()}**/yr to the income requirement.`,
+                    next_step: monthlyDebt > 0 ? 'Compare against your actual income — if DTI is tight, consider paying down debts before applying.' : 'Share your monthly debts for a more precise income requirement.',
                     follow_up: 'What are your monthly debt payments?',
                     follow_up_chips: [
                         { label: 'I have $500/mo in other debts', seed: `What income do I need with $500/month in other debts for this scenario?` },
