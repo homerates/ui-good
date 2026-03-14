@@ -4239,8 +4239,19 @@ ${dtiSection}
                 if (isIncomeQuery && priorMonthlyPayment && snapshotLoanType) {
                     const piti = Math.round(priorMonthlyPayment);
                     const scenarioDesc = snapshotLoanType.replace('calcEngine-', '');
+                    const si = snapshotJson?.scenario_inputs ?? {};
+                    const siPrice = si.price ?? si.purchasePrice;
+                    const siDown = si.down_payment_pct ?? si.downPaymentPct;
+                    const siRate = si.rate_used_pct ?? si.annualRatePct;
+                    const scenarioLineParts = [
+                        siPrice ? `$${Math.round(siPrice).toLocaleString()} purchase` : null,
+                        siDown != null ? `${siDown}% down` : null,
+                        siRate != null ? `${siRate}%` : null,
+                        '30-year fixed',
+                    ].filter(Boolean);
+                    const scenarioLine = scenarioLineParts.length > 1 ? scenarioLineParts.join(' · ') + '\n' : '';
                     affordabilityAnswer = {
-                        answer: `**Income needed to qualify — ${scenarioDesc} scenario**\n\nBased on your prior scenario with a monthly payment of **$${piti.toLocaleString()}**, here is the income required at standard DTI thresholds:\n\n| DTI threshold | Monthly income needed | Annual income needed |\n|---|---|---|\n| 43% (standard max) | $${Math.round(piti / 0.43).toLocaleString()} | **$${Math.round((piti / 0.43) * 12).toLocaleString()}** |\n| 36% (conservative) | $${Math.round(piti / 0.36).toLocaleString()} | **$${Math.round((piti / 0.36) * 12).toLocaleString()}** |\n| 28% (front-end only) | $${Math.round(piti / 0.28).toLocaleString()} | **$${Math.round((piti / 0.28) * 12).toLocaleString()}** |\n\n*Assumes no other monthly debts. Each $500/mo in existing debt adds ~$14k to the annual income requirement at 43% DTI.*`,
+                        answer: `**Income needed to qualify — ${scenarioDesc} scenario**\n${scenarioLine}\nBased on a monthly payment of **$${piti.toLocaleString()}**, here is the income required at standard DTI thresholds:\n\n| DTI threshold | Monthly income needed | Annual income needed |\n|---|---|---|\n| 43% (standard max) | $${Math.round(piti / 0.43).toLocaleString()} | **$${Math.round((piti / 0.43) * 12).toLocaleString()}** |\n| 36% (conservative) | $${Math.round(piti / 0.36).toLocaleString()} | **$${Math.round((piti / 0.36) * 12).toLocaleString()}** |\n| 28% (front-end only) | $${Math.round(piti / 0.28).toLocaleString()} | **$${Math.round((piti / 0.28) * 12).toLocaleString()}** |\n\n*Assumes no other monthly debts. Each $500/mo in existing debt adds ~$14k to the annual income requirement at 43% DTI.*`,
                         next_step: 'Share your monthly debts for a precise income requirement.',
                         follow_up: 'What are your monthly debt payments?',
                         follow_up_chips: [
