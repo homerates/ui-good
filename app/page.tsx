@@ -992,6 +992,7 @@ export default function Page() {
     ]);
 
     const [input, setInput] = useState('');
+    const [pendingLabSeed, setPendingLabSeed] = useState<string | null>(null);
 
     // Seed composer once if we came from a shared-link card
     const hasSeededFromShareRef = React.useRef(false);
@@ -1984,15 +1985,20 @@ export default function Page() {
         })();
     }
 
+    useEffect(() => {
+        if (!pendingLabSeed) return;
+        const form = document.querySelector('form');
+        if (form) {
+            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            form.dispatchEvent(submitEvent);
+        }
+        setPendingLabSeed(null);
+    }, [pendingLabSeed]);
+
     function onLabSeed(seed: string) {
+        newChat();
         setInput(seed);
-        setTimeout(() => {
-            const form = document.querySelector('form');
-            if (form) {
-                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                form.dispatchEvent(submitEvent);
-            }
-        }, 100);
+        setPendingLabSeed(seed);
     }
 
     // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
