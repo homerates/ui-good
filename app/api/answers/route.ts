@@ -328,6 +328,7 @@ function isAffordabilityQuestion(question: string): boolean {
         /what income.{0,30}(?:need|qualify|required|to buy)/i,
         /what salary.{0,30}(?:need|qualify|required|to buy)/i,
         /income.{0,20}(?:need|required).{0,20}(?:qualify|home|house|mortgage)/i,
+        /what income.*with.*(?:debts?|payment|car|student)/i,
     ];
 
     if (triggers.some(pattern => pattern.test(text))) return true;
@@ -3511,7 +3512,7 @@ ${uwAnswerText}`,
             };
         } else if (snapshotLoanType === 'calcEngine-conventional' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
-            const isIncomeQuery = /how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify/i.test(question);
+            const isIncomeQuery = /how much income|what income do i need|what salary|income.*(?:need|qualify|required)|do i qualify|what income.*with.*(?:debts?|payment|car|student)/i.test(question);
             if (!isIncomeQuery) {
                 (calcDispatch as any).type = 'conventional';
                 (calcDispatch as any).params = {
@@ -4207,7 +4208,7 @@ ${dtiSection}
 
         } else {
             // Check if there's a prior calc scenario to answer income question against
-            const isIncomeQuery = /how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify/i.test(question);
+            const isIncomeQuery = /how much income|what income do i need|what salary|income.*(?:need|qualify|required)|do i qualify|what income.*with.*(?:debts?|payment|car|student)/i.test(question);
             const priorCalcSnap = snapshotJson?.scenario_inputs ?? snapshotJson?.computed_financials ? snapshotJson : null;
             const priorMonthlyPayment = snapshotJson?.computed_financials?.total_monthly_piti
                 ?? snapshotJson?.computed_financials?.monthly_piti
@@ -4233,7 +4234,7 @@ ${dtiSection}
                 };
             } else {
                 // Check if there's a prior calc scenario to answer income question against
-                const isIncomeQuery = /how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify/i.test(question);
+                const isIncomeQuery = /how much income|what income do i need|what salary|income.*(?:need|qualify|required)|do i qualify|what income.*with.*(?:debts?|payment|car|student)/i.test(question);
                 const priorMonthlyPayment = snapshotJson?.computed_financials?.total_monthly_piti
                     ?? snapshotJson?.computed_financials?.monthly_piti
                     ?? snapshotJson?.monthly_payment;
@@ -4242,14 +4243,15 @@ ${dtiSection}
                     const piti = Math.round(priorMonthlyPayment);
                     const scenarioDesc = snapshotLoanType.replace('calcEngine-', '');
                     const si = snapshotJson?.scenario_inputs ?? {};
-                    const siPrice = si.price ?? si.purchasePrice;
-                    const siDown = si.down_payment_pct ?? si.downPaymentPct;
-                    const siRate = si.rate_used_pct ?? si.annualRatePct;
+                    const siPrice = si.price ?? si.purchasePrice ?? snapshotPrice;
+                    const siDown = si.down_payment_pct ?? si.downPaymentPct ?? snapshotDown;
+                    const siRate = si.rate_used_pct ?? si.annualRatePct ?? snapshotRate;
+                    const siTerm = si.term_years ?? snapshotTerm ?? 30;
                     const scenarioLineParts = [
                         siPrice ? `$${Math.round(Number(siPrice)).toLocaleString()} purchase` : null,
                         siDown != null ? `${siDown}% down` : null,
                         siRate != null ? `${siRate}%` : null,
-                        '30-year fixed',
+                        `${siTerm}-year fixed`,
                     ].filter(Boolean);
                     const scenarioLine = scenarioLineParts.length > 1
                         ? scenarioLineParts.join(' · ') + '\n'
