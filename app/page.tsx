@@ -1544,8 +1544,8 @@ export default function Page() {
         [setMessages]
     );
 
-    async function send(overrideValue?: string) {
-        const q = (overrideValue ?? input).trim();
+    async function send(overrideValue?: string | React.MouseEvent<HTMLButtonElement>) {
+        const q = (typeof overrideValue === 'string' ? overrideValue : input).trim();
         if (!q || loading) return;
 
         // Enforce simple daily limits before we send anything
