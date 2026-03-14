@@ -992,7 +992,6 @@ export default function Page() {
     ]);
 
     const [input, setInput] = useState('');
-    const [pendingLabSeed, setPendingLabSeed] = useState<string | null>(null);
 
     // Seed composer once if we came from a shared-link card
     const hasSeededFromShareRef = React.useRef(false);
@@ -1545,8 +1544,8 @@ export default function Page() {
         [setMessages]
     );
 
-    async function send() {
-        const q = input.trim();
+    async function send(overrideValue?: string) {
+        const q = (overrideValue ?? input).trim();
         if (!q || loading) return;
 
         // Enforce simple daily limits before we send anything
@@ -1985,20 +1984,10 @@ export default function Page() {
         })();
     }
 
-    useEffect(() => {
-        if (!pendingLabSeed) return;
-        const form = document.querySelector('form');
-        if (form) {
-            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-            form.dispatchEvent(submitEvent);
-        }
-        setPendingLabSeed(null);
-    }, [pendingLabSeed]);
-
     function onLabSeed(seed: string) {
         newChat();
         setInput(seed);
-        setPendingLabSeed(seed);
+        setTimeout(() => send(seed), 50);
     }
 
     // ASK UNDERWRITING: seeds the Ask pill with an underwriting-flavored prompt
