@@ -2002,7 +2002,9 @@ export default function Page() {
     function onAboutHomeRates() {
         const seed =
             'What is HomeRates.ai and what makes this different from other mortgage & Ai Apps?';
+        newChat();
         setInput(seed);
+        setTimeout(() => send(seed), 50);
     }
 
     function closeAllOverlays() {
