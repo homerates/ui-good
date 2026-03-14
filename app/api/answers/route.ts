@@ -1283,32 +1283,34 @@ async function askTavily(
 ): Promise<TavilyMini> {
     if (!TAVILY_API_KEY) return { ok: false, answer: null, results: [] };
 
-    const url = new URL("/api/tavily", req.url);
-    const res = await fetch(url.toString(), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-            query,
-            searchDepth: opts?.depth ?? "basic",
-            maxResults: typeof opts?.max === "number" ? opts.max : 5,
-        }),
-        cache: "no-store",
-    });
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
 
-    let parsed: unknown = null;
     try {
-        parsed = await res.json();
-    } catch {
-        /* ignore */
+        const res = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+                api_key: TAVILY_API_KEY,
+                query,
+                include_answer: true,
+                include_images: false,
+                search_depth: opts?.depth ?? "basic",
+                max_results: typeof opts?.max === "number" ? opts.max : 5,
+            }),
+            signal: controller.signal,
+            cache: "no-store",
+        });
+        clearTimeout(t);
+
+        const wire = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        const answer = typeof wire.answer === "string" ? wire.answer : null;
+        const results = isTavilyResultArray(wire.results) ? wire.results as TavilyResult[] : [];
+        return { ok: res.ok, answer, results };
+    } catch (e: unknown) {
+        clearTimeout(t);
+        return { ok: false, answer: null, results: [] };
     }
-
-    if (isTavilyMini(parsed)) return parsed;
-
-    const obj = (parsed ?? {}) as Record<string, unknown>;
-    const ok = !!obj.ok;
-    const answer = typeof obj.answer === "string" ? (obj.answer as string) : null;
-    const results = isTavilyResultArray(obj.results) ? obj.results : [];
-    return { ok, answer, results };
 }
 
 /* ===== FRED snapshot (for rate questions) ===== */
