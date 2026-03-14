@@ -4228,9 +4228,12 @@ ${dtiSection}
                     : snapshotText
                         ? snapshotText + '\n'
                         : '';
+                const debtFromOverride = (body as any)?.paramOverrides?.monthlyDebt;
                 const debtMatch = question.match(/\$\s*([\d,]+)\s*(?:\/mo|per month|month|monthly)\s*(?:in\s+)?(?:other\s+)?(?:debts?|payments?|car|student)/i)
                     ?? question.match(/(?:debts?|payments?)\s+of\s+\$\s*([\d,]+)/i);
-                const monthlyDebt = debtMatch ? Math.round(parseFloat(debtMatch[1].replace(/,/g, ''))) : 0;
+                const monthlyDebt = debtFromOverride != null
+                    ? Math.round(Number(debtFromOverride))
+                    : debtMatch ? Math.round(parseFloat(debtMatch[1].replace(/,/g, ''))) : 0;
                 const totalMonthly = piti + monthlyDebt;
                 const scenarioHeader = `**${scenarioLine.trim()}**`;
                 const debtNote = monthlyDebt > 0
@@ -4241,8 +4244,8 @@ ${dtiSection}
                     next_step: monthlyDebt > 0 ? 'Compare against your actual income — if DTI is tight, consider paying down debts before applying.' : 'Share your monthly debts for a more precise income requirement.',
                     follow_up: 'What are your monthly debt payments?',
                     follow_up_chips: [
-                        { label: 'I have $500/mo in other debts', seed: `What income do I need with $500/month in other debts for this scenario?` },
-                        { label: 'I have no other debts', seed: `Confirm — if I have no other monthly debts, what income qualifies me for this loan?` },
+                        { label: 'I have $500/mo in other debts', seed: `What income do I need with $500/month in other debts for this scenario?`, paramOverrides: { monthlyDebt: 500 } },
+                        { label: 'I have no other debts', seed: `Confirm — if I have no other monthly debts, what income qualifies me for this loan?`, paramOverrides: { monthlyDebt: 0 } },
                         { label: 'Run full affordability check', seed: `How much home can I afford?` },
                     ],
                     confidence: '1.00 (calculated from prior scenario snapshot)',
