@@ -4246,7 +4246,7 @@ ${dtiSection}
                     follow_up_chips: [
                         { label: 'I have $500/mo in other debts', seed: `What income do I need with $500/month in other debts for this scenario?`, paramOverrides: { monthlyDebt: 500 } },
                         { label: 'I have no other debts', seed: `Confirm — if I have no other monthly debts, what income qualifies me for this loan?`, paramOverrides: { monthlyDebt: 0 } },
-                        { label: 'Run full affordability check', seed: `How much home can I afford?` },
+                        { label: 'What income do I need to afford this home?', seed: `I want to buy a ${siPrice ? `$${Math.round(Number(siPrice)).toLocaleString()}` : 'this'} home — what annual income and savings do I need to qualify comfortably?` },
                     ],
                     confidence: '1.00 (calculated from prior scenario snapshot)',
                 };
