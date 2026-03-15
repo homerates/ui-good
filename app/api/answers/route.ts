@@ -5112,8 +5112,8 @@ Return valid JSON only:
                     },
                 ];
             }
-            // FRED market answer — keep user in rates/market experience
-            if (usedFRED && (topic === 'rates' || module === 'rate')) {
+            // FRED market answer — only when no prior calc snapshot in session
+            if (usedFRED && (topic === 'rates' || module === 'rate') && !snapshotLoanType) {
                 const r30 = fred.mort30Avg != null ? `${fred.mort30Avg}%` : 'current';
                 const r15 = fred.mort15Avg != null ? `${fred.mort15Avg}%` : null;
                 const spread = fred.spread != null ? `${fred.spread}%` : null;
