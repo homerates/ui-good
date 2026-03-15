@@ -1303,37 +1303,7 @@ async function askTavily(
     }
 }
 
-const controller = new AbortController();
-const t = setTimeout(() => controller.abort(), 8000);
 
-try {
-    const res = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-            api_key: TAVILY_API_KEY,
-            query,
-            include_answer: true,
-            include_images: false,
-            search_depth: opts?.depth ?? "basic",
-            max_results: typeof opts?.max === "number" ? opts.max : 5,
-        }),
-        signal: controller.signal,
-        cache: "no-store",
-    });
-    clearTimeout(t);
-
-    const wire = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    console.log('[Tavily] status:', res.status, 'ok:', res.ok, 'keys:', Object.keys(wire));
-    const answer = typeof wire.answer === "string" ? wire.answer : null;
-    const results = isTavilyResultArray(wire.results) ? wire.results as TavilyResult[] : [];
-    return { ok: res.ok, answer, results };
-} catch (e: unknown) {
-    clearTimeout(t);
-    console.log('[Tavily] fetch error:', e instanceof Error ? e.message : String(e));
-    return { ok: false, answer: null, results: [] };
-}
-}
 
 /* ===== FRED snapshot (for rate questions) ===== */
 type FredSnap = {
