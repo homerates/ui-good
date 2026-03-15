@@ -3503,6 +3503,7 @@ ${uwAnswerText}`,
 
     const isFollowUp = /what if|what about|instead|same but|show me|if rates?|rates? drop|rates? go|rates? fall|drop to|down to|how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify/i.test(question);
     if (isFollowUp && snapshotLoanType &&
+        calcDispatch.type !== 'uw_starter' && calcDispatch.type !== 'lab' && calcDispatch.type !== 'about' &&
         (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
         if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
