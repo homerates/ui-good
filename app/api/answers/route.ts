@@ -1304,11 +1304,13 @@ async function askTavily(
         clearTimeout(t);
 
         const wire = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        console.log('[Tavily] status:', res.status, 'ok:', res.ok, 'keys:', Object.keys(wire));
         const answer = typeof wire.answer === "string" ? wire.answer : null;
         const results = isTavilyResultArray(wire.results) ? wire.results as TavilyResult[] : [];
         return { ok: res.ok, answer, results };
     } catch (e: unknown) {
         clearTimeout(t);
+        console.log('[Tavily] fetch error:', e instanceof Error ? e.message : String(e));
         return { ok: false, answer: null, results: [] };
     }
 }
