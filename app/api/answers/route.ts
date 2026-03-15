@@ -5142,11 +5142,7 @@ Return valid JSON only:
                     },
                 ];
             }
-            // LLM-generated chips if present
-            const chips = grokFinal?.follow_up_chips;
-            if (chips && chips.length > 0) return chips;
-
-            // Snapshot-aware chips — fires when Grok answered a follow-up but no calcCard chips available
+            // Snapshot-aware chips — mid-session always wins over LLM chips
             if (snapshotLoanType && snapshotJson) {
                 const si = snapshotJson.scenario_inputs ?? {};
                 const sPrice = si.price ?? si.purchasePrice ?? snapshotPrice;
@@ -5213,6 +5209,10 @@ Return valid JSON only:
                     ];
                 }
             }
+
+            // LLM-generated chips if present (last resort before generic fallback)
+            const chips = grokFinal?.follow_up_chips;
+            if (chips && chips.length > 0) return chips;
 
             return generateFallbackChips(question, conversationHistory);
         })(),
