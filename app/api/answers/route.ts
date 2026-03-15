@@ -31,6 +31,7 @@ import {
     buildSystemPromptWithMemory,
     isFollowUpQuestion,
 } from "../../../lib/memory";
+import { tavily as createTavilyClient } from '@tavily/core';
 // Verify calc engine on cold start — logs failures, never throws
 try {
     const testResult = runCalcTests();
@@ -1276,43 +1277,62 @@ function followUpFor(topic: Topic): string {
 }
 
 /* ===== Web lookup (Tavily proxy route) ===== */
+const tavilyClient = TAVILY_API_KEY ? createTavilyClient({ apiKey: TAVILY_API_KEY }) : null;
+
 async function askTavily(
     req: NextRequest,
     query: string,
     opts?: { depth?: "basic" | "advanced"; max?: number }
 ): Promise<TavilyMini> {
-    if (!TAVILY_API_KEY) return { ok: false, answer: null, results: [] };
-
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 8000);
-
+    if (!tavilyClient) return { ok: false, answer: null, results: [] };
     try {
-        const res = await fetch("https://api.tavily.com/search", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-                api_key: TAVILY_API_KEY,
-                query,
-                include_answer: true,
-                include_images: false,
-                search_depth: opts?.depth ?? "basic",
-                max_results: typeof opts?.max === "number" ? opts.max : 5,
-            }),
-            signal: controller.signal,
-            cache: "no-store",
+        const response = await tavilyClient.search(query, {
+            searchDepth: opts?.depth ?? 'basic',
+            maxResults: typeof opts?.max === 'number' ? opts.max : 5,
+            includeAnswer: true,
         });
-        clearTimeout(t);
-
-        const wire = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        console.log('[Tavily] status:', res.status, 'ok:', res.ok, 'keys:', Object.keys(wire));
-        const answer = typeof wire.answer === "string" ? wire.answer : null;
-        const results = isTavilyResultArray(wire.results) ? wire.results as TavilyResult[] : [];
-        return { ok: res.ok, answer, results };
+        const results = (response.results ?? []).map((r: any) => ({
+            title: r.title ?? '',
+            url: r.url ?? '',
+            content: r.content,
+        }));
+        return { ok: true, answer: response.answer ?? null, results };
     } catch (e: unknown) {
-        clearTimeout(t);
-        console.log('[Tavily] fetch error:', e instanceof Error ? e.message : String(e));
+        console.warn('[Tavily SDK] error:', e instanceof Error ? e.message : String(e));
         return { ok: false, answer: null, results: [] };
     }
+}
+
+const controller = new AbortController();
+const t = setTimeout(() => controller.abort(), 8000);
+
+try {
+    const res = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+            api_key: TAVILY_API_KEY,
+            query,
+            include_answer: true,
+            include_images: false,
+            search_depth: opts?.depth ?? "basic",
+            max_results: typeof opts?.max === "number" ? opts.max : 5,
+        }),
+        signal: controller.signal,
+        cache: "no-store",
+    });
+    clearTimeout(t);
+
+    const wire = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    console.log('[Tavily] status:', res.status, 'ok:', res.ok, 'keys:', Object.keys(wire));
+    const answer = typeof wire.answer === "string" ? wire.answer : null;
+    const results = isTavilyResultArray(wire.results) ? wire.results as TavilyResult[] : [];
+    return { ok: res.ok, answer, results };
+} catch (e: unknown) {
+    clearTimeout(t);
+    console.log('[Tavily] fetch error:', e instanceof Error ? e.message : String(e));
+    return { ok: false, answer: null, results: [] };
+}
 }
 
 /* ===== FRED snapshot (for rate questions) ===== */
