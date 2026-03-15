@@ -2157,26 +2157,43 @@ async function handle(req: NextRequest, intentParam?: string) {
         }
     }
 
+    // TAVILY GATE — only fire for questions that need live web data
+    // Skips: calc engine questions, rate lookups (FRED handles), UW guidelines, about, lab
+    const needsWebSearch = (
+        // Location-specific market questions
+        /\b(price|prices|market|median|inventory|homes?\s+in|buying\s+in|selling\s+in)\b.{0,40}\b(in|near|around)\b/i.test(question) ||
+        /\b(austin|dallas|houston|miami|phoenix|denver|seattle|chicago|atlanta|boston|nashville|tampa|orlando|charlotte|las\s+vegas|los\s+angeles|san\s+diego|san\s+francisco|bay\s+area|new\s+york|new\s+jersey|virginia|maryland|colorado|florida|texas|california|georgia|arizona|washington)\b/i.test(question) ||
+        // Current news / recent events
+        /\b(news|today|this\s+week|this\s+month|recently|latest|just|breaking|2026)\b.{0,30}\b(mortgage|rate|housing|market|fed|economy)\b/i.test(question) ||
+        // Lender-specific questions
+        /\b(loandepot|loan\s+depot|uwm|united\s+wholesale|rocket|quicken|chase|wells\s+fargo|bank\s+of\s+america|pennymac|loancare|freedom\s+mortgage|caliber|newrez|lender|lenders)\b/i.test(question) ||
+        // Market trends / forecasts needing current data
+        /\b(forecast|outlook|prediction|trend|when\s+will|will\s+rates|housing\s+crash|bubble|recession|tariff|inflation\s+impact)\b/i.test(question)
+    ) && module !== 'about';
+
     // TAVILY QUERY – module-aware
-    let tavQuery: string;
+    let tav: TavilyMini = { ok: false, answer: null, results: [] };
 
-    if (module === "underwriting" || module === "qualify") {
-        tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
-    } else if (module === "rate") {
-        tavQuery = `${question} 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:freddiemac.com OR site:nerdwallet.com OR site:forbes.com -yahoo -aol -forum -blog -reddit`;
-    } else {
-        tavQuery = `${question} 2025 mortgage -yahoo -aol -forum -blog -reddit`;
-    }
+    if (needsWebSearch) {
+        let tavQuery: string;
+        if (module === "underwriting" || module === "qualify") {
+            tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
+        } else if (module === "rate") {
+            tavQuery = `${question} 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:freddiemac.com OR site:nerdwallet.com OR site:forbes.com -yahoo -aol -forum -blog -reddit`;
+        } else {
+            tavQuery = `${question} 2025 mortgage -yahoo -aol -forum -blog -reddit`;
+        }
 
-    let tav = await askTavily(req, tavQuery, {
-        depth: module === "underwriting" || module === "qualify" ? "advanced" : "basic",
-        max: 6,
-    });
+        tav = await askTavily(req, tavQuery, {
+            depth: module === "underwriting" || module === "qualify" ? "advanced" : "basic",
+            max: 6,
+        });
 
-    // Fallback relax
-    if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
-        const fallbackQuery = `${question} mortgage 2025`;
-        tav = await askTavily(req, fallbackQuery, { depth: "advanced", max: 8 });
+        // Fallback relax
+        if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
+            const fallbackQuery = `${question} mortgage 2025`;
+            tav = await askTavily(req, fallbackQuery, { depth: "advanced", max: 8 });
+        }
     }
 
     mark("after Tavily");
