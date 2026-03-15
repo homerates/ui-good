@@ -301,7 +301,7 @@ export function isConventionalQuestion(q: string): boolean {
     if (isAffordabilityQuestion(q)) return false;
     if (isDSCRQuestion(q)) return false;
     const hasPrice = /\$\s*[\d,]+k?\b/i.test(q);
-    const hasMortgageCtx = /home|house|property|loan|mortgage|buying|purchase|condo|townhouse/i.test(q);
+    const hasMortgageCtx = /home|house|property|loan|mortgage|buying|purchase|condo|townhouse|conventional/i.test(q);
     const isIncomeQualify = /how much income|what income|what salary|income.*(?:need|qualify|required?)/i.test(q);
     return (hasPrice && hasMortgageCtx && !isIncomeQualify);
 }
