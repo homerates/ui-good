@@ -26,6 +26,7 @@ import {
     maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
 import { generateSourcesBundle } from "../../lib/sources-generator";
+import { buildLoanLimitsContext, getCALoanLimits } from "../../../lib/loanLimits2026";
 import {
     getRecentScenarioHistory,
     buildSystemPromptWithMemory,
@@ -431,26 +432,34 @@ function extractAffordabilityParams(question: string): {
 // 2026 loan limits
 const FHA_FLOOR = 541287;         // national floor (standard county)
 const FHA_CEILING = 1249125;      // high-cost ceiling
-const CONF_STANDARD = 806500;     // conforming standard
+const CONF_STANDARD = 832750;     // 2026 conforming standard (FHFA, effective Jan 1 2026)
 const CONF_HIGH_BALANCE = 1249125; // CA high-balance ceiling
 
-/** Detect if question mentions a high-cost area — returns loan limits for that area */
-function detectLoanLimits(question: string): { fhaLimit: number; confLimit: number; locationLabel: string } {
+/** Detect loan limits — uses loanLimits2026.ts for CA county precision, 3-bucket fallback for non-CA */
+function detectLoanLimits(question: string): { fhaLimit: number; confLimit: number; locationLabel: string; loanLimitsContext?: string } {
     const q = question.toLowerCase();
-    // High-cost CA counties by keyword
-    const highCostCA = /\b(los angeles|la county|orange county|san francisco|sf|bay area|san jose|oakland|marin|alameda|contra costa|santa clara|san mateo|santa cruz|san benito|napa|ventura|san diego|santa barbara|sonoma|slo|san luis obispo)\b/i;
-    // Standard CA counties (high-balance but not ceiling)
-    const midCA = /\b(riverside|san bernardino|fresno|kern|sacramento|stockton|modesto|bakersfield)\b/i;
-    // Other known high-cost metros
-    const highCostOther = /\b(new york|nyc|seattle|washington dc|dc|miami|boston|denver|austin|nashville|hawaii|honolulu|alaska)\b/i;
 
-    if (highCostCA.test(q) || highCostOther.test(q)) {
+    // Try county-precise CA lookup first
+    const caLocationMatch = q.match(/\b(los angeles|orange county|san francisco|san jose|san diego|sacramento|fresno|riverside|san bernardino|santa clara|alameda|contra costa|san mateo|marin|napa|sonoma|ventura|santa barbara|san luis obispo|monterey|santa cruz|kern|bakersfield|stockton|modesto|thousand oaks|irvine|anaheim|pasadena|long beach|oakland|berkeley|fremont|hayward|walnut creek|concord|daly city|redwood city|palo alto|mountain view|sunnyvale|cupertino|santa rosa|petaluma)\b/i);
+    if (caLocationMatch) {
+        const limits = getCALoanLimits(caLocationMatch[0]);
+        if (limits) {
+            const loanAmountMatch = q.match(/\$?\s*([\d,]+(?:\.\d+)?)\s*k?\b/i);
+            const loanAmount = loanAmountMatch ? parseFloat(loanAmountMatch[1].replace(/,/g, '')) * (loanAmountMatch[0].toLowerCase().includes('k') ? 1000 : 1) : limits.conformingLimit;
+            return {
+                fhaLimit: limits.fhaLimit,
+                confLimit: limits.conformingLimit,
+                locationLabel: `${limits.county} County`,
+                loanLimitsContext: buildLoanLimitsContext(caLocationMatch[0], loanAmount),
+            };
+        }
+    }
+
+    // Non-CA fallback buckets
+    const highCostOther = /\b(new york|nyc|seattle|washington dc|dc|miami|boston|denver|austin|nashville|hawaii|honolulu|alaska)\b/i;
+    if (highCostOther.test(q)) {
         return { fhaLimit: FHA_CEILING, confLimit: CONF_HIGH_BALANCE, locationLabel: 'high-cost area' };
     }
-    if (midCA.test(q)) {
-        return { fhaLimit: 832750, confLimit: 832750, locationLabel: 'mid-cost CA county' };
-    }
-    // No location → use national floor (conservative)
     return { fhaLimit: FHA_FLOOR, confLimit: CONF_STANDARD, locationLabel: '' };
 }
 
