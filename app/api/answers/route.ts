@@ -19,7 +19,7 @@ import {
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
     buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
-    buildUWStarterCard,
+    buildUWStarterCard, getContextChips,
 } from "../../../lib/cardBuilders";
 import {
     getGuidelineContextForQuestion,
@@ -5083,137 +5083,39 @@ Return valid JSON only:
         answerMarkdown: finalMarkdown,
         followUp: grokFinal?.follow_up || followUpFor(topic),
         follow_up_chips: (() => {
-            // UW guideline answers — always use UW pipeline chips
+            // 1. UW guideline — always stays in UW pipeline
             if (isUnderwritingGuidelineQuestion(question)) {
                 return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
             }
-            // About HomeRates.ai — narrative arc chips
+            // 2. About — narrative arc
             if (module === 'about') {
                 return [
-                    {
-                        label: 'Why is mortgage info so hard to trust?',
-                        seed: 'About HomeRates: why is mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?',
-                    },
-                    {
-                        label: 'What does HomeRates.ai do differently?',
-                        seed: 'About HomeRates: how is HomeRates.ai different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?',
-                    },
-                    {
-                        label: 'What live data does HomeRates.ai use?',
-                        seed: 'About HomeRates: what live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?',
-                    },
-                    {
-                        label: 'Who built this and why?',
-                        seed: 'About HomeRates: who is the founder and what problem were they trying to solve for borrowers?',
-                    },
-                    {
-                        label: 'Show me what it can do',
-                        seed: 'Show me the HomeRates Lab',
-                    },
+                    { label: 'Why is mortgage info so hard to trust?', seed: 'About HomeRates: why is mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?' },
+                    { label: 'What does HomeRates.ai do differently?', seed: 'About HomeRates: how is HomeRates.ai different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?' },
+                    { label: 'What live data does HomeRates.ai use?', seed: 'About HomeRates: what live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?' },
+                    { label: 'Who built this and why?', seed: 'About HomeRates: who is the founder and what problem were they trying to solve for borrowers?' },
+                    { label: 'Show me what it can do', seed: 'Show me the HomeRates Lab' },
                 ];
             }
-            // FRED market answer — only when no prior calc snapshot in session
-            if (usedFRED && (topic === 'rates' || module === 'rate') && !snapshotLoanType) {
+            // 3. Snapshot context chips — mid-session always wins
+            const contextChips = getContextChips(snapshotLoanType, snapshotJson, snapshotText, fred);
+            if (contextChips) return contextChips;
+            // 4. FRED rate chips — only when no prior session context
+            if (usedFRED && (topic === 'rates' || module === 'rate')) {
                 const r30 = fred.mort30Avg != null ? `${fred.mort30Avg}%` : 'current';
                 const r15 = fred.mort15Avg != null ? `${fred.mort15Avg}%` : null;
                 const spread = fred.spread != null ? `${fred.spread}%` : null;
                 const curve = fred.t10y2y != null ? `${fred.t10y2y}%` : null;
                 const medPrice = fred.medianHomePrice != null ? `$${Math.round(fred.medianHomePrice / 1000)}k` : '$405k';
                 return [
-                    {
-                        label: r15 ? `15Y fixed at ${r15} — is it worth it?` : 'Is a 15-year fixed worth it at current rates?',
-                        seed: `Is a 15-year fixed mortgage worth it right now? Compare the payment difference vs 30-year at current rates`,
-                    },
-                    {
-                        label: spread ? `Why is the mortgage-Treasury spread ${spread}?` : 'Why are mortgage rates so high vs Treasury yields?',
-                        seed: `Why is the spread between mortgage rates and the 10-year Treasury yield ${spread ?? 'elevated'}? What drives it and when does it compress?`,
-                    },
-                    {
-                        label: curve ? `Yield curve at ${curve} — what does it mean for rates?` : 'What does the yield curve mean for mortgage rates?',
-                        seed: `Yield curve update: 10Y-2Y spread is currently ${curve ?? 'near flat'} — analyze the rate outlook for the next 6-12 months based on FRED data`,
-                    },
-                    {
-                        label: `At ${r30}, can I afford ${medPrice}?`,
-                        seed: `Affordability check at today's ${r30} rate on a ${medPrice} home — what income and down payment do I need?`,
-                    },
-                    {
-                        label: 'When will the Fed cut rates again?',
-                        seed: `Rate outlook: with Fed funds at ${fred.fedFunds ?? '3.64'}%, CPI at ${fred.cpi ?? 'current levels'}, and unemployment ${fred.unemployment ?? '4.4'}% — when will mortgage rates drop and by how much?`,
-                    },
+                    { label: r15 ? `15Y fixed at ${r15} — is it worth it?` : 'Is a 15-year fixed worth it at current rates?', seed: `Is a 15-year fixed mortgage worth it right now? Compare the payment difference vs 30-year at current rates` },
+                    { label: spread ? `Why is the mortgage-Treasury spread ${spread}?` : 'Why are mortgage rates so high vs Treasury yields?', seed: `Why is the spread between mortgage rates and the 10-year Treasury yield ${spread ?? 'elevated'}? What drives it and when does it compress?` },
+                    { label: curve ? `Yield curve at ${curve} — what does it mean for rates?` : 'What does the yield curve mean for mortgage rates?', seed: `Yield curve update: 10Y-2Y spread is currently ${curve ?? 'near flat'} — analyze the rate outlook for the next 6-12 months based on FRED data` },
+                    { label: `At ${r30}, can I afford ${medPrice}?`, seed: `Affordability check at today's ${r30} rate on a ${medPrice} home — what income and down payment do I need?` },
+                    { label: 'When will the Fed cut rates again?', seed: `Rate outlook: with Fed funds at ${fred.fedFunds ?? '3.64'}%, CPI at ${fred.cpi ?? 'current levels'}, and unemployment ${fred.unemployment ?? '4.4'}% — when will mortgage rates drop and by how much?` },
                 ];
             }
-            // Snapshot-aware chips — mid-session always wins over LLM chips
-            if (snapshotLoanType && snapshotJson) {
-                const si = snapshotJson.scenario_inputs ?? {};
-                const sPrice = si.price ?? si.purchasePrice ?? snapshotPrice;
-                const sDown = si.down_payment_pct ?? si.downPaymentPct ?? snapshotDown;
-                const sRate = si.rate_used_pct ?? si.annualRatePct ?? snapshotRate;
-                const sTerm = si.term_years ?? snapshotTerm ?? 30;
-                const sRent = si.rent_monthly ?? snapshotRent;
-                const sPiti = snapshotJson.computed_financials?.monthly_pitia ?? snapshotJson.monthly_payment;
-                const priceLabel = sPrice ? `$${Math.round(Number(sPrice)).toLocaleString()}` : null;
-
-                if (snapshotLoanType === 'calcEngine-conventional' && sPrice && sRate) {
-                    const rateDown = Math.round((Number(sRate) - 0.5) * 100) / 100;
-                    const downPct = Number(sDown ?? 15);
-                    return [
-                        { label: `Rate drops to ${rateDown}% — new payment?`, seed: `Same home, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), downPaymentPct: downPct, changedKeys: ['annualRatePct'] } },
-                        { label: downPct < 20 ? `What if I put 20% down?` : `What if I put 10% down?`, seed: downPct < 20 ? `Same home with 20% down` : `Same home with 10% down`, paramOverrides: { downPaymentPct: downPct < 20 ? 20 : 10, purchasePrice: Number(sPrice), annualRatePct: Number(sRate), changedKeys: ['downPaymentPct'] } },
-                        { label: `What income do I need for ${priceLabel}?`, seed: `How much income do I need to qualify for this home?` },
-                        { label: `FHA vs conventional on ${priceLabel}`, seed: `Compare FHA 3.5% down vs conventional ${downPct}% down on a ${priceLabel} home at ${sRate}%` },
-                    ];
-                }
-
-                if (snapshotLoanType === 'calcEngine-fha' && sPrice && sRate) {
-                    const rateDown = Math.round((Number(sRate) - 0.5) * 100) / 100;
-                    const downPct = Number(sDown ?? 3.5);
-                    return [
-                        { label: `Rate drops to ${rateDown}% — new payment?`, seed: `Same FHA loan, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), downPaymentPct: downPct, isFHA: true, changedKeys: ['annualRatePct'] } },
-                        { label: `What if I put 10% down?`, seed: `Same FHA loan with 10% down`, paramOverrides: { downPaymentPct: 10, purchasePrice: Number(sPrice), annualRatePct: Number(sRate), isFHA: true, changedKeys: ['downPaymentPct'] } },
-                        { label: `When can I remove FHA MIP?`, seed: `Ask Underwriting: when can I remove FHA MIP on a ${priceLabel} home with ${downPct}% down?` },
-                        { label: `FHA vs conventional on ${priceLabel}`, seed: `Compare FHA ${downPct}% down vs conventional 5% down on a ${priceLabel} home at ${sRate}%` },
-                    ];
-                }
-
-                if (snapshotLoanType === 'calcEngine-dscr' && sPrice && sRent) {
-                    const rentUp = Math.round(Number(sRent) + 200);
-                    const rentDown = Math.round(Number(sRent) - 200);
-                    const rateDown = sRate ? Math.round((Number(sRate) - 0.5) * 100) / 100 : null;
-                    return [
-                        { label: `Rent increases to $${rentUp.toLocaleString()}/mo`, seed: `Same property, rent increases to $${rentUp}/month`, paramOverrides: { grossMonthlyRent: rentUp, purchasePrice: Number(sPrice), annualRatePct: Number(sRate ?? 7), changedKeys: ['grossMonthlyRent'] } },
-                        { label: `Rent drops to $${rentDown.toLocaleString()}/mo — still cash flows?`, seed: `Same property, rent drops to $${rentDown}/month`, paramOverrides: { grossMonthlyRent: rentDown, purchasePrice: Number(sPrice), annualRatePct: Number(sRate ?? 7), changedKeys: ['grossMonthlyRent'] } },
-                        ...(rateDown ? [{ label: `Rate drops to ${rateDown}% — new DSCR?`, seed: `Same rental property, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), grossMonthlyRent: Number(sRent), changedKeys: ['annualRatePct'] } }] : []),
-                        { label: `What DSCR do lenders require?`, seed: `Ask Underwriting: what minimum DSCR ratio do lenders require for investment property loans?` },
-                    ];
-                }
-
-                if (snapshotLoanType === 'refi_advisor_v2' && snapshotJson.loan_amount && snapshotJson.rate_used_pct) {
-                    const bal = snapshotJson.loan_amount;
-                    const newRate = snapshotJson.rate_used_pct;
-                    const rateDown = Math.round((Number(newRate) - 0.5) * 100) / 100;
-                    const balLabel = `$${Math.round(Number(bal)).toLocaleString()}`;
-                    return [
-                        { label: `What if rate drops to ${rateDown}%?`, seed: `Same refi, rate drops to ${rateDown}%`, paramOverrides: { newRatePct: rateDown, currentBalance: Number(bal), currentRatePct: Number(snapshotJson.current_rate_pct), changedKeys: ['newRatePct'] } },
-                        { label: `How long to break even on closing costs?`, seed: `How long does it take to break even on refi closing costs for a ${balLabel} loan?` },
-                        { label: `Extra payments vs refi — which wins?`, seed: `Compare making $500/mo extra payments vs refinancing my ${balLabel} mortgage` },
-                        { label: `Cash-out refi — how much can I pull out?`, seed: `How much equity can I cash out on a ${balLabel} mortgage?` },
-                    ];
-                }
-
-                if (snapshotLoanType === 'calcEngine-affordability' && sPiti) {
-                    return [
-                        { label: `With $500/mo in debts — what changes?`, seed: `Same affordability scenario with $500/month in other debts`, paramOverrides: { monthlyDebt: 500 } },
-                        { label: `What if I put 20% down?`, seed: `Same scenario with 20% down payment`, paramOverrides: { downPctOverride: 20 } },
-                        { label: `Show FHA option on max price`, seed: `What's the FHA loan option on my maximum affordable home price?` },
-                        { label: `What income do I need to qualify?`, seed: `How much income do I need to qualify for this home?` },
-                    ];
-                }
-            }
-
-            // LLM-generated chips if present (last resort before generic fallback)
-            const chips = grokFinal?.follow_up_chips;
-            if (chips && chips.length > 0) return chips;
-
+            // 5. True fallback
             return generateFallbackChips(question, conversationHistory);
         })(),
     });
