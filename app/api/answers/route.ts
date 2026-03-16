@@ -5193,7 +5193,7 @@ Return valid JSON only:
                     const rateDown = Math.round((Number(newRate) - 0.5) * 100) / 100;
                     const balLabel = `$${Math.round(Number(bal)).toLocaleString()}`;
                     return [
-                        { label: `What if rate drops to ${rateDown}%?`, seed: `Same refi, rate drops to ${rateDown}%`, paramOverrides: { newRatePct: rateDown, changedKeys: ['newRatePct'] } },
+                        { label: `What if rate drops to ${rateDown}%?`, seed: `Same refi, rate drops to ${rateDown}%`, paramOverrides: { newRatePct: rateDown, currentBalance: Number(bal), currentRatePct: Number(snapshotJson.current_rate_pct), changedKeys: ['newRatePct'] } },
                         { label: `How long to break even on closing costs?`, seed: `How long does it take to break even on refi closing costs for a ${balLabel} loan?` },
                         { label: `Extra payments vs refi — which wins?`, seed: `Compare making $500/mo extra payments vs refinancing my ${balLabel} mortgage` },
                         { label: `Cash-out refi — how much can I pull out?`, seed: `How much equity can I cash out on a ${balLabel} mortgage?` },
