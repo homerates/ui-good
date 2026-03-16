@@ -1567,7 +1567,7 @@ export function buildUWStarterCard(): BuiltCard {
         confidence: '1.00 (HomeRates.ai — UW starter card)',
     };
 }
-}
+
 
 // ─────────────────────────────────────────────
 // CONTEXT CHIPS — single source of truth
