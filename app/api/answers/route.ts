@@ -2072,7 +2072,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             " • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, lender overlays (LoanDepot, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
             "MANDATORY: Cite exact section + URL (e.g., \"Fannie B3-3.2-01 [singlefamily.fanniemae.com/selling-guide]\").\n" +
             "Never 'it depends' without rule/citation. List paths (DU vs manual, FHA vs Conventional) as Path A/B with citations.\n" +
-            "FORMATTING: In tables, never bold numbers or dollar amounts — plain text only. No **$xxx** patterns.\n" +
+            "FORMATTING: In tables, write dollar amounts and numbers as plain text — never wrap them in ** bold markers.\n" +
             "Tone: clinical, factual, zero sales — like senior underwriter on decisioning. Respond in 150-250 words max. End with disclaimer.",
 
         dscr:
@@ -2102,7 +2102,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             "  CRITICAL: PMI must be in PITI for <20% down — do NOT omit it.\n" +
             "  Verified: 5.98% on $807,500 → P&I=$4,831 + Tax=$885 + PMI=$538 = PITI=$6,254\n" +
             "  Correct income at 43%: $6,254÷0.43×12 = $174,600/yr\n" +
-            "LOAN LIMITS: $807,500 on $850k home — check if county is high-balance (CA most counties $832,750+). Jumbo if over county limit.\n" +
+            "LOAN LIMITS: $832,750 standard conforming (2026). CA most counties $832,750+, high-cost ceiling $1,249,125. Jumbo if over county limit.\n" +
             "Table: max PITI, required income at 43% DTI, required income at 45% DTI. Cite [Fannie Mae Selling Guide] or [HUD 4000.1]. No fluff. Tone: calm, decisive. Respond in 150-250 words max. End with disclaimer.",
 
         about:
@@ -3148,7 +3148,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
         console.log('[UW Guidelines] Detected guideline question in answers route — calling AI with database');
 
         const uwDatabase = `
-=== UNDERWRITING GUIDELINES DATABASE (2025) ===
+=== UNDERWRITING GUIDELINES DATABASE (2026) ===
 
 ── FHA (Federal Housing Administration) ──────────────────────────────
 Source: HUD Handbook 4000.1 | hud.gov/program_offices/housing/sfh
@@ -3167,7 +3167,7 @@ Source: Fannie Mae Selling Guide B3-6 | selling-guide.fanniemae.com. Freddie Mac
 DTI: Standard ≤45% back-end. DU/LP approval up to 50% with strong compensating factors.
 Credit Score: Minimum 620. Best pricing 740+. Below 620 not eligible.
 LTV / Down Payment: Primary 1-unit 3% min (HomeReady/Standard 97). Investment property 15% (1-unit), 25% (2–4 units). Second home 10% min. No PMI at 20%+ down.
-Loan Limits (2026 — EXACT FHFA VALUES, do not interpolate):\nStandard (non-high-balance): 1-unit $806,500 | 2-unit $1,032,650 | 3-unit $1,248,150 | 4-unit $1,551,250.\nCA high-balance ceiling (e.g. LA, OC, SF, SB, SC, SM, SC, Alameda, Contra Costa, Marin, San Benito, Santa Clara): 1-unit $1,249,125 | 2-unit $1,599,375 | 3-unit $1,933,200 | 4-unit $2,402,625.\nCA mid-tier examples (1-unit / 2-unit / 3-unit / 4-unit):\n  San Diego: $1,104,000 / $1,413,400 / $1,708,050 / $2,123,900\n  Ventura: $1,035,000 / $1,325,000 / $1,601,600 / $1,990,450\n  Napa: $1,017,750 / $1,303,100 / $1,574,950 / $1,957,650\n  SLO: $1,000,500 / $1,280,800 / $1,548,350 / $1,923,950\n  Santa Barbara: $941,850 / $1,205,900 / $1,457,600 / $1,811,750\n  Sonoma: $897,000 / $1,148,400 / $1,388,200 / $1,725,350\n  All other CA counties: $832,750 / $1,066,250 / $1,288,900 / $1,601,950.\nSource: FHFA CY2026, effective Jan 1 2026.
+Loan Limits (2026 — EXACT FHFA VALUES, do not interpolate):\nStandard (non-high-balance): 1-unit $832,750 | 2-unit $1,032,650 | 3-unit $1,248,150 | 4-unit $1,551,250.\nCA high-balance ceiling (e.g. LA, OC, SF, SB, SC, SM, SC, Alameda, Contra Costa, Marin, San Benito, Santa Clara): 1-unit $1,249,125 | 2-unit $1,599,375 | 3-unit $1,933,200 | 4-unit $2,402,625.\nCA mid-tier examples (1-unit / 2-unit / 3-unit / 4-unit):\n  San Diego: $1,104,000 / $1,413,400 / $1,708,050 / $2,123,900\n  Ventura: $1,035,000 / $1,325,000 / $1,601,600 / $1,990,450\n  Napa: $1,017,750 / $1,303,100 / $1,574,950 / $1,957,650\n  SLO: $1,000,500 / $1,280,800 / $1,548,350 / $1,923,950\n  Santa Barbara: $941,850 / $1,205,900 / $1,457,600 / $1,811,750\n  Sonoma: $897,000 / $1,148,400 / $1,388,200 / $1,725,350\n  All other CA counties: $832,750 / $1,066,250 / $1,288,900 / $1,601,950.\nSource: FHFA CY2026, effective Jan 1 2026.
 Reserves: Primary 1-unit 0–2 months typical. Investment property 6 months PITIA. Multiple financed properties: 2% of aggregate UPB.
 Employment: 2-year history standard. Recent job change OK if same field.
 Gift Funds: Allowed for primary and second homes. NOT allowed for investment properties.
@@ -3211,7 +3211,7 @@ Credit Score: Jumbo 680–720 min. Non-QM bank statement 620+.
 LTV / Down Payment: Standard jumbo 10–20% down. $1M–$2M typically 20% min. $2M+ typically 25–30% min.
 Reserves: 6–24 months depending on loan size. $2M+ typically 18–24 months.
 Documentation: Full doc, 12/24-month bank statements, asset depletion (assets ÷ 84 months), P&L only, DSCR.
-Loan Limits (2026): Jumbo = above conforming for the county. Standard counties: above $806,500. CA high-balance counties: above county limit (e.g. LA/SF/OC above $1,249,125). No FHA or GSE backing — private lender only.
+Loan Limits (2026): Jumbo = above conforming for the county. Standard counties: above $832,750. CA high-balance counties: above county limit (e.g. LA/SF/OC above $1,249,125). No FHA or GSE backing — private lender only.
 ── MORTGAGE FORMS & TERMINOLOGY ────────────────────────────────────────
 1003 / URLA: Uniform Residential Loan Application (Fannie Mae Form 1003). The standard mortgage application form used by all lenders. Collects borrower identity, employment, income, assets, liabilities, property info, and loan details. Required for every mortgage application regardless of loan type.
 1004: Uniform Residential Appraisal Report — standard appraisal form for single-family homes.
