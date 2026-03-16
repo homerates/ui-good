@@ -97,7 +97,7 @@ export function detectLoanLimits(text: string): {
         return { fhaLimit: FHA_CEILING_2026, confLimit: CONF_HIGH_BALANCE, locationLabel: 'high-cost area' };
     }
     if (/sacramento|san diego|riverside|fresno|phoenix|denver|portland|austin|dallas|chicago|atlanta/i.test(t)) {
-        return { fhaLimit: 832750, confLimit: 832750, locationLabel: 'mid-cost area' };
+        return { fhaLimit: CONF_STANDARD, confLimit: CONF_STANDARD, locationLabel: 'mid-cost area' };
     }
     return { fhaLimit: FHA_FLOOR_2026, confLimit: CONF_STANDARD, locationLabel: '' };
 }
