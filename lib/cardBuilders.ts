@@ -485,6 +485,8 @@ export function buildRefiNeedsInputCard(
     parsed: RefiNeedsInput,
     fredRate?: number,
     fredAsOf?: string,
+    snapshotBalance?: number,
+    snapshotCurrentRate?: number,
 ): BuiltCard {
     const marketNote = fredRate
         ? `\n\n> 📡 **Today's market rate: ${fPct(fredRate)}** (FRED, live ${fredAsOf ?? ''})`
@@ -505,9 +507,9 @@ export function buildRefiNeedsInputCard(
                 { label: 'Lock to fixed now vs ride out the ARM', seed: `Should I lock my 5/1 ARM at ${fredRate ? fPct(fredRate) : '6.5%'} to a 30yr fixed, or ride it out?` },
             ]
             : [
-                { label: `Tell me when to refi — what's my trigger rate?`, seed: `What rate would I need to refi my ${parsed.parsedBalance ? fK(parsed.parsedBalance) : '$650k'} mortgage at ${parsed.parsedCurrentRate ? fPct(parsed.parsedCurrentRate) : '6.5%'}?` },
-                { label: 'Refi now vs wait for a better rate', seed: `Compare refinancing to ${fredRate ? fPct(fredRate) : '5.99%'} now vs waiting for a lower rate` },
-                { label: 'Extra payments vs refi — what wins?', seed: 'Compare refinancing my mortgage vs making extra principal payments' },
+                { label: `Tell me when to refi — what's my trigger rate?`, seed: `What rate would I need to refi my ${parsed.parsedBalance ? fK(parsed.parsedBalance) : snapshotBalance ? fK(snapshotBalance) : '$650k'} mortgage at ${parsed.parsedCurrentRate ? fPct(parsed.parsedCurrentRate) : snapshotCurrentRate ? fPct(snapshotCurrentRate) : '6.5%'}?` },
+                { label: 'Refi now vs wait for a better rate', seed: `Compare refinancing my ${parsed.parsedBalance ? fK(parsed.parsedBalance) : snapshotBalance ? fK(snapshotBalance) : '$650k'} balance to ${fredRate ? fPct(fredRate) : '5.99%'} now vs waiting for a lower rate` },
+                { label: 'Extra payments vs refi — what wins?', seed: `Compare making $500/mo extra payments vs refinancing my ${parsed.parsedBalance ? fK(parsed.parsedBalance) : snapshotBalance ? fK(snapshotBalance) : '$650k'} mortgage` },
             ];
 
     const answer = `## 🏦 Refi Advisor — What's Your Situation?${marketNote}
@@ -1604,8 +1606,8 @@ export function getContextChips(
         ];
     }
 
-    // ── FHA ──
-    if (snapshotLoanType === 'calcEngine-fha' && sPrice && sRate) {
+    // ── FHA / FHA vs Conv ──
+    if ((snapshotLoanType === 'calcEngine-fha' || snapshotLoanType === 'calcEngine-fha_vs_conv') && sPrice && sRate) {
         const rateDown = parseFloat((Number(sRate) - 0.5).toFixed(2));
         const downPct = Number(sDown ?? 3.5);
         return [

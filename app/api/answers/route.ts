@@ -3684,6 +3684,8 @@ ${uwAnswerText}`,
                     calcDispatch.params as any,
                     fred?.mort30Avg ?? undefined,
                     fred?.asOf ?? undefined,
+                    snapshotJson?.loan_amount ? Number(snapshotJson.loan_amount) : undefined,
+                    snapshotJson?.current_rate_pct ? Number(snapshotJson.current_rate_pct) : undefined,
                 );
                 calcDebugModel = 'refi_needs_input';
 
