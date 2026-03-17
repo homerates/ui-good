@@ -2510,15 +2510,20 @@ async function handle(req: NextRequest, intentParam?: string) {
             }
         }
 
-        // Current rate — explicit patterns only; catch-all fallback EXCLUDED here.
-        // The catch-all (first % in question) is unreliable for follow-ups where the question
-        // may reference a target/scenario rate rather than the user's actual current rate.
-        // Snapshot fill below handles the follow-up case correctly.
+        // Current rate — explicit patterns preferred; catch-all (first %) used only when no
+        // snapshot exists. On follow-up turns the snapshot fill below overwrites catch-all
+        // with the correct stored rate, preventing wrong-rate poisoning from chip seed text.
         const curRMExplicit =
             qFull.match(/\b(?:current\s*rate|my\s*rate)\b\s*(?:is\s+)?(\d+\.?\d*)\s*%/i) ??
             qFull.match(/\bat\s+(\d+\.?\d*)\s*%/i) ??
             qFull.match(/(\d+\.?\d*)\s*%\s*(?:rate|interest|on\s*my|current)/i);
-        let currentRate = curRMExplicit ? parseFloat(curRMExplicit[1]) : null;
+        const curRMFallback = (() => {
+            const all = [...qFull.matchAll(/(\d+\.?\d*)\s*%/g)].map(m => parseFloat(m[1])).filter(r => r > 1 && r < 20);
+            return all.length >= 1 ? { 1: String(all[0]) } as any : null;
+        })();
+        let currentRate = curRMExplicit
+            ? parseFloat(curRMExplicit[1])
+            : curRMFallback ? parseFloat(curRMFallback[1]) : null;
 
         // New/target rate
         const newRM =
@@ -2577,7 +2582,9 @@ async function handle(req: NextRequest, intentParam?: string) {
                     .single();
                 if (refiSnap?.content_json) {
                     const sj = refiSnap.content_json;
-                    if (!currentRate && sj.current_rate_pct) (currentRate as any) = Number(sj.current_rate_pct);
+                    // Snapshot always wins for currentRate — prevents catch-all grabbing
+                    // a scenario/target rate from chip seed text on follow-up turns
+                    if (sj.current_rate_pct) (currentRate as any) = Number(sj.current_rate_pct);
                     if (!balance && sj.loan_amount) balance = Number(sj.loan_amount);
                 }
             } catch { /* silent — falls through to needs_input if no snap */ }
