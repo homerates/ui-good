@@ -2524,6 +2524,7 @@ async function handle(req: NextRequest, intentParam?: string) {
         let currentRate = curRMExplicit
             ? parseFloat(curRMExplicit[1])
             : curRMFallback ? parseFloat(curRMFallback[1]) : null;
+        const currentRateFromFallbackOnly = !curRMExplicit && curRMFallback != null;
 
         // New/target rate
         const newRM =
@@ -2569,7 +2570,7 @@ async function handle(req: NextRequest, intentParam?: string) {
         // ── If missing key inputs — check snapshot before giving up ──
         // snapshotJson is resolved later in route.ts but this bypass fires first.
         // Fetch the most recent refi snapshot inline so currentRate/balance can be filled from prior turn.
-        if ((!balance || !currentRate) && supabase && memoryThreadId && chatId) {
+        if ((!balance || !currentRate || currentRateFromFallbackOnly) && supabase && memoryThreadId && chatId) {
             try {
                 const { data: refiSnap } = await supabase
                     .from('memory_items')
