@@ -53,6 +53,7 @@ export type CalcType =
     | 'about_difference'
     | 'about_data'
     | 'about_founder'
+    | 'how_it_works'
     | 'no_calc_match';
 
 export interface DispatchResult {
@@ -338,6 +339,10 @@ function isUWStarterQuestion(q: string): boolean {
     return /^show\s+me\s+(the\s+)?ask\s+underwriting|^ask\s+underwriting\s+starter|^open\s+(ask\s+underwriting|the\s+homerates\s+underwriting)/i.test(q.trim());
 }
 
+function isHowItWorksQuestion(q: string): boolean {
+    return /^(how (does |do )?homerates|how it works|how does this work|show me how|tips for|first.time|getting started|what can (i|you) ask|how (do i|should i) use)/i.test(q.trim());
+}
+
 function isAboutQuestion(q: string): boolean {
     return /^(what is homerates|heard about homerates|who built homerates|who created homerates|who made homerates|founder of homerates|what makes you different|tell me about this site)/i.test(q.trim());
 }
@@ -374,6 +379,9 @@ export function dispatch(
     // ── -1. LAB CARD ──
     if (isLabQuestion(q)) {
         return { type: 'lab', params: null, confidence: 1, assumptions: [] };
+    }
+    if (isHowItWorksQuestion(q)) {
+        return { type: 'how_it_works', params: null, confidence: 1, assumptions: [] };
     }
     if (isUWStarterQuestion(q)) {
         return { type: 'uw_starter', params: null, confidence: 1, assumptions: [] };

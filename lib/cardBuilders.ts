@@ -1657,5 +1657,73 @@ export function getContextChips(
         ];
     }
 
+
+
     return null;
+}
+
+// ─────────────────────────────────────────────
+// HOW IT WORKS CARD
+// ─────────────────────────────────────────────
+
+export function buildHowItWorksCard(): BuiltCard {
+    const answer = `## 🧭 How HomeRates.ai Works
+
+**What it is.** A real-time mortgage intelligence tool — not a lender, not a broker, not an AI chatbot guessing at numbers. Every calculation is deterministic: same inputs always produce the same output.
+
+**How answers are built.**
+
+| Layer | What it does |
+|---|---|
+| Calc engine | Computes payments, DTI, DSCR, MIP, PMI — no LLM involved |
+| FRED live data | Pulls Freddie Mac rates, 10Y Treasury, Fed funds — updated weekly |
+| UW guidelines | Fannie Mae, FHA, VA, USDA agency rules — cited by source |
+| Grok AI | Explains results in plain language, answers follow-up questions |
+
+**Chips — your fastest tool.** After every answer, chips appear below. Each one is pre-loaded with your exact scenario — click to instantly run a variation without retyping anything.
+
+**Memory.** HomeRates.ai remembers your scenario within a session. Ask "what if rate drops to 6%?" after a calc and it knows what home, what down payment, what loan — no need to repeat yourself.
+
+**What it can't do.** It cannot pull your credit, lock a rate, or submit an application. It gives you the analysis — you negotiate with lenders from strength.
+
+---
+💡 **First-timer tips:**
+- Start with a real number: *"$650k home, 15% down, 6.75%"*
+- Ask your county: *"FHA loan in Irvine"* → gets county-specific limits
+- Compare programs: *"FHA vs conventional on $500k"*
+- Ask income: *"What income do I need to qualify?"* after any calc
+
+---
+*Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
+
+    const follow_up_chips = [
+        {
+            label: 'How are payments calculated?',
+            seed: 'How it works: how does HomeRates.ai calculate mortgage payments — is it using real formulas or AI guessing?',
+        },
+        {
+            label: 'Where do the rates come from?',
+            seed: 'How it works: where does HomeRates.ai get its mortgage rate data — what is FRED and Freddie Mac PMMS?',
+        },
+        {
+            label: 'How do chips work?',
+            seed: 'How it works: what are the chips that appear after each answer and how do I use them to explore scenarios?',
+        },
+        {
+            label: 'What can I ask it?',
+            seed: 'How it works: what kinds of mortgage questions can HomeRates.ai answer — give me a full list of scenarios it handles',
+        },
+        {
+            label: 'Run my first scenario',
+            seed: 'Show me the HomeRates Lab',
+        },
+    ];
+
+    return {
+        answer,
+        next_step: 'Try a scenario — type a home price, income, or refi balance to get started.',
+        follow_up: follow_up_chips[0].label,
+        follow_up_chips,
+        confidence: '1.00 (HomeRates.ai — static how it works card)',
+    };
 }
