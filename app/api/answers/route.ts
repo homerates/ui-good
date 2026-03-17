@@ -2510,16 +2510,15 @@ async function handle(req: NextRequest, intentParam?: string) {
             }
         }
 
-        // Current rate — handles "current rate is 6.5%" / "at 6.5%" / "6.5% rate"
-        const curRM =
+        // Current rate — explicit patterns only; catch-all fallback EXCLUDED here.
+        // The catch-all (first % in question) is unreliable for follow-ups where the question
+        // may reference a target/scenario rate rather than the user's actual current rate.
+        // Snapshot fill below handles the follow-up case correctly.
+        const curRMExplicit =
             qFull.match(/\b(?:current\s*rate|my\s*rate)\b\s*(?:is\s+)?(\d+\.?\d*)\s*%/i) ??
             qFull.match(/\bat\s+(\d+\.?\d*)\s*%/i) ??
-            qFull.match(/(\d+\.?\d*)\s*%\s*(?:rate|interest|on\s*my|current)/i) ??
-            (() => {
-                const all = [...qFull.matchAll(/(\d+\.?\d*)\s*%/g)].map(m => parseFloat(m[1])).filter(r => r > 1 && r < 20);
-                return all.length >= 1 ? { 1: String(all[0]) } as any : null;
-            })();
-        const currentRate = curRM ? parseFloat(curRM[1]) : null;
+            qFull.match(/(\d+\.?\d*)\s*%\s*(?:rate|interest|on\s*my|current)/i);
+        let currentRate = curRMExplicit ? parseFloat(curRMExplicit[1]) : null;
 
         // New/target rate
         const newRM =
