@@ -13,8 +13,7 @@ export default function MenuButton({ isOpen, onToggle }: Props) {
         <button
             type="button"
             aria-label={title}
-            title={title}
-            aria-pressed={isOpen}
+            aria-expanded={isOpen}
             className={`hamburger${isOpen ? ' open' : ''}`}
             onClick={onToggle}
         >
