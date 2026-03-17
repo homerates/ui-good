@@ -4846,7 +4846,7 @@ What's your scenario?`,
         const params = extractDSCRParams(question, fred?.mort30Avg ?? undefined);
         if (params.hasInfo) {
             console.log('[DSCR] Calculating DSCR with params:', params);
-            dscrAnswer = buildDSCRMarkdown(params);
+            dscrAnswer = null; // disabled — calcEngine-dscr handles all DSCR questions
             console.log('[DSCR] Generated DSCR analysis, DSCR =', (params.grossMonthlyRent! / ((params.purchasePrice! * (1 - params.downPaymentPct! / 100)) * ((params.interestRate! / 100 / 12) * Math.pow(1 + params.interestRate! / 100 / 12, 360)) / (Math.pow(1 + params.interestRate! / 100 / 12, 360) - 1) + (params.purchasePrice! * (params.propertyTaxRate! / 100)) / 12 + 100 + (params.hoaMonthly || 0))).toFixed(2));
         } else {
             console.log('[DSCR] Missing info, asking for rent');
