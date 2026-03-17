@@ -2005,6 +2005,12 @@ export default function Page() {
         setInput(seed);
         setTimeout(() => send(seed), 50);
     }
+    const onHowItWorks = () => {
+        const seed = 'How does HomeRates.ai work?';
+        newChat();
+        setInput(seed);
+        setTimeout(() => send(seed), 50);
+    };
 
     function closeAllOverlays() {
         setShowSearch(false);
@@ -2036,6 +2042,7 @@ export default function Page() {
                 onLabSeed={onLabSeed}
                 onAskUnderwriting={onAskUnderwriting}
                 onAboutHomeRates={onAboutHomeRates}
+                onHowItWorks={onHowItWorks}
                 onProjectAction={handleProjectAction}
                 onMoveChatToProject={handleMoveChatToProject}
             />
