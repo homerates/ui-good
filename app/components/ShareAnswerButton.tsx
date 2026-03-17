@@ -46,10 +46,29 @@ export function ShareAnswerButton({
             }
 
             if (method === 'link') {
-                // Copy to clipboard
-                await navigator.clipboard.writeText(data.url);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
+                // Copy to clipboard — navigator.clipboard fails on mobile if
+                // document loses focus after async fetch; fall back to execCommand.
+                let didCopy = false;
+                try {
+                    await navigator.clipboard.writeText(data.url);
+                    didCopy = true;
+                } catch {
+                    try {
+                        const el = document.createElement('input');
+                        el.value = data.url;
+                        el.style.position = 'fixed';
+                        el.style.opacity = '0';
+                        document.body.appendChild(el);
+                        el.focus();
+                        el.select();
+                        didCopy = document.execCommand('copy');
+                        document.body.removeChild(el);
+                    } catch {
+                        didCopy = false;
+                    }
+                }
+                setCopied(didCopy);
+                if (didCopy) setTimeout(() => setCopied(false), 2000);
             }
 
             // Email will be sent by the API, just close modal
