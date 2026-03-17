@@ -3514,7 +3514,12 @@ ${uwAnswerText}`,
             ?? question.match(/(?:at|to)\s+([\d]+\.?\d*)\s*%/i))![1]) : null;
 
     const isFollowUp = /what if|what about|instead|same but|show me|if rates?|rates? drop|rates? go|rates? fall|drop to|down to|how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify/i.test(question);
-    if (isFollowUp && snapshotLoanType &&
+    // isDSCRFollowUp: fires when prior DSCR snapshot exists and dispatch couldn't extract full params
+    // catches natural follow-ups like "run my numbers", "calculate", "try at 7%" that isFollowUp misses
+    const isDSCRFollowUp = snapshotLoanType === 'calcEngine-dscr' &&
+        snapshotJson?.scenario_inputs &&
+        (calcDispatch.type === 'dscr_needs_input' || calcDispatch.type === 'no_calc_match');
+    if ((isFollowUp || isDSCRFollowUp) && snapshotLoanType &&
         calcDispatch.type !== 'uw_starter' && calcDispatch.type !== 'lab' && calcDispatch.type !== 'about' && calcDispatch.type !== 'how_it_works' &&
         (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
         if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
