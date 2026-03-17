@@ -57,6 +57,7 @@ export type SidebarProps = {
 
   // Optional About HomeRates handler
   onAboutHomeRates?: () => void;
+  onHowItWorks?: () => void;
 
   // Optional intelligence layer hook
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
@@ -110,6 +111,7 @@ export default function Sidebar(props: SidebarProps) {
     onNewProject: rawOnNewProject,
     onAskUnderwriting: rawOnAskUnderwriting,
     onAboutHomeRates: rawOnAboutHomeRates,
+    onHowItWorks: rawOnHowItWorks,
     onKnowledgeTool: rawOnKnowledgeTool,
     onProjectAction,
     onMoveChatToProject,
@@ -146,7 +148,9 @@ export default function Sidebar(props: SidebarProps) {
   const onAboutHomeRates = rawOnAboutHomeRates
     ? autoWrap(rawOnAboutHomeRates)
     : undefined;
-
+  const onHowItWorks = rawOnHowItWorks
+    ? autoWrap(rawOnHowItWorks)
+    : undefined;
   const onKnowledgeTool = rawOnKnowledgeTool;
 
   // Chat selection: also auto-close on mobile so answers are visible
@@ -386,6 +390,13 @@ export default function Sidebar(props: SidebarProps) {
           {onAboutHomeRates && (
             <button className="btn" onClick={onAboutHomeRates} type="button">
               About HomeRates.ai
+            </button>
+          )}
+
+          {/* How It Works – first-timer guide */}
+          {onHowItWorks && (
+            <button className="btn" onClick={onHowItWorks} type="button">
+              How It Works
             </button>
           )}
         </div>
