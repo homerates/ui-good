@@ -4745,13 +4745,7 @@ What's your situation?`,
 
                 const fhaFollowUp = chips[0]?.label ?? "Want to explore different down payment or loan scenarios?";
 
-                fhaAnswer = {
-                    answer: fhaMarkdown + comparisonAppend,
-                    next_step: "Get FHA pre-approval from an FHA-approved lender. Check credit score and verify down payment source.",
-                    follow_up: fhaFollowUp,
-                    follow_up_chips: chips,
-                    confidence: "1.00 (calculated using official FHA guidelines and MIP rates)"
-                };
+                fhaAnswer = null; // disabled — calcEngine-fha handles all FHA calculations
 
                 console.log('[FHA] Generated FHA analysis');
 
@@ -4795,46 +4789,13 @@ With **<10% down**: MIP lasts for the **life of the loan** (never cancels automa
 
 To remove MIP before 11 years: refinance to conventional once you reach 20% equity.`;
 
-                fhaAnswer = {
-                    answer: (hadLowDown || !had10Down) ? mipLowDownAnswer : mipHighDownAnswer,
-                    next_step: "To exit FHA MIP, refinance to conventional at 20% LTV.",
-                    follow_up: "Want me to calculate when you'd hit 20% equity and the refinance break-even point?",
-                    confidence: "1.00 (FHA MIP policy per HUD guidelines)"
-                };
+                fhaAnswer = null; // disabled — UW bypass handles MIP knowledge questions
                 console.log('[FHA] Answered MIP duration knowledge question');
             } else {
                 // Need more info
                 console.log('[FHA] Asking for FHA info');
 
-                fhaAnswer = {
-                    answer: `**FHA Loan Calculator**
-
-I can help you calculate an FHA loan with all costs including:
-- ✅ UFMIP (Upfront Mortgage Insurance Premium)
-- ✅ Monthly MIP (Mortgage Insurance Premium)  
-- ✅ DTI analysis (qualify or not)
-- ✅ FHA vs Conventional comparison
-
-**To calculate, I need:**
-- Purchase price
-- Interest rate (or I'll use current rates)
-
-**Optional but helpful:**
-- Your income (for DTI qualification)
-- Monthly debts (car, student loans, etc.)
-- Credit score
-- Property tax rate in your area
-
-**Examples:**
-- "FHA loan on $300k home at 6.5%"
-- "I make $75k, want FHA loan on $280k house, have $400 car payment"
-- "FHA with 3.5% down on $350k, credit score 620, property tax 1.5%"
-
-What's your scenario?`,
-                    next_step: "Share property price and rate (or income for full DTI analysis).",
-                    follow_up: "What's the purchase price and do you know your credit score?",
-                    confidence: "1.00 (ready to calculate FHA loan)"
-                };
+                fhaAnswer = null; // disabled — buildFHANeedsInputCard handles needs-input
             } // end else (not MIP knowledge question)
         }
     }
