@@ -2279,23 +2279,42 @@ export default function Page() {
                             boxSizing: 'border-box',
                         }}
                     >
-                        <input
+                        <textarea
                             className="hr-composer-input"
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
                             value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={onKey}
+                            rows={1}
+                            onChange={(e) => {
+                                setInput(e.target.value);
+                                // Auto-grow: reset then set to scrollHeight
+                                e.target.style.height = 'auto';
+                                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+                            }}
+                            onKeyDown={(e) => {
+                                // Enter sends, Shift+Enter adds newline
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    onKey(e as any);
+                                } else if (e.key === 'Enter' && e.shiftKey) {
+                                    // allow newline — do nothing
+                                }
+                            }}
                             style={{
                                 flex: '1 1 auto',
                                 minWidth: 0,
-                                height: 36, // compact (about half your old tall pill)
-                                borderRadius: 9999, // true pill
+                                minHeight: 36,
+                                maxHeight: 160,
+                                borderRadius: 18,
                                 border: '1px solid #E5E7EB',
-                                padding: '6px 40px 6px 12px', // room on the right for the arrow circle
+                                padding: '8px 40px 8px 12px',
                                 background: '#FFFFFF',
-                                fontSize: 16, // >=16 prevents iOS zoom on focus
-                                lineHeight: 1.3,
+                                fontSize: 16,
+                                lineHeight: 1.5,
                                 boxSizing: 'border-box',
+                                resize: 'none',
+                                overflowY: 'auto',
+                                display: 'block',
+                                verticalAlign: 'top',
                             }}
                         />
 
@@ -2309,8 +2328,7 @@ export default function Page() {
                             style={{
                                 position: 'absolute',
                                 right: 16,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
+                                bottom: 16,
                                 width: 24, // small circle
                                 height: 24,
                                 borderRadius: 9999,
@@ -2709,7 +2727,7 @@ export default function Page() {
                             inset: 0,
                             backgroundColor: 'rgba(0,0,0,0.45)',
                             display: 'flex',
-                            alignItems: 'center',
+                            alignItems: 'flex-end',
                             justifyContent: 'center',
                             zIndex: 6000,
                         }}
