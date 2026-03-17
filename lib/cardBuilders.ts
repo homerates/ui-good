@@ -28,7 +28,7 @@ import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 // FORMAT HELPERS
 // ─────────────────────────────────────────────
 const f$ = (n: number) => `$${Math.round(n).toLocaleString()}`;
-const fK = (n: number) => `$${(Math.round(n / 100) / 10).toFixed(0)}k`;
+const fK = (n: number) => { const k = Math.round(n / 1000); return k >= 1000 ? `$${(k / 1000).toFixed(1).replace(/\.0$/, '')}M` : `$${k}k`; };
 const fPct = (n: number) => `${n.toFixed(2)}%`;
 const fPct1 = (n: number) => `${n.toFixed(1)}%`;
 const fMo = (n: number) => `${Math.ceil(n)} months`;
@@ -128,26 +128,24 @@ ${dtiSection}
 
     const chips: BuiltCard['follow_up_chips'] = [
         {
-            label: `Rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}% — new payment?`,
+            label: `Rates drop to ${(r.annualRatePct - 0.5).toFixed(2)}% — how much do I save?`,
             seed: `Same home, rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}%`,
             paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct },
             changedKeys: ['annualRatePct'],
         },
         {
-            label: `Rate drops to ${(r.annualRatePct - 1).toFixed(2)}% — new payment?`,
-            seed: `Same home, rate drops to ${(r.annualRatePct - 1).toFixed(2)}%`,
-            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 1).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct },
-            changedKeys: ['annualRatePct'],
-        },
-        {
-            label: `What if I put ${r.downPaymentPct < 20 ? '20' : '10'}% down?`,
+            label: r.downPaymentPct < 20 ? `20% down — does PMI disappear and what's the real savings?` : `10% down — what does PMI add to my monthly?`,
             seed: `Same home with ${r.downPaymentPct < 20 ? '20' : '10'}% down`,
             paramOverrides: { downPaymentPct: r.downPaymentPct < 20 ? 20 : 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct },
             changedKeys: ['downPaymentPct'],
         },
         {
-            label: `FHA vs conventional on ${fK(r.purchasePrice)}`,
+            label: `FHA vs conventional — which puts me in this home cheaper?`,
             seed: `Compare FHA 3.5% down vs conventional ${r.downPaymentPct}% down on a ${fK(r.purchasePrice)} home at ${rateStr}`
+        },
+        {
+            label: `What income do I need to qualify for this home?`,
+            seed: `What income do I need to qualify for a ${fK(r.purchasePrice)} home at ${rateStr} with ${r.downPaymentPct}% down?`
         },
     ];
 
@@ -291,23 +289,21 @@ ${dtiSection}${incomeSection}${compSection}
 
     const chips: BuiltCard['follow_up_chips'] = [
         {
-            label: `Rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}% — new FHA payment?`,
-            seed: `Same FHA loan, rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}%`,
-            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, isFHA: true },
-            changedKeys: ['annualRatePct'],
-        },
-        {
-            label: `What if I put 10% down instead?`,
+            label: `10% down instead — does MIP disappear after 11 years?`,
             seed: `FHA loan on ${fK(r.purchasePrice)} home with 10% down at ${rateStr}`,
             paramOverrides: { downPaymentPct: 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct, isFHA: true },
             changedKeys: ['downPaymentPct'],
         },
         {
-            label: `FHA vs conventional — which is cheaper?`,
+            label: `FHA vs conventional — which is cheaper over 7 years?`,
             seed: `Compare FHA ${r.downPaymentPct}% down vs conventional 5% down on ${fK(r.purchasePrice)} at ${rateStr}`
         },
         {
-            label: `What income do I need to qualify?`,
+            label: `When can I refinance out of FHA MIP?`,
+            seed: `Ask Underwriting: when can I refinance from FHA to conventional to eliminate MIP on a ${fK(r.purchasePrice)} home with ${r.downPaymentPct}% down?`
+        },
+        {
+            label: `What income do I need to qualify for this FHA loan?`,
             seed: `What income do I need to qualify for FHA on a ${fK(r.purchasePrice)} home at ${rateStr}?`
         },
     ];
@@ -436,27 +432,24 @@ ${mipSection}${resetSection}${waitSection}
 - **Lock timing:** Once decided, lock within 5–7 business days
 - **Get 3 quotes** — costs vary $5k–$15k between lenders on jumbo loans`;
 
-    const balK = Math.round(r.currentBalance / 1000);
     const chips: BuiltCard['follow_up_chips'] = [
         {
-            label: `What if rates drop to ${(r.newRatePct - 0.5).toFixed(2)}%?`,
+            label: `Rates drop to ${(r.newRatePct - 0.5).toFixed(2)}% — how much more do I save?`,
             seed: `Same refi but rates drop to ${(r.newRatePct - 0.5).toFixed(2)}%`,
             paramOverrides: { newRatePct: parseFloat((r.newRatePct - 0.5).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
             changedKeys: ['newRatePct'],
         },
         {
-            label: `What if rates drop to ${(r.newRatePct - 1).toFixed(2)}%?`,
-            seed: `Same refi but rates drop to ${(r.newRatePct - 1).toFixed(2)}%`,
-            paramOverrides: { newRatePct: parseFloat((r.newRatePct - 1).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
-            changedKeys: ['newRatePct'],
-        },
-        {
-            label: `20yr refi vs 30yr — show me the math`,
+            label: `20yr vs 30yr refi — how much interest do I save over the life of the loan?`,
             seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}`
         },
         {
-            label: `Extra payments vs refi — what wins?`,
+            label: `Extra payments vs refi — which builds equity faster?`,
             seed: `Compare refinancing ${fK(r.currentBalance)} at ${fPct(r.currentRatePct)} to ${fPct(r.newRatePct)} vs making extra principal payments`
+        },
+        {
+            label: `No-cost refi — what rate do I need to cover closing costs?`,
+            seed: `What rate do I need for a no-cost refi on my ${fK(r.currentBalance)} mortgage at ${fPct(r.currentRatePct)}?`
         },
     ];
 
@@ -919,12 +912,12 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
             paramOverrides: { annualRatePct: parseFloat((r.annualRatePct + 0.5).toFixed(2)), purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), downPaymentPct: r.downPaymentPct }
         },
         {
-            label: `What if I put 30% down?`,
+            label: `What if I put 30% down — does cash flow turn positive?`,
             seed: `Same property with 30% down`,
             paramOverrides: { downPaymentPct: 30, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
         },
         {
-            label: `What rent hits 1.25x DSCR?`,
+            label: `What rent do I need for 1.25x DSCR — lender approval threshold?`,
             seed: `What monthly rent do I need for 1.25x DSCR on a ${fK(r.purchasePrice)} property at ${rateStr} with ${r.downPaymentPct}% down?`
         },
     ];
