@@ -1490,7 +1490,7 @@ async function callGrokOnce(prompt: string) {
                     messages: [{ role: "user", content: prompt }],
                     response_format: { type: "json_object" },
                     temperature: 0.25,
-                    max_tokens: 900,
+                    max_tokens: 650,
                 }),
                 cache: "no-store",
             },
@@ -1897,7 +1897,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .eq("clerk_user_id", userId)
                 .eq("memory_thread_id", memoryThreadId)
                 .order("created_at", { ascending: false })
-                .limit(6);
+                .limit(3);
 
             if (!error && Array.isArray(turns) && turns.length) {
                 const ordered = [...turns].reverse(); // chronological
@@ -1915,7 +1915,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
                         const aTrim = a.trim();
                         if (!q && !aTrim) return "";
-                        return `Turn ${idx + 1}\nUser: ${q}\nAssistant: ${aTrim}`.trim();
+                        return `Turn ${idx + 1}\nUser: ${q}\nAssistant: ${aTrim.slice(0, 300)}`.trim();
                     })
                     .filter(Boolean)
                     .join("\n\n");
@@ -3280,12 +3280,12 @@ ${uwDatabase}`;
                     'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
                 },
                 body: JSON.stringify({
-                    model: 'grok-3-mini',
+                    model: 'grok-4-1-fast-non-reasoning',
                     messages: [
                         { role: 'system', content: uwSystemPrompt },
                         { role: 'user', content: question },
                     ],
-                    max_tokens: 2500,
+                    max_tokens: 1200,
                     temperature: 0.15,
                 }),
             });
