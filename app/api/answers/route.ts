@@ -4041,12 +4041,7 @@ ${dtiSection}
                     followUp = `Strong DTI at ${frontEndDTI}%. Want to compare 15-year vs 30-year to save on total interest?`;
                 }
 
-                mortgageAnswer = {
-                    answer: mortgageMarkdown,
-                    next_step: `Get pre-approved with 2-3 lenders. Closing costs estimated at ~$${Math.round(result.loanAmount * 0.025).toLocaleString()}.`,
-                    follow_up: followUp,
-                    confidence: "1.00 (calculated using verified mortgage formula)"
-                };
+                mortgageAnswer = null; // disabled — calcEngine-conventional handles all conventional questions
 
                 // Keep context for Grok fallback (if mortgage answer somehow null)
                 mortgageCalcContext = `MORTGAGE CALCULATION (PRE-CALCULATED):\n- Monthly P&I: $${result.monthlyPI}\n- Total Interest: $${result.totalInterest}\nCRITICAL: Use these numbers EXACTLY.`;
