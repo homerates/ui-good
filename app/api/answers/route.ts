@@ -2562,7 +2562,27 @@ async function handle(req: NextRequest, intentParam?: string) {
         const marketRate = fred?.mort30Avg ?? null;
         const fredAsOf = fred?.asOf ?? generatedAt.slice(0, 10);
 
-        // ── If missing key inputs — smart ask with context ──
+        // ── If missing key inputs — check snapshot before giving up ──
+        // snapshotJson is resolved later in route.ts but this bypass fires first.
+        // Fetch the most recent refi snapshot inline so currentRate/balance can be filled from prior turn.
+        if ((!balance || !currentRate) && supabase && memoryThreadId && chatId) {
+            try {
+                const { data: refiSnap } = await supabase
+                    .from('memory_items')
+                    .select('content_json')
+                    .eq('memory_thread_id', memoryThreadId)
+                    .eq('kind', 'scenario_snapshot')
+                    .eq('content_json->>chat_id', chatId)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+                if (refiSnap?.content_json) {
+                    const sj = refiSnap.content_json;
+                    if (!currentRate && sj.current_rate_pct) (currentRate as any) = Number(sj.current_rate_pct);
+                    if (!balance && sj.loan_amount) balance = Number(sj.loan_amount);
+                }
+            } catch { /* silent — falls through to needs_input if no snap */ }
+        }
         if (!balance || !currentRate) {
             const marketNote = marketRate
                 ? `\n\n> 📡 **Today's market rate: ${fPct(marketRate)}** (FRED, live ${fredAsOf})`
