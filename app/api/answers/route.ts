@@ -3290,7 +3290,9 @@ ${uwDatabase}`;
                 }),
             });
             const xaiData = await xaiRes.json() as any;
-            uwAnswerText = xaiData?.choices?.[0]?.message?.content || 'Unable to retrieve guideline data.';
+            uwAnswerText = (xaiData?.choices?.[0]?.message?.content || 'Unable to retrieve guideline data.')
+                .replace(/\*\*(\$[\d,]+(?:\.\d+)?%?)\*\*/g, '$1')  // strip ** around dollar amounts and percentages
+                .replace(/\*\*(\d[\d,]*(?:\.\d+)?%?)\*\*/g, '$1'); // strip ** around plain numbers
         } catch (uwErr: any) {
             console.error('[UW Guidelines] AI call failed:', uwErr?.message);
             uwAnswerText = 'Unable to retrieve guideline data. Please try again.';
