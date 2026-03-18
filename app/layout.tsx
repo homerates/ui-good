@@ -8,6 +8,9 @@ import LegalLinks from "./components/LegalLinks";
 export const metadata = {
   title: "HomeRates",
   description: "Mortgage Q&A with market context",
+  verification: {
+    google: 'IFO6kyqdiob63QHj5ua4q-5LUnFErGkfN27SXd85Ryk',
+  },
 };
 
 // Force SSR on the root so Clerk is never statically exported
