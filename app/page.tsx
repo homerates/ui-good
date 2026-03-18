@@ -1026,9 +1026,15 @@ export default function Page() {
         const from = searchParams.get('fromShare');
         const sq = searchParams.get('sq');
 
-        if (from === '1' && sq && !input) {
-            setInput(sq);
+        if (sq && !input && messages.length === 0) {
             hasSeededFromShareRef.current = true;
+            if (from === '1') {
+                // fromShare: just pre-fill, don't auto-send
+                setInput(sq);
+            } else {
+                // SEO seed: auto-fire immediately
+                setTimeout(() => send(sq), 300);
+            }
         }
     }, [searchParams, input, setInput]);
 
