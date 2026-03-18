@@ -1019,6 +1019,8 @@ export default function Page() {
     }, [messages, loading]);
 
     // If the user came from a shared answer card, pre-fill the composer with that question
+    // If sq param present without fromShare=1, auto-fire (SEO landing page seeds)
+    const pendingSeedRef = React.useRef<string | null>(null);
     useEffect(() => {
         if (!searchParams) return;
         if (hasSeededFromShareRef.current) return;
@@ -1032,11 +1034,22 @@ export default function Page() {
                 // fromShare: just pre-fill, don't auto-send
                 setInput(sq);
             } else {
-                // SEO seed: auto-fire immediately
-                setTimeout(() => send(sq), 300);
+                // SEO seed: set input and mark pending — send fires in separate effect
+                setInput(sq);
+                pendingSeedRef.current = sq;
             }
         }
     }, [searchParams, input, setInput]);
+
+    // Fires send() once input is set from SEO seed — send is in scope here
+    useEffect(() => {
+        if (!pendingSeedRef.current) return;
+        const sq = pendingSeedRef.current;
+        if (input !== sq) return; // wait until input state matches
+        pendingSeedRef.current = null;
+        const t = setTimeout(() => send(sq), 100);
+        return () => clearTimeout(t);
+    }, [input]);
 
     // Load shared thread from URL param ?shared=slug
     const hasLoadedSharedRef = React.useRef(false);
