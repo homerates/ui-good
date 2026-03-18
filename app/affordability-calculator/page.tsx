@@ -281,21 +281,17 @@ export default function AffordabilityCalculatorPage() {
                         </a>
                     </div>
 
-                    {/* Iframe embed of the live calculator */}
-                    <div className="chat-embed-wrapper">
-                        <iframe
-                            src="/?seed=affordability&embed=1"
-                            title="HomeRates.ai Mortgage Affordability Calculator"
-                            loading="lazy"
-                            allow="clipboard-write"
-                            className="chat-iframe"
-                        />
+                    {/* CTA — links to live chat with question pre-fired */}
+                    <div className="cta-block">
+                        <a href="/?sq=I+make+%2495k+and+have+%2440k+saved" className="cta-button">
+                            Calculate my affordability →
+                        </a>
+                        <p className="cta-sub">Free · No login required · Result in seconds</p>
+                        <p className="cta-sub" style={{ marginTop: 4 }}>
+                            Want saved scenarios and session memory?{' '}
+                            <Link href="/sign-up">Create a free account</Link>
+                        </p>
                     </div>
-
-                    <p className="embed-cta">
-                        Want full session memory and saved scenarios?{' '}
-                        <Link href="/sign-up">Create a free account →</Link>
-                    </p>
                 </section>
 
                 {/* ── WHAT YOU GET ── */}
@@ -561,19 +557,22 @@ export default function AffordabilityCalculatorPage() {
                     transition: border-color 0.15s;
                 }
                 .seed-chip:hover { border-color: rgba(0,0,0,0.3); }
-                .chat-embed-wrapper {
-                    border-radius: 12px; overflow: hidden;
-                    border: 1px solid rgba(0,0,0,0.08);
-                    background: white; min-height: 480px;
+                .cta-block {
+                    text-align: center; padding: 1.5rem 0 0.5rem;
                 }
-                .chat-iframe {
-                    width: 100%; height: 480px; border: none; display: block;
+                .cta-button {
+                    display: inline-block; padding: 14px 32px;
+                    background: #111827; color: #ffffff;
+                    border-radius: 999px; font-size: 1rem;
+                    font-weight: 600; text-decoration: none;
+                    transition: opacity 0.15s;
                 }
-                .embed-cta {
-                    margin: 1rem 0 0; font-size: 13px;
-                    color: var(--muted, #6b7280); text-align: center;
+                .cta-button:hover { opacity: 0.85; }
+                .cta-sub {
+                    margin: 10px 0 0; font-size: 13px;
+                    color: var(--muted, #6b7280);
                 }
-                .embed-cta a { color: var(--accent, #22c55e); }
+                .cta-sub a { color: var(--accent, #22c55e); }
 
                 /* Sections */
                 h2 {
