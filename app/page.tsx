@@ -5,7 +5,7 @@
 
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from './components/Sidebar';
 import MortgageCalcPanel from './components/MortgageCalcPanel';
@@ -981,6 +981,7 @@ export default function Page() {
 
     const router = useRouter();
     const { isSignedIn, user } = useUser();
+    const { isLoaded: clerkLoaded } = useAuth();
 
     const [messages, setMessages] = useState<ChatMsg[]>([
         {
@@ -1028,18 +1029,18 @@ export default function Page() {
         const from = searchParams.get('fromShare');
         const sq = searchParams.get('sq');
 
-        if (sq && !input && messages.length === 0) {
-            hasSeededFromShareRef.current = true;
-            if (from === '1') {
-                // fromShare: just pre-fill, don't auto-send
-                setInput(sq);
-            } else {
-                // SEO seed: set input and mark pending — send fires in separate effect
-                setInput(sq);
-                pendingSeedRef.current = sq;
-            }
+        if (!sq) return;
+        hasSeededFromShareRef.current = true;
+
+        if (from === '1') {
+            // fromShare: just pre-fill, don't auto-send
+            setInput(sq);
+        } else {
+            // SEO seed: set input and mark pending — send fires in separate effect
+            setInput(sq);
+            pendingSeedRef.current = sq;
         }
-    }, [searchParams, input, setInput]);
+    }, [searchParams]);
 
     // Fires send() once input is set from SEO seed — send is in scope here
     useEffect(() => {
