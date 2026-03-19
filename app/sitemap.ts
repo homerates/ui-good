@@ -34,5 +34,36 @@ export default function sitemap(): MetadataRoute.Sitemap {
             changeFrequency: 'weekly',
             priority: 0.8,
         },
+        // Income cluster pages
+        {
+            url: `${base}/how-much-house-can-i-afford-on-80k-salary`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
+        {
+            url: `${base}/how-much-house-can-i-afford-on-95k-salary`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
+        {
+            url: `${base}/how-much-house-can-i-afford-on-100k-salary`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
+        {
+            url: `${base}/how-much-house-can-i-afford-on-120k-salary`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
+        {
+            url: `${base}/how-much-house-can-i-afford-on-150k-salary`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
     ];
 }
