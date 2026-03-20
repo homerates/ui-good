@@ -3548,6 +3548,7 @@ ${uwAnswerText}`,
         (calcDispatch.type === 'dscr_needs_input' || calcDispatch.type === 'no_calc_match');
     if ((isFollowUp || isDSCRFollowUp) && snapshotLoanType &&
         calcDispatch.type !== 'uw_starter' && calcDispatch.type !== 'lab' && calcDispatch.type !== 'about' && calcDispatch.type !== 'how_it_works' &&
+        !(calcDispatch.type === 'conventional' && calcDispatch.params) &&
         (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
         if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
