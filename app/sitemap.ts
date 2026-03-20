@@ -34,6 +34,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
             changeFrequency: 'weekly',
             priority: 0.8,
         },
+        {
+            url: `${base}/conventional-loan-calculator`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly',
+            priority: 0.9,
+        },
+
         // Income cluster pages
         {
             url: `${base}/how-much-house-can-i-afford-on-80k-salary`,

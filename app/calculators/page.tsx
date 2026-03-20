@@ -59,6 +59,13 @@ const calculators = [
         desc: 'Breakeven analysis, monthly savings, and rate-watch trigger points for your refi decision. Includes FHA-to-conventional refi math and no-cost refi comparison.',
         tags: ['Breakeven analysis', 'Rate triggers', 'FHA-to-Conv refi'],
     },
+    {
+        href: '/conventional-loan-calculator',
+        icon: '🏡',
+        title: 'Conventional Loan Calculator',
+        desc: 'Full conventional payment with PMI, exact PMI cancellation year, DTI analysis, and FHA vs conventional comparison. 2026 FHFA limits.',
+        tags: ['PMI cancellation', 'DTI analysis', 'Fannie Mae'],
+    },
 ];
 
 const incomePages = [
