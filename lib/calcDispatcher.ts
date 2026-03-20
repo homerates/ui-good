@@ -294,7 +294,7 @@ export function isDSCRQuestion(q: string): boolean {
     if (isFHAQuestion(q)) return false;
     if (isAffordabilityQuestion(q)) return false;
     return /dscr|debt.?service.?coverage|investment property|cash.?flow|gross rent|pitia/i.test(q) ||
-        (/rent/i.test(q) && /\$[\s\d,]+k?\b/i.test(q) && /home|house|property|loan|mortgage/i.test(q));
+        (/\brent/i.test(q) && /\$[\s\d,]+k?\b/i.test(q) && /home|house|property|loan|mortgage/i.test(q));
 }
 
 export function isConventionalQuestion(q: string): boolean {

@@ -1071,7 +1071,7 @@ function isDSCRQuestion(q: string): boolean {
     if (isAffordabilityQuestion(q)) return false;
     // Require explicit DSCR/rental signal — "investment property" alone with no rent is not enough
     const hasHardDSCR = /dscr|debt.?service.?coverage|cash.?flow|gross rent|pitia/i.test(q);
-    const hasRentSignal = /rent/i.test(q) && /\$[\s\d,]+k?\b/i.test(q);
+    const hasRentSignal = /\brent/i.test(q) && /\$[\s\d,]+k?\b/i.test(q);
     const hasInvestmentWithRent = /investment property/i.test(q) && hasRentSignal;
     return hasHardDSCR || hasRentSignal && /home|house|property|loan|mortgage/i.test(q) || hasInvestmentWithRent;
 }
