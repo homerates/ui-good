@@ -65,12 +65,13 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
     useEffect(() => {
         // Close sidebar on mobile
         onMount?.();
-        // Scroll to top
-        const scrollEl = document.querySelector('.scroll') as HTMLElement | null;
-        if (scrollEl) scrollEl.scrollTop = 0;
-        // Remove top padding so ticker sits at top of viewport
-        const centerEl = document.querySelector('.center') as HTMLElement | null;
-        if (centerEl) centerEl.style.paddingTop = '4px';
+        // Scroll to top — delay ensures DOM is painted first
+        setTimeout(() => {
+            const scrollEl = document.querySelector('.scroll') as HTMLElement | null;
+            if (scrollEl) scrollEl.scrollTop = 0;
+            const centerEl = document.querySelector('.center') as HTMLElement | null;
+            if (centerEl) centerEl.style.paddingTop = '4px';
+        }, 0);
         // Stagger reveal
         const t = setTimeout(() => setVisible(true), 60);
         return () => {
@@ -145,7 +146,7 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
             {/* ── Styles ── */}
             <style>{`
                 .hr-welcome {
-                    padding: 4px 8px 32px;
+                    padding: 0 8px 32px;
                     max-width: 680px;
                     margin: -16px auto 0;
                     opacity: 0;
@@ -161,12 +162,11 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                 .hr-ticker {
                     display: flex;
                     align-items: center;
-                    gap: 0;
                     background: #f0f4f8;
                     border: 1px solid #e2e8f0;
                     border-radius: 10px;
                     padding: 10px 14px;
-                    margin-bottom: 28px;
+                    margin-bottom: 20px;
                     overflow-x: auto;
                     scrollbar-width: none;
                     gap: 0;
@@ -237,7 +237,7 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
 
                 /* ── Headline ── */
                 .hr-headline {
-                    margin-bottom: 28px;
+                    margin-bottom: 20px;
                 }
                 .hr-headline__title {
                     font-size: clamp(1.6rem, 4vw, 2.2rem);
@@ -258,8 +258,8 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                 .hr-personas {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
-                    gap: 10px;
-                    margin-bottom: 24px;
+                    gap: 8px;
+                    margin-bottom: 16px;
                 }
                 @media (max-width: 480px) {
                     .hr-personas { grid-template-columns: 1fr 1fr; }
