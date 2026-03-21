@@ -1088,12 +1088,11 @@ export default function Page() {
         void loadSharedThread();
     }, [searchParams]);
 
-    const [sidebarOpen, setSidebarOpen] = useState(() => {
-        if (typeof window === 'undefined') {
-            return false; // SSR: default closed, avoids mobile flash
-        }
-        return window.innerWidth >= 1024;
-    });
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    useEffect(() => {
+        setSidebarOpen(window.innerWidth >= 1024);
+    }, []);
 
     const toggleSidebar = () => setSidebarOpen((o) => !o);
 

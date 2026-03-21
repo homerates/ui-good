@@ -145,9 +145,9 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
             {/* ── Styles ── */}
             <style>{`
                 .hr-welcome {
-                    padding: 24px 8px 32px;
+                    padding: 4px 8px 32px;
                     max-width: 680px;
-                    margin: 0 auto;
+                    margin: -16px auto 0;
                     opacity: 0;
                     transform: translateY(8px);
                     transition: opacity 0.35s ease, transform 0.35s ease;
