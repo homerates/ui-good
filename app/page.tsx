@@ -988,8 +988,7 @@ export default function Page() {
         {
             id: uid(),
             role: 'assistant',
-            content:
-                'Ask about a concept (DTI, PMI, FHA) or market (rates vs 10-year).',
+            content: 'New chat. What do you want to figure out?',
         },
     ]);
 
@@ -2123,7 +2122,7 @@ export default function Page() {
                 >
                     <div className="center">
                         <div className="messages">
-                            {messages.length === 1 && messages[0].content === 'New chat. What do you want to figure out?'
+                            {(messages.length === 0 || (messages.length === 1 && messages[0].content === 'New chat. What do you want to figure out?'))
                                 ? <WelcomeScreen
                                     onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
                                     onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
