@@ -8,7 +8,7 @@ import Link from 'next/link';
 export const metadata: Metadata = {
     title: 'Mortgage Calculators 2026 — FHA, DSCR, Affordability & Refi | HomeRates.ai',
     description:
-        'Free mortgage calculators for 2026. FHA loan calculator, DSCR rental property calculator, affordability calculator, and refinance calculator. Live FRED rates, 2026 HUD and FHFA limits.',
+        'Free mortgage calculators for 2026. Conventional, FHA, DSCR, affordability, and refinance calculators. Live FRED rates, 2026 HUD and FHFA limits.',
     openGraph: {
         title: 'Mortgage Calculators 2026 | HomeRates.ai',
         description: 'FHA, DSCR, affordability, and refinance calculators. Live rates. 2026 guidelines.',
@@ -164,6 +164,7 @@ export default function CalculatorsPage() {
                     padding: 2rem 1.5rem 4rem;
                     font-family: var(--font-sans, system-ui, sans-serif);
                     color: var(--fg, #111827); line-height: 1.6;
+                    overflow-y: auto; min-height: 100vh;
                 }
                 .calculators-page .breadcrumb ol {
                     display: flex; gap: 6px; list-style: none;
