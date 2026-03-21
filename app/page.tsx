@@ -1090,11 +1090,9 @@ export default function Page() {
 
     const [sidebarOpen, setSidebarOpen] = useState(() => {
         if (typeof window === 'undefined') {
-            // On the server we don't know the width, default to open (desktop-ish).
-            return true;
+            return false; // SSR: default closed, avoids mobile flash
         }
-        // On the client: keep sidebar open only on larger screens
-        return window.innerWidth >= 1024; // lg breakpoint
+        return window.innerWidth >= 1024;
     });
 
     const toggleSidebar = () => setSidebarOpen((o) => !o);

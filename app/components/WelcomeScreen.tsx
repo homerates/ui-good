@@ -65,12 +65,18 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
     useEffect(() => {
         // Close sidebar on mobile
         onMount?.();
-        // Scroll to top so ticker is visible immediately
+        // Scroll to top
         const scrollEl = document.querySelector('.scroll') as HTMLElement | null;
         if (scrollEl) scrollEl.scrollTop = 0;
-        // Stagger reveal after mount
+        // Remove top padding so ticker sits at top of viewport
+        const centerEl = document.querySelector('.center') as HTMLElement | null;
+        if (centerEl) centerEl.style.paddingTop = '4px';
+        // Stagger reveal
         const t = setTimeout(() => setVisible(true), 60);
-        return () => clearTimeout(t);
+        return () => {
+            clearTimeout(t);
+            if (centerEl) centerEl.style.paddingTop = '';
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
