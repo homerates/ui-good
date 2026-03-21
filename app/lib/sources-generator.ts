@@ -125,30 +125,38 @@ type TavilyMini = {
 };
 
 async function askTavilyProxy(reqUrl: string, query: string, depth: "basic" | "advanced", max: number): Promise<TavilyMini> {
-    const url = new URL("/api/tavily", reqUrl);
+    const apiKey = process.env.TAVILY_API_KEY;
+    if (!apiKey) return { ok: false, answer: null, results: [] };
 
-    const res = await fetch(url.toString(), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-            query,
-            searchDepth: depth,
-            maxResults: max,
-        }),
-        cache: "no-store",
-    });
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
 
-    let parsed: any = null;
     try {
-        parsed = await res.json();
-    } catch {
-        parsed = null;
-    }
+        const res = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+                api_key: apiKey,
+                query,
+                include_answer: true,
+                include_images: false,
+                search_depth: depth,
+                max_results: max,
+            }),
+            signal: controller.signal,
+            cache: "no-store",
+        });
+        clearTimeout(t);
 
-    const ok = !!parsed?.ok;
-    const answer = typeof parsed?.answer === "string" ? parsed.answer : null;
-    const results = Array.isArray(parsed?.results) ? parsed.results : [];
-    return { ok, answer, results };
+        const parsed = await res.json().catch(() => null);
+        const ok = !!parsed?.ok || res.ok;
+        const answer = typeof parsed?.answer === "string" ? parsed.answer : null;
+        const results = Array.isArray(parsed?.results) ? parsed.results : [];
+        return { ok, answer, results };
+    } catch {
+        clearTimeout(t);
+        return { ok: false, answer: null, results: [] };
+    }
 }
 
 function buildUSLockedQuery(topicRaw: string) {
