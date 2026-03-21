@@ -21,7 +21,7 @@ import {
     renameProject,
     deleteProject,
 } from '../lib/projectsClient';
-import WelcomeScreen from './components/WelcomeScreen';
+import WelcomeScreen from '@/components/WelcomeScreen';
 
 
 
