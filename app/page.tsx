@@ -2124,7 +2124,10 @@ export default function Page() {
                     <div className="center">
                         <div className="messages">
                             {messages.length === 1 && messages[0].content === 'New chat. What do you want to figure out?'
-                                ? <WelcomeScreen onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }} />
+                                ? <WelcomeScreen
+                                    onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
+                                    onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                                />
                                 : messages.map((m) => (
                                     <div key={m.id}>
                                         <Bubble role={m.role}>

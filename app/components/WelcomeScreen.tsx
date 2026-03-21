@@ -66,12 +66,12 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
         // Close sidebar on mobile
         onMount?.();
         // Scroll to top so ticker is visible immediately
-        window.scrollTo({ top: 0 });
-        const scrollEl = document.querySelector('.scroll');
+        const scrollEl = document.querySelector('.scroll') as HTMLElement | null;
         if (scrollEl) scrollEl.scrollTop = 0;
         // Stagger reveal after mount
         const t = setTimeout(() => setVisible(true), 60);
         return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
