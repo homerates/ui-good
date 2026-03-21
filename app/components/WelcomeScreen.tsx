@@ -255,7 +255,7 @@ export default function WelcomeScreen({ onSend }: WelcomeScreenProps) {
                     flex-direction: column;
                     align-items: flex-start;
                     padding: 14px 16px;
-                    background: white;
+                    background: var(--surface, white);
                     border: 1.5px solid #e2e8f0;
                     border-radius: 12px;
                     cursor: pointer;
