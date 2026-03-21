@@ -21,6 +21,7 @@ import {
     renameProject,
     deleteProject,
 } from '../lib/projectsClient';
+import WelcomeScreen from './components/WelcomeScreen';
 
 
 
@@ -2122,144 +2123,146 @@ export default function Page() {
                 >
                     <div className="center">
                         <div className="messages">
-                            {messages.map((m) => (
-                                <div key={m.id}>
-                                    <Bubble role={m.role}>
-                                        {m.role === 'assistant' ? (
-                                            // If this is a Grok-style answer with markdown, use GrokCard
-                                            m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
-                                                <>
-                                                    <GrokCard
-                                                        data={{
-                                                            // When chips exist: strip follow_up out of grok entirely
-                                                            // so GrokCard cannot render its own button at all.
-                                                            grok: m.meta.follow_up_chips?.length
-                                                                ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
-                                                                : m.meta.grok,
-                                                            answerMarkdown: sanitizeMarkdown(
-                                                                // Use m.content while typewriter is animating (non-empty),
-                                                                // fall back to m.meta.answerMarkdown once typing completes
-                                                                (typeof m.content === 'string' && m.content.length > 0)
-                                                                    ? m.content
-                                                                    : (m.meta.answerMarkdown ?? '')
-                                                            ),
-                                                            followUp: m.meta.follow_up_chips?.length
-                                                                ? undefined
-                                                                : (m.meta.followUp ?? m.meta.grok?.follow_up),
-                                                            data_freshness:
-                                                                m.meta.data_freshness ??
-                                                                m.meta.fred?.asOf ??
-                                                                '',
-                                                        }}
-                                                        onFollowUp={(q: string) => {
-                                                            // When chips exist, ignore anything GrokCard fires —
-                                                            // chips are the only follow-up mechanism.
-                                                            if (!q || m.meta?.follow_up_chips?.length) return;
-                                                            setInput(q);
-                                                        }}
+                            {messages.length === 1 && messages[0].content === 'New chat. What do you want to figure out?'
+                                ? <WelcomeScreen onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }} />
+                                : messages.map((m) => (
+                                    <div key={m.id}>
+                                        <Bubble role={m.role}>
+                                            {m.role === 'assistant' ? (
+                                                // If this is a Grok-style answer with markdown, use GrokCard
+                                                m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
+                                                    <>
+                                                        <GrokCard
+                                                            data={{
+                                                                // When chips exist: strip follow_up out of grok entirely
+                                                                // so GrokCard cannot render its own button at all.
+                                                                grok: m.meta.follow_up_chips?.length
+                                                                    ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
+                                                                    : m.meta.grok,
+                                                                answerMarkdown: sanitizeMarkdown(
+                                                                    // Use m.content while typewriter is animating (non-empty),
+                                                                    // fall back to m.meta.answerMarkdown once typing completes
+                                                                    (typeof m.content === 'string' && m.content.length > 0)
+                                                                        ? m.content
+                                                                        : (m.meta.answerMarkdown ?? '')
+                                                                ),
+                                                                followUp: m.meta.follow_up_chips?.length
+                                                                    ? undefined
+                                                                    : (m.meta.followUp ?? m.meta.grok?.follow_up),
+                                                                data_freshness:
+                                                                    m.meta.data_freshness ??
+                                                                    m.meta.fred?.asOf ??
+                                                                    '',
+                                                            }}
+                                                            onFollowUp={(q: string) => {
+                                                                // When chips exist, ignore anything GrokCard fires —
+                                                                // chips are the only follow-up mechanism.
+                                                                if (!q || m.meta?.follow_up_chips?.length) return;
+                                                                setInput(q);
+                                                            }}
+                                                        />
+                                                        {/* Admin debug panel — shows raw JSON + math fields */}
+                                                        {ADMIN_USER_IDS.has(user?.id ?? '') && (
+                                                            <DebugPanel meta={m.meta} raw={(m as any).raw} />
+                                                        )}
+                                                        {/* Smart follow-up chips — only show when answer is complete (not loading) */}
+                                                        {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: 6,
+                                                                marginTop: 8,
+                                                                animation: 'chipFadeIn 0.5s ease forwards',
+                                                                opacity: 0,
+                                                            }}>
+                                                                <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
+                                                                {m.meta.follow_up_chips.slice(0, 5).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
+                                                                    <button
+                                                                        key={i}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setInput(chip.seed);
+                                                                            // Capture structured overrides so route.ts can skip text parsing
+                                                                            setPendingParamOverrides((chip as any).paramOverrides ?? null);
+                                                                            setTimeout(() => {
+                                                                                const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
+                                                                                if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+                                                                            }, 50);
+                                                                        }}
+                                                                        style={{
+                                                                            width: '100%',
+                                                                            display: 'block',
+                                                                            padding: '10px 16px',
+                                                                            borderRadius: 9999,
+                                                                            border: '1px solid rgba(156, 163, 175, 0.25)',
+                                                                            background: 'rgba(255,255,255,0.04)',
+                                                                            color: 'inherit',
+                                                                            fontSize: 13,
+                                                                            cursor: 'pointer',
+                                                                            textAlign: 'center',
+                                                                            lineHeight: 1.45,
+                                                                            transition: 'background 0.12s, border-color 0.12s',
+                                                                            fontFamily: 'inherit',
+                                                                        }}
+                                                                        onMouseEnter={e => {
+                                                                            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
+                                                                            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.5)';
+                                                                        }}
+                                                                        onMouseLeave={e => {
+                                                                            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
+                                                                            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.25)';
+                                                                        }}
+                                                                    >
+                                                                        <span style={{ opacity: 0.5, fontWeight: 500, marginRight: 4 }}>Ask:</span>
+                                                                        {chip.label}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : m.meta ? (
+                                                    // Legacy / calc answers still use AnswerBlock (Grok card)
+                                                    <GrokAnswerBlock
+                                                        meta={m.meta}
+                                                        friendly={
+                                                            typeof m.content === 'string'
+                                                                ? m.content
+                                                                : undefined
+                                                        }
                                                     />
-                                                    {/* Admin debug panel — shows raw JSON + math fields */}
-                                                    {ADMIN_USER_IDS.has(user?.id ?? '') && (
-                                                        <DebugPanel meta={m.meta} raw={(m as any).raw} />
-                                                    )}
-                                                    {/* Smart follow-up chips — only show when answer is complete (not loading) */}
-                                                    {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
-                                                        <div style={{
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: 6,
-                                                            marginTop: 8,
-                                                            animation: 'chipFadeIn 0.5s ease forwards',
-                                                            opacity: 0,
-                                                        }}>
-                                                            <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
-                                                            {m.meta.follow_up_chips.slice(0, 5).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
-                                                                <button
-                                                                    key={i}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setInput(chip.seed);
-                                                                        // Capture structured overrides so route.ts can skip text parsing
-                                                                        setPendingParamOverrides((chip as any).paramOverrides ?? null);
-                                                                        setTimeout(() => {
-                                                                            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
-                                                                            if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
-                                                                        }, 50);
-                                                                    }}
-                                                                    style={{
-                                                                        width: '100%',
-                                                                        display: 'block',
-                                                                        padding: '10px 16px',
-                                                                        borderRadius: 9999,
-                                                                        border: '1px solid rgba(156, 163, 175, 0.25)',
-                                                                        background: 'rgba(255,255,255,0.04)',
-                                                                        color: 'inherit',
-                                                                        fontSize: 13,
-                                                                        cursor: 'pointer',
-                                                                        textAlign: 'center',
-                                                                        lineHeight: 1.45,
-                                                                        transition: 'background 0.12s, border-color 0.12s',
-                                                                        fontFamily: 'inherit',
-                                                                    }}
-                                                                    onMouseEnter={e => {
-                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
-                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.5)';
-                                                                    }}
-                                                                    onMouseLeave={e => {
-                                                                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
-                                                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.25)';
-                                                                    }}
-                                                                >
-                                                                    <span style={{ opacity: 0.5, fontWeight: 500, marginRight: 4 }}>Ask:</span>
-                                                                    {chip.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </>
-                                            ) : m.meta ? (
-                                                // Legacy / calc answers still use AnswerBlock (Grok card)
-                                                <GrokAnswerBlock
-                                                    meta={m.meta}
-                                                    friendly={
-                                                        typeof m.content === 'string'
-                                                            ? m.content
-                                                            : undefined
-                                                    }
-                                                />
+                                                ) : (
+                                                    // Bare assistant content fallback
+                                                    typeof m.content === 'string' ? m.content : ''
+                                                )
                                             ) : (
-                                                // Bare assistant content fallback
-                                                typeof m.content === 'string' ? m.content : ''
-                                            )
-                                        ) : (
-                                            // User messages unchanged
-                                            m.content
-                                        )}
-
-                                        {m.role === 'assistant' &&
-                                            m.meta &&
-                                            typeof m.content === 'string' &&
-                                            m.content.trim().length > 40 && (
-                                                <div
-                                                    style={{
-                                                        marginTop: 4,
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end',
-                                                    }}
-                                                >
-                                                    <ShareAnswerButton
-                                                        question="Question asked in HomeRates.ai"
-                                                        answer={m.content}
-                                                        messages={messages}
-                                                        source="thread"
-                                                    />
-                                                </div>
+                                                // User messages unchanged
+                                                m.content
                                             )}
 
+                                            {m.role === 'assistant' &&
+                                                m.meta &&
+                                                typeof m.content === 'string' &&
+                                                m.content.trim().length > 40 && (
+                                                    <div
+                                                        style={{
+                                                            marginTop: 4,
+                                                            display: 'flex',
+                                                            justifyContent: 'flex-end',
+                                                        }}
+                                                    >
+                                                        <ShareAnswerButton
+                                                            question="Question asked in HomeRates.ai"
+                                                            answer={m.content}
+                                                            messages={messages}
+                                                            source="thread"
+                                                        />
+                                                    </div>
+                                                )}
 
-                                    </Bubble>
-                                </div>
-                            ))}
+
+                                        </Bubble>
+                                    </div>
+                                ))}
 
                             {loading && (
                                 <Bubble role="assistant">
