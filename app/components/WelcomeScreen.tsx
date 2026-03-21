@@ -66,10 +66,10 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
         // Close sidebar on mobile
         onMount?.();
         // Scroll to top — delay ensures DOM is painted first
+        const centerEl = document.querySelector('.center') as HTMLElement | null;
         setTimeout(() => {
             const scrollEl = document.querySelector('.scroll') as HTMLElement | null;
             if (scrollEl) scrollEl.scrollTop = 0;
-            const centerEl = document.querySelector('.center') as HTMLElement | null;
             if (centerEl) centerEl.style.paddingTop = '4px';
         }, 0);
         // Stagger reveal
