@@ -6,9 +6,6 @@
 
 import React, { useEffect, useState } from 'react';
 
-interface WelcomeScreenProps {
-    onSend: (seed: string) => void;
-}
 
 // Persona → seed mapping
 const PERSONAS = [
@@ -57,10 +54,21 @@ const FRED_DISPLAY = [
     { label: 'FED FUNDS', value: '3.64%', sub: 'target rate' },
 ];
 
-export default function WelcomeScreen({ onSend }: WelcomeScreenProps) {
+interface WelcomeScreenProps {
+    onSend: (seed: string) => void;
+    onMount?: () => void;
+}
+
+export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
+        // Close sidebar on mobile
+        onMount?.();
+        // Scroll to top so ticker is visible immediately
+        window.scrollTo({ top: 0 });
+        const scrollEl = document.querySelector('.scroll');
+        if (scrollEl) scrollEl.scrollTop = 0;
         // Stagger reveal after mount
         const t = setTimeout(() => setVisible(true), 60);
         return () => clearTimeout(t);
