@@ -45,6 +45,7 @@ export type CalcType =
     | 'fha_needs_input'
     | 'affordability_needs_input'
     | 'dscr_needs_input'
+    | 'fha_equity_timeline'
     | 'mip_duration_knowledge'
     | 'lab'
     | 'uw_starter'
