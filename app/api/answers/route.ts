@@ -3547,7 +3547,8 @@ ${uwAnswerText}`,
     const isDSCRFollowUp = snapshotLoanType === 'calcEngine-dscr' &&
         snapshotJson?.scenario_inputs &&
         (calcDispatch.type === 'dscr_needs_input' || calcDispatch.type === 'no_calc_match');
-    if ((isFollowUp || isDSCRFollowUp) && snapshotLoanType &&
+    const isSalaryFollowUp = /(?:qualify|afford|make|earn|salary|income)\s+(?:on\s+)?\$[\d,]+k?\b|\$[\d,]+k?\s+(?:salary|income|a year|\/year)/i.test(question);
+    if ((isFollowUp || isDSCRFollowUp) && snapshotLoanType && !isSalaryFollowUp &&
         calcDispatch.type !== 'uw_starter' && calcDispatch.type !== 'lab' && calcDispatch.type !== 'about' && calcDispatch.type !== 'how_it_works' &&
         !(calcDispatch.type === 'conventional' && calcDispatch.params) &&
         !(calcDispatch.type === 'refi' && isRefiHypothetical) &&
