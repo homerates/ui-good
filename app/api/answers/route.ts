@@ -2768,6 +2768,7 @@ To give you a real verdict (not just math), I need:
         const rateWatchSection = `\n\n---\n\n## 📡 Your Rate-Watch Trigger Points\n\n| Target Breakeven | Rate You Need | Monthly Savings at That Rate |\n|--|--|--|\n| 2-year breakeven | **${trig2yr ? fPct(trig2yr) : 'N/A'}** | ${trig2yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig2yr, monthsLeft)) + '/mo' : '—'} |\n| 3-year breakeven | **${trig3yr ? fPct(trig3yr) : 'N/A'}** | ${trig3yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig3yr, monthsLeft)) + '/mo' : '—'} |\n| 5-year breakeven | **${trig5yr ? fPct(trig5yr) : 'N/A'}** | ${trig5yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig5yr, monthsLeft)) + '/mo' : '—'} |\n\n${fredNote}`;
 
         // Ask Your Lender section
+        const strikeRate = parseFloat((currentRate - 0.5).toFixed(2));
         const costsNote = closingCosts
             ? `your provided ${f$(closingCosts)} cost figure`
             : `2% estimate (${f$(effCosts)}) — get actual lender quotes, jumbo loans often run 1.5–2.5%`;
@@ -2832,7 +2833,6 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
 
         // ── UNIFIED 4-CHIP SET: no-cost · strike-or-deeper · trigger-or-deeper · 20yr ──
         const noCostRefiRate = parseFloat((effNewRate + 0.25).toFixed(2));
-        const strikeRate = parseFloat((currentRate - 0.5).toFixed(2));
         const deeperRate = parseFloat((effNewRate - 0.5).toFixed(2));
         const thinSpread = rateDrop < 0.5;
 
