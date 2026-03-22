@@ -2772,7 +2772,7 @@ To give you a real verdict (not just math), I need:
         const costsNote = closingCosts
             ? `your provided ${f$(closingCosts)} cost figure`
             : `2% estimate (${f$(effCosts)}) — get actual lender quotes, jumbo loans often run 1.5–2.5%`;
-        const lenderAlertQ = save <= 0
+        const lenderAlertQ = save <= 0 || rateDrop < 0.5
             ? `- **"Can you set up a rate alert for ${fPct(strikeRate)}?"** Many lenders will call or text when your trigger rate is available.\n`
             : `- **"Do you offer a float-down before closing?"** Some lenders let you drop to the day-of rate at no cost if rates fall before you close.\n`;
         const lenderSection = `\n\n---\n\n## 💬 Ask Your Lender\n\n- **"What's the APR — not just the rate?"** APR folds in origination fees and points; that's the real number to compare across lenders.\n- **"How many discount points are priced in?"** 1 point = 1% of the loan upfront. Removing points raises the rate but cuts your cash-to-close.\n- **"What's your no-cost option?"** Ask for the rate where lender credits cover all fees — breakeven starts day 1, no math needed.\n- **"Give me a Loan Estimate in writing."** Required by law within 3 business days — title, escrow, and origination fees vary $3k–$8k between lenders.\n- **"What's the lock period and extension cost?"** Closings slip; know your exposure before you sign.\n${lenderAlertQ}`;
