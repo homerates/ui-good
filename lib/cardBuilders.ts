@@ -322,8 +322,10 @@ ${dtiSection}${incomeSection}${compSection}
             seed: `Ask Underwriting: when can I refinance from FHA to conventional to eliminate MIP on a ${fK(r.purchasePrice)} home with ${r.downPaymentPct}% down?`
         },
         {
-            label: `What income do I need to qualify for this FHA loan?`,
-            seed: `What income do I need to qualify for FHA on a ${fK(r.purchasePrice)} home at ${rateStr}?`
+            label: `Rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}% — new FHA payment?`,
+            seed: `FHA loan on ${fK(r.purchasePrice)} home with ${r.downPaymentPct}% down at ${(r.annualRatePct - 0.5).toFixed(2)}%`,
+            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, isFHA: true },
+            changedKeys: ['annualRatePct'],
         },
     ];
 
@@ -632,7 +634,7 @@ export function buildAffordabilityCard(
         const gapLine = s.savingsGap > 0
             ? `💰 **Cash needed:** ${f$(s.totalCashNeeded)} (down + closing) | You have ${f$(r.savings)} | **Need ${f$(s.savingsGap)} more**`
             : `💰 **Cash needed:** ${f$(s.totalCashNeeded)} | ✅ ${f$(s.savingsAfterClose)} left after close`;
-        const dtiLine = `- DTI: **${fPct1(s.frontEndDTI)}%** housing${r.monthlyDebts > 0 ? ` + ${f$(r.monthlyDebts)}/mo debt = **${fPct1(s.backEndDTI)}% back-end**` : ''} of ${f$(Math.round(mGross))}/mo gross`;
+        const dtiLine = `- DTI: **${fPct1(s.frontEndDTI)}** housing${r.monthlyDebts > 0 ? ` + ${f$(r.monthlyDebts)}/mo debt = **${fPct1(s.backEndDTI)} back-end**` : ''} of ${f$(Math.round(mGross))}/mo gross`;
         const interestLine = `- Total interest over 30yr: **${f$(s.totalInterest)}**`;
 
         return `
@@ -700,11 +702,7 @@ ${compRows}
 ## 💡 Your Best Path Forward
 
 ${fastestPath}
-${debtNote}
-**What to do next:**
-1. Share your credit score → I'll tell you exactly which program you'll qualify for
-2. Share your target city/zip → I'll adjust for local property taxes and FHA loan limits
-3. Ask me to run any specific home price → I'll show your DTI and whether you qualify`;
+${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans, credit cards) and I'll show how they shift your numbers._` : ''}`;
 
     // ── CHIPS — specific to actual numbers in this result ───────────────────
     const fhaS = r.scenarios.find(sc => sc.isFHA) ?? r.scenarios[0];
@@ -724,7 +722,7 @@ ${debtNote}
     } else {
         chips.push({
             label: `Show me FHA on ${fK(fhaS.homePrice)} — full monthly breakdown`,
-            seed: `FHA loan on a ${fK(fhaS.homePrice)} home at ${fPct(r.rate)} with ${fPct1(fhaS.downPaymentPct)}% down — full breakdown including MIP, DTI, and checklist`,
+            seed: `FHA loan on a ${fK(fhaS.homePrice)} home at ${fPct(r.rate)} with ${fPct1(fhaS.downPaymentPct)} down — full breakdown including MIP, DTI, and checklist`,
         });
     }
 
