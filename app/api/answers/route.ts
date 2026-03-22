@@ -2767,12 +2767,14 @@ To give you a real verdict (not just math), I need:
         // Rate-watch verdict
         const rateWatchSection = `\n\n---\n\n## 📡 Your Rate-Watch Trigger Points\n\n| Target Breakeven | Rate You Need | Monthly Savings at That Rate |\n|--|--|--|\n| 2-year breakeven | **${trig2yr ? fPct(trig2yr) : 'N/A'}** | ${trig2yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig2yr, monthsLeft)) + '/mo' : '—'} |\n| 3-year breakeven | **${trig3yr ? fPct(trig3yr) : 'N/A'}** | ${trig3yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig3yr, monthsLeft)) + '/mo' : '—'} |\n| 5-year breakeven | **${trig5yr ? fPct(trig5yr) : 'N/A'}** | ${trig5yr ? f$(mpi(balance, currentRate, monthsLeft) - mpi(balance, trig5yr, monthsLeft)) + '/mo' : '—'} |\n\n${fredNote}`;
 
-        // What lenders won't tell you section
+        // Ask Your Lender section
         const costsNote = closingCosts
             ? `your provided ${f$(closingCosts)} cost figure`
             : `2% estimate (${f$(effCosts)}) — get actual lender quotes, jumbo loans often run 1.5–2.5%`;
-        const strikeRateLabel = fPct(parseFloat((currentRate - 0.5).toFixed(2)));
-        const lenderSection = `\n\n---\n\n## 🔍 What Lenders Won't Tell You\n\n${amortReset ? `- **Amortization reset:** You're ${yearsIn} years in. Resetting to 30yr means your early payments are mostly interest again — potentially ${f$(resetPenalty)} in extra lifetime interest.\n` : ''}${pi20 < curPI ? `- **20yr refi trick:** A 20yr refi at ${fPct(effNewRate)} (${fD(pi20)}/mo) is *still lower* than your current payment (${fD(curPI)}/mo) and saves **${f$(int20saved)}** in interest.\n` : ''}${isFHAtoConv ? '' : `- **No-cost refi:** Take +0.25% rate — lender credits wipe your closing costs, breakeven is day 1.\n`}- **Strike rate:** ${strikeRateLabel} is 0.5% below your current rate — industry standard trigger point.\n- **Get 3 quotes** — costs and credits vary $5k-$15k between lenders.`;
+        const lenderAlertQ = save <= 0
+            ? `- **"Can you set up a rate alert for ${fPct(strikeRate)}?"** Many lenders will call or text when your trigger rate is available.\n`
+            : `- **"Do you offer a float-down before closing?"** Some lenders let you drop to the day-of rate at no cost if rates fall before you close.\n`;
+        const lenderSection = `\n\n---\n\n## 💬 Ask Your Lender\n\n- **"What's the APR — not just the rate?"** APR folds in origination fees and points; that's the real number to compare across lenders.\n- **"How many discount points are priced in?"** 1 point = 1% of the loan upfront. Removing points raises the rate but cuts your cash-to-close.\n- **"What's your no-cost option?"** Ask for the rate where lender credits cover all fees — breakeven starts day 1, no math needed.\n- **"Give me a Loan Estimate in writing."** Required by law within 3 business days — title, escrow, and origination fees vary $3k–$8k between lenders.\n- **"What's the lock period and extension cost?"** Closings slip; know your exposure before you sign.\n${lenderAlertQ}`;
 
         // ── MAIN OUTPUT ──
         const costsUsedNote = closingCosts ? `your ${f$(closingCosts)} quote` : `2% estimate (${f$(effCosts)})`;
@@ -2826,11 +2828,7 @@ ${extraMoW1 > 0 ? `> 💡 **Refi now vs wait for ${fPct(wr1)}:** Waiting earns y
 | Total interest | ${f$(totIntNew)} | ${f$(int20)} | **Save ${f$(int20saved)}** |
 
 ${pi20 < curPI ? `> ✅ **Hidden win:** 20yr payment (${fD(pi20)}) is *still lower* than your current payment (${fD(curPI)}). You'd pay off 10 years faster and save ${f$(int20saved)} in interest — for *less* than you pay today.` : `> ⚠️ 20yr payment (${fD(pi20)}) is higher than current (${fD(curPI)}) — budget accordingly.`}
-${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
-
----
-
-**Next steps:** Get 2–3 lender quotes · Ask about no-cost refi option · Lock when you're ready`;
+${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
 
         // ── UNIFIED 4-CHIP SET: no-cost · strike-or-deeper · trigger-or-deeper · 20yr ──
         const noCostRefiRate = parseFloat((effNewRate + 0.25).toFixed(2));
@@ -2873,13 +2871,15 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
             seed: `20yr vs 30yr refi at ${fPct(effNewRate)} on ${f$(balance)} — payment and total interest comparison`,
         };
 
+        // Only show no-cost chip when the no-cost rate is still below the current rate
+        const showNoCostChip = noCostRefiRate < currentRate;
         let refiChips: Array<{ label: string; seed: string; paramOverrides?: Record<string, any>; changedKeys?: string[] }> = [
-            {
+            ...(showNoCostChip ? [{
                 label: `No-cost at ${fPct(noCostRefiRate)} — lender covers closing costs`,
                 seed: `No-cost refi on ${f$(balance)} from ${fPct(currentRate)} to ${fPct(noCostRefiRate)} — lender covers all closing costs`,
                 paramOverrides: { newRatePct: noCostRefiRate, currentBalance: balance, currentRatePct: currentRate, closingCosts: 0 },
                 changedKeys: ['newRatePct', 'closingCosts'],
-            },
+            }] : []),
             chip2,
             chip3,
             chip4,
@@ -2947,7 +2947,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
             generatedAt, usedFRED, usedTavily, fred, topSources,
             grok: {
                 answer: md,
-                next_step: "Get 2–3 lender quotes and compare closing costs — rates are meaningless without the cost comparison.",
+                next_step: "",
                 follow_up: refiChips[0].label,
                 follow_up_chips: refiChips,
                 confidence: `1.00 (refi calc: ${f$(balance)} @ ${fPct(currentRate)}→${fPct(effNewRate)}, ${(monthsLeft / 12).toFixed(0)}yr remaining, costs=${f$(effCosts)})`,

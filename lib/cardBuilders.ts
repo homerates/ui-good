@@ -597,10 +597,16 @@ ${r.verdictReason}
 ${mipSection}${resetSection}${waitSection}
 ---
 
-**What lenders won't tell you:**
-- **No-cost refi:** Take +0.25% rate and lender credits wipe your closing costs — breakeven is day 1
-- **Strike rate:** Industry standard is 0.5% below your current rate — below that, refinancing is a clear win
-- **Get 3 quotes** — costs and credits vary $5k–$15k between lenders`;
+---
+
+## 💬 Ask Your Lender
+
+- **"What's the APR — not just the rate?"** APR folds in origination fees and points; that's the real number to compare across lenders.
+- **"How many discount points are priced in?"** 1 point = 1% of the loan upfront. Removing points raises the rate but cuts your cash-to-close.
+- **"What's your no-cost option?"** Ask for the rate where lender credits cover all fees — breakeven starts day 1, no math needed.
+- **"Give me a Loan Estimate in writing."** Required by law within 3 business days — title, escrow, and origination fees vary $3k–$8k between lenders.
+- **"What's the lock period and extension cost?"** Closings slip; know your exposure before you sign.
+- **"Do you offer a float-down before closing?"** Some lenders let you drop to the day-of rate at no cost if rates fall before you close.`;
 
     const noCostRate = parseFloat((r.newRatePct + 0.25).toFixed(2));
     const strikeRate = parseFloat((r.currentRatePct - 0.5).toFixed(2));
@@ -635,9 +641,7 @@ ${mipSection}${resetSection}${waitSection}
 
     return {
         answer,
-        next_step: r.verdict === 'strong' || r.verdict === 'good'
-            ? `Get 3 lender quotes for ${fPct(r.newRatePct)}. Lock when ready — breakeven is ${r.breakEvenYears ? fYr(r.breakEvenYears) : 'calculated above'}.`
-            : `Monitor rates. Your trigger rate for a 3-year breakeven is ${r.triggerRate3yr ? fPct(r.triggerRate3yr) : 'not currently available'}.`,
+        next_step: "",
         follow_up: chips[0].label,
         follow_up_chips: chips,
         confidence: '1.00 (calculated — no LLM)',
