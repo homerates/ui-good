@@ -552,7 +552,8 @@ You've built significant equity — a new 30-year term restarts the clock.
 - **Alternative:** A 20-year refi at ${fPct(r.newRatePct)} = ${f$(r.pi20yr)}/mo — *still lower than your current payment* — and saves ${f$(r.interest20yrSaved)} in interest vs a new 30yr.
 ` : '';
 
-    const waitSection = `
+    // Trigger rate table is only meaningful when there are actual closing costs to recover
+    const waitSection = r.closingCosts > 0 ? `
 ---
 
 ## 📡 Your Rate-Watch Trigger Points
@@ -562,7 +563,7 @@ You've built significant equity — a new 30-year term restarts the clock.
 | 2-year breakeven | **${r.triggerRate2yr ? fPct(r.triggerRate2yr) : 'N/A'}** | ${r.triggerRate2yr ? f$(r.waitMonthlySavings05) + '/mo' : '—'} |
 | 3-year breakeven | **${r.triggerRate3yr ? fPct(r.triggerRate3yr) : 'N/A'}** | ${r.triggerRate3yr ? f$(r.waitMonthlySavings05) + '/mo' : '—'} |
 | 5-year breakeven | **${r.triggerRate5yr ? fPct(r.triggerRate5yr) : 'N/A'}** | ${r.triggerRate5yr ? f$(r.waitMonthlySavings10) + '/mo' : '—'} |
-`;
+` : '';
 
     const answer = `## ${verdictEmoji} Refi Analysis — ${fPct(r.currentRatePct)} → ${fPct(r.newRatePct)}
 ${fredNote}${assumptionNote}
@@ -597,8 +598,6 @@ ${r.verdictReason}
 ${mipSection}${resetSection}${waitSection}
 ---
 
----
-
 ## 💬 Ask Your Lender
 
 - **"What's the APR — not just the rate?"** APR folds in origination fees and points; that's the real number to compare across lenders.
@@ -606,7 +605,7 @@ ${mipSection}${resetSection}${waitSection}
 - **"What's your no-cost option?"** Ask for the rate where lender credits cover all fees — breakeven starts day 1, no math needed.
 - **"Give me a Loan Estimate in writing."** Required by law within 3 business days — title, escrow, and origination fees vary $3k–$8k between lenders.
 - **"What's the lock period and extension cost?"** Closings slip; know your exposure before you sign.
-- **"Do you offer a float-down before closing?"** Some lenders let you drop to the day-of rate at no cost if rates fall before you close.`;
+- ${r.verdict === 'poor' || r.verdict === 'marginal' || r.verdict === 'hold' ? `**"Can you set up a rate alert for ${fPct(r.triggerRate3yr ?? parseFloat((r.currentRatePct - 0.5).toFixed(2)))}?"** Many lenders will call or text when your trigger rate is available.` : `**"Do you offer a float-down before closing?"** Some lenders let you drop to the day-of rate at no cost if rates fall before you close.`}`;
 
     const noCostRate = parseFloat((r.newRatePct + 0.25).toFixed(2));
     const strikeRate = parseFloat((r.currentRatePct - 0.5).toFixed(2));
