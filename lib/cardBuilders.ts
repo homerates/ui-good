@@ -200,7 +200,7 @@ export function buildFHACard(
         : '';
 
     // Loan limit checklist row — smart: ⚠️ when unknown, ✅/❌ when known
-    const limitRow = r.withinLimitStatus === 'within_range'
+    const limitRow = r.withinLimitStatus === 'within_range' || r.withinLimitStatus === 'below_floor'
         ? `✅ Loan amount within FHA limit`
         : r.withinLimitStatus === 'unknown'
             ? `⚠️ Loan limit varies by county — verify at [HUD limits lookup](https://www.hud.gov/program_offices/housing/sfh/lender/origination) (floor ${fK(541287)}, high-cost up to ${fK(1249125)})`
@@ -318,8 +318,16 @@ ${dtiSection}${incomeSection}${compSection}
             seed: `Compare FHA ${r.downPaymentPct}% down vs conventional 5% down on ${fK(r.purchasePrice)} at ${rateStr}`
         },
         {
-            label: `When can I refinance out of FHA MIP?`,
-            seed: `Ask Underwriting: when can I refinance from FHA to conventional to eliminate MIP on a ${fK(r.purchasePrice)} home with ${r.downPaymentPct}% down?`
+            label: `FHA → Conventional: when do I hit 80% LTV?`,
+            seed: `FHA equity milestone on ${fK(r.purchasePrice)} home — when does my loan hit 80% LTV to switch to conventional?`,
+            paramOverrides: {
+                purchasePrice: r.purchasePrice,
+                fhaTotalLoan: r.totalLoanAmount,
+                annualRatePct: r.annualRatePct,
+                monthlyPI: r.monthlyPI,
+                monthlyMIP: r.monthlyMIP,
+                fhaEquityMode: true,
+            },
         },
         {
             label: `Rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}% — new FHA payment?`,
@@ -340,6 +348,142 @@ ${dtiSection}${incomeSection}${compSection}
             scenario_inputs: { price: r.purchasePrice, down_payment_pct: r.downPaymentPct, loan_amount: r.baseLoanAmount, rate_used_pct: r.annualRatePct, term_years: r.termYears },
             computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly },
             monthly_payment: r.totalMonthly,
+        },
+    };
+}
+
+// ─────────────────────────────────────────────
+// FHA EQUITY TIMELINE CARD
+// ─────────────────────────────────────────────
+
+export function buildFHAEquityTimelineCard(
+    homePrice: number,
+    loanBalance: number,
+    annualRatePct: number,
+    monthlyPI: number,
+    monthlyMIP: number,
+    fredRate?: number,
+): BuiltCard {
+    const monthlyRate = annualRatePct / 100 / 12;
+    const target80 = homePrice * 0.80;
+    const startLTV = Math.round(loanBalance / homePrice * 1000) / 10;
+
+    // Natural paydown to 80% LTV
+    let bal = loanBalance;
+    let naturalMonths = 0;
+    while (bal > target80 && naturalMonths < 360) {
+        const interest = bal * monthlyRate;
+        const principal = monthlyPI - interest;
+        if (principal <= 0) { naturalMonths = 999; break; }
+        bal -= principal;
+        naturalMonths++;
+    }
+
+    // Appreciation scenarios: 3%, 5%, 7%/yr
+    const apprScenarios = [3, 5, 7].map(pctPerYear => {
+        let b = loanBalance;
+        let h = homePrice;
+        const monthlyAppr = pctPerYear / 100 / 12;
+        let mo = 0;
+        while (b > h * 0.80 && mo < 360) {
+            const interest = b * monthlyRate;
+            const principal = monthlyPI - interest;
+            if (principal <= 0) { mo = 999; break; }
+            b -= principal;
+            h *= (1 + monthlyAppr);
+            mo++;
+        }
+        return { pct: pctPerYear, months: mo < 360 ? mo : null };
+    });
+
+    const formatMo = (mo: number | null): string => {
+        if (mo === null || mo > 360) return 'Beyond 30yr term';
+        const yr = Math.floor(mo / 12);
+        const m = mo % 12;
+        return `${yr > 0 ? `${yr}yr` : ''}${m > 0 ? ` ${m}mo` : ''}`.trim();
+    };
+
+    const targetYear = naturalMonths < 360
+        ? new Date().getFullYear() + Math.floor((new Date().getMonth() + naturalMonths) / 12)
+        : null;
+
+    // Conventional payment at 80% LTV balance
+    const convRate = fredRate ?? annualRatePct;
+    const convTermMo = Math.max(360 - naturalMonths, 60);
+    const mr = convRate / 100 / 12;
+    const convPI = Math.round(target80 * (mr * Math.pow(1 + mr, convTermMo)) / (Math.pow(1 + mr, convTermMo) - 1));
+    const monthlyTax = Math.round(homePrice * 0.011 / 12);
+    const monthlyIns = 100;
+    const convPITI = convPI + monthlyTax + monthlyIns;
+
+    const apprRows = apprScenarios.map(s =>
+        `| ${s.pct}%/yr home appreciation | ${formatMo(s.months)} |`
+    ).join('\n');
+
+    const answer = `## 🔄 FHA → Conventional Switch Point
+
+**${f$(homePrice)} home · ${fPct(annualRatePct)} FHA rate · Starting LTV: ${startLTV}%**
+
+To eliminate MIP you need to reach **80% LTV** (balance ≤ ${f$(target80)}).
+
+---
+
+## ⏱️ Time to 80% LTV
+
+| Scenario | Time |
+|--|--|
+| Natural paydown only | ${formatMo(naturalMonths)}${targetYear ? ` (est. ${targetYear})` : ''} |
+${apprRows}
+
+> 💡 Home appreciation moves you to 80% LTV far faster than paydown alone. A new appraisal confirming the value lets you refi early — no waiting for paydown to catch up.
+
+---
+
+## 🏛️ Conventional Loan at 80% LTV
+
+At ${f$(target80)} balance (${fPct(convRate)} est.):
+
+| Component | Amount |
+|-----------|--------|
+| P&I | ${f$(convPI)}/mo |
+| Taxes + Insurance | ${f$(monthlyTax + monthlyIns)}/mo |
+| **Total PITI** | **${f$(convPITI)}/mo** |
+| MIP | ❌ Gone |
+
+${monthlyMIP > 0 ? `**MIP elimination alone saves ${f$(monthlyMIP)}/mo (${f$(monthlyMIP * 12)}/yr).**` : ''}
+
+> ⚠️ Rate at time of refi will differ from today's ${fPct(convRate)} — use this as a planning benchmark, not a quote.`;
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `10% down instead — MIP gone after 11 years`,
+            seed: `FHA loan on ${fK(homePrice)} home with 10% down at ${fPct(annualRatePct)}`,
+            paramOverrides: { downPaymentPct: 10, purchasePrice: homePrice, annualRatePct, isFHA: true },
+            changedKeys: ['downPaymentPct'],
+        },
+        {
+            label: `FHA vs conventional — total cost over 7 years`,
+            seed: `Compare FHA 3.5% down vs conventional 5% down on ${fK(homePrice)} at ${fPct(annualRatePct)}`,
+        },
+        {
+            label: `Rate drops to ${(annualRatePct - 0.5).toFixed(2)}% — new FHA payment?`,
+            seed: `FHA loan on ${fK(homePrice)} home with 3.5% down at ${(annualRatePct - 0.5).toFixed(2)}%`,
+            paramOverrides: { annualRatePct: parseFloat((annualRatePct - 0.5).toFixed(2)), purchasePrice: homePrice, downPaymentPct: 3.5, isFHA: true },
+            changedKeys: ['annualRatePct'],
+        },
+    ];
+
+    return {
+        answer,
+        next_step: `Get a home appraisal when you believe you're near 80% LTV — appreciation may get you there years ahead of paydown schedule.`,
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: `1.00 (amortization-based timeline — deterministic)`,
+        memoryPayload: {
+            plain_english_summary: `FHA equity timeline: ${f$(homePrice)} home at ${fPct(annualRatePct)}, natural paydown to 80% LTV: ${formatMo(naturalMonths)}.`,
+            scenario_inputs: { home_price: homePrice, loan_balance: loanBalance, rate_pct: annualRatePct },
+            computed_financials: { months_to_80pct_natural: naturalMonths, balance_at_80pct: target80, conv_piti: convPITI },
+            monthly_payment: convPITI,
         },
     };
 }

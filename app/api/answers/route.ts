@@ -14,7 +14,7 @@ import {
 } from "../../../lib/calcEngine";
 import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
 import {
-    buildConventionalCard, buildFHACard, buildRefiCard, buildRefiNeedsInputCard,
+    buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
@@ -3460,6 +3460,15 @@ ${uwAnswerText}`,
                 currentBalance: `balance updated to $${paramOverrides.currentBalance?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).fhaEquityMode === true) {
+            (calcDispatch as any).type = 'fha_equity_timeline';
+            (calcDispatch as any).params = {
+                homePrice: paramOverrides.purchasePrice,
+                loanBalance: (paramOverrides as any).fhaTotalLoan,
+                annualRatePct: paramOverrides.annualRatePct,
+                monthlyPI: (paramOverrides as any).monthlyPI,
+                monthlyMIP: (paramOverrides as any).monthlyMIP ?? 0,
+            };
         } else if ((paramOverrides as any).isFHA === true && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'fha';
             (calcDispatch as any).params = {
@@ -3672,6 +3681,15 @@ ${uwAnswerText}`,
                 currentBalance: `balance updated to $${paramOverrides.currentBalance?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).fhaEquityMode === true) {
+            (calcDispatch as any).type = 'fha_equity_timeline';
+            (calcDispatch as any).params = {
+                homePrice: paramOverrides.purchasePrice,
+                loanBalance: (paramOverrides as any).fhaTotalLoan,
+                annualRatePct: paramOverrides.annualRatePct,
+                monthlyPI: (paramOverrides as any).monthlyPI,
+                monthlyMIP: (paramOverrides as any).monthlyMIP ?? 0,
+            };
         } else if ((paramOverrides as any).isFHA === true && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'fha';
             (calcDispatch as any).params = {
@@ -3750,6 +3768,14 @@ ${uwAnswerText}`,
             } else if (calcDispatch.type === 'mip_duration_knowledge') {
                 calcCard = buildMIPDurationCard(conversationHistory ?? '');
                 calcDebugModel = 'mip_duration_knowledge';
+
+            } else if (calcDispatch.type === 'fha_equity_timeline' && calcDispatch.params) {
+                const p = calcDispatch.params as any;
+                calcCard = buildFHAEquityTimelineCard(
+                    p.homePrice, p.loanBalance, p.annualRatePct, p.monthlyPI, p.monthlyMIP,
+                    fred?.mort30Avg ?? undefined,
+                );
+                calcDebugModel = 'calcEngine-fha_equity_timeline';
 
             } else if (calcDispatch.type === 'fha_needs_input') {
                 calcCard = buildFHANeedsInputCard(calcDispatch.params as any, fred?.mort30Avg ?? undefined);
