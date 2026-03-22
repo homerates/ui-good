@@ -1105,6 +1105,8 @@ export default function Page() {
     const [lastRouteByThread, setLastRouteByThread] = useState<Record<string, string>>({});
     // Structured param overrides from chip clicks — avoids parsing question text for numbers
     const [pendingParamOverrides, setPendingParamOverrides] = useState<Record<string, any> | null>(null);
+    const pendingChipSeedRef = React.useRef<string | null>(null);
+
     // overlays
     const [showSearch, setShowSearch] = useState(false);
     const [showLibrary, setShowLibrary] = useState(false);
@@ -2183,6 +2185,7 @@ export default function Page() {
                                                                             setInput(chip.seed);
                                                                             // Capture structured overrides so route.ts can skip text parsing
                                                                             setPendingParamOverrides((chip as any).paramOverrides ?? null);
+                                                                            pendingChipSeedRef.current = chip.seed;
                                                                             setTimeout(() => {
                                                                                 const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
                                                                                 if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
@@ -2308,6 +2311,11 @@ export default function Page() {
                             rows={1}
                             onChange={(e) => {
                                 setInput(e.target.value);
+                                // If user edits after chip click, drop paramOverrides — use text parsing instead
+                                if (pendingChipSeedRef.current && e.target.value !== pendingChipSeedRef.current) {
+                                    setPendingParamOverrides(null);
+                                    pendingChipSeedRef.current = null;
+                                }
                                 // Auto-grow: reset then set to scrollHeight
                                 e.target.style.height = 'auto';
                                 e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
