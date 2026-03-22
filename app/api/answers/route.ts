@@ -2869,6 +2869,8 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
         const chip4 = {
             label: `20yr at ${fPct(effNewRate)} — save ${f$(int20saved)} in interest`,
             seed: `20yr vs 30yr refi at ${fPct(effNewRate)} on ${f$(balance)} — payment and total interest comparison`,
+            paramOverrides: { newRatePct: effNewRate, currentBalance: balance, currentRatePct: currentRate, refiTermMonths: 240 },
+            changedKeys: ['refiTermMonths'],
         };
 
         // Only show no-cost chip when the no-cost rate is still below the current rate
@@ -3458,6 +3460,7 @@ ${uwAnswerText}`,
                 newRatePct: paramOverrides.newRatePct,
                 remainingMonths: (calcDispatch.params as any)?.remainingMonths ?? 360,
                 ...((paramOverrides as any).closingCosts != null ? { closingCosts: (paramOverrides as any).closingCosts } : {}),
+                ...((paramOverrides as any).refiTermMonths != null ? { refiTermMonths: (paramOverrides as any).refiTermMonths } : {}),
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {
@@ -3681,6 +3684,7 @@ ${uwAnswerText}`,
                 newRatePct: paramOverrides.newRatePct,
                 remainingMonths: (calcDispatch.params as any)?.remainingMonths ?? 360,
                 ...((paramOverrides as any).closingCosts != null ? { closingCosts: (paramOverrides as any).closingCosts } : {}),
+                ...((paramOverrides as any).refiTermMonths != null ? { refiTermMonths: (paramOverrides as any).refiTermMonths } : {}),
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {

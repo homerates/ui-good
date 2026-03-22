@@ -656,7 +656,9 @@ ${mipSection}${resetSection}${waitSection}
         chip3,
         {
             label: `20-year refi at ${fPct(r.newRatePct)} — total interest saved?`,
-            seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}`
+            seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}`,
+            paramOverrides: { newRatePct: r.newRatePct, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct, refiTermMonths: 240 },
+            changedKeys: ['refiTermMonths'],
         },
     ];
 
