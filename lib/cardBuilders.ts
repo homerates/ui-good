@@ -313,7 +313,12 @@ ${dtiSection}${incomeSection}${compSection}
             paramOverrides: { downPaymentPct: 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct, isFHA: true },
             changedKeys: ['downPaymentPct'],
         },
-        {
+        comparison ? {
+            label: `Conventional 20% down — skip PMI entirely?`,
+            seed: `Conventional loan on ${fK(r.purchasePrice)} home with 20% down at ${rateStr}`,
+            paramOverrides: { purchasePrice: r.purchasePrice, downPaymentPct: 20, annualRatePct: r.annualRatePct },
+            changedKeys: ['downPaymentPct'],
+        } : {
             label: `FHA vs conventional — which is cheaper over 7 years?`,
             seed: `Compare FHA ${r.downPaymentPct}% down vs conventional 5% down on ${fK(r.purchasePrice)} at ${rateStr}`
         },
