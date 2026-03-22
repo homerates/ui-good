@@ -654,12 +654,12 @@ ${mipSection}${resetSection}${waitSection}
         }] : []),
         chip2,
         chip3,
-        {
+        ...(r.verdict !== 'no_savings' ? [{
             label: `20-year refi at ${fPct(r.newRatePct)} — total interest saved?`,
             seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}`,
-            paramOverrides: { newRatePct: r.newRatePct, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct, refiTermMonths: 240 },
+            paramOverrides: { newRatePct: parseFloat(r.newRatePct.toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct, refiTermMonths: 240 },
             changedKeys: ['refiTermMonths'],
-        },
+        }] : []),
     ];
 
     return {

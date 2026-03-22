@@ -2869,7 +2869,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
         const chip4 = {
             label: `20yr at ${fPct(effNewRate)} — save ${f$(int20saved)} in interest`,
             seed: `20yr vs 30yr refi at ${fPct(effNewRate)} on ${f$(balance)} — payment and total interest comparison`,
-            paramOverrides: { newRatePct: effNewRate, currentBalance: balance, currentRatePct: currentRate, refiTermMonths: 240 },
+            paramOverrides: { newRatePct: parseFloat(effNewRate.toFixed(2)), currentBalance: balance, currentRatePct: currentRate, refiTermMonths: 240 },
             changedKeys: ['refiTermMonths'],
         };
 
