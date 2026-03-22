@@ -851,7 +851,10 @@ export function calcAffordability(input: AffordabilityInput): AffordabilityResul
         const prog: 'FHA' | 'Conventional' = isFHAPct ? 'FHA' : 'Conventional';
         const limit = isFHAPct ? fhaLoanLimit : confLoanLimit;
         scenarios.push(calcAffordabilityScenario(annualIncome, savings, monthlyDebts, annualRatePct, pct, prog, limit, propertyTaxRate, locationLabel));
-        scenarios.push(calcAffordabilityScenario(annualIncome, savings, monthlyDebts, annualRatePct, 20, 'Conventional', confLoanLimit, propertyTaxRate, locationLabel));
+        const is20 = Math.abs(pct - 20) < 0.01;
+        scenarios.push(is20
+            ? calcAffordabilityScenario(annualIncome, savings, monthlyDebts, annualRatePct, 3.0, 'Conventional', confLoanLimit, propertyTaxRate, locationLabel)
+            : calcAffordabilityScenario(annualIncome, savings, monthlyDebts, annualRatePct, 20, 'Conventional', confLoanLimit, propertyTaxRate, locationLabel));
         if (!isFHAPct) {
             scenarios.push(calcAffordabilityScenario(annualIncome, savings, monthlyDebts, annualRatePct, 3.5, 'FHA', fhaLoanLimit, propertyTaxRate, locationLabel));
         }
