@@ -613,6 +613,38 @@ ${mipSection}${resetSection}${waitSection}
     // No-cost chip only makes sense if the no-cost rate is below the current rate
     const showNoCostChip = noCostRate < r.currentRatePct;
 
+    const rateDrop = r.currentRatePct - r.newRatePct;
+    const thinSpread = rateDrop < 0.5;
+
+    // Chip 2: strike rate if not yet reached; deeper drop if already past it
+    const chip2 = r.newRatePct > strikeRate
+        ? {
+            label: `Strike rate ${fPct(strikeRate)} — industry trigger point`,
+            seed: `Refi from ${fPct(r.currentRatePct)} to ${fPct(strikeRate)} on ${fK(r.currentBalance)} — full cost and breakeven`,
+            paramOverrides: { newRatePct: strikeRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
+            changedKeys: ['newRatePct'],
+        }
+        : {
+            label: `Rates drop to ${fPct(deeperRate)} — how much more do I save?`,
+            seed: `Refi from ${fPct(r.currentRatePct)} to ${fPct(deeperRate)} on ${fK(r.currentBalance)}`,
+            paramOverrides: { newRatePct: deeperRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
+            changedKeys: ['newRatePct'],
+        };
+
+    // Chip 3: trigger rate (thin spread) or sell-in-3yr (good spread)
+    const chip3rate = r.triggerRate3yr ?? parseFloat((r.currentRatePct - 1).toFixed(2));
+    const chip3 = thinSpread
+        ? {
+            label: `Trigger rate ${fPct(chip3rate)} — 3yr breakeven`,
+            seed: `Refi ${fK(r.currentBalance)} at ${fPct(r.currentRatePct)} to ${fPct(chip3rate)} — full breakeven analysis`,
+            paramOverrides: { newRatePct: chip3rate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
+            changedKeys: ['newRatePct'],
+        }
+        : {
+            label: `If I sell in 3 years — does this refi still pay off?`,
+            seed: `If I refi ${fK(r.currentBalance)} from ${fPct(r.currentRatePct)} to ${fPct(r.newRatePct)} and sell in 3 years, am I ahead or behind?`,
+        };
+
     const chips: BuiltCard['follow_up_chips'] = [
         ...(showNoCostChip ? [{
             label: `No-cost refi at ${fPct(noCostRate)} — lender covers closing costs`,
@@ -620,18 +652,8 @@ ${mipSection}${resetSection}${waitSection}
             paramOverrides: { newRatePct: noCostRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct, closingCosts: 0 },
             changedKeys: ['newRatePct', 'closingCosts'],
         }] : []),
-        {
-            label: `Strike rate ${fPct(strikeRate)} — industry trigger point`,
-            seed: `Refi from ${fPct(r.currentRatePct)} to ${fPct(strikeRate)} on ${fK(r.currentBalance)} — full cost and breakeven`,
-            paramOverrides: { newRatePct: strikeRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
-            changedKeys: ['newRatePct'],
-        },
-        {
-            label: `Rates drop to ${fPct(deeperRate)} — how much more do I save?`,
-            seed: `Refi from ${fPct(r.currentRatePct)} to ${fPct(deeperRate)} on ${fK(r.currentBalance)}`,
-            paramOverrides: { newRatePct: deeperRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
-            changedKeys: ['newRatePct'],
-        },
+        chip2,
+        chip3,
         {
             label: `20-year refi at ${fPct(r.newRatePct)} — total interest saved?`,
             seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}`
