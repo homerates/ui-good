@@ -3540,7 +3540,8 @@ ${uwAnswerText}`,
         ? parseFloat((question.match(/(?:new rate|refi to|drop to|down to|rates?\s+(?:go|drop|fall|come)?\s*to)\s*([\d]+\.?\d*)\s*%/i)
             ?? question.match(/(?:at|to)\s+([\d]+\.?\d*)\s*%/i))![1]) : null;
 
-    const isFollowUp = /what if|what about|instead|same but|show me|if rates?|rates? drop|rates? go|rates? fall|drop to|down to|how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify/i.test(question);
+    const isFollowUp = /what if|what about|instead|same but|same scenario|show me|if rates?|rates? drop|rates? go|rates? fall|drop to|down to|how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify|can i qualify|monthly debt|car payment|student loan.*payment|\$\d+.*debt|debt.*\$\d+/i.test(question);
+    const isRefiHypothetical = /what if.*refinanc|refinanc.*later|refinanc.*future|refinanc.*\d+\s*year/i.test(question);
     // isDSCRFollowUp: fires when prior DSCR snapshot exists and dispatch couldn't extract full params
     // catches natural follow-ups like "run my numbers", "calculate", "try at 7%" that isFollowUp misses
     const isDSCRFollowUp = snapshotLoanType === 'calcEngine-dscr' &&
@@ -3549,6 +3550,7 @@ ${uwAnswerText}`,
     if ((isFollowUp || isDSCRFollowUp) && snapshotLoanType &&
         calcDispatch.type !== 'uw_starter' && calcDispatch.type !== 'lab' && calcDispatch.type !== 'about' && calcDispatch.type !== 'how_it_works' &&
         !(calcDispatch.type === 'conventional' && calcDispatch.params) &&
+        !(calcDispatch.type === 'refi' && isRefiHypothetical) &&
         (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
         if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
