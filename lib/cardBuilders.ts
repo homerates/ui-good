@@ -138,26 +138,33 @@ ${dtiSection}${incomeSection}
 2. Compare lenders — a 0.25% rate difference saves ~${f$(r.loanAmount * 0.0025 / 12)}/mo
 3. Factor in closing costs (~${fK(r.purchasePrice * 0.025)})`;
 
+    const priceUp = Math.round(r.purchasePrice * 1.1 / 10000) * 10000;
+    const priceDown = Math.round(r.purchasePrice * 0.9 / 10000) * 10000;
+    const rateDown = parseFloat((r.annualRatePct - 0.5).toFixed(2));
+    const altDown = r.downPaymentPct < 20 ? 20 : r.downPaymentPct > 5 ? 5 : 10;
+
     const chips: BuiltCard['follow_up_chips'] = [
         {
-            label: `Rates drop to ${(r.annualRatePct - 0.5).toFixed(2)}% — how much do I save?`,
-            seed: `Same home, rate drops to ${(r.annualRatePct - 0.5).toFixed(2)}%`,
-            paramOverrides: { annualRatePct: parseFloat((r.annualRatePct - 0.5).toFixed(2)), purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct },
+            label: `Rate drops to ${rateDown}% — new payment?`,
+            seed: `Same home, rate drops to ${rateDown}%`,
+            paramOverrides: { annualRatePct: rateDown, purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct },
             changedKeys: ['annualRatePct'],
         },
         {
-            label: r.downPaymentPct < 20 ? `20% down — does PMI disappear and what's the real savings?` : `10% down — what does PMI add to my monthly?`,
-            seed: `Same home with ${r.downPaymentPct < 20 ? '20' : '10'}% down`,
-            paramOverrides: { downPaymentPct: r.downPaymentPct < 20 ? 20 : 10, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct },
+            label: altDown < r.downPaymentPct ? `${altDown}% down — what does PMI cost?` : `${altDown}% down — does PMI disappear?`,
+            seed: `Same home with ${altDown}% down`,
+            paramOverrides: { downPaymentPct: altDown, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct },
             changedKeys: ['downPaymentPct'],
         },
         {
-            label: `FHA vs conventional — which puts me in this home cheaper?`,
-            seed: `Compare FHA 3.5% down vs conventional ${r.downPaymentPct}% down on a ${fK(r.purchasePrice)} home at ${rateStr}`
+            label: `What if the home is ${fK(priceUp)}?`,
+            seed: `Conventional loan on a ${fK(priceUp)} home with ${r.downPaymentPct}% down at ${rateStr}`,
+            paramOverrides: { purchasePrice: priceUp, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct },
+            changedKeys: ['purchasePrice'],
         },
         {
-            label: `What income do I need to qualify for this home?`,
-            seed: `What income do I need to qualify for a ${fK(r.purchasePrice)} home at ${rateStr} with ${r.downPaymentPct}% down?`
+            label: `FHA vs conventional on ${fK(r.purchasePrice)}`,
+            seed: `Compare FHA 3.5% down vs conventional ${r.downPaymentPct}% down on a ${fK(r.purchasePrice)} home at ${rateStr}`,
         },
     ];
 
