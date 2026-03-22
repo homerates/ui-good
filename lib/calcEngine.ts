@@ -678,7 +678,7 @@ export function calcRefi(input: RefiInput): RefiResult {
 
     if (combinedSav <= 0) {
         verdict = 'no_savings';
-        verdictReason = `Payment rises $${Math.round(Math.abs(piSavings))}/mo at ${newRatePct}%. Only makes sense for cash-out, term shortening, or MIP removal.`;
+        verdictReason = `Payment rises $${Math.round(Math.abs(piSavings))}/mo at ${parseFloat(newRatePct.toFixed(2))}%. Only makes sense for cash-out, term shortening, or MIP removal.`;
     } else if (rateDrop < 0.375 && !isFHAtoConv) {
         verdict = 'poor';
         verdictReason = `Rate drop of ${rateDrop.toFixed(2)}% is too thin. General rule: need 0.5%+ improvement to cover costs. Your 3yr trigger rate: ${trig3 ? trig3.toFixed(2) + '%' : 'not available'}.`;
