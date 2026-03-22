@@ -2640,7 +2640,8 @@ To give you a real verdict (not just math), I need:
 
         // ── FULL CALCULATION ENGINE ──
         const effNewRate = newRate ?? marketRate ?? (currentRate - 0.5);
-        const effCosts = closingCosts ?? balance * 0.02;
+        const paramClosingCosts = (body as any)?.paramOverrides?.closingCosts;
+        const effCosts = paramClosingCosts != null ? paramClosingCosts : (closingCosts ?? balance * 0.02);
         const amortReset = yearsIn && yearsIn >= 10; // warn if resetting significant amortization
 
         // Core payments
@@ -2770,7 +2771,8 @@ To give you a real verdict (not just math), I need:
         const costsNote = closingCosts
             ? `your provided ${f$(closingCosts)} cost figure`
             : `2% estimate (${f$(effCosts)}) — get actual lender quotes, jumbo loans often run 1.5–2.5%`;
-        const lenderSection = `\n\n---\n\n## 🔍 What Lenders Won't Tell You\n\n${amortReset ? `- **Amortization reset:** You're ${yearsIn} years in. Resetting to 30yr means your early payments are mostly interest again — potentially ${f$(resetPenalty)} in extra lifetime interest.\n` : ''}${pi20 < curPI ? `- **20yr refi trick:** A 20yr refi at ${fPct(effNewRate)} (${fD(pi20)}/mo) is *still lower* than your current payment (${fD(curPI)}/mo) and saves **${f$(int20saved)}** in interest.\n` : ''}${isFHAtoConv ? '' : `- **No-cost refi option:** Ask lenders about lender credits (typically 0.25–0.5% higher rate). On a ${f$(balance)} loan, this can eliminate closing costs entirely — breakeven becomes month 1.\n`}- **Lock timing:** Once decided, lock within 5–7 business days. Float-down options cost ~0.1–0.25% but protect you if rates drop before close.\n- **Lender cost variance:** On jumbo loans, closing costs vary $5k–$15k between lenders. Get 3 quotes minimum.`;
+        const strikeRateLabel = fPct(parseFloat((currentRate - 0.5).toFixed(2)));
+        const lenderSection = `\n\n---\n\n## 🔍 What Lenders Won't Tell You\n\n${amortReset ? `- **Amortization reset:** You're ${yearsIn} years in. Resetting to 30yr means your early payments are mostly interest again — potentially ${f$(resetPenalty)} in extra lifetime interest.\n` : ''}${pi20 < curPI ? `- **20yr refi trick:** A 20yr refi at ${fPct(effNewRate)} (${fD(pi20)}/mo) is *still lower* than your current payment (${fD(curPI)}/mo) and saves **${f$(int20saved)}** in interest.\n` : ''}${isFHAtoConv ? '' : `- **No-cost refi:** Take +0.25% rate — lender credits wipe your closing costs, breakeven is day 1.\n`}- **Strike rate:** ${strikeRateLabel} is 0.5% below your current rate — industry standard trigger point.\n- **Get 3 quotes** — costs and credits vary $5k-$15k between lenders.`;
 
         // ── MAIN OUTPUT ──
         const costsUsedNote = closingCosts ? `your ${f$(closingCosts)} quote` : `2% estimate (${f$(effCosts)})`;
@@ -2830,56 +2832,52 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
 
 **Next steps:** Get 2–3 lender quotes · Ask about no-cost refi option · Lock when you're ready`;
 
-        // ── DYNAMIC CHIPS based on scenario verdict ──
-        let refiChips: Array<{ label: string; seed: string }>;
+        // ── UNIFIED CHIPS: no-cost refi · strike rate · rate scenario ──
+        const noCostRefiRate = parseFloat((effNewRate + 0.25).toFixed(2));
+        const strikeRate = parseFloat((currentRate - 0.5).toFixed(2));
+        const deeperRate = parseFloat((effNewRate - 0.5).toFixed(2));
 
-        if (vEmoji === "⛔" && marketRate && marketRate >= currentRate) {
-            // Hold — market worse than current
-            refiChips = [
-                { label: `What rate is my trigger? Show ${fPct(trig3yr ?? currentRate - 1)} analysis`, seed: `What rate do I need to see to refi my ${f$(balance)} at ${fPct(currentRate)} with a 3-year breakeven?` },
-                { label: "Make extra payments instead — show payoff comparison", seed: `Compare making extra principal payments vs refinancing on my ${f$(balance)} at ${fPct(currentRate)}` },
-                { label: "What if rates hit 5.5%? Full refi analysis", seed: `Full refi analysis on my ${f$(balance)} at ${fPct(currentRate)} if rates drop to 5.5%` },
-            ];
-        } else if (vEmoji === "🔴" && rateDrop < 0.375) {
-            // Spread too thin
-            refiChips = [
-                { label: `My trigger rate is ${trig3yr ? fPct(trig3yr) : '5.5%'} — show full analysis at that rate`, seed: `Refi analysis on ${f$(balance)} at ${fPct(currentRate)} if rates drop to ${trig3yr ? fPct(trig3yr) : '5.5%'}` },
-                { label: "Extra principal payments vs waiting for trigger rate — which wins?", seed: `Compare making extra payments vs waiting to refi on my ${f$(balance)} at ${fPct(currentRate)}` },
-                { label: "No-cost refi — does lender credit change this calculus?", seed: `If the lender covers closing costs on my ${f$(balance)} at ${fPct(currentRate)} refi to ${fPct(effNewRate)}, does it pencil?` },
-            ];
-        } else if (vEmoji === "✅" && beYrs && beYrs <= 2.5) {
-            // Strong — lock focused chips
-            refiChips = [
-                pi20 < curPI
-                    ? { label: `20yr at ${fPct(effNewRate)} — still lower payment + save ${f$(int20saved)}?`, seed: `Show me 20yr vs 30yr refi at ${fPct(effNewRate)} on ${f$(balance)} — I heard 20yr might still be cheaper than my current payment` }
-                    : { label: `Lock now vs float-down — what's the rate risk?`, seed: `Should I lock at ${fPct(effNewRate)} now or use a float-down option on my ${f$(balance)} refi? What's the cost?` },
-                { label: "No-cost refi — eliminate closing costs with lender credit", seed: `What rate do I need for a no-cost refi on my ${f$(balance)}? Show me the lender credit breakeven vs paying ${f$(effCosts)} upfront` },
-                { label: `Refi again if rates hit ${fPct(wr1)} — double-refi math`, seed: `If I refi now to ${fPct(effNewRate)} and rates later hit ${fPct(wr1)} on my ${f$(balance)}, does a second refi make sense?` },
-            ];
-        } else if (vEmoji === "✅") {
-            // Good — timeline chips
-            refiChips = [
-                { label: `How many years do I need to stay for this to pay off?`, seed: `I have a ${f$(balance)} at ${fPct(currentRate)} and want to refi to ${fPct(effNewRate)} — how many years do I need to stay for it to make sense?` },
-                pi20 < curPI
-                    ? { label: `20yr refi = lower payment + ${f$(int20saved)} saved — show full breakdown`, seed: `20yr refi at ${fPct(effNewRate)} on ${f$(balance)} vs 30yr — I heard 20yr might cost less per month` }
-                    : { label: `No-cost refi option — lender credit eliminates closing costs`, seed: `What rate for a no-cost refi on ${f$(balance)}? Show me breakeven on lender credit vs ${f$(effCosts)} upfront` },
-                { label: `What if I sell in 3 years — does this refi lose money?`, seed: `If I refi my ${f$(balance)} from ${fPct(currentRate)} to ${fPct(effNewRate)} and sell in 3 years, am I ahead or behind?` },
-            ];
-        } else if (vEmoji === "🟡") {
-            // Marginal — decision chips
-            refiChips = [
-                { label: `How many years until this breaks even?`, seed: `At what year does a refi from ${fPct(currentRate)} to ${fPct(effNewRate)} on ${f$(balance)} break even? Show me a year-by-year table` },
-                { label: `My trigger rate for 3yr breakeven: ${trig3yr ? fPct(trig3yr) : 'show me'}`, seed: `What rate do I need for a 3-year breakeven on my ${f$(balance)} at ${fPct(currentRate)}? Show me the trigger rate analysis.` },
-                { label: "No-cost refi — changes everything at marginal spreads", seed: `If closing costs are zero on my ${f$(balance)} refi from ${fPct(currentRate)} to ${fPct(effNewRate)}, does the math change?` },
-            ];
-        } else {
-            // Long breakeven / default
-            refiChips = [
-                { label: `Trigger rate for 3yr breakeven: ${trig3yr ? fPct(trig3yr) : 'calculate it'}`, seed: `What rate do I need for a 3-year breakeven on my ${f$(balance)} at ${fPct(currentRate)}?` },
-                { label: "Extra principal payments vs refi — which builds equity faster?", seed: `Compare making $500/mo extra payments vs refinancing my ${f$(balance)} from ${fPct(currentRate)} to ${fPct(effNewRate)}` },
-                { label: `What if I wait until rates hit ${fPct(trig3yr ?? effNewRate - 0.5)}?`, seed: `Refi analysis if I wait until rates reach ${fPct(trig3yr ?? effNewRate - 0.5)} on my ${f$(balance)} at ${fPct(currentRate)}` },
-            ];
-        }
+        // Chip 2: strike rate if not yet reached, else deeper drop
+        const chip2 = effNewRate > strikeRate
+            ? {
+                label: `Strike rate ${fPct(strikeRate)} — show full savings`,
+                seed: `Refi from ${fPct(currentRate)} to ${fPct(strikeRate)} on ${f$(balance)} — full cost and breakeven`,
+                paramOverrides: { newRatePct: strikeRate, currentBalance: balance, currentRatePct: currentRate },
+                changedKeys: ['newRatePct'],
+            }
+            : {
+                label: `Rates drop to ${fPct(deeperRate)} — how much more do I save?`,
+                seed: `Refi from ${fPct(currentRate)} to ${fPct(deeperRate)} on ${f$(balance)}`,
+                paramOverrides: { newRatePct: deeperRate, currentBalance: balance, currentRatePct: currentRate },
+                changedKeys: ['newRatePct'],
+            };
+
+        // Chip 3: trigger rate (if spread thin) else deeper drop
+        const chip3rate = rateDrop < 0.5 ? (trig3yr ?? parseFloat((currentRate - 1).toFixed(2))) : deeperRate;
+        const chip3 = rateDrop < 0.5
+            ? {
+                label: `Trigger rate ${fPct(chip3rate)} — 3yr breakeven analysis`,
+                seed: `Refi ${f$(balance)} at ${fPct(currentRate)} to ${fPct(chip3rate)} — full breakeven analysis`,
+                paramOverrides: { newRatePct: chip3rate, currentBalance: balance, currentRatePct: currentRate },
+                changedKeys: ['newRatePct'],
+            }
+            : {
+                label: `Rates drop to ${fPct(deeperRate)} — how much more do I save?`,
+                seed: `Refi from ${fPct(currentRate)} to ${fPct(deeperRate)} on ${f$(balance)}`,
+                paramOverrides: { newRatePct: deeperRate, currentBalance: balance, currentRatePct: currentRate },
+                changedKeys: ['newRatePct'],
+            };
+
+        let refiChips: Array<{ label: string; seed: string; paramOverrides?: Record<string, any>; changedKeys?: string[] }> = [
+            {
+                label: `No-cost at ${fPct(noCostRefiRate)} — lender covers closing costs`,
+                seed: `No-cost refi on ${f$(balance)} from ${fPct(currentRate)} to ${fPct(noCostRefiRate)} — lender covers all closing costs`,
+                paramOverrides: { newRatePct: noCostRefiRate, currentBalance: balance, currentRatePct: currentRate, closingCosts: 0 },
+                changedKeys: ['newRatePct', 'closingCosts'],
+            },
+            chip2,
+            chip3,
+        ];
 
         // Override chips for special refi types
         if (isFHAtoConv) {
@@ -3453,11 +3451,13 @@ ${uwAnswerText}`,
                 currentRatePct: paramOverrides.currentRatePct ?? (calcDispatch.params as any)?.currentRatePct ?? null,
                 newRatePct: paramOverrides.newRatePct,
                 remainingMonths: (calcDispatch.params as any)?.remainingMonths ?? 360,
+                ...((paramOverrides as any).closingCosts != null ? { closingCosts: (paramOverrides as any).closingCosts } : {}),
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {
                 newRatePct: `rate updated to ${paramOverrides.newRatePct}%`,
                 currentBalance: `balance updated to $${paramOverrides.currentBalance?.toLocaleString()}`,
+                closingCosts: `no closing costs (lender credit via rate)`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if ((paramOverrides as any).fhaEquityMode === true) {
@@ -3674,11 +3674,13 @@ ${uwAnswerText}`,
                 currentRatePct: paramOverrides.currentRatePct ?? (calcDispatch.params as any)?.currentRatePct ?? null,
                 newRatePct: paramOverrides.newRatePct,
                 remainingMonths: (calcDispatch.params as any)?.remainingMonths ?? 360,
+                ...((paramOverrides as any).closingCosts != null ? { closingCosts: (paramOverrides as any).closingCosts } : {}),
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {
                 newRatePct: `rate updated to ${paramOverrides.newRatePct}%`,
                 currentBalance: `balance updated to $${paramOverrides.currentBalance?.toLocaleString()}`,
+                closingCosts: `no closing costs (lender credit via rate)`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
         } else if ((paramOverrides as any).fhaEquityMode === true) {

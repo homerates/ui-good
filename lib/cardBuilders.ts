@@ -598,28 +598,36 @@ ${mipSection}${resetSection}${waitSection}
 ---
 
 **What lenders won't tell you:**
-- **No-cost refi:** Lender credits (0.25–0.5% higher rate) can eliminate closing costs — breakeven becomes month 1
-- **Lock timing:** Once decided, lock within 5–7 business days
-- **Get 3 quotes** — costs vary $5k–$15k between lenders on jumbo loans`;
+- **No-cost refi:** Take +0.25% rate and lender credits wipe your closing costs — breakeven is day 1
+- **Strike rate:** Industry standard is 0.5% below your current rate — below that, refinancing is a clear win
+- **Get 3 quotes** — costs and credits vary $5k–$15k between lenders`;
+
+    const noCostRate = parseFloat((r.newRatePct + 0.25).toFixed(2));
+    const strikeRate = parseFloat((r.currentRatePct - 0.5).toFixed(2));
+    const deeperRate = parseFloat((r.newRatePct - 0.5).toFixed(2));
 
     const chips: BuiltCard['follow_up_chips'] = [
         {
-            label: `Rates drop to ${(r.newRatePct - 0.5).toFixed(2)}% — how much more do I save?`,
-            seed: `Same refi but rates drop to ${(r.newRatePct - 0.5).toFixed(2)}%`,
-            paramOverrides: { newRatePct: parseFloat((r.newRatePct - 0.5).toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
+            label: `No-cost refi at ${fPct(noCostRate)} — lender covers closing costs`,
+            seed: `No-cost refi on ${fK(r.currentBalance)} from ${fPct(r.currentRatePct)} to ${fPct(noCostRate)} — lender covers all closing costs`,
+            paramOverrides: { newRatePct: noCostRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct, closingCosts: 0 },
+            changedKeys: ['newRatePct', 'closingCosts'],
+        },
+        {
+            label: `Strike rate ${fPct(strikeRate)} — industry trigger point`,
+            seed: `Refi from ${fPct(r.currentRatePct)} to ${fPct(strikeRate)} on ${fK(r.currentBalance)} — full cost and breakeven`,
+            paramOverrides: { newRatePct: strikeRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
             changedKeys: ['newRatePct'],
         },
         {
-            label: `20yr vs 30yr refi — how much interest do I save over the life of the loan?`,
+            label: `Rates drop to ${fPct(deeperRate)} — how much more do I save?`,
+            seed: `Refi from ${fPct(r.currentRatePct)} to ${fPct(deeperRate)} on ${fK(r.currentBalance)}`,
+            paramOverrides: { newRatePct: deeperRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct },
+            changedKeys: ['newRatePct'],
+        },
+        {
+            label: `20-year refi at ${fPct(r.newRatePct)} — total interest saved?`,
             seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}`
-        },
-        {
-            label: `Extra payments vs refi — which builds equity faster?`,
-            seed: `Compare refinancing ${fK(r.currentBalance)} at ${fPct(r.currentRatePct)} to ${fPct(r.newRatePct)} vs making extra principal payments`
-        },
-        {
-            label: `No-cost refi — what rate do I need to cover closing costs?`,
-            seed: `What rate do I need for a no-cost refi on my ${fK(r.currentBalance)} mortgage at ${fPct(r.currentRatePct)}?`
         },
     ];
 
