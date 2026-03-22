@@ -2832,15 +2832,16 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
 
 **Next steps:** Get 2–3 lender quotes · Ask about no-cost refi option · Lock when you're ready`;
 
-        // ── UNIFIED CHIPS: no-cost refi · strike rate · rate scenario ──
+        // ── UNIFIED 4-CHIP SET: no-cost · strike-or-deeper · trigger-or-deeper · 20yr ──
         const noCostRefiRate = parseFloat((effNewRate + 0.25).toFixed(2));
         const strikeRate = parseFloat((currentRate - 0.5).toFixed(2));
         const deeperRate = parseFloat((effNewRate - 0.5).toFixed(2));
+        const thinSpread = rateDrop < 0.5;
 
-        // Chip 2: strike rate if not yet reached, else deeper drop
+        // Chip 2: strike rate when not yet reached; deeper drop when already past it
         const chip2 = effNewRate > strikeRate
             ? {
-                label: `Strike rate ${fPct(strikeRate)} — show full savings`,
+                label: `Strike rate ${fPct(strikeRate)} — industry trigger point`,
                 seed: `Refi from ${fPct(currentRate)} to ${fPct(strikeRate)} on ${f$(balance)} — full cost and breakeven`,
                 paramOverrides: { newRatePct: strikeRate, currentBalance: balance, currentRatePct: currentRate },
                 changedKeys: ['newRatePct'],
@@ -2852,21 +2853,25 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
                 changedKeys: ['newRatePct'],
             };
 
-        // Chip 3: trigger rate (if spread thin) else deeper drop
-        const chip3rate = rateDrop < 0.5 ? (trig3yr ?? parseFloat((currentRate - 1).toFixed(2))) : deeperRate;
-        const chip3 = rateDrop < 0.5
+        // Chip 3: trigger rate (thin spread) or sell-in-3yr scenario (good spread, already a clear win)
+        const chip3rate = trig3yr ?? parseFloat((currentRate - 1).toFixed(2));
+        const chip3 = thinSpread
             ? {
-                label: `Trigger rate ${fPct(chip3rate)} — 3yr breakeven analysis`,
+                label: `Trigger rate ${fPct(chip3rate)} — 3yr breakeven`,
                 seed: `Refi ${f$(balance)} at ${fPct(currentRate)} to ${fPct(chip3rate)} — full breakeven analysis`,
                 paramOverrides: { newRatePct: chip3rate, currentBalance: balance, currentRatePct: currentRate },
                 changedKeys: ['newRatePct'],
             }
             : {
-                label: `Rates drop to ${fPct(deeperRate)} — how much more do I save?`,
-                seed: `Refi from ${fPct(currentRate)} to ${fPct(deeperRate)} on ${f$(balance)}`,
-                paramOverrides: { newRatePct: deeperRate, currentBalance: balance, currentRatePct: currentRate },
-                changedKeys: ['newRatePct'],
+                label: `If I sell in 3 years — does this refi still pay off?`,
+                seed: `If I refi ${f$(balance)} from ${fPct(currentRate)} to ${fPct(effNewRate)} and sell in 3 years, am I ahead or behind?`,
             };
+
+        // Chip 4: 20yr refi — always unique, always useful
+        const chip4 = {
+            label: `20yr at ${fPct(effNewRate)} — save ${f$(int20saved)} in interest`,
+            seed: `20yr vs 30yr refi at ${fPct(effNewRate)} on ${f$(balance)} — payment and total interest comparison`,
+        };
 
         let refiChips: Array<{ label: string; seed: string; paramOverrides?: Record<string, any>; changedKeys?: string[] }> = [
             {
@@ -2877,6 +2882,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
             },
             chip2,
             chip3,
+            chip4,
         ];
 
         // Override chips for special refi types
