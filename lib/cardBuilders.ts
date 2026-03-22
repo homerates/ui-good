@@ -577,7 +577,7 @@ ${fredNote}${assumptionNote}
 | P&I payment | ${f$(r.currentMonthlyPI)}/mo | ${f$(r.newMonthlyPI)}/mo | **${r.monthlyPISavings >= 0 ? '+' : ''}${f$(r.monthlyPISavings)}/mo** |
 | Annual savings | — | — | **${f$(r.annualSavings)}/yr** |
 | Closing costs | — | ~${f$(r.closingCosts)} | ~2% estimate |
-| **Breakeven** | — | — | **${r.breakEvenMonths ? `${r.breakEvenMonths} months (${fYr(r.breakEvenYears!)})` : 'N/A'}** |
+| **Breakeven** | — | — | **${r.breakEvenMonths === 0 ? 'Immediate (no closing costs)' : r.breakEvenMonths != null ? `${r.breakEvenMonths} months (${fYr(r.breakEvenYears!)})` : 'N/A'}** |
 
 ---
 
@@ -605,14 +605,16 @@ ${mipSection}${resetSection}${waitSection}
     const noCostRate = parseFloat((r.newRatePct + 0.25).toFixed(2));
     const strikeRate = parseFloat((r.currentRatePct - 0.5).toFixed(2));
     const deeperRate = parseFloat((r.newRatePct - 0.5).toFixed(2));
+    // No-cost chip only makes sense if the no-cost rate is below the current rate
+    const showNoCostChip = noCostRate < r.currentRatePct;
 
     const chips: BuiltCard['follow_up_chips'] = [
-        {
+        ...(showNoCostChip ? [{
             label: `No-cost refi at ${fPct(noCostRate)} — lender covers closing costs`,
             seed: `No-cost refi on ${fK(r.currentBalance)} from ${fPct(r.currentRatePct)} to ${fPct(noCostRate)} — lender covers all closing costs`,
             paramOverrides: { newRatePct: noCostRate, currentBalance: r.currentBalance, currentRatePct: r.currentRatePct, closingCosts: 0 },
             changedKeys: ['newRatePct', 'closingCosts'],
-        },
+        }] : []),
         {
             label: `Strike rate ${fPct(strikeRate)} — industry trigger point`,
             seed: `Refi from ${fPct(r.currentRatePct)} to ${fPct(strikeRate)} on ${fK(r.currentBalance)} — full cost and breakeven`,

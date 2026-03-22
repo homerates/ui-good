@@ -637,7 +637,7 @@ export function calcRefi(input: RefiInput): RefiResult {
 
     // Breakeven uses combined savings (PI + MIP)
     const beMonths = combinedSav > 0 ? effCosts / combinedSav : null;
-    const beYears = beMonths ? beMonths / 12 : null;
+    const beYears = beMonths != null ? beMonths / 12 : null;
 
     // Trigger rates
     const trig2 = triggerRateSearch(currentBalance, currentRatePct, effCosts, 2, remainingMonths);
@@ -682,18 +682,21 @@ export function calcRefi(input: RefiInput): RefiResult {
     } else if (rateDrop < 0.375 && !isFHAtoConv) {
         verdict = 'poor';
         verdictReason = `Rate drop of ${rateDrop.toFixed(2)}% is too thin. General rule: need 0.5%+ improvement to cover costs. Your 3yr trigger rate: ${trig3 ? trig3.toFixed(2) + '%' : 'not available'}.`;
-    } else if (beYears && beYears <= 2.5) {
+    } else if (beYears === 0) {
+        verdict = 'strong';
+        verdictReason = `Breakeven is immediate — no closing costs, clear win from day 1.`;
+    } else if (beYears != null && beYears <= 2.5) {
         verdict = 'strong';
         verdictReason = `Breakeven in ${beYears.toFixed(1)} years — clear win if staying 2+ years.`;
-    } else if (beYears && beYears <= 4) {
+    } else if (beYears != null && beYears <= 4) {
         verdict = 'good';
         verdictReason = `Breakeven in ${beYears.toFixed(1)} years. Solid if staying 4+ years.`;
-    } else if (beYears && beYears <= 6) {
+    } else if (beYears != null && beYears <= 6) {
         verdict = 'marginal';
         verdictReason = `Breakeven is ${beYears.toFixed(1)} years. Works if staying 7+ years.`;
     } else {
         verdict = 'poor';
-        verdictReason = `Breakeven is ${beYears ? beYears.toFixed(1) + ' years' : 'too long'}. Consider waiting for a lower rate.`;
+        verdictReason = `Breakeven is ${beYears != null ? beYears.toFixed(1) + ' years' : 'too long'}. Consider waiting for a lower rate.`;
     }
 
     return {
