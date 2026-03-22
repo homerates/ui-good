@@ -83,6 +83,18 @@ export function buildConventionalCard(
 | Status | ${r.backEndDTI! <= 43 ? '✅ Within conventional guidelines' : r.backEndDTI! <= 50 ? '⚠️ High — may need compensating factors' : '❌ Exceeds standard guidelines'} |
 ` : '';
 
+    const incomeSection = !r.frontEndDTI ? `
+---
+
+## 💰 Minimum Income to Qualify
+
+| DTI Guideline | Required Annual Income |
+|---------------|----------------------|
+| Conservative (28% front-end) | ~${fK(r.totalMonthly / 0.28 * 12)}/year |
+| Standard (43% back-end) | ~${fK(r.totalMonthly / 0.43 * 12)}/year |
+| Max w/ compensating factors (50%) | ~${fK(r.totalMonthly / 0.50 * 12)}/year |
+` : '';
+
     const answer = `**Conventional Loan Analysis**
 ${assumptionNote}${fredNote}
 **${f$(r.purchasePrice)} purchase · ${r.downPaymentPct}% down · ${rateStr} · ${r.termYears}-year fixed**
@@ -118,7 +130,7 @@ ${pmiNote}
 | Total Interest | ${f$(r.totalInterest)} |
 | Total Payments | ${f$(r.totalPayments)} |
 | Loan Payoff | ${r.termYears} years |
-${dtiSection}
+${dtiSection}${incomeSection}
 ---
 
 **Next Steps:**
