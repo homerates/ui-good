@@ -21,6 +21,7 @@ import {
     AffordabilityScenario,
     DSCRResult,
     FHAvsConvResult,
+    Refi20vs30Result,
 } from './calcEngine';
 import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 
@@ -608,6 +609,7 @@ ${mipSection}${resetSection}${waitSection}
 - ${r.verdict === 'poor' || r.verdict === 'hold' || r.verdict === 'no_savings' ? `**"Can you set up a rate alert for ${fPct(r.triggerRate3yr ?? parseFloat((r.currentRatePct - 0.5).toFixed(2)))}?"** Many lenders will call or text when your trigger rate is available.` : `**"Do you offer a float-down before closing?"** Some lenders let you drop to the day-of rate at no cost if rates fall before you close.`}`;
 
     const noCostRate = parseFloat((r.newRatePct + 0.25).toFixed(2));
+    const rate20yrEstimate = parseFloat((r.newRatePct - 0.25).toFixed(2));
     const strikeRate = parseFloat((r.currentRatePct - 0.5).toFixed(2));
     const deeperRate = parseFloat((r.newRatePct - 0.5).toFixed(2));
     // No-cost chip only makes sense if the no-cost rate is below the current rate
@@ -655,10 +657,10 @@ ${mipSection}${resetSection}${waitSection}
         chip2,
         chip3,
         ...(r.verdict !== 'no_savings' ? [{
-            label: `20-year refi at ${fPct(r.newRatePct)} — total interest saved?`,
-            seed: `Compare 20-year vs 30-year refi on ${fK(r.currentBalance)} at ${fPct(r.newRatePct)}`,
-            paramOverrides: { newRatePct: parseFloat(r.newRatePct.toFixed(2)), currentBalance: r.currentBalance, currentRatePct: r.currentRatePct, refiTermMonths: 240 },
-            changedKeys: ['refiTermMonths'],
+            label: `Compare 20yr at ${fPct(rate20yrEstimate)} vs 30yr at ${fPct(r.newRatePct)} — which wins?`,
+            seed: `Compare 20-year refi at ${fPct(rate20yrEstimate)} vs 30-year refi at ${fPct(r.newRatePct)} on ${fK(r.currentBalance)}`,
+            paramOverrides: { rate20yr: rate20yrEstimate, rate30yr: parseFloat(r.newRatePct.toFixed(2)), balance20vs30: r.currentBalance },
+            changedKeys: ['rate20yr', 'rate30yr'],
         }] : []),
     ];
 
@@ -673,6 +675,77 @@ ${mipSection}${resetSection}${waitSection}
             scenario_inputs: { loan_amount: r.currentBalance, current_rate_pct: r.currentRatePct, rate_used_pct: r.newRatePct, term_years: 30 },
             computed_financials: { monthly_pi: r.newMonthlyPI, monthly_savings: r.monthlyPISavings, break_even_months: r.breakEvenMonths },
             monthly_payment: r.newMonthlyPI,
+        },
+    };
+}
+
+// ─────────────────────────────────────────────
+// REFI 20yr vs 30yr COMPARISON CARD
+// ─────────────────────────────────────────────
+
+export function buildRefi20vs30Card(r: Refi20vs30Result, fredRateStr?: string): BuiltCard {
+    const fredNote = fredRateStr ? `\n> 📡 **Today's 30yr market rate: ${fredRateStr}** (FRED, live)\n` : '';
+
+    const answer = `## 🔢 20-Year vs 30-Year Refi — ${fPct(r.rate20yr)} vs ${fPct(r.rate30yr)}
+${fredNote}
+**Loan Balance: ${f$(r.balance)}**
+
+---
+
+## 💰 Side-by-Side Comparison
+
+| | 30-Year at ${fPct(r.rate30yr)} | 20-Year at ${fPct(r.rate20yr)} | Difference |
+|--|--|--|--|
+| Monthly P&I | ${f$(r.pi30)}/mo | ${f$(r.pi20)}/mo | **+${f$(r.extraMonthly)}/mo** |
+| Total interest | ${f$(r.totalInt30)} | ${f$(r.totalInt20)} | **Save ${f$(r.interestSaved)}** |
+| Loan term | 30 years | 20 years | **10 years sooner** |
+
+---
+
+## 🎯 The Trade-Off
+
+Pay **${f$(r.extraMonthly)}/mo more** on the 20-year to eliminate **${f$(r.interestSaved)} in total interest** and be mortgage-free 10 years sooner.
+
+---
+
+## 💬 Ask Your Lender
+
+- **"What's the actual 20yr rate today?"** The 20yr is typically 0.2–0.35% below the 30yr — confirm the spread before you decide.
+- **"Can I make extra principal payments on the 30yr instead?"** You get flexibility, but a shorter term forces the discipline.
+- **"What's the APR on each?"** APR includes fees — compare APR across both options, not just rate.`;
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `30yr at ${fPct(r.rate30yr)} — full refi analysis`,
+            seed: `Refi ${fK(r.balance)} to 30-year at ${fPct(r.rate30yr)} — breakeven and net savings`,
+            paramOverrides: { newRatePct: r.rate30yr, currentBalance: r.balance, currentRatePct: parseFloat((r.rate30yr + 0.5).toFixed(2)) },
+            changedKeys: ['newRatePct'],
+        },
+        {
+            label: `If I sell in 5 years — does the 20yr still win?`,
+            seed: `If I refi ${fK(r.balance)} to 20yr at ${fPct(r.rate20yr)} and sell in 5 years, does it beat the 30yr at ${fPct(r.rate30yr)}?`,
+        },
+        {
+            label: `Extra payments on 30yr to pay off in 20 — how much extra/mo?`,
+            seed: `If I take 30yr refi at ${fPct(r.rate30yr)} on ${fK(r.balance)} and want to pay it off in 20 years, how much extra per month do I need?`,
+        },
+        {
+            label: `No-cost refi option — what rate does that get me?`,
+            seed: `What's the no-cost refi rate on ${fK(r.balance)} if the 30yr is ${fPct(r.rate30yr)}?`,
+        },
+    ];
+
+    return {
+        answer,
+        next_step: '',
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `20yr vs 30yr refi on ${f$(r.balance)}: 30yr at ${fPct(r.rate30yr)} = ${f$(r.pi30)}/mo, 20yr at ${fPct(r.rate20yr)} = ${f$(r.pi20)}/mo. Extra ${f$(r.extraMonthly)}/mo saves ${f$(r.interestSaved)} total interest.`,
+            scenario_inputs: { loan_amount: r.balance, rate_20yr: r.rate20yr, rate_30yr: r.rate30yr },
+            computed_financials: { monthly_pi_30yr: r.pi30, monthly_pi_20yr: r.pi20, interest_saved: r.interestSaved, extra_monthly: r.extraMonthly },
+            monthly_payment: r.pi30,
         },
     };
 }

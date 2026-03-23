@@ -10,11 +10,12 @@ import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculat
 // NEW unified calc engine
 import {
     calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
-    calcDSCR, calcFHAvsConv, runCalcTests,
+    calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30,
 } from "../../../lib/calcEngine";
 import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
+    buildRefi20vs30Card,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
@@ -2865,12 +2866,13 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
                 seed: `If I refi ${f$(balance)} from ${fPct(currentRate)} to ${fPct(effNewRate)} and sell in 3 years, am I ahead or behind?`,
             };
 
-        // Chip 4: 20yr refi — always unique, always useful
+        // Chip 4: 20yr vs 30yr comparison — dedicated card
+        const rate20yrEst = parseFloat((effNewRate - 0.25).toFixed(2));
         const chip4 = {
-            label: `20yr at ${fPct(effNewRate)} — save ${f$(int20saved)} in interest`,
-            seed: `20yr vs 30yr refi at ${fPct(effNewRate)} on ${f$(balance)} — payment and total interest comparison`,
-            paramOverrides: { newRatePct: parseFloat(effNewRate.toFixed(2)), currentBalance: balance, currentRatePct: currentRate, refiTermMonths: 240 },
-            changedKeys: ['refiTermMonths'],
+            label: `Compare 20yr at ${fPct(rate20yrEst)} vs 30yr at ${fPct(effNewRate)} — which wins?`,
+            seed: `Compare 20-year refi at ${fPct(rate20yrEst)} vs 30-year refi at ${fPct(effNewRate)} on ${f$(balance)}`,
+            paramOverrides: { rate20yr: rate20yrEst, rate30yr: parseFloat(effNewRate.toFixed(2)), balance20vs30: balance },
+            changedKeys: ['rate20yr', 'rate30yr'],
         };
 
         // Only show no-cost chip when the no-cost rate is still below the current rate
@@ -3452,6 +3454,13 @@ ${uwAnswerText}`,
                 monthlyDebts: `monthly debts updated to $${paramOverrides.monthlyDebts?.toLocaleString()}/mo`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).rate20yr != null && (paramOverrides as any).rate30yr != null) {
+            (calcDispatch as any).type = 'refi_20vs30';
+            (calcDispatch as any).params = {
+                balance: (paramOverrides as any).balance20vs30,
+                rate20yr: (paramOverrides as any).rate20yr,
+                rate30yr: (paramOverrides as any).rate30yr,
+            };
         } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
@@ -3676,6 +3685,13 @@ ${uwAnswerText}`,
                 monthlyDebts: `monthly debts updated to $${paramOverrides.monthlyDebts?.toLocaleString()}/mo`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).rate20yr != null && (paramOverrides as any).rate30yr != null) {
+            (calcDispatch as any).type = 'refi_20vs30';
+            (calcDispatch as any).params = {
+                balance: (paramOverrides as any).balance20vs30,
+                rate20yr: (paramOverrides as any).rate20yr,
+                rate30yr: (paramOverrides as any).rate30yr,
+            };
         } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
@@ -3751,7 +3767,12 @@ ${uwAnswerText}`,
         const calcAssumptions = calcDispatch.assumptions;
 
         try {
-            if (calcDispatch.type === 'refi' && calcDispatch.params) {
+            if (calcDispatch.type === 'refi_20vs30' && calcDispatch.params) {
+                const result = calcRefi20vs30(calcDispatch.params as any);
+                calcCard = buildRefi20vs30Card(result, fredRateForCard);
+                calcDebugModel = 'calcEngine-refi_20vs30';
+
+            } else if (calcDispatch.type === 'refi' && calcDispatch.params) {
                 const result = calcRefi(calcDispatch.params as any);
                 calcCard = buildRefiCard(result, calcAssumptions, fredRateForCard,
                     (calcDispatch.params as any).isFHAtoConv ? 'fha_to_conv' : undefined);

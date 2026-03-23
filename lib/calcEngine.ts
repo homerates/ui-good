@@ -739,6 +739,53 @@ export function calcRefi(input: RefiInput): RefiResult {
 }
 
 // ─────────────────────────────────────────────
+// CALC: REFI 20yr vs 30yr COMPARISON
+// ─────────────────────────────────────────────
+
+export interface Refi20vs30Input {
+    balance: number;
+    rate20yr: number;
+    rate30yr: number;
+}
+
+export interface Refi20vs30Result {
+    balance: number;
+    rate20yr: number;
+    rate30yr: number;
+    pi30: number;
+    totalInt30: number;
+    pi20: number;
+    totalInt20: number;
+    extraMonthly: number;
+    interestSaved: number;
+}
+
+export function calcRefi20vs30(input: Refi20vs30Input): Refi20vs30Result {
+    const { balance, rate20yr, rate30yr } = input;
+
+    const pi30 = monthlyPI(balance, rate30yr, 360);
+    const totalInt30 = (pi30 * 360) - balance;
+
+    const pi20 = monthlyPI(balance, rate20yr, 240);
+    const totalInt20 = (pi20 * 240) - balance;
+
+    const extraMonthly = pi20 - pi30;
+    const interestSaved = totalInt30 - totalInt20;
+
+    return {
+        balance: Math.round(balance),
+        rate20yr,
+        rate30yr,
+        pi30: Math.round(pi30),
+        totalInt30: Math.round(totalInt30),
+        pi20: Math.round(pi20),
+        totalInt20: Math.round(totalInt20),
+        extraMonthly: Math.round(extraMonthly),
+        interestSaved: Math.round(interestSaved),
+    };
+}
+
+// ─────────────────────────────────────────────
 // CALC: AFFORDABILITY
 // ─────────────────────────────────────────────
 
