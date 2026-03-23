@@ -1194,10 +1194,16 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
                 seed: `DSCR on ${fK(r.purchasePrice)} investment property, 30% down${chipRentStr}, ${rateStr} — does cash flow turn positive?`,
                 paramOverrides: { downPaymentPct: 30, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
             }
-            : {
+            : r.downPaymentPct < 35
+            ? {
                 label: `What if I put 35% down — how much does DSCR improve?`,
                 seed: `DSCR on ${fK(r.purchasePrice)} investment property, 35% down${chipRentStr}, ${rateStr} — DSCR and cash flow`,
                 paramOverrides: { downPaymentPct: 35, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
+            }
+            : {
+                label: `Compare 25% down vs 35% down — leverage vs. cash flow`,
+                seed: `DSCR on ${fK(r.purchasePrice)} investment property, 25% down${chipRentStr}, ${rateStr} — compare leverage vs cash flow`,
+                paramOverrides: { downPaymentPct: 25, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
             },
         {
             label: `What rent do I need for 1.25x DSCR — lender approval threshold?`,
