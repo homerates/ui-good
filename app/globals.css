@@ -1195,3 +1195,16 @@ body {
   transform: translateX(1px);
   box-shadow: 0 1px 4px rgba(16, 185, 129, 0.1);
 }
+
+/* === Mobile: table horizontal scroll — prevents column clipping on small screens === */
+@media (max-width: 768px) {
+  .balloon table,
+  .balloon.bot table,
+  .answer-block table,
+  .balloon.assistant table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
