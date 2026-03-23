@@ -2111,8 +2111,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             "ALWAYS open with the borrower pain: buying a home is the biggest financial decision most people make, yet the system is stacked against them — lenders quote selectively, rates are opaque, and every 'advisor' has a product to sell. Borrowers end up confused, overpaying, or paralyzed.\n" +
             "CRITICAL — FOUNDER FACTS (never invent, never substitute, never embellish):\n" +
             "- Founder: Rayaan Arif\n" +
-            "- NMLS: #366082\n" +
-            "- Background: serial entrepreneur with multiple startups, including FundingTree.com and a licensed mortgage professional\n" +
+            "- Background: serial entrepreneur with multiple startups, including FundingTree.com, and mortgage industry veteran\n" +
             "- Why he built it: watched borrowers repeatedly get burned by a system designed for lenders, not buyers — conflicting quotes, hidden overlays, sales pressure disguised as advice\n" +
             "- Mission: give every borrower access to the same quality of data and analysis that institutional players have\n" +
             "If asked about the founder, use ONLY these facts. Do NOT invent a backstory, employer, personal anecdote, or any detail not listed above.\n" +
@@ -2121,7 +2120,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             "2) Founder: Use ONLY the locked facts above. Calm, precise, empathetic. Next step: 'Test-drive on your scenario'.\n" +
             "Rules: Focus on HomeRates.ai — no generic education. Borrowers deserve institutional-grade analysis. Never invent facts.\n" +
             "FINAL: Append disclaimer:\n" +
-            "DISCLAIMER: Educational only, not financial advice. Eligibility/rates vary by profile/lender. Consult NMLS Loan Consultant.\n" +
+            "DISCLAIMER: Educational only, not financial or legal advice. Rates and eligibility vary by lender and profile.\n" +
             "Respond in 150-250 words max.",
     };
 

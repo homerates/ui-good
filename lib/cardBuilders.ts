@@ -1611,19 +1611,21 @@ export function buildLabCard(): BuiltCard {
 export function buildAboutCard(): BuiltCard {
     const answer = `## 🏦 About HomeRates.ai
 
+**The first of its kind.** HomeRates.ai is the first AI-powered mortgage intelligence platform built specifically to empower homeowners, first-time home buyers, renters, and home investors — not lenders.
+
 **The problem.** Buying a home is the biggest financial decision most people make — yet the system is stacked against them. Lenders quote selectively, rates are opaque, and every "advisor" has a product to sell. Borrowers end up confused, overpaying, or paralyzed.
 
 **The solution.** HomeRates.ai is zero-sales, real-time mortgage intelligence built to fix lending confusion. No commissions. No affiliate links. No products to push. Just transparent data on rates, guidelines, and market signals so you can negotiate from strength.
 
 **How it works.** Every answer draws from live FRED data (Freddie Mac PMMS, 10Y Treasury, Fed funds rate), official agency underwriting guidelines (Fannie Mae, Freddie Mac, FHA, VA, USDA), and lender overlays — updated continuously.
 
-**Who built it.** Rayaan Arif (NMLS #366082) — serial entrepreneur and licensed mortgage professional who watched borrowers repeatedly get burned by a system designed for lenders, not buyers. He built HomeRates.ai to give every borrower access to the same quality of analysis that institutional players have.
+**Who built it.** Rayaan Arif — serial entrepreneur and mortgage industry veteran who watched borrowers repeatedly get burned by a system designed for lenders, not buyers. He built HomeRates.ai to give every borrower access to the same quality of analysis that institutional players have.
 
 > *"Borrowers deserve the same clarity institutional investors get. We built HomeRates.ai to close that gap."*
 > — Rayaan Arif, Founder
 
 ---
-*Educational only — not financial advice. Eligibility and rates vary by profile and lender. Consult an NMLS-licensed loan consultant.*`;
+*Educational only — not financial or legal advice. Eligibility and rates vary by profile and lender.*`;
 
     const follow_up_chips = [
         {
@@ -1699,7 +1701,7 @@ export function buildAboutTrustCard(): BuiltCard {
 **What this means for you.** The only defense is independent data. When you know the FRED benchmark (30Y fixed avg), the Fannie Mae/Freddie Mac guideline DTI limits, and current lender overlays — you can spot an inflated quote in 60 seconds.
 
 ---
-*Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
+*Educational only — not financial or legal advice. Rates and eligibility vary by lender and profile.*`;
 
     return {
         answer,
@@ -1732,7 +1734,7 @@ export function buildAboutDifferenceCard(): BuiltCard {
 > *Better informed borrowers make better decisions. HomeRates.ai exists to make that happen.*
 
 ---
-*Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
+*Educational only — not financial or legal advice. Rates and eligibility vary by lender and profile.*`;
 
     return {
         answer,
@@ -1781,7 +1783,7 @@ HomeRates.ai pulls from primary sources — not aggregators, not scrapers.
 **Lender overlays** tracked from LoanDepot, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, and Newrez public bulletins.
 
 ---
-*Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
+*Educational only — not financial or legal advice. Rates and eligibility vary by lender and profile.*`;
 
     return {
         answer,
@@ -1796,9 +1798,8 @@ export function buildAboutFounderCard(): BuiltCard {
     const answer = `## 👤 Who Built HomeRates.ai and Why?
 
 **Rayaan Arif** — Founder & CEO
-**NMLS #366082** — Licensed mortgage professional
 
-**The problem he kept seeing.** As a serial entrepreneur and licensed mortgage professional, Rayaan watched the same story play out repeatedly: borrowers making the biggest financial decision of their lives with incomplete, biased, or conflicting information. Lenders had every incentive to obscure pricing. Borrowers had no independent anchor.
+**The problem he kept seeing.** As a serial entrepreneur and mortgage industry veteran, Rayaan watched the same story play out repeatedly: borrowers making the biggest financial decision of their lives with incomplete, biased, or conflicting information. Lenders had every incentive to obscure pricing. Borrowers had no independent anchor.
 
 **The gap.** Institutional investors — hedge funds, REITs, private equity — have access to Bloomberg terminals, agency data feeds, and dedicated analysts to evaluate mortgage instruments. Individual borrowers get a sales call and a rate sheet.
 
@@ -1810,7 +1811,7 @@ export function buildAboutFounderCard(): BuiltCard {
 **What HomeRates.ai is not.** It is not a lender, broker, or lead generation platform. It will never quote you a rate to earn a commission, refer you to a lender for a fee, or filter information to favor a product.
 
 ---
-*Educational only — not financial advice. Eligibility and rates vary by profile and lender. Consult an NMLS-licensed loan consultant.*`;
+*Educational only — not financial or legal advice. Rates and eligibility vary by lender and profile.*`;
 
     return {
         answer,
@@ -1976,7 +1977,7 @@ export function buildHowItWorksCard(): BuiltCard {
 - Ask income: *"What income do I need to qualify?"* after any calc
 
 ---
-*Educational only — not financial advice. Consult an NMLS-licensed loan consultant.*`;
+*Educational only — not financial or legal advice. Rates and eligibility vary by lender and profile.*`;
 
     const follow_up_chips = [
         {
