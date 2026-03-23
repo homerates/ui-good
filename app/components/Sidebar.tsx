@@ -366,9 +366,9 @@ export default function Sidebar(props: SidebarProps) {
             type="button"
             onClick={() => props.onLabSeed?.('Show me the HomeRates Lab')}
             style={{
-              background: '#0C447C',
-              color: '#E6F1FB',
-              fontWeight: 500,
+              background: '#059669',
+              color: '#ffffff',
+              fontWeight: 600,
               border: 'none',
             }}
           >
@@ -406,8 +406,8 @@ export default function Sidebar(props: SidebarProps) {
           <div
             style={{
               padding: '8px 12px',
-              borderTop: '1px solid rgba(0,0,0,0.05)',
-              borderBottom: '1px solid rgba(0,0,0,0.04)',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
               marginTop: 4,
               marginBottom: 4,
             }}
@@ -439,7 +439,7 @@ export default function Sidebar(props: SidebarProps) {
         <div
           style={{
             padding: '8px 12px',
-            borderBottom: '1px solid rgba(0,0,0,0.04)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
             marginBottom: 4,
           }}
         >
@@ -474,9 +474,9 @@ export default function Sidebar(props: SidebarProps) {
                 const menuOpen = menuOpenForId === h.id;
 
                 const background = isActive
-                  ? 'rgba(0,0,0,0.06)'
+                  ? 'rgba(255,255,255,0.12)'
                   : isHovered
-                    ? 'rgba(0,0,0,0.03)'
+                    ? 'rgba(255,255,255,0.06)'
                     : 'transparent';
 
                 return (
@@ -644,7 +644,7 @@ export default function Sidebar(props: SidebarProps) {
         </div>
         {/* About & Legal links */}
         <div style={{ marginTop: 16, padding: "0 12px" }}>
-          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: 6 }}>
+          <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginBottom: 6 }}>
             About & Legal
           </div>
 
