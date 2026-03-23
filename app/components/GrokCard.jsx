@@ -318,18 +318,19 @@ export default function GrokCard({ data, onFollowUp }) {
                 whiteSpace: "normal",
             }}
         >
-            {/* Header row */}
+            {/* Header row — subtle metadata, should not compete with content */}
             <div
                 style={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "baseline",
-                    marginBottom: "8px",
-                    fontSize: "12px",
-                    color: "rgba(0,0,0,0.55)",
+                    marginBottom: "6px",
+                    fontSize: "10px",
+                    color: "rgba(0,0,0,0.32)",
+                    letterSpacing: "0.02em",
                 }}
             >
-                <span>{grok ? "Live 2025–2026 (Grok 4.1)" : "Legacy stack"}</span>
+                <span>{grok ? "Live · AI analysis" : ""}</span>
                 {data_freshness && <span>{data_freshness}</span>}
             </div>
 
