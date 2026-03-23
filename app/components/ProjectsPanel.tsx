@@ -230,7 +230,7 @@ export default function ProjectsPanel({
                                             border: "none",
                                             padding: "4px 0",
                                             background: isActive
-                                                ? "rgba(0,0,0,0.04)"
+                                                ? "rgba(255,255,255,0.1)"
                                                 : "transparent",
                                             cursor: "pointer",
                                             fontSize: 11,

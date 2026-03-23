@@ -387,6 +387,10 @@ body {
   color: #e2e8f0;
   border-color: rgba(255, 255, 255, 0.12);
 }
+/* All buttons inherit sidebar text color — browser default is black which is invisible on dark bg */
+.sidebar button {
+  color: inherit;
+}
 /* Legal links inherit sidebar text color */
 .sidebar .sidebar-legal-link {
   color: #9ca3af;
