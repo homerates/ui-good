@@ -847,22 +847,21 @@ ul {
 
 /* HR: Assistant answers layout - narrower, centered, consistent spacing */
 .balloon.bot {
-  max-width: 640px !important;
-  /* keep answers centered like desktop */
+  max-width: 720px !important;
   width: 100%;
   box-sizing: border-box;
 
   margin: 12px auto !important;
-  /* center answers horizontally */
-  padding: 12px 18px !important;
-  /* add breathing room */
+  padding: 14px 20px !important;
 
   font-size: 0.95rem !important;
-  line-height: 1.45 !important;
+  line-height: 1.5 !important;
 
-  border-radius: 16px !important;
+  border-radius: 14px !important;
   background: #ffffff !important;
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-top: 2px solid #10b981 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Mobile adjustments: keep answers off screen edges */
