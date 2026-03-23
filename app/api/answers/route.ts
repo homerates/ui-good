@@ -2451,7 +2451,9 @@ async function handle(req: NextRequest, intentParam?: string) {
     const conversationTrim = clampText(compactWhitespace(conversationHistory || ""), 320);
 
     // Refi guardrail: ask for inputs only if missing; otherwise compute locally (no Grok)
-    if (module === "refi" && !((body as any)?.paramOverrides?.newRatePct != null && (body as any)?.paramOverrides?.currentBalance != null)) {
+    const _po = (body as any)?.paramOverrides;
+    const _hasRefiCalcParams = (_po?.newRatePct != null && _po?.currentBalance != null) || (_po?.rate20yr != null && _po?.rate30yr != null);
+    if (module === "refi" && !_hasRefiCalcParams) {
         // ============================================================
         // SMART REFI ADVISOR v2 — AI-powered decision engine
         // Not a calculator. A verdict.
