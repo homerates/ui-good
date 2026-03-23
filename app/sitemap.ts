@@ -41,6 +41,31 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.9,
         },
 
+        {
+            url: `${base}/calculators`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly',
+            priority: 0.8,
+        },
+        {
+            url: `${base}/about`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.6,
+        },
+        {
+            url: `${base}/privacy`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.4,
+        },
+        {
+            url: `${base}/disclosures`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.4,
+        },
+
         // Income cluster pages
         {
             url: `${base}/how-much-house-can-i-afford-on-80k-salary`,
