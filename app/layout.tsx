@@ -8,11 +8,57 @@ import LegalLinks from "./components/LegalLinks";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 
+const BASE_URL = "https://chat.homerates.ai";
+
 export const metadata = {
-  title: "HomeRates",
-  description: "Mortgage Q&A with market context",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "HomeRates.ai — Mortgage AI Chat",
+    template: "%s | HomeRates.ai",
+  },
+  description:
+    "Ask anything about buying a home, refinancing, or investing in real estate. Real mortgage math, live rates, no sales pitch.",
+  keywords: [
+    "mortgage calculator",
+    "mortgage AI",
+    "home affordability",
+    "DSCR loan",
+    "FHA loan",
+    "refinance calculator",
+    "mortgage rates",
+  ],
+  authors: [{ name: "HomeRates.ai", url: BASE_URL }],
+  creator: "HomeRates.ai",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: BASE_URL,
+    siteName: "HomeRates.ai",
+    title: "HomeRates.ai — Mortgage AI Chat",
+    description:
+      "Ask anything about buying a home, refinancing, or investing. Real math. Live rates. No sales pitch.",
+    images: [
+      {
+        url: "/assets/homerates-full-horizontal-transparent.png",
+        width: 1200,
+        height: 630,
+        alt: "HomeRates.ai — Mortgage AI Chat",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "HomeRates.ai — Mortgage AI Chat",
+    description:
+      "Real mortgage math, live rates, no sales pitch. Ask anything about buying, refinancing, or investing.",
+    images: ["/assets/homerates-full-horizontal-transparent.png"],
+    creator: "@homerates_ai",
+  },
   verification: {
-    google: 'IFO6kyqdiob63QHj5ua4q-5LUnFErGkfN27SXd85Ryk',
+    google: "IFO6kyqdiob63QHj5ua4q-5LUnFErGkfN27SXd85Ryk",
+  },
+  alternates: {
+    canonical: BASE_URL,
   },
 };
 
