@@ -105,6 +105,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 .scroll{ padding-bottom: calc(var(--footer-h, 40px) + 92px) !important; }
 `}}
           />
+
+          {/* Mobile footer auto-hide: slide away on scroll-down, reveal on scroll-up */}
+          <script dangerouslySetInnerHTML={{ __html: `(function(){var lastY=0,ticking=false,footer=null;function f(){return footer||(footer=document.querySelector('.footer-meta'));}function update(){var y=window.scrollY,el=f();if(!el){ticking=false;return;}if(window.innerWidth>640){el.classList.remove('footer-meta--hidden');ticking=false;return;}if(y>lastY+4)el.classList.add('footer-meta--hidden');else if(y<lastY-4)el.classList.remove('footer-meta--hidden');lastY=y;ticking=false;}window.addEventListener('scroll',function(){if(!ticking){requestAnimationFrame(update);ticking=true;}},{passive:true});})();` }} />
         </body>
       </html>
     </ClerkProvider>

@@ -86,13 +86,15 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
 
             {/* ── Rate ticker ── */}
             <div className="hr-ticker">
-                {FRED_DISPLAY.map((item, i) => (
-                    <div key={item.label} className="hr-ticker__item" style={{ animationDelay: `${i * 80}ms` }}>
-                        <span className="hr-ticker__label">{item.label}</span>
-                        <span className="hr-ticker__value">{item.value}</span>
-                        <span className="hr-ticker__sub">{item.sub}</span>
-                    </div>
-                ))}
+                <div className="hr-ticker__track">
+                    {[...FRED_DISPLAY, ...FRED_DISPLAY].map((item, i) => (
+                        <div key={`${item.label}-${i}`} className="hr-ticker__item">
+                            <span className="hr-ticker__label">{item.label}</span>
+                            <span className="hr-ticker__value">{item.value}</span>
+                            <span className="hr-ticker__sub">{item.sub}</span>
+                        </div>
+                    ))}
+                </div>
                 <div className="hr-ticker__live">
                     <span className="hr-ticker__dot" />
                     FRED live
@@ -167,11 +169,24 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     border-radius: 10px;
                     padding: 10px 14px;
                     margin-bottom: 20px;
-                    overflow-x: auto;
-                    scrollbar-width: none;
+                    overflow: hidden;
                     gap: 0;
                 }
-                .hr-ticker::-webkit-scrollbar { display: none; }
+                /* Scrolling track — holds 2 identical sets for seamless loop */
+                .hr-ticker__track {
+                    display: flex;
+                    align-items: center;
+                    flex: 1;
+                    min-width: 0;
+                    animation: tickerScroll 24s linear infinite;
+                }
+                .hr-ticker__track:hover {
+                    animation-play-state: paused;
+                }
+                @keyframes tickerScroll {
+                    from { transform: translateX(0); }
+                    to   { transform: translateX(-50%); }
+                }
                 .hr-ticker__item {
                     display: flex;
                     flex-direction: column;
@@ -179,16 +194,8 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     padding: 0 16px 0 0;
                     margin-right: 16px;
                     border-right: 1px solid #e2e8f0;
-                    opacity: 0;
-                    animation: tickerFadeIn 0.4s ease forwards;
                     min-width: max-content;
-                }
-                .hr-ticker__item:last-of-type {
-                    border-right: none;
-                }
-                @keyframes tickerFadeIn {
-                    from { opacity: 0; transform: translateY(3px); }
-                    to { opacity: 1; transform: translateY(0); }
+                    flex-shrink: 0;
                 }
                 .hr-ticker__label {
                     font-size: 9px;

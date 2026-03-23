@@ -432,6 +432,7 @@ ul {
   color: #fff;
   cursor: pointer;
   z-index: 2;
+  transition: box-shadow 0.15s ease;
   /* sit above the input surface */
 }
 
@@ -442,6 +443,27 @@ ul {
   height: 14px;
   transform: rotate(-90deg);
   /* turn right-arrow into up-arrow */
+}
+
+/* Pulse glow when input has text — ready-to-send state */
+.composer:has(.hr-input:not(:placeholder-shown)) .ask-pill,
+.composer:has(input:not(:placeholder-shown)) .ask-pill {
+  animation: askPillPulse 1.4s ease-in-out infinite;
+}
+
+/* Flash on tap */
+.composer .ask-pill:active {
+  animation: askPillFlash 0.35s ease-out forwards;
+}
+
+@keyframes askPillPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(17, 24, 39, 0.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(17, 24, 39, 0); }
+}
+
+@keyframes askPillFlash {
+  0%   { box-shadow: 0 0 0 8px rgba(17, 24, 39, 0.45); background: #374151; }
+  100% { box-shadow: 0 0 0 0 rgba(17, 24, 39, 0);    background: #111827; }
 }
 
 /* Neutralize old 160px caps that previously forced a fat pill */
@@ -483,6 +505,16 @@ ul {
   white-space: nowrap;
   /* stay single-line */
   z-index: 800;
+
+  /* Mobile auto-hide: smooth slide */
+  transition: transform 0.3s ease;
+}
+
+/* Slide footer off-screen on mobile when user scrolls down */
+@media (max-width: 640px) {
+  .footer-meta--hidden {
+    transform: translateY(100%);
+  }
 }
 
 
