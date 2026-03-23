@@ -323,341 +323,304 @@ export default function Sidebar(props: SidebarProps) {
         className={`sidebar ${isOpen ? 'open' : 'closed'}`}
         aria-label="Sidebar"
       >
-        {/* Header: hamburger only (brand lives in main layout) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '12px 12px 8px 12px',
-          }}
-        >
-          <button
-            className="hamburger"
-            onClick={onToggle}
-            aria-label={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
-            title={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
-            type="button"
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
+        {/* ── Scrollable content ── */}
+        <div className="sidebar-scroll">
 
-          <div style={{ height: 0 }} />
-        </div>
-
-        {/* Primary actions */}
-        <div style={{ display: 'grid', gap: 10, padding: '8px 12px' }}>
-          <button className="btn primary" onClick={onNewChat} type="button">
-            New chat
-          </button>
-          <button className="btn" onClick={onSearch} type="button">
-            Search
-          </button>
-          <button className="btn" onClick={onLibrary} type="button">
-            Library
-          </button>
-          <button className="btn" onClick={onNewProject} type="button">
-            New Project +
-          </button>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => props.onLabSeed?.('Show me the HomeRates Lab')}
+          {/* Header: hamburger only */}
+          <div
             style={{
-              background: '#059669',
-              color: '#ffffff',
-              fontWeight: 600,
-              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '12px 12px 8px 12px',
             }}
           >
-            HomeRates Lab
-          </button>
-
-          {/* Ask Underwriting pill – uses onAskUnderwriting if provided, otherwise onKnowledgeTool */}
-          {(rawOnAskUnderwriting || onKnowledgeTool) && (
             <button
-              className="btn"
-              onClick={handleAskUnderwritingClick}
+              className="hamburger"
+              onClick={onToggle}
+              aria-label={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
+              title={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
               type="button"
             >
-              Ask Underwriting
+              <span></span>
+              <span></span>
+              <span></span>
             </button>
+
+            <div style={{ height: 0 }} />
+          </div>
+
+          {/* ── Section: Navigation ── */}
+          <div className="sidebar-section">
+            <button className="btn primary" onClick={onNewChat} type="button">
+              New chat
+            </button>
+            <button className="btn" onClick={onSearch} type="button">
+              Search
+            </button>
+            <button className="btn" onClick={onLibrary} type="button">
+              Library
+            </button>
+            <button className="btn" onClick={onNewProject} type="button">
+              New Project +
+            </button>
+          </div>
+
+          {/* ── Section: Tools ── */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-label">Tools</div>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => props.onLabSeed?.('Show me the HomeRates Lab')}
+              style={{
+                background: '#059669',
+                color: '#ffffff',
+                fontWeight: 600,
+                border: 'none',
+              }}
+            >
+              HomeRates Lab
+            </button>
+
+            {(rawOnAskUnderwriting || onKnowledgeTool) && (
+              <button
+                className="btn"
+                onClick={handleAskUnderwritingClick}
+                type="button"
+              >
+                Ask Underwriting
+              </button>
+            )}
+
+            {onKnowledgeTool && (
+              <button
+                className="btn"
+                type="button"
+                onClick={() => handleKnowledgeClick('mortgage-solutions')}
+              >
+                Mortgage Solutions
+              </button>
+            )}
+          </div>
+
+          {/* ── Section: Learn ── */}
+          {(onAboutHomeRates || onHowItWorks) && (
+            <div className="sidebar-section">
+              <div className="sidebar-section-label">Learn</div>
+              {onAboutHomeRates && (
+                <button className="btn" onClick={onAboutHomeRates} type="button">
+                  About HomeRates.ai
+                </button>
+              )}
+              {onHowItWorks && (
+                <button className="btn" onClick={onHowItWorks} type="button">
+                  How It Works
+                </button>
+              )}
+            </div>
           )}
 
-          {/* About HomeRates.ai – only shows if handler is provided from page.tsx */}
-          {onAboutHomeRates && (
-            <button className="btn" onClick={onAboutHomeRates} type="button">
-              About HomeRates.ai
-            </button>
-          )}
-
-          {/* How It Works – first-timer guide */}
-          {onHowItWorks && (
-            <button className="btn" onClick={onHowItWorks} type="button">
-              How It Works
-            </button>
-          )}
-        </div>
-
-        {/* Knowledge tools section (Mortgage Solutions only for now) */}
-        {onKnowledgeTool && (
+          {/* ── Projects list ── */}
           <div
             style={{
               padding: '8px 12px',
-              borderTop: '1px solid rgba(255,255,255,0.08)',
               borderBottom: '1px solid rgba(255,255,255,0.06)',
-              marginTop: 4,
               marginBottom: 4,
             }}
           >
+            <ProjectsPanel
+              activeProjectId={activeProjectId}
+              onSelectProject={handleSelectProject}
+              onProjectAction={handleProjectPanelAction}
+            />
+          </div>
+
+          {/* ── Threads / Chats ── */}
+          <div style={{ padding: '8px 12px' }}>
             <div
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 textTransform: 'uppercase',
-                letterSpacing: 0.5,
+                letterSpacing: 0.6,
                 opacity: 0.7,
                 marginBottom: 6,
               }}
             >
-              Knowledge tools
+              Chats
             </div>
 
-            <button
-              className="btn"
-              type="button"
-              style={{ width: '100%' }}
-              onClick={() => handleKnowledgeClick('mortgage-solutions')}
-            >
-              Mortgage Solutions
-            </button>
-          </div>
-        )}
+            {visibleHistory.length > 0 ? (
+              <div className="chat-list" role="list" aria-label="Chats">
+                {visibleHistory.map((h) => {
+                  const isActive = h.id === activeId;
+                  const label = truncateChatTitle(h.title);
+                  const isHovered = hoverChatId === h.id;
+                  const menuOpen = menuOpenForId === h.id;
 
-        {/* Projects list */}
-        <div
-          style={{
-            padding: '8px 12px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            marginBottom: 4,
-          }}
-        >
-          <ProjectsPanel
-            activeProjectId={activeProjectId}
-            onSelectProject={handleSelectProject}
-            onProjectAction={handleProjectPanelAction}
-          />
-        </div>
+                  const background = isActive
+                    ? 'rgba(255,255,255,0.12)'
+                    : isHovered
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'transparent';
 
-        {/* Threads / Chats */}
-        <div style={{ padding: '8px 12px' }}>
-          {/* Small CHATS header */}
-          <div
-            style={{
-              fontSize: 10,
-              textTransform: 'uppercase',
-              letterSpacing: 0.6,
-              opacity: 0.7,
-              marginBottom: 6,
-            }}
-          >
-            Chats
-          </div>
-
-          {visibleHistory.length > 0 ? (
-            <div className="chat-list" role="list" aria-label="Chats">
-              {visibleHistory.map((h) => {
-                const isActive = h.id === activeId;
-                const label = truncateChatTitle(h.title);
-                const isHovered = hoverChatId === h.id;
-                const menuOpen = menuOpenForId === h.id;
-
-                const background = isActive
-                  ? 'rgba(255,255,255,0.12)'
-                  : isHovered
-                    ? 'rgba(255,255,255,0.06)'
-                    : 'transparent';
-
-                return (
-                  <div
-                    key={h.id}
-                    style={{
-                      display: 'flex',
-                      gap: 4,
-                      alignItems: 'center',
-                      marginBottom: 4,
-                      position: 'relative',
-                    }}
-                    onMouseEnter={() => setHoverChatId(h.id)}
-                    onMouseLeave={() => {
-                      setHoverChatId((prev) => (prev === h.id ? null : prev));
-                    }}
-                  >
-                    <button
-                      role="listitem"
-                      onClick={() => onSelectHistory(h.id)}
-                      aria-current={isActive ? 'true' : 'false'}
-                      title={h.title}
-                      type="button"
+                  return (
+                    <div
+                      key={h.id}
                       style={{
-                        flex: 1,
-                        border: 'none',
-                        background,
-                        padding: '2px 4px',
-                        borderRadius: 6,
-                        fontSize: 11,
-                        fontWeight: isActive ? 400 : 400,
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        transition: 'background 0.12s ease-out',
+                        display: 'flex',
+                        gap: 4,
+                        alignItems: 'center',
+                        marginBottom: 4,
+                        position: 'relative',
+                      }}
+                      onMouseEnter={() => setHoverChatId(h.id)}
+                      onMouseLeave={() => {
+                        setHoverChatId((prev) => (prev === h.id ? null : prev));
                       }}
                     >
-                      {label}
-                    </button>
-
-                    {/* Plain text "..." trigger – matches your previous layout */}
-                    <button
-                      type="button"
-                      aria-label="Chat options"
-                      title="Chat options"
-                      onClick={() =>
-                        setMenuOpenForId((prev) =>
-                          prev === h.id ? null : h.id
-                        )
-                      }
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        padding: 0,
-                        fontSize: 16,
-                        lineHeight: 1,
-                        opacity: 0.7,
-                      }}
-                    >
-                      …
-                    </button>
-
-                    {/* Simple dropdown menu */}
-                    {menuOpen && (
-                      <div
+                      <button
+                        role="listitem"
+                        onClick={() => onSelectHistory(h.id)}
+                        aria-current={isActive ? 'true' : 'false'}
+                        title={h.title}
+                        type="button"
                         style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: '100%',
-                          marginTop: 4,
-                          padding: 6,
-                          background: '#fff',
-                          borderRadius: 8,
-                          boxShadow:
-                            '0 10px 25px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)',
-                          minWidth: 140,
-                          zIndex: 50,
-                          fontSize: 12,
+                          flex: 1,
+                          border: 'none',
+                          background,
+                          padding: '2px 4px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: isActive ? 400 : 400,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          transition: 'background 0.12s ease-out',
                         }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            closeMenu();
-                            handleMoveToProject(h.id);
-                          }}
+                        {label}
+                      </button>
+
+                      <button
+                        type="button"
+                        aria-label="Chat options"
+                        title="Chat options"
+                        onClick={() =>
+                          setMenuOpenForId((prev) =>
+                            prev === h.id ? null : h.id
+                          )
+                        }
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          padding: 0,
+                          fontSize: 16,
+                          lineHeight: 1,
+                          opacity: 0.7,
+                        }}
+                      >
+                        …
+                      </button>
+
+                      {menuOpen && (
+                        <div
                           style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            border: 'none',
-                            background: 'transparent',
-                            padding: '4px 6px',
-                            cursor: 'pointer',
+                            position: 'absolute',
+                            right: 0,
+                            top: '100%',
+                            marginTop: 4,
+                            padding: 6,
+                            background: '#fff',
+                            borderRadius: 8,
+                            boxShadow:
+                              '0 10px 25px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)',
+                            minWidth: 140,
+                            zIndex: 50,
+                            fontSize: 12,
                           }}
                         >
-                          Move to project
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteChat(h.id)}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            border: 'none',
-                            background: 'transparent',
-                            padding: '4px 6px',
-                            cursor: 'pointer',
-                            color: '#b00020',
-                          }}
-                        >
-                          Delete chat
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ opacity: 0.7, fontSize: 13 }}>No chats yet</div>
-          )}
-        </div>
-
-        {/* Footer: settings + Clerk */}
-        <div style={{ marginTop: 'auto', padding: '12px' }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn" onClick={onSettings} type="button">
-              Settings
-            </button>
-          </div>
-
-          <div style={{ marginTop: 12 }}>
-            <SignedIn>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                <UserButton
-                  showName
-                  appearance={{
-                    elements: {
-                      userButtonOuterIdentifier: {
-                        fontWeight: 600,
-                      },
-                    },
-                  }}
-                />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              closeMenu();
+                              handleMoveToProject(h.id);
+                            }}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              border: 'none',
+                              background: 'transparent',
+                              padding: '4px 6px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Move to project
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteChat(h.id)}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              border: 'none',
+                              background: 'transparent',
+                              padding: '4px 6px',
+                              cursor: 'pointer',
+                              color: '#b00020',
+                            }}
+                          >
+                            Delete chat
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            </SignedIn>
-
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="btn primary" type="button">
-                  Sign in
-                </button>
-              </SignInButton>
-            </SignedOut>
-          </div>
-        </div>
-        {/* About & Legal links */}
-        <div style={{ marginTop: 16, padding: "0 12px" }}>
-          <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginBottom: 6 }}>
-            About & Legal
+            ) : (
+              <div style={{ opacity: 0.7, fontSize: 13 }}>No chats yet</div>
+            )}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <a href="/about" className="sidebar-legal-link">
-              About HomeRates.ai
-            </a>
-            <a href="/disclosures" className="sidebar-legal-link">
-              Terms & Disclosures
-            </a>
-            <a href="/privacy" className="sidebar-legal-link">
-              Privacy & Data Policy
-            </a>
+        </div>{/* end sidebar-scroll */}
+
+        {/* ── Sticky footer: user + settings + legal ── */}
+        <div className="sidebar-sticky-footer">
+          <button className="btn" onClick={onSettings} type="button" style={{ width: '100%', marginBottom: 10 }}>
+            Settings
+          </button>
+
+          <SignedIn>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <UserButton
+                showName
+                appearance={{
+                  elements: {
+                    userButtonOuterIdentifier: {
+                      fontWeight: 600,
+                    },
+                  },
+                }}
+              />
+            </div>
+          </SignedIn>
+
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="btn primary" type="button" style={{ width: '100%' }}>
+                Sign in
+              </button>
+            </SignInButton>
+          </SignedOut>
+
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <a href="/about" className="sidebar-legal-link">About HomeRates.ai</a>
+            <a href="/disclosures" className="sidebar-legal-link">Terms & Disclosures</a>
+            <a href="/privacy" className="sidebar-legal-link">Privacy & Data Policy</a>
           </div>
         </div>
 
