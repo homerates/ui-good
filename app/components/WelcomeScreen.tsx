@@ -108,11 +108,10 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
             {/* ── Headline ── */}
             <div className="hr-headline">
                 <h1 className="hr-headline__title">
-                    Your mortgage<br />intelligence platform
+                    What's your<br className="hr-headline__br--mobile" /> mortgage question?
                 </h1>
                 <p className="hr-headline__sub">
-                    Real math. Live rates. No sales pitch.<br />
-                    Ask anything about buying, refinancing, or investing.
+                    Real math · Live rates · No sales pitch
                 </p>
             </div>
 
@@ -269,6 +268,13 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     color: #64748b;
                     line-height: 1.6;
                     margin: 0;
+                    letter-spacing: 0.01em;
+                }
+                .hr-headline__br--mobile {
+                    display: none;
+                }
+                @media (max-width: 480px) {
+                    .hr-headline__br--mobile { display: block; }
                 }
 
                 /* ── Persona cards ── */
