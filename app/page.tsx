@@ -163,7 +163,7 @@ const LS_KEY = 'hr.chat.v1';
 
 // anonymous, non-signed-in usage meter (per browser, per day)
 const ANON_METER_KEY = 'hr.anon.q.v1';
-const ANON_DAILY_LIMIT = 3;
+const ANON_DAILY_LIMIT = 10;
 
 // signed-in usage meter (per user, per browser, per day)
 const SIGNED_METER_KEY = 'hr.signed.q.v1';
