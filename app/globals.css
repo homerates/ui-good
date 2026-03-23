@@ -494,13 +494,13 @@ ul {
 }
 
 @keyframes askPillPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(17, 24, 39, 0.5); }
-  50%       { box-shadow: 0 0 0 6px rgba(17, 24, 39, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  50%       { box-shadow: 0 0 0 9px rgba(16, 185, 129, 0); }
 }
 
 @keyframes askPillFlash {
-  0%   { box-shadow: 0 0 0 8px rgba(17, 24, 39, 0.45); background: #374151; }
-  100% { box-shadow: 0 0 0 0 rgba(17, 24, 39, 0);    background: #111827; }
+  0%   { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0.5); background: #059669; }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);      background: #111827; }
 }
 
 /* Neutralize old 160px caps that previously forced a fat pill */
