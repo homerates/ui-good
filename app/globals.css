@@ -832,7 +832,11 @@ ul {
 @media (max-width: 640px) {
   .hr-composer {
     bottom: 48px !important;
-    /* room for the 2-line footer bar */
+    transition: bottom 0.3s ease; /* match footer slide timing */
+  }
+  /* When footer hides on scroll-down, drop composer to screen edge */
+  .hr-composer--footer-hidden {
+    bottom: env(safe-area-inset-bottom, 0px) !important;
   }
 }
 
