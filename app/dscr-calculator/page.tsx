@@ -124,8 +124,7 @@ const schemaSoftwareApp = {
     author: {
         '@type': 'Person',
         name: 'Rayaan Arif',
-        jobTitle: 'NMLS Licensed Loan Consultant',
-        identifier: 'NMLS #366082',
+        jobTitle: 'Licensed Loan Consultant',
     },
     featureList: [
         'DSCR ratio calculation (rent ÷ full PITIA)',
@@ -469,7 +468,7 @@ export default function DSCRCalculatorPage() {
                         <div className="author-avatar">RA</div>
                         <div className="author-info">
                             <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">NMLS #366082 · Licensed Loan Consultant</div>
+                            <div className="author-cred">Licensed Loan Consultant</div>
                             <p className="author-bio">
                                 HomeRates.ai was built to give real estate investors the same
                                 DSCR analysis that non-QM lenders run — before you pay for an
@@ -485,7 +484,7 @@ export default function DSCRCalculatorPage() {
                     <p className="disclaimer">
                         <strong>Educational purposes only.</strong> HomeRates.ai is not a lender,
                         broker, or mortgage advisor. Results are estimates based on your inputs and
-                        current market data. Consult an NMLS-licensed loan officer for a formal
+                        current market data. Consult a licensed mortgage professional for a formal
                         pre-approval. Equal Housing Opportunity.
                     </p>
                 </section>

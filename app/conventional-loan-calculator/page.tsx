@@ -109,8 +109,7 @@ const schemaSoftwareApp = {
     author: {
         '@type': 'Person',
         name: 'Rayaan Arif',
-        jobTitle: 'NMLS Licensed Loan Consultant',
-        identifier: 'NMLS #366082',
+        jobTitle: 'Licensed Loan Consultant',
     },
     featureList: [
         'Full monthly payment: P&I, PMI, taxes, insurance',
@@ -413,12 +412,12 @@ export default function ConventionalLoanCalculatorPage() {
                         <div className="author-avatar">RA</div>
                         <div className="author-info">
                             <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">NMLS #366082 · Licensed Loan Consultant</div>
+                            <div className="author-cred">Licensed Loan Consultant</div>
                             <p className="author-bio">HomeRates.ai was built to give borrowers the same conventional loan analysis that loan officers run — including the exact PMI cancellation date and FHA comparison that most calculators skip.</p>
                         </div>
                     </div>
                     <p className="last-updated">Content last reviewed: March 2026 · Loan limits: FHFA CY2026 · Rate data: FRED Freddie Mac PMMS (weekly) · Guidelines: Fannie Mae Selling Guide B3-6</p>
-                    <p className="disclaimer"><strong>Educational purposes only.</strong> HomeRates.ai is not a lender, broker, or mortgage advisor. Results are estimates. Consult an NMLS-licensed loan officer for a formal pre-approval. Equal Housing Opportunity.</p>
+                    <p className="disclaimer"><strong>Educational purposes only.</strong> HomeRates.ai is not a lender, broker, or mortgage advisor. Results are estimates. Consult a licensed mortgage professional for a formal pre-approval. Equal Housing Opportunity.</p>
                 </section>
 
                 <section className="faq-section">

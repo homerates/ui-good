@@ -99,7 +99,7 @@ export default function CalculatorsPage() {
                     <p className="hero-lead">
                         Free mortgage calculators built on 2026 HUD and FHFA guidelines,
                         live FRED rate data, and deterministic math — no AI guesswork in the numbers.
-                        Built by Rayaan Arif, NMLS #366082.
+                        Built by Rayaan Arif.
                     </p>
                 </section>
 
@@ -151,8 +151,8 @@ export default function CalculatorsPage() {
                     <p className="disclaimer">
                         <strong>Educational purposes only.</strong> HomeRates.ai is not a lender,
                         broker, or mortgage advisor. Results are estimates based on your inputs.
-                        Consult an NMLS-licensed loan officer for a formal pre-approval.
-                        Equal Housing Opportunity. NMLS #366082.
+                        Consult a licensed mortgage professional for a formal pre-approval.
+                        Equal Housing Opportunity.
                     </p>
                 </section>
 

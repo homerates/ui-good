@@ -127,8 +127,7 @@ const schemaSoftwareApp = {
     author: {
         '@type': 'Person',
         name: 'Rayaan Arif',
-        jobTitle: 'NMLS Licensed Loan Consultant',
-        identifier: 'NMLS #366082',
+        jobTitle: 'Licensed Loan Consultant',
     },
     featureList: [
         'Full FHA monthly payment: P&I, MIP, taxes, insurance',
@@ -509,7 +508,7 @@ export default function FHACalculatorPage() {
                         <div className="author-avatar">RA</div>
                         <div className="author-info">
                             <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">NMLS #366082 · Licensed Loan Consultant</div>
+                            <div className="author-cred">Licensed Loan Consultant</div>
                             <p className="author-bio">
                                 HomeRates.ai was built to give borrowers the same FHA analysis
                                 that loan officers use — without the sales pressure. Every number
@@ -525,7 +524,7 @@ export default function FHACalculatorPage() {
                     <p className="disclaimer">
                         <strong>Educational purposes only.</strong> HomeRates.ai is not a lender,
                         broker, or mortgage advisor. Results are estimates based on your inputs and
-                        current market data. Consult an NMLS-licensed loan officer for a formal
+                        current market data. Consult a licensed mortgage professional for a formal
                         pre-approval. Equal Housing Opportunity.
                     </p>
                 </section>
