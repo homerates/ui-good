@@ -4,6 +4,8 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import LegalLinks from "./components/LegalLinks";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -39,9 +41,9 @@ export const metadata = {
       "Ask anything about buying a home, refinancing, or investing. Real math. Live rates. No sales pitch.",
     images: [
       {
-        url: "/assets/homerates-full-horizontal-transparent.png",
-        width: 1200,
-        height: 630,
+        url: "/assets/homerates-full-horizontal-dark.png",
+        width: 1600,
+        height: 800,
         alt: "HomeRates.ai — Mortgage AI Chat",
       },
     ],
@@ -66,24 +68,13 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // short SHA if available
-  const shortSha =
-    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "v3";
-
-  // server-rendered timestamp
-  const ts = new Date().toLocaleString("en-US", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <body className={`app ${inter.variable}`}>
           {children}
+          <Analytics />
+          <SpeedInsights />
 
           {/* Footer meta stays separate and non-interactive */}
           <footer className="app-footer">
