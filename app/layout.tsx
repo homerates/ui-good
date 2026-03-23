@@ -1,8 +1,11 @@
 ﻿// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0002-D684DDC7 | SHA256: D684DDC76358CC27
 // app/layout.tsx
 import "./globals.css";
+import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import LegalLinks from "./components/LegalLinks";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 
 export const metadata = {
@@ -33,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
-        <body className="app">
+        <body className={`app ${inter.variable}`}>
           {children}
 
           {/* Footer meta stays separate and non-interactive */}
