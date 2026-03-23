@@ -49,13 +49,12 @@ const QUICK_CHIPS = [
     { label: 'How much house on $120k salary?', seed: 'I make $120,000 a year and have $42,000 saved — how much house can I afford?' },
 ];
 
-// Static FRED display values — updated to match current data
-// These are display-only signals; actual calculations use live FRED
-const FRED_DISPLAY = [
-    { label: '30Y FIXED', value: '6.22%', sub: 'FRED avg' },
-    { label: '10Y TREASURY', value: '4.25%', sub: 'yield' },
-    { label: 'SPREAD', value: '1.97%', sub: 'mtg vs T10' },
-    { label: 'FED FUNDS', value: '3.64%', sub: 'target rate' },
+// Fallback values shown while the live fetch is in-flight
+const TICKER_FALLBACK = [
+    { label: '30Y FIXED', value: '—', sub: 'loading…' },
+    { label: '10Y TREASURY', value: '—', sub: 'loading…' },
+    { label: 'SPREAD', value: '—', sub: 'mtg vs T10' },
+    { label: 'FED FUNDS', value: '—', sub: 'effective rate' },
 ];
 
 interface WelcomeScreenProps {
@@ -65,22 +64,49 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
     const [visible, setVisible] = useState(false);
+    const [tickerItems, setTickerItems] = useState(TICKER_FALLBACK);
 
+    // Fetch live FRED ticker data
     useEffect(() => {
-        // Close sidebar on mobile
+        let cancelled = false;
+        fetch('/api/ticker', { cache: 'no-store' })
+            .then((r) => r.json())
+            .then((json) => {
+                if (!cancelled && json?.ok && Array.isArray(json.items)) {
+                    setTickerItems(json.items);
+                }
+            })
+            .catch(() => { /* keep fallback values */ });
+        return () => { cancelled = true; };
+    }, []);
+
+    // Scroll to top reliably — fire immediately then again after two paint frames
+    useEffect(() => {
         onMount?.();
-        // Scroll to top — delay ensures DOM is painted first
-        const centerEl = document.querySelector('.center') as HTMLElement | null;
-        setTimeout(() => {
+
+        function doScroll() {
             const scrollEl = document.querySelector('.scroll') as HTMLElement | null;
-            if (scrollEl) scrollEl.scrollTop = 0;
-            if (centerEl) centerEl.style.paddingTop = '4px';
-        }, 0);
-        // Stagger reveal
+            if (scrollEl) {
+                scrollEl.scrollTop = 0;
+            } else {
+                window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+            }
+        }
+
+        doScroll();
+        requestAnimationFrame(() => {
+            doScroll();
+            requestAnimationFrame(doScroll);
+        });
+
+        const centerEl = document.querySelector('.center') as HTMLElement | null;
+        if (centerEl) centerEl.style.paddingTop = '4px';
+
         const t = setTimeout(() => setVisible(true), 60);
         return () => {
             clearTimeout(t);
-            if (centerEl) centerEl.style.paddingTop = '';
+            const el = document.querySelector('.center') as HTMLElement | null;
+            if (el) el.style.paddingTop = '';
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -91,7 +117,7 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
             {/* ── Rate ticker ── */}
             <div className="hr-ticker">
                 <div className="hr-ticker__track">
-                    {[...FRED_DISPLAY, ...FRED_DISPLAY].map((item, i) => (
+                    {[...tickerItems, ...tickerItems].map((item, i) => (
                         <div key={`${item.label}-${i}`} className="hr-ticker__item">
                             <span className="hr-ticker__label">{item.label}</span>
                             <span className="hr-ticker__value">{item.value}</span>
