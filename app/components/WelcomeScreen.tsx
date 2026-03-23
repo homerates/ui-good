@@ -156,7 +156,7 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
             <style>{`
                 .hr-welcome {
                     padding: 0 8px 32px;
-                    max-width: 680px;
+                    max-width: 720px;
                     margin: -16px auto 0;
                     opacity: 0;
                     transform: translateY(8px);
@@ -343,14 +343,16 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     gap: 8px;
                 }
                 .hr-chip {
-                    padding: 7px 14px;
-                    background: #f8fafc;
+                    padding: 8px 16px;
+                    background: #ffffff;
                     border: 1px solid #e2e8f0;
                     border-radius: 99px;
-                    font-size: 0.8rem;
-                    color: #334155;
+                    font-size: 0.82rem;
+                    font-weight: 500;
+                    color: #1e293b;
                     cursor: pointer;
-                    transition: border-color 0.15s, background 0.15s, color 0.15s;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+                    transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
                     white-space: nowrap;
                     opacity: 0;
                     animation: chipIn 0.35s ease forwards;
@@ -360,9 +362,10 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     to { opacity: 1; transform: translateY(0); }
                 }
                 .hr-chip:hover {
-                    border-color: #22c55e;
+                    border-color: #10b981;
                     background: #f0fdf4;
-                    color: #166534;
+                    color: #065f46;
+                    box-shadow: 0 2px 8px rgba(16,185,129,0.12);
                 }
             `}</style>
         </div>
