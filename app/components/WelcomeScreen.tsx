@@ -14,24 +14,28 @@ const PERSONAS = [
         label: 'Buying a Home',
         desc: 'Affordability, payments, loan types',
         seed: 'I make $95,000 a year and have $35,000 saved — how much house can I afford?',
+        accent: '#3b82f6',
     },
     {
         icon: '🔁',
         label: 'Refinancing',
         desc: 'Breakeven, savings, trigger rate',
         seed: 'I have a $450,000 mortgage at 7.25% — should I refinance? Show me breakeven and monthly savings.',
+        accent: '#10b981',
     },
     {
         icon: '📐',
         label: 'Investment Property',
         desc: 'DSCR, cash flow, rental analysis',
         seed: 'DSCR loan on a $400,000 rental property with $2,800/mo rent and 25% down — does it cash flow?',
+        accent: '#f59e0b',
     },
     {
         icon: '🗝️',
         label: 'FHA Loan',
         desc: 'Low down payment, MIP, qualification',
         seed: 'FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP.',
+        accent: '#8b5cf6',
     },
 ];
 
@@ -119,9 +123,12 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                         key={p.label}
                         className="hr-persona"
                         onClick={() => onSend(p.seed)}
-                        style={{ animationDelay: `${120 + i * 60}ms` }}
+                        style={{
+                            animationDelay: `${120 + i * 60}ms`,
+                            ['--persona-accent' as any]: p.accent,
+                        }}
                     >
-                        <span className="hr-persona__icon">{p.icon}</span>
+                        <span className="hr-persona__icon" style={{ color: p.accent }}>{p.icon}</span>
                         <span className="hr-persona__label">{p.label}</span>
                         <span className="hr-persona__desc">{p.desc}</span>
                     </button>
@@ -276,12 +283,13 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     flex-direction: column;
                     align-items: flex-start;
                     padding: 14px 16px;
-                    background: var(--surface, white);
+                    background: #ffffff;
                     border: 1.5px solid #e2e8f0;
+                    border-top: 3px solid var(--persona-accent, #e2e8f0);
                     border-radius: 12px;
                     cursor: pointer;
                     text-align: left;
-                    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+                    transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
                     opacity: 0;
                     animation: personaIn 0.4s ease forwards;
                 }
@@ -290,14 +298,16 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     to { opacity: 1; transform: translateY(0); }
                 }
                 .hr-persona:hover {
-                    border-color: #22c55e;
-                    box-shadow: 0 4px 16px rgba(34,197,94,0.1);
-                    transform: translateY(-1px);
+                    border-color: var(--persona-accent, #e2e8f0);
+                    border-top-color: var(--persona-accent, #e2e8f0);
+                    box-shadow: 0 4px 18px color-mix(in srgb, var(--persona-accent, #10b981) 18%, transparent);
+                    transform: translateY(-2px);
                 }
                 .hr-persona:active { transform: translateY(0); }
                 .hr-persona__icon {
-                    font-size: 1.4rem;
+                    font-size: 1.5rem;
                     margin-bottom: 8px;
+                    line-height: 1;
                 }
                 .hr-persona__label {
                     font-size: 0.88rem;
