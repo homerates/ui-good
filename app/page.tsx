@@ -2102,9 +2102,6 @@ export default function Page() {
                         {/* Existing hamburger menu */}
                         <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
-                        {/* Title */}
-                        <div style={{ fontWeight: 700, marginLeft: 8 }}>Chat</div>
-
                         {/* Right-side spacer / controls */}
                         <div style={{ marginLeft: 'auto' }} />
                     </div>
