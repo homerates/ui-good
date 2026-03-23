@@ -1187,11 +1187,17 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
             seed: `Same DSCR deal at ${(r.annualRatePct + 0.5).toFixed(2)}%`,
             paramOverrides: { annualRatePct: parseFloat((r.annualRatePct + 0.5).toFixed(2)), purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), downPaymentPct: r.downPaymentPct }
         },
-        {
-            label: `What if I put 30% down — does cash flow turn positive?`,
-            seed: `Same property with 30% down`,
-            paramOverrides: { downPaymentPct: 30, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
-        },
+        r.downPaymentPct < 30
+            ? {
+                label: `What if I put 30% down — does cash flow turn positive?`,
+                seed: `Same property with 30% down`,
+                paramOverrides: { downPaymentPct: 30, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
+            }
+            : {
+                label: `What if I put 35% down — how much does DSCR improve?`,
+                seed: `Same property with 35% down`,
+                paramOverrides: { downPaymentPct: 35, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
+            },
         {
             label: `What rent do I need for 1.25x DSCR — lender approval threshold?`,
             seed: `What monthly rent do I need for 1.25x DSCR on a ${fK(r.purchasePrice)} property at ${rateStr} with ${r.downPaymentPct}% down?`
