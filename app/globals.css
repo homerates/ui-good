@@ -446,13 +446,12 @@ ul {
 }
 
 /* Pulse glow when input has text — ready-to-send state */
-.composer:has(.hr-input:not(:placeholder-shown)) .ask-pill,
-.composer:has(input:not(:placeholder-shown)) .ask-pill {
+.hr-composer-inner:has(.hr-composer-input:not(:placeholder-shown)) .hr-composer-send {
   animation: askPillPulse 1.4s ease-in-out infinite;
 }
 
 /* Flash on tap */
-.composer .ask-pill:active {
+.hr-composer-send:active {
   animation: askPillFlash 0.35s ease-out forwards;
 }
 
