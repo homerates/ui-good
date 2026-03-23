@@ -2165,22 +2165,14 @@ export default function Page() {
                                                         )}
                                                         {/* Smart follow-up chips — only show when answer is complete (not loading) */}
                                                         {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
-                                                            <div style={{
-                                                                display: 'flex',
-                                                                flexDirection: 'column',
-                                                                gap: 6,
-                                                                marginTop: 8,
-                                                                animation: 'chipFadeIn 0.5s ease forwards',
-                                                                opacity: 0,
-                                                            }}>
-                                                                <style>{`@keyframes chipFadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }`}</style>
+                                                            <div className="follow-up-chips">
                                                                 {m.meta.follow_up_chips.slice(0, 5).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
                                                                     <button
                                                                         key={i}
                                                                         type="button"
+                                                                        className="follow-up-chip-btn"
                                                                         onClick={() => {
                                                                             setInput(chip.seed);
-                                                                            // Capture structured overrides so route.ts can skip text parsing
                                                                             setPendingParamOverrides((chip as any).paramOverrides ?? null);
                                                                             pendingChipSeedRef.current = chip.seed;
                                                                             setTimeout(() => {
@@ -2188,31 +2180,7 @@ export default function Page() {
                                                                                 if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
                                                                             }, 50);
                                                                         }}
-                                                                        style={{
-                                                                            width: '100%',
-                                                                            display: 'block',
-                                                                            padding: '10px 16px',
-                                                                            borderRadius: 9999,
-                                                                            border: '1px solid rgba(156, 163, 175, 0.25)',
-                                                                            background: 'rgba(255,255,255,0.04)',
-                                                                            color: 'inherit',
-                                                                            fontSize: 13,
-                                                                            cursor: 'pointer',
-                                                                            textAlign: 'center',
-                                                                            lineHeight: 1.45,
-                                                                            transition: 'background 0.12s, border-color 0.12s',
-                                                                            fontFamily: 'inherit',
-                                                                        }}
-                                                                        onMouseEnter={e => {
-                                                                            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
-                                                                            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.5)';
-                                                                        }}
-                                                                        onMouseLeave={e => {
-                                                                            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
-                                                                            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(156,163,175,0.25)';
-                                                                        }}
                                                                     >
-                                                                        <span style={{ opacity: 0.5, fontWeight: 500, marginRight: 4 }}>Ask:</span>
                                                                         {chip.label}
                                                                     </button>
                                                                 ))}
