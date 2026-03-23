@@ -174,10 +174,13 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     background: #f0f4f8;
                     border: 1px solid #e2e8f0;
                     border-radius: 10px;
-                    padding: 10px 14px;
+                    padding: 10px 0 10px 14px;
                     margin-bottom: 20px;
                     overflow: hidden;
                     gap: 0;
+                    /* Fade edges so duplicate items dissolve in/out naturally */
+                    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 80%, transparent 100%);
+                    mask-image: linear-gradient(to right, transparent 0%, black 5%, black 80%, transparent 100%);
                 }
                 /* Scrolling track — holds 2 identical sets for seamless loop */
                 .hr-ticker__track {
@@ -185,7 +188,7 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     align-items: center;
                     flex: 1;
                     min-width: 0;
-                    animation: tickerScroll 24s linear infinite;
+                    animation: tickerScroll 28s linear infinite;
                 }
                 .hr-ticker__track:hover {
                     animation-play-state: paused;
