@@ -1176,31 +1176,32 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
 - Maintenance/CapEx (1–2%/yr) not included`;
 
 
+    const chipRentStr = safeRent ? `, rent ${f$(safeRent)}/mo` : '';
     const chips: BuiltCard['follow_up_chips'] = [
         ...(safeRent && rent90 ? [{
             label: `What if rent drops to ${f$(rent90)}/mo?`,
-            seed: `Same property, rent drops to ${f$(rent90)}/mo`,
+            seed: `DSCR on ${fK(r.purchasePrice)} investment property, rent drops to ${f$(rent90)}/mo, ${r.downPaymentPct}% down, ${rateStr}`,
             paramOverrides: { grossMonthlyRent: rent90, purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct }
         }] : []),
         {
             label: `What if rate goes to ${(r.annualRatePct + 0.5).toFixed(2)}%?`,
-            seed: `Same DSCR deal at ${(r.annualRatePct + 0.5).toFixed(2)}%`,
+            seed: `DSCR investment property ${fK(r.purchasePrice)}, ${r.downPaymentPct}% down${chipRentStr}, rate goes to ${(r.annualRatePct + 0.5).toFixed(2)}%`,
             paramOverrides: { annualRatePct: parseFloat((r.annualRatePct + 0.5).toFixed(2)), purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), downPaymentPct: r.downPaymentPct }
         },
         r.downPaymentPct < 30
             ? {
                 label: `What if I put 30% down — does cash flow turn positive?`,
-                seed: `Same property with 30% down`,
+                seed: `DSCR on ${fK(r.purchasePrice)} investment property, 30% down${chipRentStr}, ${rateStr} — does cash flow turn positive?`,
                 paramOverrides: { downPaymentPct: 30, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
             }
             : {
                 label: `What if I put 35% down — how much does DSCR improve?`,
-                seed: `Same property with 35% down`,
+                seed: `DSCR on ${fK(r.purchasePrice)} investment property, 35% down${chipRentStr}, ${rateStr} — DSCR and cash flow`,
                 paramOverrides: { downPaymentPct: 35, purchasePrice: r.purchasePrice, ...(safeRent ? { grossMonthlyRent: safeRent } : {}), annualRatePct: r.annualRatePct }
             },
         {
             label: `What rent do I need for 1.25x DSCR — lender approval threshold?`,
-            seed: `What monthly rent do I need for 1.25x DSCR on a ${fK(r.purchasePrice)} property at ${rateStr} with ${r.downPaymentPct}% down?`
+            seed: `What monthly rent do I need for 1.25x DSCR on a ${fK(r.purchasePrice)} investment property at ${rateStr} with ${r.downPaymentPct}% down?`
         },
     ];
 
