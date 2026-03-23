@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getFredSnapshot } from "@/src/lib/fred";
+import { getFredSnapshot } from "@/lib/fred";
 
 const CACHE_S = 600; // 10 minutes
 
