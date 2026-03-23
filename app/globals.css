@@ -1113,27 +1113,53 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 12px;
   animation: chipFadeIn 0.5s ease forwards;
 }
 
 .follow-up-chip-btn {
   width: 100%;
-  display: block;
-  padding: 10px 16px;
-  border-radius: 9999px;
-  border: 1px solid rgba(156, 163, 175, 0.25);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #1e293b;
   font-size: 13px;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  text-align: center;
+  text-align: left;
   line-height: 1.45;
-  transition: background 0.12s, border-color 0.12s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+/* Left accent bar — shows on hover to signal interactivity */
+.follow-up-chip-btn::before {
+  content: '';
+  flex-shrink: 0;
+  width: 3px;
+  height: 18px;
+  border-radius: 99px;
+  background: #10b981;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
 
 .follow-up-chip-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(156, 163, 175, 0.5);
+  border-color: #10b981;
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.12);
+  transform: translateX(2px);
+}
+
+.follow-up-chip-btn:hover::before {
+  opacity: 1;
+}
+
+.follow-up-chip-btn:active {
+  transform: translateX(1px);
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.1);
 }
