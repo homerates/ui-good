@@ -125,9 +125,7 @@ body {
 }
 
 .center {
-  /* narrower main view */
-  max-width: 600px;
-  /* was 680px */
+  max-width: 720px;
   width: 100%;
   margin: 0 auto;
   padding: 16px 12px 28px;
@@ -251,8 +249,7 @@ body {
 
 /* Match the main center width (answers column) */
 .composer-inner {
-  max-width: 600px;
-  /* align with .center max-width */
+  max-width: 720px;
   width: 100%;
   margin: 0 auto;
   display: flex;
