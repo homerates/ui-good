@@ -25,6 +25,7 @@ import WelcomeScreen from '@/components/WelcomeScreen';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
+import RefiSliderCard from '@/components/RefiSliderCard';
 
 
 
@@ -366,6 +367,10 @@ type ApiResponse = {
     dscrSlider?: {
         price: number; rent: number; downPct: number; rate: number;
         vacancyRate: number; taxRate: number; insRate: number;
+    } | null;
+    refiSlider?: {
+        balance: number; currentRate: number; newRate: number;
+        termMonths: number; closingCosts: number;
     } | null;
 };
 
@@ -2197,6 +2202,13 @@ export default function Page() {
                                                         {m.meta.dscrSlider && !loading && (
                                                             <DSCRSliderCard
                                                                 {...m.meta.dscrSlider}
+                                                                onRunScenario={(seed) => send(seed)}
+                                                            />
+                                                        )}
+                                                        {/* Refi slider card — refinance answers */}
+                                                        {m.meta.refiSlider && !loading && (
+                                                            <RefiSliderCard
+                                                                {...m.meta.refiSlider}
                                                                 onRunScenario={(seed) => send(seed)}
                                                             />
                                                         )}

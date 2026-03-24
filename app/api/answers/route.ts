@@ -3923,6 +3923,7 @@ ${uwAnswerText}`,
                 interactiveSlider: calcCard.interactiveSlider ?? null,
                 affordabilitySlider: calcCard.affordabilitySlider ?? null,
                 dscrSlider: calcCard.dscrSlider ?? null,
+                refiSlider: calcCard.refiSlider ?? null,
                 debug: {
                     requestedModel: 'calcEngine',
                     servedModel: calcDebugModel,

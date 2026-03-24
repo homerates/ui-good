@@ -76,6 +76,13 @@ export interface BuiltCard {
         taxRate: number;
         insRate: number;
     };
+    refiSlider?: {
+        balance: number;
+        currentRate: number;
+        newRate: number;
+        termMonths: number;
+        closingCosts: number;
+    };
 }
 
 // ─────────────────────────────────────────────
@@ -722,6 +729,13 @@ ${mipSection}${resetSection}${waitSection}
             scenario_inputs: { loan_amount: r.currentBalance, current_rate_pct: r.currentRatePct, rate_used_pct: r.newRatePct, term_years: 30 },
             computed_financials: { monthly_pi: r.newMonthlyPI, monthly_savings: r.monthlyPISavings, break_even_months: r.breakEvenMonths },
             monthly_payment: r.newMonthlyPI,
+        },
+        refiSlider: {
+            balance: r.currentBalance,
+            currentRate: r.currentRatePct,
+            newRate: r.newRatePct,
+            termMonths: r.refiTermMonths,
+            closingCosts: r.closingCosts,
         },
     };
 }
