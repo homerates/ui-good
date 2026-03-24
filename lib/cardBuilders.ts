@@ -1797,7 +1797,7 @@ HomeRates.ai pulls from primary sources — not aggregators, not scrapers.
 export function buildAboutFounderCard(): BuiltCard {
     const answer = `## 👤 Who Built HomeRates.ai and Why?
 
-**Rayaan Arif** — Founder & CEO
+**Rayaan Arif** — Founder
 
 **The problem he kept seeing.** As a serial entrepreneur and mortgage industry veteran, Rayaan watched the same story play out repeatedly: borrowers making the biggest financial decision of their lives with incomplete, biased, or conflicting information. Lenders had every incentive to obscure pricing. Borrowers had no independent anchor.
 

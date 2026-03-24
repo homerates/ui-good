@@ -47,6 +47,7 @@ const QUICK_CHIPS = [
     { label: 'DSCR on $450k rental · $3,200 rent', seed: 'DSCR loan on a $450,000 rental property, $3,200/mo rent, 25% down' },
     { label: 'Refi: $400k at 7% → breakeven?', seed: 'I have a $400,000 mortgage at 7% — what rate do I need for a 3-year breakeven?' },
     { label: 'How much house on $120k salary?', seed: 'I make $120,000 a year and have $42,000 saved — how much house can I afford?' },
+    { label: 'HomeRates vs ChatGPT — what\'s the difference?', seed: 'About HomeRates: chatgpt — how is HomeRates.ai different from ChatGPT for mortgage questions?' },
 ];
 
 // Fallback values shown while the live fetch is in-flight
