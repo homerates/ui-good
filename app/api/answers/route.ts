@@ -3921,6 +3921,7 @@ ${uwAnswerText}`,
                     confidence: calcCard.confidence,
                 },
                 interactiveSlider: calcCard.interactiveSlider ?? null,
+                affordabilitySlider: calcCard.affordabilitySlider ?? null,
                 debug: {
                     requestedModel: 'calcEngine',
                     servedModel: calcDebugModel,

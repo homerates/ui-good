@@ -23,6 +23,7 @@ import {
 } from '../lib/projectsClient';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
+import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 
 
 
@@ -354,6 +355,11 @@ type ApiResponse = {
     topSources?: Array<{ title: string; url: string }>;
     interactiveSlider?: {
         price: number; downPct: number; rate: number; term: number;
+        taxRate: number; insRate: number; loanType: 'conventional' | 'fha';
+    } | null;
+    affordabilitySlider?: {
+        annualIncome: number; monthlyDebts: number; savings: number;
+        downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; loanType: 'conventional' | 'fha';
     } | null;
 };
@@ -2168,9 +2174,13 @@ export default function Page() {
                                                         {ADMIN_USER_IDS.has(user?.id ?? '') && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
-                                                        {/* Interactive slider card — conventional + FHA calc answers only */}
+                                                        {/* Interactive slider card — conventional + FHA calc answers */}
                                                         {m.meta.interactiveSlider && !loading && (
                                                             <InteractiveSliderCard {...m.meta.interactiveSlider} />
+                                                        )}
+                                                        {/* Affordability slider card — income-based answers */}
+                                                        {m.meta.affordabilitySlider && !loading && (
+                                                            <AffordabilitySliderCard {...m.meta.affordabilitySlider} />
                                                         )}
                                                         {/* Smart follow-up chips — only show when answer is complete (not loading) */}
                                                         {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (

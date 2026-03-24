@@ -56,6 +56,17 @@ export interface BuiltCard {
         insRate: number;
         loanType: 'conventional' | 'fha';
     };
+    affordabilitySlider?: {
+        annualIncome: number;
+        monthlyDebts: number;
+        savings: number;
+        downPct: number;
+        rate: number;
+        term: number;
+        taxRate: number;
+        insRate: number;
+        loanType: 'conventional' | 'fha';
+    };
 }
 
 // ─────────────────────────────────────────────
@@ -1078,6 +1089,22 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
             },
             monthly_payment: r.scenarios[0]?.totalMonthly ?? 0,
         },
+        affordabilitySlider: (() => {
+            const sc0 = r.scenarios[0];
+            const sc = r.scenarios.find(s => !s.isFHA) ?? sc0;
+            const refPrice = sc?.homePrice ?? sc0?.homePrice ?? 300000;
+            return {
+                annualIncome: r.annualIncome,
+                monthlyDebts: r.monthlyDebts,
+                savings: r.savings,
+                downPct: sc?.downPaymentPct ?? (sc0?.downPaymentPct ?? 5),
+                rate: r.rate,
+                term: 30,
+                taxRate: refPrice > 0 ? ((sc?.monthlyTax ?? sc0?.monthlyTax ?? 300) * 12) / refPrice : 0.012,
+                insRate: refPrice > 0 ? ((sc?.monthlyInsurance ?? sc0?.monthlyInsurance ?? 125) * 12) / refPrice : 0.005,
+                loanType: sc0?.isFHA ? 'fha' : 'conventional',
+            };
+        })(),
     };
 }
 
