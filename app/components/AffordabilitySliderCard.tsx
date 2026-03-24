@@ -5,6 +5,7 @@
 // Works backwards: gross income × 43% DTI − debts − tax − ins − PMI → max loan → max price
 
 import React, { useState, useMemo } from 'react';
+import PdfDownloadButton from './PdfDownloadButton';
 
 export interface AffordabilitySliderParams {
     annualIncome: number;
@@ -321,14 +322,20 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                             </span>
                         </div>
                     </div>
-                    {props.onRunScenario && isDirty && (
-                        <button
-                            className="asc__rerun"
-                            onClick={() => props.onRunScenario!(buildSeed())}
-                        >
-                            Run adjusted scenario →
-                        </button>
-                    )}
+                    <div className="asc__actions">
+                        {props.onRunScenario && isDirty && (
+                            <button
+                                className="asc__rerun"
+                                onClick={() => props.onRunScenario!(buildSeed())}
+                            >
+                                Run adjusted scenario →
+                            </button>
+                        )}
+                        <PdfDownloadButton
+                            type="affordability"
+                            getParams={() => ({ annualIncome: income, monthlyDebts: debts, savings: props.savings, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, loanType })}
+                        />
+                    </div>
                 </div>
             )}
 
@@ -607,6 +614,13 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     display: flex;
                     flex-wrap: wrap;
                     gap: 8px 24px;
+                }
+                .asc__actions {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    margin-top: 4px;
                 }
                 .asc__rerun {
                     padding: 8px 16px;

@@ -6,6 +6,7 @@
 // DSCR = Effective Rent ÷ PITIA    Cash Flow = Effective Rent - PITIA - Maintenance - Mgmt
 
 import React, { useState, useMemo } from 'react';
+import PdfDownloadButton from './PdfDownloadButton';
 
 export interface DSCRSliderParams {
     price: number;
@@ -281,11 +282,17 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                         <span className="dsc__stat-val">{price > 0 ? ((rent * 12 / price) * 100).toFixed(1) : '—'}%</span>
                     </div>
                 </div>
-                {props.onRunScenario && isDirty && (
-                    <button className="dsc__rerun" onClick={() => props.onRunScenario!(buildSeed())}>
-                        Run adjusted scenario →
-                    </button>
-                )}
+                <div className="dsc__actions">
+                    {props.onRunScenario && isDirty && (
+                        <button className="dsc__rerun" onClick={() => props.onRunScenario!(buildSeed())}>
+                            Run adjusted scenario →
+                        </button>
+                    )}
+                    <PdfDownloadButton
+                        type="dscr"
+                        getParams={() => ({ price, rent, downPct, rate, vacancyRate: vacancy / 100, taxRate: props.taxRate, insRate: props.insRate, mgmtPct })}
+                    />
+                </div>
             </div>
 
             {/* ── Styles ── */}
@@ -624,6 +631,13 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     font-weight: 700;
                     color: #0f172a;
                     font-variant-numeric: tabular-nums;
+                }
+                .dsc__actions {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    margin-top: 4px;
                 }
                 .dsc__rerun {
                     padding: 8px 16px;

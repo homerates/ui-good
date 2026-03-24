@@ -5,6 +5,7 @@
 // Initialised from calc engine params; all math is local (no API calls on slider move)
 
 import React, { useState, useMemo } from 'react';
+import PdfDownloadButton from './PdfDownloadButton';
 
 export interface SliderCardParams {
     price: number;
@@ -218,14 +219,20 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         <span className="isc__stat-val">{fmtDollar(totalInterest)}</span>
                     </div>
                 </div>
-                {props.onRunScenario && isDirty && (
-                    <button
-                        className="isc__rerun"
-                        onClick={() => props.onRunScenario!(buildSeed())}
-                    >
-                        Run adjusted scenario →
-                    </button>
-                )}
+                <div className="isc__actions">
+                    {props.onRunScenario && isDirty && (
+                        <button
+                            className="isc__rerun"
+                            onClick={() => props.onRunScenario!(buildSeed())}
+                        >
+                            Run adjusted scenario →
+                        </button>
+                    )}
+                    <PdfDownloadButton
+                        type={loanType}
+                        getParams={() => ({ price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, loanType })}
+                    />
+                </div>
             </div>
 
             {/* ── Styles ── */}
@@ -480,6 +487,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     font-weight: 700;
                     color: #0f172a;
                     font-variant-numeric: tabular-nums;
+                }
+                .isc__actions {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    flex-wrap: wrap;
                 }
                 .isc__rerun {
                     padding: 8px 16px;

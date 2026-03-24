@@ -6,6 +6,7 @@
 // Visual: old vs new payment bars + lifetime interest delta
 
 import React, { useState, useMemo } from 'react';
+import PdfDownloadButton from './PdfDownloadButton';
 
 export interface RefiSliderParams {
     balance: number;       // current loan balance
@@ -335,19 +336,26 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                 )}
             </div>
 
-            {/* ── Run button ── */}
-            {isDirty && props.onRunScenario && (
-                <button
-                    onClick={() => props.onRunScenario!(buildSeed())}
-                    style={{
-                        width: '100%', padding: '10px 0', borderRadius: 10, border: 'none',
-                        background: '#0f172a', color: '#fff', fontSize: 13, fontWeight: 700,
-                        cursor: 'pointer', letterSpacing: '-0.01em', marginTop: 4,
-                    }}
-                >
-                    Run adjusted scenario →
-                </button>
-            )}
+            {/* ── Action row ── */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                {isDirty && props.onRunScenario && (
+                    <button
+                        onClick={() => props.onRunScenario!(buildSeed())}
+                        style={{
+                            flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
+                            background: '#0f172a', color: '#fff', fontSize: 13, fontWeight: 700,
+                            cursor: 'pointer', letterSpacing: '-0.01em',
+                        }}
+                    >
+                        Run adjusted scenario →
+                    </button>
+                )}
+                <PdfDownloadButton
+                    type="refi"
+                    getParams={() => ({ balance, currentRate, newRate: effNewRate, termMonths, closingCosts: effClosing })}
+                    style={isDirty && props.onRunScenario ? {} : { width: '100%', justifyContent: 'center' }}
+                />
+            </div>
         </div>
     );
 }
