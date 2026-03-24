@@ -3920,6 +3920,7 @@ ${uwAnswerText}`,
                     follow_up_chips: calcCard.follow_up_chips,
                     confidence: calcCard.confidence,
                 },
+                interactiveSlider: calcCard.interactiveSlider ?? null,
                 debug: {
                     requestedModel: 'calcEngine',
                     servedModel: calcDebugModel,

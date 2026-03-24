@@ -22,6 +22,7 @@ import {
     deleteProject,
 } from '../lib/projectsClient';
 import WelcomeScreen from '@/components/WelcomeScreen';
+import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 
 
 
@@ -351,6 +352,10 @@ type ApiResponse = {
     grok?: any;              // full Grok JSON for confidence / next_step / follow_up
     data_freshness?: string; // e.g. "Live 2025–2026 (Grok 4.1)"
     topSources?: Array<{ title: string; url: string }>;
+    interactiveSlider?: {
+        price: number; downPct: number; rate: number; term: number;
+        taxRate: number; insRate: number; loanType: 'conventional' | 'fha';
+    } | null;
 };
 
 
@@ -2162,6 +2167,10 @@ export default function Page() {
                                                         {/* Admin debug panel — shows raw JSON + math fields */}
                                                         {ADMIN_USER_IDS.has(user?.id ?? '') && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
+                                                        )}
+                                                        {/* Interactive slider card — conventional + FHA calc answers only */}
+                                                        {m.meta.interactiveSlider && !loading && (
+                                                            <InteractiveSliderCard {...m.meta.interactiveSlider} />
                                                         )}
                                                         {/* Smart follow-up chips — only show when answer is complete (not loading) */}
                                                         {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (

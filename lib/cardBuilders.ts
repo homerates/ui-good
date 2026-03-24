@@ -47,6 +47,15 @@ export interface BuiltCard {
         computed_financials: Record<string, any>;
         monthly_payment: number;
     };
+    interactiveSlider?: {
+        price: number;
+        downPct: number;
+        rate: number;
+        term: number;
+        taxRate: number;
+        insRate: number;
+        loanType: 'conventional' | 'fha';
+    };
 }
 
 // ─────────────────────────────────────────────
@@ -180,6 +189,15 @@ ${dtiSection}${incomeSection}
             scenario_inputs: { price: r.purchasePrice, down_payment_pct: r.downPaymentPct, loan_amount: r.loanAmount, rate_used_pct: r.annualRatePct, term_years: r.termYears },
             computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly },
             monthly_payment: r.totalMonthly,
+        },
+        interactiveSlider: {
+            price: r.purchasePrice,
+            downPct: r.downPaymentPct,
+            rate: r.annualRatePct,
+            term: r.termYears,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            loanType: 'conventional',
         },
     };
 }
@@ -354,6 +372,15 @@ ${dtiSection}${incomeSection}${compSection}
             scenario_inputs: { price: r.purchasePrice, down_payment_pct: r.downPaymentPct, loan_amount: r.baseLoanAmount, rate_used_pct: r.annualRatePct, term_years: r.termYears },
             computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly },
             monthly_payment: r.totalMonthly,
+        },
+        interactiveSlider: {
+            price: r.purchasePrice,
+            downPct: r.downPaymentPct,
+            rate: r.annualRatePct,
+            term: r.termYears,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            loanType: 'fha',
         },
     };
 }
