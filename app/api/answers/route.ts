@@ -2958,6 +2958,13 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
                 follow_up_chips: refiChips,
                 confidence: `1.00 (refi calc: ${f$(balance)} @ ${fPct(currentRate)}→${fPct(effNewRate)}, ${(monthsLeft / 12).toFixed(0)}yr remaining, costs=${f$(effCosts)})`,
             },
+            refiSlider: {
+                balance,
+                currentRate,
+                newRate: effNewRate,
+                termMonths: monthsLeft,
+                closingCosts: effCosts,
+            },
             debug: {
                 bypass: "refi_advisor_v2",
                 refiType, verdict: vTitle,
