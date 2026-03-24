@@ -99,7 +99,7 @@ const s = StyleSheet.create({
 function PDFHeader({ title, scenario }: { title: string; scenario: string }) {
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     return (
-        <>
+        <View>
             <View style={s.header}>
                 <View>
                     <Text style={s.brand}>HomeRates.ai</Text>
@@ -111,7 +111,7 @@ function PDFHeader({ title, scenario }: { title: string; scenario: string }) {
                 </View>
             </View>
             <Text style={s.scenario}>{scenario}</Text>
-        </>
+        </View>
     );
 }
 
@@ -170,7 +170,7 @@ function Footer() {
     return (
         <View style={s.footer} fixed>
             <Text>HomeRates.ai — For educational use only — Not a commitment to lend — homerates.ai/disclosures</Text>
-            <Text render={({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) => `Page ${pageNumber} of ${totalPages}`} />
+            <Text>homerates.ai</Text>
         </View>
     );
 }
@@ -296,16 +296,16 @@ export function ConvFhaPDF({ price, downPct, rate, term, taxRate, insRate, loanT
                         <Row label="Purchase price"                            value={f$(price)} />
                         <Row label="Down payment"                              value={`${f$(Math.round(downAmt))} (${downPct}%)`} />
                         <Row label={loanType === 'fha' ? 'Base loan amount' : 'Loan amount'} value={f$(Math.round(baseLoan))} />
-                        {loanType === 'fha' && <Row label="UFMIP (1.75%)"    value={f$(Math.round(ufmip))} />}
-                        {loanType === 'fha' && <Row label="Total loan amount" value={f$(Math.round(loanAmt))} />}
+                        {loanType === 'fha' ? <Row label="UFMIP (1.75%)"    value={f$(Math.round(ufmip))} /> : null}
+                        {loanType === 'fha' ? <Row label="Total loan amount" value={f$(Math.round(loanAmt))} /> : null}
                         <Row label="LTV"                                       value={`${ltv.toFixed(1)}%`} />
 
                         <Sec>MONTHLY PAYMENT BREAKDOWN</Sec>
                         <Row label="Principal & Interest"    value={`${f$(Math.round(pi))}/mo`} />
                         <Row label="Property Tax (est.)"     value={`${f$(Math.round(tax))}/mo`} />
                         <Row label="Homeowners Insurance"    value={`${f$(Math.round(ins))}/mo`} />
-                        {pmi > 0 && <Row label="PMI (est.)"  value={`${f$(Math.round(pmi))}/mo`} color="amber" />}
-                        {mip > 0 && <Row label="MIP (monthly)" value={`${f$(Math.round(mip))}/mo`} color="amber" />}
+                        {pmi > 0 ? <Row label="PMI (est.)"    value={`${f$(Math.round(pmi))}/mo`} color="amber" /> : null}
+                        {mip > 0 ? <Row label="MIP (monthly)" value={`${f$(Math.round(mip))}/mo`} color="amber" /> : null}
                         <Total label="Total Monthly Payment" value={`${f$(Math.round(total))}/mo`} />
                     </View>
 
@@ -313,8 +313,8 @@ export function ConvFhaPDF({ price, downPct, rate, term, taxRate, insRate, loanT
                         <Sec>COST SUMMARY</Sec>
                         <Row label="Total interest paid"    value={f$(totalInt)} />
                         <Row label="Total of all payments"  value={f$(Math.round(pi * termMo))} />
-                        {loanType === 'fha'             && <Row label="MIP duration"     value={downPct >= 10 ? '11 years' : 'Life of loan'} color="amber" />}
-                        {loanType === 'conventional' && downPct < 20 && <Row label="PMI cancels at" value="80% LTV" />}
+                        {loanType === 'fha'                       ? <Row label="MIP duration"   value={downPct >= 10 ? '11 years' : 'Life of loan'} color="amber" /> : null}
+                        {loanType === 'conventional' && downPct < 20 ? <Row label="PMI cancels at" value="80% LTV" /> : null}
 
                         <Sec>INPUTS USED</Sec>
                         <Row label="Purchase price"     value={f$(price)} />
@@ -484,22 +484,22 @@ export function DscrPDF({ price, rent, downPct, rate, vacancyRate, taxRate, insR
                     <View style={s.col}>
                         <Sec>DSCR CALCULATION (LENDER VIEW)</Sec>
                         <Row label="Gross monthly rent"  value={`${f$(rent)}/mo`} />
-                        {vacancyRate > 0 && (
+                        {vacancyRate > 0 ? (
                             <Row label={`Vacancy loss (${(vacancyRate * 100).toFixed(0)}%)`}
-                                 value={`−${f$(Math.round(rent * vacancyRate))}/mo`} color="red" />
-                        )}
-                        {vacancyRate > 0 && (
+                                 value={`-${f$(Math.round(rent * vacancyRate))}/mo`} color="red" />
+                        ) : null}
+                        {vacancyRate > 0 ? (
                             <Row label="Effective gross income" value={`${f$(Math.round(effectiveRent))}/mo`} />
-                        )}
+                        ) : null}
                         <Row label="Monthly PITIA"       value={`${f$(Math.round(pitia))}/mo`} />
                         <Total label={`DSCR = ${f$(Math.round(effectiveRent))} ÷ ${f$(Math.round(pitia))}`}
                                value={`${dscr.toFixed(2)}x`} color={dscrColor === 'green' ? 'green' : dscrColor === 'red' ? 'red' : undefined} />
 
                         <Sec>CASH FLOW (INVESTOR VIEW)</Sec>
                         <Row label="Effective rent"                      value={`${f$(Math.round(effectiveRent))}/mo`} />
-                        <Row label="PITIA"                               value={`−${f$(Math.round(pitia))}/mo`} />
-                        <Row label="Maintenance (1%/yr est.)"            value={`−${f$(Math.round(maint))}/mo`} />
-                        {mgmtPct > 0 && <Row label={`Property mgmt (${mgmtPct}%)`} value={`−${f$(Math.round(mgmt))}/mo`} />}
+                        <Row label="PITIA"                               value={`-${f$(Math.round(pitia))}/mo`} />
+                        <Row label="Maintenance (1%/yr est.)"            value={`-${f$(Math.round(maint))}/mo`} />
+                        {mgmtPct > 0 ? <Row label={`Property mgmt (${mgmtPct}%)`} value={`-${f$(Math.round(mgmt))}/mo`} /> : null}
                         <Total label="Net monthly cash flow" value={`${sign(cashFlow)}${f$(cashFlow)}/mo`} color={cashFlow >= 0 ? 'green' : 'red'} />
                     </View>
 
