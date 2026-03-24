@@ -1713,32 +1713,55 @@ export function buildAboutTrustCard(): BuiltCard {
 }
 
 export function buildAboutDifferenceCard(): BuiltCard {
-    const answer = `## ⚡ What Makes HomeRates.ai Different?
+    const answer = `## HomeRates.ai vs ChatGPT — What's the Real Difference?
 
-**AI-curated. Unbiased. Built to inform.** HomeRates.ai uses artificial intelligence to synthesize primary mortgage data into clear, actionable answers — so borrowers arrive at every conversation better prepared and more confident.
-
-**The informed borrower advantage.** When borrowers understand their numbers before the conversation starts, the entire process improves. They ask better questions, evaluate options more clearly, and make decisions with confidence rather than anxiety.
-
-| | HomeRates.ai | Generic AI tools | Rate aggregators |
-|---|---|---|---|
-| Data source | Live FRED + agency guidelines directly | General web training data | Lender-submitted quotes |
-| Calc accuracy | Deterministic — verified outputs | Generative — can vary | Static rate tables |
-| Guideline depth | Fannie Mae, FHA, VA, USDA primary sources | Surface-level summaries | Not covered |
-| Market context | FRED economic data — rates, spreads, housing | None | Rates only |
-| Memory | Session + cross-session continuity | None | None |
-
-**The calcEngine difference.** Every payment, MIP, DTI, and breakeven calculation runs through a deterministic engine — same inputs always produce the same verified output. No hallucinated numbers, no approximations.
-
-**The curation difference.** Answers draw from the actual Fannie Mae Selling Guide, FHA Handbook 4000.1, VA Lenders Handbook, and live FRED economic data — primary sources synthesized by AI into plain language anyone can act on.
-
-> *Better informed borrowers make better decisions. HomeRates.ai exists to make that happen.*
+ChatGPT gives confident mortgage answers. Often wrong. Here's why it matters.
 
 ---
-*Educational only — not financial or legal advice. Rates and eligibility vary by lender and profile.*`;
+
+**"What is my real monthly payment?"**
+- **ChatGPT:** Estimates principal + interest only. Forgets taxes, insurance, and PMI.
+- **HomeRates.ai:** Calculates full PITI — Principal, Interest, Taxes, Insurance, and PMI — using live rates.
+- 💡 The difference can be $400–$800/mo on a $400k home.
+
+**"What are mortgage rates today?"**
+- **ChatGPT:** Quotes rates from its training data — often 12–24 months out of date.
+- **HomeRates.ai:** Pulls live rates from FRED (Freddie Mac weekly average) every time you ask.
+- 💡 A 1% rate difference on $400k = $240/mo and $86k over 30 years.
+
+**"How much house can I afford?"**
+- **ChatGPT:** Uses national rules of thumb. Doesn't know your DTI or 2026 loan limits.
+- **HomeRates.ai:** Works backward from your income and debts using current DTI guidelines and 2026 conforming limits.
+- 💡 Generic rules can over- or underestimate your ceiling by $50–$100k.
+
+**"Do I need PMI and when does it go away?"**
+- **ChatGPT:** Often confuses PMI (conventional) with MIP (FHA). Gets cancellation rules wrong.
+- **HomeRates.ai:** Calculates your exact PMI cost, the LTV threshold to cancel it, and how long you'll pay it.
+- 💡 PMI is $100–$300/mo. Knowing when it ends changes your long-term plan.
+
+**"Should I do 15-year or 30-year?"**
+- **ChatGPT:** Gives a general answer. Can't show a live side-by-side with your actual numbers.
+- **HomeRates.ai:** Runs both scenarios with live rates and your loan amount. Shows monthly difference and total interest saved.
+- 💡 15yr saves $150k+ in interest but costs $600+/mo more. You need real numbers to decide.
+
+**"Does this rental property cash flow?"**
+- **ChatGPT:** May not know current DSCR lender requirements. Will approximate.
+- **HomeRates.ai:** Calculates DSCR ratio, monthly cash flow, and lender qualification using live rates.
+- 💡 Wrong DSCR analysis on a $500k investment property is a very expensive mistake.
+
+---
+
+**Why this is built for borrowers, not lenders:**
+No lead forms. No rate quote pages that capture your number before giving you an answer. No lender partnerships. No commission.
+
+> *Ask your first question — no account required.*
+
+---
+*Educational purposes only — not financial advice. Verify all numbers with a licensed lender before making decisions.*`;
 
     return {
         answer,
-        next_step: 'Run your own scenario — see the data in action.',
+        next_step: 'Try a scenario — see the difference in action.',
         follow_up: ABOUT_CHIPS[2].label,
         follow_up_chips: ABOUT_CHIPS,
         confidence: '1.00 (HomeRates.ai — static difference card)',
