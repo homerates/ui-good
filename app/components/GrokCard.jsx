@@ -432,6 +432,20 @@ export default function GrokCard({ data, onFollowUp }) {
                 })}
             </div>
 
+            {/* Educational disclaimer — always visible after every response */}
+            <div
+                style={{
+                    marginTop: "14px",
+                    paddingTop: "10px",
+                    borderTop: "1px solid rgba(0,0,0,0.06)",
+                    fontSize: "11px",
+                    color: "rgba(0,0,0,0.4)",
+                    lineHeight: 1.5,
+                }}
+            >
+                ⓘ Educational purposes only — not financial advice, a recommendation, or a substitute for guidance from a licensed mortgage professional. Verify all rates, payments, and eligibility with a licensed lender before making any decisions.
+            </div>
+
             {/* Follow-up CTA */}
             {followUp && onFollowUp && (
                 <div style={{ marginTop: "6px" }}>

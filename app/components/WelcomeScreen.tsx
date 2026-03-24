@@ -20,7 +20,7 @@ const PERSONAS = [
         icon: '🔁',
         label: 'Refinancing',
         desc: 'Breakeven, savings, trigger rate',
-        seed: 'I have a $450,000 mortgage at 7.25% — should I refinance? Show me breakeven and monthly savings.',
+        seed: 'What would refinancing look like on a $450,000 mortgage at 7.25%? Show me breakeven and monthly savings.',
         accent: '#10b981',
     },
     {

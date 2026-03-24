@@ -2759,8 +2759,9 @@ export default function Page() {
                             >
                                 You&apos;ve used today&apos;s free guest
                                 questions. Create a free HomeRates.ai account or
-                                sign in to continue asking questions and unlock
-                                more tools.
+                                sign in to continue exploring educational mortgage
+                                scenarios. All features remain educational and are
+                                not personalized advice.
                             </p>
                             <div
                                 style={{
