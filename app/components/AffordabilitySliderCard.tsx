@@ -16,6 +16,7 @@ export interface AffordabilitySliderParams {
     taxRate: number;    // annual % of price as decimal
     insRate: number;    // annual % of price as decimal
     loanType: 'conventional' | 'fha';
+    onRunScenario?: (seed: string) => void;
 }
 
 // ── Math ──────────────────────────────────────────────────────────────────────
@@ -129,6 +130,15 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
 
     const pmiLabel  = loanType === 'fha' ? 'MIP' : 'PMI';
     const minDown   = loanType === 'fha' ? 3.5 : 3;
+
+    const isDirty = income !== props.annualIncome || debts !== props.monthlyDebts ||
+        downPct !== props.downPct || Math.abs(rate - props.rate) > 0.001 ||
+        term !== props.term || loanType !== props.loanType;
+
+    function buildSeed(): string {
+        const debtClause = debts > 0 ? ` and $${debts.toLocaleString()}/month in debts` : '';
+        return `How much house can I afford on $${income.toLocaleString()}/year${debtClause}, ${effectiveDown}% down at ${fmtRate(rate)} — ${term} year fixed?`;
+    }
 
     // Enforce FHA min down if switching type
     const effectiveDown = downPct < minDown ? minDown : downPct;
@@ -289,26 +299,36 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
             {/* ── Footer ── */}
             {calc && (
                 <div className="asc__foot">
-                    <div className="asc__stat">
-                        <span className="asc__stat-label">Down Payment</span>
-                        <span className="asc__stat-val">{fmt$(calc.down)}</span>
+                    <div className="asc__foot-stats">
+                        <div className="asc__stat">
+                            <span className="asc__stat-label">Down Payment</span>
+                            <span className="asc__stat-val">{fmt$(calc.down)}</span>
+                        </div>
+                        <div className="asc__stat">
+                            <span className="asc__stat-label">Closing Costs</span>
+                            <span className="asc__stat-val">~{fmt$(calc.closing)}</span>
+                        </div>
+                        <div className="asc__stat">
+                            <span className="asc__stat-label">Total Cash Needed</span>
+                            <span className="asc__stat-val">{fmt$(calc.totalCash)}</span>
+                        </div>
+                        <div className="asc__stat">
+                            <span className="asc__stat-label">
+                                {calc.savingsGap > 0 ? '⚠ Savings Gap' : '✓ Savings OK'}
+                            </span>
+                            <span className="asc__stat-val" style={{ color: calc.savingsGap > 0 ? '#ef4444' : '#10b981' }}>
+                                {calc.savingsGap > 0 ? `Need ${fmt$(calc.savingsGap)} more` : `${fmt$(props.savings - calc.totalCash)} left after close`}
+                            </span>
+                        </div>
                     </div>
-                    <div className="asc__stat">
-                        <span className="asc__stat-label">Closing Costs</span>
-                        <span className="asc__stat-val">~{fmt$(calc.closing)}</span>
-                    </div>
-                    <div className="asc__stat">
-                        <span className="asc__stat-label">Total Cash Needed</span>
-                        <span className="asc__stat-val">{fmt$(calc.totalCash)}</span>
-                    </div>
-                    <div className="asc__stat">
-                        <span className="asc__stat-label">
-                            {calc.savingsGap > 0 ? '⚠ Savings Gap' : '✓ Savings OK'}
-                        </span>
-                        <span className="asc__stat-val" style={{ color: calc.savingsGap > 0 ? '#ef4444' : '#10b981' }}>
-                            {calc.savingsGap > 0 ? `Need ${fmt$(calc.savingsGap)} more` : `${fmt$(props.savings - calc.totalCash)} left after close`}
-                        </span>
-                    </div>
+                    {props.onRunScenario && isDirty && (
+                        <button
+                            className="asc__rerun"
+                            onClick={() => props.onRunScenario!(buildSeed())}
+                        >
+                            Run adjusted scenario →
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -578,9 +598,31 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     background: #f8fafc;
                     border-top: 1px solid #e2e8f0;
                     display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                }
+                .asc__foot-stats {
+                    display: flex;
                     flex-wrap: wrap;
                     gap: 8px 24px;
                 }
+                .asc__rerun {
+                    padding: 8px 16px;
+                    background: #0f172a;
+                    color: #fff;
+                    border: none;
+                    border-radius: 9999px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    transition: background .15s, transform .1s;
+                    letter-spacing: .01em;
+                }
+                .asc__rerun:hover { background: #1e293b; }
+                .asc__rerun:active { transform: scale(.97); }
                 .asc__stat {
                     display: flex;
                     flex-direction: column;

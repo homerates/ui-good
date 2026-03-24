@@ -14,6 +14,7 @@ export interface SliderCardParams {
     taxRate: number;   // annual % of price as decimal — e.g. 0.012 = 1.2 %
     insRate: number;   // annual % of price as decimal — e.g. 0.005 = 0.5 %
     loanType: 'conventional' | 'fha';
+    onRunScenario?: (seed: string) => void;
 }
 
 // ── Math helpers ─────────────────────────────────────────────────────────────
@@ -74,6 +75,16 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     }, [price, downPct, rate, term, loanType, props.taxRate, props.insRate]);
 
     const { downAmt, loanAmt, ltv, pi, tax, ins, pmi, total, totalInterest } = calc;
+
+    // Has the user changed anything from the initial values?
+    const isDirty = price !== props.price || downPct !== props.downPct ||
+        Math.abs(rate - props.rate) > 0.001 || term !== props.term || loanType !== props.loanType;
+
+    function buildSeed(): string {
+        const prog = loanType === 'fha' ? 'FHA loan' : 'Conventional loan';
+        return `${prog} on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed`;
+    }
+
     const piPct  = (pi  / total) * 100;
     const taxPct = (tax / total) * 100;
     const insPct = (ins / total) * 100;
@@ -193,18 +204,28 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
             {/* ── Footer stats ── */}
             <div className="isc__foot">
-                <div className="isc__stat">
-                    <span className="isc__stat-label">Loan Amount</span>
-                    <span className="isc__stat-val">{fmtDollar(loanAmt)}</span>
+                <div className="isc__foot-stats">
+                    <div className="isc__stat">
+                        <span className="isc__stat-label">Loan Amount</span>
+                        <span className="isc__stat-val">{fmtDollar(loanAmt)}</span>
+                    </div>
+                    <div className="isc__stat">
+                        <span className="isc__stat-label">LTV</span>
+                        <span className="isc__stat-val">{ltv.toFixed(1)}%{ltv <= 80 ? ' ✓' : ''}</span>
+                    </div>
+                    <div className="isc__stat">
+                        <span className="isc__stat-label">Total Interest ({term}yr)</span>
+                        <span className="isc__stat-val">{fmtDollar(totalInterest)}</span>
+                    </div>
                 </div>
-                <div className="isc__stat">
-                    <span className="isc__stat-label">LTV</span>
-                    <span className="isc__stat-val">{ltv.toFixed(1)}%{ltv <= 80 ? ' ✓' : ''}</span>
-                </div>
-                <div className="isc__stat">
-                    <span className="isc__stat-label">Total Interest ({term}yr)</span>
-                    <span className="isc__stat-val">{fmtDollar(totalInterest)}</span>
-                </div>
+                {props.onRunScenario && isDirty && (
+                    <button
+                        className="isc__rerun"
+                        onClick={() => props.onRunScenario!(buildSeed())}
+                    >
+                        Run adjusted scenario →
+                    </button>
+                )}
             </div>
 
             {/* ── Styles ── */}
@@ -432,6 +453,13 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     background: #f8fafc;
                     border-top: 1px solid #e2e8f0;
                     display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                }
+                .isc__foot-stats {
+                    display: flex;
                     flex-wrap: wrap;
                     gap: 8px 28px;
                 }
@@ -453,6 +481,21 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     color: #0f172a;
                     font-variant-numeric: tabular-nums;
                 }
+                .isc__rerun {
+                    padding: 8px 16px;
+                    background: #0f172a;
+                    color: #fff;
+                    border: none;
+                    border-radius: 9999px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    transition: background .15s, transform .1s;
+                    letter-spacing: .01em;
+                }
+                .isc__rerun:hover { background: #1e293b; }
+                .isc__rerun:active { transform: scale(.97); }
 
                 @media (max-width: 480px) {
                     .isc__amount { font-size: 1.9rem; }
