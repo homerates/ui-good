@@ -33,20 +33,22 @@ const s = StyleSheet.create({
     header: {
         flexDirection: 'row', justifyContent: 'space-between',
         alignItems: 'flex-start', marginBottom: 12,
-        paddingBottom: 10, borderBottom: `1 solid ${C.border}`,
+        paddingBottom: 10,
+        borderBottomWidth: 1, borderBottomStyle: 'solid', borderBottomColor: C.border,
     },
     brand: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: C.dark },
     brandSub: { fontSize: 7.5, color: C.muted, marginTop: 2 },
     headerRight: { alignItems: 'flex-end' },
     headerTitle: { fontSize: 10.5, fontFamily: 'Helvetica-Bold', color: C.dark },
     headerDate: { fontSize: 7.5, color: C.muted, marginTop: 2 },
-    scenario: { fontSize: 8.5, color: C.muted, marginBottom: 12, fontStyle: 'italic' },
+    scenario: { fontSize: 8.5, color: C.muted, marginBottom: 12, fontFamily: 'Helvetica-Oblique' },
     // Section titles
     sectionTitle: {
         fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: C.muted,
-        textTransform: 'uppercase', letterSpacing: 0.8,
+        letterSpacing: 0.8,
         marginTop: 12, marginBottom: 5,
-        paddingBottom: 3, borderBottom: `0.5 solid ${C.border}`,
+        paddingBottom: 3,
+        borderBottomWidth: 0.5, borderBottomStyle: 'solid', borderBottomColor: C.border,
     },
     // Hero row
     heroRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
@@ -59,7 +61,8 @@ const s = StyleSheet.create({
     // Data rows
     row: {
         flexDirection: 'row', justifyContent: 'space-between',
-        paddingVertical: 3.5, borderBottom: `0.5 solid ${C.border}`,
+        paddingVertical: 3.5,
+        borderBottomWidth: 0.5, borderBottomStyle: 'solid', borderBottomColor: C.border,
     },
     rowLabel: { color: C.muted, fontSize: 8.5 },
     rowVal: { fontFamily: 'Helvetica-Bold', fontSize: 8.5, color: C.dark },
@@ -78,7 +81,7 @@ const s = StyleSheet.create({
     discBox: {
         marginTop: 18, padding: 9,
         backgroundColor: C.bg, borderRadius: 4,
-        border: `0.5 solid ${C.border}`,
+        borderWidth: 0.5, borderStyle: 'solid', borderColor: C.border,
     },
     discTitle: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: C.dark, marginBottom: 4 },
     discText: { fontSize: 6.8, color: C.muted, lineHeight: 1.5 },
@@ -87,7 +90,7 @@ const s = StyleSheet.create({
         position: 'absolute', bottom: 18, left: 40, right: 40,
         flexDirection: 'row', justifyContent: 'space-between',
         fontSize: 6.5, color: C.muted,
-        borderTop: `0.5 solid ${C.border}`, paddingTop: 4,
+        borderTopWidth: 0.5, borderTopStyle: 'solid', borderTopColor: C.border, paddingTop: 4,
     },
 });
 
@@ -113,7 +116,7 @@ function PDFHeader({ title, scenario }: { title: string; scenario: string }) {
 }
 
 function Sec({ children }: { children: string }) {
-    return <Text style={s.sectionTitle}>{children}</Text>;
+    return <Text style={s.sectionTitle}>{children.toUpperCase()}</Text>;
 }
 
 type RowColor = 'green' | 'red' | 'amber';
@@ -142,7 +145,7 @@ function Hero({ value, label, pos }: { value: string; label: string; pos?: boole
     const bdr = pos === true ? '#6ee7b7' : pos === false ? '#fca5a5' : C.border;
     const clr = pos === true ? C.green  : pos === false ? C.red     : C.dark;
     return (
-        <View style={[s.heroBox, { backgroundColor: bg, border: `1 solid ${bdr}` }]}>
+        <View style={[s.heroBox, { backgroundColor: bg, borderWidth: 1, borderStyle: 'solid', borderColor: bdr }]}>
             <Text style={[s.heroVal, { color: clr }]}>{value}</Text>
             <Text style={s.heroLbl}>{label}</Text>
         </View>
