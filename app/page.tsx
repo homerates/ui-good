@@ -24,6 +24,7 @@ import {
 import WelcomeScreen from '@/components/WelcomeScreen';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
+import DSCRSliderCard from '@/components/DSCRSliderCard';
 
 
 
@@ -361,6 +362,10 @@ type ApiResponse = {
         annualIncome: number; monthlyDebts: number; savings: number;
         downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; loanType: 'conventional' | 'fha';
+    } | null;
+    dscrSlider?: {
+        price: number; rent: number; downPct: number; rate: number;
+        vacancyRate: number; taxRate: number; insRate: number;
     } | null;
 };
 
@@ -2185,6 +2190,13 @@ export default function Page() {
                                                         {m.meta.affordabilitySlider && !loading && (
                                                             <AffordabilitySliderCard
                                                                 {...m.meta.affordabilitySlider}
+                                                                onRunScenario={(seed) => send(seed)}
+                                                            />
+                                                        )}
+                                                        {/* DSCR slider card — investment property answers */}
+                                                        {m.meta.dscrSlider && !loading && (
+                                                            <DSCRSliderCard
+                                                                {...m.meta.dscrSlider}
                                                                 onRunScenario={(seed) => send(seed)}
                                                             />
                                                         )}

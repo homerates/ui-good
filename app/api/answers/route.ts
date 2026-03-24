@@ -3922,6 +3922,7 @@ ${uwAnswerText}`,
                 },
                 interactiveSlider: calcCard.interactiveSlider ?? null,
                 affordabilitySlider: calcCard.affordabilitySlider ?? null,
+                dscrSlider: calcCard.dscrSlider ?? null,
                 debug: {
                     requestedModel: 'calcEngine',
                     servedModel: calcDebugModel,

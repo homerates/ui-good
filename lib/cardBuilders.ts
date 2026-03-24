@@ -67,6 +67,15 @@ export interface BuiltCard {
         insRate: number;
         loanType: 'conventional' | 'fha';
     };
+    dscrSlider?: {
+        price: number;
+        rent: number;
+        downPct: number;
+        rate: number;
+        vacancyRate: number;
+        taxRate: number;
+        insRate: number;
+    };
 }
 
 // ─────────────────────────────────────────────
@@ -1278,6 +1287,15 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
             scenario_inputs: { price: r.purchasePrice, down_payment_pct: r.downPaymentPct, loan_amount: r.loanAmount, rate_used_pct: r.annualRatePct, rent_monthly: r.grossMonthlyRent },
             computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.monthlyPITIA, dscr_gross: r.dscr, monthly_cash_flow: r.monthlyCashFlow },
             monthly_payment: r.monthlyPITIA,
+        },
+        dscrSlider: {
+            price: r.purchasePrice,
+            rent: r.grossMonthlyRent,
+            downPct: r.downPaymentPct,
+            rate: r.annualRatePct,
+            vacancyRate: r.vacancyRate,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.011,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
         },
     };
 }
