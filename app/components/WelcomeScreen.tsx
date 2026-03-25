@@ -50,6 +50,14 @@ const QUICK_CHIPS = [
     { label: 'HomeRates vs ChatGPT — what\'s the difference?', seed: 'About HomeRates: chatgpt — how is HomeRates.ai different from ChatGPT for mortgage questions?' },
 ];
 
+// Price Check persona card definition
+const PRICE_CHECK_PERSONA = {
+    icon: '🔎',
+    label: 'Price Check',
+    desc: 'Paste any Zillow or Redfin URL — instant PITI',
+    accent: '#4f46e5',
+};
+
 // Fallback values shown while the live fetch is in-flight
 const TICKER_FALLBACK = [
     { label: '30Y FIXED', value: '—', sub: 'loading…' },
@@ -61,9 +69,10 @@ const TICKER_FALLBACK = [
 interface WelcomeScreenProps {
     onSend: (seed: string) => void;
     onMount?: () => void;
+    onPriceCheck?: () => void;
 }
 
-export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
+export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: WelcomeScreenProps) {
     const [visible, setVisible] = useState(false);
     const [tickerItems, setTickerItems] = useState(TICKER_FALLBACK);
 
@@ -142,6 +151,23 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                 </p>
             </div>
 
+            {/* ── Price Check featured entry ── */}
+            {onPriceCheck && (
+                <button
+                    className="hr-price-check"
+                    onClick={onPriceCheck}
+                    type="button"
+                    style={{ ['--persona-accent' as any]: PRICE_CHECK_PERSONA.accent }}
+                >
+                    <span className="hr-price-check__icon">{PRICE_CHECK_PERSONA.icon}</span>
+                    <span className="hr-price-check__body">
+                        <span className="hr-price-check__label">{PRICE_CHECK_PERSONA.label}</span>
+                        <span className="hr-price-check__desc">{PRICE_CHECK_PERSONA.desc}</span>
+                    </span>
+                    <span className="hr-price-check__cta">Paste URL →</span>
+                </button>
+            )}
+
             {/* ── Persona cards ── */}
             <div className="hr-personas">
                 {PERSONAS.map((p, i) => (
@@ -165,6 +191,16 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
             <div className="hr-quick">
                 <span className="hr-quick__label">Quick scenarios</span>
                 <div className="hr-quick__chips">
+                    {onPriceCheck && (
+                        <button
+                            className="hr-chip hr-chip--price-check"
+                            onClick={onPriceCheck}
+                            type="button"
+                            style={{ animationDelay: '280ms' }}
+                        >
+                            Price Check — paste a listing URL
+                        </button>
+                    )}
                     {QUICK_CHIPS.map((chip, i) => (
                         <button
                             key={chip.label}
@@ -399,6 +435,72 @@ export default function WelcomeScreen({ onSend, onMount }: WelcomeScreenProps) {
                     background: #f0fdf4;
                     color: #065f46;
                     box-shadow: 0 2px 8px rgba(16,185,129,0.12);
+                }
+                .hr-chip--price-check {
+                    border-color: #c7d2fe;
+                    background: #eef2ff;
+                    color: #4338ca;
+                    font-weight: 600;
+                }
+                .hr-chip--price-check:hover {
+                    border-color: #4f46e5;
+                    background: #e0e7ff;
+                    color: #3730a3;
+                    box-shadow: 0 2px 8px rgba(79,70,229,0.15);
+                }
+
+                /* ── Price Check featured banner ── */
+                .hr-price-check {
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    width: 100%;
+                    padding: 14px 18px;
+                    margin-bottom: 16px;
+                    background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+                    border: 1.5px solid #c7d2fe;
+                    border-radius: 14px;
+                    cursor: pointer;
+                    text-align: left;
+                    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+                    box-shadow: 0 2px 8px rgba(79,70,229,0.08);
+                    opacity: 0;
+                    animation: chipIn 0.4s ease 80ms forwards;
+                }
+                .hr-price-check:hover {
+                    border-color: #4f46e5;
+                    box-shadow: 0 4px 16px rgba(79,70,229,0.16);
+                    transform: translateY(-1px);
+                }
+                .hr-price-check:active { transform: translateY(0); }
+                .hr-price-check__icon {
+                    font-size: 26px;
+                    flex-shrink: 0;
+                }
+                .hr-price-check__body {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    flex: 1;
+                    min-width: 0;
+                }
+                .hr-price-check__label {
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: #3730a3;
+                    letter-spacing: -0.01em;
+                }
+                .hr-price-check__desc {
+                    font-size: 12.5px;
+                    color: #6366f1;
+                    font-weight: 400;
+                }
+                .hr-price-check__cta {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #4f46e5;
+                    flex-shrink: 0;
+                    opacity: 0.7;
                 }
             `}</style>
         </div>

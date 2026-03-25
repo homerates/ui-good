@@ -62,6 +62,9 @@ export type SidebarProps = {
   // Optional intelligence layer hook
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
 
+  // Price Check — focuses input so user can paste a listing URL
+  onPriceCheck?: () => void;
+
   // Optional hooks for project actions
   onProjectAction?: (
     action: 'rename' | 'delete',
@@ -113,6 +116,7 @@ export default function Sidebar(props: SidebarProps) {
     onAboutHomeRates: rawOnAboutHomeRates,
     onHowItWorks: rawOnHowItWorks,
     onKnowledgeTool: rawOnKnowledgeTool,
+    onPriceCheck: rawOnPriceCheck,
     onProjectAction,
     onMoveChatToProject,
   } = props;
@@ -145,6 +149,7 @@ export default function Sidebar(props: SidebarProps) {
   const onLibrary = autoWrap(rawOnLibrary);
   const onNewProject = autoWrap(rawOnNewProject);
   const onSettings = autoWrap(rawOnSettings);
+  const onPriceCheck = rawOnPriceCheck ? autoWrap(rawOnPriceCheck) : undefined;
   const onAboutHomeRates = rawOnAboutHomeRates
     ? autoWrap(rawOnAboutHomeRates)
     : undefined;
@@ -369,6 +374,24 @@ export default function Sidebar(props: SidebarProps) {
           {/* ── Section: Tools ── */}
           <div className="sidebar-section">
             <div className="sidebar-section-label">Tools</div>
+
+            {/* Price Check — paste listing URL for instant PITI */}
+            {onPriceCheck && (
+              <button
+                className="btn"
+                type="button"
+                onClick={onPriceCheck}
+                style={{
+                  background: '#4f46e5',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  border: 'none',
+                }}
+              >
+                Price Check
+              </button>
+            )}
+
             <button
               className="btn"
               type="button"

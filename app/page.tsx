@@ -2211,6 +2211,28 @@ export default function Page() {
         setTimeout(() => send(seed), 50);
     };
 
+    // PRICE CHECK: clears input, focuses the composer so user can paste a listing URL
+    function onPriceCheck() {
+        newChat();
+        setInput('');
+        setTimeout(() => {
+            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement | null;
+            if (el) {
+                el.placeholder = 'Paste a Zillow or Redfin listing URL…';
+                el.focus();
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Restore default placeholder after user starts typing or focuses away
+                const restore = () => {
+                    el.placeholder = 'Ask about DTI, PMI, or where rates sit vs the 10-year ...';
+                    el.removeEventListener('input', restore);
+                    el.removeEventListener('blur', restore);
+                };
+                el.addEventListener('input', restore, { once: true });
+                el.addEventListener('blur', restore, { once: true });
+            }
+        }, 80);
+    }
+
     function closeAllOverlays() {
         setShowSearch(false);
         setShowLibrary(false);
@@ -2242,6 +2264,7 @@ export default function Page() {
                 onAskUnderwriting={onAskUnderwriting}
                 onAboutHomeRates={onAboutHomeRates}
                 onHowItWorks={onHowItWorks}
+                onPriceCheck={onPriceCheck}
                 onProjectAction={handleProjectAction}
                 onMoveChatToProject={handleMoveChatToProject}
             />
@@ -2302,6 +2325,7 @@ export default function Page() {
                                 ? <WelcomeScreen
                                     onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
                                     onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                                    onPriceCheck={onPriceCheck}
                                 />
                                 : messages.map((m) => (
                                     <div key={m.id} data-message-id={m.id}>
