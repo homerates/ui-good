@@ -14,7 +14,7 @@ export default function BorrowerOnboardingPage() {
     const [success, setSuccess] = useState<string | null>(null);
 
     useEffect(() => {
-        const codeFromUrl = searchParams.get("code");
+        const codeFromUrl = searchParams?.get("code");
         if (codeFromUrl && !inviteCode) {
             setInviteCode(codeFromUrl);
         }
