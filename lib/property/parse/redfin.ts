@@ -1,0 +1,115 @@
+// lib/property/parse/redfin.ts
+// Parses Redfin listing pages via JSON-LD structured data (schema.org).
+// Falls back gracefully to og: parser in fetch.ts if nothing found.
+
+import type { PropertyData } from '../schema';
+
+function dig(obj: unknown, ...keys: (string | number)[]): unknown {
+    let cur: unknown = obj;
+    for (const k of keys) {
+        if (cur == null || typeof cur !== 'object') return undefined;
+        cur = (cur as Record<string | number, unknown>)[k];
+    }
+    return cur;
+}
+
+function toNum(v: unknown): number | null {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function toStr(v: unknown): string | null {
+    return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
+}
+
+function parsePrice(v: unknown): number | null {
+    if (typeof v === 'number') return Number.isFinite(v) && v > 1000 ? Math.round(v) : null;
+    if (typeof v === 'string') {
+        const n = parseInt(v.replace(/[$,]/g, ''), 10);
+        return Number.isFinite(n) && n > 1000 ? n : null;
+    }
+    return null;
+}
+
+function extractAllJsonLd(html: string): unknown[] {
+    const results: unknown[] = [];
+    const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) !== null) {
+        try {
+            const parsed = JSON.parse(m[1]);
+            results.push(parsed);
+            if (Array.isArray(parsed?.['@graph'])) {
+                for (const item of parsed['@graph']) results.push(item);
+            }
+        } catch { /* skip malformed block */ }
+    }
+    return results;
+}
+
+const LISTING_TYPES = [
+    'RealEstateListing','SingleFamilyResidence','House',
+    'Residence','Apartment','Condominium','Townhouse','Product',
+];
+
+function findListingBlob(blobs: unknown[]): unknown | null {
+    // Pass 1: known schema.org types
+    for (const b of blobs) {
+        const type = toStr(dig(b, '@type'));
+        if (type && LISTING_TYPES.some(t => type.includes(t))) return b;
+    }
+    // Pass 2: anything with a price
+    for (const b of blobs) {
+        if (dig(b, 'offers', 'price') ?? dig(b, 'price')) return b;
+    }
+    return null;
+}
+
+export function parseRedfin(html: string): Partial<PropertyData> | null {
+    const blobs = extractAllJsonLd(html);
+    const blob  = findListingBlob(blobs);
+    if (!blob) return null;
+
+    const price =
+        parsePrice(dig(blob, 'offers', 'price')) ??
+        parsePrice(dig(blob, 'price')) ??
+        null;
+
+    const addrObj   = dig(blob, 'address');
+    const streetAddr = toStr(dig(addrObj, 'streetAddress'));
+    const city       = toStr(dig(addrObj, 'addressLocality'));
+    const state      = toStr(dig(addrObj, 'addressRegion'))?.toUpperCase() ?? null;
+    const zip        = toStr(dig(addrObj, 'postalCode'));
+    const address    = streetAddr && city && state && zip
+        ? `${streetAddr}, ${city}, ${state} ${zip}`
+        : streetAddr ?? null;
+
+    const beds  = toNum(dig(blob, 'numberOfBedrooms')) ?? toNum(dig(blob, 'numberOfRooms'));
+    const baths = toNum(dig(blob, 'numberOfBathroomsTotal')) ?? toNum(dig(blob, 'numberOfFullBathrooms'));
+    const sqft  = toNum(dig(blob, 'floorSize', 'value'));
+
+    const rawTax    = parsePrice(dig(blob, 'taxAnnualAmount')) ?? null;
+    const annualTaxes = rawTax !== null && rawTax > 100 ? rawTax : null;
+
+    const imageRaw = dig(blob, 'image');
+    let photoUrl: string | null = null;
+    if (typeof imageRaw === 'string') photoUrl = imageRaw;
+    else if (Array.isArray(imageRaw) && imageRaw.length > 0) photoUrl = toStr(imageRaw[0]);
+
+    return {
+        source:       'redfin',
+        price,
+        address,
+        city,
+        state,
+        zip,
+        county:       null,
+        beds,
+        baths,
+        sqft,
+        annualTaxes,
+        photoUrl,
+        parsedBy:     'redfin_script',
+        parseWarnings: price ? [] : ['json-ld: no price found'],
+    };
+}
