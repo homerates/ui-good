@@ -2329,6 +2329,12 @@ export default function Page() {
                                 />
                                 : messages.map((m) => (
                                     <div key={m.id} data-message-id={m.id}>
+                                        {/* Property preview card lives OUTSIDE Bubble to avoid all conditional nesting */}
+                                        {m.role === 'assistant' && m.meta?.propertyCard && (
+                                            <PropertyPreviewCard
+                                                data={m.meta.propertyCard as PropertyCardData}
+                                            />
+                                        )}
                                         <Bubble role={m.role}>
                                             {m.role === 'assistant' ? (
                                                 // If this is a Grok-style answer with markdown, use GrokCard
@@ -2367,13 +2373,7 @@ export default function Page() {
                                                         {ADMIN_USER_IDS.has(user?.id ?? '') && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
-                                                        {/* Property preview card — shown when user pastes a listing URL */}
-                                                        {/* Gated only on the data existing — loading/typingId state is irrelevant */}
-                                                        {m.meta.propertyCard && (
-                                                            <PropertyPreviewCard
-                                                                data={m.meta.propertyCard as PropertyCardData}
-                                                            />
-                                                        )}
+                                                        {/* Property preview card rendered outside Bubble (see above) */}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
                                                         {m.meta.interactiveSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
