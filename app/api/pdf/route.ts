@@ -1,21 +1,9 @@
-// app/api/pdf/route.tsx
+// app/api/pdf/route.ts
 // Generates PDF reports for HomeRates.ai slider cards
 // POST /api/pdf — requires Clerk authentication
 // Body: { type: 'refi' | 'conventional' | 'fha' | 'affordability' | 'dscr', params: {...} }
 
 import { auth } from '@clerk/nextjs/server';
-import { renderToBuffer } from '@react-pdf/renderer';
-import React from 'react';
-import {
-    RefiPDF,
-    ConvFhaPDF,
-    AffordabilityPDF,
-    DscrPDF,
-    type RefiPdfParams,
-    type ConvFhaPdfParams,
-    type AffordabilityPdfParams,
-    type DscrPdfParams,
-} from '../../../lib/pdf/HomePDF';
 
 export const runtime = 'nodejs';
 
@@ -46,22 +34,29 @@ export async function POST(req: Request) {
         return Response.json({ error: 'Missing type or params' }, { status: 400 });
     }
 
-    let doc: React.ReactElement;
     try {
+        // Dynamic imports ensure all react-pdf modules load from the same runtime
+        // instance, avoiding React error #31 (dual-instance reconciler conflict)
+        const React = (await import('react')).default;
+        const { renderToBuffer } = await import('@react-pdf/renderer');
+        const HomePDF = await import('../../../lib/pdf/HomePDF');
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let doc: any;
         if (type === 'refi') {
-            doc = <RefiPDF {...(params as unknown as RefiPdfParams)} />;
+            doc = React.createElement(HomePDF.RefiPDF, params as HomePDF.RefiPdfParams);
         } else if (type === 'conventional' || type === 'fha') {
-            doc = <ConvFhaPDF {...(params as unknown as ConvFhaPdfParams)} />;
+            doc = React.createElement(HomePDF.ConvFhaPDF, params as HomePDF.ConvFhaPdfParams);
         } else if (type === 'affordability') {
-            doc = <AffordabilityPDF {...(params as unknown as AffordabilityPdfParams)} />;
+            doc = React.createElement(HomePDF.AffordabilityPDF, params as HomePDF.AffordabilityPdfParams);
         } else if (type === 'dscr') {
-            doc = <DscrPDF {...(params as unknown as DscrPdfParams)} />;
+            doc = React.createElement(HomePDF.DscrPDF, params as HomePDF.DscrPdfParams);
         } else {
             return Response.json({ error: `Unknown PDF type: ${type}` }, { status: 400 });
         }
 
         const buffer = await renderToBuffer(doc);
-        const filename = FILENAMES[type] ?? `homerates-analysis.pdf`;
+        const filename = FILENAMES[type] ?? 'homerates-analysis.pdf';
 
         return new Response(new Uint8Array(buffer), {
             headers: {
@@ -72,6 +67,9 @@ export async function POST(req: Request) {
         });
     } catch (err) {
         console.error('[/api/pdf] render error:', err);
+        if (err instanceof Error) {
+            console.error('[/api/pdf] stack:', err.stack);
+        }
         return Response.json({ error: 'PDF generation failed' }, { status: 500 });
     }
 }
