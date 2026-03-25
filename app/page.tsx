@@ -2329,12 +2329,6 @@ export default function Page() {
                                 />
                                 : messages.map((m) => (
                                     <div key={m.id} data-message-id={m.id}>
-                                        {/* Property preview card lives OUTSIDE Bubble to avoid all conditional nesting */}
-                                        {m.role === 'assistant' && m.meta?.propertyCard && (
-                                            <PropertyPreviewCard
-                                                data={m.meta.propertyCard as PropertyCardData}
-                                            />
-                                        )}
                                         <Bubble role={m.role}>
                                             {m.role === 'assistant' ? (
                                                 // If this is a Grok-style answer with markdown, use GrokCard
@@ -2467,6 +2461,12 @@ export default function Page() {
 
 
                                         </Bubble>
+                                        {/* Property preview card — rendered AFTER Bubble so autoscroll shows it */}
+                                        {m.role === 'assistant' && m.meta?.propertyCard != null && (
+                                            <PropertyPreviewCard
+                                                data={m.meta.propertyCard as PropertyCardData}
+                                            />
+                                        )}
                                     </div>
                                 ))}
 
