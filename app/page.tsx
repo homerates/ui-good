@@ -2368,8 +2368,8 @@ export default function Page() {
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
                                                         {/* Property preview card — shown when user pastes a listing URL */}
-                                                        {/* Not gated on typingId — card data is static, fine to show while text types */}
-                                                        {m.meta.propertyCard && !loading && (
+                                                        {/* Gated only on the data existing — loading/typingId state is irrelevant */}
+                                                        {m.meta.propertyCard && (
                                                             <PropertyPreviewCard
                                                                 data={m.meta.propertyCard as PropertyCardData}
                                                             />
