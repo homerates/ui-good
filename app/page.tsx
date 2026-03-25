@@ -1714,20 +1714,38 @@ export default function Page() {
                 if (lookupJson.ok && lookupJson.data) {
                     const d = lookupJson.data;
 
-                    // Friendly intro message — warm, specific, includes live rate
+                    // Compute estimated PITI (20% down, live rate, scraped taxes)
+                    let pitiStr = '';
+                    if (d.price) {
+                        const principal = d.price * 0.80;
+                        const r = liveRate / 100 / 12;
+                        const n = 360;
+                        const pi = r > 0
+                            ? (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+                            : principal / n;
+                        const monthlyTax = (d.annualTaxes ?? d.price * (d.taxRateEffective ?? 0.0076)) / 12;
+                        const monthlyIns = d.price * 0.005 / 12;
+                        const piti = Math.round(pi + monthlyTax + monthlyIns);
+                        pitiStr = `$${piti.toLocaleString()}/mo`;
+                    }
+
+                    const addressShort = d.address?.split(',')[0] ?? null; // "896 Bright Star St"
                     const locationStr = d.city && d.state ? `${d.city}, ${d.state}` : d.state ?? '';
                     const priceStr = d.price ? `$${d.price.toLocaleString()}` : null;
                     const detailParts: string[] = [];
-                    if (d.beds) detailParts.push(`${d.beds} bed`);
-                    if (d.baths) detailParts.push(`${d.baths} bath`);
+                    if (d.beds) detailParts.push(`${d.beds} bd`);
+                    if (d.baths) detailParts.push(`${d.baths} ba`);
                     if (d.sqft) detailParts.push(`${d.sqft.toLocaleString()} sqft`);
                     const detailStr = detailParts.join(' · ');
 
-                    const friendly = [
-                        priceStr && locationStr ? `Got it — ${priceStr} in ${locationStr}.` : priceStr ? `Got it — listed at ${priceStr}.` : 'Found the listing.',
-                        detailStr || null,
-                        `Payment estimate loaded below using today's ${liveRate.toFixed(2)}% 30Y rate. Adjust the sliders to explore your scenarios.`,
-                    ].filter(Boolean).join(' ');
+                    // Lead with the monthly number — that's the hook
+                    const headline = pitiStr
+                        ? `${pitiStr} estimated — that's your PITI on ${addressShort ?? locationStr}.`
+                        : `${priceStr ?? 'Listing'} in ${locationStr}.`;
+                    const subline = [priceStr, detailStr, locationStr].filter(Boolean).join(' · ');
+                    const cta = `Pre-loaded at today's ${liveRate.toFixed(2)}% with 20% down. Adjust the sliders to explore.`;
+
+                    const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
                     // Pre-filled slider using live rate + scraped tax rate
                     const taxRate = d.taxRateEffective ?? 0.012;
