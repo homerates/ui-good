@@ -130,8 +130,9 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         return { ok: false, error: 'Could not fetch listing page', details: msg };
     }
 
-    // Hard block (403/429) with no useful body — try URL-slug parsing before giving up
-    if ((httpStatus === 403 || httpStatus === 429) && html.length < 2000) {
+    // Hard block (403/429) — always try URL-slug parsing before giving up
+    // Note: Zillow returns a full HTML block page (>>2000 chars), so we don't gate on html.length
+    if (httpStatus === 403 || httpStatus === 429) {
         const slugData = parseAddressFromZillowSlug(cleanUrl);
         if (slugData) {
             // Build a partial card from the URL slug (no price/beds/baths)
