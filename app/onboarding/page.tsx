@@ -16,7 +16,7 @@ export default function OnboardingPage() {
     const pathname = usePathname();
     const { user } = useUser();
 
-    const inviteCode = searchParams.get("invite") || "";
+    const inviteCode = searchParams?.get("invite") || "";
 
     const [form, setForm] = React.useState<FormState>({
         firstName: "",

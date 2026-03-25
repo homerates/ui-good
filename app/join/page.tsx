@@ -9,7 +9,7 @@ export default function JoinPage() {
     const router = useRouter();
     const { isSignedIn } = useAuth();
 
-    const initialInvite = searchParams.get("invite") || "";
+    const initialInvite = searchParams?.get("invite") || "";
     const [inviteCode, setInviteCode] = React.useState(initialInvite);
     const [status, setStatus] = React.useState<"idle" | "loading" | "success" | "error">("idle");
     const [message, setMessage] = React.useState<string>("");
