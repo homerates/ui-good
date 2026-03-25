@@ -2196,28 +2196,28 @@ export default function Page() {
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
-                                                        {m.meta.interactiveSlider && !loading && (
+                                                        {m.meta.interactiveSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 onRunScenario={(seed) => send(seed)}
                                                             />
                                                         )}
                                                         {/* Affordability slider card — income-based answers */}
-                                                        {m.meta.affordabilitySlider && !loading && (
+                                                        {m.meta.affordabilitySlider && !loading && typingId === null && (
                                                             <AffordabilitySliderCard
                                                                 {...m.meta.affordabilitySlider}
                                                                 onRunScenario={(seed) => send(seed)}
                                                             />
                                                         )}
                                                         {/* DSCR slider card — investment property answers */}
-                                                        {m.meta.dscrSlider && !loading && (
+                                                        {m.meta.dscrSlider && !loading && typingId === null && (
                                                             <DSCRSliderCard
                                                                 {...m.meta.dscrSlider}
                                                                 onRunScenario={(seed) => send(seed)}
                                                             />
                                                         )}
                                                         {/* Refi slider card — refinance answers */}
-                                                        {m.meta.refiSlider && !loading && (
+                                                        {m.meta.refiSlider && !loading && typingId === null && (
                                                             <RefiSliderCard
                                                                 {...m.meta.refiSlider}
                                                                 onRunScenario={(seed) => send(seed)}
