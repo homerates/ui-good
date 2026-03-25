@@ -1034,6 +1034,8 @@ export default function Page() {
     ]);
 
     const [input, setInput] = useState('');
+    const [priceCheckMode, setPriceCheckMode] = useState(false);
+    const composerRef = useRef<HTMLTextAreaElement>(null);
 
     // Seed composer once if we came from a shared-link card
     const hasSeededFromShareRef = React.useRef(false);
@@ -1683,6 +1685,7 @@ export default function Page() {
         ]);
 
         setInput('');
+        setPriceCheckMode(false);
         setLoading(true);
 
         // ── Property listing URL branch ───────────────────────────────────────
@@ -2211,18 +2214,16 @@ export default function Page() {
         setTimeout(() => send(seed), 50);
     };
 
-    // PRICE CHECK: opens a new chat, shows a silent prompt in the chat area, pill stays empty
+    // PRICE CHECK: opens a new chat, highlights the ask pill with a prompt placeholder
     function onPriceCheck() {
         newChat();
         setInput('');
-        setMessages([{
-            id: 'price-check-hint',
-            role: 'assistant',
-            content: 'Ready — paste your Zillow or Redfin listing URL below and I\'ll load the numbers instantly.',
-        }]);
+        setPriceCheckMode(true);
         setTimeout(() => {
-            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement | null;
-            if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+            if (composerRef.current) {
+                composerRef.current.focus();
+                composerRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
         }, 80);
     }
 
@@ -2476,6 +2477,19 @@ export default function Page() {
                     </div>
                 </div>
 
+                {/* Price Check floating hint — shown above the composer when in price check mode */}
+                {priceCheckMode && (
+                    <div className="hr-price-check-hint" onClick={() => composerRef.current?.focus()}>
+                        <span className="hr-price-check-hint__icon">🏠</span>
+                        <span className="hr-price-check-hint__text">Paste a Zillow or Redfin listing URL below — I’ll pull the numbers instantly</span>
+                        <button
+                            className="hr-price-check-hint__dismiss"
+                            onClick={(e) => { e.stopPropagation(); setPriceCheckMode(false); }}
+                            aria-label="Dismiss"
+                        >✕</button>
+                    </div>
+                )}
+
                 {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
                 <div
                     className="hr-composer"
@@ -2501,12 +2515,14 @@ export default function Page() {
                         }}
                     >
                         <textarea
-                            className="hr-composer-input"
+                            ref={composerRef}
+                            className={`hr-composer-input${priceCheckMode ? ' hr-composer-input--price-check' : ''}`}
                             placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
                             value={input}
                             rows={1}
                             onChange={(e) => {
                                 setInput(e.target.value);
+                                if (priceCheckMode) setPriceCheckMode(false);
                                 // If user edits after chip click, drop paramOverrides — use text parsing instead
                                 if (pendingChipSeedRef.current && e.target.value !== pendingChipSeedRef.current) {
                                     setPendingParamOverrides(null);

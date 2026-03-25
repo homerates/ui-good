@@ -550,6 +550,51 @@ ul {
   animation: askPillPulse 1.4s ease-in-out infinite;
 }
 
+/* Price Check mode: subtle indigo border on the textarea */
+.hr-composer-input--price-check {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18) !important;
+}
+
+/* Price Check floating hint banner above the composer */
+.hr-price-check-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 640px;
+  margin: 0 auto 6px;
+  padding: 9px 14px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  cursor: default;
+  animation: pcHintIn 0.2s ease forwards;
+}
+.hr-price-check-hint__icon { font-size: 16px; flex-shrink: 0; }
+.hr-price-check-hint__text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: #3730a3;
+  line-height: 1.4;
+}
+.hr-price-check-hint__dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #818cf8;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.hr-price-check-hint__dismiss:hover { color: #4338ca; }
+
+@keyframes pcHintIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Flash on tap */
 .hr-composer-send:active {
   animation: askPillFlash 0.35s ease-out forwards;
