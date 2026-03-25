@@ -24,13 +24,13 @@ const HEADERS: Record<string, string> = {
     'Cache-Control':   'no-cache',
 };
 
-async function fetchHtml(url: string): Promise<string> {
+async function fetchHtml(url: string): Promise<{ html: string; status: number }> {
     const ctrl  = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
         const res = await fetch(url, { headers: HEADERS, redirect: 'follow', signal: ctrl.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.text();
+        const html = await res.text();
+        return { html, status: res.status };
     } finally {
         clearTimeout(timer);
     }
@@ -70,14 +70,26 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
 
     // 2. Fetch HTML
     let html: string;
+    let httpStatus: number;
     try {
-        html = await fetchHtml(cleanUrl);
+        const fetched = await fetchHtml(cleanUrl);
+        html       = fetched.html;
+        httpStatus = fetched.status;
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('abort') || msg.includes('timeout')) {
             return { ok: false, error: 'Listing page timed out', details: msg };
         }
         return { ok: false, error: 'Could not fetch listing page', details: msg };
+    }
+
+    // Hard block (403/429) with no useful body — surface a clear message
+    if ((httpStatus === 403 || httpStatus === 429) && html.length < 2000) {
+        return {
+            ok: false,
+            error: `${source === 'zillow' ? 'Zillow' : 'The listing site'} blocked our request`,
+            details: `HTTP ${httpStatus}. Try pasting the price and address manually.`,
+        };
     }
 
     // 3. Parse og: tags (universal fallback — always run)
