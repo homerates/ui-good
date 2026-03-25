@@ -4,6 +4,12 @@
 // Body: { type: 'refi' | 'conventional' | 'fha' | 'affordability' | 'dscr', params: {...} }
 
 import { auth } from '@clerk/nextjs/server';
+import type {
+    RefiPdfParams,
+    ConvFhaPdfParams,
+    AffordabilityPdfParams,
+    DscrPdfParams,
+} from '../../../lib/pdf/HomePDF';
 
 export const runtime = 'nodejs';
 
@@ -44,13 +50,13 @@ export async function POST(req: Request) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let doc: any;
         if (type === 'refi') {
-            doc = React.createElement(HomePDF.RefiPDF, params as HomePDF.RefiPdfParams);
+            doc = React.createElement(HomePDF.RefiPDF, params as unknown as RefiPdfParams);
         } else if (type === 'conventional' || type === 'fha') {
-            doc = React.createElement(HomePDF.ConvFhaPDF, params as HomePDF.ConvFhaPdfParams);
+            doc = React.createElement(HomePDF.ConvFhaPDF, params as unknown as ConvFhaPdfParams);
         } else if (type === 'affordability') {
-            doc = React.createElement(HomePDF.AffordabilityPDF, params as HomePDF.AffordabilityPdfParams);
+            doc = React.createElement(HomePDF.AffordabilityPDF, params as unknown as AffordabilityPdfParams);
         } else if (type === 'dscr') {
-            doc = React.createElement(HomePDF.DscrPDF, params as HomePDF.DscrPdfParams);
+            doc = React.createElement(HomePDF.DscrPDF, params as unknown as DscrPdfParams);
         } else {
             return Response.json({ error: `Unknown PDF type: ${type}` }, { status: 400 });
         }
