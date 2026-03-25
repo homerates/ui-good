@@ -1695,6 +1695,12 @@ export default function Page() {
         // ── Property listing URL branch ───────────────────────────────────────
         const listingUrl = extractListingUrl(q);
         if (listingUrl) {
+            // Zillow blocks server-side scraping — show a friendly nudge immediately
+            if (/zillow\.com/i.test(listingUrl)) {
+                typeOutAssistant(answerId, 'Zillow blocks automated lookups from our servers. For instant price data, paste the Redfin link for this property instead — Redfin works great.');
+                setLoading(false);
+                return;
+            }
             try {
                 // Fetch property data + live FRED rate in parallel
                 const [lookupRes, tickerRes] = await Promise.all([
@@ -2367,7 +2373,12 @@ export default function Page() {
                                                         {ADMIN_USER_IDS.has(user?.id ?? '') && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
-                                                        {/* Property preview card rendered outside Bubble (see above) */}
+                                                        {/* Property preview card — inside Bubble, above slider cards */}
+                                                        {m.meta.propertyCard && (
+                                                            <PropertyPreviewCard
+                                                                data={m.meta.propertyCard as PropertyCardData}
+                                                            />
+                                                        )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
                                                         {m.meta.interactiveSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
@@ -2461,12 +2472,6 @@ export default function Page() {
 
 
                                         </Bubble>
-                                        {/* Property preview card — rendered AFTER Bubble so autoscroll shows it */}
-                                        {m.role === 'assistant' && m.meta?.propertyCard != null && (
-                                            <PropertyPreviewCard
-                                                data={m.meta.propertyCard as PropertyCardData}
-                                            />
-                                        )}
                                     </div>
                                 ))}
 

@@ -11,7 +11,9 @@ export interface DetectResult {
 
 const PATTERNS: Array<{ re: RegExp; source: PropertySource; hasParser: boolean }> = [
     { re: /^https?:\/\/(www\.)?zillow\.com\/(homedetails|homes)\//i,         source: 'zillow',   hasParser: true  },
+    // Redfin full URLs: /CA/City/Address/home/ID  or  /home/ID  (mobile short link)
     { re: /^https?:\/\/(www\.)?redfin\.com\/.+\/home\/\d+/i,                 source: 'redfin',   hasParser: true  },
+    { re: /^https?:\/\/(www\.)?redfin\.com\/home\/\d+/i,                     source: 'redfin',   hasParser: true  },
     { re: /^https?:\/\/(www\.)?redfin\.com\/[A-Z]{2}\//i,                    source: 'redfin',   hasParser: true  },
     { re: /^https?:\/\/(www\.)?realtor\.com\/realestateandhomes-detail\//i,   source: 'realtor',  hasParser: false },
     { re: /^https?:\/\/(www\.)?trulia\.com\/property\//i,                     source: 'unknown',  hasParser: false },
