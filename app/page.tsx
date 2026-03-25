@@ -1689,40 +1689,76 @@ export default function Page() {
         const listingUrl = extractListingUrl(q);
         if (listingUrl) {
             try {
-                const lookupRes = await fetch('/api/property/lookup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: listingUrl }),
-                });
-                const lookupJson = await lookupRes.json();
+                // Fetch property data + live FRED rate in parallel
+                const [lookupRes, tickerRes] = await Promise.all([
+                    fetch('/api/property/lookup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: listingUrl }),
+                    }),
+                    fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
+                ]);
+                const [lookupJson, tickerJson] = await Promise.all([
+                    lookupRes.json(),
+                    tickerRes ? tickerRes.json().catch(() => null) : Promise.resolve(null),
+                ]);
+
+                // Parse live 30Y rate from ticker — fall back to 7.0 if unavailable
+                let liveRate = 7.0;
+                const thirtyYItem = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
+                if (thirtyYItem?.value) {
+                    const parsed = parseFloat(String(thirtyYItem.value).replace('%', ''));
+                    if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
+                }
 
                 if (lookupJson.ok && lookupJson.data) {
                     const d = lookupJson.data;
-                    const parts: string[] = [];
-                    if (d.address) parts.push(d.address);
-                    else if (d.city && d.state) parts.push(`${d.city}, ${d.state}`);
+
+                    // Friendly intro message — warm, specific, includes live rate
+                    const locationStr = d.city && d.state ? `${d.city}, ${d.state}` : d.state ?? '';
                     const priceStr = d.price ? `$${d.price.toLocaleString()}` : null;
-                    const descParts: string[] = [];
-                    if (d.beds) descParts.push(`${d.beds} bd`);
-                    if (d.baths) descParts.push(`${d.baths} ba`);
-                    if (d.sqft) descParts.push(`${d.sqft.toLocaleString()} sqft`);
+                    const detailParts: string[] = [];
+                    if (d.beds) detailParts.push(`${d.beds} bed`);
+                    if (d.baths) detailParts.push(`${d.baths} bath`);
+                    if (d.sqft) detailParts.push(`${d.sqft.toLocaleString()} sqft`);
+                    const detailStr = detailParts.join(' · ');
 
                     const friendly = [
-                        priceStr && parts.length ? `${priceStr} · ${parts[0]}` : priceStr ?? parts[0] ?? 'Listing found',
-                        descParts.length ? descParts.join(' · ') : null,
-                        'Adjust the sliders below to explore payment scenarios.',
-                    ].filter(Boolean).join('\n');
+                        priceStr && locationStr ? `Got it — ${priceStr} in ${locationStr}.` : priceStr ? `Got it — listed at ${priceStr}.` : 'Found the listing.',
+                        detailStr || null,
+                        `Payment estimate loaded below using today's ${liveRate.toFixed(2)}% 30Y rate. Adjust the sliders to explore your scenarios.`,
+                    ].filter(Boolean).join(' ');
 
+                    // Pre-filled slider using live rate + scraped tax rate
                     const taxRate = d.taxRateEffective ?? 0.012;
                     const interactiveSlider = d.price ? {
                         price: d.price,
                         downPct: 20,
-                        rate: 7.0,
+                        rate: liveRate,
                         term: 30,
                         taxRate,
                         insRate: 0.0050,
                         loanType: 'conventional' as const,
                     } : null;
+
+                    // Property-specific follow-up chips
+                    const priceFmt = d.price ? `$${Math.round(d.price / 1000)}k` : 'this home';
+                    const cityStr = d.city ? ` in ${d.city}` : '';
+                    const chips = [
+                        {
+                            label: `What income do I need to qualify?`,
+                            seed: `What income do I need to qualify for a ${priceFmt} home${cityStr}?`,
+                        },
+                        {
+                            label: `FHA vs conventional on this home`,
+                            seed: `Compare FHA 3.5% down vs conventional 5% down on a ${priceFmt} home at ${liveRate.toFixed(2)}%${cityStr}`,
+                        },
+                        {
+                            label: `10% down — what's my payment?`,
+                            seed: `Conventional loan on ${priceFmt} with 10% down at ${liveRate.toFixed(2)}%`,
+                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 10, annualRatePct: liveRate },
+                        },
+                    ];
 
                     const propertyMeta: ApiResponse = {
                         path: 'property_lookup',
@@ -1732,6 +1768,7 @@ export default function Page() {
                         answerMarkdown: friendly,
                         propertyCard: d,
                         interactiveSlider,
+                        follow_up_chips: chips,
                     };
 
                     setMessages((prev) =>
@@ -1745,16 +1782,8 @@ export default function Page() {
                 } else {
                     // Lookup failed — surface the error as assistant text
                     const errMsg = lookupJson.error ?? 'Could not read that listing. Try pasting the price and address manually.';
-                    const details = lookupJson.details ? `\n${lookupJson.details}` : '';
-                    const errFull = errMsg + details;
-                    setMessages((prev) =>
-                        prev.map((m) =>
-                            m.id === answerId && m.role === 'assistant'
-                                ? { ...m, content: '' }
-                                : m
-                        )
-                    );
-                    typeOutAssistant(answerId, errFull);
+                    const details = lookupJson.details ? ` ${lookupJson.details}` : '';
+                    typeOutAssistant(answerId, errMsg + details);
                 }
             } catch (e) {
                 const msg = e instanceof Error ? e.message : String(e);
