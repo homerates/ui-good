@@ -1618,8 +1618,6 @@ export default function Page() {
     async function send(overrideValue?: string | React.MouseEvent<HTMLButtonElement>) {
         const q = (typeof overrideValue === 'string' ? overrideValue : input).trim();
         if (!q || loading) return;
-        // If user hits enter on the Price Check hint without pasting a URL, just clear it
-        if (q === 'Paste your Zillow or Redfin listing URL here') { setInput(''); return; }
 
         // Enforce simple daily limits before we send anything
         if (!isSignedIn) {
@@ -2213,20 +2211,19 @@ export default function Page() {
         setTimeout(() => send(seed), 50);
     };
 
-    // PRICE CHECK chip: shows hint text in the ask pill, selects it all so paste replaces it
+    // PRICE CHECK: opens a new chat, shows a silent prompt in the chat area, pill stays empty
     function onPriceCheck() {
-        const hint = 'Paste your Zillow or Redfin listing URL here';
-        setInput(hint);
-        // Wait for React to commit the new value, then select all + focus
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement | null;
-                if (!el) return;
-                el.focus();
-                el.select(); // select all — paste will replace entire hint text
-                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            });
-        });
+        newChat();
+        setInput('');
+        setMessages([{
+            id: 'price-check-hint',
+            role: 'assistant',
+            content: 'Ready — paste your Zillow or Redfin listing URL below and I\'ll load the numbers instantly.',
+        }]);
+        setTimeout(() => {
+            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement | null;
+            if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        }, 80);
     }
 
     function closeAllOverlays() {
