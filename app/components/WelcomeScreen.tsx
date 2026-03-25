@@ -75,6 +75,14 @@ interface WelcomeScreenProps {
 export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: WelcomeScreenProps) {
     const [visible, setVisible] = useState(false);
     const [tickerItems, setTickerItems] = useState(TICKER_FALLBACK);
+    const [pcUrl, setPcUrl] = useState('');
+
+    function submitPriceCheck() {
+        const url = pcUrl.trim();
+        if (!url) return;
+        setPcUrl('');
+        onSend(url);
+    }
 
     // Fetch live FRED ticker data
     useEffect(() => {
@@ -151,22 +159,37 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 </p>
             </div>
 
-            {/* ── Price Check featured entry ── */}
-            {onPriceCheck && (
-                <button
-                    className="hr-price-check"
-                    onClick={onPriceCheck}
-                    type="button"
-                    style={{ ['--persona-accent' as any]: PRICE_CHECK_PERSONA.accent }}
-                >
-                    <span className="hr-price-check__icon">{PRICE_CHECK_PERSONA.icon}</span>
-                    <span className="hr-price-check__body">
-                        <span className="hr-price-check__label">{PRICE_CHECK_PERSONA.label}</span>
-                        <span className="hr-price-check__desc">{PRICE_CHECK_PERSONA.desc}</span>
-                    </span>
-                    <span className="hr-price-check__cta">Paste URL →</span>
-                </button>
-            )}
+            {/* ── Price Check featured entry — inline paste input ── */}
+            <div className="hr-price-check">
+                <span className="hr-price-check__icon">{PRICE_CHECK_PERSONA.icon}</span>
+                <span className="hr-price-check__body">
+                    <span className="hr-price-check__label">{PRICE_CHECK_PERSONA.label}</span>
+                    <form
+                        className="hr-price-check__form"
+                        onSubmit={(e) => { e.preventDefault(); submitPriceCheck(); }}
+                    >
+                        <input
+                            className="hr-price-check__input"
+                            type="url"
+                            placeholder="Paste a Zillow or Redfin listing URL…"
+                            value={pcUrl}
+                            onChange={(e) => setPcUrl(e.target.value)}
+                            onPaste={(e) => {
+                                // Auto-submit on paste if it looks like a URL
+                                const text = e.clipboardData.getData('text').trim();
+                                if (text.startsWith('http')) {
+                                    e.preventDefault();
+                                    setPcUrl(text);
+                                    setTimeout(() => { onSend(text); setPcUrl(''); }, 50);
+                                }
+                            }}
+                        />
+                        {pcUrl && (
+                            <button className="hr-price-check__go" type="submit" aria-label="Go">→</button>
+                        )}
+                    </form>
+                </span>
+            </div>
 
             {/* ── Persona cards ── */}
             <div className="hr-personas">
@@ -198,7 +221,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                             type="button"
                             style={{ animationDelay: '280ms' }}
                         >
-                            Price Check — paste a listing URL
+                            Price Check — paste your Zillow or Redfin URL
                         </button>
                     )}
                     {QUICK_CHIPS.map((chip, i) => (
@@ -460,19 +483,12 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
                     border: 1.5px solid #c7d2fe;
                     border-radius: 14px;
-                    cursor: pointer;
                     text-align: left;
-                    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
                     box-shadow: 0 2px 8px rgba(79,70,229,0.08);
                     opacity: 0;
                     animation: chipIn 0.4s ease 80ms forwards;
+                    box-sizing: border-box;
                 }
-                .hr-price-check:hover {
-                    border-color: #4f46e5;
-                    box-shadow: 0 4px 16px rgba(79,70,229,0.16);
-                    transform: translateY(-1px);
-                }
-                .hr-price-check:active { transform: translateY(0); }
                 .hr-price-check__icon {
                     font-size: 26px;
                     flex-shrink: 0;
@@ -480,28 +496,55 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-price-check__body {
                     display: flex;
                     flex-direction: column;
-                    gap: 2px;
+                    gap: 6px;
                     flex: 1;
                     min-width: 0;
                 }
                 .hr-price-check__label {
-                    font-size: 15px;
+                    font-size: 14px;
                     font-weight: 700;
                     color: #3730a3;
                     letter-spacing: -0.01em;
                 }
-                .hr-price-check__desc {
-                    font-size: 12.5px;
-                    color: #6366f1;
-                    font-weight: 400;
+                .hr-price-check__form {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
                 }
-                .hr-price-check__cta {
-                    font-size: 12px;
-                    font-weight: 600;
-                    color: #4f46e5;
+                .hr-price-check__input {
+                    flex: 1;
+                    min-width: 0;
+                    padding: 8px 12px;
+                    border: 1.5px solid #c7d2fe;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    font-family: inherit;
+                    color: #1e293b;
+                    background: #ffffff;
+                    outline: none;
+                    transition: border-color 0.15s, box-shadow 0.15s;
+                }
+                .hr-price-check__input:focus {
+                    border-color: #4f46e5;
+                    box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+                }
+                .hr-price-check__input::placeholder { color: #a5b4fc; }
+                .hr-price-check__go {
                     flex-shrink: 0;
-                    opacity: 0.7;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    border: none;
+                    background: #4f46e5;
+                    color: #ffffff;
+                    font-size: 16px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: background 0.15s;
                 }
+                .hr-price-check__go:hover { background: #4338ca; }
             `}</style>
         </div>
     );
