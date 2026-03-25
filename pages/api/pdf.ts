@@ -1,0 +1,78 @@
+// pages/api/pdf.ts
+// Generates PDF reports for HomeRates.ai slider cards
+// POST /api/pdf — requires Clerk authentication
+// Body: { type: 'refi' | 'conventional' | 'fha' | 'affordability' | 'dscr', params: {...} }
+//
+// NOTE: This lives in pages/api/ (not app/api/) deliberately.
+// Next.js 15 App Router applies the "react-server" export condition to route handlers,
+// which strips React internals that @react-pdf/reconciler requires, causing error #31.
+// Pages Router API routes do NOT apply this condition and work correctly.
+
+import { getAuth } from '@clerk/nextjs/server';
+import { renderToBuffer } from '@react-pdf/renderer';
+import React from 'react';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import {
+    RefiPDF,
+    ConvFhaPDF,
+    AffordabilityPDF,
+    DscrPDF,
+    type RefiPdfParams,
+    type ConvFhaPdfParams,
+    type AffordabilityPdfParams,
+    type DscrPdfParams,
+} from '../../lib/pdf/HomePDF';
+
+const FILENAMES: Record<string, string> = {
+    refi:          'homerates-refi-analysis.pdf',
+    conventional:  'homerates-conventional-analysis.pdf',
+    fha:           'homerates-fha-analysis.pdf',
+    affordability: 'homerates-affordability-analysis.pdf',
+    dscr:          'homerates-dscr-analysis.pdf',
+};
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Auth gate — PDF export requires a registered account
+    const { userId } = getAuth(req);
+    if (!userId) {
+        return res.status(401).json({ error: 'Authentication required. Create a free account to download PDFs.' });
+    }
+
+    const { type, params } = req.body as { type: string; params: Record<string, unknown> };
+    if (!type || !params) {
+        return res.status(400).json({ error: 'Missing type or params' });
+    }
+
+    try {
+        let doc: React.ReactElement;
+        if (type === 'refi') {
+            doc = React.createElement(RefiPDF, params as unknown as RefiPdfParams);
+        } else if (type === 'conventional' || type === 'fha') {
+            doc = React.createElement(ConvFhaPDF, params as unknown as ConvFhaPdfParams);
+        } else if (type === 'affordability') {
+            doc = React.createElement(AffordabilityPDF, params as unknown as AffordabilityPdfParams);
+        } else if (type === 'dscr') {
+            doc = React.createElement(DscrPDF, params as unknown as DscrPdfParams);
+        } else {
+            return res.status(400).json({ error: `Unknown PDF type: ${type}` });
+        }
+
+        const buffer = await renderToBuffer(doc);
+        const filename = FILENAMES[type] ?? 'homerates-analysis.pdf';
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        res.send(Buffer.from(buffer));
+    } catch (err) {
+        console.error('[/api/pdf] render error:', err);
+        if (err instanceof Error) {
+            console.error('[/api/pdf] stack:', err.stack);
+        }
+        res.status(500).json({ error: 'PDF generation failed' });
+    }
+}
