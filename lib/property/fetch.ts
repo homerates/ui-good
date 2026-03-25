@@ -55,6 +55,53 @@ function merge(primary: Partial<PropertyData> | null, og: Partial<PropertyData>)
     return r;
 }
 
+/**
+ * Best-effort address extraction from a Zillow homedetails URL slug.
+ * Slug format: /homedetails/5365-Long-Shadow-Ct-Westlake-Village-CA-91362/16487723_zpid/
+ * Returns null if the slug doesn't match the expected pattern.
+ */
+function parseAddressFromZillowSlug(url: string): { address: string; city: string | null; state: string | null; zip: string | null } | null {
+    // Extract the slug between /homedetails/ and the next /
+    const slugMatch = url.match(/\/homedetails\/([^/]+)/i);
+    if (!slugMatch) return null;
+    const slug = slugMatch[1];
+
+    // Slug ends with -STATE-ZIP (e.g. -CA-91362)
+    const tailMatch = slug.match(/^(.+)-([A-Z]{2})-(\d{5})$/i);
+    if (!tailMatch) return null;
+
+    const beforeStatZip = tailMatch[1]; // e.g. "5365-Long-Shadow-Ct-Westlake-Village"
+    const state = tailMatch[2].toUpperCase();
+    const zip   = tailMatch[3];
+
+    // Split street from city: street number is always the first token, street
+    // ends before the city (no reliable delimiter — use heuristic: capitalize each word)
+    const parts = beforeStatZip.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+    // Street suffix keywords help identify where city starts
+    const SUFFIXES = new Set(['St','Ave','Blvd','Dr','Ln','Ct','Way','Pl','Rd','Ter','Cir','Loop','Pkwy','Hwy','Fwy','Trl','Path']);
+    let suffixIdx = -1;
+    for (let i = parts.length - 1; i >= 0; i--) {
+        if (SUFFIXES.has(parts[i])) { suffixIdx = i; break; }
+    }
+
+    let streetParts: string[], cityParts: string[];
+    if (suffixIdx !== -1 && suffixIdx < parts.length - 1) {
+        streetParts = parts.slice(0, suffixIdx + 1);
+        cityParts   = parts.slice(suffixIdx + 1);
+    } else {
+        // Fallback: first 3 tokens = street, rest = city
+        streetParts = parts.slice(0, 3);
+        cityParts   = parts.slice(3);
+    }
+
+    const street = streetParts.join(' ');
+    const city   = cityParts.length > 0 ? cityParts.join(' ') : null;
+    const address = [street, city, state, zip].filter(Boolean).join(', ');
+
+    return { address, city, state, zip };
+}
+
 export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupResult> {
     // 1. Detect + validate URL
     const detected = detectListingUrl(rawUrl);
@@ -83,8 +130,23 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         return { ok: false, error: 'Could not fetch listing page', details: msg };
     }
 
-    // Hard block (403/429) with no useful body — surface a clear message
+    // Hard block (403/429) with no useful body — try URL-slug parsing before giving up
     if ((httpStatus === 403 || httpStatus === 429) && html.length < 2000) {
+        const slugData = parseAddressFromZillowSlug(cleanUrl);
+        if (slugData) {
+            // Build a partial card from the URL slug (no price/beds/baths)
+            const { rate } = lookupTaxRate(slugData.state ?? '', null);
+            const partial: PropertyData = {
+                source, url: cleanUrl,
+                parsedBy: 'partial', parseWarnings: ['Price and details unavailable — Zillow blocked the request'],
+                price: null, address: slugData.address, city: slugData.city,
+                state: slugData.state, zip: slugData.zip, county: null,
+                beds: null, baths: null, sqft: null,
+                annualTaxes: null, taxRateEffective: rate, taxSource: 'table',
+                photoUrl: null,
+            };
+            return { ok: true, data: partial };
+        }
         return {
             ok: false,
             error: `${source === 'zillow' ? 'Zillow' : 'The listing site'} blocked our request`,

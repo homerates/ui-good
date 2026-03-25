@@ -30,7 +30,12 @@ const TRACKING_PARAMS = [
 export function detectListingUrl(raw: string): DetectResult | null {
     let parsed: URL;
     try {
-        const normalised = raw.trim().replace(/^http:\/\//i, 'https://');
+        let normalised = raw.trim();
+        // Add https:// if the URL has no protocol (e.g. user pastes www.zillow.com/...)
+        if (!/^https?:\/\//i.test(normalised)) {
+            normalised = 'https://' + normalised.replace(/^\/\//, '');
+        }
+        normalised = normalised.replace(/^http:\/\//i, 'https://');
         parsed = new URL(normalised);
     } catch {
         return null;

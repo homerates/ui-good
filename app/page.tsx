@@ -406,10 +406,14 @@ export type CalcSubmitResult = {
    Listing URL detection
 ========================= */
 function extractListingUrl(text: string): string | null {
+    // Match with or without https:// (user may paste www.zillow.com/... without protocol)
     const m = text.match(
-        /https?:\/\/(?:www\.)?(?:zillow\.com|redfin\.com|realtor\.com|trulia\.com|homes\.com)[^\s]*/i
+        /(?:https?:\/\/)?(?:www\.)?(?:zillow\.com|redfin\.com|realtor\.com|trulia\.com|homes\.com)[^\s]*/i
     );
-    return m ? m[0] : null;
+    if (!m) return null;
+    const url = m[0];
+    // Ensure we return a full URL with protocol so fetch and detect both work
+    return /^https?:\/\//i.test(url) ? url : 'https://' + url;
 }
 
 /* =========================
@@ -2477,20 +2481,7 @@ export default function Page() {
                     </div>
                 </div>
 
-                {/* Price Check floating hint — shown above the composer when in price check mode */}
-                {priceCheckMode && (
-                    <div className="hr-price-check-hint" onClick={() => composerRef.current?.focus()}>
-                        <span className="hr-price-check-hint__icon">🏠</span>
-                        <span className="hr-price-check-hint__text">Paste a Zillow or Redfin listing URL below — I’ll pull the numbers instantly</span>
-                        <button
-                            className="hr-price-check-hint__dismiss"
-                            onClick={(e) => { e.stopPropagation(); setPriceCheckMode(false); }}
-                            aria-label="Dismiss"
-                        >✕</button>
-                    </div>
-                )}
-
-                {/* HR: main Ask composer; isolated classes so globals don’t interfere */}
+                {/* HR: main Ask composer; isolated classes so globals don't interfere */}
                 <div
                     className="hr-composer"
                     data-composer="primary"
@@ -2501,6 +2492,19 @@ export default function Page() {
                         background: 'transparent',
                     }}
                 >
+                    {/* Price Check floating hint — lives inside the sticky composer so it's always visible */}
+                    {priceCheckMode && (
+                        <div className="hr-price-check-hint" onClick={() => composerRef.current?.focus()}>
+                            <span className="hr-price-check-hint__icon">🏠</span>
+                            <span className="hr-price-check-hint__text">Paste a Zillow or Redfin listing URL below — I'll pull the numbers instantly</span>
+                            <button
+                                className="hr-price-check-hint__dismiss"
+                                onClick={(e) => { e.stopPropagation(); setPriceCheckMode(false); }}
+                                aria-label="Dismiss"
+                            >✕</button>
+                        </div>
+                    )}
+
                     <div
                         className="hr-composer-inner"
                         style={{
