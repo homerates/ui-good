@@ -1023,6 +1023,7 @@ export default function Page() {
     const mode: 'borrower' = 'borrower';
 
     const [loading, setLoading] = useState(false);
+    const [typingId, setTypingId] = useState<string | null>(null);
     const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
     const [showAuthRequired, setShowAuthRequired] = useState(false);
 
@@ -1551,6 +1552,15 @@ export default function Page() {
         (id: string, full: string) => {
             if (!full) return;
 
+            // Mark this message as actively typing — hides chips until done
+            setTypingId(id);
+
+            // Scroll so the start of the new message is visible
+            requestAnimationFrame(() => {
+                const el = document.querySelector(`[data-message-id="${id}"]`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+
             // Use Array.from to be safe with emoji / unicode
             const chars = Array.from(full);
             const total = chars.length;
@@ -1560,12 +1570,13 @@ export default function Page() {
             const step = () => {
                 index += 24; // chars per tick; tweak for speed
                 if (index >= total) {
-                    // Final update with full string
+                    // Final update with full string — then clear typing state
                     setMessages((prev) =>
                         prev.map((m) =>
                             m.id === id ? { ...m, content: full } : m
                         )
                     );
+                    setTypingId(null);
                     return;
                 }
 
@@ -2145,7 +2156,7 @@ export default function Page() {
                                     onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                 />
                                 : messages.map((m) => (
-                                    <div key={m.id}>
+                                    <div key={m.id} data-message-id={m.id}>
                                         <Bubble role={m.role}>
                                             {m.role === 'assistant' ? (
                                                 // If this is a Grok-style answer with markdown, use GrokCard
@@ -2212,8 +2223,8 @@ export default function Page() {
                                                                 onRunScenario={(seed) => send(seed)}
                                                             />
                                                         )}
-                                                        {/* Smart follow-up chips — only show when answer is complete (not loading) */}
-                                                        {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && (
+                                                        {/* Smart follow-up chips — only show when typewriter is done */}
+                                                        {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && typingId === null && (
                                                             <div className="follow-up-chips">
                                                                 {m.meta.follow_up_chips.slice(0, 5).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
                                                                     <button
