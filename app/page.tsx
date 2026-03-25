@@ -2211,17 +2211,23 @@ export default function Page() {
         setTimeout(() => send(seed), 50);
     };
 
-    // PRICE CHECK chip: pre-fills the ask pill so user sees the prompt and can paste their URL
+    // PRICE CHECK chip: empties the ask pill, swaps placeholder, focuses — user just pastes URL
     function onPriceCheck() {
-        const hint = 'Paste your Zillow or Redfin listing URL here';
-        setInput(hint);
+        setInput('');
         setTimeout(() => {
             const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement | null;
-            if (el) {
-                el.focus();
-                el.select(); // select all so user just pastes over it
-                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
+            if (!el) return;
+            const original = el.placeholder;
+            el.placeholder = 'Paste your Zillow or Redfin listing URL…';
+            el.focus();
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            const restore = () => {
+                el.placeholder = original;
+                el.removeEventListener('input', restore);
+                el.removeEventListener('blur', restore);
+            };
+            el.addEventListener('input', restore, { once: true });
+            el.addEventListener('blur', restore, { once: true });
         }, 80);
     }
 
