@@ -26,6 +26,8 @@ import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
 import RefiSliderCard from '@/components/RefiSliderCard';
+import PropertyPreviewCard from '@/components/PropertyPreviewCard';
+import type { PropertyCardData } from '@/components/PropertyPreviewCard';
 
 
 
@@ -305,7 +307,7 @@ type CalcAnswer = {
 };
 
 type ApiResponse = {
-    path: 'concept' | 'market' | 'dynamic' | 'error' | 'calc';
+    path: 'concept' | 'market' | 'dynamic' | 'error' | 'calc' | 'property_lookup';
     usedFRED: boolean;
     message?: string;
     summary?: string;
@@ -372,6 +374,14 @@ type ApiResponse = {
         balance: number; currentRate: number; newRate: number;
         termMonths: number; closingCosts: number;
     } | null;
+    propertyCard?: {
+        source: string; url: string; parsedBy: string; parseWarnings: string[];
+        price: number | null; address: string | null;
+        city: string | null; state: string | null; zip: string | null;
+        beds: number | null; baths: number | null; sqft: number | null;
+        annualTaxes: number | null; taxRateEffective: number | null; taxSource: string | null;
+        photoUrl: string | null;
+    } | null;
 };
 
 
@@ -391,6 +401,16 @@ export type CalcSubmitResult = {
     monthlyPI: number;
     sensitivities: Array<{ rate: number; pi: number }>;
 };
+
+/* =========================
+   Listing URL detection
+========================= */
+function extractListingUrl(text: string): string | null {
+    const m = text.match(
+        /https?:\/\/(?:www\.)?(?:zillow\.com|redfin\.com|realtor\.com|trulia\.com|homes\.com)[^\s]*/i
+    );
+    return m ? m[0] : null;
+}
 
 /* =========================
    API helpers
@@ -1665,6 +1685,86 @@ export default function Page() {
         setInput('');
         setLoading(true);
 
+        // ── Property listing URL branch ───────────────────────────────────────
+        const listingUrl = extractListingUrl(q);
+        if (listingUrl) {
+            try {
+                const lookupRes = await fetch('/api/property/lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: listingUrl }),
+                });
+                const lookupJson = await lookupRes.json();
+
+                if (lookupJson.ok && lookupJson.data) {
+                    const d = lookupJson.data;
+                    const parts: string[] = [];
+                    if (d.address) parts.push(d.address);
+                    else if (d.city && d.state) parts.push(`${d.city}, ${d.state}`);
+                    const priceStr = d.price ? `$${d.price.toLocaleString()}` : null;
+                    const descParts: string[] = [];
+                    if (d.beds) descParts.push(`${d.beds} bd`);
+                    if (d.baths) descParts.push(`${d.baths} ba`);
+                    if (d.sqft) descParts.push(`${d.sqft.toLocaleString()} sqft`);
+
+                    const friendly = [
+                        priceStr && parts.length ? `${priceStr} · ${parts[0]}` : priceStr ?? parts[0] ?? 'Listing found',
+                        descParts.length ? descParts.join(' · ') : null,
+                        'Adjust the sliders below to explore payment scenarios.',
+                    ].filter(Boolean).join('\n');
+
+                    const taxRate = d.taxRateEffective ?? 0.012;
+                    const interactiveSlider = d.price ? {
+                        price: d.price,
+                        downPct: 20,
+                        rate: 7.0,
+                        term: 30,
+                        taxRate,
+                        insRate: 0.0050,
+                        loanType: 'conventional' as const,
+                    } : null;
+
+                    const propertyMeta: ApiResponse = {
+                        path: 'property_lookup',
+                        usedFRED: false,
+                        answer: friendly,
+                        message: friendly,
+                        propertyCard: d,
+                        interactiveSlider,
+                    };
+
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === answerId && m.role === 'assistant'
+                                ? { ...m, meta: propertyMeta, content: '' }
+                                : m
+                        )
+                    );
+                    typeOutAssistant(answerId, friendly);
+                } else {
+                    // Lookup failed — surface the error as assistant text
+                    const errMsg = lookupJson.error ?? 'Could not read that listing. Try pasting the price and address manually.';
+                    const details = lookupJson.details ? `\n${lookupJson.details}` : '';
+                    const errFull = errMsg + details;
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === answerId && m.role === 'assistant'
+                                ? { ...m, content: '' }
+                                : m
+                        )
+                    );
+                    typeOutAssistant(answerId, errFull);
+                }
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                typeOutAssistant(answerId, `Could not fetch listing: ${msg}`);
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
+        // ── End property listing URL branch ───────────────────────────────────
+
         try {
             // borrower-only body (no intent/loanAmount passthrough)
             const body: {
@@ -2194,6 +2294,12 @@ export default function Page() {
                                                         {/* Admin debug panel — shows raw JSON + math fields */}
                                                         {ADMIN_USER_IDS.has(user?.id ?? '') && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
+                                                        )}
+                                                        {/* Property preview card — shown when user pastes a listing URL */}
+                                                        {m.meta.propertyCard && !loading && typingId === null && (
+                                                            <PropertyPreviewCard
+                                                                data={m.meta.propertyCard as PropertyCardData}
+                                                            />
                                                         )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
                                                         {m.meta.interactiveSlider && !loading && typingId === null && (
