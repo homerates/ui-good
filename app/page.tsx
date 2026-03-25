@@ -1750,7 +1750,9 @@ export default function Page() {
                         ? `${pitiStr} estimated — that's your PITI on ${addressShort ?? locationStr}.`
                         : `${priceStr ?? 'Listing'} in ${locationStr}.`;
                     const subline = [priceStr, detailStr, locationStr].filter(Boolean).join(' · ');
-                    const cta = `Pre-loaded at today's ${liveRate.toFixed(2)}% with 20% down. Adjust the sliders to explore.`;
+                    const cta = d.price
+                        ? `Pre-loaded at today's ${liveRate.toFixed(2)}% with 20% down. Adjust the sliders to explore.`
+                        : `Zillow blocked price data — enter the listing price below to run the numbers.`;
 
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
@@ -2366,7 +2368,8 @@ export default function Page() {
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
                                                         {/* Property preview card — shown when user pastes a listing URL */}
-                                                        {m.meta.propertyCard && !loading && typingId === null && (
+                                                        {/* Not gated on typingId — card data is static, fine to show while text types */}
+                                                        {m.meta.propertyCard && !loading && (
                                                             <PropertyPreviewCard
                                                                 data={m.meta.propertyCard as PropertyCardData}
                                                             />
