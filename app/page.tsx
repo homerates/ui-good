@@ -1618,6 +1618,8 @@ export default function Page() {
     async function send(overrideValue?: string | React.MouseEvent<HTMLButtonElement>) {
         const q = (typeof overrideValue === 'string' ? overrideValue : input).trim();
         if (!q || loading) return;
+        // If user hits enter on the Price Check hint without pasting a URL, just clear it
+        if (q === 'Paste your Zillow or Redfin listing URL here') { setInput(''); return; }
 
         // Enforce simple daily limits before we send anything
         if (!isSignedIn) {
@@ -2211,24 +2213,20 @@ export default function Page() {
         setTimeout(() => send(seed), 50);
     };
 
-    // PRICE CHECK chip: empties the ask pill, swaps placeholder, focuses — user just pastes URL
+    // PRICE CHECK chip: shows hint text in the ask pill, selects it all so paste replaces it
     function onPriceCheck() {
-        setInput('');
-        setTimeout(() => {
-            const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement | null;
-            if (!el) return;
-            const original = el.placeholder;
-            el.placeholder = 'Paste your Zillow or Redfin listing URL…';
-            el.focus();
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            const restore = () => {
-                el.placeholder = original;
-                el.removeEventListener('input', restore);
-                el.removeEventListener('blur', restore);
-            };
-            el.addEventListener('input', restore, { once: true });
-            el.addEventListener('blur', restore, { once: true });
-        }, 80);
+        const hint = 'Paste your Zillow or Redfin listing URL here';
+        setInput(hint);
+        // Wait for React to commit the new value, then select all + focus
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement | null;
+                if (!el) return;
+                el.focus();
+                el.select(); // select all — paste will replace entire hint text
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
     }
 
     function closeAllOverlays() {
