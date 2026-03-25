@@ -1729,6 +1729,7 @@ export default function Page() {
                         usedFRED: false,
                         answer: friendly,
                         message: friendly,
+                        answerMarkdown: friendly,
                         propertyCard: d,
                         interactiveSlider,
                     };
