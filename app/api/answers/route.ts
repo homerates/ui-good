@@ -4377,7 +4377,7 @@ No Rate Sensitivity section (computed separately). 300-400 words total. Bullet p
 
 Output JSON:
 {
-  "answer": "## 🏡 Property Intelligence Report\\n**${addr}**\\n\\n[markdown report]",
+  "answer": "## 🏡 Property Intelligence Report\\n**${addr}**\\n\\n[markdown report — start directly with ## Property Highlights, do not repeat the title]",
   "follow_up": "single most relevant follow-up question a buyer would ask",
   "confidence": "Grok synthesis · Live market data ${new Date().toISOString().slice(0, 10)}",
   "follow_up_chips": [

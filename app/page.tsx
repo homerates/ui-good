@@ -2040,14 +2040,12 @@ export default function Page() {
                     ...prev,
                     [tid]: returnedMemoryThreadId
                 }));
+            }
 
-                // Persist to Supabase so memory_thread_id survives new sessions.
-                // Fire-and-forget — never blocks the UI.
-                // CRITICAL: messages must be included here — this is the only place
-                // chat messages are persisted to Supabase. Without this, onSelectHistory
-                // finds threads[id] empty and shows "Restored chat (no snapshot found)".
-                // DO NOT remove messages from this payload. Sanity check: open Supabase
-                // chat_threads table and confirm messages column is not null for recent chats.
+            // Persist messages to Supabase on every response that has a thread ID.
+            // This is the only place chat messages (including cmaCard meta) are saved.
+            // Decoupled from memory_thread_id so CMA/early-return paths are also persisted.
+            if (tid) {
                 const chatTitle = history.find(h => h.id === tid)?.title ?? title;
                 fetch('/api/chat-threads', {
                     method: 'PUT',
@@ -2055,7 +2053,7 @@ export default function Page() {
                     body: JSON.stringify({
                         chat_id: tid,
                         title: chatTitle,
-                        memory_thread_id: returnedMemoryThreadId,
+                        ...(returnedMemoryThreadId ? { memory_thread_id: returnedMemoryThreadId } : {}),
                         messages: [...(threads[tid] ?? []), ...messages],
                     }),
                 }).catch(() => { /* non-fatal */ });
