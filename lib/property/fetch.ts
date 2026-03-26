@@ -24,13 +24,13 @@ const HEADERS: Record<string, string> = {
     'Cache-Control':   'no-cache',
 };
 
-async function fetchHtml(url: string): Promise<{ html: string; status: number }> {
+async function fetchHtml(url: string): Promise<{ html: string; status: number; finalUrl: string }> {
     const ctrl  = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
         const res = await fetch(url, { headers: HEADERS, redirect: 'follow', signal: ctrl.signal });
         const html = await res.text();
-        return { html, status: res.status };
+        return { html, status: res.status, finalUrl: res.url || url };
     } finally {
         clearTimeout(timer);
     }
@@ -102,6 +102,44 @@ function parseAddressFromZillowSlug(url: string): { address: string; city: strin
     return { address, city, state, zip };
 }
 
+/**
+ * Best-effort address extraction from a Redfin listing URL slug.
+ * Format: /STATE/CITY/STREET-ADDRESS-ZIP/home/ID
+ * e.g. /CA/San-Diego/4545-Illinois-St-92116/home/189065780
+ */
+function parseAddressFromRedfinSlug(url: string): { address: string; city: string | null; state: string | null; zip: string | null } | null {
+    // Match /STATE/CITY/STREET/home/ID — STATE is 2 uppercase letters
+    const m = url.match(/\/([A-Z]{2})\/([^/]+)\/([^/]+)\/home\/\d+/i);
+    if (!m) return null;
+
+    const state      = m[1].toUpperCase();
+    const citySlug   = m[2];
+    const streetSlug = m[3];
+
+    const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
+    // City: replace hyphens with spaces, capitalize each word
+    const city = citySlug.split('-').map(capitalize).join(' ');
+
+    // Street: extract ZIP from end if present (5 digits), then parse street
+    const streetParts = streetSlug.split('-');
+    let zip: string | null = null;
+    if (/^\d{5}$/.test(streetParts[streetParts.length - 1])) {
+        zip = streetParts.pop()!;
+    }
+
+    const SUFFIXES = new Set(['St','Ave','Blvd','Dr','Ln','Ct','Way','Pl','Rd','Ter','Cir','Loop','Pkwy','Hwy','Trl','Path','Unit']);
+    let suffixIdx = -1;
+    const parts = streetParts.map(capitalize);
+    for (let i = parts.length - 1; i >= 0; i--) {
+        if (SUFFIXES.has(parts[i])) { suffixIdx = i; break; }
+    }
+    const street = suffixIdx !== -1 ? parts.slice(0, suffixIdx + 1).join(' ') : parts.join(' ');
+    const address = [street, city, state, zip].filter(Boolean).join(', ');
+
+    return { address, city, state, zip };
+}
+
 export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupResult> {
     // 1. Detect + validate URL
     const detected = detectListingUrl(rawUrl);
@@ -118,10 +156,12 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
     // 2. Fetch HTML
     let html: string;
     let httpStatus: number;
+    let finalUrl: string;
     try {
         const fetched = await fetchHtml(cleanUrl);
         html       = fetched.html;
         httpStatus = fetched.status;
+        finalUrl   = fetched.finalUrl;
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('abort') || msg.includes('timeout')) {
@@ -130,16 +170,22 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         return { ok: false, error: 'Could not fetch listing page', details: msg };
     }
 
-    // Hard block (403/429) — always try URL-slug parsing before giving up
-    // Note: Zillow returns a full HTML block page (>>2000 chars), so we don't gate on html.length
+    // Hard block (403/429) — try slug parsing before giving up.
+    // For short URLs (e.g. redfin.com/home/ID), use finalUrl after redirect
+    // which may contain the full address slug.
     if (httpStatus === 403 || httpStatus === 429) {
-        const slugData = parseAddressFromZillowSlug(cleanUrl);
+        const slugData =
+            parseAddressFromZillowSlug(cleanUrl) ??
+            parseAddressFromRedfinSlug(finalUrl) ??
+            parseAddressFromRedfinSlug(cleanUrl);
         if (slugData) {
-            // Build a partial card from the URL slug (no price/beds/baths)
             const { rate } = lookupTaxRate(slugData.state ?? '', null);
+            const warning = source === 'zillow'
+                ? 'Price and details unavailable — Zillow blocked the request'
+                : 'Price and details unavailable — Redfin blocked the request';
             const partial: PropertyData = {
                 source, url: cleanUrl,
-                parsedBy: 'partial', parseWarnings: ['Price and details unavailable — Zillow blocked the request'],
+                parsedBy: 'partial', parseWarnings: [warning],
                 price: null, address: slugData.address, city: slugData.city,
                 state: slugData.state, zip: slugData.zip, county: null,
                 beds: null, baths: null, sqft: null,
@@ -150,7 +196,7 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         }
         return {
             ok: false,
-            error: `${source === 'zillow' ? 'Zillow' : 'The listing site'} blocked our request`,
+            error: `${source === 'zillow' ? 'Zillow' : 'Redfin'} blocked our request`,
             details: `HTTP ${httpStatus}. Try pasting the price and address manually.`,
         };
     }

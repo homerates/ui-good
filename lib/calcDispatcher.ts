@@ -37,6 +37,7 @@ import {
 export type CalcType =
     | 'refi'
     | 'refi_20vs30'
+    | 'extra_payment'
     | 'fha'
     | 'fha_vs_conv'
     | 'conventional'

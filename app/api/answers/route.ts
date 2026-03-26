@@ -10,12 +10,12 @@ import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculat
 // NEW unified calc engine
 import {
     calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
-    calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30,
+    calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment,
 } from "../../../lib/calcEngine";
 import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
-    buildRefi20vs30Card,
+    buildRefi20vs30Card, buildExtraPaymentCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
@@ -3470,6 +3470,13 @@ ${uwAnswerText}`,
                 rate20yr: (paramOverrides as any).rate20yr,
                 rate30yr: (paramOverrides as any).rate30yr,
             };
+        } else if ((paramOverrides as any).extraPaymentBalance != null && (paramOverrides as any).extraPaymentRate != null) {
+            (calcDispatch as any).type = 'extra_payment';
+            (calcDispatch as any).params = {
+                balance:     (paramOverrides as any).extraPaymentBalance,
+                ratePct:     (paramOverrides as any).extraPaymentRate,
+                targetYears: (paramOverrides as any).extraPaymentTargetYears ?? 20,
+            };
         } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
@@ -3701,6 +3708,13 @@ ${uwAnswerText}`,
                 rate20yr: (paramOverrides as any).rate20yr,
                 rate30yr: (paramOverrides as any).rate30yr,
             };
+        } else if ((paramOverrides as any).extraPaymentBalance != null && (paramOverrides as any).extraPaymentRate != null) {
+            (calcDispatch as any).type = 'extra_payment';
+            (calcDispatch as any).params = {
+                balance:     (paramOverrides as any).extraPaymentBalance,
+                ratePct:     (paramOverrides as any).extraPaymentRate,
+                targetYears: (paramOverrides as any).extraPaymentTargetYears ?? 20,
+            };
         } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
@@ -3780,6 +3794,11 @@ ${uwAnswerText}`,
                 const result = calcRefi20vs30(calcDispatch.params as any);
                 calcCard = buildRefi20vs30Card(result, fredRateForCard);
                 calcDebugModel = 'calcEngine-refi_20vs30';
+
+            } else if (calcDispatch.type === 'extra_payment' && calcDispatch.params) {
+                const result = calcExtraPayment(calcDispatch.params as any);
+                calcCard = buildExtraPaymentCard(result, fredRateForCard);
+                calcDebugModel = 'calcEngine-extra_payment';
 
             } else if (calcDispatch.type === 'refi' && calcDispatch.params) {
                 const result = calcRefi(calcDispatch.params as any);

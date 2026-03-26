@@ -22,6 +22,7 @@ import {
     DSCRResult,
     FHAvsConvResult,
     Refi20vs30Result,
+    ExtraPaymentResult,
 } from './calcEngine';
 import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 
@@ -789,6 +790,8 @@ Pay **${f$(r.extraMonthly)}/mo more** on the 20-year to eliminate **${f$(r.inter
         {
             label: `Extra payments on 30yr to pay off in 20 — how much extra/mo?`,
             seed: `If I take 30yr refi at ${fPct(r.rate30yr)} on ${fK(r.balance)} and want to pay it off in 20 years, how much extra per month do I need?`,
+            paramOverrides: { extraPaymentBalance: r.balance, extraPaymentRate: r.rate30yr, extraPaymentTargetYears: 20 },
+            changedKeys: ['extraPaymentTargetYears'],
         },
         {
             label: `No-cost refi option — what rate does that get me?`,
@@ -807,6 +810,69 @@ Pay **${f$(r.extraMonthly)}/mo more** on the 20-year to eliminate **${f$(r.inter
             scenario_inputs: { loan_amount: r.balance, rate_20yr: r.rate20yr, rate_30yr: r.rate30yr },
             computed_financials: { monthly_pi_30yr: r.pi30, monthly_pi_20yr: r.pi20, interest_saved: r.interestSaved, extra_monthly: r.extraMonthly },
             monthly_payment: r.pi30,
+        },
+    };
+}
+
+// ─────────────────────────────────────────────
+// EXTRA PAYMENT CARD
+// ─────────────────────────────────────────────
+
+export function buildExtraPaymentCard(r: ExtraPaymentResult, fredRateStr?: string): BuiltCard {
+    const fredNote = fredRateStr ? `\n> 📡 **Today's 30yr market rate: ${fredRateStr}** (FRED, live)\n` : '';
+
+    const answer = `## 💳 Extra Payments to Pay Off in ${r.targetYears} Years — ${fPct(r.ratePct)} Rate
+${fredNote}
+**Loan Balance: ${f$(r.balance)}**
+
+---
+
+## 📊 Breakdown
+
+| | Standard 30yr | Pay Off in ${r.targetYears}yr | Difference |
+|--|--|--|--|
+| Monthly P&I | ${f$(r.piOriginal)}/mo | ${f$(r.piTarget)}/mo | **+${f$(r.extraMonthly)}/mo extra** |
+| Total interest | ${f$(r.totalInt30)} | ${f$(r.totalIntTarget)} | **Save ${f$(r.interestSaved)}** |
+| Payoff | 30 years | ${r.targetYears} years | **${30 - r.targetYears} years sooner** |
+
+---
+
+## 🎯 The Bottom Line
+
+Add **${f$(r.extraMonthly)}/mo** to your regular payment and you'll pay off ${f$(r.balance)} in **${r.targetYears} years** instead of 30, saving **${f$(r.interestSaved)} in total interest**.
+
+> Tip: Even paying half that extra (${f$(Math.round(r.extraMonthly / 2))}/mo) shaves several years off your loan.`;
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `Full 30yr refi analysis at ${fPct(r.ratePct)}`,
+            seed: `Refi to 30-year at ${fPct(r.ratePct)} on ${fK(r.balance)} — breakeven and net savings`,
+            paramOverrides: { newRatePct: r.ratePct, currentBalance: r.balance, currentRatePct: parseFloat((r.ratePct + 0.5).toFixed(2)) },
+            changedKeys: ['newRatePct'],
+        },
+        {
+            label: `What if I pay ${f$(Math.round(r.extraMonthly / 2))}/mo extra instead?`,
+            seed: `If I pay ${f$(Math.round(r.extraMonthly / 2))} extra per month on a ${f$(r.balance)} loan at ${fPct(r.ratePct)}, when do I pay it off?`,
+        },
+        {
+            label: `20yr vs 30yr refi comparison`,
+            seed: `Compare 20yr vs 30yr refi on ${fK(r.balance)} — 20yr at ${fPct(parseFloat((r.ratePct - 0.25).toFixed(2)))} vs 30yr at ${fPct(r.ratePct)}`,
+            paramOverrides: { rate20yr: parseFloat((r.ratePct - 0.25).toFixed(2)), rate30yr: r.ratePct, balance20vs30: r.balance },
+            changedKeys: ['rate20yr'],
+        },
+    ];
+
+    return {
+        answer,
+        next_step: '',
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `Extra payment calc on ${f$(r.balance)} at ${fPct(r.ratePct)}: +${f$(r.extraMonthly)}/mo pays off in ${r.targetYears}yr, saves ${f$(r.interestSaved)} vs 30yr.`,
+            scenario_inputs: { loan_amount: r.balance, rate_pct: r.ratePct, target_years: r.targetYears },
+            computed_financials: { extra_monthly: r.extraMonthly, interest_saved: r.interestSaved, pi_original: r.piOriginal, pi_target: r.piTarget },
+            monthly_payment: r.piOriginal,
         },
     };
 }

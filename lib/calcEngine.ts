@@ -786,6 +786,51 @@ export function calcRefi20vs30(input: Refi20vs30Input): Refi20vs30Result {
 }
 
 // ─────────────────────────────────────────────
+// CALC: EXTRA PAYMENT (pay off 30yr in N years)
+// ─────────────────────────────────────────────
+
+export interface ExtraPaymentInput {
+    balance:     number;
+    ratePct:     number;  // the 30yr rate
+    targetYears: number;  // desired payoff term (e.g. 20)
+}
+
+export interface ExtraPaymentResult {
+    balance:          number;
+    ratePct:          number;
+    targetYears:      number;
+    piOriginal:       number;  // standard 30yr P&I
+    piTarget:         number;  // P&I needed to pay off in targetYears
+    extraMonthly:     number;  // piTarget − piOriginal
+    interestSaved:    number;  // total interest saved vs 30yr
+    totalInt30:       number;
+    totalIntTarget:   number;
+}
+
+export function calcExtraPayment(input: ExtraPaymentInput): ExtraPaymentResult {
+    const { balance, ratePct, targetYears } = input;
+    const targetMonths = targetYears * 12;
+
+    const piOriginal   = monthlyPI(balance, ratePct, 360);
+    const piTarget     = monthlyPI(balance, ratePct, targetMonths);
+    const totalInt30   = piOriginal * 360 - balance;
+    const totalIntTgt  = piTarget * targetMonths - balance;
+    const interestSaved = totalInt30 - totalIntTgt;
+
+    return {
+        balance:        Math.round(balance),
+        ratePct,
+        targetYears,
+        piOriginal:     Math.round(piOriginal),
+        piTarget:       Math.round(piTarget),
+        extraMonthly:   Math.round(piTarget - piOriginal),
+        interestSaved:  Math.round(interestSaved),
+        totalInt30:     Math.round(totalInt30),
+        totalIntTarget: Math.round(totalIntTgt),
+    };
+}
+
+// ─────────────────────────────────────────────
 // CALC: AFFORDABILITY
 // ─────────────────────────────────────────────
 
