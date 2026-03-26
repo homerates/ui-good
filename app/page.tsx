@@ -408,7 +408,7 @@ export type CalcSubmitResult = {
 function extractListingUrl(text: string): string | null {
     // Match with or without https:// (user may paste www.zillow.com/... without protocol)
     const m = text.match(
-        /(?:https?:\/\/)?(?:www\.)?(?:zillow\.com|redfin\.com|realtor\.com|trulia\.com|homes\.com)[^\s]*/i
+        /(?:https?:\/\/)?(?:www\.)?(?:zillow\.com|redfin\.com|redf\.in|realtor\.com|trulia\.com|homes\.com)[^\s]*/i
     );
     if (!m) return null;
     const url = m[0];

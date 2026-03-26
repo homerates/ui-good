@@ -14,6 +14,9 @@ const PATTERNS: Array<{ re: RegExp; source: PropertySource; hasParser: boolean }
     // Redfin full URLs: /CA/City/Address/home/ID  or  /home/ID  (mobile short link)
     { re: /^https?:\/\/(www\.)?redfin\.com\/.+\/home\/\d+/i,                 source: 'redfin',   hasParser: true  },
     { re: /^https?:\/\/(www\.)?redfin\.com\/home\/\d+/i,                     source: 'redfin',   hasParser: true  },
+    // redf.in short links — Redfin's official short URL service (e.g. redf.in/e7KkU8)
+    // fetch() follows the redirect; finalUrl will be the full redfin.com listing URL
+    { re: /^https?:\/\/redf\.in\//i,                                         source: 'redfin',   hasParser: true  },
     { re: /^https?:\/\/(www\.)?redfin\.com\/[A-Z]{2}\//i,                    source: 'redfin',   hasParser: true  },
     { re: /^https?:\/\/(www\.)?realtor\.com\/realestateandhomes-detail\//i,   source: 'realtor',  hasParser: false },
     { re: /^https?:\/\/(www\.)?trulia\.com\/property\//i,                     source: 'unknown',  hasParser: false },
