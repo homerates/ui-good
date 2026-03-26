@@ -10,12 +10,12 @@ import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculat
 // NEW unified calc engine
 import {
     calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
-    calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale,
+    calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale, calcOneExtraPaymentPerYear,
 } from "../../../lib/calcEngine";
 import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
-    buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard,
+    buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
@@ -45,6 +45,11 @@ try {
 } catch (e) {
     console.error('[CalcEngine] Test runner threw:', e);
 }
+// ---------- Price formatter — handles $500k and $4.995M correctly ----------
+function fmtPriceK(k: number): string {
+    return k >= 1000 ? `$${(k / 1000).toFixed(1).replace(/\.0$/, '')}M` : `$${k}k`;
+}
+
 // ---------- noStore helper ----------
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });
@@ -1629,9 +1634,9 @@ function generateFallbackChips(
 
     if (isMIP && hasPrice) {
         return [
-            { label: `FHA 10% down — MIP drops off after 11 years`, seed: `Show me FHA with 10% down on a $${priceK}k home${hasIncome ? ` — I make $${incK}k/year` : ''}` },
-            { label: `FHA vs conventional — total 10-year cost`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home — total cost over 10 years` },
-            { label: `When can I refinance out of FHA MIP?`, seed: `When can I refinance from FHA to conventional to remove MIP on a $${priceK}k home?` },
+            { label: `FHA 10% down — MIP drops off after 11 years`, seed: `Show me FHA with 10% down on a $${fmtPriceK(priceK)} home${hasIncome ? ` — I make $${incK}k/year` : ''}` },
+            { label: `FHA vs conventional — total 10-year cost`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${fmtPriceK(priceK)} home — total cost over 10 years` },
+            { label: `When can I refinance out of FHA MIP?`, seed: `When can I refinance from FHA to conventional to remove MIP on a $${fmtPriceK(priceK)} home?` },
         ];
     }
 
@@ -1653,7 +1658,7 @@ function generateFallbackChips(
 
     if (isCreditScore && hasIncome) {
         return [
-            { label: `FHA with 580 credit score`, seed: `FHA loan with 580 credit score — what are my options?${hasPrice ? ` Home price $${priceK}k` : ''}` },
+            { label: `FHA with 580 credit score`, seed: `FHA loan with 580 credit score — what are my options?${hasPrice ? ` Home price $${fmtPriceK(priceK)}` : ''}` },
             { label: `How to improve credit score fast for mortgage`, seed: `What's the fastest way to improve my credit score to qualify for a better mortgage rate?` },
             { label: `Score impact on rate — 620 vs 680 vs 740`, seed: `How does credit score affect my mortgage rate and monthly payment? Compare 620, 680, and 740 FICO` },
         ];
@@ -1662,17 +1667,17 @@ function generateFallbackChips(
     if (isComparison && hasPrice) {
         return [
             { label: `Run this at current market rates`, seed: `${question} — use today's current market rate` },
-            { label: `20% down — eliminate PMI entirely`, seed: `Show me conventional 20% down on a $${priceK}k home${hasIncome ? ` — I make $${incK}k/year` : ''}` },
-            { label: `Which has lower total 30-year cost?`, seed: `Which has lower total cost over 30 years: FHA 3.5% down or conventional 5% down on a $${priceK}k home?` },
+            { label: `20% down — eliminate PMI entirely`, seed: `Show me conventional 20% down on a $${fmtPriceK(priceK)} home${hasIncome ? ` — I make $${incK}k/year` : ''}` },
+            { label: `Which has lower total 30-year cost?`, seed: `Which has lower total cost over 30 years: FHA 3.5% down or conventional 5% down on a $${fmtPriceK(priceK)} home?` },
         ];
     }
 
     // --- Generic fallback with context ---
     if (hasIncome && hasPrice) {
         return [
-            { label: `FHA vs conventional on $${priceK}k — side-by-side`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home — I make $${incK}k/year` },
+            { label: `FHA vs conventional on $${fmtPriceK(priceK)} — side-by-side`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${fmtPriceK(priceK)} home — I make $${incK}k/year` },
             { label: `What if rates drop to 5.5%?`, seed: `Recalculate at 5.5% — I make $${incK}k/year${savK ? ` and have $${savK}k saved` : ''}` },
-            { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${priceK}k home with FHA 3.5% down?` },
+            { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${fmtPriceK(priceK)} home with FHA 3.5% down?` },
         ];
     }
 
@@ -2870,6 +2875,14 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
             : {
                 label: `If I sell in 3 years — does this refi still pay off?`,
                 seed: `If I refi ${f$(balance)} from ${fPct(currentRate)} to ${fPct(effNewRate)} and sell in 3 years, am I ahead or behind?`,
+                paramOverrides: {
+                    earlySaleBalance:      balance,
+                    earlySaleCurrentRate:  currentRate,
+                    earlySaleNewRate:      effNewRate,
+                    earlySaleClosingCosts: effCosts,
+                    earlySaleYears:        3,
+                } as Record<string, number>,
+                changedKeys: ['earlySaleYears'],
             };
 
         // Chip 4: 20yr vs 30yr comparison — dedicated card
@@ -3490,6 +3503,12 @@ ${uwAnswerText}`,
                 closingCosts:   (paramOverrides as any).earlySaleClosingCosts ?? 0,
                 saleYears:      (paramOverrides as any).earlySaleYears ?? 3,
             };
+        } else if ((paramOverrides as any).oneExtraPaymentBalance != null && (paramOverrides as any).oneExtraPaymentRate != null) {
+            (calcDispatch as any).type = 'one_extra_payment_per_year';
+            (calcDispatch as any).params = {
+                balance: (paramOverrides as any).oneExtraPaymentBalance,
+                ratePct: (paramOverrides as any).oneExtraPaymentRate,
+            };
         } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
@@ -3737,6 +3756,12 @@ ${uwAnswerText}`,
                 closingCosts:   (paramOverrides as any).earlySaleClosingCosts ?? 0,
                 saleYears:      (paramOverrides as any).earlySaleYears ?? 3,
             };
+        } else if ((paramOverrides as any).oneExtraPaymentBalance != null && (paramOverrides as any).oneExtraPaymentRate != null) {
+            (calcDispatch as any).type = 'one_extra_payment_per_year';
+            (calcDispatch as any).params = {
+                balance: (paramOverrides as any).oneExtraPaymentBalance,
+                ratePct: (paramOverrides as any).oneExtraPaymentRate,
+            };
         } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
@@ -3826,6 +3851,11 @@ ${uwAnswerText}`,
                 const result = calcExtraPayment(calcDispatch.params as any);
                 calcCard = buildExtraPaymentCard(result, fredRateForCard);
                 calcDebugModel = 'calcEngine-extra_payment';
+
+            } else if (calcDispatch.type === 'one_extra_payment_per_year' && calcDispatch.params) {
+                const result = calcOneExtraPaymentPerYear(calcDispatch.params as any);
+                calcCard = buildOneExtraPaymentPerYearCard(result, fredRateForCard);
+                calcDebugModel = 'calcEngine-one_extra_payment_per_year';
 
             } else if (calcDispatch.type === 'refi' && calcDispatch.params) {
                 const result = calcRefi(calcDispatch.params as any);
@@ -4497,11 +4527,11 @@ What's your situation?`,
             fhaAnswer = {
                 answer: rMarkdown,
                 next_step: "Get FHA pre-approval from an FHA-approved lender.",
-                follow_up: `Compare FHA vs conventional on this $${priceK}k home`,
+                follow_up: `Compare FHA vs conventional on this $${fmtPriceK(priceK)} home`,
                 follow_up_chips: [
-                    { label: `FHA vs conventional on $${priceK}k — side-by-side`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home — I make $${incK}k/year` },
-                    { label: `What if I put 10% down instead?`, seed: `Show me FHA with 10% down on a $${priceK}k home — I make $${incK}k/year and have $${savK}k saved` },
-                    { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${priceK}k home with FHA 3.5% down?` },
+                    { label: `FHA vs conventional on $${fmtPriceK(priceK)} — side-by-side`, seed: `Compare FHA 3.5% down vs conventional 5% down on a $${fmtPriceK(priceK)} home — I make $${incK}k/year` },
+                    { label: `What if I put 10% down instead?`, seed: `Show me FHA with 10% down on a $${fmtPriceK(priceK)} home — I make $${incK}k/year and have $${savK}k saved` },
+                    { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${fmtPriceK(priceK)} home with FHA 3.5% down?` },
                 ],
                 confidence: "1.00 (calculated using FHA guidelines)"
             };
@@ -4571,7 +4601,7 @@ What's your situation?`,
                     conversationHistory.match(/\$\s*([\d,]+(?:,\d{3})+)/i); // full $515,000 format
                 // Bare $Xk only if value >= 100 (i.e. $100k+) to avoid matching MIP amounts like $84k, $26k
                 const histPriceBare = conversationHistory.match(/\$\s*(\d+)k\b/gi)
-                    ?.map((m: string) => parseFloat(m.replace(/[\$k]/gi, '')))
+                    ?.map((m: string) => parseFloat(m.replace(/[$k]/gi, '')))
                     .find((v: number) => v >= 100);
                 const histPriceVal = histPriceCtx
                     ? parseFloat(histPriceCtx[1].replace(/,/g, ''))
@@ -4764,7 +4794,7 @@ What's your situation?`,
                     });
                     chips.push({
                         label: `What if I paid off my debts first — how much more home could I afford?`,
-                        seed: `Show me FHA affordability on $${priceK}k with $0 monthly debt`
+                        seed: `Show me FHA affordability on $${fmtPriceK(priceK)} with $0 monthly debt`
                     });
                     chips.push({
                         label: `Show me the price range where I'm safely under 43% DTI`,
@@ -4773,11 +4803,11 @@ What's your situation?`,
                 } else if (!fhaResult.meetsCreditRequirement) {
                     chips.push({
                         label: `Credit under 580 — show me FHA with 10% down instead`,
-                        seed: `Show me FHA with 10% down on $${priceK}k — credit score is under 580`
+                        seed: `Show me FHA with 10% down on $${fmtPriceK(priceK)} — credit score is under 580`
                     });
                     chips.push({
                         label: `What credit score do I need to get the 3.5% down rate?`,
-                        seed: `What credit score do I need for FHA 3.5% down on $${priceK}k?`
+                        seed: `What credit score do I need for FHA 3.5% down on $${fmtPriceK(priceK)}?`
                     });
                     chips.push({
                         label: `Are there other low-down-payment loans I might qualify for?`,
@@ -4791,27 +4821,27 @@ What's your situation?`,
                     const pool35: Array<{ label: string; seed: string; skip: boolean }> = [
                         {
                             label: `Put 10% down — remove MIP after 11 years instead`,
-                            seed: `Show me FHA with 10% down on a $${priceK}k home`,
+                            seed: `Show me FHA with 10% down on a $${fmtPriceK(priceK)} home`,
                             skip: asked10pct35
                         },
                         {
                             label: `FHA 3.5% vs conventional 5% down — total cost comparison`,
-                            seed: `Compare FHA 3.5% down vs conventional 5% down on a $${priceK}k home`,
+                            seed: `Compare FHA 3.5% down vs conventional 5% down on a $${fmtPriceK(priceK)} home`,
                             skip: askedCompare35
                         },
                         {
                             label: `What income do I need to qualify at 3.5% down?`,
-                            seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 3.5% down`,
+                            seed: `What annual income do I need to qualify for FHA on a $${fmtPriceK(priceK)} home at 3.5% down`,
                             skip: askedIncome35
                         },
                         {
                             label: `How much is MIP costing me over 30 years — is it worth it?`,
-                            seed: `What's the total cost of FHA MIP on a $${priceK}k home over 30 years?`,
+                            seed: `What's the total cost of FHA MIP on a $${fmtPriceK(priceK)} home over 30 years?`,
                             skip: false
                         },
                         {
                             label: `Add my income — tell me if I qualify for this payment`,
-                            seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home?`,
+                            seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${fmtPriceK(priceK)} home?`,
                             skip: askedIncome35
                         },
                     ];
@@ -4835,32 +4865,32 @@ What's your situation?`,
                     const chipPool: Array<{ label: string; seed: string; skip: boolean }> = [
                         {
                             label: `FHA 10% down vs conventional 10% down — side-by-side`,
-                            seed: `Compare FHA 10% down vs conventional 10% down on a $${priceK}k home`,
+                            seed: `Compare FHA 10% down vs conventional 10% down on a $${fmtPriceK(priceK)} home`,
                             skip: askedCompare && asked10vs10
                         },
                         {
                             label: `Conventional 20% down vs FHA 10% — monthly savings vs upfront cost`,
-                            seed: `Show me conventional 20% down on a $${priceK}k home vs FHA 10% down`,
+                            seed: `Show me conventional 20% down on a $${fmtPriceK(priceK)} home vs FHA 10% down`,
                             skip: asked20pct
                         },
                         {
                             label: `What income do I need to qualify at 10% down?`,
-                            seed: `What annual income do I need to qualify for FHA on a $${priceK}k home at 10% down`,
+                            seed: `What annual income do I need to qualify for FHA on a $${fmtPriceK(priceK)} home at 10% down`,
                             skip: askedIncome
                         },
                         {
                             label: `What's the break-even point — when does conventional 10% beat FHA?`,
-                            seed: `When does conventional 10% down become cheaper than FHA 10% down on a $${priceK}k home?`,
+                            seed: `When does conventional 10% down become cheaper than FHA 10% down on a $${fmtPriceK(priceK)} home?`,
                             skip: false
                         },
                         {
                             label: `How much does a 680 vs 740 credit score change my rate?`,
-                            seed: `How does my credit score affect FHA vs conventional on a $${priceK}k home?`,
+                            seed: `How does my credit score affect FHA vs conventional on a $${fmtPriceK(priceK)} home?`,
                             skip: false
                         },
                         {
                             label: `Add my income — see if I actually qualify for this payment`,
-                            seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${priceK}k home at 10% down?`,
+                            seed: `I make $${Math.round(priceK * 0.22)}k/year — do I qualify for FHA on a $${fmtPriceK(priceK)} home at 10% down?`,
                             skip: askedIncome
                         },
                     ];
@@ -4885,7 +4915,7 @@ What's your situation?`,
                         label: fhaWinsMonthly
                             ? `FHA is cheaper monthly — add my income to see which I actually qualify for`
                             : `Conventional saves monthly once PMI cancels — add income to see which I qualify for`,
-                        seed: `I make $${Math.round(price / 5 / 1000) * 10}k/year — FHA or conventional on $${priceK}k?`
+                        seed: `I make $${Math.round(price / 5 / 1000) * 10}k/year — FHA or conventional on $${fmtPriceK(priceK)}?`
                     });
                 }
 
@@ -4893,7 +4923,7 @@ What's your situation?`,
                 if (!fhaParams.annualIncome && chips.length < 3) {
                     chips.push({
                         label: `Add my income — tell me if I actually qualify for this payment`,
-                        seed: `I make $[income]/year — do I qualify for FHA on $${priceK}k home?`
+                        seed: `I make $[income]/year — do I qualify for FHA on $${fmtPriceK(priceK)} home?`
                     });
                 }
 

@@ -19,48 +19,24 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
+    const noIndex = { key: "X-Robots-Tag", value: "noindex, nofollow" };
     return [
       // Hard noindex on any route that should never appear in search
-      {
-        source: "/lo/:path*",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/profile",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/borrower/:path*",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/borrowers/:path*",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/library",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/probe",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/identity",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/s/:slug",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/share",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-      {
-        source: "/join",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
+      { source: "/lo/:path*",         headers: [noIndex] },
+      { source: "/profile",           headers: [noIndex] },
+      { source: "/borrower/:path*",   headers: [noIndex] },
+      { source: "/borrowers/:path*",  headers: [noIndex] },
+      { source: "/library",           headers: [noIndex] },
+      { source: "/probe",             headers: [noIndex] },
+      { source: "/identity",          headers: [noIndex] },
+      { source: "/s/:slug",           headers: [noIndex] },
+      { source: "/share",             headers: [noIndex] },
+      { source: "/join",              headers: [noIndex] },
+      { source: "/onboarding/:path*", headers: [noIndex] },
+      { source: "/onboarding",        headers: [noIndex] },
+      { source: "/sign-in/:path*",    headers: [noIndex] },
+      { source: "/sign-up/:path*",    headers: [noIndex] },
+      { source: "/api/:path*",        headers: [noIndex] },
     ];
   },
 };

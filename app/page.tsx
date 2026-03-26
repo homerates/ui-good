@@ -1775,7 +1775,7 @@ export default function Page() {
                     } : null;
 
                     // Property-specific follow-up chips
-                    const priceFmt = d.price ? `$${Math.round(d.price / 1000)}k` : 'this home';
+                    const priceFmt = d.price ? (() => { const k = Math.round(d.price! / 1000); return k >= 1000 ? `$${(k / 1000).toFixed(1).replace(/\.0$/, '')}M` : `$${k}k`; })() : 'this home';
                     const cityStr = d.city ? ` in ${d.city}` : '';
                     const chips = [
                         {

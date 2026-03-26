@@ -899,6 +899,77 @@ export function calcExtraPayment(input: ExtraPaymentInput): ExtraPaymentResult {
 }
 
 // ─────────────────────────────────────────────
+// CALC: ONE EXTRA PAYMENT PER YEAR
+// ─────────────────────────────────────────────
+
+export interface OneExtraPaymentPerYearInput {
+    balance:   number;
+    ratePct:   number;
+    termYears?: number;  // default 30
+}
+
+export interface OneExtraPaymentPerYearResult {
+    balance:           number;
+    ratePct:           number;
+    termYears:         number;
+    piOriginal:        number;   // regular monthly P&I
+    payoffMonths:      number;   // months to payoff with 1 extra/yr
+    monthsSaved:       number;
+    yearsSaved:        number;   // e.g. 4.7
+    interestStandard:  number;   // total interest, no extra payments
+    interestWithExtra: number;   // total interest with 1 extra/yr
+    interestSaved:     number;
+}
+
+/**
+ * Simulate paying one extra monthly payment per year as a principal-only lump sum.
+ * E.g. a 30yr loan at 7% on $500k pays off in ~25.4 years and saves ~$80k interest.
+ */
+export function calcOneExtraPaymentPerYear(input: OneExtraPaymentPerYearInput): OneExtraPaymentPerYearResult {
+    const { balance, ratePct, termYears = 30 } = input;
+    const termMonths = termYears * 12;
+    const r = ratePct / 100 / 12;
+    const pi = monthlyPI(balance, ratePct, termMonths);
+    const interestStandard = Math.round(pi * termMonths - balance);
+
+    // Simulate: each month pay regular P&I; once per year apply 1 extra payment as pure principal
+    let bal = balance;
+    let totalInterest = 0;
+    let month = 0;
+    const cap = termMonths + 24; // extra payments can only shorten the loan
+
+    while (bal > 0.01 && month < cap) {
+        month++;
+        const interest = bal * r;
+        const principal = Math.min(pi - interest, bal);
+        totalInterest += interest;
+        bal -= principal;
+        if (bal <= 0.01) break;
+
+        // Once per year: apply 1 full monthly payment as principal-only
+        if (month % 12 === 0 && bal > 0.01) {
+            bal = Math.max(0, bal - pi);
+        }
+    }
+
+    const payoffMonths = month;
+    const monthsSaved = termMonths - payoffMonths;
+
+    return {
+        balance:           Math.round(balance),
+        ratePct,
+        termYears,
+        piOriginal:        Math.round(pi),
+        payoffMonths,
+        monthsSaved,
+        yearsSaved:        parseFloat((monthsSaved / 12).toFixed(1)),
+        interestStandard,
+        interestWithExtra: Math.round(totalInterest),
+        interestSaved:     Math.round(interestStandard - totalInterest),
+    };
+}
+
+// ─────────────────────────────────────────────
 // CALC: AFFORDABILITY
 // ─────────────────────────────────────────────
 

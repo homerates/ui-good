@@ -24,6 +24,7 @@ import {
     Refi20vs30Result,
     ExtraPaymentResult,
     RefiEarlySaleResult,
+    OneExtraPaymentPerYearResult,
 } from './calcEngine';
 import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 
@@ -202,8 +203,10 @@ ${dtiSection}${incomeSection}
             changedKeys: ['purchasePrice'],
         },
         {
-            label: `FHA vs conventional on ${fK(r.purchasePrice)}`,
-            seed: `Compare FHA 3.5% down vs conventional ${r.downPaymentPct}% down on a ${fK(r.purchasePrice)} home at ${rateStr}`,
+            label: `1 extra payment/yr — how many years do I save?`,
+            seed: `If I make 1 extra payment per year on a ${fK(r.loanAmount)} loan at ${fPct(r.annualRatePct)}, when do I pay it off?`,
+            paramOverrides: { oneExtraPaymentBalance: r.loanAmount, oneExtraPaymentRate: r.annualRatePct } as Record<string, number>,
+            changedKeys: ['oneExtraPaymentBalance'],
         },
     ];
 
@@ -793,8 +796,10 @@ Pay **${f$(r.extraMonthly)}/mo more** on the 20-year to eliminate **${f$(r.inter
             changedKeys: ['newRatePct'],
         },
         {
-            label: `If I sell in 5 years — does the 20yr still win?`,
-            seed: `If I refi ${fK(r.balance)} to 20yr at ${fPct(r.rate20yr)} and sell in 5 years, does it beat the 30yr at ${fPct(r.rate30yr)}?`,
+            label: `1 extra payment/yr on the 30yr — how much sooner?`,
+            seed: `If I make 1 extra payment per year on ${fK(r.balance)} at ${fPct(r.rate30yr)}, when do I pay it off and how much do I save?`,
+            paramOverrides: { oneExtraPaymentBalance: r.balance, oneExtraPaymentRate: r.rate30yr } as Record<string, number>,
+            changedKeys: ['oneExtraPaymentBalance'],
         },
         {
             label: `Extra payments on 30yr to pay off in 20 — how much extra/mo?`,
@@ -948,8 +953,10 @@ Add **${f$(r.extraMonthly)}/mo** to your regular payment and you'll pay off ${f$
             changedKeys: ['newRatePct'],
         },
         {
-            label: `What if I pay ${f$(Math.round(r.extraMonthly / 2))}/mo extra instead?`,
-            seed: `If I pay ${f$(Math.round(r.extraMonthly / 2))} extra per month on a ${f$(r.balance)} loan at ${fPct(r.ratePct)}, when do I pay it off?`,
+            label: `1 extra payment/yr instead — how much does that save?`,
+            seed: `If I make 1 extra payment per year on ${fK(r.balance)} at ${fPct(r.ratePct)}, when do I pay it off?`,
+            paramOverrides: { oneExtraPaymentBalance: r.balance, oneExtraPaymentRate: r.ratePct } as Record<string, number>,
+            changedKeys: ['oneExtraPaymentBalance'],
         },
         {
             label: `20yr vs 30yr refi comparison`,
@@ -969,6 +976,74 @@ Add **${f$(r.extraMonthly)}/mo** to your regular payment and you'll pay off ${f$
             plain_english_summary: `Extra payment calc on ${f$(r.balance)} at ${fPct(r.ratePct)}: +${f$(r.extraMonthly)}/mo pays off in ${r.targetYears}yr, saves ${f$(r.interestSaved)} vs 30yr.`,
             scenario_inputs: { loan_amount: r.balance, rate_pct: r.ratePct, target_years: r.targetYears },
             computed_financials: { extra_monthly: r.extraMonthly, interest_saved: r.interestSaved, pi_original: r.piOriginal, pi_target: r.piTarget },
+            monthly_payment: r.piOriginal,
+        },
+    };
+}
+
+// ─────────────────────────────────────────────
+// ONE EXTRA PAYMENT PER YEAR CARD
+// ─────────────────────────────────────────────
+
+export function buildOneExtraPaymentPerYearCard(r: OneExtraPaymentPerYearResult, fredRateStr?: string): BuiltCard {
+    const fredNote = fredRateStr ? `\n> 📡 **Today's 30yr market rate: ${fredRateStr}** (FRED, live)\n` : '';
+    const payoffYrs = Math.floor(r.payoffMonths / 12);
+    const payoffMo  = r.payoffMonths % 12;
+    const payoffStr = payoffMo > 0 ? `${payoffYrs} yrs ${payoffMo} mo` : `${payoffYrs} years`;
+
+    const answer = `## 💡 1 Extra Payment Per Year — ${fPct(r.ratePct)} · ${f$(r.balance)}
+${fredNote}
+**One extra payment/year = your regular payment (${f$(r.piOriginal)}) sent once per year as pure principal.**
+
+---
+
+## 📊 Impact
+
+| | Standard ${r.termYears}yr | With 1 Extra/yr | Difference |
+|--|--|--|--|
+| Payoff | ${r.termYears} years | **${payoffStr}** | **${r.yearsSaved} years sooner** |
+| Total interest | ${f$(r.interestStandard)} | ${f$(r.interestWithExtra)} | **Save ${f$(r.interestSaved)}** |
+| Monthly payment | ${f$(r.piOriginal)}/mo | ${f$(r.piOriginal)}/mo | No change |
+
+---
+
+## 🎯 The Bottom Line
+
+Pay **${f$(r.piOriginal)} extra once a year** — same as your regular monthly payment — and save **${f$(r.interestSaved)} in total interest** while becoming mortgage-free **${r.yearsSaved} years sooner**.
+
+> Tip: Set a January calendar reminder. One extra mortgage payment per year is the highest-ROI financial move most homeowners never make.`;
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `Extra payments to pay off in 20yr — how much/mo?`,
+            seed: `Extra monthly payment on ${fK(r.balance)} at ${fPct(r.ratePct)} to pay off in 20 years`,
+            paramOverrides: { extraPaymentBalance: r.balance, extraPaymentRate: r.ratePct, extraPaymentTargetYears: 20 } as Record<string, number>,
+            changedKeys: ['extraPaymentTargetYears'],
+        },
+        {
+            label: `Full refi analysis at ${fPct(r.ratePct)}`,
+            seed: `Refi to 30-year at ${fPct(r.ratePct)} on ${fK(r.balance)} — breakeven and net savings`,
+            paramOverrides: { newRatePct: r.ratePct, currentBalance: r.balance, currentRatePct: parseFloat((r.ratePct + 0.5).toFixed(2)) },
+            changedKeys: ['newRatePct'],
+        },
+        {
+            label: `Compare 20yr vs 30yr at ${fPct(r.ratePct)}`,
+            seed: `Compare 20yr vs 30yr refi on ${fK(r.balance)} at ${fPct(r.ratePct)}`,
+            paramOverrides: { rate20yr: parseFloat((r.ratePct - 0.25).toFixed(2)), rate30yr: r.ratePct, balance20vs30: r.balance },
+            changedKeys: ['rate20yr'],
+        },
+    ];
+
+    return {
+        answer,
+        next_step: '',
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `1 extra payment/yr on ${f$(r.balance)} at ${fPct(r.ratePct)}: payoff in ${payoffStr} vs ${r.termYears}yr standard, saves ${f$(r.interestSaved)}.`,
+            scenario_inputs: { loan_amount: r.balance, rate_pct: r.ratePct, term_years: r.termYears },
+            computed_financials: { payoff_months: r.payoffMonths, months_saved: r.monthsSaved, interest_saved: r.interestSaved },
             monthly_payment: r.piOriginal,
         },
     };

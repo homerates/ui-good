@@ -1,0 +1,38 @@
+User-agent: *
+Allow: /
+
+# Public marketing / SEO pages — crawl and index
+Allow: /why-homerates
+Allow: /about
+Allow: /disclosures
+Allow: /privacy
+Allow: /conventional-loan-calculator
+Allow: /refinance-calculator
+Allow: /fha-calculator
+Allow: /dscr-calculator
+Allow: /affordability-calculator
+Allow: /calculators
+Allow: /how-much-house-can-i-afford-on-150k-salary
+Allow: /how-much-house-can-i-afford-on-120k-salary
+Allow: /how-much-house-can-i-afford-on-100k-salary
+Allow: /how-much-house-can-i-afford-on-95k-salary
+Allow: /how-much-house-can-i-afford-on-80k-salary
+Allow: /piti
+
+# Block all internal / app / auth / debug paths
+Disallow: /api/
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /profile
+Disallow: /identity
+Disallow: /probe
+Disallow: /library
+Disallow: /onboarding
+Disallow: /share
+Disallow: /s/
+Disallow: /lo/
+Disallow: /borrower/
+Disallow: /borrowers/
+Disallow: /join
+
+Sitemap: https://chat.homerates.ai/sitemap.xml

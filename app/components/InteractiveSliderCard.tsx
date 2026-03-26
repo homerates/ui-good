@@ -53,6 +53,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const [term, setTerm]       = useState(props.term);
     const [loanType, setLoanType] = useState<'conventional' | 'fha'>(props.loanType);
 
+    // Expand price slider ceiling when property is already above $2M
+    const priceMax = props.price > 2000000 ? 4000000 : 2000000;
+    const priceMaxLabel = priceMax === 4000000 ? '$4M' : '$2M';
+
     const calc = useMemo(() => {
         const downAmt  = price * downPct / 100;
         const baseLoan = price - downAmt;
@@ -154,10 +158,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         <span className="isc__row-val">{fmtDollar(price)}</span>
                     </div>
                     <input type="range" className="isc__range"
-                        min={100000} max={2000000} step={5000} value={price}
+                        min={100000} max={priceMax} step={5000} value={price}
                         onChange={e => setPrice(+e.target.value)}
-                        style={trackStyle(price, 100000, 2000000)} />
-                    <div className="isc__minmax"><span>$100k</span><span>$2M</span></div>
+                        style={trackStyle(price, 100000, priceMax)} />
+                    <div className="isc__minmax"><span>$100k</span><span>{priceMaxLabel}</span></div>
                 </div>
 
                 {/* Down Payment */}

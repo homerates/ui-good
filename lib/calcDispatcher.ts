@@ -38,6 +38,7 @@ export type CalcType =
     | 'refi'
     | 'refi_20vs30'
     | 'extra_payment'
+    | 'one_extra_payment_per_year'
     | 'refi_early_sale'
     | 'fha'
     | 'fha_vs_conv'
