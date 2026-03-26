@@ -5271,7 +5271,9 @@ Return valid JSON only:
                     { label: 'When will the Fed cut rates again?', seed: `Rate outlook: with Fed funds at ${fred.fedFunds ?? '3.64'}%, CPI at ${fred.cpi ?? 'current levels'}, and unemployment ${fred.unemployment ?? '4.4'}% — when will mortgage rates drop and by how much?` },
                 ];
             }
-            // 5. True fallback
+            // 5. Grok chips — use when Grok produced context-specific ones (e.g. needs-input prompts)
+            if (grokFinal?.follow_up_chips?.length) return grokFinal.follow_up_chips;
+            // 6. True fallback
             return generateFallbackChips(question, conversationHistory);
         })(),
     });
