@@ -4272,47 +4272,56 @@ ${dtiSection}
             return { rate: r, piti, incomeNeeded: Math.round((piti / 0.43) * 12) };
         });
 
-        // Tavily: two focused searches
+        // Tavily: city market + property listing details
         const [tavCity, tavAddress] = await Promise.all([
-            askTavily(req, `${city} ${state} real estate market home prices 2026`, { depth: 'basic', max: 5 }),
-            askTavily(req, `${addr} comparable sales home value estimate 2026`, { depth: 'basic', max: 4 }),
+            askTavily(req, `${city} ${state} real estate market trends home prices inventory 2026`, { depth: 'basic', max: 5 }),
+            askTavily(req, `${addr} listing features year built ocean view ADU garage status`, { depth: 'basic', max: 5 }),
         ]);
         console.log(`[CMA Tavily] city=${city} cityOk=${tavCity.ok} cityAnswer=${!!tavCity.answer} addrOk=${tavAddress.ok} addrAnswer=${!!tavAddress.answer}`);
 
         const tavilyCtx = [
-            tavCity.answer  ? `CITY MARKET: ${tavCity.answer}`  : '',
-            tavAddress.answer ? `PROPERTY COMPS: ${tavAddress.answer}` : '',
-            ...(tavCity.results.slice(0, 3).map(r => `- ${r.title}: ${r.content?.slice(0, 200)}`)),
-        ].filter(Boolean).join('\n').slice(0, 1800);
+            tavCity.answer    ? `CITY MARKET DATA:\n${tavCity.answer}`    : '',
+            tavAddress.answer ? `PROPERTY LISTING DATA:\n${tavAddress.answer}` : '',
+            ...(tavAddress.results.slice(0, 3).map(r => `- ${r.title}: ${r.content?.slice(0, 250)}`)),
+            ...(tavCity.results.slice(0, 2).map(r => `- ${r.title}: ${r.content?.slice(0, 200)}`)),
+        ].filter(Boolean).join('\n').slice(0, 2200);
 
-        const cmaPrompt = `You are HomeRates.ai's Property Intelligence Engine. Generate a concise, factual property intelligence report. No "you should buy" language. No lender referrals. Numbers first, then context, then trade-offs. Output ONLY valid JSON.
+        const isJumboCMA = cmaLoan > 832_750;
+
+        const cmaPrompt = `You are HomeRates.ai's Property Intelligence Engine. Output ONLY valid JSON. Strict rules:
+- Use ONLY the deterministic financials below — never recalculate math
+- Extract property highlights (views, ADU, year built, listing status) from LIVE DATA if present; omit if absent
+- Use ONLY observed market data; no unsubstantiated forward projections
+- Strictly neutral language — no recommendations, no "you should", no "suits [buyer type]", no "verify with agent", no "obtain appraisal"
+- Frame as trade-offs only: "X means Y" not "you should do X"
 
 PROPERTY:
 Address: ${addr}
-Listed at: ${priceFmtCMA} | ${beds}bd / ${baths}ba / ${sqft.toLocaleString()}sqft
-Price per sqft: ${psfStr}
-Annual taxes: $${taxAnnual.toLocaleString()} (${(taxRate * 100).toFixed(2)}% effective)
+Listed: ${priceFmtCMA} | ${beds}bd / ${baths}ba / ${sqft.toLocaleString()} sqft | ${psfStr}
+Taxes: $${taxAnnual.toLocaleString()}/yr (${(taxRate * 100).toFixed(2)}% effective)
 
-DETERMINISTIC FINANCIALS (verified calc engine):
-- 20% down payment: $${cmaDown.toLocaleString()}
-- Loan amount: $${cmaLoan.toLocaleString()} (JUMBO)
+DETERMINISTIC FINANCIALS (do not recalculate):
+- Down payment (20%): $${cmaDown.toLocaleString()}
+- Loan: $${cmaLoan.toLocaleString()}${isJumboCMA ? ' — JUMBO' : ''}
 - Monthly PITI: $${cmaPiti.toLocaleString()}/mo at ${liveRate}% 30yr fixed
-- Income needed @ 43% DTI: $${Math.round((cmaPiti / 0.43) * 12).toLocaleString()}/yr
+- Income required @ 43% DTI: $${Math.round((cmaPiti / 0.43) * 12).toLocaleString()}/yr
 
-LIVE MARKET DATA (Tavily):
-${tavilyCtx || 'No live data available — use general knowledge for context.'}
+LIVE DATA (Tavily — use verbatim facts only; do not fabricate addresses, MLS numbers, or sale prices):
+${tavilyCtx || 'No live data — use general market knowledge; label any estimates as approximate.'}
 
-FRED RATES: 30yr avg: ${fred?.mort30Avg ?? liveRate}% | 10yr Treasury: ${fred?.tenYearYield ?? 'N/A'}% | Spread: ${fred?.spread ?? 'N/A'}%
+Generate a markdown report with these exact ## sections in order:
+1. ## Property Highlights — scan LIVE DATA for year built, views, ADU, lot size, listing status (contingent/active/pending), unique features. If not found in data, omit this section entirely.
+2. ## Market Snapshot — observed price data, days on market, inventory. Observed trends only; no forecasts.
+3. ## Value Insight — estimated value vs list price; price/sqft context vs comps. Factual only.
+4. ## Decision Considerations — two sub-sections: **Primary Residence** and **Investment**. Pure trade-offs, no recommendations.
+5. ## Key Trade-offs — 3-5 bullet points covering carrying cost, financing risk, liquidity, and any property-specific factors from the data.
 
-Generate the report. Use markdown with ## headers. Sections: Market Context, Fair Value & Comps, Decision Framework (Primary Residence vs Investment), Key Risks. Be concise — 350-450 words total. Use bullet points where appropriate.
-
-IMPORTANT: Do NOT include a Rate Sensitivity section — that is computed separately. Do NOT cite specific property addresses, MLS numbers, or exact sale prices unless they appear verbatim in the LIVE MARKET DATA above. If no live comps are provided, describe comp price ranges and market context only.
+No Rate Sensitivity section (computed separately). 300-400 words total. Bullet points throughout.
 
 Output JSON:
 {
-  "answer": "## 🏡 Property Intelligence Report\\n**${addr}**\\n\\n[full markdown report here]",
-  "next_step": "one sentence on the most important next action",
-  "follow_up": "most relevant follow-up question",
+  "answer": "## 🏡 Property Intelligence Report\\n**${addr}**\\n\\n[markdown report]",
+  "follow_up": "single most relevant follow-up question a buyer would ask",
   "confidence": "Grok synthesis · Live market data ${new Date().toISOString().slice(0, 10)}",
   "follow_up_chips": [
     {"label": "Run DSCR rental analysis", "seed": "DSCR analysis on ${addr} at ${priceFmtCMA} — what rent covers the mortgage?"},

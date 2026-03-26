@@ -48,10 +48,15 @@ function parseSections(md: string): Array<{ title: string; body: string; emoji: 
     let current: { title: string; body: string[]; emoji: string } | null = null;
 
     const emojiMap: Record<string, string> = {
+        'highlight':  '✨',
         'market':     '📊',
+        'snapshot':   '📊',
         'fair value': '⚖️',
+        'value':      '⚖️',
         'comps':      '⚖️',
         'decision':   '🧭',
+        'consideration': '🧭',
+        'trade-off':  '⚡',
         'rate':       '📈',
         'risk':       '⚠️',
     };
