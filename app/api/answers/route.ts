@@ -3493,6 +3493,11 @@ ${uwAnswerText}`,
 
     // Apply paramOverrides immediately after dispatch — chip params win over parsed params
     if (paramOverrides) {
+        // isDSCR flag: force dscr_needs_input so context-aware card shows (not conventional)
+        if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
+            (calcDispatch as any).type = 'dscr_needs_input';
+            (calcDispatch as any).params = null;
+        }
         // If override carries grossMonthlyRent, this is a DSCR chip — force type and rebuild params
         if (paramOverrides.grossMonthlyRent != null) {
             (calcDispatch as any).type = 'dscr';
@@ -3748,6 +3753,11 @@ ${uwAnswerText}`,
 
     // paramOverrides second pass — re-apply after follow-up-lock block
     if (paramOverrides) {
+        // isDSCR flag: force dscr_needs_input so context-aware card shows (not conventional)
+        if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
+            (calcDispatch as any).type = 'dscr_needs_input';
+            (calcDispatch as any).params = null;
+        }
         if (paramOverrides.grossMonthlyRent != null) {
             (calcDispatch as any).type = 'dscr';
             (calcDispatch as any).params = {
@@ -4411,8 +4421,8 @@ Output JSON:
             const cmaChips = [
                 {
                     label: `DSCR — what rent covers this at ${priceFmtCMA}?`,
-                    seed: `DSCR analysis on ${addr} at ${priceFmtCMA} with 25% down at ${liveRate}% — what rent do I need?`,
-                    paramOverrides: { purchasePrice: price, downPaymentPct: 25, annualRatePct: liveRate },
+                    seed: `DSCR rental analysis — what monthly rent covers ${priceFmtCMA} with 25% down at ${liveRate}%?`,
+                    paramOverrides: { purchasePrice: price, downPaymentPct: 25, annualRatePct: liveRate, isDSCR: true },
                 },
                 {
                     label: `Rate sensitivity — payment at 5.75%`,
