@@ -4254,13 +4254,23 @@ ${dtiSection}
         const liveRate: number = Number(cmaParams.cmaLiveRate ?? fred?.mort30Avg ?? 6.5);
         const photoUrl: string = String(cmaParams.cmaPhotoUrl ?? '');
 
+        const annualIns = Math.max(1200, Math.round(price * 0.005));
+
         // Deterministic PITI (20% down)
-        const cmaConv = calcConventional({ purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate, termYears: 30, propertyTaxRate: taxRate * 100, annualInsurance: Math.max(1200, Math.round(price * 0.005)) });
+        const cmaConv = calcConventional({ purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate, termYears: 30, propertyTaxRate: taxRate * 100, annualInsurance: annualIns });
         const cmaPiti = Math.round(cmaConv.monthlyPI + cmaConv.monthlyTax + cmaConv.monthlyInsurance);
         const cmaLoan = Math.round(price * 0.80);
         const cmaDown = Math.round(price * 0.20);
         const psfStr  = sqft > 0 ? `$${Math.round(price / sqft).toLocaleString()}/sqft` : 'N/A';
         const priceFmtCMA = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M` : `$${Math.round(price / 1000)}k`;
+
+        // Deterministic rate sensitivity (3 scenarios)
+        const rateScenarios = [-0.625, 0, 0.625].map(delta => {
+            const r = parseFloat((liveRate + delta).toFixed(3));
+            const c = calcConventional({ purchasePrice: price, downPaymentPct: 20, annualRatePct: r, termYears: 30, propertyTaxRate: taxRate * 100, annualInsurance: annualIns });
+            const piti = Math.round(c.monthlyPI + c.monthlyTax + c.monthlyInsurance);
+            return { rate: r, piti, incomeNeeded: Math.round((piti / 0.43) * 12) };
+        });
 
         // Tavily: two focused searches
         const [tavCity, tavAddress] = await Promise.all([
@@ -4293,7 +4303,9 @@ ${tavilyCtx || 'No live data available — use general knowledge for context.'}
 
 FRED RATES: 30yr avg: ${fred?.mort30Avg ?? liveRate}% | 10yr Treasury: ${fred?.tenYearYield ?? 'N/A'}% | Spread: ${fred?.spread ?? 'N/A'}%
 
-Generate the report. Use markdown with ## headers. Sections: Market Context, Fair Value & Comps, Decision Framework (Primary Residence vs Investment), Rate Sensitivity, Key Risks. Be concise — 400-550 words total. Use bullet points where appropriate.
+Generate the report. Use markdown with ## headers. Sections: Market Context, Fair Value & Comps, Decision Framework (Primary Residence vs Investment), Key Risks. Be concise — 350-450 words total. Use bullet points where appropriate.
+
+IMPORTANT: Do NOT include a Rate Sensitivity section — that is computed separately. Do NOT cite specific property addresses, MLS numbers, or exact sale prices unless they appear verbatim in the LIVE MARKET DATA above. If no live comps are provided, describe comp price ranges and market context only.
 
 Output JSON:
 {
@@ -4349,6 +4361,8 @@ Output JSON:
                     baths,
                     sqft,
                     answerMarkdown: cmaFinal.answer,
+                    rateSensitivity: rateScenarios,
+                    liveMarketData: tavCity.ok || tavAddress.ok,
                 },
             });
         }

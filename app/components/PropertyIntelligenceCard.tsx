@@ -5,20 +5,28 @@
 
 import React, { useState } from 'react';
 
+export interface RateScenario {
+    rate:         number;
+    piti:         number;
+    incomeNeeded: number;
+}
+
 export interface CMACardData {
-    address:        string;
-    price:          number;
-    photoUrl:       string | null;
-    piti:           number;
-    downAmt:        number;
-    loanAmt:        number;
-    incomeNeeded:   number;
-    pricePerSqft:   number;
-    rate:           number;
-    beds:           number;
-    baths:          number;
-    sqft:           number;
-    answerMarkdown: string;
+    address:         string;
+    price:           number;
+    photoUrl:        string | null;
+    piti:            number;
+    downAmt:         number;
+    loanAmt:         number;
+    incomeNeeded:    number;
+    pricePerSqft:    number;
+    rate:            number;
+    beds:            number;
+    baths:           number;
+    sqft:            number;
+    answerMarkdown:  string;
+    rateSensitivity?: RateScenario[];
+    liveMarketData?:  boolean;
 }
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -239,12 +247,58 @@ export default function PropertyIntelligenceCard({ data }: { data: CMACardData }
                         </div>
                     );
                 })}
+
+                {/* ── Deterministic Rate Sensitivity ── */}
+                {data.rateSensitivity && data.rateSensitivity.length > 0 && (
+                    <div style={{ borderTop: sections.length > 0 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+                        <button
+                            onClick={() => setExpandedSection(expandedSection === '__rate__' ? null : '__rate__')}
+                            style={{ width: '100%', textAlign: 'left', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                        >
+                            <span style={{ fontWeight: 700, fontSize: 13, color: '#1e3a5f' }}>📈 Rate Sensitivity</span>
+                            <span style={{ fontSize: 12, color: '#9ca3af' }}>{expandedSection === '__rate__' ? '▲' : '▼'}</span>
+                        </button>
+                        {expandedSection === '__rate__' && (
+                            <div style={{ padding: '0 16px 12px' }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                        <thead>
+                                            <tr style={{ background: 'rgba(59,130,246,0.06)' }}>
+                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'left' }}>Rate</th>
+                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'right' }}>Monthly PITI</th>
+                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'right' }}>Income Needed</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.rateSensitivity.map((s, i) => (
+                                                <tr key={i} style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', background: s.rate === data.rate ? 'rgba(59,130,246,0.04)' : 'transparent' }}>
+                                                    <td style={{ padding: '6px 10px', fontWeight: s.rate === data.rate ? 700 : 400 }}>
+                                                        {s.rate.toFixed(3)}%{s.rate === data.rate ? ' ◀ current' : ''}
+                                                    </td>
+                                                    <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: s.rate === data.rate ? 700 : 400 }}>
+                                                        ${s.piti.toLocaleString()}/mo
+                                                    </td>
+                                                    <td style={{ padding: '6px 10px', textAlign: 'right', color: '#6b7280' }}>
+                                                        ${Math.round(s.incomeNeeded / 1000)}k/yr
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>20% down · 30yr fixed · 43% DTI · Calc engine verified</div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* ── Footer ── */}
             <div style={{ padding: '8px 16px', background: '#f8fafc', borderTop: '1px solid rgba(0,0,0,0.06)', fontSize: 11, color: '#9ca3af', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>HomeRates.ai · Educational only — not financial advice</span>
-                <span style={{ color: '#3b82f6', fontWeight: 600 }}>Grok synthesis · Live data</span>
+                <span style={{ color: data.liveMarketData ? '#3b82f6' : '#f59e0b', fontWeight: 600 }}>
+                    {data.liveMarketData ? 'Grok synthesis · Live data' : 'Grok synthesis · AI training data'}
+                </span>
             </div>
         </div>
     );
