@@ -786,6 +786,74 @@ export function calcRefi20vs30(input: Refi20vs30Input): Refi20vs30Result {
 }
 
 // ─────────────────────────────────────────────
+// CALC: REFI EARLY SALE (sell in N years)
+// ─────────────────────────────────────────────
+
+export interface RefiEarlySaleInput {
+    balance:        number;
+    currentRatePct: number;
+    newRatePct:     number;
+    closingCosts:   number;
+    saleYears:      number;
+    termMonths?:    number; // default 360
+}
+
+export interface RefiEarlySaleResult {
+    balance:        number;
+    currentRatePct: number;
+    newRatePct:     number;
+    closingCosts:   number;
+    saleYears:      number;
+    saleMonths:     number;
+    piCurrent:      number;
+    piNew:          number;
+    monthlySavings: number;
+    totalSavings:   number;   // monthlySavings × saleMonths
+    principalDiff:  number;   // extra equity: old remaining balance − new remaining balance
+    netCashAtSale:  number;   // totalSavings − closingCosts
+    trueNet:        number;   // netCashAtSale + principalDiff
+    isAhead:        boolean;
+    beMonths:       number | null;
+}
+
+export function calcRefiEarlySale(input: RefiEarlySaleInput): RefiEarlySaleResult {
+    const { balance, currentRatePct, newRatePct, closingCosts, saleYears, termMonths = 360 } = input;
+    const saleMonths = saleYears * 12;
+
+    const piCurrent      = monthlyPI(balance, currentRatePct, termMonths);
+    const piNew          = monthlyPI(balance, newRatePct, termMonths);
+    const monthlySavings = piCurrent - piNew;
+    const totalSavings   = monthlySavings * saleMonths;
+    const netCashAtSale  = totalSavings - closingCosts;
+
+    const balOld        = remainingBalance(balance, currentRatePct, termMonths, saleMonths);
+    const balNew        = remainingBalance(balance, newRatePct, termMonths, saleMonths);
+    const principalDiff = balOld - balNew; // positive = new loan paid more principal
+
+    const trueNet  = netCashAtSale + principalDiff;
+    const isAhead  = trueNet > 0;
+    const beMonths = monthlySavings > 0 ? closingCosts / monthlySavings : null;
+
+    return {
+        balance:        Math.round(balance),
+        currentRatePct,
+        newRatePct,
+        closingCosts:   Math.round(closingCosts),
+        saleYears,
+        saleMonths,
+        piCurrent:      Math.round(piCurrent * 100) / 100,
+        piNew:          Math.round(piNew * 100) / 100,
+        monthlySavings: Math.round(monthlySavings),
+        totalSavings:   Math.round(totalSavings),
+        principalDiff:  Math.round(principalDiff),
+        netCashAtSale:  Math.round(netCashAtSale),
+        trueNet:        Math.round(trueNet),
+        isAhead,
+        beMonths:       beMonths ? Math.round(beMonths) : null,
+    };
+}
+
+// ─────────────────────────────────────────────
 // CALC: EXTRA PAYMENT (pay off 30yr in N years)
 // ─────────────────────────────────────────────
 

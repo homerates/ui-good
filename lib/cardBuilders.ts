@@ -23,6 +23,7 @@ import {
     FHAvsConvResult,
     Refi20vs30Result,
     ExtraPaymentResult,
+    RefiEarlySaleResult,
 } from './calcEngine';
 import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 
@@ -700,6 +701,14 @@ ${mipSection}${resetSection}${waitSection}
         : {
             label: `If I sell in 3 years — does this refi still pay off?`,
             seed: `If I refi ${fK(r.currentBalance)} from ${fPct(r.currentRatePct)} to ${fPct(r.newRatePct)} and sell in 3 years, am I ahead or behind?`,
+            paramOverrides: {
+                earlySaleBalance:      r.currentBalance,
+                earlySaleCurrentRate:  r.currentRatePct,
+                earlySaleNewRate:      r.newRatePct,
+                earlySaleClosingCosts: r.closingCosts,
+                earlySaleYears:        3,
+            } as Record<string, number>,
+            changedKeys: ['earlySaleYears'],
         };
 
     const chips: BuiltCard['follow_up_chips'] = [
@@ -810,6 +819,94 @@ Pay **${f$(r.extraMonthly)}/mo more** on the 20-year to eliminate **${f$(r.inter
             scenario_inputs: { loan_amount: r.balance, rate_20yr: r.rate20yr, rate_30yr: r.rate30yr },
             computed_financials: { monthly_pi_30yr: r.pi30, monthly_pi_20yr: r.pi20, interest_saved: r.interestSaved, extra_monthly: r.extraMonthly },
             monthly_payment: r.pi30,
+        },
+    };
+}
+
+// ─────────────────────────────────────────────
+// REFI EARLY SALE CARD
+// ─────────────────────────────────────────────
+
+export function buildRefiEarlySaleCard(r: RefiEarlySaleResult, fredRateStr?: string): BuiltCard {
+    const fredNote = fredRateStr ? `\n> 📡 **Today's market rate: ${fredRateStr}** (FRED, live)\n` : '';
+    const verdict = r.isAhead ? '✅ Yes — you come out ahead' : '⚠️ No — you\'re still underwater at sale';
+    const shortfall = r.isAhead ? null : Math.abs(r.trueNet);
+    const noCostRefi = r.closingCosts === 0;
+
+    const breakEvenLine = r.beMonths
+        ? `**Breakeven: ${r.beMonths} months (${(r.beMonths / 12).toFixed(1)} yrs)** · Sale at **${r.saleMonths} months** — you're **${r.saleMonths >= r.beMonths ? `${r.saleMonths - r.beMonths} months past breakeven` : `${r.beMonths - r.saleMonths} months short`}**`
+        : noCostRefi ? '**No-cost refi — breakeven is instant**' : '';
+
+    const answer = `## ⏱️ Sell in ${r.saleYears} Years — Does the Refi Still Win?
+${fredNote}
+**${fPct(r.currentRatePct)} → ${fPct(r.newRatePct)} on ${f$(r.balance)}**
+
+${breakEvenLine}
+
+---
+
+## 💰 At Sale (${r.saleYears} years)
+
+| | Amount |
+|--|--|
+| Monthly savings | ${f$(r.monthlySavings)}/mo |
+| Total cash saved over ${r.saleYears} yrs | ${f$(r.totalSavings)} |
+| Closing costs | ${r.closingCosts > 0 ? `−${f$(r.closingCosts)}` : 'No-cost refi ($0)'} |
+| **Net cash at sale** | **${r.netCashAtSale >= 0 ? '+' : ''}${f$(r.netCashAtSale)}** |
+| Extra equity (lower-rate paydown) | +${f$(r.principalDiff)} |
+| **True net at sale** | **${r.trueNet >= 0 ? '+' : ''}${f$(r.trueNet)}** |
+
+---
+
+## 🎯 ${verdict}
+
+${r.isAhead
+    ? `Even selling in ${r.saleYears} years, you net **+${f$(r.trueNet)}** after costs — cash savings plus the extra principal your lower rate paid down.`
+    : `At ${r.saleYears} years you're **${f$(shortfall!)} short** of recovering closing costs. ${r.beMonths ? `Stay **${r.beMonths - r.saleMonths} more months** (${((r.beMonths - r.saleMonths) / 12).toFixed(1)} yrs) to break even.` : ''}`
+}`;
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `If I sell in 5 years instead`,
+            seed: `If I refi ${fK(r.balance)} from ${fPct(r.currentRatePct)} to ${fPct(r.newRatePct)} and sell in 5 years, am I ahead?`,
+            paramOverrides: {
+                earlySaleBalance:      r.balance,
+                earlySaleCurrentRate:  r.currentRatePct,
+                earlySaleNewRate:      r.newRatePct,
+                earlySaleClosingCosts: r.closingCosts,
+                earlySaleYears:        5,
+            } as Record<string, number>,
+            changedKeys: ['earlySaleYears'],
+        },
+        {
+            label: `Full refi analysis — ${fPct(r.currentRatePct)} → ${fPct(r.newRatePct)}`,
+            seed: `Refi ${fK(r.balance)} from ${fPct(r.currentRatePct)} to ${fPct(r.newRatePct)} — full breakeven and savings`,
+            paramOverrides: { newRatePct: r.newRatePct, currentBalance: r.balance, currentRatePct: r.currentRatePct },
+            changedKeys: ['newRatePct'],
+        },
+        {
+            label: `Compare 20yr vs 30yr at ${fPct(r.newRatePct)}`,
+            seed: `Compare 20yr vs 30yr refi on ${fK(r.balance)} at ${fPct(r.newRatePct)}`,
+            paramOverrides: {
+                rate20yr:     parseFloat((r.newRatePct - 0.25).toFixed(2)),
+                rate30yr:     r.newRatePct,
+                balance20vs30: r.balance,
+            },
+            changedKeys: ['rate20yr'],
+        },
+    ];
+
+    return {
+        answer,
+        next_step: '',
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `Early sale in ${r.saleYears}yr: ${fPct(r.currentRatePct)}→${fPct(r.newRatePct)} on ${f$(r.balance)}. True net at sale: ${r.isAhead ? '+' : ''}${f$(r.trueNet)} (cash + equity).`,
+            scenario_inputs: { loan_amount: r.balance, current_rate: r.currentRatePct, new_rate: r.newRatePct, sale_years: r.saleYears },
+            computed_financials: { monthly_savings: r.monthlySavings, net_cash_at_sale: r.netCashAtSale, true_net: r.trueNet },
+            monthly_payment: r.piNew,
         },
     };
 }

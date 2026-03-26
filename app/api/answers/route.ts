@@ -10,12 +10,12 @@ import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculat
 // NEW unified calc engine
 import {
     calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
-    calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment,
+    calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale,
 } from "../../../lib/calcEngine";
 import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
-    buildRefi20vs30Card, buildExtraPaymentCard,
+    buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
@@ -3481,6 +3481,15 @@ ${uwAnswerText}`,
                 ratePct:     (paramOverrides as any).extraPaymentRate,
                 targetYears: (paramOverrides as any).extraPaymentTargetYears ?? 20,
             };
+        } else if ((paramOverrides as any).earlySaleBalance != null && (paramOverrides as any).earlySaleNewRate != null) {
+            (calcDispatch as any).type = 'refi_early_sale';
+            (calcDispatch as any).params = {
+                balance:        (paramOverrides as any).earlySaleBalance,
+                currentRatePct: (paramOverrides as any).earlySaleCurrentRate,
+                newRatePct:     (paramOverrides as any).earlySaleNewRate,
+                closingCosts:   (paramOverrides as any).earlySaleClosingCosts ?? 0,
+                saleYears:      (paramOverrides as any).earlySaleYears ?? 3,
+            };
         } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
@@ -3719,6 +3728,15 @@ ${uwAnswerText}`,
                 ratePct:     (paramOverrides as any).extraPaymentRate,
                 targetYears: (paramOverrides as any).extraPaymentTargetYears ?? 20,
             };
+        } else if ((paramOverrides as any).earlySaleBalance != null && (paramOverrides as any).earlySaleNewRate != null) {
+            (calcDispatch as any).type = 'refi_early_sale';
+            (calcDispatch as any).params = {
+                balance:        (paramOverrides as any).earlySaleBalance,
+                currentRatePct: (paramOverrides as any).earlySaleCurrentRate,
+                newRatePct:     (paramOverrides as any).earlySaleNewRate,
+                closingCosts:   (paramOverrides as any).earlySaleClosingCosts ?? 0,
+                saleYears:      (paramOverrides as any).earlySaleYears ?? 3,
+            };
         } else if (paramOverrides.newRatePct != null && paramOverrides.currentBalance != null) {
             (calcDispatch as any).type = 'refi';
             (calcDispatch as any).params = {
@@ -3798,6 +3816,11 @@ ${uwAnswerText}`,
                 const result = calcRefi20vs30(calcDispatch.params as any);
                 calcCard = buildRefi20vs30Card(result, fredRateForCard);
                 calcDebugModel = 'calcEngine-refi_20vs30';
+
+            } else if (calcDispatch.type === 'refi_early_sale' && calcDispatch.params) {
+                const result = calcRefiEarlySale(calcDispatch.params as any);
+                calcCard = buildRefiEarlySaleCard(result, fredRateForCard);
+                calcDebugModel = 'calcEngine-refi_early_sale';
 
             } else if (calcDispatch.type === 'extra_payment' && calcDispatch.params) {
                 const result = calcExtraPayment(calcDispatch.params as any);
