@@ -4485,7 +4485,9 @@ ${dtiSection}
                     const rate = fred?.mort30Avg ?? 6.5;
                     const downPct = /10\s*%\s*down/i.test(question) ? 10 : /5\s*%\s*down/i.test(question) ? 5 : 20;
                     const taxRate = (snapshotJson?.interactiveSlider?.taxRate ?? snapshotJson?.scenario_inputs?.taxRate ?? 0.011) * 100;
-                    const conv = calcConventional({ purchasePrice: incomeForPrice, downPaymentPct: downPct, annualRatePct: rate, termYears: 30, propertyTaxRate: taxRate, annualInsurance: 1200 });
+                    // Scale insurance with price: 0.5% annually for jumbo, capped floor at $1,200/yr
+                    const annualIns = Math.max(1200, Math.round(incomeForPrice * 0.005));
+                    const conv = calcConventional({ purchasePrice: incomeForPrice, downPaymentPct: downPct, annualRatePct: rate, termYears: 30, propertyTaxRate: taxRate, annualInsurance: annualIns });
                     const piti = Math.round(conv.monthlyPI + conv.monthlyTax + conv.monthlyInsurance + (conv.monthlyPMI ?? 0));
                     const priceFmt = incomeForPrice >= 1_000_000 ? `$${(incomeForPrice / 1_000_000).toFixed(incomeForPrice % 1_000_000 === 0 ? 0 : 2).replace(/\.?0+$/, '')}M` : `$${Math.round(incomeForPrice / 1000)}k`;
                     const downAmt = Math.round(incomeForPrice * downPct / 100);
