@@ -1162,6 +1162,7 @@ export default function Page() {
     const [lastRouteByThread, setLastRouteByThread] = useState<Record<string, string>>({});
     // Structured param overrides from chip clicks — avoids parsing question text for numbers
     const [pendingParamOverrides, setPendingParamOverrides] = useState<Record<string, any> | null>(null);
+    const [activeCmaContext, setActiveCmaContext] = useState<Record<string, any> | null>(null);
     const pendingChipSeedRef = React.useRef<string | null>(null);
 
     // overlays
@@ -2074,6 +2075,7 @@ export default function Page() {
             );
 
 
+
             const friendly =
                 meta.message ??
                 meta.summary ??
@@ -2419,7 +2421,10 @@ export default function Page() {
                                                         {m.meta.interactiveSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
-                                                                onRunScenario={(seed) => send(seed)}
+                                                                onRunScenario={(seed, sliderParams) => {
+                                                                    setPendingParamOverrides({ ...sliderParams, ...(activeCmaContext ?? {}) });
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
                                                             />
                                                         )}
                                                         {/* Affordability slider card — income-based answers */}
@@ -2453,7 +2458,12 @@ export default function Page() {
                                                                         className="follow-up-chip-btn"
                                                                         onClick={() => {
                                                                             setInput(chip.seed);
-                                                                            setPendingParamOverrides((chip as any).paramOverrides ?? null);
+                                                                            const chipParams = (chip as any).paramOverrides ?? null;
+                                                                            setPendingParamOverrides(chipParams);
+                                                                            // Track CMA context so slider re-runs can include Re-run CMA chip
+                                                                            if (chipParams?.cmaAddress) {
+                                                                                setActiveCmaContext({ cmaAddress: chipParams.cmaAddress, cmaCity: chipParams.cmaCity, cmaState: chipParams.cmaState, cmaPrice: chipParams.cmaPrice, cmaBeds: chipParams.cmaBeds, cmaBaths: chipParams.cmaBaths, cmaSqft: chipParams.cmaSqft, cmaTaxAnnual: chipParams.cmaTaxAnnual, cmaTaxRate: chipParams.cmaTaxRate, cmaLiveRate: chipParams.cmaLiveRate, cmaPhotoUrl: chipParams.cmaPhotoUrl });
+                                                                            }
                                                                             pendingChipSeedRef.current = chip.seed;
                                                                             setTimeout(() => {
                                                                                 const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;

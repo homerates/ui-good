@@ -15,7 +15,7 @@ export interface SliderCardParams {
     taxRate: number;   // annual % of price as decimal — e.g. 0.012 = 1.2 %
     insRate: number;   // annual % of price as decimal — e.g. 0.005 = 0.5 %
     loanType: 'conventional' | 'fha';
-    onRunScenario?: (seed: string) => void;
+    onRunScenario?: (seed: string, paramOverrides: Record<string, any>) => void;
 }
 
 // ── Math helpers ─────────────────────────────────────────────────────────────
@@ -227,7 +227,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     {props.onRunScenario && isDirty && (
                         <button
                             className="isc__rerun"
-                            onClick={() => props.onRunScenario!(buildSeed())}
+                            onClick={() => props.onRunScenario!(buildSeed(), { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate })}
                         >
                             Run adjusted scenario →
                         </button>
