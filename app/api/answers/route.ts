@@ -4404,20 +4404,33 @@ Output JSON:
             ].join('\n');
             cmaFinal.answer = cmaFinal.answer + rateTable;
 
-            // Ensure follow_up_chips always present
-            if (!cmaFinal.follow_up_chips?.length) {
-                cmaFinal.follow_up_chips = [
-                    { label: `Run DSCR rental analysis`, seed: `DSCR analysis on ${addr} at ${priceFmtCMA} — what rent covers the mortgage?` },
-                    { label: `Rate sensitivity — payment at 5.75%`, seed: `What is the monthly payment on ${priceFmtCMA} at 5.75% with 20% down?` },
-                    { label: `What income qualifies for this home?`, seed: `What income do I need to qualify for a ${priceFmtCMA} home?` },
-                ];
-            }
+            // Build structured chips with paramOverrides so downstream calcs pre-fill correctly
+            const cmaChips = [
+                {
+                    label: `DSCR — what rent covers this at ${priceFmtCMA}?`,
+                    seed: `DSCR analysis on ${addr} at ${priceFmtCMA} with 25% down at ${liveRate}% — what rent do I need?`,
+                    paramOverrides: { purchasePrice: price, downPaymentPct: 25, annualRatePct: liveRate },
+                },
+                {
+                    label: `Rate sensitivity — payment at 5.75%`,
+                    seed: `What is the monthly payment on ${priceFmtCMA} at 5.75% with 20% down?`,
+                    paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: 5.75 },
+                },
+                {
+                    label: `What income qualifies for this home?`,
+                    seed: `What income do I need to qualify for a ${priceFmtCMA} home?`,
+                    paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate },
+                },
+            ];
+            // Use Grok chips if they exist, but always override with our structured chips
+            cmaFinal.follow_up_chips = cmaChips;
+
             return noStore({
                 ok: true,
                 path: 'answers',
                 tag: 'cma-intelligence-report',
                 route: 'answers',
-                usedFRED: true,
+                usedFRED: !!(fred?.mort30Avg),
                 usedTavily: tavCity.ok || tavAddress.ok,
                 fred,
                 grok: cmaFinal,
@@ -4426,7 +4439,7 @@ Output JSON:
                 message: cmaFinal.answer,
                 answerMarkdown: cmaFinal.answer,
                 followUp: cmaFinal.follow_up,
-                follow_up_chips: cmaFinal.follow_up_chips,
+                follow_up_chips: cmaChips,
                 cmaCard: {
                     address: addr,
                     price,
