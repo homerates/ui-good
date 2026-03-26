@@ -1392,18 +1392,35 @@ async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
     const wantMacro = topics.includes('macro') || topics.includes('rates') || topics.includes('inflation');
 
     // Helper: fetch one FRED series, return parsed value + date or null
+    let fredErrorLogged = false; // log only first failure to avoid log spam
     const fredFetch = async (seriesId: string): Promise<{ value: number | null; date: string | null }> => {
         try {
             const r = await fetch(
                 `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`,
                 { cache: "no-store" }
             );
+            if (!r.ok) {
+                if (!fredErrorLogged) {
+                    const errText = await r.text().catch(() => '(unreadable)');
+                    console.error(`[FRED] HTTP ${r.status} on ${seriesId}: ${errText.slice(0, 300)}`);
+                    fredErrorLogged = true;
+                }
+                return { value: null, date: null };
+            }
             const j = await r.json();
+            if (j?.error_message && !fredErrorLogged) {
+                console.error(`[FRED] API error on ${seriesId}: ${j.error_message}`);
+                fredErrorLogged = true;
+            }
             const raw = j?.observations?.[0]?.value ?? null;
             const date = j?.observations?.[0]?.date ?? null;
             const value = raw && raw !== '.' ? Number(raw) : null;
             return { value, date };
-        } catch {
+        } catch (e) {
+            if (!fredErrorLogged) {
+                console.error(`[FRED] fetch exception on ${seriesId}:`, e instanceof Error ? e.message : String(e));
+                fredErrorLogged = true;
+            }
             return { value: null, date: null };
         }
     };
@@ -4310,7 +4327,7 @@ ${dtiSection}
         // Tavily: city market + property listing details
         const [tavCity, tavAddress] = await Promise.all([
             askTavily(req, `${city} ${state} real estate market trends home prices inventory 2026`, { depth: 'basic', max: 5 }),
-            askTavily(req, `${addr} listing features year built panoramic ocean view ADU separate entrance status contingent`, { depth: 'advanced', max: 5 }),
+            askTavily(req, `${addr} listing features year built panoramic ocean view ADU separate entrance status contingent`, { depth: 'basic', max: 5 }),
         ]);
         console.log(`[CMA Tavily] city=${city} cityOk=${tavCity.ok} cityAnswer=${!!tavCity.answer} addrOk=${tavAddress.ok} addrAnswer=${!!tavAddress.answer}`);
 
