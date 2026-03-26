@@ -4310,7 +4310,12 @@ LIVE DATA (Tavily — use verbatim facts only; do not fabricate addresses, MLS n
 ${tavilyCtx || 'No live data — use general market knowledge; label any estimates as approximate.'}
 
 Generate a markdown report with these exact ## sections in order:
-1. ## Property Highlights — scan LIVE DATA for year built, views, ADU, lot size, listing status (contingent/active/pending), unique features. If not found in data, omit this section entirely.
+1. ## Property Highlights — scan LIVE DATA for these fields and describe them specifically:
+   - Views: if ocean/water/panoramic views mentioned, state exactly (e.g. "Panoramic ocean views from all levels" — not just "ocean view")
+   - ADU: if found, list its features (separate entrance, kitchen, bedroom, bath, laundry — include only what appears in data)
+   - Year built, lot size, garage, home type
+   - Listing status: if data mentions contingent/under contract/pending, state it (e.g. "63 days active — currently under contract")
+   - Omit any bullet for which no supporting data exists.
 2. ## Market Snapshot — observed price data, days on market, inventory. Observed trends only; no forecasts.
 3. ## Value Insight — estimated value vs list price; price/sqft context vs comps. Factual only.
 4. ## Decision Considerations — two sub-sections: **Primary Residence** and **Investment**. Pure trade-offs, no recommendations.
@@ -4334,6 +4339,19 @@ Output JSON:
 
         if (cmaResult.ok && cmaResult.grokFinal?.answer) {
             const cmaFinal = cmaResult.grokFinal;
+
+            // Append deterministic rate sensitivity table to markdown (for PDF/share consistency)
+            const rateTable = [
+                `\n\n## 📈 Rate Sensitivity`,
+                `| Rate | Monthly PITI | Income Needed |`,
+                `|------|-------------|---------------|`,
+                ...rateScenarios.map(s =>
+                    `| **${s.rate.toFixed(3)}%${s.rate === liveRate ? ' ◀' : ''}** | $${s.piti.toLocaleString()}/mo | $${Math.round(s.incomeNeeded / 1000)}k/yr |`
+                ),
+                `\n*20% down · 30yr fixed · 43% DTI · Calc engine verified*`,
+            ].join('\n');
+            cmaFinal.answer = cmaFinal.answer + rateTable;
+
             // Ensure follow_up_chips always present
             if (!cmaFinal.follow_up_chips?.length) {
                 cmaFinal.follow_up_chips = [
