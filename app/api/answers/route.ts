@@ -3493,11 +3493,6 @@ ${uwAnswerText}`,
 
     // Apply paramOverrides immediately after dispatch — chip params win over parsed params
     if (paramOverrides) {
-        // isDSCR flag: force dscr_needs_input so context-aware card shows (not conventional)
-        if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
-            (calcDispatch as any).type = 'dscr_needs_input';
-            (calcDispatch as any).params = null;
-        }
         // If override carries grossMonthlyRent, this is a DSCR chip — force type and rebuild params
         if (paramOverrides.grossMonthlyRent != null) {
             (calcDispatch as any).type = 'dscr';
@@ -3606,6 +3601,10 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
+            // isDSCR flag without rent → context-aware needs_input card, not conventional
+            (calcDispatch as any).type = 'dscr_needs_input';
+            (calcDispatch as any).params = null;
         } else if (paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'conventional';
             (calcDispatch as any).params = {
@@ -3753,11 +3752,6 @@ ${uwAnswerText}`,
 
     // paramOverrides second pass — re-apply after follow-up-lock block
     if (paramOverrides) {
-        // isDSCR flag: force dscr_needs_input so context-aware card shows (not conventional)
-        if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
-            (calcDispatch as any).type = 'dscr_needs_input';
-            (calcDispatch as any).params = null;
-        }
         if (paramOverrides.grossMonthlyRent != null) {
             (calcDispatch as any).type = 'dscr';
             (calcDispatch as any).params = {
@@ -3864,6 +3858,10 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
+            // isDSCR flag without rent → context-aware needs_input card, not conventional
+            (calcDispatch as any).type = 'dscr_needs_input';
+            (calcDispatch as any).params = null;
         } else if (paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'conventional';
             (calcDispatch as any).params = {
