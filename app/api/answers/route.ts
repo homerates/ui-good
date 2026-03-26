@@ -3963,6 +3963,12 @@ ${uwAnswerText}`,
                 const result = calcDSCR(calcDispatch.params as any);
                 calcCard = buildDSCRCard(result, calcAssumptions);
                 calcDebugModel = 'calcEngine-dscr';
+                // Re-run CMA chip — if these numbers came from a CMA card, let user re-run it
+                if (paramOverrides?.cmaAddress && calcCard?.follow_up_chips) {
+                    const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
+                    const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
+                    calcCard.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
+                }
 
             } else if (calcDispatch.type === 'dscr_needs_input') {
                 const _knownPrice = paramOverrides?.purchasePrice ?? (calcDispatch.params as any)?.purchasePrice ?? undefined;
@@ -3970,6 +3976,18 @@ ${uwAnswerText}`,
                 const _knownRate  = paramOverrides?.annualRatePct ?? fred?.mort30Avg ?? undefined;
                 calcCard = buildDSCRNeedsInputCard(fred?.mort30Avg ?? undefined, _knownPrice, _knownDown, _knownRate);
                 calcDebugModel = 'dscr_needs_input';
+                // Re-run CMA chip + forward cma fields into rent chips so the DSCR result also gets Re-run CMA
+                if (paramOverrides?.cmaAddress && calcCard?.follow_up_chips) {
+                    const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
+                    const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
+                    // Inject cma fields into rent chips so downstream DSCR result card also has Re-run CMA
+                    calcCard.follow_up_chips = calcCard.follow_up_chips.map((chip: any) =>
+                        chip.paramOverrides?.grossMonthlyRent != null
+                            ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } }
+                            : chip
+                    );
+                    calcCard.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
+                }
 
             } else if (calcDispatch.type === 'conventional' && calcDispatch.params) {
                 const result = calcConventional(calcDispatch.params as any);
@@ -4420,7 +4438,13 @@ Output JSON:
                 {
                     label: `DSCR — what rent covers this at ${priceFmtCMA}?`,
                     seed: `DSCR rental analysis — what monthly rent covers ${priceFmtCMA} with 25% down at ${liveRate}%?`,
-                    paramOverrides: { purchasePrice: price, downPaymentPct: 25, annualRatePct: liveRate, isDSCR: true },
+                    paramOverrides: {
+                        purchasePrice: price, downPaymentPct: 25, annualRatePct: liveRate, isDSCR: true,
+                        // cma* fields — forwarded so Re-run CMA chip works on downstream cards
+                        cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price,
+                        cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft,
+                        cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl,
+                    },
                 },
                 {
                     label: `Rate sensitivity — payment at 5.75%`,
