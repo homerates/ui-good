@@ -3993,6 +3993,16 @@ ${uwAnswerText}`,
                 const result = calcConventional(calcDispatch.params as any);
                 calcCard = buildConventionalCard(result, calcAssumptions, fredRateForCard);
                 calcDebugModel = 'calcEngine-conventional';
+                // Re-run CMA chip — if this calc originated from a CMA card, surface it on every scenario
+                if (paramOverrides?.cmaAddress && calcCard?.follow_up_chips) {
+                    const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
+                    const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
+                    // Forward cma fields into all follow-up chips so Re-run CMA persists across scenario hops
+                    calcCard.follow_up_chips = calcCard.follow_up_chips.map((chip: any) =>
+                        chip.paramOverrides ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } } : chip
+                    );
+                    calcCard.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
+                }
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
                 const result = calcAffordability(calcDispatch.params as any);
@@ -4449,12 +4459,12 @@ Output JSON:
                 {
                     label: `Rate sensitivity — payment at 5.75%`,
                     seed: `What is the monthly payment on ${priceFmtCMA} at 5.75% with 20% down?`,
-                    paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: 5.75 },
+                    paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: 5.75, cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price, cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft, cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl },
                 },
                 {
                     label: `What income qualifies for this home?`,
                     seed: `What income do I need to qualify for a ${priceFmtCMA} home?`,
-                    paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate },
+                    paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate, cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price, cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft, cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl },
                 },
             ];
             // Use Grok chips if they exist, but always override with our structured chips
