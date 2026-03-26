@@ -7,7 +7,29 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/sign-in/", "/sign-up/", "/onboarding/"],
+        disallow: [
+          // API routes — never indexed
+          "/api/",
+          // Auth flows
+          "/sign-in/",
+          "/sign-up/",
+          "/onboarding/",
+          // Loan-officer portal — auth-protected, not public content
+          "/lo/",
+          // Borrower-specific app flows
+          "/borrower/",
+          "/borrowers/",
+          "/join/",
+          "/identity/",
+          // User account
+          "/profile/",
+          // Internal/utility pages not meant for search
+          "/probe/",
+          "/library/",
+          // Shared-link viewer (dynamic, no SEO value)
+          "/s/",
+          "/share/",
+        ],
       },
     ],
     sitemap: "https://chat.homerates.ai/sitemap.xml",

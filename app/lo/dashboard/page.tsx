@@ -17,6 +17,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export const metadata = {
     title: "Loan Officer Portal - HomeRates.ai",
+    robots: { index: false, follow: false },
 };
 
 export default async function LoDashboardPage() {
