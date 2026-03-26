@@ -1837,6 +1837,23 @@ export default function Page() {
                         follow_up_chips: chips,
                     };
 
+                    // Store CMA context so slider re-runs can include "Full Property Intelligence Report" chip
+                    if (d.price && d.address) {
+                        setActiveCmaContext({
+                            cmaAddress:  d.address,
+                            cmaCity:     d.city    ?? '',
+                            cmaState:    d.state   ?? '',
+                            cmaPrice:    d.price,
+                            cmaBeds:     d.beds    ?? 0,
+                            cmaBaths:    d.baths   ?? 0,
+                            cmaSqft:     d.sqft    ?? 0,
+                            cmaTaxAnnual: d.annualTaxes ?? 0,
+                            cmaTaxRate:  d.taxRateEffective ?? 0.011,
+                            cmaLiveRate: liveRate,
+                            cmaPhotoUrl: d.photoUrl ?? '',
+                        });
+                    }
+
                     setMessages((prev) =>
                         prev.map((m) =>
                             m.id === answerId && m.role === 'assistant'
