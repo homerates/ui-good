@@ -1469,7 +1469,7 @@ async function summarizeWithOpenAI(text: string): Promise<string | null> {
 }
 
 /* ===== GROK call (single retry repair) ===== */
-async function callGrokOnce(prompt: string) {
+async function callGrokOnce(prompt: string, opts?: { maxTokens?: number }) {
     const debug: any = {
         requestedModel: XAI_MODEL,
         servedModel: null as string | null,
@@ -1496,7 +1496,7 @@ async function callGrokOnce(prompt: string) {
                     messages: [{ role: "user", content: prompt }],
                     response_format: { type: "json_object" },
                     temperature: 0.25,
-                    max_tokens: 650,
+                    max_tokens: opts?.maxTokens ?? 650,
                 }),
                 cache: "no-store",
             },
@@ -4236,6 +4236,110 @@ ${dtiSection}
         }
     }
     // ========== END MORTGAGE CALCULATOR BYPASS ==========
+
+    // ========== PROPERTY INTELLIGENCE REPORT (CMA CARD) ==========
+    const cmaParams = (body as any)?.paramOverrides;
+    const isCMARequest = !!cmaParams?.cmaAddress && /intelligence report|property report|cma|market analysis/i.test(question);
+
+    if (isCMARequest && XAI_API_KEY) {
+        const addr:     string = String(cmaParams.cmaAddress ?? '');
+        const city:     string = String(cmaParams.cmaCity    ?? '');
+        const state:    string = String(cmaParams.cmaState   ?? '');
+        const price:    number = Number(cmaParams.cmaPrice   ?? 0);
+        const beds:     number = Number(cmaParams.cmaBeds    ?? 0);
+        const baths:    number = Number(cmaParams.cmaBaths   ?? 0);
+        const sqft:     number = Number(cmaParams.cmaSqft    ?? 0);
+        const taxAnnual:number = Number(cmaParams.cmaTaxAnnual ?? 0);
+        const taxRate:  number = Number(cmaParams.cmaTaxRate ?? 0.011);
+        const liveRate: number = Number(cmaParams.cmaLiveRate ?? fred?.mort30Avg ?? 6.5);
+
+        // Deterministic PITI (20% down)
+        const cmaConv = calcConventional({ purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate, termYears: 30, propertyTaxRate: taxRate * 100, annualInsurance: Math.max(1200, Math.round(price * 0.005)) });
+        const cmaPiti = Math.round(cmaConv.monthlyPI + cmaConv.monthlyTax + cmaConv.monthlyInsurance);
+        const cmaLoan = Math.round(price * 0.80);
+        const cmaDown = Math.round(price * 0.20);
+        const psfStr  = sqft > 0 ? `$${Math.round(price / sqft).toLocaleString()}/sqft` : 'N/A';
+        const priceFmtCMA = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M` : `$${Math.round(price / 1000)}k`;
+
+        // Tavily: two focused searches
+        const [tavCity, tavAddress] = await Promise.all([
+            askTavily(req, `${city} ${state} real estate market home prices 2026`, { depth: 'basic', max: 5 }),
+            askTavily(req, `${addr} comparable sales home value estimate 2026`, { depth: 'basic', max: 4 }),
+        ]);
+
+        const tavilyCtx = [
+            tavCity.answer  ? `CITY MARKET: ${tavCity.answer}`  : '',
+            tavAddress.answer ? `PROPERTY COMPS: ${tavAddress.answer}` : '',
+            ...(tavCity.results.slice(0, 3).map(r => `- ${r.title}: ${r.content?.slice(0, 200)}`)),
+        ].filter(Boolean).join('\n').slice(0, 1800);
+
+        const cmaPrompt = `You are HomeRates.ai's Property Intelligence Engine. Generate a concise, factual property intelligence report. No "you should buy" language. No lender referrals. Numbers first, then context, then trade-offs. Output ONLY valid JSON.
+
+PROPERTY:
+Address: ${addr}
+Listed at: ${priceFmtCMA} | ${beds}bd / ${baths}ba / ${sqft.toLocaleString()}sqft
+Price per sqft: ${psfStr}
+Annual taxes: $${taxAnnual.toLocaleString()} (${(taxRate * 100).toFixed(2)}% effective)
+
+DETERMINISTIC FINANCIALS (verified calc engine):
+- 20% down payment: $${cmaDown.toLocaleString()}
+- Loan amount: $${cmaLoan.toLocaleString()} (JUMBO)
+- Monthly PITI: $${cmaPiti.toLocaleString()}/mo at ${liveRate}% 30yr fixed
+- Income needed @ 43% DTI: $${Math.round((cmaPiti / 0.43) * 12).toLocaleString()}/yr
+
+LIVE MARKET DATA (Tavily):
+${tavilyCtx || 'No live data available — use general knowledge for context.'}
+
+FRED RATES: 30yr avg: ${fred?.mort30Avg ?? liveRate}% | 10yr Treasury: ${fred?.tenYearYield ?? 'N/A'}% | Spread: ${fred?.spread ?? 'N/A'}%
+
+Generate the report. Use markdown with ## headers. Sections: Market Context, Fair Value & Comps, Decision Framework (Primary Residence vs Investment), Rate Sensitivity, Key Risks. Be concise — 400-550 words total. Use bullet points where appropriate.
+
+Output JSON:
+{
+  "answer": "## 🏡 Property Intelligence Report\\n**${addr}**\\n\\n[full markdown report here]",
+  "next_step": "one sentence on the most important next action",
+  "follow_up": "most relevant follow-up question",
+  "confidence": "Grok synthesis · Live market data ${new Date().toISOString().slice(0, 10)}",
+  "follow_up_chips": [
+    {"label": "Run DSCR rental analysis", "seed": "DSCR analysis on ${addr} at ${priceFmtCMA} — what rent covers the mortgage?"},
+    {"label": "Rate sensitivity — payment at 5.75%", "seed": "What is the monthly payment on ${priceFmtCMA} at 5.75% with 20% down?"},
+    {"label": "What income qualifies for this home?", "seed": "What income do I need to qualify for a ${priceFmtCMA} home?"}
+  ]
+}`;
+
+        const cmaResult = await callGrokOnce(cmaPrompt, { maxTokens: 2000 });
+
+        if (cmaResult.ok && cmaResult.grokFinal?.answer) {
+            const cmaFinal = cmaResult.grokFinal;
+            // Ensure follow_up_chips always present
+            if (!cmaFinal.follow_up_chips?.length) {
+                cmaFinal.follow_up_chips = [
+                    { label: `Run DSCR rental analysis`, seed: `DSCR analysis on ${addr} at ${priceFmtCMA} — what rent covers the mortgage?` },
+                    { label: `Rate sensitivity — payment at 5.75%`, seed: `What is the monthly payment on ${priceFmtCMA} at 5.75% with 20% down?` },
+                    { label: `What income qualifies for this home?`, seed: `What income do I need to qualify for a ${priceFmtCMA} home?` },
+                ];
+            }
+            return noStore({
+                ok: true,
+                path: 'answers',
+                tag: 'cma-intelligence-report',
+                route: 'answers',
+                usedFRED: true,
+                usedTavily: tavCity.ok || tavAddress.ok,
+                fred,
+                grok: cmaFinal,
+                debug: { ...cmaResult.debug, servedModel: 'cma-intelligence-report' },
+                data_freshness: `Live (${XAI_MODEL}) · Tavily ${new Date().toISOString().slice(0, 10)}`,
+                message: cmaFinal.answer,
+                answerMarkdown: cmaFinal.answer,
+                followUp: cmaFinal.follow_up,
+                follow_up_chips: cmaFinal.follow_up_chips,
+            });
+        }
+        // Fall through to standard Grok if CMA call failed
+    }
+    // ========== END PROPERTY INTELLIGENCE REPORT ==========
+
     // ========== AFFORDABILITY ADVISOR CHECK ==========
     let affordabilityAnswer = null;
 

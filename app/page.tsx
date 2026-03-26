@@ -1791,6 +1791,23 @@ export default function Page() {
                             seed: `Conventional loan on ${priceFmt} with 10% down at ${liveRate.toFixed(2)}%`,
                             paramOverrides: { purchasePrice: d.price, downPaymentPct: 10, annualRatePct: liveRate },
                         },
+                        ...(d.price && d.address ? [{
+                            label: `Full Property Intelligence Report`,
+                            seed: `Property intelligence report: ${d.address} listed at ${priceFmt}${d.city ? ` in ${d.city}` : ''}`,
+                            paramOverrides: {
+                                cmaAddress:  d.address,
+                                cmaCity:     d.city    ?? '',
+                                cmaState:    d.state   ?? '',
+                                cmaZip:      d.zip     ?? '',
+                                cmaPrice:    d.price,
+                                cmaBeds:     d.beds    ?? 0,
+                                cmaBaths:    d.baths   ?? 0,
+                                cmaSqft:     d.sqft    ?? 0,
+                                cmaTaxAnnual: d.annualTaxes ?? 0,
+                                cmaTaxRate:  d.taxRateEffective ?? 0.011,
+                                cmaLiveRate: liveRate,
+                            } as Record<string, string | number>,
+                        }] : []),
                     ];
 
                     const propertyMeta: ApiResponse = {
