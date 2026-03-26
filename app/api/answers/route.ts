@@ -4496,11 +4496,17 @@ ${dtiSection}
                         answer: `## 💰 Income to Qualify — ${priceFmt} Home\n\n**${priceFmt} purchase · ${downPct}% down ($${downAmt.toLocaleString()}) · ${rate}% · 30yr fixed**\n\n---\n\n## 📊 Required Income by DTI Threshold\n\n| DTI threshold | Monthly income needed | **Annual income needed** |\n|---|---|---|\n| **43%** (standard max) | $${Math.round(piti / 0.43).toLocaleString()} | **$${Math.round((piti / 0.43) * 12).toLocaleString()}** |\n| **36%** (conservative) | $${Math.round(piti / 0.36).toLocaleString()} | **$${Math.round((piti / 0.36) * 12).toLocaleString()}** |\n| **28%** (front-end only) | $${Math.round(piti / 0.28).toLocaleString()} | **$${Math.round((piti / 0.28) * 12).toLocaleString()}** |\n\n---\n\n## 🏠 Payment Breakdown (${downPct}% down)\n\n| Component | Amount |\n|---|---|\n| Principal & Interest | $${Math.round(conv.monthlyPI).toLocaleString()}/mo |\n| Property Tax (est.) | $${Math.round(conv.monthlyTax).toLocaleString()}/mo |\n| Insurance | $${Math.round(conv.monthlyInsurance).toLocaleString()}/mo |\n${conv.monthlyPMI ? `| PMI (~0.8%/yr) | $${Math.round(conv.monthlyPMI).toLocaleString()}/mo |\n` : ''}| **Total PITI** | **$${piti.toLocaleString()}/mo** |\n\n> 💡 Each $500/mo in other debts adds ~**$${Math.round((500 / 0.43) * 12).toLocaleString()}**/yr to the income requirement.\n\n> Jumbo loans (>${priceFmt}) may require 35–38% DTI and 12+ months reserves — confirm with your lender.`,
                         next_step: 'Add your monthly debts for a precise income requirement.',
                         follow_up: 'What are your monthly debt payments?',
-                        follow_up_chips: [
-                            { label: `${downPct === 20 ? '10% down' : '20% down'} — new income threshold?`, seed: `What income do I need to qualify for a ${priceFmt} home with ${downPct === 20 ? 10 : 20}% down at ${rate}%?` },
-                            { label: `I have $2,000/mo in other debts`, seed: `What income do I need to qualify for a ${priceFmt} home with $2,000/month in other debts?` },
-                            { label: `What rate do I need for a lower payment?`, seed: `What rate would I need to qualify for a ${priceFmt} home with standard income requirements?` },
-                        ],
+                        follow_up_chips: (() => {
+                            const isJumbo = incomeForPrice * (1 - downPct / 100) > CONF_STANDARD;
+                            const downChip = isJumbo
+                                ? { label: `25% down — income threshold?`, seed: `What income do I need to qualify for a ${priceFmt} home with 25% down at ${rate}%?` }
+                                : { label: `${downPct === 20 ? '10% down' : '20% down'} — income threshold?`, seed: `What income do I need to qualify for a ${priceFmt} home with ${downPct === 20 ? 10 : 20}% down at ${rate}%?` };
+                            return [
+                                downChip,
+                                { label: `I have $2,000/mo in other debts`, seed: `What income do I need to qualify for a ${priceFmt} home with $2,000/month in other debts?` },
+                                { label: `What rate qualifies at standard DTI?`, seed: `What mortgage rate would I need to qualify for a ${priceFmt} home at 43% DTI?` },
+                            ];
+                        })(),
                         confidence: '1.00 (calculated — no LLM)',
                     };
                 } else {
