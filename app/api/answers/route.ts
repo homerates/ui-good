@@ -1353,17 +1353,39 @@ type FredSnap = {
     hourlyEarnings: number | null;  // CES0500000003
 };
 
+// Hardcoded fallback — used when FRED_API_KEY is absent or all calls fail.
+// Update these quarterly or whenever FRED_API_KEY is confirmed missing.
+// Last updated: 2026-03-26
+const FRED_FALLBACK: FredSnap = {
+    tenYearYield:      4.29,
+    mort30Avg:         6.65,
+    spread:            2.36,
+    asOf:              '2026-03-21',
+    mort15Avg:         5.89,
+    arm5Avg:           6.11,
+    dgs2:              3.97,
+    dgs30:             4.63,
+    t10y2y:            0.32,
+    fedFunds:          4.33,
+    sofr:              4.30,
+    cpi:               2.8,
+    corePCE:           2.7,
+    cpiShelter:        4.3,
+    housingStarts:     1390,
+    existingHomeSales: 4.02,
+    medianHomePrice:   407500,
+    monthsSupply:      3.5,
+    caseShiller:       null,
+    rentalVacancy:     6.9,
+    unemployment:      4.1,
+    hourlyEarnings:    35.1,
+};
+
 async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
-    const empty: FredSnap = {
-        tenYearYield: null, mort30Avg: null, spread: null, asOf: null,
-        mort15Avg: null, arm5Avg: null, dgs2: null, dgs30: null, t10y2y: null,
-        fedFunds: null, sofr: null,
-        cpi: null, corePCE: null, cpiShelter: null,
-        housingStarts: null, existingHomeSales: null, medianHomePrice: null,
-        monthsSupply: null, caseShiller: null, rentalVacancy: null,
-        unemployment: null, hourlyEarnings: null,
-    };
-    if (!FRED_API_KEY) return empty;
+    if (!FRED_API_KEY) {
+        console.warn('[FRED] API key missing — using fallback estimates (update FRED_API_KEY in Vercel env vars)');
+        return FRED_FALLBACK;
+    }
 
     const wantRates = topics.includes('rates') || topics.includes('refi') || topics.includes('arm');
     const wantHousing = topics.includes('housing') || topics.includes('affordability') || topics.includes('dscr') || topics.includes('qualify');
@@ -1411,7 +1433,7 @@ async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
         ? Number((mort30Avg - tenYearYield).toFixed(2)) : null;
     const asOf = byId['MORTGAGE30US']?.date ?? byId['DGS10']?.date ?? null;
 
-    return {
+    const live: FredSnap = {
         tenYearYield, mort30Avg, spread, asOf,
         mort15Avg: g('MORTGAGE15US'),
         arm5Avg: g('MORTGAGE5US'),
@@ -1432,6 +1454,18 @@ async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
         unemployment: g('UNRATE'),
         hourlyEarnings: g('CES0500000003'),
     };
+
+    // If core rates came back null (API outage / bad key), fall back to estimates
+    if (live.mort30Avg === null && live.tenYearYield === null) {
+        console.warn('[FRED] All core series returned null — using fallback estimates');
+        return FRED_FALLBACK;
+    }
+
+    // Fill any remaining nulls from fallback so downstream code never sees null on core fields
+    return {
+        ...FRED_FALLBACK,
+        ...Object.fromEntries(Object.entries(live).filter(([, v]) => v !== null)),
+    } as FredSnap;
 }
 
 /* ===== OpenAI summarizer for Tavily text (fallback) ===== */
