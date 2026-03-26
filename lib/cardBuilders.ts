@@ -1556,8 +1556,45 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
 // DSCR NEEDS INPUT CARD
 // ─────────────────────────────────────────────
 
-export function buildDSCRNeedsInputCard(fredRate?: number): BuiltCard {
+export function buildDSCRNeedsInputCard(fredRate?: number, purchasePrice?: number, downPaymentPct?: number, annualRatePct?: number): BuiltCard {
     const rateHint = fredRate ? ` (or I'll use FRED avg: ${fPct(fredRate)})` : '';
+    const rate = annualRatePct ?? fredRate;
+
+    if (purchasePrice && purchasePrice > 0) {
+        // Price is known — only rent is missing
+        const priceFmt = purchasePrice >= 1_000_000
+            ? `$${(purchasePrice / 1_000_000).toFixed(purchasePrice % 1_000_000 === 0 ? 0 : 2).replace(/\.?0+$/, '')}M`
+            : `$${Math.round(purchasePrice / 1000)}k`;
+        const downPct = downPaymentPct ?? 25;
+        const downAmt = Math.round(purchasePrice * downPct / 100);
+        const downFmt = downAmt >= 1_000_000 ? `$${(downAmt / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M` : `$${Math.round(downAmt / 1000)}k`;
+        const rentExamples = [
+            Math.round(purchasePrice * 0.006 / 100) * 100,  // ~0.6% of price/mo
+            Math.round(purchasePrice * 0.008 / 100) * 100,  // ~0.8% of price/mo
+        ];
+        const chips: BuiltCard['follow_up_chips'] = [
+            { label: `$${rentExamples[0].toLocaleString()}/mo rent — run DSCR`, seed: `DSCR on ${priceFmt} property, ${downPct}% down${rate ? ` at ${rate}%` : ''}, $${rentExamples[0].toLocaleString()} gross monthly rent`, paramOverrides: { purchasePrice, downPaymentPct: downPct, annualRatePct: rate ?? 7, grossMonthlyRent: rentExamples[0] } },
+            { label: `$${rentExamples[1].toLocaleString()}/mo rent — run DSCR`, seed: `DSCR on ${priceFmt} property, ${downPct}% down${rate ? ` at ${rate}%` : ''}, $${rentExamples[1].toLocaleString()} gross monthly rent`, paramOverrides: { purchasePrice, downPaymentPct: downPct, annualRatePct: rate ?? 7, grossMonthlyRent: rentExamples[1] } },
+            { label: 'What DSCR lenders approve <1.0x?', seed: 'Which DSCR lenders approve below 1.0x DSCR?' },
+        ];
+        const answer = `**DSCR Analysis — ${priceFmt} Property**
+
+**Property loaded:** ${priceFmt} purchase · ${downPct}% down (${downFmt})${rate ? ` · ${rate}% rate` : ''}
+
+**Just need monthly rent to run the full DSCR analysis.**
+
+Enter the expected gross monthly rent — I'll calculate DSCR ratio, cash flow, PITIA, and break-even rent:`;
+
+        return {
+            answer,
+            next_step: `What is the expected gross monthly rent for this property?`,
+            follow_up: chips[0].label,
+            follow_up_chips: chips,
+            confidence: 'needs_input',
+        };
+    }
+
+    // Generic — no price known
     const chips: BuiltCard['follow_up_chips'] = [
         { label: '$450k property, $3,200/mo rent at 7%', seed: '$450k investment property, $3,200/mo rent, 25% down at 7%' },
         { label: '$600k rental, $3,800 rent, 7.25%', seed: '$600k investment property, 25% down, $3,800 rent, 7.25%' },

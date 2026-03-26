@@ -3957,7 +3957,10 @@ ${uwAnswerText}`,
                 calcDebugModel = 'calcEngine-dscr';
 
             } else if (calcDispatch.type === 'dscr_needs_input') {
-                calcCard = buildDSCRNeedsInputCard(fred?.mort30Avg ?? undefined);
+                const _knownPrice = paramOverrides?.purchasePrice ?? (calcDispatch.params as any)?.purchasePrice ?? undefined;
+                const _knownDown  = paramOverrides?.downPaymentPct ?? undefined;
+                const _knownRate  = paramOverrides?.annualRatePct ?? fred?.mort30Avg ?? undefined;
+                calcCard = buildDSCRNeedsInputCard(fred?.mort30Avg ?? undefined, _knownPrice, _knownDown, _knownRate);
                 calcDebugModel = 'dscr_needs_input';
 
             } else if (calcDispatch.type === 'conventional' && calcDispatch.params) {
