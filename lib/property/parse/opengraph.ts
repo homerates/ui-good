@@ -88,7 +88,7 @@ function parseTitle(title: string | null, _source: PropertySource): {
     const price = priceMatch ? parseDollar(priceMatch[0]) : null;
 
     const beds  = parseBed(clean.match(/(\d+)\s*(?:bds?|beds?)/i)?.[0] ?? null);
-    const baths = parseBed(clean.match(/(\d+(?:\.\d+)?)\s*(?:ba(?:ths?)?)/i)?.[0] ?? null);
+    const baths = parseBed(clean.match(/(\d+(?:\.\d+)?)\s*(?:baths?|ba\b)/i)?.[0] ?? null);
     const sqft  = parseSqft(clean);
 
     // Address: "NNN Word St, City, ST ZIPCODE"
@@ -122,7 +122,7 @@ export function parseOpenGraph(html: string, source: PropertySource): OGData {
 
     const price  = parseDollar(ogPrice) ?? fromTitle.price ?? parseDollar(ogDesc);
     const beds   = fromTitle.beds  ?? parseBed(ogDesc?.match(/(\d+)\s*(?:bds?|beds?)/i)?.[0] ?? null);
-    const baths  = fromTitle.baths ?? parseBed(ogDesc?.match(/(\d+(?:\.\d+)?)\s*(?:ba(?:ths?)?)/i)?.[0] ?? null);
+    const baths  = fromTitle.baths ?? parseBed(ogDesc?.match(/(\d+(?:\.\d+)?)\s*(?:baths?|ba\b)/i)?.[0] ?? null);
     const sqft   = fromTitle.sqft  ?? parseSqft(ogDesc);
 
     return {

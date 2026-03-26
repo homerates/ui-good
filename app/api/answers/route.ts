@@ -4277,6 +4277,7 @@ ${dtiSection}
             askTavily(req, `${city} ${state} real estate market home prices 2026`, { depth: 'basic', max: 5 }),
             askTavily(req, `${addr} comparable sales home value estimate 2026`, { depth: 'basic', max: 4 }),
         ]);
+        console.log(`[CMA Tavily] city=${city} cityOk=${tavCity.ok} cityAnswer=${!!tavCity.answer} addrOk=${tavAddress.ok} addrAnswer=${!!tavAddress.answer}`);
 
         const tavilyCtx = [
             tavCity.answer  ? `CITY MARKET: ${tavCity.answer}`  : '',
