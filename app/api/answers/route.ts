@@ -62,6 +62,7 @@ function noStore(json: unknown, status = 200) {
 // ---------- Env ----------
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || "";
 const FRED_API_KEY = process.env.FRED_API_KEY || "";
+if (!FRED_API_KEY) console.warn('[FRED] FRED_API_KEY not set — all rate/macro data will be null');
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 const XAI_API_KEY = process.env.XAI_API_KEY || "";
@@ -4275,16 +4276,16 @@ ${dtiSection}
         // Tavily: city market + property listing details
         const [tavCity, tavAddress] = await Promise.all([
             askTavily(req, `${city} ${state} real estate market trends home prices inventory 2026`, { depth: 'basic', max: 5 }),
-            askTavily(req, `${addr} listing features year built ocean view ADU garage status`, { depth: 'basic', max: 5 }),
+            askTavily(req, `${addr} listing features year built panoramic ocean view ADU separate entrance status contingent`, { depth: 'advanced', max: 5 }),
         ]);
         console.log(`[CMA Tavily] city=${city} cityOk=${tavCity.ok} cityAnswer=${!!tavCity.answer} addrOk=${tavAddress.ok} addrAnswer=${!!tavAddress.answer}`);
 
         const tavilyCtx = [
             tavCity.answer    ? `CITY MARKET DATA:\n${tavCity.answer}`    : '',
             tavAddress.answer ? `PROPERTY LISTING DATA:\n${tavAddress.answer}` : '',
-            ...(tavAddress.results.slice(0, 3).map(r => `- ${r.title}: ${r.content?.slice(0, 250)}`)),
+            ...(tavAddress.results.slice(0, 4).map(r => `- ${r.title}: ${r.content?.slice(0, 500)}`)),
             ...(tavCity.results.slice(0, 2).map(r => `- ${r.title}: ${r.content?.slice(0, 200)}`)),
-        ].filter(Boolean).join('\n').slice(0, 2200);
+        ].filter(Boolean).join('\n').slice(0, 2800);
 
         const isJumboCMA = cmaLoan > 832_750;
 
