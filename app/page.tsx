@@ -28,6 +28,8 @@ import DSCRSliderCard from '@/components/DSCRSliderCard';
 import RefiSliderCard from '@/components/RefiSliderCard';
 import PropertyPreviewCard from '@/components/PropertyPreviewCard';
 import type { PropertyCardData } from '@/components/PropertyPreviewCard';
+import PropertyIntelligenceCard from '@/components/PropertyIntelligenceCard';
+import type { CMACardData } from '@/components/PropertyIntelligenceCard';
 
 
 
@@ -381,6 +383,13 @@ type ApiResponse = {
         beds: number | null; baths: number | null; sqft: number | null;
         annualTaxes: number | null; taxRateEffective: number | null; taxSource: string | null;
         photoUrl: string | null;
+    } | null;
+    cmaCard?: {
+        address: string; price: number; photoUrl: string | null;
+        piti: number; downAmt: number; loanAmt: number;
+        incomeNeeded: number; pricePerSqft: number; rate: number;
+        beds: number; baths: number; sqft: number;
+        answerMarkdown: string;
     } | null;
 };
 
@@ -1786,11 +1795,16 @@ export default function Page() {
                             label: `FHA vs conventional on this home`,
                             seed: `Compare FHA 3.5% down vs conventional 5% down on a ${priceFmt} home at ${liveRate.toFixed(2)}%${cityStr}`,
                         },
-                        {
+                        // 10% down only makes sense for conforming loans — jumbo requires 20%+ minimum
+                        ...(d.price && d.price * 0.9 <= 832750 ? [{
                             label: `10% down — what's my payment?`,
                             seed: `Conventional loan on ${priceFmt} with 10% down at ${liveRate.toFixed(2)}%`,
                             paramOverrides: { purchasePrice: d.price, downPaymentPct: 10, annualRatePct: liveRate },
-                        },
+                        }] : [{
+                            label: `25% down — what's my payment?`,
+                            seed: `Conventional jumbo loan on ${priceFmt} with 25% down at ${liveRate.toFixed(2)}%`,
+                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 25, annualRatePct: liveRate },
+                        }]),
                         ...(d.price && d.address ? [{
                             label: `Full Property Intelligence Report`,
                             seed: `Property intelligence report: ${d.address} listed at ${priceFmt}${d.city ? ` in ${d.city}` : ''}`,
@@ -1806,6 +1820,7 @@ export default function Page() {
                                 cmaTaxAnnual: d.annualTaxes ?? 0,
                                 cmaTaxRate:  d.taxRateEffective ?? 0.011,
                                 cmaLiveRate: liveRate,
+                                cmaPhotoUrl: d.photoUrl ?? '',
                             } as Record<string, string | number>,
                         }] : []),
                     ];
@@ -2394,6 +2409,12 @@ export default function Page() {
                                                         {m.meta.propertyCard && (
                                                             <PropertyPreviewCard
                                                                 data={m.meta.propertyCard as PropertyCardData}
+                                                            />
+                                                        )}
+                                                        {/* Property Intelligence Card (CMA) */}
+                                                        {m.meta.cmaCard && !loading && typingId === null && (
+                                                            <PropertyIntelligenceCard
+                                                                data={m.meta.cmaCard as CMACardData}
                                                             />
                                                         )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}

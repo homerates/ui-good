@@ -4252,6 +4252,7 @@ ${dtiSection}
         const taxAnnual:number = Number(cmaParams.cmaTaxAnnual ?? 0);
         const taxRate:  number = Number(cmaParams.cmaTaxRate ?? 0.011);
         const liveRate: number = Number(cmaParams.cmaLiveRate ?? fred?.mort30Avg ?? 6.5);
+        const photoUrl: string = String(cmaParams.cmaPhotoUrl ?? '');
 
         // Deterministic PITI (20% down)
         const cmaConv = calcConventional({ purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate, termYears: 30, propertyTaxRate: taxRate * 100, annualInsurance: Math.max(1200, Math.round(price * 0.005)) });
@@ -4334,6 +4335,21 @@ Output JSON:
                 answerMarkdown: cmaFinal.answer,
                 followUp: cmaFinal.follow_up,
                 follow_up_chips: cmaFinal.follow_up_chips,
+                cmaCard: {
+                    address: addr,
+                    price,
+                    photoUrl: photoUrl || null,
+                    piti: cmaPiti,
+                    downAmt: cmaDown,
+                    loanAmt: cmaLoan,
+                    incomeNeeded: Math.round((cmaPiti / 0.43) * 12),
+                    pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
+                    rate: liveRate,
+                    beds,
+                    baths,
+                    sqft,
+                    answerMarkdown: cmaFinal.answer,
+                },
             });
         }
         // Fall through to standard Grok if CMA call failed
