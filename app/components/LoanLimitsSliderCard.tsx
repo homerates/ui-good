@@ -5,7 +5,7 @@
 // Shows conforming / high-balance / jumbo zones based on purchase price + down payment.
 // All math is local — no API calls on slider move.
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 
 export interface LoanLimitsSliderParams {
     county: string;
@@ -38,7 +38,7 @@ const ZONE_CONFIG = {
     },
     high_balance: {
         label: 'HIGH BALANCE',
-        sublabel: 'Above $806,500 — slight premium',
+        sublabel: 'Above $832,750 — slight premium',
         icon: '⚡',
         bg: '#fefce8',
         border: '#fde047',
@@ -86,12 +86,42 @@ function trackStyle(val: number, min: number, max: number, color = '#10b981'): R
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+// Quick-select county markets shown on the card
+const QUICK_COUNTIES = [
+    { label: 'Los Angeles',   county: 'LOS ANGELES' },
+    { label: 'Orange',        county: 'ORANGE' },
+    { label: 'San Diego',     county: 'SAN DIEGO' },
+    { label: 'San Francisco', county: 'SAN FRANCISCO' },
+    { label: 'Santa Clara',   county: 'SANTA CLARA' },
+    { label: 'Sacramento',    county: 'SACRAMENTO' },
+    { label: 'Ventura',       county: 'VENTURA' },
+    { label: 'Riverside',     county: 'RIVERSIDE' },
+    { label: 'Alameda',       county: 'ALAMEDA' },
+    { label: 'San Bernardino', county: 'SAN BERNARDINO' },
+];
+
 export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
     const { county, conformingLimit, nationalBaseline, taxRate, insRate, baseRate, onRunScenario } = props;
 
     const priceMax = Math.max(conformingLimit * 2.5, 2_500_000);
     const [price,   setPrice]   = useState(props.price);
     const [downPct, setDownPct] = useState(props.downPct);
+
+    // County / ZIP adjuster state
+    const [zipInput, setZipInput] = useState('');
+    const [adjOpen,  setAdjOpen]  = useState(false);
+    const zipRef = useRef<HTMLInputElement>(null);
+
+    const handleCountyLookup = (countyOrZip: string) => {
+        const val = countyOrZip.trim();
+        if (!val) return;
+        onRunScenario?.(
+            `California loan limits for ${val} — show me the 2026 conforming, high balance, and jumbo thresholds`,
+            { loanLimitsCounty: val, purchasePrice: price, downPaymentPct: downPct }
+        );
+        setZipInput('');
+        setAdjOpen(false);
+    };
 
     const calc = useMemo(() => {
         const downAmt  = price * downPct / 100;
@@ -181,6 +211,57 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                     </span>
                 )}
             </div>
+
+            {/* ── County / ZIP adjuster ── */}
+            {onRunScenario && (
+                <div className="ll-adj">
+                    <button
+                        className="ll-adj__toggle"
+                        onClick={() => { setAdjOpen(o => !o); setTimeout(() => zipRef.current?.focus(), 50); }}
+                    >
+                        📍 Change county or ZIP
+                        <span className="ll-adj__arrow">{adjOpen ? '▲' : '▼'}</span>
+                    </button>
+
+                    {adjOpen && (
+                        <div className="ll-adj__panel">
+                            {/* ZIP / county text input */}
+                            <div className="ll-adj__row">
+                                <input
+                                    ref={zipRef}
+                                    className="ll-adj__input"
+                                    type="text"
+                                    placeholder="ZIP code or county name (e.g. 92101, San Diego)"
+                                    value={zipInput}
+                                    onChange={e => setZipInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleCountyLookup(zipInput); }}
+                                />
+                                <button
+                                    className="ll-adj__go"
+                                    onClick={() => handleCountyLookup(zipInput)}
+                                    disabled={!zipInput.trim()}
+                                >
+                                    Look up →
+                                </button>
+                            </div>
+
+                            {/* Quick county chips */}
+                            <div className="ll-adj__quick-label">Quick select</div>
+                            <div className="ll-adj__quick">
+                                {QUICK_COUNTIES.map(({ label, county: c }) => (
+                                    <button
+                                        key={c}
+                                        className={`ll-adj__qchip${c === county.toUpperCase() ? ' ll-adj__qchip--active' : ''}`}
+                                        onClick={() => handleCountyLookup(c)}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ── Sliders ── */}
             <div className="ll-sliders">
@@ -668,6 +749,104 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                 .ll-chip:hover { border-color: #10b981; background: #f0fdf4; color: #065f46; }
                 .ll-chip--jumbo { border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
                 .ll-chip--jumbo:hover { border-color: #7c3aed; background: #ede9fe; color: #5b21b6; }
+
+                /* County / ZIP adjuster */
+                .ll-adj {
+                    margin-bottom: 16px;
+                }
+                .ll-adj__toggle {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 7px 12px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #475569;
+                    cursor: pointer;
+                    font-family: inherit;
+                    width: 100%;
+                    text-align: left;
+                    transition: border-color 0.12s, background 0.12s;
+                }
+                .ll-adj__toggle:hover { border-color: #10b981; background: #f0fdf4; color: #065f46; }
+                .ll-adj__arrow { margin-left: auto; font-size: 10px; }
+                .ll-adj__panel {
+                    margin-top: 8px;
+                    padding: 12px;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 10px;
+                    background: #f8fafc;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                .ll-adj__row {
+                    display: flex;
+                    gap: 8px;
+                }
+                .ll-adj__input {
+                    flex: 1;
+                    padding: 7px 10px;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 7px;
+                    font-size: 12px;
+                    font-family: inherit;
+                    color: #0f172a;
+                    background: #fff;
+                    outline: none;
+                    min-width: 0;
+                }
+                .ll-adj__input:focus { border-color: #10b981; box-shadow: 0 0 0 2px #d1fae5; }
+                .ll-adj__go {
+                    padding: 7px 14px;
+                    background: #10b981;
+                    border: none;
+                    border-radius: 7px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #fff;
+                    cursor: pointer;
+                    font-family: inherit;
+                    white-space: nowrap;
+                    flex-shrink: 0;
+                    transition: background 0.12s;
+                }
+                .ll-adj__go:hover { background: #059669; }
+                .ll-adj__go:disabled { opacity: 0.45; cursor: not-allowed; }
+                .ll-adj__quick-label {
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: #94a3b8;
+                    text-transform: uppercase;
+                    letter-spacing: 0.06em;
+                }
+                .ll-adj__quick {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                }
+                .ll-adj__qchip {
+                    padding: 5px 11px;
+                    background: #fff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 99px;
+                    font-size: 11px;
+                    font-weight: 500;
+                    color: #374151;
+                    cursor: pointer;
+                    font-family: inherit;
+                    transition: border-color 0.12s, background 0.12s;
+                }
+                .ll-adj__qchip:hover { border-color: #10b981; background: #f0fdf4; color: #065f46; }
+                .ll-adj__qchip--active {
+                    border-color: #10b981;
+                    background: #ecfdf5;
+                    color: #065f46;
+                    font-weight: 700;
+                }
 
                 @media (max-width: 500px) {
                     .ll-loan-amt { font-size: 18px; }
