@@ -71,6 +71,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
+        {/* Anti-flash: set theme BEFORE paint so there's no white flash on dark mode */}
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('hr-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();` }} />
+        </head>
         <body className={`app ${inter.variable}`}>
           {children}
           <Analytics />

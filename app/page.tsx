@@ -22,6 +22,7 @@ import {
     deleteProject,
 } from '../lib/projectsClient';
 import WelcomeScreen from '@/components/WelcomeScreen';
+import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
@@ -2381,8 +2382,10 @@ export default function Page() {
                         {/* Existing hamburger menu */}
                         <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
-                        {/* Right-side spacer / controls */}
-                        <div style={{ marginLeft: 'auto' }} />
+                        {/* Right-side controls */}
+                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ThemeToggle />
+                        </div>
                     </div>
                 </div>
 
@@ -2944,11 +2947,18 @@ export default function Page() {
                                         >
                                             <input
                                                 type="checkbox"
-                                                onChange={() => {
-                                                    /* next pass */
+                                                checked={typeof window !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        document.documentElement.setAttribute('data-theme', 'dark');
+                                                        localStorage.setItem('hr-theme', 'dark');
+                                                    } else {
+                                                        document.documentElement.removeAttribute('data-theme');
+                                                        localStorage.setItem('hr-theme', 'light');
+                                                    }
                                                 }}
                                             />
-                                            Prefer dark mode (coming soon)
+                                            Dark mode
                                         </label>
                                         <button
                                             className="btn"
