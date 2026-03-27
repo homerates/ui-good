@@ -1162,7 +1162,15 @@ export default function Page() {
     const [lastRouteByThread, setLastRouteByThread] = useState<Record<string, string>>({});
     // Structured param overrides from chip clicks — avoids parsing question text for numbers
     const [pendingParamOverrides, setPendingParamOverrides] = useState<Record<string, any> | null>(null);
-    const [activeCmaContext, setActiveCmaContext] = useState<Record<string, any> | null>(null);
+    // Derived from messages — finds the most recent chip with cmaAddress across the conversation.
+    // Works on page reload / restored sessions since messages are persisted.
+    const activeCmaContext = React.useMemo(() => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const chip = (messages[i] as any).meta?.follow_up_chips?.find((c: any) => c.paramOverrides?.cmaAddress);
+            if (chip) return chip.paramOverrides as Record<string, any>;
+        }
+        return null;
+    }, [messages]);
     const pendingChipSeedRef = React.useRef<string | null>(null);
 
     // overlays
@@ -1837,23 +1845,6 @@ export default function Page() {
                         follow_up_chips: chips,
                     };
 
-                    // Store CMA context so slider re-runs can include "Full Property Intelligence Report" chip
-                    if (d.price && d.address) {
-                        setActiveCmaContext({
-                            cmaAddress:  d.address,
-                            cmaCity:     d.city    ?? '',
-                            cmaState:    d.state   ?? '',
-                            cmaPrice:    d.price,
-                            cmaBeds:     d.beds    ?? 0,
-                            cmaBaths:    d.baths   ?? 0,
-                            cmaSqft:     d.sqft    ?? 0,
-                            cmaTaxAnnual: d.annualTaxes ?? 0,
-                            cmaTaxRate:  d.taxRateEffective ?? 0.011,
-                            cmaLiveRate: liveRate,
-                            cmaPhotoUrl: d.photoUrl ?? '',
-                        });
-                    }
-
                     setMessages((prev) =>
                         prev.map((m) =>
                             m.id === answerId && m.role === 'assistant'
@@ -2486,10 +2477,6 @@ export default function Page() {
                                                                             }
                                                                             setInput(chip.seed);
                                                                             setPendingParamOverrides(chipParams);
-                                                                            // Track CMA context so slider re-runs can include Re-run CMA chip
-                                                                            if (chipParams?.cmaAddress) {
-                                                                                setActiveCmaContext({ cmaAddress: chipParams.cmaAddress, cmaCity: chipParams.cmaCity, cmaState: chipParams.cmaState, cmaPrice: chipParams.cmaPrice, cmaBeds: chipParams.cmaBeds, cmaBaths: chipParams.cmaBaths, cmaSqft: chipParams.cmaSqft, cmaTaxAnnual: chipParams.cmaTaxAnnual, cmaTaxRate: chipParams.cmaTaxRate, cmaLiveRate: chipParams.cmaLiveRate, cmaPhotoUrl: chipParams.cmaPhotoUrl });
-                                                                            }
                                                                             pendingChipSeedRef.current = chip.seed;
                                                                             setTimeout(() => {
                                                                                 const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
