@@ -2370,10 +2370,10 @@ export default function Page() {
                     >
                         {/* HomeRates logo */}
                         <img
-                            src="/assets/homerates-full-horizontal-master.psd.png"
+                            src="/assets/homerates-full-horizontal-white.png"
                             alt="HomeRates.ai"
                             style={{
-                                height: 36,
+                                height: 42,
                                 width: 'auto',
                                 display: 'block',
                             }}
