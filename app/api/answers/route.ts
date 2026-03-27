@@ -4500,14 +4500,17 @@ ${dtiSection}
 
         const isJumboCMA = cmaLoan > 832_750;
 
-        const cmaPrompt = `You are HomeRates.ai's Property Intelligence Engine. Output ONLY valid JSON. Strict rules:
-- Use ONLY the deterministic financials below — never recalculate math
-- Extract property highlights (views, ADU, year built, listing status) from LIVE DATA if present; omit if absent
-- Use ONLY observed market data; no unsubstantiated forward projections
-- Strictly neutral language — no recommendations, no "you should", no "suits [buyer type]", no "verify with agent", no "obtain appraisal"
-- Frame as trade-offs only: "X means Y" not "you should do X"
+        const cmaPrompt = `You are HomeRates.ai's Property Intelligence Engine. Output ONLY valid JSON.
 
-PROPERTY:
+HARD RULES — violations destroy consumer trust:
+1. Use ONLY the deterministic financials below — never recalculate math.
+2. PROPERTY HIGHLIGHTS: Include a feature ONLY if it appears verbatim or near-verbatim in the LIVE DATA section below. If a feature (views, ADU, pool, guest house, ocean view, mountain view, or any amenity) is NOT explicitly stated in LIVE DATA, omit it entirely. Do not infer, assume, or embellish.
+3. LISTING STATUS: Omit status entirely unless LIVE DATA explicitly states Active, Contingent, Pending, or Under Contract for this specific address.
+4. Use ONLY observed market data; no forward projections or forecasts.
+5. Strictly neutral language — no "you should", no "verify with agent", no "suits [buyer type]".
+6. Frame as trade-offs only: "X means Y" not "you should do X".
+
+PROPERTY (these are the ONLY facts about this property — treat as ground truth):
 Address: ${addr}
 Listed: ${priceFmtCMA} | ${beds}bd / ${baths}ba / ${sqft.toLocaleString()} sqft | ${psfStr}
 Taxes: $${taxAnnual.toLocaleString()}/yr (${(taxRate * 100).toFixed(2)}% effective)
@@ -4518,20 +4521,15 @@ DETERMINISTIC FINANCIALS (do not recalculate):
 - Monthly PITI: $${cmaPiti.toLocaleString()}/mo at ${liveRate}% 30yr fixed
 - Income required @ 43% DTI: $${Math.round((cmaPiti / 0.43) * 12).toLocaleString()}/yr
 
-LIVE DATA (Tavily — use verbatim facts only; do not fabricate addresses, MLS numbers, or sale prices):
-${tavilyCtx || 'No live data — use general market knowledge; label any estimates as approximate.'}
+LIVE DATA (Tavily — extract verbatim facts only; do not fabricate MLS numbers, sale prices, or amenities):
+${tavilyCtx || 'No live data available — use general market knowledge for city/neighborhood context only; label any estimates as approximate.'}
 
 Generate a markdown report with these exact ## sections in order:
-1. ## Property Highlights — scan LIVE DATA for these fields and describe them specifically:
-   - Views: if ocean/water/panoramic views mentioned, state exactly (e.g. "Panoramic ocean views from all levels" — not just "ocean view")
-   - ADU: if found, list its features (separate entrance, kitchen, bedroom, bath, laundry — include only what appears in data)
-   - Year built, lot size, garage, home type
-   - Listing status: if data mentions contingent/under contract/pending, state it (e.g. "63 days active — currently under contract")
-   - Omit any bullet for which no supporting data exists.
-2. ## Market Snapshot — observed price data, days on market, inventory. Observed trends only; no forecasts.
-3. ## Value Insight — estimated value vs list price; price/sqft context vs comps. Factual only.
+1. ## Property Highlights — list ONLY features explicitly stated in LIVE DATA above (year built, lot size, garage, home type, and any amenities mentioned by name). If LIVE DATA is silent on a feature, omit that bullet. Do not mention views, ADU, or any amenity not found word-for-word in the data above.
+2. ## Market Snapshot — observed price data, days on market, inventory trends from LIVE DATA. Observed facts only; no forecasts.
+3. ## Value Insight — price/sqft context vs comps from LIVE DATA. Factual only.
 4. ## Decision Considerations — two sub-sections: **Primary Residence** and **Investment**. Pure trade-offs, no recommendations.
-5. ## Key Trade-offs — 3-5 bullet points covering carrying cost, financing risk, liquidity, and any property-specific factors from the data.
+5. ## Key Trade-offs — 3-5 bullet points covering carrying cost, financing risk, liquidity, and property-specific factors found in LIVE DATA.
 
 No Rate Sensitivity section (computed separately). 300-400 words total. Bullet points throughout.
 
