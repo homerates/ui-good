@@ -579,6 +579,9 @@ export default function Sidebar(props: SidebarProps) {
                               background: 'transparent',
                               padding: '4px 6px',
                               cursor: 'pointer',
+                              color: '#1e293b',
+                              fontSize: 13,
+                              fontWeight: 500,
                             }}
                           >
                             Move to project
@@ -593,7 +596,9 @@ export default function Sidebar(props: SidebarProps) {
                               background: 'transparent',
                               padding: '4px 6px',
                               cursor: 'pointer',
-                              color: '#b00020',
+                              color: '#dc2626',
+                              fontSize: 13,
+                              fontWeight: 500,
                             }}
                           >
                             Delete chat
