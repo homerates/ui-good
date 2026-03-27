@@ -80,6 +80,10 @@ body {
   border-color: rgba(255, 255, 255, 0.14) !important;
   background: transparent !important;
 }
+/* Hamburger bars + X always white on dark header */
+.header .hamburger span {
+  background: #e2e8f0 !important;
+}
 
 .header-inner {
   max-width: 820px;

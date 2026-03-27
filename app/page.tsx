@@ -2373,7 +2373,7 @@ export default function Page() {
                             src="/assets/homerates-full-horizontal-master.psd.png"
                             alt="HomeRates.ai"
                             style={{
-                                height: 28,
+                                height: 36,
                                 width: 'auto',
                                 display: 'block',
                             }}

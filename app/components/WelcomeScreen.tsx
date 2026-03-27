@@ -458,39 +458,25 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 [data-theme="dark"] .hr-hero__rate-label { color: #34d399; }
                 [data-theme="dark"] .hr-hero__rate-sub { color: #059669; }
 
-                /* ── Scenario preview cards (horizontal scroll) ── */
+                /* ── Scenario preview cards (2-col on mobile, 3-col on desktop) ── */
                 .hr-scenarios-wrap {
                     margin-bottom: 20px;
-                    /* Bleed mask to hint scroll */
-                    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
-                    mask-image: linear-gradient(to right, black 85%, transparent 100%);
                 }
                 .hr-scenarios {
-                    display: flex;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
                     gap: 10px;
-                    overflow-x: auto;
-                    -webkit-overflow-scrolling: touch;
-                    scrollbar-width: none;
-                    padding-bottom: 4px;
-                    /* On desktop show as a 3-col grid; on narrow it scrolls */
                 }
-                .hr-scenarios::-webkit-scrollbar { display: none; }
                 @media (min-width: 640px) {
-                    .hr-scenarios-wrap {
-                        -webkit-mask-image: none;
-                        mask-image: none;
-                    }
                     .hr-scenarios {
-                        display: grid;
                         grid-template-columns: repeat(3, 1fr);
-                        overflow-x: visible;
                     }
                 }
                 .hr-scenario {
                     display: flex;
                     flex-direction: column;
                     align-items: flex-start;
-                    padding: 14px 16px 16px;
+                    padding: 12px 14px 14px;
                     background: var(--card, #ffffff);
                     border: 1.5px solid var(--border, #e2e8f0);
                     border-top: 3px solid var(--scenario-accent, #e2e8f0);
@@ -500,11 +486,6 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s, background 0.15s;
                     opacity: 0;
                     animation: scenarioIn 0.4s ease forwards;
-                    min-width: 180px;
-                    flex-shrink: 0;
-                }
-                @media (min-width: 640px) {
-                    .hr-scenario { min-width: 0; flex-shrink: unset; }
                 }
                 @keyframes scenarioIn {
                     from { opacity: 0; transform: translateY(6px); }
@@ -558,18 +539,8 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 }
                 .hr-quick__chips {
                     display: flex;
-                    overflow-x: auto;
-                    -webkit-overflow-scrolling: touch;
-                    scrollbar-width: none;
+                    flex-wrap: wrap;
                     gap: 8px;
-                    padding-bottom: 4px;
-                }
-                .hr-quick__chips::-webkit-scrollbar { display: none; }
-                @media (min-width: 640px) {
-                    .hr-quick__chips {
-                        flex-wrap: wrap;
-                        overflow-x: visible;
-                    }
                 }
                 .hr-chip {
                     padding: 8px 16px;
@@ -583,7 +554,6 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
                     transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
                     white-space: nowrap;
-                    flex-shrink: 0;
                     opacity: 0;
                     animation: chipIn 0.35s ease forwards;
                 }
