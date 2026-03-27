@@ -1,7 +1,7 @@
 'use client';
 
 // app/components/InteractiveSliderCard.tsx
-// Interactive mortgage payment explorer — Conventional · FHA · VA tabs
+// Interactive mortgage payment explorer — Conventional · FHA · VA · Jumbo tabs
 // All math is local (no API calls on slider move); re-run sends to API.
 
 import React, { useState, useMemo } from 'react';
@@ -14,7 +14,7 @@ export interface SliderCardParams {
     term: number;
     taxRate: number;          // annual % of price as decimal — e.g. 0.012
     insRate: number;          // annual % of price as decimal — e.g. 0.005
-    loanType: 'conventional' | 'fha' | 'va';
+    loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
     vaFundingFeePct?: number; // VA only — 0 = exempt, else 1.25 / 1.5 / 2.15
     onRunScenario?: (seed: string, paramOverrides: Record<string, any>) => void;
 }
@@ -61,13 +61,13 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const [downPct,  setDownPct]  = useState(props.downPct);
     const [rate,     setRate]     = useState(props.rate);
     const [term,     setTerm]     = useState(props.term);
-    const [loanType, setLoanType] = useState<'conventional' | 'fha' | 'va'>(props.loanType);
+    const [loanType, setLoanType] = useState<'conventional' | 'fha' | 'va' | 'jumbo'>(props.loanType);
     // VA funding fee — initialise from prop (0 = exempt)
     const initFfPct = props.vaFundingFeePct ?? 2.15;
     const [vaFfPct, setVaFfPct]  = useState<number>(initFfPct);
 
-    const priceMax      = props.price > 2000000 ? 4000000 : 2000000;
-    const priceMaxLabel = priceMax === 4000000 ? '$4M' : '$2M';
+    const priceMax      = loanType === 'jumbo' ? 5000000 : props.price > 2000000 ? 4000000 : 2000000;
+    const priceMaxLabel = priceMax === 5000000 ? '$5M' : priceMax === 4000000 ? '$4M' : '$2M';
 
     const calc = useMemo(() => {
         const downAmt  = price * downPct / 100;
@@ -106,8 +106,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
         loanType !== props.loanType || (loanType === 'va' && vaFfPct !== initFfPct);
 
     function buildSeed(): string {
-        if (loanType === 'fha') return `FHA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed`;
-        if (loanType === 'va')  return `VA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)}${vaFfPct === 0 ? ', funding fee exempt' : ''}`;
+        if (loanType === 'fha')   return `FHA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed`;
+        if (loanType === 'va')    return `VA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)}${vaFfPct === 0 ? ', funding fee exempt' : ''}`;
+        if (loanType === 'jumbo') return `Jumbo loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed`;
         return `Conventional loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed`;
     }
 
@@ -119,9 +120,11 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 annualRatePct:      rate,
                 loanType:           'va',
                 vaFundingFeeExempt: vaFfPct === 0,
-                // Pass the custom FF % so the server can use it if not exempt
                 ...(vaFfPct > 0 ? { customFundingFeePct: vaFfPct } : {}),
             };
+        }
+        if (loanType === 'jumbo') {
+            return { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'jumbo' };
         }
         return { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate };
     }
@@ -133,13 +136,14 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const pmiPct = pmi > 0 && total > 0 ? (pmi / total) * 100 : 0;
     const pmiLabel = loanType === 'fha' ? 'MIP' : 'PMI';
 
-    const minDown = loanType === 'fha' ? 3.5 : loanType === 'va' ? 0 : 3;
+    const minDown = loanType === 'fha' ? 3.5 : loanType === 'va' ? 0 : loanType === 'jumbo' ? 20 : 3;
 
     // When switching tabs — enforce min down and reset VA FF default
-    function switchTab(next: 'conventional' | 'fha' | 'va') {
+    function switchTab(next: 'conventional' | 'fha' | 'va' | 'jumbo') {
         setLoanType(next);
-        if (next === 'fha' && downPct < 3.5)  setDownPct(3.5);
+        if (next === 'fha'   && downPct < 3.5)  setDownPct(3.5);
         if (next === 'conventional' && downPct < 3) setDownPct(3);
+        if (next === 'jumbo' && downPct < 20)   setDownPct(20);
         if (next === 'va') setVaFfPct(initFfPct);
     }
 
@@ -162,6 +166,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         className={`isc__type-btn isc__type-btn--va${loanType === 'va' ? ' isc__type-btn--on' : ''}`}
                         onClick={() => switchTab('va')}
                     >VA</button>
+                    <button
+                        className={`isc__type-btn isc__type-btn--jumbo${loanType === 'jumbo' ? ' isc__type-btn--on' : ''}`}
+                        onClick={() => switchTab('jumbo')}
+                    >Jumbo</button>
                 </div>
             </div>
 
@@ -174,6 +182,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
                 {loanType === 'va' && (
                     <div className="isc__va-badge">🎖️ No PMI · Funding fee {vaFfPct === 0 ? 'exempt' : `${vaFfPct}%`} ({vaFfPct === 0 ? '$0' : fmtDollar(fundingFee)}) rolled in</div>
+                )}
+                {loanType === 'jumbo' && (
+                    <div className="isc__jumbo-badge">🏛️ Jumbo · No PMI · 20% min down · Up to $5M</div>
                 )}
 
                 {/* Stacked bar */}
@@ -228,7 +239,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         onChange={e => setDownPct(+e.target.value)}
                         style={trackStyle(downPct, minDown, 50)} />
                     <div className="isc__minmax">
-                        <span>{loanType === 'va' ? '0%' : `${minDown}%`}</span>
+                        <span>{loanType === 'va' ? '0%' : loanType === 'jumbo' ? '20%' : `${minDown}%`}</span>
                         <span>50%</span>
                     </div>
                 </div>
@@ -316,7 +327,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         </button>
                     )}
                     <PdfDownloadButton
-                        type={loanType === 'va' ? 'va' : loanType}
+                        type={loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType}
                         getParams={() => ({ price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, loanType, vaFundingFeePct: vaFfPct })}
                     />
                 </div>
@@ -375,6 +386,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc__type-btn--va.isc__type-btn--on {
                     color: #dc2626;
                 }
+                .isc__type-btn--jumbo.isc__type-btn--on {
+                    color: #7c3aed;
+                }
 
                 /* VA badge */
                 .isc__va-badge {
@@ -383,6 +397,19 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     color: #dc2626;
                     background: #fff5f5;
                     border: 1px solid #fecaca;
+                    border-radius: 6px;
+                    padding: 5px 10px;
+                    margin-bottom: 12px;
+                    letter-spacing: 0.01em;
+                }
+
+                /* Jumbo badge */
+                .isc__jumbo-badge {
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #7c3aed;
+                    background: #f5f3ff;
+                    border: 1px solid #ddd6fe;
                     border-radius: 6px;
                     padding: 5px 10px;
                     margin-bottom: 12px;

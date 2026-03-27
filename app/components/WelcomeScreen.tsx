@@ -44,6 +44,13 @@ const PERSONAS = [
         seed: 'VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee.',
         accent: '#dc2626',
     },
+    {
+        icon: '🏛️',
+        label: 'Jumbo Loan',
+        desc: 'Up to $5M, no PMI, 20% min down',
+        seed: 'Jumbo loan on a $1,500,000 home with 20% down — show me the full payment breakdown and reserve requirements.',
+        accent: '#7c3aed',
+    },
 ];
 
 // Quick scenario chips — fires immediately into chat
@@ -53,6 +60,7 @@ const QUICK_CHIPS = [
     { label: 'What income for $500k home?', seed: 'What income do I need to qualify for a $500,000 home?' },
     { label: 'DSCR on $450k rental · $3,200 rent', seed: 'DSCR loan on a $450,000 rental property, $3,200/mo rent, 25% down' },
     { label: 'VA loan · $550k · no down payment', seed: 'VA loan on a $550,000 home with no down payment at current rates' },
+    { label: 'Jumbo · $1.5M · 20% down', seed: 'Jumbo loan on a $1,500,000 home with 20% down at current rates' },
     { label: 'Refi: $400k at 7% → breakeven?', seed: 'I have a $400,000 mortgage at 7% — what rate do I need for a 3-year breakeven?' },
     { label: 'How much house on $120k salary?', seed: 'I make $120,000 a year and have $42,000 saved — how much house can I afford?' },
     { label: 'HomeRates vs ChatGPT — what\'s the difference?', seed: 'About HomeRates: chatgpt — how is HomeRates.ai different from ChatGPT for mortgage questions?' },

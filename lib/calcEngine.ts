@@ -1353,6 +1353,118 @@ export function calcVA(input: VAInput): VAResult {
 }
 
 // ─────────────────────────────────────────────
+// CALC: JUMBO LOAN
+// ─────────────────────────────────────────────
+
+export interface JumboInput {
+    purchasePrice: number;
+    downPaymentPct: number;        // minimum 20 enforced internally
+    annualRatePct: number;
+    termYears?: number;            // default 30
+    propertyTaxRate?: number;
+    annualInsurance?: number;
+    hoaMonthly?: number;
+    monthlyDebts?: number;
+    annualIncome?: number;
+}
+
+export interface JumboResult {
+    // Inputs echoed
+    purchasePrice: number;
+    downPaymentPct: number;
+    annualRatePct: number;
+    termYears: number;
+    // Loan structure
+    downPayment: number;
+    loanAmount: number;
+    ltv: number;
+    conformingLimit: number;       // 2026 baseline
+    loanExceedsConforming: boolean;
+    // Monthly (no PMI — 20%+ down enforced)
+    monthlyPI: number;
+    monthlyTax: number;
+    monthlyInsurance: number;
+    monthlyHOA: number;
+    totalMonthly: number;
+    // Lifetime
+    totalInterest: number;
+    totalPayments: number;
+    // Reserve requirements
+    reservesRequired6mo: number;
+    reservesRequired12mo: number;
+    // Qualification
+    frontEndDTI: number | null;
+    backEndDTI: number | null;
+    monthlyRate: number;
+    numberOfPayments: number;
+}
+
+export function calcJumbo(input: JumboInput): JumboResult {
+    const {
+        purchasePrice,
+        annualRatePct,
+        termYears = 30,
+        propertyTaxRate = TAX_RATE_DEFAULT * 100,
+        annualInsurance = INS_ANNUAL_DEFAULT,
+        hoaMonthly = 0,
+        monthlyDebts = 0,
+        annualIncome,
+    } = input;
+
+    // Enforce 20% minimum down for jumbo
+    const downPaymentPct = Math.max(input.downPaymentPct, 20);
+
+    const downPayment = purchasePrice * (downPaymentPct / 100);
+    const loanAmount  = purchasePrice - downPayment;
+    const ltv         = loanAmount / purchasePrice;
+    const termMo      = termYears * 12;
+
+    const mPI  = monthlyPI(loanAmount, annualRatePct, termMo);
+    const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
+    const mIns = annualInsurance / 12;
+    const mHOA = hoaMonthly;
+    // No PMI — jumbo requires 20%+ down
+    const total = mPI + mTax + mIns + mHOA;
+
+    const totInt = totalInterest(loanAmount, annualRatePct, termMo);
+    const totPay = mPI * termMo;
+
+    // DTI
+    let frontEndDTI: number | null = null;
+    let backEndDTI: number | null = null;
+    if (annualIncome && annualIncome > 0) {
+        const mIncome = annualIncome / 12;
+        frontEndDTI = Math.round((total / mIncome) * 1000) / 10;
+        backEndDTI  = Math.round(((total + monthlyDebts) / mIncome) * 1000) / 10;
+    }
+
+    return {
+        purchasePrice,
+        downPaymentPct,
+        annualRatePct,
+        termYears,
+        downPayment:            Math.round(downPayment),
+        loanAmount:             Math.round(loanAmount),
+        ltv,
+        conformingLimit:        CONF_STANDARD,
+        loanExceedsConforming:  loanAmount > CONF_STANDARD,
+        monthlyPI:              Math.round(mPI),
+        monthlyTax:             Math.round(mTax),
+        monthlyInsurance:       Math.round(mIns),
+        monthlyHOA:             Math.round(mHOA),
+        totalMonthly:           Math.round(total),
+        totalInterest:          Math.round(totInt),
+        totalPayments:          Math.round(totPay),
+        reservesRequired6mo:    Math.round(total * 6),
+        reservesRequired12mo:   Math.round(total * 12),
+        frontEndDTI,
+        backEndDTI,
+        monthlyRate:            annualRatePct / 100 / 12,
+        numberOfPayments:       termMo,
+    };
+}
+
+// ─────────────────────────────────────────────
 // BUILT-IN VERIFICATION TESTS
 // Run these on deploy: import { runCalcTests } from 'lib/calcEngine'
 // ─────────────────────────────────────────────

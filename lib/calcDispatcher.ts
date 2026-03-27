@@ -25,6 +25,7 @@ import {
     DSCRInput,
     FHAvsConvInput,
     VAInput,
+    JumboInput,
     FHA_FLOOR_2026,
     FHA_CEILING_2026,
     CONF_STANDARD,
@@ -49,6 +50,8 @@ export type CalcType =
     | 'refi_needs_input'
     | 'va'
     | 'va_needs_input'
+    | 'jumbo'
+    | 'jumbo_needs_input'
     | 'fha_needs_input'
     | 'affordability_needs_input'
     | 'dscr_needs_input'
@@ -330,6 +333,14 @@ export function isConventionalQuestion(q: string): boolean {
     // If income question BUT has specific price + rate + down → route to conventional for income calc
     if (isIncomeQualify && hasPrice && hasRate && hasDown) return true;
     return (hasPrice && hasMortgageCtx && !isIncomeQualify);
+}
+
+export function isJumboQuestion(q: string): boolean {
+    if (isFHAQuestion(q)) return false;
+    if (isDSCRQuestion(q)) return false;
+    return /\bjumbo\s*(loan|mortgage|financing|purchase)\b/i.test(q) ||
+        /\bnon.?conforming\b/i.test(q) ||
+        (/\$\s*[\d,]+[kKmM]?\b/.test(q) && /\bjumbo\b/i.test(q));
 }
 
 export function isAffordabilityQuestion(q: string): boolean {
@@ -689,7 +700,34 @@ export function dispatch(
         };
     }
 
-    // ── 6. CONVENTIONAL ──
+    // ── 6. JUMBO ──
+    if (isJumboQuestion(q)) {
+        const price = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        if (!price) {
+            return { type: 'jumbo_needs_input', params: null, confidence: 0, assumptions: [] };
+        }
+        const rate    = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
+        const downPct = Math.max(20, extractDownPct(q) ?? 20);
+        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        if (downPct === 20) assumptions.push('down payment assumed 20% (jumbo minimum)');
+
+        return {
+            type: 'jumbo',
+            params: {
+                purchasePrice:   price,
+                downPaymentPct:  downPct,
+                annualRatePct:   rate,
+                termYears:       30,
+                annualIncome:    extractIncome(q) ?? pullFromHistory(hist, extractIncome),
+                monthlyDebts:    extractMonthlyDebts(q),
+                propertyTaxRate: extractTaxRate(q) ?? extractTaxRate(hist),
+            } as JumboInput,
+            confidence: 1.0,
+            assumptions,
+        };
+    }
+
+    // ── 7. CONVENTIONAL ──
     if (isConventionalQuestion(q)) {
         const price = extractPrice(q);
         if (!price) return { type: 'conventional' as CalcType, params: null, confidence: 0, assumptions: [] };
@@ -713,7 +751,7 @@ export function dispatch(
         };
     }
 
-    // ── 6. AFFORDABILITY ──
+    // ── 8. AFFORDABILITY ──
     if (isAffordabilityQuestion(q)) {
         const income = extractIncome(q);
         const savings = extractSavings(q);

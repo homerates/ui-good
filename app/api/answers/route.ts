@@ -11,7 +11,7 @@ import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculat
 import {
     calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
     calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale, calcOneExtraPaymentPerYear,
-    calcVA,
+    calcVA, calcJumbo,
 } from "../../../lib/calcEngine";
 import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
 import {
@@ -19,7 +19,7 @@ import {
     buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
-    buildVACard, buildVANeedsInputCard,
+    buildVACard, buildVANeedsInputCard, buildJumboCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
     buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
     buildUWStarterCard, buildHowItWorksCard, getContextChips,
@@ -3621,6 +3621,21 @@ ${uwAnswerText}`,
                 buydownPoints:  `seller buying down ${(paramOverrides as any).buydownPoints} point(s)`,
             };
             (calcDispatch as any).assumptions = _changedKeysVA.filter(k => _vaLabelMap[k]).map(k => _vaLabelMap[k]);
+        } else if ((paramOverrides as any).loanType === 'jumbo' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            (calcDispatch as any).type = 'jumbo';
+            (calcDispatch as any).params = {
+                purchasePrice:  paramOverrides.purchasePrice,
+                downPaymentPct: Math.max(20, paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20),
+                annualRatePct:  paramOverrides.annualRatePct,
+                termYears:      30,
+            };
+            const _changedKeysJumbo: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _jumboLabelMap: Record<string, string> = {
+                annualRatePct:  `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _changedKeysJumbo.filter(k => _jumboLabelMap[k]).map(k => _jumboLabelMap[k]);
         } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
             // isDSCR flag without rent → context-aware needs_input card, not conventional
             (calcDispatch as any).type = 'dscr_needs_input';
@@ -3896,6 +3911,21 @@ ${uwAnswerText}`,
                 buydownPoints:  `seller buying down ${(paramOverrides as any).buydownPoints} point(s)`,
             };
             (calcDispatch as any).assumptions = _changedKeysVA.filter(k => _vaLabelMap[k]).map(k => _vaLabelMap[k]);
+        } else if ((paramOverrides as any).loanType === 'jumbo' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            (calcDispatch as any).type = 'jumbo';
+            (calcDispatch as any).params = {
+                purchasePrice:  paramOverrides.purchasePrice,
+                downPaymentPct: Math.max(20, paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20),
+                annualRatePct:  paramOverrides.annualRatePct,
+                termYears:      30,
+            };
+            const _changedKeysJumbo: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _jumboLabelMap: Record<string, string> = {
+                annualRatePct:  `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _changedKeysJumbo.filter(k => _jumboLabelMap[k]).map(k => _jumboLabelMap[k]);
         } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
             // isDSCR flag without rent → context-aware needs_input card, not conventional
             (calcDispatch as any).type = 'dscr_needs_input';
@@ -4043,6 +4073,16 @@ ${uwAnswerText}`,
             } else if (calcDispatch.type === 'va_needs_input') {
                 calcCard = buildVANeedsInputCard(fredRateForCard);
                 calcDebugModel = 'va_needs_input';
+
+            } else if (calcDispatch.type === 'jumbo' && calcDispatch.params) {
+                const result = calcJumbo(calcDispatch.params as any);
+                calcCard = buildJumboCard(result, calcAssumptions, fredRateForCard);
+                calcDebugModel = 'calcEngine-jumbo';
+                injectCmaChip(calcCard);
+
+            } else if (calcDispatch.type === 'jumbo_needs_input') {
+                calcCard = buildVANeedsInputCard(fredRateForCard); // reuse needs-input pattern — jumbo-specific card optional later
+                calcDebugModel = 'jumbo_needs_input';
 
             } else if (calcDispatch.type === 'conventional' && calcDispatch.params) {
                 const result = calcConventional(calcDispatch.params as any);
@@ -4512,6 +4552,16 @@ Output JSON:
                     label: `What income qualifies for this home?`,
                     seed: `What income do I need to qualify for a ${priceFmtCMA} home?`,
                     paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate, cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price, cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft, cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl },
+                },
+                {
+                    label: `VA loan on this home — no down payment`,
+                    seed: `VA loan on a ${priceFmtCMA} home with no down payment at ${liveRate}%`,
+                    paramOverrides: {
+                        purchasePrice: price, downPaymentPct: 0, annualRatePct: liveRate, loanType: 'va',
+                        cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price,
+                        cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft,
+                        cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl,
+                    },
                 },
             ];
             // Use Grok chips if they exist, but always override with our structured chips

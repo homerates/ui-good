@@ -26,6 +26,7 @@ import {
     RefiEarlySaleResult,
     OneExtraPaymentPerYearResult,
     VAResult,
+    JumboResult,
 } from './calcEngine';
 import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 
@@ -58,7 +59,7 @@ export interface BuiltCard {
         term: number;
         taxRate: number;
         insRate: number;
-        loanType: 'conventional' | 'fha' | 'va';
+        loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
         vaFundingFeePct?: number;  // VA only — funding fee % (0 = exempt)
     };
     affordabilitySlider?: {
@@ -2629,5 +2630,170 @@ To run your VA loan estimate, share:
         follow_up: chips[0].label,
         follow_up_chips: chips,
         confidence: '1.00 (HomeRates.ai — needs input)',
+    };
+}
+
+// ─────────────────────────────────────────────
+// JUMBO LOAN CARD
+// ─────────────────────────────────────────────
+
+export function buildJumboCard(
+    r: JumboResult,
+    assumptions: string[] = [],
+    fredRateStr?: string,
+): BuiltCard {
+    const rateStr = fPct(r.annualRatePct);
+    const assumptionNote = assumptions.length
+        ? assumptions.map(a => `> 💡 **Assumption:** ${a}`).join('\n') + '\n\n'
+        : '';
+    const fredNote = fredRateStr
+        ? `\n> 📡 **Live FRED rate:** ${fredRateStr} (jumbo rates typically 0.25–0.5% above conforming)\n`
+        : '';
+    const hoaRow = r.monthlyHOA > 0 ? `| HOA | ${f$(r.monthlyHOA)} |\n` : '';
+
+    const conformingNote = r.loanExceedsConforming
+        ? `\n> ℹ️ **Jumbo loan** — exceeds 2026 conforming limit (${f$(r.conformingLimit)}). Portfolio lender or private jumbo product required.\n`
+        : `\n> ℹ️ Loan is within conforming limits — consider a conventional loan for potentially lower rates.\n`;
+
+    const dtiSection = r.frontEndDTI !== null ? `
+---
+
+## 📈 DTI Analysis
+
+| | |
+|--|--|
+| Front-end DTI | ${fPct1(r.frontEndDTI!)} *(jumbo guideline: ≤38%)* |
+| Back-end DTI | ${fPct1(r.backEndDTI!)} *(jumbo guideline: ≤43%)* |
+| Status | ${r.backEndDTI! <= 43 ? '✅ Within jumbo guidelines' : r.backEndDTI! <= 50 ? '⚠️ High — may need compensating factors' : '❌ Exceeds standard guidelines'} |
+` : `
+---
+
+## 💰 Minimum Income to Qualify
+
+| DTI Guideline | Required Annual Income |
+|---------------|----------------------|
+| Conservative (38% front-end) | ~${fK(r.totalMonthly / 0.38 * 12)}/year |
+| Standard (43% back-end) | ~${fK(r.totalMonthly / 0.43 * 12)}/year |
+| Stretch (50% w/ strong assets) | ~${fK(r.totalMonthly / 0.50 * 12)}/year |
+`;
+
+    const answer = `**Jumbo Loan Analysis**
+${assumptionNote}${fredNote}
+**${f$(r.purchasePrice)} purchase · ${r.downPaymentPct}% down · ${rateStr} · ${r.termYears}-year fixed**
+
+---
+
+## 🏠 Loan Structure
+
+| | |
+|--|--|
+| Purchase Price | ${f$(r.purchasePrice)} |
+| Down Payment | ${f$(r.downPayment)} (${r.downPaymentPct}%) |
+| Loan Amount | **${f$(r.loanAmount)}** |
+| LTV | ${fPct1(r.ltv * 100)} |
+| 2026 Conforming Limit | ${f$(r.conformingLimit)} |
+${conformingNote}
+---
+
+## 💰 Monthly Payment
+
+| Component | Amount |
+|-----------|--------|
+| Principal & Interest | ${f$(r.monthlyPI)} |
+| Property Taxes | ${f$(r.monthlyTax)} |
+| Home Insurance | ${f$(r.monthlyInsurance)} |
+${hoaRow}| **Total Monthly (PITI)** | **${f$(r.totalMonthly)}** |
+
+> ✅ **No PMI** — 20%+ down payment required for jumbo.
+
+---
+
+## 📊 Lifetime Cost
+
+| | |
+|--|--|
+| Total Interest | ${f$(r.totalInterest)} |
+| Total Payments | ${f$(r.totalPayments)} |
+| Loan Payoff | ${r.termYears} years |
+
+---
+
+## 🏦 Jumbo Lender Requirements
+
+| Requirement | Typical Threshold |
+|-------------|------------------|
+| Credit Score | 720+ (many lenders require 740+) |
+| Down Payment | 20% minimum |
+| DTI | ≤43% (stricter than conventional) |
+| Reserves (6 mo) | ~${f$(r.reservesRequired6mo)} in liquid assets |
+| Reserves (12 mo) | ~${f$(r.reservesRequired12mo)} for highest loan amounts |
+| Appraisal | Typically 2 appraisals required above $2M |
+${dtiSection}
+---
+
+**Next Steps:**
+1. Shop portfolio lenders, private banks, and credit unions — jumbo rates vary more than conforming
+2. Prepare 12–24 months bank statements and asset verification
+3. Factor in closing costs (~${fK(r.purchasePrice * 0.015)}–${fK(r.purchasePrice * 0.025)})`;
+
+    const priceUp   = Math.round(r.purchasePrice * 1.1 / 25000) * 25000;
+    const priceDown = Math.round(r.purchasePrice * 0.9 / 25000) * 25000;
+    const rateDown  = parseFloat((r.annualRatePct - 0.5).toFixed(2));
+    const altDown   = r.downPaymentPct < 30 ? 30 : r.downPaymentPct > 20 ? 20 : 25;
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `Rate drops to ${fPct(rateDown)} — new payment?`,
+            seed: `Jumbo loan on a ${fK(r.purchasePrice)} home, rate drops to ${fPct(rateDown)}`,
+            paramOverrides: { annualRatePct: rateDown, purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, loanType: 'jumbo' },
+            changedKeys: ['annualRatePct'],
+        },
+        {
+            label: `${altDown}% down — how does payment change?`,
+            seed: `Jumbo loan on a ${fK(r.purchasePrice)} home with ${altDown}% down at ${rateStr}`,
+            paramOverrides: { downPaymentPct: altDown, purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct, loanType: 'jumbo' },
+            changedKeys: ['downPaymentPct'],
+        },
+        {
+            label: `What if the home is ${fK(priceUp)}?`,
+            seed: `Jumbo loan on a ${fK(priceUp)} home with ${r.downPaymentPct}% down at ${rateStr}`,
+            paramOverrides: { purchasePrice: priceUp, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct, loanType: 'jumbo' },
+            changedKeys: ['purchasePrice'],
+        },
+        {
+            label: `What if the home is ${fK(priceDown)}?`,
+            seed: `Jumbo loan on a ${fK(priceDown)} home with ${r.downPaymentPct}% down at ${rateStr}`,
+            paramOverrides: { purchasePrice: priceDown, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct, loanType: 'jumbo' },
+            changedKeys: ['purchasePrice'],
+        },
+        {
+            label: `1 extra payment/yr — how many years saved?`,
+            seed: `If I make 1 extra payment per year on a ${fK(r.loanAmount)} loan at ${rateStr}, when do I pay it off?`,
+            paramOverrides: { oneExtraPaymentBalance: r.loanAmount, oneExtraPaymentRate: r.annualRatePct } as Record<string, number>,
+            changedKeys: ['oneExtraPaymentBalance'],
+        },
+    ];
+
+    return {
+        answer,
+        next_step: `Jumbo at ${rateStr} — no PMI, ${r.downPaymentPct}% down. Monthly PITI: ${f$(r.totalMonthly)}.`,
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `Jumbo: ${f$(r.purchasePrice)} purchase, ${r.downPaymentPct}% down, ${rateStr}, ${r.termYears}yr fixed. No PMI. Monthly PITI: ${f$(r.totalMonthly)}.`,
+            scenario_inputs: { price: r.purchasePrice, down_pct: r.downPaymentPct, loan_type: 'jumbo', rate: r.annualRatePct, term_years: r.termYears },
+            computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly, loan_amount: r.loanAmount },
+            monthly_payment: r.totalMonthly,
+        },
+        interactiveSlider: {
+            price: r.purchasePrice,
+            downPct: r.downPaymentPct,
+            rate: r.annualRatePct,
+            term: r.termYears,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            loanType: 'jumbo' as const,
+        },
     };
 }
