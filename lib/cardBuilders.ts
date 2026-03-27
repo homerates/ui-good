@@ -89,6 +89,16 @@ export interface BuiltCard {
         termMonths: number;
         closingCosts: number;
     };
+    loanLimitsSlider?: {
+        county: string;
+        conformingLimit: number;
+        nationalBaseline: number;
+        price: number;
+        downPct: number;
+        taxRate: number;
+        insRate: number;
+        baseRate: number;
+    };
 }
 
 // ─────────────────────────────────────────────
@@ -2788,6 +2798,119 @@ ${dtiSection}
             taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
             insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
             loanType: 'jumbo' as const,
+        },
+    };
+}
+
+// ─────────────────────────────────────────────
+// LOAN LIMITS CARD (California 2026)
+// ─────────────────────────────────────────────
+
+export interface LoanLimitsCardInput {
+    county: string;
+    conformingLimit: number;   // county Fannie/Freddie limit
+    nationalBaseline: number;  // $806,500
+    price: number;             // purchase price
+    downPct: number;           // down payment %
+    taxRate: number;           // annual property tax rate as decimal
+    insRate: number;           // annual insurance rate as decimal
+    baseRate: number;          // conforming 30yr rate
+    zip?: string;              // optional — shown in header
+}
+
+export function buildLoanLimitsCard(inp: LoanLimitsCardInput): BuiltCard {
+    const { county, conformingLimit, nationalBaseline, price, downPct, taxRate, insRate, baseRate } = inp;
+
+    const loanAmt    = price * (1 - downPct / 100);
+    const RATE_HB    = 0.30;
+    const RATE_JUMBO = 0.50;
+
+    let zone: 'standard_conforming' | 'high_balance' | 'jumbo';
+    let effectiveRate: number;
+    if (loanAmt <= nationalBaseline) {
+        zone = 'standard_conforming';
+        effectiveRate = baseRate;
+    } else if (loanAmt <= conformingLimit) {
+        zone = 'high_balance';
+        effectiveRate = baseRate + RATE_HB;
+    } else {
+        zone = 'jumbo';
+        effectiveRate = baseRate + RATE_JUMBO;
+    }
+
+    const zoneLabel = zone === 'standard_conforming' ? 'Standard Conforming'
+        : zone === 'high_balance' ? 'High Balance'
+        : 'Jumbo';
+
+    const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
+    const fmtRate = (r: number) => r.toFixed(3) + '%';
+
+    const answer = `**California 2026 Loan Limits — ${county.replace(/_/g, ' ')} County**
+
+| Tier | Limit (1-unit) | Rate |
+|------|---------------|------|
+| ✅ Standard Conforming | ${fmt(nationalBaseline)} | ${fmtRate(baseRate)} (best) |
+| ⚡ High Balance | up to ${fmt(conformingLimit)} | +${RATE_HB}% → ${fmtRate(baseRate + RATE_HB)} |
+| 🏛️ Jumbo | above ${fmt(conformingLimit)} | +${RATE_JUMBO}% → ${fmtRate(baseRate + RATE_JUMBO)} |
+
+**Your scenario:** ${fmt(price)} purchase · ${downPct}% down · **${fmt(loanAmt)} loan → ${zoneLabel}** (${fmtRate(effectiveRate)})
+
+> 📌 All limits are FHFA 2026 Fannie Mae/Freddie Mac conforming limits. High-balance applies in every CA county — even the lowest CA limit (${fmt(conformingLimit < nationalBaseline * 1.05 ? conformingLimit : 832750)}) is above the $806,500 national baseline.
+>
+> 💡 Rate premiums shown are typical mid-market estimates. Actual lender pricing varies.
+
+Use the **Loan Limits Explorer** below to slide price and down payment — zones update instantly.`;
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `${zoneLabel} payment breakdown`,
+            seed: zone === 'jumbo'
+                ? `Jumbo loan on a ${fmt(price)} home with ${downPct}% down at ${fmtRate(effectiveRate)}`
+                : `Conventional loan on a ${fmt(price)} home with ${downPct}% down at ${fmtRate(effectiveRate)}`,
+            paramOverrides: {
+                purchasePrice: price,
+                downPaymentPct: downPct,
+                annualRatePct: effectiveRate,
+                loanType: zone === 'jumbo' ? 'jumbo' : 'conventional',
+            },
+        },
+        {
+            label: `What down payment stays conforming in ${county.split(' ')[0]} County?`,
+            seed: `What down payment do I need to stay under the conforming loan limit in ${county.replace(/_/g, ' ')} County, CA for a ${fmt(price)} home?`,
+        },
+        {
+            label: `LA County limits`,
+            seed: `California loan limits for Los Angeles County — show me the 2026 conforming, high balance, and jumbo thresholds`,
+            paramOverrides: { loanLimitsCounty: 'LOS ANGELES' } as any,
+        },
+        {
+            label: `San Diego County limits`,
+            seed: `California loan limits for San Diego County — show me the 2026 conforming, high balance, and jumbo thresholds`,
+            paramOverrides: { loanLimitsCounty: 'SAN DIEGO' } as any,
+        },
+    ];
+
+    return {
+        answer,
+        next_step: `${county.replace(/_/g, ' ')} County: ${fmt(loanAmt)} loan → ${zoneLabel} @ ${fmtRate(effectiveRate)}.`,
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (FHFA 2026 data — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `CA loan limits: ${county} County, ${fmt(price)} purchase, ${downPct}% down, ${fmt(loanAmt)} loan → ${zoneLabel}.`,
+            scenario_inputs: { county, price, down_pct: downPct, loan_amt: loanAmt, zone },
+            computed_financials: { loan_amount: loanAmt, effective_rate: effectiveRate, zone },
+            monthly_payment: 0,
+        },
+        loanLimitsSlider: {
+            county,
+            conformingLimit,
+            nationalBaseline,
+            price,
+            downPct,
+            taxRate,
+            insRate,
+            baseRate,
         },
     };
 }

@@ -57,6 +57,7 @@ export type CalcType =
     | 'dscr_needs_input'
     | 'fha_equity_timeline'
     | 'mip_duration_knowledge'
+    | 'loan_limits'
     | 'lab'
     | 'uw_starter'
     | 'about'
@@ -341,6 +342,15 @@ export function isJumboQuestion(q: string): boolean {
     return /\bjumbo\s*(loan|mortgage|financing|purchase)\b/i.test(q) ||
         /\bnon.?conforming\b/i.test(q) ||
         (/\$\s*[\d,]+[kKmM]?\b/.test(q) && /\bjumbo\b/i.test(q));
+}
+
+export function isLoanLimitsQuestion(q: string): boolean {
+    return /\b(?:loan\s*limit|conforming\s*limit|high.?balance\s*limit|jumbo\s*threshold|conforming\s*zone|high.?cost\s*area|fhfa\s*limit)\b/i.test(q) ||
+        /\b(?:stay\s+conforming|conforming\s+vs\s+jumbo|jumbo\s+vs\s+conforming)\b/i.test(q) ||
+        /\b(?:ca|california)\s+(?:loan\s*limit|conforming|high.?balance|jumbo\s+threshold)\b/i.test(q) ||
+        /\b(?:loan\s*limits?|conforming\s*limits?)\s+(?:for|in)\s+[a-z\s]+(?:county|ca|california)/i.test(q) ||
+        /(?:what|show|look\s*up)\s+(?:are|is)\s+(?:the\s+)?(?:ca|california\s+)?(?:2026\s+)?loan\s+limits?/i.test(q) ||
+        /(?:loanLimitsCounty)/i.test(q);
 }
 
 export function isAffordabilityQuestion(q: string): boolean {
@@ -700,7 +710,12 @@ export function dispatch(
         };
     }
 
-    // ── 6. JUMBO ──
+    // ── 6. LOAN LIMITS (CA 2026) ──
+    if (isLoanLimitsQuestion(q)) {
+        return { type: 'loan_limits', params: null, confidence: 1.0, assumptions: [] };
+    }
+
+    // ── 7. JUMBO ──
     if (isJumboQuestion(q)) {
         const price = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
         if (!price) {

@@ -30,6 +30,7 @@ import PropertyPreviewCard from '@/components/PropertyPreviewCard';
 import type { PropertyCardData } from '@/components/PropertyPreviewCard';
 import PropertyIntelligenceCard from '@/components/PropertyIntelligenceCard';
 import type { CMACardData } from '@/components/PropertyIntelligenceCard';
+import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
 
 
 
@@ -375,6 +376,10 @@ type ApiResponse = {
     refiSlider?: {
         balance: number; currentRate: number; newRate: number;
         termMonths: number; closingCosts: number;
+    } | null;
+    loanLimitsSlider?: {
+        county: string; conformingLimit: number; nationalBaseline: number;
+        price: number; downPct: number; taxRate: number; insRate: number; baseRate: number;
     } | null;
     propertyCard?: {
         source: string; url: string; parsedBy: string; parseWarnings: string[];
@@ -2481,6 +2486,17 @@ export default function Page() {
                                                             <RefiSliderCard
                                                                 {...m.meta.refiSlider}
                                                                 onRunScenario={(seed) => send(seed)}
+                                                            />
+                                                        )}
+                                                        {/* CA Loan Limits slider card */}
+                                                        {m.meta.loanLimitsSlider && !loading && typingId === null && (
+                                                            <LoanLimitsSliderCard
+                                                                {...m.meta.loanLimitsSlider}
+                                                                onRunScenario={(seed, sliderParams) => {
+                                                                    pendingParamOverridesRef.current = sliderParams;
+                                                                    setPendingParamOverrides(sliderParams);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
                                                             />
                                                         )}
                                                         {/* Smart follow-up chips — only show when typewriter is done */}

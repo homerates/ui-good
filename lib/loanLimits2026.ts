@@ -590,6 +590,282 @@ export function classifyLoan(
     }
 }
 
+// ─── ZIP → County lookup ─────────────────────────────────────────────────────
+
+/**
+ * 3-digit ZIP prefix → CA county.
+ * Covers most CA markets; edge-case overrides in ZIP5_TO_COUNTY below.
+ */
+const ZIP_PREFIX_TO_COUNTY: Record<string, string> = {
+    // Los Angeles County
+    '900': 'LOS ANGELES', '901': 'LOS ANGELES', '902': 'LOS ANGELES',
+    '903': 'LOS ANGELES', '904': 'LOS ANGELES', '905': 'LOS ANGELES',
+    '906': 'LOS ANGELES', '907': 'LOS ANGELES', '908': 'LOS ANGELES',
+    '910': 'LOS ANGELES', '911': 'LOS ANGELES', '912': 'LOS ANGELES',
+    '913': 'LOS ANGELES', '914': 'LOS ANGELES', '915': 'LOS ANGELES',
+    '916': 'LOS ANGELES', '917': 'LOS ANGELES', '918': 'LOS ANGELES',
+    // San Diego
+    '919': 'SAN DIEGO', '920': 'SAN DIEGO', '921': 'SAN DIEGO', '922': 'SAN DIEGO',
+    // San Bernardino
+    '923': 'SAN BERNARDINO', '924': 'SAN BERNARDINO',
+    // Riverside
+    '925': 'RIVERSIDE', '928': 'RIVERSIDE',
+    // Orange County
+    '926': 'ORANGE', '927': 'ORANGE',
+    // Ventura
+    '930': 'VENTURA', '931': 'VENTURA',
+    // Kern
+    '932': 'KERN', '933': 'KERN',
+    // San Luis Obispo
+    '934': 'SAN LUIS OBISPO',
+    // Santa Barbara
+    '935': 'SANTA BARBARA', '936': 'SANTA BARBARA',
+    // Fresno
+    '937': 'FRESNO', '938': 'FRESNO',
+    // Monterey
+    '939': 'MONTEREY',
+    // San Mateo
+    '940': 'SAN MATEO', '943': 'SAN MATEO', '944': 'SAN MATEO',
+    // San Francisco
+    '941': 'SAN FRANCISCO', '942': 'SAN FRANCISCO',
+    // Contra Costa
+    '945': 'CONTRA COSTA',
+    // Alameda
+    '946': 'ALAMEDA', '947': 'ALAMEDA', '948': 'ALAMEDA',
+    // Marin
+    '949': 'MARIN',
+    // Santa Clara
+    '950': 'SANTA CLARA', '951': 'SANTA CLARA',
+    // San Joaquin
+    '952': 'SAN JOAQUIN',
+    // Stanislaus / Merced
+    '953': 'STANISLAUS',
+    // Sonoma
+    '954': 'SONOMA',
+    // Humboldt
+    '955': 'HUMBOLDT',
+    // Sacramento
+    '956': 'SACRAMENTO', '957': 'SACRAMENTO', '958': 'PLACER',
+    // Northern CA
+    '959': 'BUTTE', '960': 'SHASTA', '961': 'LASSEN',
+};
+
+/** 5-digit ZIP overrides for edge cases where the 3-digit prefix maps to wrong county */
+const ZIP5_TO_COUNTY: Record<string, string> = {
+    // Orange County ZIPs starting with 926/927 (mostly Orange but some Riverside)
+    '92880': 'RIVERSIDE', '92881': 'RIVERSIDE', '92882': 'RIVERSIDE', '92883': 'RIVERSIDE',
+    // San Bernardino mixed
+    '91701': 'SAN BERNARDINO', '91710': 'SAN BERNARDINO', '91730': 'SAN BERNARDINO',
+    '91737': 'SAN BERNARDINO', '91739': 'SAN BERNARDINO', '91740': 'LOS ANGELES',
+    '91750': 'LOS ANGELES', '91752': 'RIVERSIDE',
+    // Santa Cruz (949xx prefix goes to Marin but Santa Cruz is 950xx)
+    '95003': 'SANTA CRUZ', '95005': 'SANTA CRUZ', '95006': 'SANTA CRUZ', '95007': 'SANTA CRUZ',
+    '95010': 'SANTA CRUZ', '95017': 'SANTA CRUZ', '95018': 'SANTA CRUZ', '95019': 'SANTA CRUZ',
+    '95060': 'SANTA CRUZ', '95061': 'SANTA CRUZ', '95062': 'SANTA CRUZ', '95063': 'SANTA CRUZ',
+    '95064': 'SANTA CRUZ', '95065': 'SANTA CRUZ', '95066': 'SANTA CRUZ', '95067': 'SANTA CRUZ',
+    '95070': 'SANTA CLARA', // Saratoga
+    // San Benito
+    '95023': 'SAN BENITO', '95024': 'SAN BENITO', '95045': 'SAN BENITO',
+    // Napa
+    '94503': 'NAPA', '94508': 'NAPA', '94515': 'NAPA', '94558': 'NAPA', '94559': 'NAPA',
+    '94562': 'NAPA', '94567': 'NAPA', '94574': 'NAPA', '94576': 'NAPA', '94581': 'NAPA',
+    '94599': 'NAPA',
+    // Solano (mixed with Contra Costa prefix)
+    '94510': 'SOLANO', '94512': 'SOLANO', '94533': 'SOLANO', '94534': 'SOLANO',
+    '94535': 'SOLANO', '94571': 'SOLANO', '94585': 'SOLANO', '94589': 'SOLANO',
+    '94590': 'SOLANO', '94591': 'SOLANO', '94592': 'SOLANO',
+    // Alameda vs Contra Costa mixed 945 prefix
+    '94520': 'CONTRA COSTA', '94521': 'CONTRA COSTA', '94523': 'CONTRA COSTA',
+    '94524': 'CONTRA COSTA', '94525': 'CONTRA COSTA', '94526': 'CONTRA COSTA',
+    '94527': 'CONTRA COSTA', '94528': 'CONTRA COSTA', '94529': 'CONTRA COSTA',
+    '94530': 'CONTRA COSTA', '94531': 'CONTRA COSTA', '94547': 'CONTRA COSTA',
+    '94549': 'CONTRA COSTA', '94553': 'CONTRA COSTA', '94556': 'CONTRA COSTA',
+    '94561': 'CONTRA COSTA', '94563': 'CONTRA COSTA', '94564': 'CONTRA COSTA',
+    '94565': 'CONTRA COSTA', '94570': 'CONTRA COSTA', '94572': 'CONTRA COSTA',
+    '94575': 'CONTRA COSTA', '94582': 'CONTRA COSTA', '94583': 'CONTRA COSTA',
+    '94595': 'CONTRA COSTA', '94596': 'CONTRA COSTA', '94597': 'CONTRA COSTA',
+    '94598': 'CONTRA COSTA',
+    // Placer (958 prefix is shared with Sacramento)
+    '95603': 'PLACER', '95604': 'PLACER', '95626': 'SACRAMENTO', '95630': 'SACRAMENTO',
+    '95648': 'PLACER', '95650': 'PLACER', '95658': 'PLACER', '95661': 'PLACER',
+    '95662': 'SACRAMENTO', '95663': 'PLACER', '95672': 'SACRAMENTO', '95677': 'PLACER',
+    '95678': 'PLACER', '95681': 'PLACER', '95682': 'EL DORADO', '95683': 'SACRAMENTO',
+    '95703': 'PLACER', '95713': 'PLACER', '95714': 'PLACER', '95715': 'PLACER',
+    '95717': 'PLACER', '95722': 'PLACER', '95728': 'PLACER', '95736': 'PLACER',
+    '95746': 'PLACER', '95747': 'PLACER', '95762': 'EL DORADO',
+    // El Dorado
+    '95667': 'EL DORADO', '95666': 'EL DORADO', '95664': 'EL DORADO',
+    // Yolo
+    '95605': 'YOLO', '95616': 'YOLO', '95617': 'YOLO', '95618': 'YOLO',
+    '95619': 'EL DORADO', '95620': 'YOLO', '95637': 'YOLO', '95645': 'YOLO',
+    '95691': 'YOLO', '95694': 'YOLO', '95695': 'YOLO', '95697': 'YOLO', '95698': 'YOLO',
+};
+
+/**
+ * Resolve a CA ZIP code to a county name.
+ * Returns null if the ZIP is not in California or not recognized.
+ */
+export function getCACountyByZip(zip: string): string | null {
+    const z = zip.replace(/\D/g, '').slice(0, 5);
+    if (z.length < 5) return null;
+    // Specific 5-digit override first
+    if (ZIP5_TO_COUNTY[z]) return ZIP5_TO_COUNTY[z];
+    // Fall back to 3-digit prefix
+    const prefix = z.slice(0, 3);
+    return ZIP_PREFIX_TO_COUNTY[prefix] ?? null;
+}
+
+// ─── County property tax rates ───────────────────────────────────────────────
+
+/**
+ * Effective annual property tax rates by CA county (Prop 13 base + special assessments).
+ * These are county-wide averages; individual parcels vary significantly (Mello-Roos, CFD, etc.).
+ * Source: Derived from county assessor reports and California State Board of Equalization data.
+ */
+export const CA_COUNTY_TAX_RATES: Record<string, number> = {
+    'ALAMEDA':         0.0125,
+    'ALPINE':          0.0105,
+    'AMADOR':          0.0105,
+    'BUTTE':           0.0110,
+    'CALAVERAS':       0.0105,
+    'COLUSA':          0.0105,
+    'CONTRA COSTA':    0.0120,
+    'DEL NORTE':       0.0105,
+    'EL DORADO':       0.0115,
+    'FRESNO':          0.0110,
+    'GLENN':           0.0105,
+    'HUMBOLDT':        0.0105,
+    'IMPERIAL':        0.0105,
+    'INYO':            0.0105,
+    'KERN':            0.0110,
+    'KINGS':           0.0105,
+    'LAKE':            0.0110,
+    'LASSEN':          0.0105,
+    'LOS ANGELES':     0.0118,
+    'MADERA':          0.0105,
+    'MARIN':           0.0110,
+    'MARIPOSA':        0.0105,
+    'MENDOCINO':       0.0105,
+    'MERCED':          0.0105,
+    'MODOC':           0.0105,
+    'MONO':            0.0105,
+    'MONTEREY':        0.0110,
+    'NAPA':            0.0110,
+    'NEVADA':          0.0105,
+    'ORANGE':          0.0115,
+    'PLACER':          0.0120,
+    'PLUMAS':          0.0105,
+    'RIVERSIDE':       0.0125,
+    'SACRAMENTO':      0.0115,
+    'SAN BENITO':      0.0110,
+    'SAN BERNARDINO':  0.0115,
+    'SAN DIEGO':       0.0115,
+    'SAN FRANCISCO':   0.0118,
+    'SAN JOAQUIN':     0.0110,
+    'SAN LUIS OBISPO': 0.0108,
+    'SAN MATEO':       0.0110,
+    'SANTA BARBARA':   0.0107,
+    'SANTA CLARA':     0.0120,
+    'SANTA CRUZ':      0.0110,
+    'SHASTA':          0.0105,
+    'SIERRA':          0.0105,
+    'SISKIYOU':        0.0105,
+    'SOLANO':          0.0115,
+    'SONOMA':          0.0110,
+    'STANISLAUS':      0.0110,
+    'SUTTER':          0.0105,
+    'TEHAMA':          0.0105,
+    'TRINITY':         0.0105,
+    'TULARE':          0.0105,
+    'TUOLUMNE':        0.0105,
+    'VENTURA':         0.0110,
+    'YOLO':            0.0115,
+    'YUBA':            0.0105,
+};
+
+// ─── County homeowner insurance rates ────────────────────────────────────────
+
+/**
+ * Default annual homeowner insurance rates by CA county (as % of home value).
+ * Higher in wildland-urban interface and fire-risk zones.
+ * These are ballpark defaults only — actual rates vary widely by insurer and parcel.
+ */
+export const CA_COUNTY_INS_RATES: Record<string, number> = {
+    // High fire risk (WUI, Wildfire Severity Zones)
+    'BUTTE':           0.0075,  // Camp Fire county
+    'LAKE':            0.0075,
+    'MENDOCINO':       0.0070,
+    'TRINITY':         0.0075,
+    'SISKIYOU':        0.0075,
+    'LASSEN':          0.0070,
+    'SHASTA':          0.0070,
+    'TEHAMA':          0.0070,
+    'MODOC':           0.0065,
+    // Moderate-high fire risk (foothills, mixed)
+    'EL DORADO':       0.0065,
+    'NEVADA':          0.0065,
+    'PLACER':          0.0060,
+    'TUOLUMNE':        0.0065,
+    'MARIPOSA':        0.0065,
+    'MADERA':          0.0060,
+    'CALAVERAS':       0.0060,
+    'AMADOR':          0.0060,
+    'ALPINE':          0.0060,
+    // Moderate fire risk (coastal mountains, wine country)
+    'VENTURA':         0.0055,
+    'SANTA BARBARA':   0.0055,
+    'MARIN':           0.0055,
+    'NAPA':            0.0055,
+    'SONOMA':          0.0055,
+    'MONTEREY':        0.0050,
+    'SANTA CRUZ':      0.0050,
+    'SAN LUIS OBISPO': 0.0050,
+    // Desert / inland high (fire + wind exposure)
+    'RIVERSIDE':       0.0060,
+    'SAN BERNARDINO':  0.0060,
+    'KERN':            0.0055,
+    'IMPERIAL':        0.0050,
+    'INYO':            0.0055,
+    'MONO':            0.0055,
+    // Standard (urban/suburban, lower fire risk)
+    'LOS ANGELES':     0.0045,
+    'ORANGE':          0.0045,
+    'SAN DIEGO':       0.0048,
+    'SAN FRANCISCO':   0.0040,
+    'SAN MATEO':       0.0042,
+    'SANTA CLARA':     0.0042,
+    'ALAMEDA':         0.0043,
+    'CONTRA COSTA':    0.0045,
+    'SOLANO':          0.0050,
+    'SACRAMENTO':      0.0048,
+    'SAN JOAQUIN':     0.0050,
+    'STANISLAUS':      0.0050,
+    'MERCED':          0.0050,
+    'FRESNO':          0.0050,
+    'KINGS':           0.0050,
+    'TULARE':          0.0050,
+    'YOLO':            0.0048,
+    'YUBA':            0.0050,
+    'SUTTER':          0.0050,
+    'PLUMAS':          0.0065,
+    'SIERRA':          0.0065,
+    'HUMBOLDT':        0.0055,
+    'DEL NORTE':       0.0055,
+    'COLUSA':          0.0050,
+    'GLENN':           0.0050,
+    'SAN BENITO':      0.0050,
+};
+
+/** Get the effective property tax rate for a CA county (defaults to 1.1% if unknown) */
+export function getCACountyTaxRate(county: string): number {
+    return CA_COUNTY_TAX_RATES[county.toUpperCase().replace(/\s+COUNTY$/i, '').trim()] ?? 0.0110;
+}
+
+/** Get the default insurance rate for a CA county (defaults to 0.5% if unknown) */
+export function getCACountyInsRate(county: string): number {
+    return CA_COUNTY_INS_RATES[county.toUpperCase().replace(/\s+COUNTY$/i, '').trim()] ?? 0.0050;
+}
+
 /**
  * Build a loan limits context string for injection into AI prompts.
  * Use this when a user mentions a California location and loan amount.

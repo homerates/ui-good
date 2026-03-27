@@ -13,13 +13,14 @@ import {
     calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale, calcOneExtraPaymentPerYear,
     calcVA, calcJumbo,
 } from "../../../lib/calcEngine";
-import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
+import { dispatch, isRefiQuestion, isLoanLimitsQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
     buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildVACard, buildVANeedsInputCard, buildJumboCard,
+    buildLoanLimitsCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
     buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
     buildUWStarterCard, buildHowItWorksCard, getContextChips,
@@ -29,7 +30,10 @@ import {
     maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
 import { generateSourcesBundle } from "../../lib/sources-generator";
-import { buildLoanLimitsContext, getCALoanLimits } from "../../../lib/loanLimits2026";
+import {
+    buildLoanLimitsContext, getCALoanLimits, getCACountyByZip,
+    getCACountyTaxRate, getCACountyInsRate, NATIONAL_CONFORMING_BASELINE,
+} from "../../../lib/loanLimits2026";
 import {
     getRecentScenarioHistory,
     buildSystemPromptWithMemory,
@@ -3636,6 +3640,9 @@ ${uwAnswerText}`,
                 purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeysJumbo.filter(k => _jumboLabelMap[k]).map(k => _jumboLabelMap[k]);
+        } else if ((paramOverrides as any).loanLimitsCounty != null || isLoanLimitsQuestion(question)) {
+            (calcDispatch as any).type = 'loan_limits';
+            (calcDispatch as any).params = null;
         } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
             // isDSCR flag without rent → context-aware needs_input card, not conventional
             (calcDispatch as any).type = 'dscr_needs_input';
@@ -3926,6 +3933,9 @@ ${uwAnswerText}`,
                 purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeysJumbo.filter(k => _jumboLabelMap[k]).map(k => _jumboLabelMap[k]);
+        } else if ((paramOverrides as any).loanLimitsCounty != null || isLoanLimitsQuestion(question)) {
+            (calcDispatch as any).type = 'loan_limits';
+            (calcDispatch as any).params = null;
         } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
             // isDSCR flag without rent → context-aware needs_input card, not conventional
             (calcDispatch as any).type = 'dscr_needs_input';
@@ -4118,6 +4128,55 @@ ${uwAnswerText}`,
                 calcCard = buildVANeedsInputCard(fredRateForCard); // reuse needs-input pattern — jumbo-specific card optional later
                 calcDebugModel = 'jumbo_needs_input';
 
+            } else if (calcDispatch.type === 'loan_limits') {
+                // ── California 2026 Loan Limits explorer ──
+                // Resolve county from: paramOverrides.loanLimitsCounty > question ZIP > question city/county > fallback LA
+                const _llCountyOverride = (paramOverrides as any)?.loanLimitsCounty as string | undefined;
+                let _llCounty: string = 'LOS ANGELES'; // default
+
+                if (_llCountyOverride) {
+                    _llCounty = _llCountyOverride.toUpperCase().replace(/\s+COUNTY$/i, '').trim();
+                } else {
+                    // Try ZIP from question
+                    const _zipMatch = question.match(/\b(9[0-6]\d{3})\b/);
+                    if (_zipMatch) {
+                        const _fromZip = getCACountyByZip(_zipMatch[1]);
+                        if (_fromZip) _llCounty = _fromZip;
+                    } else {
+                        // Try city/county name from question using getCALoanLimits
+                        const _wordMatches = question.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) ?? [];
+                        for (const w of _wordMatches) {
+                            const _t = getCALoanLimits(w, 1);
+                            if (_t) { _llCounty = _t.county; break; }
+                        }
+                    }
+                }
+
+                const _llLimits = getCALoanLimits(_llCounty, 1);
+                const _llConforming = _llLimits?.conformingLimit ?? 806500;
+                const _llBaseline   = NATIONAL_CONFORMING_BASELINE.units1;
+                const _llTaxRate    = getCACountyTaxRate(_llCounty);
+                const _llInsRate    = getCACountyInsRate(_llCounty);
+                const _llBaseRate   = fred?.mort30Avg ?? 6.75;
+
+                // Default price: just above the conforming limit so the zone is interesting
+                const _llParamPrice = (paramOverrides as any)?.purchasePrice;
+                const _llPrice      = _llParamPrice ?? Math.round(_llConforming * 1.1 / 25000) * 25000;
+                const _llDownPct    = (paramOverrides as any)?.downPaymentPct ?? 20;
+
+                calcCard = buildLoanLimitsCard({
+                    county:          _llCounty,
+                    conformingLimit: _llConforming,
+                    nationalBaseline: _llBaseline,
+                    price:           _llPrice,
+                    downPct:         _llDownPct,
+                    taxRate:         _llTaxRate,
+                    insRate:         _llInsRate,
+                    baseRate:        _llBaseRate,
+                    zip:             (paramOverrides as any)?.zip,
+                });
+                calcDebugModel = 'calcEngine-loan-limits';
+
             } else if (calcDispatch.type === 'conventional' && calcDispatch.params) {
                 const result = calcConventional(calcDispatch.params as any);
                 calcCard = buildConventionalCard(result, calcAssumptions, fredRateForCard);
@@ -4219,6 +4278,7 @@ ${uwAnswerText}`,
                 affordabilitySlider: calcCard.affordabilitySlider ?? null,
                 dscrSlider: calcCard.dscrSlider ?? null,
                 refiSlider: calcCard.refiSlider ?? null,
+                loanLimitsSlider: calcCard.loanLimitsSlider ?? null,
                 debug: {
                     requestedModel: 'calcEngine',
                     servedModel: calcDebugModel,
