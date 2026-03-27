@@ -1,57 +1,8 @@
 'use client';
 // app/components/WelcomeScreen.tsx
-// Blank state welcome screen — replaces "New chat. What do you want to figure out?"
-// Renders inside the existing message bubble flow when messages[0] is the placeholder
-// Props: send(seed: string) — fires the question directly into the chat
+// Phase-2 welcome screen — value-first scenario previews + live rate hero
 
 import React, { useEffect, useState } from 'react';
-
-
-// Persona → seed mapping
-const PERSONAS = [
-    {
-        icon: '🏠',
-        label: 'Buying a Home',
-        desc: 'Affordability, payments, loan types',
-        seed: 'I make $95,000 a year and have $35,000 saved — how much house can I afford?',
-        accent: '#3b82f6',
-    },
-    {
-        icon: '🔁',
-        label: 'Refinancing',
-        desc: 'Breakeven, savings, trigger rate',
-        seed: 'What would refinancing look like on a $450,000 mortgage at 7.25%? Show me breakeven and monthly savings.',
-        accent: '#10b981',
-    },
-    {
-        icon: '📐',
-        label: 'Investment Property',
-        desc: 'DSCR, cash flow, rental analysis',
-        seed: 'DSCR loan on a $400,000 rental property with $2,800/mo rent and 25% down — does it cash flow?',
-        accent: '#f59e0b',
-    },
-    {
-        icon: '🗝️',
-        label: 'FHA Loan',
-        desc: 'Low down payment, MIP, qualification',
-        seed: 'FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP.',
-        accent: '#8b5cf6',
-    },
-    {
-        icon: '🎖️',
-        label: 'VA Loan',
-        desc: 'No down payment, no PMI, funding fee',
-        seed: 'VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee.',
-        accent: '#dc2626',
-    },
-    {
-        icon: '🏛️',
-        label: 'Jumbo Loan',
-        desc: 'Up to $5M, no PMI, 20% min down',
-        seed: 'Jumbo loan on a $1,500,000 home with 20% down — show me the full payment breakdown and reserve requirements.',
-        accent: '#7c3aed',
-    },
-];
 
 // Quick scenario chips — fires immediately into chat
 const QUICK_CHIPS = [
@@ -64,16 +15,60 @@ const QUICK_CHIPS = [
     { label: 'CA loan limits · LA County 2026', seed: 'California loan limits for Los Angeles County — show me the 2026 conforming, high balance, and jumbo thresholds' },
     { label: 'Refi: $400k at 7% → breakeven?', seed: 'I have a $400,000 mortgage at 7% — what rate do I need for a 3-year breakeven?' },
     { label: 'How much house on $120k salary?', seed: 'I make $120,000 a year and have $42,000 saved — how much house can I afford?' },
-    { label: 'HomeRates vs ChatGPT — what\'s the difference?', seed: 'About HomeRates: chatgpt — how is HomeRates.ai different from ChatGPT for mortgage questions?' },
+    { label: 'HomeRates vs ChatGPT', seed: 'About HomeRates: chatgpt — how is HomeRates.ai different from ChatGPT for mortgage questions?' },
 ];
 
-// Price Check persona card definition
-const PRICE_CHECK_PERSONA = {
-    icon: '🔎',
-    label: 'Price Check',
-    desc: 'Paste any Zillow or Redfin URL — instant PITI',
-    accent: '#4f46e5',
-};
+// Scenario preview cards — show icon + title + teaser numbers
+const SCENARIOS = [
+    {
+        icon: '🏠',
+        label: 'Can I afford it?',
+        accent: '#3b82f6',
+        line1: '~$460k max home',
+        line2: '~$2,800/mo on $120k salary',
+        seed: 'I make $120,000 a year and have $42,000 saved — how much house can I afford?',
+    },
+    {
+        icon: '🔁',
+        label: 'Should I refi?',
+        accent: '#10b981',
+        line1: '~$340/mo savings',
+        line2: 'Break even in ~26 months',
+        seed: 'What would refinancing look like on a $450,000 mortgage at 7.25%? Show me breakeven and monthly savings.',
+    },
+    {
+        icon: '📐',
+        label: 'Cash flow check',
+        accent: '#f59e0b',
+        line1: 'DSCR 1.12 — cash flows',
+        line2: '$400k rental · $2,800/mo rent',
+        seed: 'DSCR loan on a $400,000 rental property with $2,800/mo rent and 25% down — does it cash flow?',
+    },
+    {
+        icon: '🗝️',
+        label: 'FHA low down',
+        accent: '#8b5cf6',
+        line1: '3.5% down · $13,860 to close',
+        line2: '$2,540/mo incl. MIP on $400k',
+        seed: 'FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP.',
+    },
+    {
+        icon: '🎖️',
+        label: 'VA — $0 down',
+        accent: '#dc2626',
+        line1: 'No down · no PMI',
+        line2: '$500k home · full breakdown',
+        seed: 'VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee.',
+    },
+    {
+        icon: '🏛️',
+        label: 'Jumbo $1.5M',
+        accent: '#7c3aed',
+        line1: '20% down · ~$8,900/mo',
+        line2: 'Reserves & qualification guide',
+        seed: 'Jumbo loan on a $1,500,000 home with 20% down — show me the full payment breakdown and reserve requirements.',
+    },
+];
 
 // Fallback values shown while the live fetch is in-flight
 const TICKER_FALLBACK = [
@@ -93,6 +88,9 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
     const [visible, setVisible] = useState(false);
     const [tickerItems, setTickerItems] = useState(TICKER_FALLBACK);
     const [pcUrl, setPcUrl] = useState('');
+    // Hero rate — pulled from ticker once loaded
+    const [heroRate, setHeroRate] = useState<string | null>(null);
+    const [heroSub, setHeroSub] = useState<string | null>(null);
 
     function submitPriceCheck() {
         const url = pcUrl.trim();
@@ -109,6 +107,14 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
             .then((json) => {
                 if (!cancelled && json?.ok && Array.isArray(json.items)) {
                     setTickerItems(json.items);
+                    // Pull 30Y fixed for the hero
+                    const thirtyY = json.items.find((it: any) =>
+                        it.label?.includes('30Y') || it.label?.includes('30-Year')
+                    );
+                    if (thirtyY && thirtyY.value !== '—') {
+                        setHeroRate(thirtyY.value);
+                        setHeroSub(thirtyY.sub ?? 'today\'s rate');
+                    }
                 }
             })
             .catch(() => { /* keep fallback values */ });
@@ -166,21 +172,30 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 </div>
             </div>
 
-            {/* ── Headline ── */}
-            <div className="hr-headline">
-                <h1 className="hr-headline__title">
-                    What's your<br className="hr-headline__br--mobile" /> mortgage question?
-                </h1>
-                <p className="hr-headline__sub">
-                    Real math · Live rates · No sales pitch
-                </p>
+            {/* ── Headline + hero rate ── */}
+            <div className="hr-hero">
+                <div className="hr-hero__text">
+                    <h1 className="hr-headline__title">
+                        What's your<br className="hr-headline__br--mobile" /> mortgage question?
+                    </h1>
+                    <p className="hr-headline__sub">
+                        Real math · Live rates · No sales pitch
+                    </p>
+                </div>
+                {heroRate && (
+                    <div className="hr-hero__rate" onClick={() => onSend('What is today\'s 30-year fixed mortgage rate and what does it mean for a $400,000 loan?')}>
+                        <span className="hr-hero__rate-value">{heroRate}</span>
+                        <span className="hr-hero__rate-label">30Y Fixed</span>
+                        <span className="hr-hero__rate-sub">{heroSub}</span>
+                    </div>
+                )}
             </div>
 
             {/* ── Price Check featured entry — inline paste input ── */}
             <div className="hr-price-check">
-                <span className="hr-price-check__icon">{PRICE_CHECK_PERSONA.icon}</span>
+                <span className="hr-price-check__icon">🔎</span>
                 <span className="hr-price-check__body">
-                    <span className="hr-price-check__label">{PRICE_CHECK_PERSONA.label}</span>
+                    <span className="hr-price-check__label">Price Check</span>
                     <form
                         className="hr-price-check__form"
                         onSubmit={(e) => { e.preventDefault(); submitPriceCheck(); }}
@@ -192,7 +207,6 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                             value={pcUrl}
                             onChange={(e) => setPcUrl(e.target.value)}
                             onPaste={(e) => {
-                                // Auto-submit on paste if it looks like a URL
                                 const text = e.clipboardData.getData('text').trim();
                                 if (text.startsWith('http')) {
                                     e.preventDefault();
@@ -208,26 +222,29 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 </span>
             </div>
 
-            {/* ── Persona cards ── */}
-            <div className="hr-personas">
-                {PERSONAS.map((p, i) => (
-                    <button
-                        key={p.label}
-                        className="hr-persona"
-                        onClick={() => onSend(p.seed)}
-                        style={{
-                            animationDelay: `${120 + i * 60}ms`,
-                            ['--persona-accent' as any]: p.accent,
-                        }}
-                    >
-                        <span className="hr-persona__icon" style={{ color: p.accent }}>{p.icon}</span>
-                        <span className="hr-persona__label">{p.label}</span>
-                        <span className="hr-persona__desc">{p.desc}</span>
-                    </button>
-                ))}
+            {/* ── Scenario preview cards (horizontal scroll) ── */}
+            <div className="hr-scenarios-wrap">
+                <div className="hr-scenarios">
+                    {SCENARIOS.map((s, i) => (
+                        <button
+                            key={s.label}
+                            className="hr-scenario"
+                            onClick={() => onSend(s.seed)}
+                            style={{
+                                animationDelay: `${100 + i * 55}ms`,
+                                ['--scenario-accent' as any]: s.accent,
+                            }}
+                        >
+                            <span className="hr-scenario__icon" style={{ color: s.accent }}>{s.icon}</span>
+                            <span className="hr-scenario__label">{s.label}</span>
+                            <span className="hr-scenario__line1">{s.line1}</span>
+                            <span className="hr-scenario__line2">{s.line2}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* ── Quick chips ── */}
+            {/* ── Quick chips (horizontal scroll) ── */}
             <div className="hr-quick">
                 <span className="hr-quick__label">Quick scenarios</span>
                 <div className="hr-quick__chips">
@@ -273,18 +290,16 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-ticker {
                     display: flex;
                     align-items: center;
-                    background: #f0f4f8;
-                    border: 1px solid #e2e8f0;
+                    background: var(--surface, #f0f4f8);
+                    border: 1px solid var(--border, #e2e8f0);
                     border-radius: 10px;
                     padding: 10px 0 10px 14px;
                     margin-bottom: 20px;
                     overflow: hidden;
                     gap: 0;
-                    /* Fade edges so duplicate items dissolve in/out naturally */
                     -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 80%, transparent 100%);
                     mask-image: linear-gradient(to right, transparent 0%, black 5%, black 80%, transparent 100%);
                 }
-                /* Scrolling track — holds 2 identical sets for seamless loop */
                 .hr-ticker__track {
                     display: flex;
                     align-items: center;
@@ -292,9 +307,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     min-width: 0;
                     animation: tickerScroll 28s linear infinite;
                 }
-                .hr-ticker__track:hover {
-                    animation-play-state: paused;
-                }
+                .hr-ticker__track:hover { animation-play-state: paused; }
                 @keyframes tickerScroll {
                     from { transform: translateX(0); }
                     to   { transform: translateX(-50%); }
@@ -305,7 +318,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     align-items: flex-start;
                     padding: 0 16px 0 0;
                     margin-right: 16px;
-                    border-right: 1px solid #e2e8f0;
+                    border-right: 1px solid var(--border, #e2e8f0);
                     min-width: max-content;
                     flex-shrink: 0;
                 }
@@ -313,20 +326,20 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     font-size: 9px;
                     font-weight: 700;
                     letter-spacing: 0.08em;
-                    color: #94a3b8;
+                    color: var(--text-weak, #94a3b8);
                     text-transform: uppercase;
                     margin-bottom: 2px;
                 }
                 .hr-ticker__value {
                     font-size: 15px;
                     font-weight: 700;
-                    color: #0f172a;
+                    color: var(--text, #0f172a);
                     font-variant-numeric: tabular-nums;
                     letter-spacing: -0.01em;
                 }
                 .hr-ticker__sub {
                     font-size: 10px;
-                    color: #94a3b8;
+                    color: var(--text-weak, #94a3b8);
                     margin-top: 1px;
                 }
                 .hr-ticker__live {
@@ -341,6 +354,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     letter-spacing: 0.06em;
                     white-space: nowrap;
                     padding-left: 16px;
+                    padding-right: 14px;
                 }
                 .hr-ticker__dot {
                     width: 6px;
@@ -348,92 +362,188 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     border-radius: 50%;
                     background: #22c55e;
                     animation: pulse 2s ease-in-out infinite;
+                    flex-shrink: 0;
                 }
                 @keyframes pulse {
                     0%, 100% { opacity: 1; transform: scale(1); }
                     50% { opacity: 0.5; transform: scale(0.8); }
                 }
 
-                /* ── Headline ── */
-                .hr-headline {
+                /* ── Hero (headline + live rate badge) ── */
+                .hr-hero {
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    gap: 16px;
                     margin-bottom: 20px;
                 }
+                .hr-hero__text {
+                    flex: 1;
+                    min-width: 0;
+                }
                 .hr-headline__title {
-                    font-size: clamp(1.6rem, 4vw, 2.2rem);
+                    font-size: clamp(1.55rem, 4vw, 2.1rem);
                     font-weight: 800;
-                    color: #0f172a;
+                    color: var(--text, #0f172a);
                     line-height: 1.15;
                     letter-spacing: -0.03em;
-                    margin: 0 0 10px;
+                    margin: 0 0 8px;
                 }
                 .hr-headline__sub {
-                    font-size: 0.95rem;
-                    color: #64748b;
-                    line-height: 1.6;
+                    font-size: 0.9rem;
+                    color: var(--text-weak, #64748b);
+                    line-height: 1.5;
                     margin: 0;
                     letter-spacing: 0.01em;
                 }
-                .hr-headline__br--mobile {
-                    display: none;
-                }
+                .hr-headline__br--mobile { display: none; }
                 @media (max-width: 480px) {
                     .hr-headline__br--mobile { display: block; }
                 }
-
-                /* ── Persona cards ── */
-                .hr-personas {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 8px;
-                    margin-bottom: 16px;
-                }
-                @media (max-width: 600px) {
-                    .hr-personas { grid-template-columns: 1fr 1fr; }
-                }
-                .hr-persona {
+                /* Hero rate badge */
+                .hr-hero__rate {
                     display: flex;
                     flex-direction: column;
-                    align-items: flex-start;
-                    padding: 14px 16px;
-                    background: #ffffff;
-                    border: 1.5px solid #e2e8f0;
-                    border-top: 3px solid var(--persona-accent, #e2e8f0);
-                    border-radius: 12px;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    padding: 12px 18px;
+                    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+                    border: 1.5px solid #6ee7b7;
+                    border-radius: 14px;
                     cursor: pointer;
-                    text-align: left;
-                    transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
-                    opacity: 0;
-                    animation: personaIn 0.4s ease forwards;
+                    transition: transform 0.12s, box-shadow 0.15s;
+                    min-width: 90px;
+                    box-shadow: 0 2px 10px rgba(16,185,129,0.12);
+                    text-align: center;
+                    animation: fadeSlideIn 0.5s ease 0.2s both;
                 }
-                @keyframes personaIn {
+                .hr-hero__rate:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 18px rgba(16,185,129,0.2);
+                }
+                .hr-hero__rate-value {
+                    font-size: 1.55rem;
+                    font-weight: 800;
+                    color: #065f46;
+                    font-variant-numeric: tabular-nums;
+                    letter-spacing: -0.03em;
+                    line-height: 1;
+                }
+                .hr-hero__rate-label {
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: #059669;
+                    text-transform: uppercase;
+                    letter-spacing: 0.07em;
+                    margin-top: 5px;
+                }
+                .hr-hero__rate-sub {
+                    font-size: 10px;
+                    color: #6ee7b7;
+                    margin-top: 2px;
+                    white-space: nowrap;
+                }
+                @keyframes fadeSlideIn {
                     from { opacity: 0; transform: translateY(6px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
-                .hr-persona:hover {
-                    border-color: var(--persona-accent, #e2e8f0);
-                    border-top-color: var(--persona-accent, #e2e8f0);
-                    box-shadow: 0 4px 18px color-mix(in srgb, var(--persona-accent, #10b981) 18%, transparent);
-                    transform: translateY(-2px);
+                /* Dark mode hero rate badge */
+                [data-theme="dark"] .hr-hero__rate {
+                    background: linear-gradient(135deg, #052e16 0%, #064e3b 100%);
+                    border-color: #059669;
+                    box-shadow: 0 2px 10px rgba(16,185,129,0.18);
                 }
-                .hr-persona:active { transform: translateY(0); }
-                .hr-persona__icon {
+                [data-theme="dark"] .hr-hero__rate-value { color: #6ee7b7; }
+                [data-theme="dark"] .hr-hero__rate-label { color: #34d399; }
+                [data-theme="dark"] .hr-hero__rate-sub { color: #059669; }
+
+                /* ── Scenario preview cards (horizontal scroll) ── */
+                .hr-scenarios-wrap {
+                    margin-bottom: 20px;
+                    /* Bleed mask to hint scroll */
+                    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+                    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+                }
+                .hr-scenarios {
+                    display: flex;
+                    gap: 10px;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    scrollbar-width: none;
+                    padding-bottom: 4px;
+                    /* On desktop show as a 3-col grid; on narrow it scrolls */
+                }
+                .hr-scenarios::-webkit-scrollbar { display: none; }
+                @media (min-width: 640px) {
+                    .hr-scenarios-wrap {
+                        -webkit-mask-image: none;
+                        mask-image: none;
+                    }
+                    .hr-scenarios {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        overflow-x: visible;
+                    }
+                }
+                .hr-scenario {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: flex-start;
+                    padding: 14px 16px 16px;
+                    background: var(--card, #ffffff);
+                    border: 1.5px solid var(--border, #e2e8f0);
+                    border-top: 3px solid var(--scenario-accent, #e2e8f0);
+                    border-radius: 14px;
+                    cursor: pointer;
+                    text-align: left;
+                    transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s, background 0.15s;
+                    opacity: 0;
+                    animation: scenarioIn 0.4s ease forwards;
+                    min-width: 180px;
+                    flex-shrink: 0;
+                }
+                @media (min-width: 640px) {
+                    .hr-scenario { min-width: 0; flex-shrink: unset; }
+                }
+                @keyframes scenarioIn {
+                    from { opacity: 0; transform: translateY(6px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .hr-scenario:hover {
+                    border-color: var(--scenario-accent, #e2e8f0);
+                    border-top-color: var(--scenario-accent, #e2e8f0);
+                    box-shadow: 0 4px 18px color-mix(in srgb, var(--scenario-accent, #10b981) 18%, transparent);
+                    transform: translateY(-2px);
+                    background: var(--surface, #f8fafc);
+                }
+                .hr-scenario:active { transform: translateY(0); }
+                .hr-scenario__icon {
                     font-size: 1.5rem;
                     margin-bottom: 8px;
                     line-height: 1;
                 }
-                .hr-persona__label {
-                    font-size: 0.88rem;
+                .hr-scenario__label {
+                    font-size: 0.84rem;
                     font-weight: 700;
-                    color: #0f172a;
-                    margin-bottom: 3px;
+                    color: var(--text, #0f172a);
+                    margin-bottom: 6px;
+                    line-height: 1.2;
                 }
-                .hr-persona__desc {
+                .hr-scenario__line1 {
                     font-size: 0.78rem;
-                    color: #94a3b8;
+                    font-weight: 600;
+                    color: var(--scenario-accent, #10b981);
+                    line-height: 1.4;
+                    margin-bottom: 2px;
+                }
+                .hr-scenario__line2 {
+                    font-size: 0.72rem;
+                    color: var(--text-weak, #94a3b8);
                     line-height: 1.4;
                 }
 
-                /* ── Quick chips ── */
+                /* ── Quick chips (horizontal scroll on mobile, wrap on desktop) ── */
                 .hr-quick {
                     display: flex;
                     flex-direction: column;
@@ -442,27 +552,38 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-quick__label {
                     font-size: 11px;
                     font-weight: 600;
-                    color: #94a3b8;
+                    color: var(--text-weak, #94a3b8);
                     text-transform: uppercase;
                     letter-spacing: 0.07em;
                 }
                 .hr-quick__chips {
                     display: flex;
-                    flex-wrap: wrap;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    scrollbar-width: none;
                     gap: 8px;
+                    padding-bottom: 4px;
+                }
+                .hr-quick__chips::-webkit-scrollbar { display: none; }
+                @media (min-width: 640px) {
+                    .hr-quick__chips {
+                        flex-wrap: wrap;
+                        overflow-x: visible;
+                    }
                 }
                 .hr-chip {
                     padding: 8px 16px;
-                    background: #ffffff;
-                    border: 1px solid #e2e8f0;
+                    background: var(--card, #ffffff);
+                    border: 1px solid var(--border, #e2e8f0);
                     border-radius: 99px;
                     font-size: 0.82rem;
                     font-weight: 500;
-                    color: #1e293b;
+                    color: var(--text, #1e293b);
                     cursor: pointer;
                     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
                     transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
                     white-space: nowrap;
+                    flex-shrink: 0;
                     opacity: 0;
                     animation: chipIn 0.35s ease forwards;
                 }
@@ -476,6 +597,10 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     color: #065f46;
                     box-shadow: 0 2px 8px rgba(16,185,129,0.12);
                 }
+                [data-theme="dark"] .hr-chip:hover {
+                    background: #052e16;
+                    color: #6ee7b7;
+                }
                 .hr-chip--price-check {
                     border-color: #c7d2fe;
                     background: #eef2ff;
@@ -488,6 +613,11 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     color: #3730a3;
                     box-shadow: 0 2px 8px rgba(79,70,229,0.15);
                 }
+                [data-theme="dark"] .hr-chip--price-check {
+                    border-color: #3730a3;
+                    background: #1e1b4b;
+                    color: #a5b4fc;
+                }
 
                 /* ── Price Check featured banner ── */
                 .hr-price-check {
@@ -496,7 +626,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     gap: 14px;
                     width: 100%;
                     padding: 14px 18px;
-                    margin-bottom: 16px;
+                    margin-bottom: 20px;
                     background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
                     border: 1.5px solid #c7d2fe;
                     border-radius: 14px;
@@ -505,6 +635,11 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     opacity: 0;
                     animation: chipIn 0.4s ease 80ms forwards;
                     box-sizing: border-box;
+                }
+                [data-theme="dark"] .hr-price-check {
+                    background: linear-gradient(135deg, #1e1b4b 0%, #1c1033 100%);
+                    border-color: #3730a3;
+                    box-shadow: 0 2px 8px rgba(79,70,229,0.18);
                 }
                 .hr-price-check__icon {
                     font-size: 26px;
@@ -523,6 +658,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     color: #3730a3;
                     letter-spacing: -0.01em;
                 }
+                [data-theme="dark"] .hr-price-check__label { color: #a5b4fc; }
                 .hr-price-check__form {
                     display: flex;
                     align-items: center;
@@ -536,10 +672,14 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     border-radius: 8px;
                     font-size: 13px;
                     font-family: inherit;
-                    color: #1e293b;
-                    background: #ffffff;
+                    color: var(--text, #1e293b);
+                    background: var(--card, #ffffff);
                     outline: none;
                     transition: border-color 0.15s, box-shadow 0.15s;
+                }
+                [data-theme="dark"] .hr-price-check__input {
+                    border-color: #3730a3;
+                    background: #0d0b2a;
                 }
                 .hr-price-check__input:focus {
                     border-color: #4f46e5;
