@@ -3263,7 +3263,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
 
         return false;
     }
-    if (isUnderwritingGuidelineQuestion(question)) {
+    if (!isLoanLimitsQuestion(question) && isUnderwritingGuidelineQuestion(question)) {
         console.log('[UW Guidelines] Detected guideline question in answers route — calling AI with database');
 
         const uwDatabase = `
