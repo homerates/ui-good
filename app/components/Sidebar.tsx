@@ -496,6 +496,7 @@ export default function Sidebar(props: SidebarProps) {
                         alignItems: 'center',
                         marginBottom: 4,
                         position: 'relative',
+                        minWidth: 0,
                       }}
                       onMouseEnter={() => setHoverChatId(h.id)}
                       onMouseLeave={() => {
@@ -510,6 +511,7 @@ export default function Sidebar(props: SidebarProps) {
                         type="button"
                         style={{
                           flex: 1,
+                          minWidth: 0,
                           border: 'none',
                           background,
                           padding: '2px 4px',

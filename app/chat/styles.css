@@ -7,7 +7,7 @@
     position: sticky;
     top: 0;
     z-index: 900;
-    background: var(--surface, #ffffff);
+    background: rgba(10, 15, 30, 0.96);
     /* Prevents Chrome mobile flicker when scrolling */
     will-change: transform;
 }
@@ -76,8 +76,7 @@
     position: sticky;
     top: 0;
     z-index: 1000;
-    background: var(--surface, #f2f3f5);
-    /* or your current header bg */
+    background: rgba(10, 15, 30, 0.96);
 }
 
 /* Small screens: pin composer to bottom and prevent iOS zoom */
@@ -113,7 +112,7 @@
         position: sticky;
         top: 0;
         z-index: 1000;
-        background: var(--surface, #eff0f5);
+        background: rgba(10, 15, 30, 0.96);
     }
 
     .main .scroll {
