@@ -320,6 +320,7 @@ body {
   border-radius: 9999px;
   border: 1px solid var(--border);
   background: var(--card);
+  color: var(--text);
   cursor: pointer;
   font-size: 0.875rem;
 }

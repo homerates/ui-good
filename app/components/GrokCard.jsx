@@ -210,11 +210,12 @@ function ModernTable({ headers, rows }) {
         <div
             style={{
                 margin: "12px 0",
-                border: "1px solid rgba(0,0,0,0.10)",
+                border: "1px solid var(--border, rgba(0,0,0,0.10))",
                 borderRadius: "14px",
                 overflow: "hidden",
-                background: "#fff",
+                background: "var(--card, #fff)",
                 boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
+                color: "var(--text)",
             }}
         >
             <div style={{ overflowX: "auto" }}>
@@ -225,8 +226,8 @@ function ModernTable({ headers, rows }) {
                         style={{
                             display: "grid",
                             gridTemplateColumns,
-                            background: "rgba(0,0,0,0.035)",
-                            borderBottom: "1px solid rgba(0,0,0,0.10)",
+                            background: "var(--surface, rgba(0,0,0,0.035))",
+                            borderBottom: "1px solid var(--border, rgba(0,0,0,0.10))",
                         }}
                     >
                         {headers.map((h, i) => (
@@ -236,10 +237,10 @@ function ModernTable({ headers, rows }) {
                                     padding: "10px 12px",
                                     fontSize: "12px",
                                     fontWeight: 700,
-                                    color: "rgba(0,0,0,0.72)",
+                                    color: "var(--text-weak, rgba(0,0,0,0.72))",
                                     whiteSpace: "nowrap",
                                     textAlign: i === 0 ? "left" : numericCols.has(i) ? "right" : "left",
-                                    borderRight: i === colCount - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
+                                    borderRight: i === colCount - 1 ? "none" : "1px solid var(--border, rgba(0,0,0,0.06))",
                                 }}
                             >
                                 {h}
@@ -249,7 +250,7 @@ function ModernTable({ headers, rows }) {
 
                     {/* Rows */}
                     {rows.map((r, rowIdx) => {
-                        const bg = rowIdx % 2 === 0 ? "#fff" : "rgba(0,0,0,0.015)";
+                        const bg = rowIdx % 2 === 0 ? "var(--card, #fff)" : "var(--surface, rgba(0,0,0,0.015))";
                         return (
                             <div
                                 key={`r-${rowIdx}`}
@@ -257,7 +258,7 @@ function ModernTable({ headers, rows }) {
                                     display: "grid",
                                     gridTemplateColumns,
                                     background: bg,
-                                    borderBottom: rowIdx === rows.length - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
+                                    borderBottom: rowIdx === rows.length - 1 ? "none" : "1px solid var(--border, rgba(0,0,0,0.06))",
                                 }}
                             >
                                 {r.map((cell, colIdx) => (
@@ -267,12 +268,12 @@ function ModernTable({ headers, rows }) {
                                             padding: "10px 12px",
                                             fontSize: "13px",
                                             lineHeight: 1.35,
-                                            color: "rgba(0,0,0,0.88)",
+                                            color: "var(--text, rgba(0,0,0,0.88))",
                                             whiteSpace: "normal",
                                             wordBreak: "break-word",
                                             overflowWrap: "anywhere",
                                             textAlign: colIdx === 0 ? "left" : numericCols.has(colIdx) ? "right" : "left",
-                                            borderRight: colIdx === colCount - 1 ? "none" : "1px solid rgba(0,0,0,0.06)",
+                                            borderRight: colIdx === colCount - 1 ? "none" : "1px solid var(--border, rgba(0,0,0,0.06))",
                                         }}
                                     >
                                         {cell || "\u00A0"}
@@ -311,9 +312,10 @@ export default function GrokCard({ data, onFollowUp }) {
             className="grok-card"
             style={{
                 padding: "16px",
-                background: "var(--card-bg, #ffffff)",
+                background: "var(--card, #ffffff)",
                 borderRadius: "12px",
-                border: "1px solid rgba(0,0,0,0.08)",
+                border: "1px solid var(--border, rgba(0,0,0,0.08))",
+                color: "var(--text)",
                 marginTop: "12px",
                 whiteSpace: "normal",
             }}
@@ -326,7 +328,7 @@ export default function GrokCard({ data, onFollowUp }) {
                     alignItems: "baseline",
                     marginBottom: "6px",
                     fontSize: "10px",
-                    color: "rgba(0,0,0,0.32)",
+                    color: "var(--text-weak, rgba(0,0,0,0.32))",
                     letterSpacing: "0.02em",
                 }}
             >
@@ -401,7 +403,7 @@ export default function GrokCard({ data, onFollowUp }) {
                                             <code
                                                 style={{
                                                     fontSize: "0.95em",
-                                                    background: "rgba(0,0,0,0.04)",
+                                                    background: "var(--surface, rgba(0,0,0,0.04))",
                                                     padding: "1px 6px",
                                                     borderRadius: "6px",
                                                 }}
@@ -437,9 +439,9 @@ export default function GrokCard({ data, onFollowUp }) {
                 style={{
                     marginTop: "14px",
                     paddingTop: "10px",
-                    borderTop: "1px solid rgba(0,0,0,0.06)",
+                    borderTop: "1px solid var(--border, rgba(0,0,0,0.06))",
                     fontSize: "11px",
-                    color: "rgba(0,0,0,0.4)",
+                    color: "var(--text-weak, rgba(0,0,0,0.4))",
                     lineHeight: 1.5,
                 }}
             >
@@ -456,8 +458,9 @@ export default function GrokCard({ data, onFollowUp }) {
                             fontSize: "13px",
                             padding: "6px 10px",
                             borderRadius: "999px",
-                            border: "1px solid rgba(0,0,0,0.12)",
-                            background: "#f9fafb",
+                            border: "1px solid var(--border, rgba(0,0,0,0.12))",
+                            background: "var(--surface, #f9fafb)",
+                            color: "var(--text)",
                             cursor: "pointer",
                         }}
                     >
