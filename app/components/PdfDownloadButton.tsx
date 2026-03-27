@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export interface PdfDownloadButtonProps {
-    type: 'refi' | 'conventional' | 'fha' | 'affordability' | 'dscr';
+    type: 'refi' | 'conventional' | 'fha' | 'va' | 'affordability' | 'dscr';
     getParams: () => Record<string, unknown>;
     style?: React.CSSProperties;
 }

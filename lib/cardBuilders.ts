@@ -58,7 +58,8 @@ export interface BuiltCard {
         term: number;
         taxRate: number;
         insRate: number;
-        loanType: 'conventional' | 'fha';
+        loanType: 'conventional' | 'fha' | 'va';
+        vaFundingFeePct?: number;  // VA only — funding fee % (0 = exempt)
     };
     affordabilitySlider?: {
         annualIncome: number;
@@ -2573,9 +2574,10 @@ ${buydownSection}${dtiSection}
             downPct: r.downPaymentPct,
             rate: r.originalRatePct,
             term: r.termYears,
-            taxRate:  r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
-            insRate:  r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
-            loanType: 'conventional', // slider uses conventional math; VA specifics shown in card
+            taxRate:         r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
+            insRate:         r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            loanType:        'va' as const,
+            vaFundingFeePct: r.isExempt ? 0 : r.fundingFeePct,
         },
     };
 }

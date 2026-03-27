@@ -3606,11 +3606,12 @@ ${uwAnswerText}`,
         } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'va';
             (calcDispatch as any).params = {
-                purchasePrice:    paramOverrides.purchasePrice,
-                downPaymentPct:   paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0,
-                annualRatePct:    paramOverrides.annualRatePct,
-                fundingFeeExempt: !!(paramOverrides as any).vaFundingFeeExempt,
-                buydownPoints:    (paramOverrides as any).buydownPoints ?? 0,
+                purchasePrice:       paramOverrides.purchasePrice,
+                downPaymentPct:      paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0,
+                annualRatePct:       paramOverrides.annualRatePct,
+                fundingFeeExempt:    !!(paramOverrides as any).vaFundingFeeExempt,
+                customFundingFeePct: (paramOverrides as any).customFundingFeePct ?? undefined,
+                buydownPoints:       (paramOverrides as any).buydownPoints ?? 0,
             };
             const _changedKeysVA: string[] = (paramOverrides as any).changedKeys ?? [];
             const _vaLabelMap: Record<string, string> = {
@@ -3880,11 +3881,12 @@ ${uwAnswerText}`,
         } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'va';
             (calcDispatch as any).params = {
-                purchasePrice:    paramOverrides.purchasePrice,
-                downPaymentPct:   paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0,
-                annualRatePct:    paramOverrides.annualRatePct,
-                fundingFeeExempt: !!(paramOverrides as any).vaFundingFeeExempt,
-                buydownPoints:    (paramOverrides as any).buydownPoints ?? 0,
+                purchasePrice:       paramOverrides.purchasePrice,
+                downPaymentPct:      paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0,
+                annualRatePct:       paramOverrides.annualRatePct,
+                fundingFeeExempt:    !!(paramOverrides as any).vaFundingFeeExempt,
+                customFundingFeePct: (paramOverrides as any).customFundingFeePct ?? undefined,
+                buydownPoints:       (paramOverrides as any).buydownPoints ?? 0,
             };
             const _changedKeysVA: string[] = (paramOverrides as any).changedKeys ?? [];
             const _vaLabelMap: Record<string, string> = {
