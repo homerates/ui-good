@@ -1183,6 +1183,176 @@ export function calcDSCR(input: DSCRInput): DSCRResult {
 }
 
 // ─────────────────────────────────────────────
+// CALC: VA LOAN
+// ─────────────────────────────────────────────
+
+// 2025–2026 VA Funding Fee — first use only (subsequent use handled by LO)
+export const VA_FF_FIRST_LT5   = 0.0215;  // < 5% down  → 2.15%
+export const VA_FF_FIRST_5TO10 = 0.0150;  // 5–9.99%    → 1.50%
+export const VA_FF_FIRST_GE10  = 0.0125;  // ≥ 10%      → 1.25%
+
+export function vaFundingFeePct(downPaymentPct: number, exempt: boolean): number {
+    if (exempt) return 0;
+    if (downPaymentPct >= 10) return VA_FF_FIRST_GE10;
+    if (downPaymentPct >= 5)  return VA_FF_FIRST_5TO10;
+    return VA_FF_FIRST_LT5;
+}
+
+export interface VAInput {
+    purchasePrice: number;
+    downPaymentPct?: number;         // default 0 (no money down)
+    annualRatePct: number;
+    termYears?: number;              // default 30
+    fundingFeeExempt?: boolean;      // true → disability exemption, fee = 0
+    customFundingFeePct?: number;    // override table (e.g. subsequent use 3.3%)
+    propertyTaxRate?: number;
+    annualInsurance?: number;
+    hoaMonthly?: number;
+    monthlyDebts?: number;
+    annualIncome?: number;
+    buydownPoints?: number;          // seller-credit points (each = -0.25% rate)
+}
+
+export interface VAResult {
+    // Inputs echoed
+    purchasePrice: number;
+    downPaymentPct: number;
+    annualRatePct: number;           // effective rate after buydown
+    originalRatePct: number;         // rate before buydown
+    termYears: number;
+    // Loan structure
+    downPayment: number;
+    baseLoanAmount: number;          // purchase − down
+    fundingFee: number;              // $ amount rolled into loan
+    fundingFeePct: number;           // % used (0 if exempt)
+    totalLoanAmount: number;         // base + funding fee
+    ltv: number;
+    isExempt: boolean;
+    // Monthly breakdown
+    monthlyPI: number;
+    monthlyTax: number;
+    monthlyInsurance: number;
+    monthlyHOA: number;
+    totalMonthly: number;            // NO PMI
+    // Lifetime
+    totalInterest: number;
+    totalPayments: number;
+    // Conventional comparison (same price, same down, same rate — shows PMI avoided)
+    convMonthlyPI: number;
+    convMonthlyPMI: number;
+    convTotalMonthly: number;
+    vaSavingsVsConv: number;         // monthly savings (positive = VA wins)
+    // Buydown
+    buydownPoints: number;
+    buydownCost: number;             // $ cost at closing
+    buydownMonthlySavings: number;   // monthly P&I savings vs no-buydown
+    buydownBreakEvenMonths: number | null;
+    // Qualification
+    frontEndDTI: number | null;
+    backEndDTI: number | null;
+}
+
+export function calcVA(input: VAInput): VAResult {
+    const {
+        purchasePrice,
+        downPaymentPct = 0,
+        annualRatePct,
+        termYears = 30,
+        fundingFeeExempt = false,
+        customFundingFeePct,
+        propertyTaxRate = TAX_RATE_DEFAULT * 100,
+        annualInsurance = INS_ANNUAL_DEFAULT,
+        hoaMonthly = 0,
+        monthlyDebts = 0,
+        annualIncome,
+        buydownPoints = 0,
+    } = input;
+
+    // Each point lowers rate by 0.25%
+    const effectiveRate = Math.max(annualRatePct - buydownPoints * 0.25, 0);
+
+    const downPayment    = purchasePrice * (downPaymentPct / 100);
+    const baseLoanAmount = purchasePrice - downPayment;
+    const ltv            = purchasePrice > 0 ? baseLoanAmount / purchasePrice : 0;
+    const termMo         = termYears * 12;
+
+    // Funding fee
+    const ffPct      = customFundingFeePct != null
+        ? customFundingFeePct / 100
+        : vaFundingFeePct(downPaymentPct, fundingFeeExempt);
+    const fundingFee       = Math.round(baseLoanAmount * ffPct);
+    const totalLoanAmount  = baseLoanAmount + fundingFee;
+
+    // Monthly payment (P&I on total loan — funding fee rolled in)
+    const mPI  = monthlyPI(totalLoanAmount, effectiveRate, termMo);
+    const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
+    const mIns = annualInsurance / 12;
+    const mHOA = hoaMonthly;
+    const total = mPI + mTax + mIns + mHOA; // no PMI
+
+    const totInt = totalInterest(totalLoanAmount, effectiveRate, termMo);
+    const totPay = mPI * termMo;
+
+    // Conventional comparison — same down%, original rate, base loan (no funding fee), PMI if < 20%
+    const convPI  = monthlyPI(baseLoanAmount, annualRatePct, termMo);
+    const convPMI = monthlyPMI(baseLoanAmount, ltv);
+    const convTotal = convPI + mTax + mIns + convPMI + mHOA;
+
+    // Buydown analysis
+    let buydownCost = 0;
+    let buydownMonthlySavings = 0;
+    let buydownBreakEvenMonths: number | null = null;
+    if (buydownPoints > 0) {
+        buydownCost = Math.round(baseLoanAmount * buydownPoints * 0.01);
+        const piNoBuydown = monthlyPI(totalLoanAmount, annualRatePct, termMo);
+        buydownMonthlySavings = Math.max(0, Math.round(piNoBuydown - mPI));
+        buydownBreakEvenMonths = buydownMonthlySavings > 0
+            ? Math.ceil(buydownCost / buydownMonthlySavings) : null;
+    }
+
+    // DTI
+    let frontEndDTI: number | null = null;
+    let backEndDTI: number | null = null;
+    if (annualIncome && annualIncome > 0) {
+        const mIncome = annualIncome / 12;
+        frontEndDTI = Math.round((total / mIncome) * 1000) / 10;
+        backEndDTI  = Math.round(((total + monthlyDebts) / mIncome) * 1000) / 10;
+    }
+
+    return {
+        purchasePrice,
+        downPaymentPct,
+        annualRatePct:    effectiveRate,
+        originalRatePct:  annualRatePct,
+        termYears,
+        downPayment:      Math.round(downPayment),
+        baseLoanAmount:   Math.round(baseLoanAmount),
+        fundingFee,
+        fundingFeePct:    ffPct * 100,
+        totalLoanAmount:  Math.round(totalLoanAmount),
+        ltv,
+        isExempt:         fundingFeeExempt,
+        monthlyPI:        Math.round(mPI),
+        monthlyTax:       Math.round(mTax),
+        monthlyInsurance: Math.round(mIns),
+        monthlyHOA:       Math.round(mHOA),
+        totalMonthly:     Math.round(total),
+        totalInterest:    Math.round(totInt),
+        totalPayments:    Math.round(totPay),
+        convMonthlyPI:    Math.round(convPI),
+        convMonthlyPMI:   Math.round(convPMI),
+        convTotalMonthly: Math.round(convTotal),
+        vaSavingsVsConv:  Math.round(convTotal - total),
+        buydownPoints,
+        buydownCost,
+        buydownMonthlySavings,
+        buydownBreakEvenMonths,
+        frontEndDTI,
+        backEndDTI,
+    };
+}
+
+// ─────────────────────────────────────────────
 // BUILT-IN VERIFICATION TESTS
 // Run these on deploy: import { runCalcTests } from 'lib/calcEngine'
 // ─────────────────────────────────────────────

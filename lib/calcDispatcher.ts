@@ -24,6 +24,7 @@ import {
     AffordabilityInput,
     DSCRInput,
     FHAvsConvInput,
+    VAInput,
     FHA_FLOOR_2026,
     FHA_CEILING_2026,
     CONF_STANDARD,
@@ -46,6 +47,8 @@ export type CalcType =
     | 'affordability'
     | 'dscr'
     | 'refi_needs_input'
+    | 'va'
+    | 'va_needs_input'
     | 'fha_needs_input'
     | 'affordability_needs_input'
     | 'dscr_needs_input'
@@ -300,6 +303,16 @@ export function isDSCRQuestion(q: string): boolean {
     if (isAffordabilityQuestion(q)) return false;
     return /dscr|debt.?service.?coverage|investment property|cash.?flow|gross rent|pitia/i.test(q) ||
         (/\brent/i.test(q) && /\$[\s\d,]+k?\b/i.test(q) && /home|house|property|loan|mortgage/i.test(q));
+}
+
+export function isVAQuestion(q: string): boolean {
+    if (isFHAQuestion(q)) return false;
+    if (isDSCRQuestion(q)) return false;
+    return /\bva\s*(loan|mortgage|home\s*loan|purchase|benefit|entitlement|financing)\b/i.test(q) ||
+        /\b(veteran|veterans?|military|service\s*member|active\s*duty|reservist|national\s*guard)\b.{0,40}\b(loan|mortgage|home|buy|purchase|payment)\b/i.test(q) ||
+        /\bno\s*down\s*payment\b.{0,30}\b(va|veteran|military)\b/i.test(q) ||
+        /\bfunding\s*fee\b/i.test(q) ||
+        /\bva\b.{0,10}\b\$[\d,]+[kKmM]?\b/i.test(q);
 }
 
 export function isConventionalQuestion(q: string): boolean {
@@ -648,7 +661,35 @@ export function dispatch(
         };
     }
 
-    // ── 5. CONVENTIONAL ──
+    // ── 5. VA ──
+    if (isVAQuestion(q)) {
+        const price = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        if (!price) {
+            return { type: 'va_needs_input', params: null, confidence: 0, assumptions: [] };
+        }
+        const rate    = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
+        const downPct = extractDownPct(q) ?? 0;
+        const exempt  = /exempt|disability|disabled/i.test(q);
+        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        if (downPct === 0) assumptions.push('no down payment (VA default)');
+
+        return {
+            type: 'va',
+            params: {
+                purchasePrice:     price,
+                downPaymentPct:    downPct,
+                annualRatePct:     rate,
+                fundingFeeExempt:  exempt,
+                annualIncome:      extractIncome(q) ?? pullFromHistory(hist, extractIncome),
+                monthlyDebts:      extractMonthlyDebts(q),
+                propertyTaxRate:   extractTaxRate(q) ?? extractTaxRate(hist),
+            } as VAInput,
+            confidence: 1.0,
+            assumptions,
+        };
+    }
+
+    // ── 6. CONVENTIONAL ──
     if (isConventionalQuestion(q)) {
         const price = extractPrice(q);
         if (!price) return { type: 'conventional' as CalcType, params: null, confidence: 0, assumptions: [] };

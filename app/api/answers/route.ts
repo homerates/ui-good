@@ -11,6 +11,7 @@ import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculat
 import {
     calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
     calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale, calcOneExtraPaymentPerYear,
+    calcVA,
 } from "../../../lib/calcEngine";
 import { dispatch, isRefiQuestion } from "../../../lib/calcDispatcher";
 import {
@@ -18,6 +19,7 @@ import {
     buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
+    buildVACard, buildVANeedsInputCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
     buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
     buildUWStarterCard, buildHowItWorksCard, getContextChips,
@@ -3601,6 +3603,23 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            (calcDispatch as any).type = 'va';
+            (calcDispatch as any).params = {
+                purchasePrice:    paramOverrides.purchasePrice,
+                downPaymentPct:   paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0,
+                annualRatePct:    paramOverrides.annualRatePct,
+                fundingFeeExempt: !!(paramOverrides as any).vaFundingFeeExempt,
+                buydownPoints:    (paramOverrides as any).buydownPoints ?? 0,
+            };
+            const _changedKeysVA: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _vaLabelMap: Record<string, string> = {
+                annualRatePct:  `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+                buydownPoints:  `seller buying down ${(paramOverrides as any).buydownPoints} point(s)`,
+            };
+            (calcDispatch as any).assumptions = _changedKeysVA.filter(k => _vaLabelMap[k]).map(k => _vaLabelMap[k]);
         } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
             // isDSCR flag without rent → context-aware needs_input card, not conventional
             (calcDispatch as any).type = 'dscr_needs_input';
@@ -3858,6 +3877,23 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            (calcDispatch as any).type = 'va';
+            (calcDispatch as any).params = {
+                purchasePrice:    paramOverrides.purchasePrice,
+                downPaymentPct:   paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0,
+                annualRatePct:    paramOverrides.annualRatePct,
+                fundingFeeExempt: !!(paramOverrides as any).vaFundingFeeExempt,
+                buydownPoints:    (paramOverrides as any).buydownPoints ?? 0,
+            };
+            const _changedKeysVA: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _vaLabelMap: Record<string, string> = {
+                annualRatePct:  `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+                buydownPoints:  `seller buying down ${(paramOverrides as any).buydownPoints} point(s)`,
+            };
+            (calcDispatch as any).assumptions = _changedKeysVA.filter(k => _vaLabelMap[k]).map(k => _vaLabelMap[k]);
         } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
             // isDSCR flag without rent → context-aware needs_input card, not conventional
             (calcDispatch as any).type = 'dscr_needs_input';
@@ -3995,6 +4031,16 @@ ${uwAnswerText}`,
                     );
                 }
                 injectCmaChip(calcCard);
+
+            } else if (calcDispatch.type === 'va' && calcDispatch.params) {
+                const result = calcVA(calcDispatch.params as any);
+                calcCard = buildVACard(result, calcAssumptions, fredRateForCard);
+                calcDebugModel = 'calcEngine-va';
+                injectCmaChip(calcCard);
+
+            } else if (calcDispatch.type === 'va_needs_input') {
+                calcCard = buildVANeedsInputCard(fredRateForCard);
+                calcDebugModel = 'va_needs_input';
 
             } else if (calcDispatch.type === 'conventional' && calcDispatch.params) {
                 const result = calcConventional(calcDispatch.params as any);

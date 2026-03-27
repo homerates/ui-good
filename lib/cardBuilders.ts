@@ -25,6 +25,7 @@ import {
     ExtraPaymentResult,
     RefiEarlySaleResult,
     OneExtraPaymentPerYearResult,
+    VAResult,
 } from './calcEngine';
 import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 
@@ -2392,5 +2393,239 @@ export function buildHowItWorksCard(): BuiltCard {
         follow_up: follow_up_chips[0].label,
         follow_up_chips,
         confidence: '1.00 (HomeRates.ai — static how it works card)',
+    };
+}
+
+// ─────────────────────────────────────────────
+// VA LOAN CARD
+// ─────────────────────────────────────────────
+
+export function buildVACard(
+    r: VAResult,
+    assumptions: string[] = [],
+    fredRateStr?: string,
+): BuiltCard {
+    const rateStr  = fPct(r.annualRatePct);
+    const origRate = fPct(r.originalRatePct);
+    const assumptionNote = assumptions.length
+        ? assumptions.map(a => `> 💡 **Assumption:** ${a}`).join('\n') + '\n\n'
+        : '';
+    const fredNote = fredRateStr
+        ? `\n> 📡 **Live FRED rate:** ${fredRateStr} (VA rates typically 0.25–0.5% below conventional)\n`
+        : '';
+
+    // Funding fee row
+    const ffRow = r.isExempt
+        ? `| VA Funding Fee | **Exempt** (disability) |\n`
+        : `| VA Funding Fee | ${f$(r.fundingFee)} (${fPct(r.fundingFeePct)} — rolled in) |\n`;
+
+    const hoaRow = r.monthlyHOA > 0 ? `| HOA | ${f$(r.monthlyHOA)} |\n` : '';
+
+    // Buydown section — shown when points > 0
+    const buydownSection = r.buydownPoints > 0 ? `
+---
+
+## 🎯 Rate Buydown (Seller Credit)
+
+| | |
+|--|--|
+| Points Paid | ${r.buydownPoints} point${r.buydownPoints > 1 ? 's' : ''} |
+| Buydown Cost | ${f$(r.buydownCost)} |
+| Rate | ${origRate} → **${rateStr}** |
+| Monthly Savings | **${f$(r.buydownMonthlySavings)}/mo** |
+| Break-even | ${r.buydownBreakEvenMonths ? `${r.buydownBreakEvenMonths} months` : 'N/A'} |
+
+> 💡 Ask the seller to cover this at closing. VA allows seller concessions up to 4% of the purchase price.
+` : '';
+
+    // VA vs conventional comparison
+    const savingsNote = r.vaSavingsVsConv > 0
+        ? `\n> ✅ **VA saves ${f$(r.vaSavingsVsConv)}/mo vs conventional** — no PMI (${f$(r.convMonthlyPMI)}/mo avoided) + lower rate.\n`
+        : r.vaSavingsVsConv <= 0
+            ? `\n> ℹ️ VA monthly cost similar to conventional at this down payment — funding fee is the trade-off for no PMI.\n`
+            : '';
+
+    // DTI / income section
+    const dtiSection = r.frontEndDTI !== null ? `
+---
+
+## 📈 DTI Analysis
+
+| | |
+|--|--|
+| Front-end DTI | ${fPct1(r.frontEndDTI!)} *(VA guideline: ≤41%)* |
+| Back-end DTI | ${fPct1(r.backEndDTI!)} *(VA guideline: ≤41%)* |
+| Status | ${r.backEndDTI! <= 41 ? '✅ Within VA guidelines' : r.backEndDTI! <= 50 ? '⚠️ High — residual income analysis may still approve' : '❌ Exceeds standard VA guidelines'} |
+` : `
+---
+
+## 💰 Minimum Income to Qualify
+
+| DTI Guideline | Required Annual Income |
+|---------------|----------------------|
+| Conservative (28% front-end) | ~${fK(r.totalMonthly / 0.28 * 12)}/year |
+| VA Standard (41% back-end) | ~${fK(r.totalMonthly / 0.41 * 12)}/year |
+| Max w/ compensating factors (50%) | ~${fK(r.totalMonthly / 0.50 * 12)}/year |
+`;
+
+    const answer = `**VA Loan Analysis**
+${assumptionNote}${fredNote}
+**${f$(r.purchasePrice)} purchase · ${r.downPaymentPct > 0 ? `${r.downPaymentPct}% down` : 'no down payment'} · ${rateStr} · ${r.termYears}-year fixed**
+
+---
+
+## 🏠 Loan Structure
+
+| | |
+|--|--|
+| Purchase Price | ${f$(r.purchasePrice)} |
+| Down Payment | ${r.downPaymentPct > 0 ? `${f$(r.downPayment)} (${r.downPaymentPct}%)` : '**$0 (none required)**'} |
+| Base Loan | ${f$(r.baseLoanAmount)} |
+${ffRow}| **Total Loan** | **${f$(r.totalLoanAmount)}** |
+| LTV | ${fPct1(r.ltv * 100)} |
+
+---
+
+## 💰 Monthly Payment
+
+| Component | Amount |
+|-----------|--------|
+| Principal & Interest | ${f$(r.monthlyPI)} |
+| Property Taxes | ${f$(r.monthlyTax)} |
+| Home Insurance | ${f$(r.monthlyInsurance)} |
+${hoaRow}| **Total Monthly (PITI)** | **${f$(r.totalMonthly)}** |
+
+> ✅ **No PMI** — VA loans never require private mortgage insurance.
+${savingsNote}
+---
+
+## 📊 Lifetime Cost
+
+| | |
+|--|--|
+| Total Interest | ${f$(r.totalInterest)} |
+| Total Payments | ${f$(r.totalPayments)} |
+| Loan Payoff | ${r.termYears} years |
+
+---
+
+## 🏅 VA Eligibility Checklist
+
+- ✅ Active duty, veteran, or surviving spouse
+- ✅ Certificate of Eligibility (COE) required — get it at [VA.gov](https://www.va.gov)
+- ✅ Primary residence only
+- ✅ VA appraisal required (lender arranges)
+- ${r.isExempt ? '✅ Funding fee **exempt** — disability rating confirmed' : `ℹ️ Funding fee ${fPct(r.fundingFeePct)} (${f$(r.fundingFee)}) — rolled into loan, no cash needed`}
+${buydownSection}${dtiSection}
+---
+
+**Next Steps:**
+1. Request your COE at VA.gov or through your lender
+2. Compare VA lenders — rates vary 0.25–0.5% between lenders
+3. Factor in closing costs (~${fK(r.purchasePrice * 0.02)}) — seller can pay up to 4%`;
+
+    // Chips
+    const rateDown  = parseFloat((r.originalRatePct - 0.5).toFixed(2));
+    const priceUp   = Math.round(r.purchasePrice * 1.1 / 10000) * 10000;
+    const buydownRate = parseFloat((r.originalRatePct - 0.25).toFixed(2));
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `Rate drops to ${fPct(rateDown)} — new payment?`,
+            seed: `Same home, VA loan, rate drops to ${fPct(rateDown)}`,
+            paramOverrides: { annualRatePct: rateDown, purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, loanType: 'va' },
+            changedKeys: ['annualRatePct'],
+        },
+        {
+            label: `Seller buys down 1 point → ${fPct(buydownRate)}`,
+            seed: `VA loan on a ${fK(r.purchasePrice)} home at ${fPct(r.originalRatePct)}, seller credits 1 point to buy down rate`,
+            paramOverrides: { annualRatePct: r.originalRatePct, purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, loanType: 'va', buydownPoints: 1 },
+            changedKeys: ['buydownPoints'],
+        },
+        {
+            label: `What if the home is ${fK(priceUp)}?`,
+            seed: `VA loan on a ${fK(priceUp)} home at ${fPct(r.originalRatePct)}`,
+            paramOverrides: { purchasePrice: priceUp, downPaymentPct: r.downPaymentPct, annualRatePct: r.originalRatePct, loanType: 'va' },
+            changedKeys: ['purchasePrice'],
+        },
+        {
+            label: `5% down instead — how does funding fee change?`,
+            seed: `VA loan on a ${fK(r.purchasePrice)} home with 5% down at ${fPct(r.originalRatePct)}`,
+            paramOverrides: { purchasePrice: r.purchasePrice, downPaymentPct: 5, annualRatePct: r.originalRatePct, loanType: 'va' },
+            changedKeys: ['downPaymentPct'],
+        },
+    ];
+
+    return {
+        answer,
+        next_step: `VA loan approved at ${rateStr} — no down payment, no PMI. Monthly PITI: ${f$(r.totalMonthly)}.`,
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `VA loan: ${f$(r.purchasePrice)} purchase, ${r.downPaymentPct}% down, ${rateStr}, ${r.termYears}yr. Funding fee: ${f$(r.fundingFee)} (${r.isExempt ? 'exempt' : fPct(r.fundingFeePct)}). Monthly PITI: ${f$(r.totalMonthly)}.`,
+            scenario_inputs: { price: r.purchasePrice, down_pct: r.downPaymentPct, loan_type: 'va', rate: r.annualRatePct, funding_fee_pct: r.fundingFeePct, buydown_points: r.buydownPoints },
+            computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly, funding_fee: r.fundingFee, va_savings_vs_conv: r.vaSavingsVsConv },
+            monthly_payment: r.totalMonthly,
+        },
+        interactiveSlider: {
+            price: r.purchasePrice,
+            downPct: r.downPaymentPct,
+            rate: r.originalRatePct,
+            term: r.termYears,
+            taxRate:  r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
+            insRate:  r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            loanType: 'conventional', // slider uses conventional math; VA specifics shown in card
+        },
+    };
+}
+
+export function buildVANeedsInputCard(fredRateStr?: string): BuiltCard {
+    const fredNote = fredRateStr
+        ? `\n> 📡 **Live rate:** ${fredRateStr} (VA rates typically run 0.25–0.5% below conventional)\n`
+        : '';
+
+    const answer = `**VA Loan — What's the Purchase Price?**
+${fredNote}
+VA loans offer three major advantages for eligible veterans and service members:
+
+| Benefit | Detail |
+|---------|--------|
+| No down payment | 0% required (with full entitlement) |
+| No PMI | Saves $150–$400/mo vs conventional |
+| Competitive rates | Typically 0.25–0.5% below conventional |
+| Funding fee | 2.15% (first use, < 5% down) — rolled into loan |
+| Disability exempt | Funding fee waived with VA disability rating |
+
+To run your VA loan estimate, share:
+1. **Purchase price** (e.g. $450,000)
+2. **Down payment %** (0% is fine — or enter an amount if you're putting something down)
+3. **Rate** (optional — I'll use live FRED data if not provided)
+4. **Disability exempt?** (skip funding fee if you receive VA disability compensation)`;
+
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: '$400k home, 0% down',
+            seed: 'VA loan on a $400,000 home with no down payment',
+            paramOverrides: { purchasePrice: 400000, downPaymentPct: 0, loanType: 'va' },
+        },
+        {
+            label: '$600k home, 5% down',
+            seed: 'VA loan on a $600,000 home with 5% down',
+            paramOverrides: { purchasePrice: 600000, downPaymentPct: 5, loanType: 'va' },
+        },
+        {
+            label: 'Disability exempt — $500k home',
+            seed: 'VA loan on a $500,000 home, funding fee exempt (disability)',
+            paramOverrides: { purchasePrice: 500000, downPaymentPct: 0, loanType: 'va', vaFundingFeeExempt: true },
+        },
+    ];
+
+    return {
+        answer,
+        next_step: 'Share a purchase price to get your full VA loan breakdown.',
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (HomeRates.ai — needs input)',
     };
 }
