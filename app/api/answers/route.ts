@@ -3891,6 +3891,23 @@ ${uwAnswerText}`,
 
     const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
 
+    // Helper: inject CMA chip onto any calc card.
+    // With address → "Re-run Property Intelligence Report" (carries cma* params).
+    // Without address → inputOnly chip nudging user to paste a listing URL.
+    function injectCmaChip(card: any): void {
+        if (!card?.follow_up_chips) return;
+        if (paramOverrides?.cmaAddress) {
+            const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
+            const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
+            card.follow_up_chips = card.follow_up_chips.map((chip: any) =>
+                chip.paramOverrides ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } } : chip
+            );
+            card.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
+        } else {
+            card.follow_up_chips.push({ label: 'Property Intelligence Report — paste a listing URL', seed: 'Paste your Redfin or Zillow listing URL below to run a full Property Intelligence Report', inputOnly: true });
+        }
+    }
+
     {
         let calcCard: any = null;
         let calcDebugModel = '';
@@ -3942,6 +3959,7 @@ ${uwAnswerText}`,
                 const result = calcFHA(calcDispatch.params as any);
                 calcCard = buildFHACard(result, calcAssumptions, undefined, fredRateForCard);
                 calcDebugModel = 'calcEngine-fha';
+                injectCmaChip(calcCard);
 
             } else if (calcDispatch.type === 'mip_duration_knowledge') {
                 calcCard = buildMIPDurationCard(conversationHistory ?? '');
@@ -3963,12 +3981,7 @@ ${uwAnswerText}`,
                 const result = calcDSCR(calcDispatch.params as any);
                 calcCard = buildDSCRCard(result, calcAssumptions);
                 calcDebugModel = 'calcEngine-dscr';
-                // Re-run CMA chip — if these numbers came from a CMA card, let user re-run it
-                if (paramOverrides?.cmaAddress && calcCard?.follow_up_chips) {
-                    const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
-                    const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
-                    calcCard.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
-                }
+                injectCmaChip(calcCard);
 
             } else if (calcDispatch.type === 'dscr_needs_input') {
                 const _knownPrice = paramOverrides?.purchasePrice ?? (calcDispatch.params as any)?.purchasePrice ?? undefined;
@@ -3976,38 +3989,28 @@ ${uwAnswerText}`,
                 const _knownRate  = paramOverrides?.annualRatePct ?? fred?.mort30Avg ?? undefined;
                 calcCard = buildDSCRNeedsInputCard(fred?.mort30Avg ?? undefined, _knownPrice, _knownDown, _knownRate);
                 calcDebugModel = 'dscr_needs_input';
-                // Re-run CMA chip + forward cma fields into rent chips so the DSCR result also gets Re-run CMA
+                // Forward cma fields into rent chips so downstream DSCR result card also gets the chip
                 if (paramOverrides?.cmaAddress && calcCard?.follow_up_chips) {
-                    const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
                     const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
-                    // Inject cma fields into rent chips so downstream DSCR result card also has Re-run CMA
                     calcCard.follow_up_chips = calcCard.follow_up_chips.map((chip: any) =>
                         chip.paramOverrides?.grossMonthlyRent != null
                             ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } }
                             : chip
                     );
-                    calcCard.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
                 }
+                injectCmaChip(calcCard);
 
             } else if (calcDispatch.type === 'conventional' && calcDispatch.params) {
                 const result = calcConventional(calcDispatch.params as any);
                 calcCard = buildConventionalCard(result, calcAssumptions, fredRateForCard);
                 calcDebugModel = 'calcEngine-conventional';
-                // Re-run CMA chip — if this calc originated from a CMA card, surface it on every scenario
-                if (paramOverrides?.cmaAddress && calcCard?.follow_up_chips) {
-                    const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
-                    const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
-                    // Forward cma fields into all follow-up chips so Re-run CMA persists across scenario hops
-                    calcCard.follow_up_chips = calcCard.follow_up_chips.map((chip: any) =>
-                        chip.paramOverrides ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } } : chip
-                    );
-                    calcCard.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
-                }
+                injectCmaChip(calcCard);
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
                 const result = calcAffordability(calcDispatch.params as any);
                 calcCard = buildAffordabilityCard(result, calcAssumptions);
                 calcDebugModel = 'calcEngine-affordability';
+                injectCmaChip(calcCard);
 
             } else if (calcDispatch.type === 'affordability_needs_input') {
                 calcCard = buildAffordabilityNeedsInputCard(fred?.mort30Avg ?? undefined);

@@ -2474,8 +2474,17 @@ export default function Page() {
                                                                         type="button"
                                                                         className="follow-up-chip-btn"
                                                                         onClick={() => {
-                                                                            setInput(chip.seed);
                                                                             const chipParams = (chip as any).paramOverrides ?? null;
+                                                                            // inputOnly chips: fill input + focus, no API call
+                                                                            if ((chip as any).inputOnly) {
+                                                                                setInput(chip.seed);
+                                                                                setTimeout(() => {
+                                                                                    const el = document.querySelector('[data-testid="ask-pill"]') as HTMLInputElement;
+                                                                                    if (el) { el.select(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+                                                                                }, 50);
+                                                                                return;
+                                                                            }
+                                                                            setInput(chip.seed);
                                                                             setPendingParamOverrides(chipParams);
                                                                             // Track CMA context so slider re-runs can include Re-run CMA chip
                                                                             if (chipParams?.cmaAddress) {
