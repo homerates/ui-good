@@ -37,6 +37,13 @@ const PERSONAS = [
         seed: 'FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP.',
         accent: '#8b5cf6',
     },
+    {
+        icon: '🎖️',
+        label: 'VA Loan',
+        desc: 'No down payment, no PMI, funding fee',
+        seed: 'VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee.',
+        accent: '#dc2626',
+    },
 ];
 
 // Quick scenario chips — fires immediately into chat
@@ -45,6 +52,7 @@ const QUICK_CHIPS = [
     { label: 'FHA vs conventional on $400k', seed: 'Compare FHA 3.5% down vs conventional 5% down on a $400,000 home' },
     { label: 'What income for $500k home?', seed: 'What income do I need to qualify for a $500,000 home?' },
     { label: 'DSCR on $450k rental · $3,200 rent', seed: 'DSCR loan on a $450,000 rental property, $3,200/mo rent, 25% down' },
+    { label: 'VA loan · $550k · no down payment', seed: 'VA loan on a $550,000 home with no down payment at current rates' },
     { label: 'Refi: $400k at 7% → breakeven?', seed: 'I have a $400,000 mortgage at 7% — what rate do I need for a 3-year breakeven?' },
     { label: 'How much house on $120k salary?', seed: 'I make $120,000 a year and have $42,000 saved — how much house can I afford?' },
     { label: 'HomeRates vs ChatGPT — what\'s the difference?', seed: 'About HomeRates: chatgpt — how is HomeRates.ai different from ChatGPT for mortgage questions?' },
@@ -366,11 +374,11 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 /* ── Persona cards ── */
                 .hr-personas {
                     display: grid;
-                    grid-template-columns: repeat(2, 1fr);
+                    grid-template-columns: repeat(3, 1fr);
                     gap: 8px;
                     margin-bottom: 16px;
                 }
-                @media (max-width: 480px) {
+                @media (max-width: 600px) {
                     .hr-personas { grid-template-columns: 1fr 1fr; }
                 }
                 .hr-persona {
