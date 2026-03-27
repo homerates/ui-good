@@ -1171,7 +1171,11 @@ export default function Page() {
         }
         return null;
     }, [messages]);
+    // Ref mirrors pendingParamOverrides so stale closures (slider setTimeout) always read the latest value
+    const pendingParamOverridesRef = React.useRef<Record<string, any> | null>(null);
     const pendingChipSeedRef = React.useRef<string | null>(null);
+    // CMA context persisted across slider re-runs — set imperatively when any API response has a chip with cmaAddress
+    const cmaContextRef = React.useRef<Record<string, any> | null>(null);
 
     // overlays
     const [showSearch, setShowSearch] = useState(false);
@@ -2013,11 +2017,12 @@ export default function Page() {
                     ...body,
                     chat_id: activeId || tid,
                     memory_thread_id: existingMemoryThreadId,
-                    // Structured overrides from chip click — route.ts reads these directly
-                    ...(pendingParamOverrides ? { paramOverrides: pendingParamOverrides } : {}),
+                    // Structured overrides from chip/slider — read from ref (stale-closure safe)
+                    ...(pendingParamOverridesRef.current ? { paramOverrides: pendingParamOverridesRef.current } : {}),
                 };
 
             // Clear pending overrides — they're now in the payload, one-shot use
+            pendingParamOverridesRef.current = null;
             setPendingParamOverrides(null);
 
             // === End scenario routing ===
@@ -2035,6 +2040,26 @@ export default function Page() {
                 ? scenarioToApiResponse(raw?.answer?.meta?.grok ?? raw?.answer?.grok ?? raw?.answer ?? raw?.grok ?? raw)
                 : (raw as ApiResponse);
 
+            // Detect and persist CMA context — set as soon as any response has a chip with cmaAddress.
+            // Using a ref (not state/useMemo) ensures slider re-runs always see the latest value
+            // regardless of stale closures or whether messages-array meta is populated yet.
+            const _cmaChip = raw?.follow_up_chips?.find((c: any) => c.paramOverrides?.cmaAddress);
+            if (_cmaChip?.paramOverrides) {
+                const _po = _cmaChip.paramOverrides;
+                cmaContextRef.current = {
+                    cmaAddress:   _po.cmaAddress   ?? null,
+                    cmaCity:      _po.cmaCity      ?? null,
+                    cmaState:     _po.cmaState     ?? null,
+                    cmaPrice:     _po.cmaPrice     ?? null,
+                    cmaBeds:      _po.cmaBeds      ?? null,
+                    cmaBaths:     _po.cmaBaths     ?? null,
+                    cmaSqft:      _po.cmaSqft      ?? null,
+                    cmaTaxAnnual: _po.cmaTaxAnnual ?? null,
+                    cmaTaxRate:   _po.cmaTaxRate   ?? null,
+                    cmaLiveRate:  _po.cmaLiveRate  ?? null,
+                    cmaPhotoUrl:  _po.cmaPhotoUrl  ?? null,
+                };
+            }
 
             // Save memory_thread_id for future questions in this conversation
             const returnedMemoryThreadId =
@@ -2430,7 +2455,9 @@ export default function Page() {
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 onRunScenario={(seed, sliderParams) => {
-                                                                    setPendingParamOverrides({ ...sliderParams, ...(activeCmaContext ?? {}) });
+                                                                    const overrides = { ...sliderParams, ...(cmaContextRef.current ?? {}) };
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
                                                             />
@@ -2476,6 +2503,7 @@ export default function Page() {
                                                                                 return;
                                                                             }
                                                                             setInput(chip.seed);
+                                                                            pendingParamOverridesRef.current = chipParams;
                                                                             setPendingParamOverrides(chipParams);
                                                                             pendingChipSeedRef.current = chip.seed;
                                                                             setTimeout(() => {
@@ -2596,6 +2624,7 @@ export default function Page() {
                                 if (priceCheckMode) setPriceCheckMode(false);
                                 // If user edits after chip click, drop paramOverrides — use text parsing instead
                                 if (pendingChipSeedRef.current && e.target.value !== pendingChipSeedRef.current) {
+                                    pendingParamOverridesRef.current = null;
                                     setPendingParamOverrides(null);
                                     pendingChipSeedRef.current = null;
                                 }

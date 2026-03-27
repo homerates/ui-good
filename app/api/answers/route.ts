@@ -3892,20 +3892,16 @@ ${uwAnswerText}`,
     const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
 
     // Helper: inject CMA chip onto any calc card.
-    // With address → "Re-run Property Intelligence Report" (carries cma* params).
-    // Without address → inputOnly chip nudging user to paste a listing URL.
+    // Only runs when cmaAddress is present — no paste nudge on cards without CMA context.
     function injectCmaChip(card: any): void {
         if (!card?.follow_up_chips) return;
-        if (paramOverrides?.cmaAddress) {
-            const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
-            const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
-            card.follow_up_chips = card.follow_up_chips.map((chip: any) =>
-                chip.paramOverrides ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } } : chip
-            );
-            card.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
-        } else {
-            card.follow_up_chips.push({ label: 'Property Intelligence Report — paste a listing URL', seed: 'Paste your Redfin or Zillow listing URL below to run a full Property Intelligence Report', inputOnly: true });
-        }
+        if (!paramOverrides?.cmaAddress) return;
+        const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
+        const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
+        card.follow_up_chips = card.follow_up_chips.map((chip: any) =>
+            chip.paramOverrides ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } } : chip
+        );
+        card.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
     }
 
     {
