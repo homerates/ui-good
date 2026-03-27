@@ -2486,7 +2486,7 @@ export default function Page() {
                                                         {/* Smart follow-up chips — only show when typewriter is done */}
                                                         {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && typingId === null && (
                                                             <div className="follow-up-chips">
-                                                                {m.meta.follow_up_chips.slice(0, 5).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
+                                                                {m.meta.follow_up_chips.slice(0, 6).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
                                                                     <button
                                                                         key={i}
                                                                         type="button"

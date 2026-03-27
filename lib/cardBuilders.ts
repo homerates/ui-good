@@ -2766,12 +2766,6 @@ ${dtiSection}
             paramOverrides: { purchasePrice: priceDown, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct, loanType: 'jumbo' },
             changedKeys: ['purchasePrice'],
         },
-        {
-            label: `1 extra payment/yr — how many years saved?`,
-            seed: `If I make 1 extra payment per year on a ${fK(r.loanAmount)} loan at ${rateStr}, when do I pay it off?`,
-            paramOverrides: { oneExtraPaymentBalance: r.loanAmount, oneExtraPaymentRate: r.annualRatePct } as Record<string, number>,
-            changedKeys: ['oneExtraPaymentBalance'],
-        },
     ];
 
     return {
