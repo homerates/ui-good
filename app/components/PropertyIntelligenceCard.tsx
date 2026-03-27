@@ -77,8 +77,12 @@ function parseSections(md: string): Array<{ title: string; body: string; emoji: 
     }
     if (current) sections.push({ title: current.title, body: current.body.join('\n').trim(), emoji: current.emoji });
 
-    // Drop the first "Property Intelligence Report" heading section (it's the header)
-    return sections.filter(s => s.body.length > 0 && !s.title.toLowerCase().includes('property intelligence'));
+    // Drop the header section and Rate Sensitivity (rendered separately by the component with structured data)
+    return sections.filter(s =>
+        s.body.length > 0 &&
+        !s.title.toLowerCase().includes('property intelligence') &&
+        !s.title.toLowerCase().includes('rate sensitivity')
+    );
 }
 
 // ── Simple markdown-to-JSX (tables, bold, bullets, blockquotes) ────────────
@@ -217,14 +221,23 @@ export default function PropertyIntelligenceCard({ data }: { data: CMACardData }
             )}
 
             {/* ── Stat grid ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderBottom: '1px solid rgba(0,0,0,0.07)', background: '#f8fafc' }}>
-                <Stat label="Monthly PITI" value={fmtMo(data.piti)} sub={`at ${data.rate}%`} />
-                <div style={{ width: 1, background: 'rgba(0,0,0,0.07)', margin: '8px 0' }} />
-                <Stat label="Down Payment" value={fmt$(data.downAmt)} sub="20%" />
-                <div style={{ width: 1, background: 'rgba(0,0,0,0.07)', margin: '8px 0' }} />
-                <Stat label="Loan Amount" value={fmt$(data.loanAmt)} sub={isJumbo ? 'Jumbo' : 'Conforming'} />
-                <div style={{ width: 1, background: 'rgba(0,0,0,0.07)', margin: '8px 0' }} />
-                <Stat label="Income Needed" value={fmtYr(data.incomeNeeded)} sub="@ 43% DTI" />
+            <div style={{ background: '#f8fafc', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+                <div style={{ padding: '6px 16px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Listing Estimate
+                    </span>
+                    <span style={{ fontSize: 10, color: '#cbd5e1' }}>·</span>
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>20% down · 30yr fixed · {data.rate}%</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                    <Stat label="Monthly PITI" value={fmtMo(data.piti)} sub={`at ${data.rate}%`} />
+                    <div style={{ width: 1, background: 'rgba(0,0,0,0.07)', margin: '8px 0' }} />
+                    <Stat label="Down Payment" value={fmt$(data.downAmt)} sub="20%" />
+                    <div style={{ width: 1, background: 'rgba(0,0,0,0.07)', margin: '8px 0' }} />
+                    <Stat label="Loan Amount" value={fmt$(data.loanAmt)} sub={isJumbo ? 'Jumbo' : 'Conforming'} />
+                    <div style={{ width: 1, background: 'rgba(0,0,0,0.07)', margin: '8px 0' }} />
+                    <Stat label="Income Needed" value={fmtYr(data.incomeNeeded)} sub="@ 43% DTI" />
+                </div>
             </div>
 
             {/* ── Report sections ── */}
