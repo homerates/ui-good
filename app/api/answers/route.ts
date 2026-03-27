@@ -3964,12 +3964,45 @@ ${uwAnswerText}`,
     function injectCmaChip(card: any): void {
         if (!card?.follow_up_chips) return;
         if (!paramOverrides?.cmaAddress) return;
-        const _cmaRerunSeed = `Property intelligence report: ${paramOverrides.cmaAddress}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
+
+        const addr      = paramOverrides.cmaAddress as string;
+        const shortAddr = addr.split(',')[0].trim();
+        const cmaPrice  = paramOverrides.cmaPrice  as number | undefined;
+        const cmaRate   = paramOverrides.cmaLiveRate as number | undefined;
+        const curPrice  = paramOverrides.purchasePrice as number | undefined;
+        const curRate   = paramOverrides.annualRatePct as number | undefined;
+
+        // Only show "Proposed Scenario" when numbers actually diverge from the original listing
+        const priceDiff = !!(cmaPrice && curPrice && Math.abs(curPrice - cmaPrice) > 1000);
+        const rateDiff  = !!(cmaRate  && curRate  && Math.abs(curRate  - cmaRate)  > 0.124);
+
+        if ((priceDiff || rateDiff) && card.answer) {
+            const _fd  = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
+            const _fr  = (r: number) => parseFloat(r.toFixed(3)) + '%';
+            const rows: string[] = [];
+
+            if (priceDiff && cmaPrice && curPrice) {
+                const delta = curPrice - cmaPrice;
+                rows.push(`| Price | ${_fd(cmaPrice)} | **${_fd(curPrice)}** (${delta > 0 ? '+' : '−'}${_fd(Math.abs(delta))}) |`);
+            }
+            if (rateDiff && cmaRate && curRate) {
+                const delta = curRate - cmaRate;
+                rows.push(`| Rate | ${_fr(cmaRate)} | **${_fr(curRate)}** (${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(3)}%) |`);
+            }
+
+            const scenarioBlock =
+                `📍 **${shortAddr}**\n\n` +
+                `| | Listing | Your Scenario |\n|--|--|--|\n` +
+                rows.join('\n') + '\n\n---\n\n';
+            card.answer = scenarioBlock + card.answer;
+        }
+
+        const _cmaRerunSeed = `Property intelligence report: ${addr}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
         const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
         card.follow_up_chips = card.follow_up_chips.map((chip: any) =>
             chip.paramOverrides ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } } : chip
         );
-        card.follow_up_chips.push({ label: 'Re-run Property Intelligence Report', seed: _cmaRerunSeed, paramOverrides: _cmaParams });
+        card.follow_up_chips.push({ label: `📍 Back to listing: ${shortAddr}`, seed: _cmaRerunSeed, paramOverrides: _cmaParams });
     }
 
     {
@@ -4018,6 +4051,7 @@ ${uwAnswerText}`,
                 const result = calcFHAvsConv(calcDispatch.params as any);
                 calcCard = buildFHACard(result.fha, calcAssumptions, result, fredRateForCard);
                 calcDebugModel = 'calcEngine-fha_vs_conv';
+                injectCmaChip(calcCard);
 
             } else if (calcDispatch.type === 'fha' && calcDispatch.params) {
                 const result = calcFHA(calcDispatch.params as any);
