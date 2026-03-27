@@ -2809,7 +2809,7 @@ ${dtiSection}
 export interface LoanLimitsCardInput {
     county: string;
     conformingLimit: number;   // county Fannie/Freddie limit
-    nationalBaseline: number;  // $806,500
+    nationalBaseline: number;  // $832,750 (2026 FHFA baseline)
     price: number;             // purchase price
     downPct: number;           // down payment %
     taxRate: number;           // annual property tax rate as decimal
@@ -2845,17 +2845,20 @@ export function buildLoanLimitsCard(inp: LoanLimitsCardInput): BuiltCard {
     const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
     const fmtRate = (r: number) => r.toFixed(3) + '%';
 
-    const answer = `**California 2026 Loan Limits — ${county.replace(/_/g, ' ')} County**
+    const isHighBalanceCounty = conformingLimit > nationalBaseline;
+    const countyDisplay = county.replace(/_/g, ' ');
+
+    const answer = `**California 2026 Loan Limits — ${countyDisplay} County**
 
 | Tier | Limit (1-unit) | Rate |
 |------|---------------|------|
-| ✅ Standard Conforming | ${fmt(nationalBaseline)} | ${fmtRate(baseRate)} (best) |
-| ⚡ High Balance | up to ${fmt(conformingLimit)} | +${RATE_HB}% → ${fmtRate(baseRate + RATE_HB)} |
-| 🏛️ Jumbo | above ${fmt(conformingLimit)} | +${RATE_JUMBO}% → ${fmtRate(baseRate + RATE_JUMBO)} |
+| ✅ Standard Conforming | ${fmt(nationalBaseline)} | ${fmtRate(baseRate)} (best) |${isHighBalanceCounty ? `
+| ⚡ High Balance | up to ${fmt(conformingLimit)} | +${RATE_HB}% → ${fmtRate(baseRate + RATE_HB)} |` : ''}
+| 🏛️ Jumbo | above ${fmt(isHighBalanceCounty ? conformingLimit : nationalBaseline)} | +${RATE_JUMBO}% → ${fmtRate(baseRate + RATE_JUMBO)} |
 
 **Your scenario:** ${fmt(price)} purchase · ${downPct}% down · **${fmt(loanAmt)} loan → ${zoneLabel}** (${fmtRate(effectiveRate)})
 
-> 📌 All limits are FHFA 2026 Fannie Mae/Freddie Mac conforming limits. High-balance applies in every CA county — even the lowest CA limit (${fmt(conformingLimit < nationalBaseline * 1.05 ? conformingLimit : 832750)}) is above the $806,500 national baseline.
+> 📌 FHFA 2026 Fannie Mae/Freddie Mac conforming limits — effective Jan 1, 2026. National baseline: ${fmt(nationalBaseline)}.${isHighBalanceCounty ? ` ${countyDisplay} is a high-cost county — GSE loans up to ${fmt(conformingLimit)} qualify; anything above is jumbo.` : ` ${countyDisplay} is a standard conforming county — no high-balance zone. Best rates apply to all GSE loans up to ${fmt(nationalBaseline)}.`}
 >
 > 💡 Rate premiums shown are typical mid-market estimates. Actual lender pricing varies.
 
@@ -2875,8 +2878,8 @@ Use the **Loan Limits Explorer** below to slide price and down payment — zones
             },
         },
         {
-            label: `What down payment stays conforming in ${county.split(' ')[0]} County?`,
-            seed: `What down payment do I need to stay under the conforming loan limit in ${county.replace(/_/g, ' ')} County, CA for a ${fmt(price)} home?`,
+            label: `What down payment stays conforming in ${countyDisplay} County?`,
+            seed: `What down payment do I need to stay under the conforming loan limit in ${countyDisplay} County, CA for a ${fmt(price)} home?`,
         },
         {
             label: `LA County limits`,
