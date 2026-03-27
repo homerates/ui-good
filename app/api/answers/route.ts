@@ -3263,7 +3263,8 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
 
         return false;
     }
-    if (!isLoanLimitsQuestion(question) && isUnderwritingGuidelineQuestion(question)) {
+    const _earlyLoanLimitsOverride = (body as any)?.paramOverrides?.loanLimitsCounty;
+    if (!isLoanLimitsQuestion(question) && !_earlyLoanLimitsOverride && isUnderwritingGuidelineQuestion(question)) {
         console.log('[UW Guidelines] Detected guideline question in answers route — calling AI with database');
 
         const uwDatabase = `

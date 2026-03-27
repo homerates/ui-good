@@ -116,7 +116,7 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
         const val = countyOrZip.trim();
         if (!val) return;
         onRunScenario?.(
-            `California loan limits for ${val} — show me the 2026 conforming, high balance, and jumbo thresholds`,
+            `California loan limit for ${val} — show me the 2026 conforming, high balance, and jumbo thresholds`,
             { loanLimitsCounty: val, purchasePrice: price, downPaymentPct: downPct }
         );
         setZipInput('');

@@ -345,10 +345,11 @@ export function isJumboQuestion(q: string): boolean {
 }
 
 export function isLoanLimitsQuestion(q: string): boolean {
-    return /\b(?:loan\s*limit|conforming\s*limit|high.?balance\s*limit|jumbo\s*threshold|conforming\s*zone|high.?cost\s*area|fhfa\s*limit)\b/i.test(q) ||
+    return /\b(?:loan\s*limits?|conforming\s*limits?|high.?balance\s*limits?|jumbo\s*threshold|conforming\s*zone|high.?cost\s*area|fhfa\s*limits?)\b/i.test(q) ||
         /\b(?:stay\s+conforming|conforming\s+vs\s+jumbo|jumbo\s+vs\s+conforming)\b/i.test(q) ||
-        /\b(?:ca|california)\s+(?:loan\s*limit|conforming|high.?balance|jumbo\s+threshold)\b/i.test(q) ||
-        /\b(?:loan\s*limits?|conforming\s*limits?)\s+(?:for|in)\s+[a-z\s]+(?:county|ca|california)/i.test(q) ||
+        /\b(?:ca|california)\s+(?:loan\s*limits?|conforming|high.?balance|jumbo\s+threshold)/i.test(q) ||
+        /\b(?:loan\s*limits?|conforming\s*limits?)\s+(?:for|in)\b/i.test(q) ||
+        /\bloan\s*limits?\s+for\s+\d{5}\b/i.test(q) ||
         /(?:what|show|look\s*up)\s+(?:are|is)\s+(?:the\s+)?(?:ca|california\s+)?(?:2026\s+)?loan\s+limits?/i.test(q) ||
         /(?:loanLimitsCounty)/i.test(q);
 }
