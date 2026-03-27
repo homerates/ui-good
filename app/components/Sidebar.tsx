@@ -537,13 +537,16 @@ export default function Sidebar(props: SidebarProps) {
                           )
                         }
                         style={{
+                          flex: '0 0 auto',
                           border: 'none',
                           background: 'transparent',
                           cursor: 'pointer',
-                          padding: 0,
-                          fontSize: 16,
+                          padding: '4px 6px',
+                          fontSize: 18,
                           lineHeight: 1,
-                          opacity: 0.7,
+                          opacity: 0.8,
+                          minWidth: 28,
+                          textAlign: 'center',
                         }}
                       >
                         …
