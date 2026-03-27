@@ -8,11 +8,10 @@
  * FHA Forward limits: HUD (HUD No. 25-145)
  *   Effective: FHA case numbers assigned on or after Jan 1, 2026
  *   Floor (1-unit): $541,287 | Ceiling (1-unit): $1,249,125
- *   Note: All CA counties are at or above the FHA floor.
- *         FHA limit per county = min(conforming limit, FHA ceiling)
+ *   Note: CA counties range from FHA floor to FHA ceiling depending on median prices.
  *
- * National baseline conforming (standard / non-high-balance): $806,500 (1-unit)
- * High-balance = any county limit above $806,500
+ * National baseline conforming (standard / non-high-balance): $832,750 (1-unit)
+ * High-balance = any county limit above $832,750
  *
  * Limits by units: 1-unit | 2-unit | 3-unit | 4-unit
  */
@@ -21,23 +20,24 @@ export interface CountyLimits {
     county: string;
     /** Fannie Mae / Freddie Mac conforming limit — same for both GSEs */
     conforming: { units1: number; units2: number; units3: number; units4: number };
-    /** HUD FHA Forward 2026 limit */
+    /** HUD FHA Forward 2026 limit (per HUD No. 25-145) */
     fha: { units1: number; units2: number; units3: number; units4: number };
-    /** true = high-balance (above national $806,500 baseline), false = standard conforming */
+    /** true = high-balance (above national $832,750 baseline), false = standard conforming */
     isHighBalance: boolean;
 }
 
 // National 2026 baseline (non-high-balance areas)
+// Effective Jan 1 2026 — up from $806,500 (2025); source: FHFA CY2026
 export const NATIONAL_CONFORMING_BASELINE = {
-    units1: 806500,
-    units2: 1032000,
-    units3: 1247200,
-    units4: 1550000,
+    units1: 832750,
+    units2: 1066250,
+    units3: 1288800,
+    units4: 1601750,
 };
 
 // FHA 2026 national floor & ceiling
 export const FHA_2026 = {
-    floor: { units1: 541287, units2: 693050, units3: 837700, units4: 1041125 },
+    floor:   { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
     ceiling: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
 };
 
@@ -46,350 +46,350 @@ export const CA_LOAN_LIMITS_2026: CountyLimits[] = [
     {
         county: "ALAMEDA",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "ALPINE",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 736000,  units2: 942200,  units3: 1138900, units4: 1415400 },
+        isHighBalance: false,
     },
     {
         county: "AMADOR",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "BUTTE",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "CALAVERAS",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "COLUSA",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "CONTRA COSTA",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "DEL NORTE",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "EL DORADO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 764750,  units2: 979000,  units3: 1183400, units4: 1470700 },
+        isHighBalance: false,
     },
     {
         county: "FRESNO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "GLENN",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "HUMBOLDT",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "IMPERIAL",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "INYO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "KERN",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "KINGS",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "LAKE",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "LASSEN",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "LOS ANGELES",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "MADERA",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "MARIN",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "MARIPOSA",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "MENDOCINO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 546250,  units2: 699300,  units3: 845300,  units4: 1050500 },
+        isHighBalance: false,
     },
     {
         county: "MERCED",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "MODOC",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "MONO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 776250,  units2: 993750,  units3: 1201200, units4: 1492800 },
+        isHighBalance: false,
     },
     {
         county: "MONTEREY",
-        conforming: { units1: 994750, units2: 1273450, units3: 1539350, units4: 1913000 },
-        fha: { units1: 994750, units2: 1273450, units3: 1539350, units4: 1913000 },
+        conforming: { units1: 994750,  units2: 1273450, units3: 1539350, units4: 1913000 },
+        fha:        { units1: 994750,  units2: 1273450, units3: 1539350, units4: 1913000 },
         isHighBalance: true,
     },
     {
         county: "NAPA",
         conforming: { units1: 1017750, units2: 1302900, units3: 1574900, units4: 1957250 },
-        fha: { units1: 1017750, units2: 1302900, units3: 1574900, units4: 1957250 },
+        fha:        { units1: 1017750, units2: 1302900, units3: 1574900, units4: 1957250 },
         isHighBalance: true,
     },
     {
         county: "NEVADA",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 649750,  units2: 831800,  units3: 1005450, units4: 1249550 },
+        isHighBalance: false,
     },
     {
         county: "ORANGE",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "PLACER",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 764750,  units2: 979000,  units3: 1183400, units4: 1470700 },
+        isHighBalance: false,
     },
     {
         county: "PLUMAS",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "RIVERSIDE",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 690000,  units2: 883300,  units3: 1067750, units4: 1326950 },
+        isHighBalance: false,
     },
     {
         county: "SACRAMENTO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 764750,  units2: 979000,  units3: 1183400, units4: 1470700 },
+        isHighBalance: false,
     },
     {
         county: "SAN BENITO",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "SAN BERNARDINO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 690000,  units2: 883300,  units3: 1067750, units4: 1326950 },
+        isHighBalance: false,
     },
     {
         county: "SAN DIEGO",
         conforming: { units1: 1104000, units2: 1413350, units3: 1708400, units4: 2123100 },
-        fha: { units1: 1104000, units2: 1413350, units3: 1708400, units4: 2123100 },
+        fha:        { units1: 1104000, units2: 1413350, units3: 1708400, units4: 2123100 },
         isHighBalance: true,
     },
     {
         county: "SAN FRANCISCO",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "SAN JOAQUIN",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 678500,  units2: 868600,  units3: 1049950, units4: 1304850 },
+        isHighBalance: false,
     },
     {
         county: "SAN LUIS OBISPO",
         conforming: { units1: 1000500, units2: 1280850, units3: 1548250, units4: 1924100 },
-        fha: { units1: 1000500, units2: 1280850, units3: 1548250, units4: 1924100 },
+        fha:        { units1: 1000500, units2: 1280850, units3: 1548250, units4: 1924100 },
         isHighBalance: true,
     },
     {
         county: "SAN MATEO",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "SANTA BARBARA",
-        conforming: { units1: 941850, units2: 1205750, units3: 1457450, units4: 1811300 },
-        fha: { units1: 941850, units2: 1205750, units3: 1457450, units4: 1811300 },
+        conforming: { units1: 941850,  units2: 1205750, units3: 1457450, units4: 1811300 },
+        fha:        { units1: 941850,  units2: 1205750, units3: 1457450, units4: 1811300 },
         isHighBalance: true,
     },
     {
         county: "SANTA CLARA",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "SANTA CRUZ",
         conforming: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
-        fha: { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
+        fha:        { units1: 1249125, units2: 1599375, units3: 1933200, units4: 2402625 },
         isHighBalance: true,
     },
     {
         county: "SHASTA",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "SIERRA",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "SISKIYOU",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "SOLANO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 685400,  units2: 877450,  units3: 1060600, units4: 1318100 },
+        isHighBalance: false,
     },
     {
         county: "SONOMA",
-        conforming: { units1: 897000, units2: 1148350, units3: 1388050, units4: 1725050 },
-        fha: { units1: 897000, units2: 1148350, units3: 1388050, units4: 1725050 },
+        conforming: { units1: 897000,  units2: 1148350, units3: 1388050, units4: 1725050 },
+        fha:        { units1: 897000,  units2: 1148350, units3: 1388050, units4: 1725050 },
         isHighBalance: true,
     },
     {
         county: "STANISLAUS",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 545100,  units2: 697800,  units3: 843500,  units4: 1048300 },
+        isHighBalance: false,
     },
     {
         county: "SUTTER",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "TEHAMA",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "TRINITY",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "TULARE",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "TUOLUMNE",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
     {
         county: "VENTURA",
         conforming: { units1: 1035000, units2: 1325000, units3: 1601600, units4: 1990450 },
-        fha: { units1: 1035000, units2: 1325000, units3: 1601600, units4: 1990450 },
+        fha:        { units1: 1035000, units2: 1325000, units3: 1601600, units4: 1990450 },
         isHighBalance: true,
     },
     {
         county: "YOLO",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 764750,  units2: 979000,  units3: 1183400, units4: 1470700 },
+        isHighBalance: false,
     },
     {
         county: "YUBA",
         conforming: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        fha: { units1: 832750, units2: 1066250, units3: 1288800, units4: 1601750 },
-        isHighBalance: true,
+        fha:        { units1: 541287,  units2: 693050,  units3: 837700,  units4: 1041125 },
+        isHighBalance: false,
     },
 ];
 
@@ -540,7 +540,7 @@ export function getCALoanLimits(
 
     const unitKey = `units${units}` as keyof typeof match.conforming;
     const conformingLimit = match.conforming[unitKey];
-    const fhaLimit = match.fha[unitKey];
+    const fhaLimit        = match.fha[unitKey];
     const nationalBaseline = NATIONAL_CONFORMING_BASELINE[unitKey];
 
     const loanType =
@@ -562,10 +562,6 @@ export function getCALoanLimits(
 /**
  * Given a loan amount and location, classify the loan and return
  * a plain-English summary for use in AI prompts.
- *
- * @param loanAmount   The requested loan amount
- * @param location     County or city in California
- * @param units        Number of units (1–4)
  */
 export function classifyLoan(
     loanAmount: number,
@@ -644,7 +640,7 @@ const ZIP_PREFIX_TO_COUNTY: Record<string, string> = {
     '954': 'SONOMA',
     // Humboldt
     '955': 'HUMBOLDT',
-    // Sacramento
+    // Sacramento / Placer
     '956': 'SACRAMENTO', '957': 'SACRAMENTO', '958': 'PLACER',
     // Northern CA
     '959': 'BUTTE', '960': 'SHASTA', '961': 'LASSEN',
@@ -652,13 +648,13 @@ const ZIP_PREFIX_TO_COUNTY: Record<string, string> = {
 
 /** 5-digit ZIP overrides for edge cases where the 3-digit prefix maps to wrong county */
 const ZIP5_TO_COUNTY: Record<string, string> = {
-    // Orange County ZIPs starting with 926/927 (mostly Orange but some Riverside)
+    // Riverside mixed with Orange/San Diego prefixes
     '92880': 'RIVERSIDE', '92881': 'RIVERSIDE', '92882': 'RIVERSIDE', '92883': 'RIVERSIDE',
-    // San Bernardino mixed
+    // San Bernardino mixed with LA prefix
     '91701': 'SAN BERNARDINO', '91710': 'SAN BERNARDINO', '91730': 'SAN BERNARDINO',
     '91737': 'SAN BERNARDINO', '91739': 'SAN BERNARDINO', '91740': 'LOS ANGELES',
-    '91750': 'LOS ANGELES', '91752': 'RIVERSIDE',
-    // Santa Cruz (949xx prefix goes to Marin but Santa Cruz is 950xx)
+    '91750': 'LOS ANGELES',    '91752': 'RIVERSIDE',
+    // Santa Cruz (950xx prefix shared with Santa Clara)
     '95003': 'SANTA CRUZ', '95005': 'SANTA CRUZ', '95006': 'SANTA CRUZ', '95007': 'SANTA CRUZ',
     '95010': 'SANTA CRUZ', '95017': 'SANTA CRUZ', '95018': 'SANTA CRUZ', '95019': 'SANTA CRUZ',
     '95060': 'SANTA CRUZ', '95061': 'SANTA CRUZ', '95062': 'SANTA CRUZ', '95063': 'SANTA CRUZ',
@@ -666,15 +662,15 @@ const ZIP5_TO_COUNTY: Record<string, string> = {
     '95070': 'SANTA CLARA', // Saratoga
     // San Benito
     '95023': 'SAN BENITO', '95024': 'SAN BENITO', '95045': 'SAN BENITO',
-    // Napa
+    // Napa (mixed with Contra Costa 945 prefix)
     '94503': 'NAPA', '94508': 'NAPA', '94515': 'NAPA', '94558': 'NAPA', '94559': 'NAPA',
     '94562': 'NAPA', '94567': 'NAPA', '94574': 'NAPA', '94576': 'NAPA', '94581': 'NAPA',
     '94599': 'NAPA',
-    // Solano (mixed with Contra Costa prefix)
+    // Solano (mixed with Contra Costa 945 prefix)
     '94510': 'SOLANO', '94512': 'SOLANO', '94533': 'SOLANO', '94534': 'SOLANO',
     '94535': 'SOLANO', '94571': 'SOLANO', '94585': 'SOLANO', '94589': 'SOLANO',
     '94590': 'SOLANO', '94591': 'SOLANO', '94592': 'SOLANO',
-    // Alameda vs Contra Costa mixed 945 prefix
+    // Contra Costa (945 prefix specifics)
     '94520': 'CONTRA COSTA', '94521': 'CONTRA COSTA', '94523': 'CONTRA COSTA',
     '94524': 'CONTRA COSTA', '94525': 'CONTRA COSTA', '94526': 'CONTRA COSTA',
     '94527': 'CONTRA COSTA', '94528': 'CONTRA COSTA', '94529': 'CONTRA COSTA',
@@ -685,7 +681,7 @@ const ZIP5_TO_COUNTY: Record<string, string> = {
     '94575': 'CONTRA COSTA', '94582': 'CONTRA COSTA', '94583': 'CONTRA COSTA',
     '94595': 'CONTRA COSTA', '94596': 'CONTRA COSTA', '94597': 'CONTRA COSTA',
     '94598': 'CONTRA COSTA',
-    // Placer (958 prefix is shared with Sacramento)
+    // Placer (958 prefix shared with Sacramento)
     '95603': 'PLACER', '95604': 'PLACER', '95626': 'SACRAMENTO', '95630': 'SACRAMENTO',
     '95648': 'PLACER', '95650': 'PLACER', '95658': 'PLACER', '95661': 'PLACER',
     '95662': 'SACRAMENTO', '95663': 'PLACER', '95672': 'SACRAMENTO', '95677': 'PLACER',
@@ -693,8 +689,8 @@ const ZIP5_TO_COUNTY: Record<string, string> = {
     '95703': 'PLACER', '95713': 'PLACER', '95714': 'PLACER', '95715': 'PLACER',
     '95717': 'PLACER', '95722': 'PLACER', '95728': 'PLACER', '95736': 'PLACER',
     '95746': 'PLACER', '95747': 'PLACER', '95762': 'EL DORADO',
-    // El Dorado
-    '95667': 'EL DORADO', '95666': 'EL DORADO', '95664': 'EL DORADO',
+    // El Dorado specifics
+    '95664': 'EL DORADO', '95666': 'EL DORADO', '95667': 'EL DORADO',
     // Yolo
     '95605': 'YOLO', '95616': 'YOLO', '95617': 'YOLO', '95618': 'YOLO',
     '95619': 'EL DORADO', '95620': 'YOLO', '95637': 'YOLO', '95645': 'YOLO',
@@ -708,9 +704,7 @@ const ZIP5_TO_COUNTY: Record<string, string> = {
 export function getCACountyByZip(zip: string): string | null {
     const z = zip.replace(/\D/g, '').slice(0, 5);
     if (z.length < 5) return null;
-    // Specific 5-digit override first
     if (ZIP5_TO_COUNTY[z]) return ZIP5_TO_COUNTY[z];
-    // Fall back to 3-digit prefix
     const prefix = z.slice(0, 3);
     return ZIP_PREFIX_TO_COUNTY[prefix] ?? null;
 }
@@ -719,8 +713,7 @@ export function getCACountyByZip(zip: string): string | null {
 
 /**
  * Effective annual property tax rates by CA county (Prop 13 base + special assessments).
- * These are county-wide averages; individual parcels vary significantly (Mello-Roos, CFD, etc.).
- * Source: Derived from county assessor reports and California State Board of Equalization data.
+ * County-wide averages — individual parcels vary significantly (Mello-Roos, CFD, etc.).
  */
 export const CA_COUNTY_TAX_RATES: Record<string, number> = {
     'ALAMEDA':         0.0125,
@@ -788,11 +781,10 @@ export const CA_COUNTY_TAX_RATES: Record<string, number> = {
 /**
  * Default annual homeowner insurance rates by CA county (as % of home value).
  * Higher in wildland-urban interface and fire-risk zones.
- * These are ballpark defaults only — actual rates vary widely by insurer and parcel.
  */
 export const CA_COUNTY_INS_RATES: Record<string, number> = {
-    // High fire risk (WUI, Wildfire Severity Zones)
-    'BUTTE':           0.0075,  // Camp Fire county
+    // High fire risk
+    'BUTTE':           0.0075,
     'LAKE':            0.0075,
     'MENDOCINO':       0.0070,
     'TRINITY':         0.0075,
@@ -801,7 +793,7 @@ export const CA_COUNTY_INS_RATES: Record<string, number> = {
     'SHASTA':          0.0070,
     'TEHAMA':          0.0070,
     'MODOC':           0.0065,
-    // Moderate-high fire risk (foothills, mixed)
+    // Moderate-high fire risk (foothills)
     'EL DORADO':       0.0065,
     'NEVADA':          0.0065,
     'PLACER':          0.0060,
@@ -820,14 +812,14 @@ export const CA_COUNTY_INS_RATES: Record<string, number> = {
     'MONTEREY':        0.0050,
     'SANTA CRUZ':      0.0050,
     'SAN LUIS OBISPO': 0.0050,
-    // Desert / inland high (fire + wind exposure)
+    // Desert / inland (fire + wind)
     'RIVERSIDE':       0.0060,
     'SAN BERNARDINO':  0.0060,
     'KERN':            0.0055,
     'IMPERIAL':        0.0050,
     'INYO':            0.0055,
     'MONO':            0.0055,
-    // Standard (urban/suburban, lower fire risk)
+    // Standard urban/suburban
     'LOS ANGELES':     0.0045,
     'ORANGE':          0.0045,
     'SAN DIEGO':       0.0048,
@@ -868,7 +860,6 @@ export function getCACountyInsRate(county: string): number {
 
 /**
  * Build a loan limits context string for injection into AI prompts.
- * Use this when a user mentions a California location and loan amount.
  */
 export function buildLoanLimitsContext(
     location: string,
