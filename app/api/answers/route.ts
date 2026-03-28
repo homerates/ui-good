@@ -2707,6 +2707,13 @@ To give you a real verdict (not just math), I need:
 
 **Example:** *"Balance $780k at 6.75%, want to refi to 5.99%, bought 3 years ago, plan to stay 7 more years"*`;
 
+            // Seed a slider with defaults so user can explore without typing first
+            const defaultBal      = 600_000;
+            const defaultCurRate  = currentRate ?? 6.75;
+            const defaultNewRate  = newRate ?? marketRate ?? 6.38;
+            const defaultTermMo   = monthsLeft ?? 360;
+            const defaultCosts    = Math.round(defaultBal * 0.02);
+
             return noStore({
                 ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
                 generatedAt, usedFRED, usedTavily, fred, topSources,
@@ -2714,6 +2721,13 @@ To give you a real verdict (not just math), I need:
                 debug: { bypass: "refi_needs_input", refiType, parsed: { balance, currentRate, newRate, monthsLeft } },
                 message: askMsg, answerMarkdown: `**Answer**\n${askMsg}`,
                 followUp: contextChips[0].label, follow_up_chips: contextChips,
+                refiSlider: {
+                    balance:      defaultBal,
+                    currentRate:  defaultCurRate,
+                    newRate:      defaultNewRate,
+                    termMonths:   defaultTermMo,
+                    closingCosts: defaultCosts,
+                },
             });
         }
 

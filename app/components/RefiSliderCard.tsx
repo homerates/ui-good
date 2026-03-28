@@ -17,6 +17,36 @@ export interface RefiSliderParams {
     onRunScenario?: (seed: string) => void;
 }
 
+// ── Loan tier detection ───────────────────────────────────────────────────────
+const CONFORMING_LIMIT  = 806_500;   // 2026 baseline
+const HIGH_COST_LIMIT   = 1_209_750; // 2026 high-cost ceiling
+
+function loanTier(balance: number): 'conforming' | 'high_cost' | 'jumbo' | 'super_jumbo' {
+    if (balance <= CONFORMING_LIMIT)  return 'conforming';
+    if (balance <= HIGH_COST_LIMIT)   return 'high_cost';
+    if (balance <= 3_000_000)         return 'jumbo';
+    return 'super_jumbo';
+}
+
+const TIER_LABEL: Record<string, string> = {
+    conforming:  'Conforming',
+    high_cost:   'High-Cost Conforming',
+    jumbo:       'Jumbo',
+    super_jumbo: 'Super-Jumbo',
+};
+
+const TIER_COLOR: Record<string, { text: string; bg: string; border: string }> = {
+    conforming:  { text: '#059669', bg: 'rgba(5,150,105,0.08)',  border: 'rgba(5,150,105,0.25)'  },
+    high_cost:   { text: '#0ea5e9', bg: 'rgba(14,165,233,0.08)', border: 'rgba(14,165,233,0.25)' },
+    jumbo:       { text: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)' },
+    super_jumbo: { text: '#dc2626', bg: 'rgba(220,38,38,0.08)',  border: 'rgba(220,38,38,0.25)'  },
+};
+
+// Jumbo refis typically price 0.25–0.5% above conforming
+const TIER_RATE_PREMIUM: Record<string, number> = {
+    conforming: 0, high_cost: 0.125, jumbo: 0.375, super_jumbo: 0.5,
+};
+
 // ── Math helpers ──────────────────────────────────────────────────────────────
 function calcPI(principal: number, annualRatePct: number, termMonths: number): number {
     if (annualRatePct === 0) return principal / termMonths;
@@ -47,7 +77,15 @@ export default function RefiSliderCard(props: RefiSliderParams) {
     const [newRate, setNewRate]           = useState(props.newRate);
     const [termMonths, setTermMonths]     = useState(props.termMonths ?? 360);
     const [closingCosts, setClosingCosts] = useState(props.closingCosts);
+    const [closingInput, setClosingInput] = useState('');   // manual text input
     const [noCost, setNoCost]             = useState(false);
+
+    // Dynamic slider ranges
+    const balanceMax    = Math.max(4_000_000, Math.ceil(balance * 1.5 / 500_000) * 500_000);
+    const closingMax    = Math.max(30_000, Math.ceil(balance * 0.04 / 1_000) * 1_000);
+    const tier          = loanTier(balance);
+    const tierStyle     = TIER_COLOR[tier];
+    const ratePremium   = TIER_RATE_PREMIUM[tier];
 
     // No-cost toggle: +0.25% to new rate, $0 closing costs
     const effNewRate  = noCost ? parseFloat((newRate + 0.25).toFixed(3)) : newRate;
@@ -122,7 +160,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             fontFamily: 'system-ui, -apple-system, sans-serif',
         }}>
             {/* ── Header ── */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tier !== 'conforming' ? 8 : 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>
                     Refi Explorer
                 </div>
@@ -139,6 +177,23 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     {noCost ? '✓ No-Cost Refi' : 'No-Cost Refi'}
                 </button>
             </div>
+
+            {/* ── Loan tier badge ── */}
+            {tier !== 'conforming' && (
+                <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '4px 10px', borderRadius: 6, marginBottom: 14,
+                    background: tierStyle.bg, border: `1px solid ${tierStyle.border}`,
+                    fontSize: 11, fontWeight: 700, color: tierStyle.text,
+                }}>
+                    {TIER_LABEL[tier]}
+                    {ratePremium > 0 && (
+                        <span style={{ fontWeight: 500, opacity: 0.85 }}>
+                            · rates typically +{ratePremium.toFixed(3).replace(/0+$/, '')}% vs conforming
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* ── Hero: 3 big numbers ── */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
@@ -218,9 +273,9 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Loan Balance</span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{fmt$(balance)}</span>
                 </div>
-                <input type="range" min={50000} max={1500000} step={5000} value={balance}
+                <input type="range" min={50_000} max={balanceMax} step={balance >= 1_000_000 ? 25_000 : 5_000} value={balance}
                     onChange={e => setBalance(Number(e.target.value))}
-                    style={{ width: '100%', ...trackStyle(balance, 50000, 1500000) }}
+                    style={{ width: '100%', ...trackStyle(balance, 50_000, balanceMax) }}
                 />
             </div>
 
@@ -257,20 +312,47 @@ export default function RefiSliderCard(props: RefiSliderParams) {
 
             {/* Closing costs */}
             <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Closing Costs</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: noCost ? '#94a3b8' : '#0f172a' }}>
-                        {noCost ? '$0 (no-cost)' : fmt$(closingCosts)}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {!noCost && (
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={closingInput || fmt$(closingCosts)}
+                                onFocus={() => setClosingInput(String(closingCosts))}
+                                onBlur={() => {
+                                    const n = parseInt(closingInput.replace(/[^0-9]/g, ''));
+                                    if (!isNaN(n) && n >= 0) setClosingCosts(Math.min(n, 999_999));
+                                    setClosingInput('');
+                                }}
+                                onChange={e => setClosingInput(e.target.value)}
+                                style={{
+                                    width: 84, fontSize: 12, fontWeight: 700,
+                                    padding: '2px 6px', borderRadius: 5, textAlign: 'right',
+                                    border: '1px solid #cbd5e1', background: '#f8fafc',
+                                    color: '#0f172a', outline: 'none',
+                                }}
+                            />
+                        )}
+                        {noCost && (
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>$0 (no-cost)</span>
+                        )}
+                    </div>
                 </div>
-                <input type="range" min={0} max={15000} step={250} value={closingCosts}
+                <input type="range" min={0} max={closingMax} step={500} value={closingCosts}
                     onChange={e => setClosingCosts(Number(e.target.value))}
                     disabled={noCost}
                     style={{
                         width: '100%', opacity: noCost ? 0.4 : 1,
-                        ...trackStyle(closingCosts, 0, 15000),
+                        ...trackStyle(closingCosts, 0, closingMax),
                     }}
                 />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+                    <span>$0</span>
+                    <span style={{ fontSize: 10, color: '#cbd5e1' }}>or type exact amount above</span>
+                    <span>{fmt$(closingMax)}</span>
+                </div>
             </div>
 
             {/* Term toggle */}
@@ -333,6 +415,9 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                 <span>Payoff <strong style={{ color: '#334155' }}>{termYears}yr</strong></span>
                 {effClosing > 0 && (
                     <span>Closing <strong style={{ color: '#334155' }}>{fmt$(effClosing)}</strong></span>
+                )}
+                {tier !== 'conforming' && (
+                    <span style={{ color: tierStyle.text, fontWeight: 600 }}>{TIER_LABEL[tier]}</span>
                 )}
             </div>
 
