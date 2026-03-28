@@ -77,26 +77,49 @@ interface ExtendedFields {
 function parseExtended(text: string, price: number | null, sqft: number | null): ExtendedFields {
     const t = text.slice(0, 150_000);
 
-    // Listing status
+    // Listing status — check strongest signals first to avoid false positives
+    // (sold pages contain "Contract Pending" in history; sold must win over pending)
     let listingStatus: ExtendedFields['listingStatus'] = 'UNKNOWN';
-    if (/off[\s-]?market/i.test(t))      listingStatus = 'OFF_MARKET';
-    else if (/\bpending\b/i.test(t))     listingStatus = 'PENDING';
-    else if (/for[\s-]?sale/i.test(t))   listingStatus = 'FOR_SALE';
-    else if (/\bsold\b/i.test(t))        listingStatus = 'SOLD';
+    if (/sold\s+(?:on\s+)?\w+\s+\d{1,2},?\s+\d{4}/i.test(t)   // "Sold on Feb 17, 2026"
+        || /sold\s+price/i.test(t)                               // "Sold Price"
+        || /\bsold\s+\w+\s+\d{4}\s+for\b/i.test(t))             // "Sold Feb 2026 for"
+                                                    { listingStatus = 'SOLD'; }
+    else if (/off[\s-]?market/i.test(t))            { listingStatus = 'OFF_MARKET'; }
+    else if (/for[\s-]?sale/i.test(t))              { listingStatus = 'FOR_SALE'; }
+    else if (/\bpending\b/i.test(t))                { listingStatus = 'PENDING'; }
+    else if (/\bsold\b/i.test(t))                   { listingStatus = 'SOLD'; }
 
     // Days on market
     const domM = t.match(/(\d+)\s+days?\s+on\s+(?:redfin|market|zillow|trulia)/i)
         ?? t.match(/days\s+on\s+(?:redfin|market)[:\s]+(\d+)/i);
     const daysOnMarket = domM ? parseInt(domM[1]) : null;
 
-    // Last sale: "Sold May 2025 for $2,150,000"
+    // Last sale — multiple formats:
+    //  "Sold May 2025 for $2,150,000"
+    //  "SOLD ON FEB 17, 2026\n$1,250,000 Sold Price"
+    //  "Last sold: May 2024 · $1,200,000"
     let lastSaleDate: string | null = null;
     let lastSalePrice: number | null = null;
-    const soldM = t.match(/sold\s+([A-Za-z]+\s+\d{4})\s+for\s+\$?([\d,]+)/i)
-        ?? t.match(/last\s+sold[:\s]+([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+)/i);
+    const soldM =
+        // "Sold May 2025 for $2,150,000"
+        t.match(/sold\s+([A-Za-z]+\s+\d{4})\s+for\s+\$?([\d,]+)/i)
+        // "Last sold: May 2024 · $1,200,000"
+        ?? t.match(/last\s+sold[:\s]+([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+)/i)
+        // "SOLD ON FEB 17, 2026" then nearby "$1,250,000 Sold Price"
+        ?? (() => {
+            const dateM = t.match(/sold\s+on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
+            const priceM = t.match(/\$([\d,]+)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+)/i);
+            if (dateM && priceM) {
+                // normalize "Feb 17, 2026" → "February 2026"
+                const d = new Date(dateM[1]);
+                const label = isNaN(d.getTime()) ? dateM[1] : d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                return [null, label, priceM[1]] as unknown as RegExpMatchArray;
+            }
+            return null;
+        })();
     if (soldM) {
-        lastSaleDate  = soldM[1];
-        lastSalePrice = parseInt(soldM[2].replace(/,/g, ''));
+        lastSaleDate  = soldM[1] ?? null;
+        lastSalePrice = soldM[2] ? parseInt(soldM[2].replace(/,/g, '')) : null;
     }
 
     // HOA
