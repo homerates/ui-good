@@ -2,7 +2,7 @@
 // Parses Redfin listing pages via JSON-LD structured data (schema.org).
 // Falls back gracefully to og: parser in fetch.ts if nothing found.
 
-import type { PropertyData } from '../schema';
+import type { PropertyData, ListingStatus } from '../schema';
 
 function dig(obj: unknown, ...keys: (string | number)[]): unknown {
     let cur: unknown = obj;
@@ -65,6 +65,28 @@ function findListingBlob(blobs: unknown[]): unknown | null {
     return null;
 }
 
+/** Detect listing status from Redfin's page title and JSON-LD availability.
+ *  Redfin titles: "SOLD - 24101 Zancon...", "PENDING - ...", or plain address.
+ *  JSON-LD: offers.availability "Discontinued"/"OutOfStock" → SOLD, "LimitedAvailability" → PENDING */
+function detectRedfinStatus(html: string, blob: unknown): ListingStatus {
+    // 1. Title tag — most reliable signal
+    const titleM = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (titleM) {
+        const title = titleM[1].trim();
+        if (/^sold\b/i.test(title))    return 'SOLD';
+        if (/^pending\b/i.test(title)) return 'PENDING';
+    }
+    // 2. JSON-LD offers.availability
+    const avail = toStr(dig(blob, 'offers', 'availability')) ?? '';
+    if (/discontinued|outofstock|sold/i.test(avail))       return 'SOLD';
+    if (/limitedavailability|pending/i.test(avail))        return 'PENDING';
+    if (/instock|forsale|available/i.test(avail))          return 'FOR_SALE';
+    // 3. Redfin data-rf attribute in HTML
+    if (/data-rf-test-name="abp-status"[^>]*>\s*Sold/i.test(html))    return 'SOLD';
+    if (/data-rf-test-name="abp-status"[^>]*>\s*Pending/i.test(html)) return 'PENDING';
+    return null;
+}
+
 export function parseRedfin(html: string): Partial<PropertyData> | null {
     const blobs = extractAllJsonLd(html);
     const blob  = findListingBlob(blobs);
@@ -96,6 +118,8 @@ export function parseRedfin(html: string): Partial<PropertyData> | null {
     if (typeof imageRaw === 'string') photoUrl = imageRaw;
     else if (Array.isArray(imageRaw) && imageRaw.length > 0) photoUrl = toStr(imageRaw[0]);
 
+    const listingStatus = detectRedfinStatus(html, blob);
+
     return {
         source:       'redfin',
         price,
@@ -109,6 +133,7 @@ export function parseRedfin(html: string): Partial<PropertyData> | null {
         sqft,
         annualTaxes,
         photoUrl,
+        listingStatus,
         parsedBy:     'redfin_script',
         parseWarnings: price ? [] : ['json-ld: no price found'],
     };

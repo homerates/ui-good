@@ -237,6 +237,10 @@ async function handleUrl(rawUrl: string) {
     // Parse extended fields from Tavily text (or empty string if unavailable)
     const ext = parseExtended(text ?? '', d.price, d.sqft);
 
+    // Base scraper has authoritative status from structured data (title tag / JSON-LD).
+    // Only use Tavily-parsed status when the scraper couldn't determine it.
+    if (d.listingStatus) ext.listingStatus = d.listingStatus;
+
     return NextResponse.json({
         ok: true,
         data: {

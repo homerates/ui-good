@@ -190,7 +190,7 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
                 state: slugData.state, zip: slugData.zip, county: null,
                 beds: null, baths: null, sqft: null,
                 annualTaxes: null, taxRateEffective: rate, taxSource: 'table',
-                photoUrl: null,
+                photoUrl: null, listingStatus: null,
             };
             return { ok: true, data: partial };
         }
@@ -222,6 +222,8 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
     const m = merge(siteData, ogPartial);
     m.url    = cleanUrl;
     m.source = source;
+    // Carry through listingStatus from site parser (not in og: data)
+    if (siteData?.listingStatus) m.listingStatus = siteData.listingStatus;
 
     // 6. Resolve taxes
     if (m.annualTaxes && m.price && m.price > 0) {
@@ -261,6 +263,7 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         taxRateEffective: m.taxRateEffective ?? null,
         taxSource:        m.taxSource    ?? null,
         photoUrl:         m.photoUrl     ?? null,
+        listingStatus:    m.listingStatus ?? null,
     };
 
     return { ok: true, data };

@@ -2,9 +2,10 @@
 // Shared TypeScript interfaces for the property lookup pipeline.
 // All scraped fields are nullable — callers must handle missing data.
 
-export type PropertySource = 'zillow' | 'redfin' | 'realtor' | 'unknown';
-export type ParseMethod   = 'zillow_next_data' | 'redfin_script' | 'opengraph' | 'partial';
-export type TaxSource     = 'scraped' | 'table' | null;
+export type PropertySource   = 'zillow' | 'redfin' | 'realtor' | 'unknown';
+export type ParseMethod      = 'zillow_next_data' | 'redfin_script' | 'opengraph' | 'partial';
+export type TaxSource        = 'scraped' | 'table' | null;
+export type ListingStatus    = 'FOR_SALE' | 'OFF_MARKET' | 'PENDING' | 'SOLD' | null;
 
 export interface PropertyData {
     // Provenance
@@ -35,6 +36,9 @@ export interface PropertyData {
 
     // Media — og:image is always a public CDN URL
     photoUrl: string | null;
+
+    // Listing status — set by site-specific parser when determinable from structured data
+    listingStatus: ListingStatus;
 }
 
 // API response shapes
