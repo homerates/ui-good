@@ -1389,6 +1389,39 @@ body {
   .sidebar-legal-title {
     color: #9ca3af;
   }
+
+  .legal-page-inner {
+    background: #1e2535;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    color: #e2e8f0;
+  }
+
+  .legal-page h1,
+  .legal-page h2 {
+    color: #f1f5f9;
+  }
+
+  .legal-page p,
+  .legal-page li,
+  .legal-page strong {
+    color: #cbd5e1;
+  }
+
+  .legal-page hr {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .legal-page a {
+    color: #60a5fa;
+  }
+
+  .legal-last-updated {
+    color: #94a3b8;
+  }
+
+  .legal-back-link {
+    color: #60a5fa;
+  }
 }
 
 /* === Follow-up chips (stable CSS — not inline to avoid re-render animation glitch) === */
