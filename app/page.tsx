@@ -1776,9 +1776,13 @@ export default function Page() {
                     const isOffMarket = d.listingStatus === 'OFF_MARKET' || d.listingStatus === 'SOLD';
 
                     // ── OFF-MARKET / REFI path ─────────────────────────────────────────
-                    if (isOffMarket && d.estimatedBalance && d.purchaseRate) {
-                        const bal    = d.estimatedBalance;
-                        const curRate = d.purchaseRate;
+                    if (isOffMarket) {
+                        // Use parsed balance if available; fall back to 80% of last-sale or estimated value
+                        const bal = d.estimatedBalance
+                            ?? (d.lastSalePrice ? Math.round(d.lastSalePrice * 0.80)
+                            : d.estimatedValue  ? Math.round(d.estimatedValue  * 0.75)
+                            : 600_000);
+                        const curRate = d.purchaseRate ?? 5.5;
                         const termMo  = d.remainingMonths ?? 360;
                         const costs   = Math.round(bal * 0.02);
                         const equity  = d.estimatedEquity ?? null;
@@ -1790,9 +1794,13 @@ export default function Page() {
                             ? Math.round((bal * r * Math.pow(1 + r, termMo)) / (Math.pow(1 + r, termMo) - 1))
                             : Math.round(bal / termMo);
 
-                        const headline = `${addressShort ?? locationStr} — off market. Sold ${d.lastSaleDate ?? ''} for ${d.lastSalePrice ? fmtK(d.lastSalePrice) : '—'}.`;
+                        const saleNote = d.lastSaleDate && d.lastSalePrice
+                            ? ` Sold ${d.lastSaleDate} for ${fmtK(d.lastSalePrice)}.`
+                            : '';
+                        const headline = `${addressShort ?? locationStr} — off market.${saleNote}`;
                         const subline  = [detailStr, locationStr, estVal ? `Est. value ${fmtK(estVal)}` : null, equity ? `Est. equity ${fmtK(equity)}` : null].filter(Boolean).join(' · ');
-                        const cta      = `Est. refi payment at today's ${liveRate.toFixed(2)}%: $${refiPmt.toLocaleString()}/mo on ~${fmtK(bal)} balance. Adjust the sliders below.`;
+                        const balNote  = d.estimatedBalance ? `~${fmtK(bal)} est. balance` : `~${fmtK(bal)} est. balance (adjust below)`;
+                        const cta      = `Est. refi payment at today's ${liveRate.toFixed(2)}%: $${refiPmt.toLocaleString()}/mo on ${balNote}. Adjust the sliders below.`;
 
                         const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
