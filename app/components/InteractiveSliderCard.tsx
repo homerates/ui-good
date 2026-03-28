@@ -123,6 +123,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 ...(vaFfPct > 0 ? { customFundingFeePct: vaFfPct } : {}),
             };
         }
+        if (loanType === 'fha') {
+            return { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, isFHA: true };
+        }
         if (loanType === 'jumbo') {
             return { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'jumbo' };
         }
