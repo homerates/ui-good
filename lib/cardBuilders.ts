@@ -1297,12 +1297,26 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
         });
     }
 
-    // Chip 2: gift funds if there's a gap, otherwise rate sensitivity
+    // Chip 2: gift funds (FHA only) if there's a gap, otherwise rate sensitivity
     if (sFast.savingsGap > 0) {
-        chips.push({
-            label: `Can gift funds cover my ${f$(sFast.savingsGap)} gap?`,
-            seed: `Can gift funds cover my FHA down payment? I need ${f$(sFast.savingsGap)} more with ${f$(r.annualIncome)} income`,
-        });
+        if (sFast.isFHA) {
+            chips.push({
+                label: `Can gift funds cover my ${f$(sFast.savingsGap)} gap?`,
+                seed: `Can gift funds cover my FHA down payment? I need ${f$(sFast.savingsGap)} more with ${f$(r.annualIncome)} income`,
+            });
+        } else {
+            chips.push({
+                label: `Rate drops to ${fPct(r.rate - 0.5)} — how much does that help?`,
+                seed: `What can I afford at ${fPct(r.rate - 0.5)} rate? I make ${f$(r.annualIncome)} and have ${f$(r.savings)} saved`,
+                paramOverrides: {
+                    annualIncome: r.annualIncome,
+                    savings: r.savings,
+                    monthlyDebts: r.monthlyDebts,
+                    annualRatePct: Math.round((r.rate - 0.5) * 100) / 100,
+                },
+                changedKeys: ['annualRatePct'],
+            });
+        }
     } else {
         chips.push({
             label: `What if rates drop to ${fPct(r.rate - 0.5)}?`,
@@ -1371,7 +1385,7 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
                 annualIncome: r.annualIncome,
                 monthlyDebts: r.monthlyDebts,
                 savings: r.savings,
-                downPct: sc?.downPaymentPct ?? (sc0?.downPaymentPct ?? 5),
+                downPct: sc0?.isFHA ? (sc0?.downPaymentPct ?? 3.5) : (sc?.downPaymentPct ?? 5),
                 rate: r.rate,
                 term: 30,
                 taxRate: refPrice > 0 ? ((sc?.monthlyTax ?? sc0?.monthlyTax ?? 300) * 12) / refPrice : 0.012,

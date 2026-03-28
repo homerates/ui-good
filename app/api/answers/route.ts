@@ -1398,11 +1398,13 @@ async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
     const wantMacro = topics.includes('macro') || topics.includes('rates') || topics.includes('inflation');
 
     // Helper: fetch one FRED series, return parsed value + date or null
+    // Pass units='pc1' for YoY % change on index-level series (e.g. PCEPILFE, CUSR0000SAH1)
     let fredErrorLogged = false; // log only first failure to avoid log spam
-    const fredFetch = async (seriesId: string): Promise<{ value: number | null; date: string | null }> => {
+    const fredFetch = async (seriesId: string, units?: string): Promise<{ value: number | null; date: string | null }> => {
         try {
+            const unitsParam = units ? `&units=${units}` : '';
             const r = await fetch(
-                `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1`,
+                `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1${unitsParam}`,
                 { cache: "no-store" }
             );
             if (!r.ok) {
@@ -1438,7 +1440,8 @@ async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
     const enrichIds: string[] = [];
     if (wantRates) enrichIds.push('MORTGAGE15US', 'MORTGAGE5US', 'DGS2', 'DGS30', 'T10Y2Y', 'SOFR');
     if (wantHousing) enrichIds.push('HOUST', 'EXHOSLUSM495S', 'MSACSR', 'CSUSHPINSA', 'RRVRUSQ156N');
-    if (wantMacro) enrichIds.push('PCEPILFE', 'CUSR0000SAH1');
+    // PCEPILFE and CUSR0000SAH1 are price index levels — must fetch with units=pc1 for YoY %
+    // They are NOT added to enrichIds; fetched separately below.
 
     const allIds = [...new Set([...coreIds, ...enrichIds])];
     const results = await Promise.allSettled(allIds.map(id => fredFetch(id)));
@@ -1448,6 +1451,16 @@ async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
         const r = results[i];
         byId[id] = r.status === 'fulfilled' ? r.value : { value: null, date: null };
     });
+
+    // Fetch PCE core and CPI shelter as YoY % (units=pc1) when macro context is needed
+    if (wantMacro) {
+        const [pcePct, shelterPct] = await Promise.allSettled([
+            fredFetch('PCEPILFE', 'pc1'),
+            fredFetch('CUSR0000SAH1', 'pc1'),
+        ]);
+        byId['PCEPILFE'] = pcePct.status === 'fulfilled' ? pcePct.value : { value: null, date: null };
+        byId['CUSR0000SAH1'] = shelterPct.status === 'fulfilled' ? shelterPct.value : { value: null, date: null };
+    }
 
     const g = (id: string) => byId[id]?.value ?? null;
     const tenYearYield = g('DGS10');
