@@ -1895,9 +1895,10 @@ export default function Page() {
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
                     // Detect loan tier — determines slider type and chip set
+                    // $832,750 = 2026 FHFA national conforming baseline (up from $806,500 in 2025)
                     const defaultDown   = 20;
                     const loanAmt       = d.price ? d.price * (1 - defaultDown / 100) : 0;
-                    const isJumboLoan   = loanAmt > 806_500;
+                    const isJumboLoan   = loanAmt > 832_750;
                     const sliderLoanType: 'conventional' | 'jumbo' = isJumboLoan ? 'jumbo' : 'conventional';
 
                     // Pre-filled slider using live rate + scraped tax rate

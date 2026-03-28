@@ -17,9 +17,9 @@ export interface RefiSliderParams {
     onRunScenario?: (seed: string) => void;
 }
 
-// ── Loan tier detection ───────────────────────────────────────────────────────
-const CONFORMING_LIMIT  = 806_500;   // 2026 baseline
-const HIGH_COST_LIMIT   = 1_209_750; // 2026 high-cost ceiling
+// ── Loan tier detection (FHFA 2026 limits) ───────────────────────────────────
+const CONFORMING_LIMIT  = 832_750;   // 2026 national baseline (FHFA CY2026)
+const HIGH_COST_LIMIT   = 1_249_125; // 2026 high-balance ceiling (1-unit)
 
 function loanTier(balance: number): 'conforming' | 'high_cost' | 'jumbo' | 'super_jumbo' {
     if (balance <= CONFORMING_LIMIT)  return 'conforming';
