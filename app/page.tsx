@@ -363,7 +363,7 @@ type ApiResponse = {
     topSources?: Array<{ title: string; url: string }>;
     interactiveSlider?: {
         price: number; downPct: number; rate: number; term: number;
-        taxRate: number; insRate: number; loanType: 'conventional' | 'fha';
+        taxRate: number; insRate: number; loanType: 'conventional' | 'fha' | 'jumbo' | 'va';
     } | null;
     affordabilitySlider?: {
         annualIncome: number; monthlyDebts: number; savings: number;
@@ -1894,16 +1894,22 @@ export default function Page() {
 
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
+                    // Detect loan tier — determines slider type and chip set
+                    const defaultDown   = 20;
+                    const loanAmt       = d.price ? d.price * (1 - defaultDown / 100) : 0;
+                    const isJumboLoan   = loanAmt > 806_500;
+                    const sliderLoanType: 'conventional' | 'jumbo' = isJumboLoan ? 'jumbo' : 'conventional';
+
                     // Pre-filled slider using live rate + scraped tax rate
                     const taxRate = d.taxRateEffective ?? 0.012;
                     const interactiveSlider = d.price ? {
                         price: d.price,
-                        downPct: 20,
+                        downPct: defaultDown,
                         rate: liveRate,
                         term: 30,
                         taxRate,
                         insRate: 0.0050,
-                        loanType: 'conventional' as const,
+                        loanType: sliderLoanType,
                     } : null;
 
                     // Property-specific follow-up chips
@@ -1912,19 +1918,25 @@ export default function Page() {
                         {
                             label: `What income do I need to qualify?`,
                             seed: `What income do I need to qualify for a ${priceFmt} home${cityStr}?`,
+                            ...(d.price && isJumboLoan ? { paramOverrides: { purchasePrice: d.price, downPaymentPct: defaultDown, annualRatePct: liveRate, loanType: 'jumbo' } } : {}),
                         },
-                        {
+                        // FHA doesn't apply to jumbo — swap for jumbo-specific chip
+                        ...(isJumboLoan ? [{
+                            label: `30% down — reduce jumbo rate premium`,
+                            seed: `Jumbo loan on ${priceFmt} with 30% down at ${liveRate.toFixed(2)}%${cityStr}`,
+                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 30, annualRatePct: liveRate, loanType: 'jumbo' },
+                        }] : [{
                             label: `FHA vs conventional on this home`,
                             seed: `Compare FHA 3.5% down vs conventional 5% down on a ${priceFmt} home at ${liveRate.toFixed(2)}%${cityStr}`,
-                        },
-                        ...(d.price && d.price * 0.9 <= 832750 ? [{
+                        }]),
+                        ...(d.price && d.price * (1 - 0.10) <= 832750 ? [{
                             label: `10% down — what's my payment?`,
                             seed: `Conventional loan on ${priceFmt} with 10% down at ${liveRate.toFixed(2)}%`,
                             paramOverrides: { purchasePrice: d.price, downPaymentPct: 10, annualRatePct: liveRate },
                         }] : [{
                             label: `25% down — what's my payment?`,
-                            seed: `Conventional jumbo loan on ${priceFmt} with 25% down at ${liveRate.toFixed(2)}%`,
-                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 25, annualRatePct: liveRate },
+                            seed: `${isJumboLoan ? 'Jumbo' : 'Conventional'} loan on ${priceFmt} with 25% down at ${liveRate.toFixed(2)}%`,
+                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 25, annualRatePct: liveRate, ...(isJumboLoan ? { loanType: 'jumbo' } : {}) },
                         }]),
                         ...(d.price && d.address ? [{
                             label: `Full Property Intelligence Report`,
