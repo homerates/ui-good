@@ -408,8 +408,8 @@ export default function AffordabilityCalculatorPage() {
                             removal at 80% LTV flagged.
                         </li>
                         <li>
-                            <strong>2026 loan limits</strong> — FHA floor ($524,225) and conforming
-                            limits ($806,500 standard, up to $1,209,750 high-cost) applied per FHFA.
+                            <strong>2026 loan limits</strong> — FHA floor ($541,287) and conforming
+                            limits ($832,750 standard, up to $1,249,125 high-cost) applied per FHFA.
                         </li>
                     </ol>
                 </section>

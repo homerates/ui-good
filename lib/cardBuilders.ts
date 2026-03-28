@@ -317,7 +317,7 @@ export function buildFHACard(
     // Top-of-card alert when loan is above national FHA floor with no county specified
     // withinLimitStatus==='unknown' means: loan > $541k floor, county unknown — can't confirm pass/fail
     const limitAlertBanner = r.withinLimitStatus === 'unknown'
-        ? `> ⚠️ **FHA Loan Limit — County Required:** Your base loan of ${f$(r.baseLoanAmount)} exceeds the national FHA floor (${fK(541287)}). In high-cost areas (e.g. Los Angeles, San Francisco, San Diego), FHA limits reach ${fK(1009750)}–${fK(1209750)} — you may still qualify. Share your county or ZIP for an exact check.\n\n`
+        ? `> ⚠️ **FHA Loan Limit — County Required:** Your base loan of ${f$(r.baseLoanAmount)} exceeds the national FHA floor (${fK(541287)}). In high-cost areas (e.g. Los Angeles, San Francisco, San Diego), FHA limits reach ${fK(1089300)}–${fK(1249125)} — you may still qualify. Share your county or ZIP for an exact check.\n\n`
         : r.withinLimitStatus === 'above_ceiling'
             ? `> ❌ **FHA Loan Limit Exceeded:** Your base loan of ${f$(r.baseLoanAmount)} exceeds the ${r.fhaLoanLimit ? `FHA limit of ${f$(r.fhaLoanLimit)} for this area` : 'FHA ceiling'}. This purchase would require conventional or jumbo financing.\n\n`
             : '';

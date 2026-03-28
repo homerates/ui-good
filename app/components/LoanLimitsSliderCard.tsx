@@ -10,7 +10,7 @@ import React, { useState, useMemo, useRef } from 'react';
 export interface LoanLimitsSliderParams {
     county: string;
     conformingLimit: number;    // county max (e.g. 1,249,125 for LA County)
-    nationalBaseline: number;   // always 806,500
+    nationalBaseline: number;   // always 832,750 (2026 FHFA national baseline)
     price: number;              // initial purchase price
     downPct: number;            // initial down payment %
     taxRate: number;            // annual property tax rate as decimal (e.g. 0.012)
@@ -145,7 +145,7 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
         const monthlyPI   = calcPI(loanAmt, effectiveRate, 30);
         const totalMonthly = monthlyPI + monthlyTax + monthlyIns;
 
-        // "Stay standard conforming" — how much down to get loan ≤ $806,500
+        // "Stay standard conforming" — how much down to get loan ≤ $832,750 (2026 baseline)
         const stayStdDown    = Math.max(0, price - nationalBaseline);
         const stayStdDownPct = price > 0 ? (stayStdDown / price) * 100 : 0;
         const canStayStd     = stayStdDownPct <= 100;

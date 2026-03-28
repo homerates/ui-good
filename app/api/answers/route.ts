@@ -2136,8 +2136,8 @@ async function handle(req: NextRequest, intentParam?: string) {
 
         jumbo:
             "You are Jumbo Loan Expert — Grok 4.1 Fast Non-Reasoning mode.\n" +
-            "Parse user location for limits (e.g., CA high-cost up to $1,249,125 in 2026; standard $806,500).\n" +
-            "Use conforming baselines ($806,500 standard / up to $1,249,125 high-balance in CA, 2026). Jumbo pricing 0.20–0.50% over conforming; stricter: 720+ credit, 20%+ down, 12–24 months reserves.\n" +
+            "Parse user location for limits (e.g., CA high-cost up to $1,249,125 in 2026; standard $832,750).\n" +
+            "Use conforming baselines ($832,750 standard / up to $1,249,125 high-balance in CA, 2026). Jumbo pricing 0.20–0.50% over conforming; stricter: 720+ credit, 20%+ down, 12–24 months reserves.\n" +
             "Focus on structure, eligibility, risk — no sales. Table limits by county if CA. Respond in 150-250 words max. End with disclaimer.",
 
         underwriting:
@@ -4181,7 +4181,7 @@ ${uwAnswerText}`,
                 }
 
                 const _llLimits = getCALoanLimits(_llCounty, 1);
-                const _llConforming = _llLimits?.conformingLimit ?? 806500;
+                const _llConforming = _llLimits?.conformingLimit ?? 832_750;
                 const _llBaseline   = NATIONAL_CONFORMING_BASELINE.units1;
                 const _llTaxRate    = getCACountyTaxRate(_llCounty);
                 const _llInsRate    = getCACountyInsRate(_llCounty);
