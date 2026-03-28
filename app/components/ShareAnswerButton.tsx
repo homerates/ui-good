@@ -46,27 +46,40 @@ export function ShareAnswerButton({
             }
 
             if (method === 'link') {
-                // Copy to clipboard — navigator.clipboard fails on mobile if
-                // document loses focus after async fetch; fall back to execCommand.
                 let didCopy = false;
+
+                // 1. Modern clipboard API (works on desktop + secure Android)
                 try {
                     await navigator.clipboard.writeText(data.url);
                     didCopy = true;
-                } catch {
+                } catch { /* falls through */ }
+
+                // 2. execCommand fallback (older Android / some desktop)
+                if (!didCopy) {
                     try {
-                        const el = document.createElement('input');
+                        const el = document.createElement('textarea');
                         el.value = data.url;
-                        el.style.position = 'fixed';
-                        el.style.opacity = '0';
+                        el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
                         document.body.appendChild(el);
                         el.focus();
                         el.select();
                         didCopy = document.execCommand('copy');
                         document.body.removeChild(el);
-                    } catch {
-                        didCopy = false;
-                    }
+                    } catch { /* falls through */ }
                 }
+
+                // 3. Native share sheet — iOS Safari + Android Chrome always support this
+                // and it works correctly even after an async fetch chain.
+                if (!didCopy && typeof navigator.share === 'function') {
+                    setShowModal(false); // close our modal before the system sheet opens
+                    try {
+                        await navigator.share({ url: data.url, title: 'HomeRates.ai' });
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                    } catch { /* user cancelled share sheet — no feedback needed */ }
+                    return;
+                }
+
                 setCopied(didCopy);
                 if (didCopy) setTimeout(() => setCopied(false), 2000);
             }
