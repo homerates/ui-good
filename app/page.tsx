@@ -389,6 +389,13 @@ type ApiResponse = {
         beds: number | null; baths: number | null; sqft: number | null;
         annualTaxes: number | null; taxRateEffective: number | null; taxSource: string | null;
         photoUrl: string | null;
+        // Extended
+        listingStatus?: 'FOR_SALE' | 'OFF_MARKET' | 'PENDING' | 'SOLD' | 'UNKNOWN';
+        daysOnMarket?: number | null; lastSaleDate?: string | null; lastSalePrice?: number | null;
+        estimatedValue?: number | null; estimatedValueLow?: number | null; estimatedValueHigh?: number | null;
+        estimatedBalance?: number | null; estimatedEquity?: number | null;
+        purchaseRate?: number | null; remainingMonths?: number | null;
+        hoaMonthly?: number | null; pricePerSqft?: number | null;
     } | null;
     cmaCard?: {
         address: string; price: number; photoUrl: string | null;
@@ -1755,6 +1762,110 @@ export default function Page() {
                 if (lookupJson.ok && lookupJson.data) {
                     const d = lookupJson.data;
 
+                    const addressShort = d.address?.split(',')[0] ?? null;
+                    const locationStr  = d.city && d.state ? `${d.city}, ${d.state}` : d.state ?? '';
+                    const detailParts: string[] = [];
+                    if (d.beds)  detailParts.push(`${d.beds} bd`);
+                    if (d.baths) detailParts.push(`${d.baths} ba`);
+                    if (d.sqft)  detailParts.push(`${d.sqft.toLocaleString()} sqft`);
+                    const detailStr = detailParts.join(' · ');
+
+                    const fmtK = (n: number) => { const k = Math.round(n / 1000); return k >= 1000 ? `$${(k / 1000).toFixed(1).replace(/\.0$/, '')}M` : `$${k}k`; };
+                    const cityStr = d.city ? ` in ${d.city}` : '';
+
+                    const isOffMarket = d.listingStatus === 'OFF_MARKET' || d.listingStatus === 'SOLD';
+
+                    // ── OFF-MARKET / REFI path ─────────────────────────────────────────
+                    if (isOffMarket && d.estimatedBalance && d.purchaseRate) {
+                        const bal    = d.estimatedBalance;
+                        const curRate = d.purchaseRate;
+                        const termMo  = d.remainingMonths ?? 360;
+                        const costs   = Math.round(bal * 0.02);
+                        const equity  = d.estimatedEquity ?? null;
+                        const estVal  = d.estimatedValue  ?? null;
+
+                        // Estimated current refi payment
+                        const r = liveRate / 100 / 12;
+                        const refiPmt = r > 0
+                            ? Math.round((bal * r * Math.pow(1 + r, termMo)) / (Math.pow(1 + r, termMo) - 1))
+                            : Math.round(bal / termMo);
+
+                        const headline = `${addressShort ?? locationStr} — off market. Sold ${d.lastSaleDate ?? ''} for ${d.lastSalePrice ? fmtK(d.lastSalePrice) : '—'}.`;
+                        const subline  = [detailStr, locationStr, estVal ? `Est. value ${fmtK(estVal)}` : null, equity ? `Est. equity ${fmtK(equity)}` : null].filter(Boolean).join(' · ');
+                        const cta      = `Est. refi payment at today's ${liveRate.toFixed(2)}%: $${refiPmt.toLocaleString()}/mo on ~${fmtK(bal)} balance. Adjust the sliders below.`;
+
+                        const friendly = [headline, subline, cta].filter(Boolean).join('\n');
+
+                        const refiSlider = {
+                            balance:      bal,
+                            currentRate:  curRate,
+                            newRate:      liveRate,
+                            termMonths:   termMo,
+                            closingCosts: costs,
+                        };
+
+                        const refiChips = [
+                            ...(liveRate < curRate - 0.25 ? [{
+                                label: `Rate drop to ${(liveRate - 0.5).toFixed(2)}% — how much do I save?`,
+                                seed:  `Refi from ${curRate.toFixed(2)}% to ${(liveRate - 0.5).toFixed(2)}% on ${fmtK(bal)} balance`,
+                                paramOverrides: { currentBalance: bal, currentRatePct: curRate, newRatePct: Math.round((liveRate - 0.5) * 100) / 100 },
+                            }] : [{
+                                label: `Rates drop to 6% — what's the new payment?`,
+                                seed:  `Refi from ${curRate.toFixed(2)}% to 6% on ${fmtK(bal)} balance`,
+                                paramOverrides: { currentBalance: bal, currentRatePct: curRate, newRatePct: 6.0 },
+                            }]),
+                            {
+                                label: `15-year refi — what's the payoff?`,
+                                seed:  `15-year refi at ${liveRate.toFixed(2)}% on ${fmtK(bal)} balance${cityStr}`,
+                                paramOverrides: { currentBalance: bal, currentRatePct: curRate, newRatePct: liveRate },
+                            },
+                            ...(equity && equity > 50_000 ? [{
+                                label: `Cash-out ${fmtK(Math.min(equity * 0.8, 200_000))} — what changes?`,
+                                seed:  `Cash-out refi ${fmtK(Math.min(equity * 0.8, 200_000))} from ${addressShort ?? 'this property'}${cityStr}`,
+                            }] : []),
+                            ...(d.lastSalePrice && d.address ? [{
+                                label: `Full Property Intelligence Report`,
+                                seed:  `Property intelligence report: ${d.address} last sold ${d.lastSaleDate ?? ''} for ${fmtK(d.lastSalePrice)}${cityStr}`,
+                                paramOverrides: {
+                                    cmaAddress:  d.address,
+                                    cmaCity:     d.city    ?? '',
+                                    cmaState:    d.state   ?? '',
+                                    cmaZip:      d.zip     ?? '',
+                                    cmaPrice:    d.lastSalePrice,
+                                    cmaBeds:     d.beds    ?? 0,
+                                    cmaBaths:    d.baths   ?? 0,
+                                    cmaSqft:     d.sqft    ?? 0,
+                                    cmaTaxAnnual: d.annualTaxes ?? 0,
+                                    cmaTaxRate:  d.taxRateEffective ?? 0.011,
+                                    cmaLiveRate: liveRate,
+                                    cmaPhotoUrl: d.photoUrl ?? '',
+                                } as Record<string, string | number>,
+                            }] : []),
+                        ];
+
+                        const propertyMeta: ApiResponse = {
+                            path: 'property_lookup',
+                            usedFRED: false,
+                            answer: friendly,
+                            message: friendly,
+                            answerMarkdown: friendly,
+                            propertyCard: d,
+                            refiSlider,
+                            follow_up_chips: refiChips,
+                        };
+
+                        setMessages((prev) =>
+                            prev.map((m) =>
+                                m.id === answerId && m.role === 'assistant'
+                                    ? { ...m, meta: propertyMeta, content: '' }
+                                    : m
+                            )
+                        );
+                        typeOutAssistant(answerId, friendly);
+
+                    } else {
+                    // ── FOR-SALE / PURCHASE path ───────────────────────────────────────
+
                     // Compute estimated PITI (20% down, live rate, scraped taxes)
                     let pitiStr = '';
                     if (d.price) {
@@ -1770,20 +1881,13 @@ export default function Page() {
                         pitiStr = `$${piti.toLocaleString()}/mo`;
                     }
 
-                    const addressShort = d.address?.split(',')[0] ?? null; // "896 Bright Star St"
-                    const locationStr = d.city && d.state ? `${d.city}, ${d.state}` : d.state ?? '';
                     const priceStr = d.price ? `$${d.price.toLocaleString()}` : null;
-                    const detailParts: string[] = [];
-                    if (d.beds) detailParts.push(`${d.beds} bd`);
-                    if (d.baths) detailParts.push(`${d.baths} ba`);
-                    if (d.sqft) detailParts.push(`${d.sqft.toLocaleString()} sqft`);
-                    const detailStr = detailParts.join(' · ');
+                    const domNote  = d.daysOnMarket != null ? ` · ${d.daysOnMarket} days on market` : '';
 
-                    // Lead with the monthly number — that's the hook
                     const headline = pitiStr
                         ? `${pitiStr} estimated — that's your PITI on ${addressShort ?? locationStr}.`
                         : `${priceStr ?? 'Listing'} in ${locationStr}.`;
-                    const subline = [priceStr, detailStr, locationStr].filter(Boolean).join(' · ');
+                    const subline = [priceStr, detailStr, locationStr + domNote].filter(Boolean).join(' · ');
                     const cta = d.price
                         ? `Pre-loaded at today's ${liveRate.toFixed(2)}% with 20% down. Adjust the sliders to explore.`
                         : `Zillow blocked price data — enter the listing price below to run the numbers.`;
@@ -1803,8 +1907,7 @@ export default function Page() {
                     } : null;
 
                     // Property-specific follow-up chips
-                    const priceFmt = d.price ? (() => { const k = Math.round(d.price! / 1000); return k >= 1000 ? `$${(k / 1000).toFixed(1).replace(/\.0$/, '')}M` : `$${k}k`; })() : 'this home';
-                    const cityStr = d.city ? ` in ${d.city}` : '';
+                    const priceFmt = d.price ? fmtK(d.price) : 'this home';
                     const chips = [
                         {
                             label: `What income do I need to qualify?`,
@@ -1814,7 +1917,6 @@ export default function Page() {
                             label: `FHA vs conventional on this home`,
                             seed: `Compare FHA 3.5% down vs conventional 5% down on a ${priceFmt} home at ${liveRate.toFixed(2)}%${cityStr}`,
                         },
-                        // 10% down only makes sense for conforming loans — jumbo requires 20%+ minimum
                         ...(d.price && d.price * 0.9 <= 832750 ? [{
                             label: `10% down — what's my payment?`,
                             seed: `Conventional loan on ${priceFmt} with 10% down at ${liveRate.toFixed(2)}%`,
@@ -1863,6 +1965,7 @@ export default function Page() {
                         )
                     );
                     typeOutAssistant(answerId, friendly);
+                    } // close FOR_SALE else
                 } else {
                     // Lookup failed — surface the error as assistant text
                     const errMsg = lookupJson.error ?? 'Could not read that listing. Try pasting the price and address manually.';
