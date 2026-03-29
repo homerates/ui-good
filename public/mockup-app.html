@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates.ai — App Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c12;
+    --surface: #0e1420;
+    --surface2: #141b28;
+    --surface3: #1a2235;
+    --border: rgba(255,255,255,0.07);
+    --border-bright: rgba(255,255,255,0.13);
+    --text: #f0f4ff;
+    --text-muted: #6b7a99;
+    --text-dim: #3a4560;
+    --green: #00e87a;
+    --green-dim: rgba(0,232,122,0.12);
+    --green-glow: rgba(0,232,122,0.18);
+    --blue: #3d8bff;
+    --blue-dim: rgba(61,139,255,0.1);
+    --sidebar-w: 240px;
+    --header-h: 48px;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --display: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── VIEW TOGGLE ── */
+  .view-toggle {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    z-index: 9999;
+    display: flex;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .vt-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 7px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .vt-btn.active {
+    background: var(--surface3);
+    color: var(--text);
+    border: 1px solid var(--border-bright);
+  }
+
+  /* ════════════════════════════════════
+     DESKTOP LAYOUT
+  ════════════════════════════════════ */
+  #desktop-view {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo-mark {
+    width: 26px;
+    height: 26px;
+    background: conic-gradient(from 180deg, #a855f7, #3d8bff, #00e87a, #a855f7);
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .sidebar-logo-mark::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    background: var(--surface);
+    border-radius: 50%;
+  }
+
+  .sidebar-logo-text {
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    flex: 1;
+    letter-spacing: -0.01em;
+  }
+
+  .sidebar-hamburger {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .sidebar-hamburger:hover { background: rgba(255,255,255,0.06); }
+  .sidebar-hamburger span {
+    display: block;
+    height: 1.5px;
+    background: var(--text-muted);
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 0;
+  }
+  .sidebar-scroll::-webkit-scrollbar { width: 3px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+  /* New Chat */
+  .sidebar-new-chat {
+    margin: 0 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--green-dim);
+    border: 1px solid rgba(0,232,122,0.2);
+    color: var(--green);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    width: calc(100% - 24px);
+    text-align: left;
+  }
+  .sidebar-new-chat:hover {
+    background: rgba(0,232,122,0.18);
+    border-color: rgba(0,232,122,0.35);
+  }
+  .sidebar-new-chat svg { opacity: 0.8; }
+
+  /* Section label */
+  .sidebar-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 0 16px;
+    margin-bottom: 6px;
+  }
+
+  /* Tool pills */
+  .sidebar-tools {
+    padding: 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+
+  .sidebar-tool {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--sans);
+    font-size: 13px;
+    transition: all 0.15s;
+    text-align: left;
+    width: 100%;
+  }
+  .sidebar-tool:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
+  .sidebar-tool.active {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .tool-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .tool-icon.green { background: var(--green-dim); }
+  .tool-icon.blue  { background: var(--blue-dim); }
+  .tool-icon.purple { background: rgba(167,139,250,0.12); }
+
+  .tool-badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--green);
+    background: var(--green-dim);
+    border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 100px;
+    padding: 1px 6px;
+    letter-spacing: 0.06em;
+  }
+
+  /* Chat history */
+  .sidebar-section {
+    padding: 0 12px;
+    margin-bottom: 4px;
+  }
+
+  .chat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-muted);
+    transition: all 0.12s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chat-item:hover { background: var(--surface2); color: var(--text); }
+  .chat-item.active {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .chat-item-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .chat-item.active .chat-item-dot { background: var(--green); }
+
+  /* Sidebar footer */
+  .sidebar-footer {
+    flex-shrink: 0;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: background 0.15s;
+  }
+  .sidebar-user:hover { background: var(--surface2); }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3d8bff, #a855f7);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .user-info { flex: 1; min-width: 0; }
+  .user-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .user-plan {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--green);
+    letter-spacing: 0.08em;
+  }
+
+  .sidebar-footer-links {
+    display: flex;
+    gap: 16px;
+    padding: 0 4px;
+  }
+  .sidebar-footer-links a {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.15s;
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+  }
+  .sidebar-footer-links a:hover { color: var(--text-muted); }
+
+  /* ── MAIN AREA ── */
+  .main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-width: 0;
+  }
+
+  .main-header {
+    height: var(--header-h);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 12px;
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+
+  .header-title {
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .header-rate-pill {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .rate-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .rate-val { color: var(--text); font-weight: 500; }
+
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* Chat bubbles */
+  .msg-user {
+    align-self: flex-end;
+    max-width: 75%;
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    border-radius: 14px 14px 2px 14px;
+    padding: 11px 16px;
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .msg-ai {
+    align-self: flex-start;
+    max-width: 85%;
+  }
+
+  .msg-ai-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  .msg-ai-text {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.65;
+    margin-bottom: 12px;
+  }
+
+  .answer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
+  }
+  .answer-num {
+    font-family: var(--display);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 2px;
+  }
+  .answer-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    letter-spacing: 0.06em;
+  }
+  .answer-rows {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .answer-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .answer-row span:first-child { color: var(--text-muted); }
+  .answer-row span:last-child { color: var(--text); font-weight: 500; }
+
+  .chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--sans);
+  }
+  .chip:hover { color: var(--text); border-color: var(--border-bright); }
+
+  /* Input area */
+  .input-area {
+    flex-shrink: 0;
+    padding: 16px 40px 20px;
+    background: linear-gradient(to top, var(--bg) 80%, transparent);
+  }
+  .input-inner {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .input-bar {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 14px;
+    padding: 4px 4px 4px 18px;
+    gap: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-bar:focus-within {
+    border-color: rgba(0,232,122,0.35);
+    box-shadow: 0 0 0 3px var(--green-glow);
+  }
+  .input-field {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text);
+    padding: 13px 0;
+  }
+  .input-field::placeholder { color: var(--text-dim); }
+  .input-send {
+    width: 40px;
+    height: 40px;
+    background: var(--green);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .input-send:hover { opacity: 0.85; }
+  .input-hint {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 8px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ════════════════════════════════════
+     MOBILE LAYOUT
+  ════════════════════════════════════ */
+  #mobile-view {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+    padding: 40px 24px;
+    min-height: 100vh;
+    flex-wrap: wrap;
+  }
+
+  .phone-frame {
+    width: 375px;
+    height: 812px;
+    background: var(--bg);
+    border-radius: 44px;
+    border: 2px solid var(--border-bright);
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .phone-notch {
+    width: 120px;
+    height: 30px;
+    background: var(--bg);
+    border-radius: 0 0 18px 18px;
+    margin: 0 auto;
+    z-index: 10;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-top: none;
+    flex-shrink: 0;
+  }
+  .phone-notch-cam {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #1a2235;
+    border: 1px solid var(--border-bright);
+  }
+
+  .phone-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-align: center;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  /* Mobile header */
+  .m-header {
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .m-hamburger-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+  .m-hamburger-btn span {
+    display: block;
+    height: 1.5px;
+    background: var(--text-muted);
+    border-radius: 2px;
+  }
+  .m-logo {
+    flex: 1;
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .m-rate-pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--green);
+    background: var(--green-dim);
+    border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 100px;
+    padding: 3px 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* Mobile chat */
+  .m-chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .m-msg-user {
+    align-self: flex-end;
+    max-width: 78%;
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    border-radius: 14px 14px 2px 14px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .m-msg-ai { align-self: flex-start; max-width: 90%; width: 100%; }
+
+  .m-answer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .m-answer-num {
+    font-family: var(--display);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 1px;
+  }
+  .m-answer-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .m-answer-rows {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .m-answer-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+  }
+  .m-answer-row span:first-child { color: var(--text-muted); }
+  .m-answer-row span:last-child { color: var(--text); font-weight: 500; }
+
+  .m-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .m-chips::-webkit-scrollbar { display: none; }
+  .m-chip {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 5px 11px;
+    white-space: nowrap;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  /* Mobile input */
+  .m-input-wrap {
+    flex-shrink: 0;
+    padding: 10px 12px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+  .m-input-bar {
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    border-radius: 12px;
+    padding: 4px 4px 4px 14px;
+    gap: 8px;
+  }
+  .m-input-field {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: var(--text);
+    padding: 10px 0;
+    font-family: var(--sans);
+  }
+  .m-input-field::placeholder { color: var(--text-dim); }
+  .m-input-send {
+    width: 36px;
+    height: 36px;
+    background: var(--green);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ── MOBILE SIDEBAR DRAWER ── */
+  .m-sidebar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    display: flex;
+  }
+
+  .m-sidebar {
+    width: 260px;
+    height: 100%;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .m-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 14px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .m-sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+  }
+
+  .m-sidebar-new-chat {
+    margin: 0 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--green-dim);
+    border: 1px solid rgba(0,232,122,0.2);
+    color: var(--green);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: calc(100% - 20px);
+  }
+
+  .m-sidebar-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 0 14px;
+    margin-bottom: 6px;
+  }
+
+  .m-sidebar-tools {
+    padding: 0 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 16px;
+  }
+  .m-sidebar-tool {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+  }
+  .m-sidebar-tool:hover { background: var(--surface2); color: var(--text); }
+
+  .m-tool-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .m-sidebar-section { padding: 0 10px; }
+  .m-chat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .m-chat-item:hover { background: var(--surface2); color: var(--text); }
+  .m-chat-item.active { background: var(--surface2); color: var(--text); }
+  .m-chat-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .m-chat-item.active .m-chat-dot { background: var(--green); }
+
+  .m-sidebar-footer {
+    flex-shrink: 0;
+    padding: 10px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .m-user-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 6px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .m-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3d8bff, #a855f7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .m-user-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text);
+    flex: 1;
+  }
+  .m-user-plan {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--green);
+  }
+  .m-footer-links {
+    display: flex;
+    gap: 14px;
+    padding: 0 4px;
+  }
+  .m-footer-links a {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<!-- VIEW TOGGLE -->
+<div class="view-toggle">
+  <button class="vt-btn active" onclick="showView('desktop')">Desktop</button>
+  <button class="vt-btn" onclick="showView('mobile-chat')">Mobile</button>
+  <button class="vt-btn" onclick="showView('mobile-sidebar')">Sidebar</button>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     DESKTOP VIEW
+════════════════════════════════════════════════ -->
+<div id="desktop-view">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-mark"></div>
+      <span class="sidebar-logo-text">HomeRates.ai</span>
+      <button class="sidebar-hamburger" aria-label="Close sidebar">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+
+    <div class="sidebar-scroll">
+
+      <!-- New Chat -->
+      <button class="sidebar-new-chat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New chat
+      </button>
+
+      <!-- Quick Tools -->
+      <div class="sidebar-label">Quick access</div>
+      <div class="sidebar-tools">
+        <button class="sidebar-tool">
+          <div class="tool-icon blue">🏠</div>
+          Scenario Engine
+          <span class="tool-badge">5 modules</span>
+        </button>
+        <button class="sidebar-tool">
+          <div class="tool-icon purple">🔬</div>
+          HomeRates Lab
+        </button>
+        <button class="sidebar-tool">
+          <div class="tool-icon green">🔍</div>
+          Property Lookup
+        </button>
+      </div>
+
+      <!-- Recent Chats -->
+      <div class="sidebar-label">Recent</div>
+      <div class="sidebar-section">
+        <div class="chat-item active">
+          <div class="chat-item-dot"></div>
+          $550k · 20% down · 30yr
+        </div>
+        <div class="chat-item">
+          <div class="chat-item-dot"></div>
+          FHA on $380k salary check
+        </div>
+        <div class="chat-item">
+          <div class="chat-item-dot"></div>
+          DSCR · Riverside rental
+        </div>
+        <div class="chat-item">
+          <div class="chat-item-dot"></div>
+          Refi breakeven at 5.75%
+        </div>
+        <div class="chat-item">
+          <div class="chat-item-dot"></div>
+          OC jumbo loan limits 2026
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar">R</div>
+        <div class="user-info">
+          <div class="user-name">Rayaan</div>
+          <div class="user-plan">FREE · 8/10 used</div>
+        </div>
+      </div>
+      <div class="sidebar-footer-links">
+        <a href="#">Terms</a>
+        <a href="#">Privacy</a>
+        <a href="#">Disclosures</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+    <div class="main-header">
+      <span class="header-title">New chat</span>
+      <div class="header-rate-pill">
+        <div class="rate-dot"></div>
+        30Y <span class="rate-val" style="margin-left:4px">6.38%</span>
+      </div>
+    </div>
+
+    <div class="chat-area">
+      <div class="msg-user">$550k home, 20% down — what's my payment?</div>
+
+      <div class="msg-ai">
+        <div class="msg-ai-label">HOMERATES.AI</div>
+        <div class="msg-ai-text">Here's your full breakdown on a $550k purchase at today's 30Y rate of <strong style="color:var(--text)">6.38%</strong> with 20% down.</div>
+        <div class="answer-card">
+          <div class="answer-num">$2,749/mo</div>
+          <div class="answer-sub">PRINCIPAL & INTEREST · 30YR FIXED · 6.38%</div>
+          <div class="answer-rows">
+            <div class="answer-row"><span>Loan amount</span><span>$440,000</span></div>
+            <div class="answer-row"><span>Down payment</span><span>$110,000 (20%)</span></div>
+            <div class="answer-row"><span>LTV</span><span>80% — No PMI ✓</span></div>
+            <div class="answer-row"><span>Total interest (30yr)</span><span>$549,744</span></div>
+          </div>
+        </div>
+        <div class="chips-row">
+          <div class="chip">What if 10% down?</div>
+          <div class="chip">Compare 15yr vs 30yr</div>
+          <div class="chip">Add property tax & insurance</div>
+          <div class="chip">Save as PDF</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-inner">
+        <div class="input-bar">
+          <input class="input-field" placeholder="Ask a follow-up or start a new scenario…" />
+          <button class="input-send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-hint">Educational only · Not financial advice · homerates.ai/disclosures</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end desktop-view -->
+
+
+<!-- ════════════════════════════════════════════════
+     MOBILE VIEWS
+════════════════════════════════════════════════ -->
+<div id="mobile-view">
+
+  <!-- PHONE 1: Main chat (no sidebar) -->
+  <div>
+    <div class="phone-label">Mobile · Chat</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="phone-notch-cam"></div></div>
+
+      <!-- Header -->
+      <div class="m-header">
+        <button class="m-hamburger-btn">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="m-logo">HomeRates.ai</div>
+        <div class="m-rate-pill">
+          <div class="rate-dot"></div>
+          6.38%
+        </div>
+      </div>
+
+      <!-- Chat -->
+      <div class="m-chat">
+        <div class="m-msg-user">$550k, 20% down — payment?</div>
+
+        <div class="m-msg-ai">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:0.1em;margin-bottom:6px">HOMERATES.AI</div>
+          <div class="m-answer-card">
+            <div class="m-answer-num">$2,749/mo</div>
+            <div class="m-answer-sub">P&I · 30YR · 6.38%</div>
+            <div class="m-answer-rows">
+              <div class="m-answer-row"><span>Loan</span><span>$440,000</span></div>
+              <div class="m-answer-row"><span>Down</span><span>$110k (20%)</span></div>
+              <div class="m-answer-row"><span>LTV</span><span>80% — No PMI ✓</span></div>
+              <div class="m-answer-row"><span>Total interest</span><span>$549,744</span></div>
+            </div>
+          </div>
+          <div class="m-chips" style="margin-top:10px">
+            <div class="m-chip">10% down?</div>
+            <div class="m-chip">15yr vs 30yr</div>
+            <div class="m-chip">Add tax & ins</div>
+            <div class="m-chip">PDF</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="m-input-wrap">
+        <div class="m-input-bar">
+          <input class="m-input-field" placeholder="Ask anything…" />
+          <button class="m-input-send">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHONE 2: Sidebar open -->
+  <div>
+    <div class="phone-label">Mobile · Sidebar open</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="phone-notch-cam"></div></div>
+
+      <!-- Header (dimmed behind overlay) -->
+      <div class="m-header" style="opacity:0.4">
+        <button class="m-hamburger-btn"><span></span><span></span><span></span></button>
+        <div class="m-logo">HomeRates.ai</div>
+        <div class="m-rate-pill"><div class="rate-dot"></div>6.38%</div>
+      </div>
+
+      <!-- Sidebar overlay -->
+      <div class="m-sidebar-overlay">
+        <div class="m-sidebar">
+          <div class="m-sidebar-header">
+            <div class="sidebar-logo-mark" style="width:22px;height:22px"></div>
+            <span style="font-family:var(--display);font-size:13px;font-weight:700;color:var(--text);flex:1">HomeRates.ai</span>
+            <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:4px">✕</button>
+          </div>
+
+          <div class="m-sidebar-scroll">
+
+            <button class="m-sidebar-new-chat">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New chat
+            </button>
+
+            <div class="m-sidebar-label">Quick access</div>
+            <div class="m-sidebar-tools">
+              <button class="m-sidebar-tool">
+                <div class="m-tool-icon" style="background:var(--blue-dim)">🏠</div>
+                Scenario Engine
+              </button>
+              <button class="m-sidebar-tool">
+                <div class="m-tool-icon" style="background:rgba(167,139,250,0.12)">🔬</div>
+                HomeRates Lab
+              </button>
+              <button class="m-sidebar-tool">
+                <div class="m-tool-icon" style="background:var(--green-dim)">🔍</div>
+                Property Lookup
+              </button>
+            </div>
+
+            <div class="m-sidebar-label">Recent</div>
+            <div class="m-sidebar-section">
+              <div class="m-chat-item active">
+                <div class="m-chat-dot"></div>
+                $550k · 20% down · 30yr
+              </div>
+              <div class="m-chat-item">
+                <div class="m-chat-dot"></div>
+                FHA on $380k salary check
+              </div>
+              <div class="m-chat-item">
+                <div class="m-chat-dot"></div>
+                DSCR · Riverside rental
+              </div>
+              <div class="m-chat-item">
+                <div class="m-chat-dot"></div>
+                Refi breakeven at 5.75%
+              </div>
+            </div>
+
+          </div>
+
+          <div class="m-sidebar-footer">
+            <div class="m-user-row">
+              <div class="m-avatar">R</div>
+              <div style="flex:1">
+                <div class="m-user-name">Rayaan</div>
+                <div class="m-user-plan">FREE · 8/10 used</div>
+              </div>
+            </div>
+            <div class="m-footer-links">
+              <a href="#">Terms</a>
+              <a href="#">Privacy</a>
+              <a href="#">Disclosures</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tap-outside scrim -->
+        <div style="flex:1;cursor:pointer"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end mobile-view -->
+
+<script>
+  function showView(v) {
+    document.getElementById('desktop-view').style.display = 'none';
+    document.getElementById('mobile-view').style.display = 'none';
+
+    document.querySelectorAll('.vt-btn').forEach(b => b.classList.remove('active'));
+
+    if (v === 'desktop') {
+      document.getElementById('desktop-view').style.display = 'flex';
+      document.querySelectorAll('.vt-btn')[0].classList.add('active');
+    } else {
+      document.getElementById('mobile-view').style.display = 'flex';
+      if (v === 'mobile-chat') document.querySelectorAll('.vt-btn')[1].classList.add('active');
+      if (v === 'mobile-sidebar') document.querySelectorAll('.vt-btn')[2].classList.add('active');
+    }
+  }
+</script>
+
+</body>
+</html>
