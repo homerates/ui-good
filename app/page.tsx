@@ -191,8 +191,9 @@ export default function LandingPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 18px 40px;
+          padding: 14px 40px;
           border-bottom: 1px solid var(--border);
+          background: var(--bg);
         }
         .lp-nav-logo {
           display: flex;
@@ -200,7 +201,7 @@ export default function LandingPage() {
           text-decoration: none;
         }
         .lp-nav-logo img {
-          height: 32px;
+          height: 36px;
           width: auto;
         }
         .lp-nav-links { display: flex; gap: 32px; list-style: none; }
@@ -678,7 +679,7 @@ export default function LandingPage() {
         {/* NAV */}
         <nav className="lp-nav">
           <Link href="/" className="lp-nav-logo">
-            <img src="/assets/homerates-full-horizontal-white.png" alt="HomeRates.ai" />
+            <img src="/assets/HR Logo (1).png" alt="HomeRates.ai" />
           </Link>
           <ul className="lp-nav-links">
             <li><Link href="/chat">How it works</Link></li>
