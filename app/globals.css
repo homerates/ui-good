@@ -451,6 +451,23 @@ body {
   margin-bottom: 2px;
 }
 
+/* Tool buttons: icon + label, subtle accent on hover */
+.sidebar-tool-btn {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-tool-btn:hover {
+  border-color: rgba(0, 232, 122, 0.25) !important;
+  color: var(--accent, #00e87a) !important;
+  background: rgba(0, 232, 122, 0.06) !important;
+}
+.sidebar-tool-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 /* When Sidebar is open, ensure it’s visible. 
    Support common classnames and data/aria toggles. */
 .sidebar.open,

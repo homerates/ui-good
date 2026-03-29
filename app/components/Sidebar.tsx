@@ -331,15 +331,20 @@ export default function Sidebar(props: SidebarProps) {
         {/* ── Scrollable content ── */}
         <div className="sidebar-scroll">
 
-          {/* Header: hamburger only */}
+          {/* Header: logo + hamburger */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              padding: '12px 12px 8px 12px',
+              justifyContent: 'space-between',
+              padding: '12px 14px 10px 14px',
             }}
           >
+            <img
+              src="/assets/HR Logo (1).png"
+              alt="HomeRates.ai"
+              style={{ height: 28, width: 'auto', objectFit: 'contain' }}
+            />
             <button
               className="hamburger"
               onClick={onToggle}
@@ -351,98 +356,50 @@ export default function Sidebar(props: SidebarProps) {
               <span></span>
               <span></span>
             </button>
-
-            <div style={{ height: 0 }} />
           </div>
 
-          {/* ── Section: Navigation ── */}
+          {/* ── Section: New chat + Tools ── */}
           <div className="sidebar-section">
             <button className="btn primary" onClick={onNewChat} type="button">
-              New chat
-            </button>
-            <button className="btn" onClick={onSearch} type="button">
-              Search
-            </button>
-            <button className="btn" onClick={onLibrary} type="button">
-              Library
-            </button>
-            <button className="btn" onClick={onNewProject} type="button">
-              New Project +
+              + New chat
             </button>
           </div>
 
-          {/* ── Section: Tools ── */}
           <div className="sidebar-section">
             <div className="sidebar-section-label">Tools</div>
 
-            {/* Price Check — paste listing URL for instant PITI */}
-            {onPriceCheck && (
-              <button
-                className="btn"
-                type="button"
-                onClick={onPriceCheck}
-                style={{
-                  background: '#4f46e5',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  border: 'none',
-                }}
-              >
-                Price Check
-              </button>
-            )}
-
+            {/* Scenario Engine — starts a new chat (shows WelcomeScreen) */}
             <button
-              className="btn"
+              className="btn sidebar-tool-btn"
+              type="button"
+              onClick={onNewChat}
+            >
+              <span className="sidebar-tool-icon">⚡</span>
+              Scenario Engine
+            </button>
+
+            {/* HomeRates Lab */}
+            <button
+              className="btn sidebar-tool-btn"
               type="button"
               onClick={() => props.onLabSeed?.('Show me the HomeRates Lab')}
-              style={{
-                background: '#059669',
-                color: '#ffffff',
-                fontWeight: 600,
-                border: 'none',
-              }}
             >
+              <span className="sidebar-tool-icon">🧪</span>
               HomeRates Lab
             </button>
 
-            {(rawOnAskUnderwriting || onKnowledgeTool) && (
+            {/* Property Lookup — paste a listing URL */}
+            {onPriceCheck && (
               <button
-                className="btn"
-                onClick={handleAskUnderwritingClick}
+                className="btn sidebar-tool-btn"
                 type="button"
+                onClick={onPriceCheck}
               >
-                Ask Underwriting
-              </button>
-            )}
-
-            {onKnowledgeTool && (
-              <button
-                className="btn"
-                type="button"
-                onClick={() => handleKnowledgeClick('mortgage-solutions')}
-              >
-                Mortgage Solutions
+                <span className="sidebar-tool-icon">🔎</span>
+                Property Lookup
               </button>
             )}
           </div>
-
-          {/* ── Section: Learn ── */}
-          {(onAboutHomeRates || onHowItWorks) && (
-            <div className="sidebar-section">
-              <div className="sidebar-section-label">Learn</div>
-              {onAboutHomeRates && (
-                <button className="btn" onClick={onAboutHomeRates} type="button">
-                  About HomeRates.ai
-                </button>
-              )}
-              {onHowItWorks && (
-                <button className="btn" onClick={onHowItWorks} type="button">
-                  How It Works
-                </button>
-              )}
-            </div>
-          )}
 
           {/* ── Projects list ── */}
           <div
@@ -622,14 +579,10 @@ export default function Sidebar(props: SidebarProps) {
 
         </div>{/* end sidebar-scroll */}
 
-        {/* ── Sticky footer: user + settings + legal ── */}
+        {/* ── Sticky footer: user ── */}
         <div className="sidebar-sticky-footer">
-          <button className="btn" onClick={onSettings} type="button" style={{ width: '100%', marginBottom: 10 }}>
-            Settings
-          </button>
-
           <SignedIn>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <UserButton
                 showName
                 appearance={{
@@ -640,18 +593,38 @@ export default function Sidebar(props: SidebarProps) {
                   },
                 }}
               />
+              <button
+                className="btn"
+                onClick={onSettings}
+                type="button"
+                title="Settings"
+                style={{ padding: '6px 10px', minWidth: 0, flexShrink: 0 }}
+              >
+                ⚙
+              </button>
             </div>
           </SignedIn>
 
           <SignedOut>
-            <SignInButton mode="modal">
-              <button className="btn primary" type="button" style={{ width: '100%' }}>
-                Sign in
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <SignInButton mode="modal">
+                <button className="btn primary" type="button" style={{ flex: 1 }}>
+                  Sign in
+                </button>
+              </SignInButton>
+              <button
+                className="btn"
+                onClick={onSettings}
+                type="button"
+                title="Settings"
+                style={{ padding: '6px 10px', minWidth: 0, flexShrink: 0 }}
+              >
+                ⚙
               </button>
-            </SignInButton>
+            </div>
           </SignedOut>
 
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <a href="/about" className="sidebar-legal-link">About HomeRates.ai</a>
             <a href="/disclosures" className="sidebar-legal-link">Terms & Disclosures</a>
             <a href="/privacy" className="sidebar-legal-link">Privacy & Data Policy</a>

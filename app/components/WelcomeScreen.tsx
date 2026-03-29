@@ -349,7 +349,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     gap: 5px;
                     font-size: 10px;
                     font-weight: 600;
-                    color: #22c55e;
+                    color: var(--accent, #00e87a);
                     text-transform: uppercase;
                     letter-spacing: 0.06em;
                     white-space: nowrap;
@@ -360,7 +360,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     width: 6px;
                     height: 6px;
                     border-radius: 50%;
-                    background: #22c55e;
+                    background: var(--accent, #00e87a);
                     animation: pulse 2s ease-in-out infinite;
                     flex-shrink: 0;
                 }
@@ -408,24 +408,25 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     justify-content: center;
                     flex-shrink: 0;
                     padding: 12px 18px;
-                    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-                    border: 1.5px solid #6ee7b7;
+                    background: rgba(0, 232, 122, 0.06);
+                    border: 1.5px solid rgba(0, 232, 122, 0.28);
                     border-radius: 14px;
                     cursor: pointer;
                     transition: transform 0.12s, box-shadow 0.15s;
                     min-width: 90px;
-                    box-shadow: 0 2px 10px rgba(16,185,129,0.12);
+                    box-shadow: 0 2px 12px rgba(0, 232, 122, 0.08);
                     text-align: center;
                     animation: fadeSlideIn 0.5s ease 0.2s both;
                 }
                 .hr-hero__rate:hover {
                     transform: translateY(-2px);
-                    box-shadow: 0 6px 18px rgba(16,185,129,0.2);
+                    box-shadow: 0 6px 20px rgba(0, 232, 122, 0.15);
+                    background: rgba(0, 232, 122, 0.09);
                 }
                 .hr-hero__rate-value {
                     font-size: 1.55rem;
                     font-weight: 800;
-                    color: #065f46;
+                    color: var(--accent, #00e87a);
                     font-variant-numeric: tabular-nums;
                     letter-spacing: -0.03em;
                     line-height: 1;
@@ -433,14 +434,15 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-hero__rate-label {
                     font-size: 10px;
                     font-weight: 700;
-                    color: #059669;
+                    color: var(--accent, #00e87a);
+                    opacity: 0.75;
                     text-transform: uppercase;
                     letter-spacing: 0.07em;
                     margin-top: 5px;
                 }
                 .hr-hero__rate-sub {
                     font-size: 10px;
-                    color: #6ee7b7;
+                    color: var(--text-weak, #6b7a99);
                     margin-top: 2px;
                     white-space: nowrap;
                 }
@@ -448,15 +450,6 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     from { opacity: 0; transform: translateY(6px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
-                /* Dark mode hero rate badge */
-                [data-theme="dark"] .hr-hero__rate {
-                    background: linear-gradient(135deg, #052e16 0%, #064e3b 100%);
-                    border-color: #059669;
-                    box-shadow: 0 2px 10px rgba(16,185,129,0.18);
-                }
-                [data-theme="dark"] .hr-hero__rate-value { color: #6ee7b7; }
-                [data-theme="dark"] .hr-hero__rate-label { color: #34d399; }
-                [data-theme="dark"] .hr-hero__rate-sub { color: #059669; }
 
                 /* ── Scenario preview cards (2-col on mobile, 3-col on desktop) ── */
                 .hr-scenarios-wrap {
@@ -562,31 +555,22 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     to { opacity: 1; transform: translateY(0); }
                 }
                 .hr-chip:hover {
-                    border-color: #10b981;
-                    background: #f0fdf4;
-                    color: #065f46;
-                    box-shadow: 0 2px 8px rgba(16,185,129,0.12);
-                }
-                [data-theme="dark"] .hr-chip:hover {
-                    background: #052e16;
-                    color: #6ee7b7;
+                    border-color: var(--accent, #00e87a);
+                    background: rgba(0, 232, 122, 0.07);
+                    color: var(--accent, #00e87a);
+                    box-shadow: 0 2px 8px rgba(0, 232, 122, 0.1);
                 }
                 .hr-chip--price-check {
-                    border-color: #c7d2fe;
-                    background: #eef2ff;
-                    color: #4338ca;
+                    border-color: rgba(96, 165, 250, 0.25);
+                    background: rgba(96, 165, 250, 0.05);
+                    color: rgba(147, 197, 253, 0.9);
                     font-weight: 600;
                 }
                 .hr-chip--price-check:hover {
-                    border-color: #4f46e5;
-                    background: #e0e7ff;
-                    color: #3730a3;
-                    box-shadow: 0 2px 8px rgba(79,70,229,0.15);
-                }
-                [data-theme="dark"] .hr-chip--price-check {
-                    border-color: #3730a3;
-                    background: #1e1b4b;
-                    color: #a5b4fc;
+                    border-color: rgba(96, 165, 250, 0.5);
+                    background: rgba(96, 165, 250, 0.1);
+                    color: rgb(147, 197, 253);
+                    box-shadow: 0 2px 8px rgba(96, 165, 250, 0.12);
                 }
 
                 /* ── Price Check featured banner ── */
@@ -597,19 +581,14 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     width: 100%;
                     padding: 14px 18px;
                     margin-bottom: 20px;
-                    background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
-                    border: 1.5px solid #c7d2fe;
+                    background: rgba(96, 165, 250, 0.04);
+                    border: 1.5px solid rgba(96, 165, 250, 0.15);
                     border-radius: 14px;
                     text-align: left;
-                    box-shadow: 0 2px 8px rgba(79,70,229,0.08);
+                    box-shadow: 0 2px 8px rgba(96, 165, 250, 0.06);
                     opacity: 0;
                     animation: chipIn 0.4s ease 80ms forwards;
                     box-sizing: border-box;
-                }
-                [data-theme="dark"] .hr-price-check {
-                    background: linear-gradient(135deg, #1e1b4b 0%, #1c1033 100%);
-                    border-color: #3730a3;
-                    box-shadow: 0 2px 8px rgba(79,70,229,0.18);
                 }
                 .hr-price-check__icon {
                     font-size: 26px;
@@ -625,10 +604,9 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-price-check__label {
                     font-size: 14px;
                     font-weight: 700;
-                    color: #3730a3;
+                    color: rgba(147, 197, 253, 0.9);
                     letter-spacing: -0.01em;
                 }
-                [data-theme="dark"] .hr-price-check__label { color: #a5b4fc; }
                 .hr-price-check__form {
                     display: flex;
                     align-items: center;
@@ -638,32 +616,28 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     flex: 1;
                     min-width: 0;
                     padding: 8px 12px;
-                    border: 1.5px solid #c7d2fe;
+                    border: 1.5px solid rgba(96, 165, 250, 0.2);
                     border-radius: 8px;
                     font-size: 13px;
                     font-family: inherit;
-                    color: var(--text, #1e293b);
-                    background: var(--card, #ffffff);
+                    color: var(--text, #f0f4ff);
+                    background: var(--card, #0e1420);
                     outline: none;
                     transition: border-color 0.15s, box-shadow 0.15s;
                 }
-                [data-theme="dark"] .hr-price-check__input {
-                    border-color: #3730a3;
-                    background: #0d0b2a;
-                }
                 .hr-price-check__input:focus {
-                    border-color: #4f46e5;
-                    box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+                    border-color: rgba(96, 165, 250, 0.5);
+                    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.08);
                 }
-                .hr-price-check__input::placeholder { color: #a5b4fc; }
+                .hr-price-check__input::placeholder { color: var(--text-dim, #3a4560); }
                 .hr-price-check__go {
                     flex-shrink: 0;
                     width: 32px;
                     height: 32px;
                     border-radius: 8px;
                     border: none;
-                    background: #4f46e5;
-                    color: #ffffff;
+                    background: rgba(96, 165, 250, 0.2);
+                    color: rgba(147, 197, 253, 0.95);
                     font-size: 16px;
                     cursor: pointer;
                     display: flex;
@@ -671,7 +645,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     justify-content: center;
                     transition: background 0.15s;
                 }
-                .hr-price-check__go:hover { background: #4338ca; }
+                .hr-price-check__go:hover { background: rgba(96, 165, 250, 0.32); }
             `}</style>
         </div>
     );
