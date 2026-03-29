@@ -155,23 +155,6 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
     return (
         <div className={`hr-welcome ${visible ? 'hr-welcome--visible' : ''}`}>
 
-            {/* ── Rate ticker ── */}
-            <div className="hr-ticker">
-                <div className="hr-ticker__track">
-                    {[...tickerItems, ...tickerItems].map((item, i) => (
-                        <div key={`${item.label}-${i}`} className="hr-ticker__item">
-                            <span className="hr-ticker__label">{item.label}</span>
-                            <span className="hr-ticker__value">{item.value}</span>
-                            <span className="hr-ticker__sub">{item.sub}</span>
-                        </div>
-                    ))}
-                </div>
-                <div className="hr-ticker__live">
-                    <span className="hr-ticker__dot" />
-                    FRED live
-                </div>
-            </div>
-
             {/* ── Headline + hero rate ── */}
             <div className="hr-hero">
                 <div className="hr-hero__text">
@@ -191,19 +174,35 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 )}
             </div>
 
-            {/* ── Price Check featured entry — inline paste input ── */}
+            {/* ── Rate Alert (replaces ticker) ── */}
+            {heroRate && (
+                <div className="hr-rate-alert">
+                    <div className="hr-rate-alert__dot" />
+                    <div className="hr-rate-alert__text">
+                        <strong>Rate alert:</strong> 30Y fixed is at <strong>{heroRate}</strong> — {heroSub}. Paste a listing URL below to see your real monthly payment.
+                    </div>
+                </div>
+            )}
+
+            {/* ── Property Lookup (matches landing page) ── */}
             <div className="hr-price-check">
-                <span className="hr-price-check__icon">🔎</span>
-                <span className="hr-price-check__body">
-                    <span className="hr-price-check__label">Price Check</span>
+                <div className="hr-price-check__label">Property Lookup</div>
+                <div className="hr-price-check__bar">
+                    <div className="hr-price-check__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9 22 9 12 15 12 15 22" />
+                        </svg>
+                    </div>
                     <form
                         className="hr-price-check__form"
                         onSubmit={(e) => { e.preventDefault(); submitPriceCheck(); }}
+                        style={{ flex: 1, minWidth: 0 }}
                     >
                         <input
                             className="hr-price-check__input"
                             type="url"
-                            placeholder="Paste a Zillow or Redfin listing URL…"
+                            placeholder="Paste a Redfin URL or enter an address — get instant refi analysis"
                             value={pcUrl}
                             onChange={(e) => setPcUrl(e.target.value)}
                             onPaste={(e) => {
@@ -215,11 +214,12 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                                 }
                             }}
                         />
-                        {pcUrl && (
-                            <button className="hr-price-check__go" type="submit" aria-label="Go">→</button>
-                        )}
                     </form>
-                </span>
+                    <button className="hr-price-check__go" type="button" onClick={submitPriceCheck}>
+                        Analyze Property
+                    </button>
+                </div>
+                <div className="hr-price-check__hint">Works on sold, pending, and off-market properties · Instant refi readiness · No account needed</div>
             </div>
 
             {/* ── Scenario preview cards (horizontal scroll) ── */}
@@ -286,87 +286,40 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     transform: translateY(0);
                 }
 
-                /* ── Ticker ── */
-                .hr-ticker {
+                /* ── Rate Alert (replaces ticker) ── */
+                .hr-rate-alert {
                     display: flex;
                     align-items: center;
-                    background: var(--surface, #f0f4f8);
-                    border: 1px solid var(--border, #e2e8f0);
+                    gap: 14px;
+                    background: var(--surface, #0e1420);
+                    border: 1px solid var(--border, rgba(255,255,255,0.07));
+                    border-left: 3px solid var(--accent, #00e87a);
                     border-radius: 10px;
-                    padding: 10px 0 10px 14px;
+                    padding: 14px 20px;
                     margin-bottom: 20px;
-                    overflow: hidden;
-                    gap: 0;
-                    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 80%, transparent 100%);
-                    mask-image: linear-gradient(to right, transparent 0%, black 5%, black 80%, transparent 100%);
+                    animation: chipIn 0.4s ease 0.1s both;
                 }
-                .hr-ticker__track {
-                    display: flex;
-                    align-items: center;
-                    flex: 1;
-                    min-width: 0;
-                    animation: tickerScroll 28s linear infinite;
-                }
-                .hr-ticker__track:hover { animation-play-state: paused; }
-                @keyframes tickerScroll {
-                    from { transform: translateX(0); }
-                    to   { transform: translateX(-50%); }
-                }
-                .hr-ticker__item {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: flex-start;
-                    padding: 0 16px 0 0;
-                    margin-right: 16px;
-                    border-right: 1px solid var(--border, #e2e8f0);
-                    min-width: max-content;
-                    flex-shrink: 0;
-                }
-                .hr-ticker__label {
-                    font-size: 9px;
-                    font-weight: 700;
-                    letter-spacing: 0.08em;
-                    color: var(--text-weak, #94a3b8);
-                    text-transform: uppercase;
-                    margin-bottom: 2px;
-                }
-                .hr-ticker__value {
-                    font-size: 15px;
-                    font-weight: 700;
-                    color: var(--text, #0f172a);
-                    font-variant-numeric: tabular-nums;
-                    letter-spacing: -0.01em;
-                }
-                .hr-ticker__sub {
-                    font-size: 10px;
-                    color: var(--text-weak, #94a3b8);
-                    margin-top: 1px;
-                }
-                .hr-ticker__live {
-                    margin-left: auto;
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                    font-size: 10px;
-                    font-weight: 600;
-                    color: var(--accent, #00e87a);
-                    text-transform: uppercase;
-                    letter-spacing: 0.06em;
-                    white-space: nowrap;
-                    padding-left: 16px;
-                    padding-right: 14px;
-                }
-                .hr-ticker__dot {
-                    width: 6px;
-                    height: 6px;
+                .hr-rate-alert__dot {
+                    width: 8px;
+                    height: 8px;
                     border-radius: 50%;
                     background: var(--accent, #00e87a);
-                    animation: pulse 2s ease-in-out infinite;
                     flex-shrink: 0;
+                    animation: pulse 2s ease-in-out infinite;
                 }
                 @keyframes pulse {
                     0%, 100% { opacity: 1; transform: scale(1); }
                     50% { opacity: 0.5; transform: scale(0.8); }
+                }
+                .hr-rate-alert__text {
+                    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+                    font-size: 13px;
+                    color: var(--text-weak, #6b7a99);
+                    line-height: 1.5;
+                }
+                .hr-rate-alert__text strong {
+                    color: var(--text, #f0f4ff);
+                    font-weight: 500;
                 }
 
                 /* ── Hero (headline + live rate badge) ── */
@@ -575,88 +528,87 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     box-shadow: 0 2px 8px rgba(96, 165, 250, 0.12);
                 }
 
-                /* ── Price Check / Property Lookup banner ── */
+                /* ── Property Lookup (matches landing page lp-prop-* exactly) ── */
                 .hr-price-check {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
                     width: 100%;
-                    padding: 12px 14px;
                     margin-bottom: 20px;
-                    background: var(--card, #0e1420);
-                    border: 1px solid var(--border-bright, rgba(255,255,255,0.13));
-                    border-radius: 14px;
-                    text-align: left;
-                    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
                     opacity: 0;
                     animation: chipIn 0.4s ease 80ms forwards;
                     box-sizing: border-box;
-                    transition: border-color 0.15s, box-shadow 0.15s;
-                }
-                .hr-price-check:focus-within {
-                    border-color: rgba(0, 232, 122, 0.3);
-                    box-shadow: 0 2px 16px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,232,122,0.15);
-                }
-                .hr-price-check__icon {
-                    font-size: 20px;
-                    flex-shrink: 0;
-                    opacity: 0.7;
-                }
-                .hr-price-check__body {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                    flex: 1;
-                    min-width: 0;
                 }
                 .hr-price-check__label {
-                    font-size: 10px;
-                    font-weight: 700;
                     font-family: var(--font-dm-mono, 'DM Mono', monospace);
-                    color: var(--accent, #00e87a);
-                    letter-spacing: 0.08em;
+                    font-size: 9px;
+                    font-weight: 500;
+                    color: var(--text-dim, #3a4560);
+                    letter-spacing: 0.16em;
                     text-transform: uppercase;
+                    margin-bottom: 10px;
+                }
+                .hr-price-check__bar {
+                    display: flex;
+                    align-items: center;
+                    background: var(--surface2, #141b28);
+                    border: 1px solid var(--border-bright, rgba(255,255,255,0.13));
+                    border-radius: 12px;
+                    padding: 4px 4px 4px 16px;
+                    gap: 12px;
+                    transition: border-color 0.2s, box-shadow 0.2s;
+                }
+                .hr-price-check__bar:focus-within {
+                    border-color: rgba(61, 139, 255, 0.4);
+                    box-shadow: 0 0 0 4px rgba(61, 139, 255, 0.1);
+                }
+                .hr-price-check__icon {
+                    color: var(--text-dim, #3a4560);
+                    flex-shrink: 0;
+                    display: flex;
+                    align-items: center;
                 }
                 .hr-price-check__form {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
+                    flex: 1;
+                    min-width: 0;
                 }
                 .hr-price-check__input {
                     flex: 1;
                     min-width: 0;
-                    padding: 0;
+                    padding: 13px 0;
                     border: none;
-                    border-radius: 0;
-                    font-size: 14px;
-                    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
-                    color: var(--text, #f0f4ff);
                     background: transparent;
+                    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+                    font-size: 14px;
+                    color: var(--text, #f0f4ff);
                     outline: none;
                 }
                 .hr-price-check__input::placeholder {
-                    color: var(--text-weak, #6b7a99);
-                    font-size: 13px;
+                    color: var(--text-dim, #3a4560);
                 }
                 .hr-price-check__go {
                     flex-shrink: 0;
-                    width: 34px;
-                    height: 34px;
+                    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: rgba(61, 139, 255, 0.9);
+                    background: rgba(61, 139, 255, 0.1);
+                    border: 1px solid rgba(61, 139, 255, 0.2);
                     border-radius: 8px;
-                    border: none;
-                    background: var(--accent, #00e87a);
-                    color: #000;
-                    font-size: 16px;
-                    font-weight: 700;
+                    padding: 9px 16px;
                     cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: background 0.15s, transform 0.1s;
+                    white-space: nowrap;
+                    transition: background 0.15s, border-color 0.15s;
                 }
                 .hr-price-check__go:hover {
-                    background: #00c96a;
-                    transform: scale(1.05);
+                    background: rgba(61, 139, 255, 0.18);
+                    border-color: rgba(61, 139, 255, 0.4);
+                }
+                .hr-price-check__hint {
+                    font-family: var(--font-dm-mono, 'DM Mono', monospace);
+                    font-size: 10px;
+                    color: var(--text-dim, #3a4560);
+                    letter-spacing: 0.06em;
+                    margin-top: 8px;
                 }
             `}</style>
         </div>

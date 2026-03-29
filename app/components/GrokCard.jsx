@@ -312,12 +312,15 @@ export default function GrokCard({ data, onFollowUp }) {
             className="grok-card"
             style={{
                 padding: "16px",
-                background: "var(--card, #ffffff)",
+                background: "var(--card, #0e1420)",
                 borderRadius: "12px",
-                border: "1px solid var(--border, rgba(0,0,0,0.08))",
+                border: "1px solid var(--border, rgba(255,255,255,0.07))",
                 color: "var(--text)",
                 marginTop: "12px",
                 whiteSpace: "normal",
+                fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+                fontSize: "14px",
+                lineHeight: 1.65,
             }}
         >
             {/* Header row — subtle metadata, should not compete with content */}
@@ -378,13 +381,13 @@ export default function GrokCard({ data, onFollowUp }) {
                                 },
 
                                 h1({ children }) {
-                                    return <h1 style={{ margin: "10px 0 6px", fontSize: "18px" }}>{children}</h1>;
+                                    return <h1 style={{ margin: "12px 0 6px", fontSize: "18px", fontFamily: "var(--font-syne, 'Syne', sans-serif)", fontWeight: 700, letterSpacing: "-0.02em" }}>{children}</h1>;
                                 },
                                 h2({ children }) {
-                                    return <h2 style={{ margin: "10px 0 6px", fontSize: "16px" }}>{children}</h2>;
+                                    return <h2 style={{ margin: "12px 0 6px", fontSize: "15px", fontFamily: "var(--font-syne, 'Syne', sans-serif)", fontWeight: 700, letterSpacing: "-0.01em" }}>{children}</h2>;
                                 },
                                 h3({ children }) {
-                                    return <h3 style={{ margin: "10px 0 6px", fontSize: "14px" }}>{children}</h3>;
+                                    return <h3 style={{ margin: "10px 0 4px", fontSize: "13px", fontFamily: "var(--font-syne, 'Syne', sans-serif)", fontWeight: 600 }}>{children}</h3>;
                                 },
 
                                 ul({ children }) {
@@ -402,10 +405,12 @@ export default function GrokCard({ data, onFollowUp }) {
                                         return (
                                             <code
                                                 style={{
-                                                    fontSize: "0.95em",
-                                                    background: "var(--surface, rgba(0,0,0,0.04))",
+                                                    fontSize: "0.88em",
+                                                    fontFamily: "var(--font-dm-mono, 'DM Mono', monospace)",
+                                                    background: "var(--surface2, rgba(255,255,255,0.05))",
                                                     padding: "1px 6px",
                                                     borderRadius: "6px",
+                                                    color: "var(--accent, #00e87a)",
                                                 }}
                                             >
                                                 {children}
@@ -417,9 +422,11 @@ export default function GrokCard({ data, onFollowUp }) {
                                             style={{
                                                 margin: "10px 0",
                                                 padding: "10px 12px",
-                                                background: "rgba(0,0,0,0.04)",
+                                                background: "var(--surface2, rgba(255,255,255,0.04))",
                                                 borderRadius: "10px",
                                                 overflowX: "auto",
+                                                fontFamily: "var(--font-dm-mono, 'DM Mono', monospace)",
+                                                fontSize: "12px",
                                             }}
                                         >
                                             <code>{children}</code>
