@@ -1,40 +1,49 @@
 ﻿/* ==== HomeRates UI base (center chat, overlay sidebar, sticky header) ==== */
 
 :root {
-  /* ── Light theme (default) ── */
-  --bg: #fafbfc;
-  --card: #ffffff;
-  --surface: #f2f3f5;       /* header, subtle surfaces */
-  --text: #121212;
-  --text-weak: #60646c;
-  --border: #e7e9ee;
-  --muted: #f3f4f7;
-  --input-bg: #ffffff;
-  --accent: #10b981;
-  --accent-fg: #ffffff;
-  --user-bubble-bg: #e5e7eb;
-  --user-bubble-text: #111827;
+  /* ── Design system — matches landing page tokens ── */
+  --bg: #080c12;
+  --card: #0e1420;
+  --surface: #0e1420;
+  --surface2: #141b28;
+  --text: #f0f4ff;
+  --text-weak: #6b7a99;
+  --text-dim: #3a4560;
+  --border: rgba(255,255,255,0.07);
+  --border-bright: rgba(255,255,255,0.13);
+  --muted: #141b28;
+  --input-bg: #141b28;
+  --accent: #00e87a;
+  --accent-fg: #000000;
+  --user-bubble-bg: rgba(0,232,122,0.1);
+  --user-bubble-text: #f0f4ff;
   --footer-h: 40px;
+
+  /* Font families — Next.js injects these CSS vars */
+  --font-display: var(--font-syne), 'Syne', sans-serif;
+  --font-body: var(--font-dm-sans), 'DM Sans', sans-serif;
+  --font-mono: var(--font-dm-mono), 'DM Mono', monospace;
 }
 
-/* ── Dark theme ── */
+/* Dark theme alias — same values, kept for any [data-theme="dark"] selectors */
 [data-theme="dark"] {
-  --bg: #0a0f1e;
-  --card: #111827;
-  --surface: #0d1520;
-  --text: #f1f5f9;
-  --text-weak: #94a3b8;
-  --border: #1e2d3d;
-  --muted: #162032;
-  --input-bg: #162032;
-  --accent: #10b981;
-  --accent-fg: #ffffff;
-  --user-bubble-bg: #1e2d3d;
-  --user-bubble-text: #f1f5f9;
+  --bg: #080c12;
+  --card: #0e1420;
+  --surface: #0e1420;
+  --surface2: #141b28;
+  --text: #f0f4ff;
+  --text-weak: #6b7a99;
+  --border: rgba(255,255,255,0.07);
+  --muted: #141b28;
+  --input-bg: #141b28;
+  --accent: #00e87a;
+  --accent-fg: #000000;
+  --user-bubble-bg: rgba(0,232,122,0.1);
+  --user-bubble-text: #f0f4ff;
 }
 
 [data-theme="dark"] body {
-  background: #0a0f1e;
+  background: #080c12;
   background-attachment: fixed;
   color: var(--text);
 }
@@ -55,10 +64,10 @@ body {
 
 body {
   margin: 0;
-  background: linear-gradient(160deg, #f0f4f8 0%, #fafbfc 40%, #fafbfc 100%);
+  background: var(--bg);
   background-attachment: fixed;
   color: var(--text);
-  font: 14px/1.5 var(--font-inter), system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font: 14px/1.5 var(--font-body), var(--font-inter), system-ui, -apple-system, sans-serif;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
@@ -370,9 +379,9 @@ body {
   height: calc(100dvh - 52px);
   width: 256px;
   max-width: min(82vw, 280px);
-  background: #111827;
-  color: #e2e8f0;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  color: var(--text);
+  border-right: 1px solid var(--border);
   transform: translateX(-100%);
   transition: transform 180ms ease;
   z-index: 1200;
@@ -393,8 +402,8 @@ body {
 .sidebar-sticky-footer {
   flex-shrink: 0;
   padding: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: #0d1117;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
   /* Clerk popovers need to escape the overflow:hidden on .sidebar */
   overflow: visible;
   position: relative;
@@ -472,41 +481,43 @@ body {
 
 /* ---------- Dark sidebar: scoped overrides ---------- */
 .sidebar .btn {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+  color: var(--text-weak);
 }
 .sidebar .btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--surface2);
+  border-color: var(--border-bright);
+  color: var(--text);
 }
 .sidebar .btn.primary {
-  background: #10b981;
-  border-color: transparent;
-  color: #fff;
+  background: rgba(0, 232, 122, 0.15);
+  border-color: rgba(0, 232, 122, 0.3);
+  color: var(--accent);
 }
 .sidebar .btn.primary:hover {
-  background: #0d9e6e;
+  background: rgba(0, 232, 122, 0.22);
+  border-color: rgba(0, 232, 122, 0.5);
 }
-/* Hamburger bars: white on dark */
+/* Hamburger bars */
 .sidebar .hamburger span {
-  background: #e2e8f0;
+  background: var(--text-weak);
 }
 .sidebar .hamburger::after {
-  background: #1f2937;
-  color: #e2e8f0;
-  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border);
 }
-/* All buttons inherit sidebar text color — browser default is black which is invisible on dark bg */
+/* All buttons inherit sidebar text color */
 .sidebar button {
   color: inherit;
 }
-/* Legal links inherit sidebar text color */
+/* Legal links */
 .sidebar .sidebar-legal-link {
-  color: #9ca3af;
+  color: var(--text-dim);
 }
 .sidebar .sidebar-legal-title {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-dim);
 }
 
 /* ---------- Utilities ---------- */
@@ -646,8 +657,8 @@ ul {
 }
 
 @keyframes askPillFlash {
-  0%   { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0.5); background: #059669; }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);      background: #111827; }
+  0%   { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0.5); background: #00c96a; }
+  100% { box-shadow: 0 0 0 0 rgba(0, 232, 122, 0);      background: var(--card); }
 }
 
 /* Neutralize old 160px caps that previously forced a fat pill */
@@ -1007,7 +1018,7 @@ ul {
   border-radius: 14px !important;
   background: #ffffff !important;
   border: 1px solid rgba(0, 0, 0, 0.06) !important;
-  border-top: 2px solid #10b981 !important;
+  border-top: 2px solid var(--accent) !important;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
@@ -1566,13 +1577,13 @@ body {
   width: 3px;
   height: 18px;
   border-radius: 99px;
-  background: #10b981;
+  background: var(--accent);
   opacity: 0;
   transition: opacity 0.15s;
 }
 
 .follow-up-chip-btn:hover {
-  border-color: #10b981;
+  border-color: var(--accent);
   box-shadow: 0 3px 10px rgba(16, 185, 129, 0.12);
   transform: translateX(2px);
 }
@@ -1646,7 +1657,7 @@ body {
 .property-source-badge {
   font-size: 11px;
   font-weight: 500;
-  color: #10b981;
+  color: var(--accent);
   text-decoration: none;
   padding: 3px 8px;
   border: 1px solid #d1fae5;
@@ -1658,7 +1669,7 @@ body {
 
 .property-source-badge:hover {
   background: #dcfce7;
-  border-color: #10b981;
+  border-color: var(--accent);
 }
 
 .property-address {
