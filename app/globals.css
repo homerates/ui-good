@@ -1183,6 +1183,61 @@ body {
   border-color: var(--border) !important;
 }
 
+/* ── Clerk modal dark mode ──────────────────────────────────────────────────
+   Clerk renders its own shadow-DOM-free components. Override key classes so
+   the sign-in / sign-up modal is legible when [data-theme="dark"] is active. */
+[data-theme="dark"] .cl-card,
+[data-theme="dark"] .cl-modalContent,
+[data-theme="dark"] .cl-rootBox {
+  background: #1e2535 !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+[data-theme="dark"] .cl-headerTitle,
+[data-theme="dark"] .cl-headerSubtitle,
+[data-theme="dark"] .cl-bodyTitle,
+[data-theme="dark"] .cl-formFieldLabel,
+[data-theme="dark"] .cl-identityPreviewText,
+[data-theme="dark"] .cl-userPreviewTextContainer,
+[data-theme="dark"] .cl-footerActionText {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .cl-formFieldInput,
+[data-theme="dark"] .cl-phoneInputBox {
+  background: #0f172a !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(255,255,255,0.15) !important;
+}
+
+[data-theme="dark"] .cl-formFieldInput::placeholder {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .cl-footerActionLink,
+[data-theme="dark"] .cl-headerBackLink,
+[data-theme="dark"] .cl-navbarButton {
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .cl-dividerText {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .cl-socialButtonsBlockButton {
+  background: #0f172a !important;
+  border-color: rgba(255,255,255,0.15) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .cl-socialButtonsBlockButtonText {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .cl-internal-b3fm6y {
+  background: #1e2535 !important;
+}
+
 /* Generic panel / card overrides */
 [data-theme="dark"] .panel,
 [data-theme="dark"] .card,
@@ -1385,6 +1440,45 @@ body {
   margin-bottom: 2px;
 }
 
+/* Legal page dark mode — scoped to data-theme="dark" (app toggle) */
+[data-theme="dark"] .legal-page-inner {
+  background: #1e2535;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .legal-page h1,
+[data-theme="dark"] .legal-page h2 {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .legal-page p,
+[data-theme="dark"] .legal-page li,
+[data-theme="dark"] .legal-page strong {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .legal-page hr {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .legal-page a {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .legal-last-updated {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .legal-back-link {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .sidebar-legal-title {
+  color: #9ca3af;
+}
+
+/* Also honour OS-level dark preference for users who haven't toggled */
 @media (prefers-color-scheme: dark) {
   .sidebar-legal-title {
     color: #9ca3af;
