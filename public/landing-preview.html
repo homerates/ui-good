@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates.ai — Mortgage Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c12;
+    --surface: #0e1420;
+    --surface2: #141b28;
+    --border: rgba(255,255,255,0.07);
+    --border-bright: rgba(255,255,255,0.13);
+    --text: #f0f4ff;
+    --text-muted: #6b7a99;
+    --text-dim: #3a4560;
+    --green: #00e87a;
+    --green-dim: rgba(0,232,122,0.12);
+    --green-glow: rgba(0,232,122,0.25);
+    --blue: #3d8bff;
+    --blue-dim: rgba(61,139,255,0.12);
+    --orange: #ff8c42;
+    --purple: #a78bfa;
+    --red: #ff5f5f;
+    --accent: #00e87a;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --display: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* — NOISE OVERLAY — */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* — LIVE DATA BAR — */
+  .data-bar {
+    position: relative;
+    z-index: 10;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+    overflow: hidden;
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
+
+  .data-bar-label {
+    flex-shrink: 0;
+    padding: 0 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--green);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-right: 1px solid var(--border);
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+  }
+
+  .data-bar-label::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .ticker-track {
+    display: flex;
+    animation: ticker 28s linear infinite;
+    gap: 0;
+  }
+
+  .ticker-wrap {
+    overflow: hidden;
+    flex: 1;
+  }
+
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .ticker-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 28px;
+    font-family: var(--mono);
+    font-size: 11px;
+    white-space: nowrap;
+    border-right: 1px solid var(--border);
+    height: 36px;
+  }
+
+  .ticker-item .label { color: var(--text-muted); }
+  .ticker-item .val { color: var(--text); font-weight: 500; }
+  .ticker-item .chg { font-size: 10px; }
+  .ticker-item .up { color: var(--red); }
+  .ticker-item .dn { color: var(--green); }
+  .ticker-item .neu { color: var(--text-muted); }
+
+  /* — NAV — */
+  nav {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 40px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .logo-mark {
+    width: 32px;
+    height: 32px;
+    background: conic-gradient(from 180deg, #a855f7, #3d8bff, #00e87a, #a855f7);
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .logo-mark::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    background: var(--bg);
+    border-radius: 50%;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-ghost {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px 16px;
+    transition: color 0.2s;
+  }
+
+  .btn-ghost:hover { color: var(--text); }
+
+  .btn-primary {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: #000;
+    background: var(--green);
+    border: none;
+    cursor: pointer;
+    padding: 9px 20px;
+    border-radius: 6px;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  /* — HERO — */
+  .hero {
+    position: relative;
+    z-index: 1;
+    padding: 80px 40px 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* Background glow */
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 500px;
+    background: radial-gradient(ellipse, rgba(0,232,122,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--green);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    padding: 6px 14px;
+    border: 1px solid rgba(0,232,122,0.25);
+    border-radius: 100px;
+    background: var(--green-dim);
+  }
+
+  .hero-eyebrow span { opacity: 0.6; }
+
+  .hero-headline {
+    font-family: var(--display);
+    font-size: clamp(42px, 6vw, 80px);
+    font-weight: 800;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+    max-width: 820px;
+  }
+
+  .hero-headline .line2 {
+    color: var(--green);
+    display: block;
+  }
+
+  .hero-sub {
+    font-size: 17px;
+    font-weight: 300;
+    color: var(--text-muted);
+    max-width: 520px;
+    line-height: 1.65;
+    margin-bottom: 48px;
+  }
+
+  .hero-sub strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* — COMMAND BAR — */
+  .command-bar-wrap {
+    max-width: 760px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .command-bar {
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    border-radius: 14px;
+    padding: 4px 4px 4px 20px;
+    gap: 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 0 0 var(--green-glow);
+  }
+
+  .command-bar:focus-within {
+    border-color: rgba(0,232,122,0.4);
+    box-shadow: 0 0 0 4px var(--green-glow);
+  }
+
+  .command-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-family: var(--sans);
+    font-size: 15px;
+    color: var(--text);
+    padding: 14px 0;
+  }
+
+  .command-input::placeholder { color: var(--text-dim); }
+
+  .command-send {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    background: var(--green);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+  }
+
+  .command-send:hover { opacity: 0.85; }
+
+  .command-send svg { width: 18px; height: 18px; }
+
+  .command-hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    padding-left: 4px;
+  }
+
+  /* — QUICK CHIPS — */
+  .quick-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 64px;
+    max-width: 760px;
+  }
+
+  .chip {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .chip:hover {
+    color: var(--text);
+    border-color: var(--border-bright);
+    background: var(--surface2);
+  }
+
+  /* — LIVE INSIGHT BANNER — */
+  .live-insight {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 10px;
+    padding: 14px 20px;
+    max-width: 760px;
+    margin-bottom: 80px;
+  }
+
+  .live-insight-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+    animation: pulse 2s infinite;
+  }
+
+  .live-insight-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .live-insight-text strong { color: var(--text); font-weight: 500; }
+
+  /* — SCENARIO CARDS — */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 80px;
+  }
+
+  .scenario-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scenario-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .scenario-card:hover {
+    border-color: var(--border-bright);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+
+  .scenario-card:hover::before { opacity: 1; }
+
+  .card-green::before { background: var(--green); }
+  .card-blue::before { background: var(--blue); }
+  .card-orange::before { background: var(--orange); }
+  .card-purple::before { background: var(--purple); }
+  .card-red::before { background: var(--red); }
+
+  .card-icon {
+    font-size: 22px;
+    margin-bottom: 14px;
+    display: block;
+  }
+
+  .card-title {
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .card-insight {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .card-green .card-insight { color: var(--green); }
+  .card-blue .card-insight { color: var(--blue); }
+  .card-orange .card-insight { color: var(--orange); }
+  .card-purple .card-insight { color: var(--purple); }
+  .card-red .card-insight { color: var(--red); }
+
+  .card-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* — INTELLIGENCE SECTION — */
+  .intel-section {
+    max-width: 1200px;
+    margin: 0 auto 100px;
+    padding: 0 40px;
+  }
+
+  .intel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .intel-left h2 {
+    font-family: var(--display);
+    font-size: clamp(28px, 3.5vw, 44px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+
+  .intel-left h2 em {
+    font-style: normal;
+    color: var(--green);
+  }
+
+  .intel-left p {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 32px;
+    max-width: 420px;
+  }
+
+  .intel-pillars {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .pillar {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .pillar-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .pillar-icon.g { background: var(--green-dim); }
+  .pillar-icon.b { background: var(--blue-dim); }
+  .pillar-icon.o { background: rgba(255,140,66,0.12); }
+
+  .pillar-text strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .pillar-text span {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* — MOCK CHAT WINDOW — */
+  .chat-window {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .chat-header-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f5f; }
+  .dot-y { background: #ffbd44; }
+  .dot-g { background: #00ca4e; }
+
+  .chat-header-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  .chat-messages {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .msg {
+    max-width: 85%;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .msg-user {
+    align-self: flex-end;
+    background: var(--green-dim);
+    border: 1px solid rgba(0,232,122,0.2);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 12px 12px 2px 12px;
+  }
+
+  .msg-ai {
+    align-self: flex-start;
+    color: var(--text-muted);
+  }
+
+  .msg-ai-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  .msg-ai-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+
+  .msg-ai-card .card-num {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 2px;
+  }
+
+  .msg-ai-card .card-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .msg-ai-card .card-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 10px;
+  }
+
+  .msg-ai-card .card-row span:last-child { color: var(--text); }
+
+  /* — DIFFERENTIATORS — */
+  .diff-section {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 40px;
+    margin-bottom: 80px;
+  }
+
+  .diff-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .diff-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 32px;
+  }
+
+  .diff-item {
+    text-align: center;
+  }
+
+  .diff-num {
+    font-family: var(--display);
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--green);
+    margin-bottom: 4px;
+  }
+
+  .diff-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .diff-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* — FOOTER — */
+  footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer-left {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    max-width: 480px;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+
+  .footer-links a {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: var(--text-muted); }
+
+  /* — ANIMATIONS — */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-up { animation: fadeUp 0.6s ease forwards; }
+  .delay-1 { animation-delay: 0.1s; opacity: 0; }
+  .delay-2 { animation-delay: 0.2s; opacity: 0; }
+  .delay-3 { animation-delay: 0.35s; opacity: 0; }
+  .delay-4 { animation-delay: 0.5s; opacity: 0; }
+  .delay-5 { animation-delay: 0.65s; opacity: 0; }
+
+  /* — MOBILE — */
+  @media (max-width: 768px) {
+    nav {
+      padding: 14px 20px;
+    }
+
+    .nav-links { display: none; }
+
+    .btn-ghost { display: none; }
+
+    .hero {
+      padding: 40px 20px 40px;
+    }
+
+    .hero-headline {
+      font-size: 38px;
+    }
+
+    .hero-sub {
+      font-size: 15px;
+      margin-bottom: 32px;
+    }
+
+    .quick-chips { margin-bottom: 32px; }
+
+    .live-insight { margin-bottom: 48px; }
+
+    .cards-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 60px;
+    }
+
+    .scenario-card { padding: 18px; }
+    .card-title { font-size: 13px; }
+
+    .intel-section {
+      padding: 0 20px;
+      margin-bottom: 60px;
+    }
+
+    .intel-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+
+    .chat-window { display: none; }
+
+    .diff-section { padding: 48px 20px; }
+
+    .diff-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 28px;
+    }
+
+    footer {
+      flex-direction: column;
+      gap: 24px;
+      padding: 32px 20px;
+      text-align: center;
+    }
+
+    .footer-links { justify-content: center; }
+
+    .command-bar-wrap { max-width: 100%; }
+    .quick-chips { max-width: 100%; }
+    .live-insight { max-width: 100%; }
+  }
+
+  /* Placeholder typing animation */
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 14px;
+    background: var(--green);
+    margin-left: 1px;
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+</style>
+</head>
+<body>
+
+<!-- LIVE DATA BAR -->
+<div class="data-bar">
+  <div class="data-bar-label">LIVE</div>
+  <div class="ticker-wrap">
+    <div class="ticker-track" id="ticker">
+      <!-- duplicated for seamless loop -->
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="logo-mark"></div>
+    HomeRates.ai
+  </a>
+  <ul class="nav-links">
+    <li><a href="#">How it works</a></li>
+    <li><a href="#">Calculators</a></li>
+    <li><a href="#">Ask Underwriting</a></li>
+  </ul>
+  <div class="nav-cta">
+    <button class="btn-ghost">Sign in</button>
+    <button class="btn-primary">Get started free</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow fade-up delay-1">
+    &#9679; <span>First AI mortgage intelligence platform</span>
+  </div>
+
+  <h1 class="hero-headline fade-up delay-2">
+    Your mortgage,<br>
+    <span class="line2">understood.</span>
+  </h1>
+
+  <p class="hero-sub fade-up delay-3">
+    <strong>Real math. Live rates. No loan officer.</strong><br>
+    Ask any mortgage question and get an instant, precise answer — backed by live market data, not guesswork.
+  </p>
+
+  <!-- COMMAND BAR -->
+  <div class="command-bar-wrap fade-up delay-4">
+    <div class="command-bar">
+      <input class="command-input" id="heroInput" placeholder="What's my payment on a $650k home with 20% down?" readonly />
+      <button class="command-send" aria-label="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+    <div class="command-hint" style="margin-top:8px;">Try any scenario — no forms, no signups required</div>
+  </div>
+
+  <!-- QUICK CHIPS -->
+  <div class="quick-chips fade-up delay-5">
+    <div class="chip">$500k · 20% down</div>
+    <div class="chip">FHA with 3.5% down</div>
+    <div class="chip">Can I afford $650k on $120k salary?</div>
+    <div class="chip">Should I refi at today's rates?</div>
+    <div class="chip">DSCR rental on $400k</div>
+    <div class="chip">VA loan · $0 down</div>
+  </div>
+
+  <!-- LIVE INSIGHT -->
+  <div class="live-insight fade-up delay-5">
+    <div class="live-insight-dot"></div>
+    <div class="live-insight-text">
+      <strong>Rate alert:</strong> 30Y fixed is at 6.38% this week — that's <strong>$47/mo higher</strong> than 6 months ago on a $500k loan. A 1% rate drop saves you <strong>$297/mo</strong>.
+    </div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="section-label">LIVE SCENARIOS</div>
+  <div class="cards-grid">
+    <div class="scenario-card card-green">
+      <span class="card-icon">🏠</span>
+      <div class="card-title">Can I afford it?</div>
+      <div class="card-insight">~$460k max home</div>
+      <div class="card-desc">~$2,800/mo on $120k salary · 28% DTI</div>
+    </div>
+    <div class="scenario-card card-blue">
+      <span class="card-icon">📉</span>
+      <div class="card-title">Should I refi?</div>
+      <div class="card-insight">~$340/mo savings</div>
+      <div class="card-desc">Break even in ~26 months at 5.75%</div>
+    </div>
+    <div class="scenario-card card-orange">
+      <span class="card-icon">📊</span>
+      <div class="card-title">Cash flow check</div>
+      <div class="card-insight">DSCR 1.12 — cash flows</div>
+      <div class="card-desc">$400k rental · $2,800/mo rent</div>
+    </div>
+    <div class="scenario-card card-purple">
+      <span class="card-icon">🏦</span>
+      <div class="card-title">FHA low down</div>
+      <div class="card-insight">3.5% down · $13,860 to close</div>
+      <div class="card-desc">$2,540/mo incl. MIP on $400k</div>
+    </div>
+    <div class="scenario-card card-red">
+      <span class="card-icon">⭐</span>
+      <div class="card-title">VA — $0 down</div>
+      <div class="card-insight">No down · no PMI</div>
+      <div class="card-desc">$500k home · full breakdown</div>
+    </div>
+    <div class="scenario-card card-blue">
+      <span class="card-icon">🏛️</span>
+      <div class="card-title">Jumbo $1.5M</div>
+      <div class="card-insight">20% down · ~$8,900/mo</div>
+      <div class="card-desc">Reserves &amp; qualification guide</div>
+    </div>
+  </div>
+</section>
+
+<!-- INTELLIGENCE SECTION -->
+<section class="intel-section">
+  <div class="intel-grid">
+    <div class="intel-left">
+      <h2>Not a calculator.<br>An <em>intelligence layer</em>.</h2>
+      <p>Traditional mortgage sites make you fill out forms and wait for a call. HomeRates.ai answers the same questions a seasoned loan officer would — instantly, at any hour, with live market data.</p>
+      <div class="intel-pillars">
+        <div class="pillar">
+          <div class="pillar-icon g">💡</div>
+          <div class="pillar-text">
+            <strong>Live FRED data — 22 series</strong>
+            <span>Rates, inflation, housing, treasury yields — updated weekly from the Federal Reserve.</span>
+          </div>
+        </div>
+        <div class="pillar">
+          <div class="pillar-icon b">🧠</div>
+          <div class="pillar-text">
+            <strong>Ask Underwriting</strong>
+            <span>Policy questions answered by a reasoning model trained on FHA, conventional, and DSCR guidelines.</span>
+          </div>
+        </div>
+        <div class="pillar">
+          <div class="pillar-icon o">⚡</div>
+          <div class="pillar-text">
+            <strong>Instant · No forms · No sales pitch</strong>
+            <span>Get a precise answer in seconds — no personal info required, no one to call you back.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOCK CHAT -->
+    <div class="chat-window">
+      <div class="chat-header">
+        <div class="chat-header-dots">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+        </div>
+        <div class="chat-header-label">HOMERATES.AI · LIVE</div>
+        <div style="width:52px"></div>
+      </div>
+      <div class="chat-messages">
+        <div class="msg msg-user">$550k home, 20% down, what's my payment?</div>
+        <div class="msg msg-ai">
+          <div class="msg-ai-label">HOMERATES.AI</div>
+          <div class="msg-ai-card">
+            <div class="card-num">$2,749/mo</div>
+            <div class="card-sub">Principal &amp; Interest · 30yr fixed · 6.38%</div>
+            <div class="card-row"><span>Loan amount</span><span>$440,000</span></div>
+            <div class="card-row"><span>Down payment</span><span>$110,000 (20%)</span></div>
+            <div class="card-row"><span>Total interest</span><span>$549,744</span></div>
+            <div class="card-row"><span>LTV</span><span>80% — No PMI</span></div>
+          </div>
+        </div>
+        <div class="msg msg-user">What if I put 10% down instead?</div>
+        <div class="msg msg-ai">
+          <div class="msg-ai-label">HOMERATES.AI</div>
+          <div class="msg-ai-card">
+            <div class="card-num">$3,191/mo</div>
+            <div class="card-sub">Includes PMI · 90% LTV · 6.38%</div>
+            <div class="card-row"><span>PMI added</span><span>~$206/mo</span></div>
+            <div class="card-row"><span>Extra cost vs 20%</span><span>+$442/mo</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DIFFERENTIATORS -->
+<div class="diff-section">
+  <div class="diff-inner">
+    <div class="diff-grid">
+      <div class="diff-item">
+        <div class="diff-num">&lt;2s</div>
+        <div class="diff-label">Average response</div>
+        <div class="diff-desc">From question to full breakdown — no loading spinner</div>
+      </div>
+      <div class="diff-item">
+        <div class="diff-num">22</div>
+        <div class="diff-label">Live data series</div>
+        <div class="diff-desc">FRED-sourced rates, inflation, and housing metrics</div>
+      </div>
+      <div class="diff-item">
+        <div class="diff-num">5</div>
+        <div class="diff-label">Loan modules</div>
+        <div class="diff-desc">Conventional, FHA, DSCR, Refi, and Affordability</div>
+      </div>
+      <div class="diff-item">
+        <div class="diff-num">$0</div>
+        <div class="diff-label">To get started</div>
+        <div class="diff-desc">No credit check, no personal info, no callback</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">
+    HomeRates.ai is an independent educational tool and is not a mortgage lender or broker. Educational only, not financial advice. · Build: 2026.01
+  </div>
+  <div class="footer-links">
+    <a href="#">Terms</a>
+    <a href="#">Privacy</a>
+    <a href="#">How it works</a>
+  </div>
+</footer>
+
+<script>
+  // TICKER DATA
+  const tickerData = [
+    { label: '30Y FIXED', val: '6.38%', chg: '+0.04%', dir: 'up' },
+    { label: 'FED FUNDS', val: '5.25%', chg: '—', dir: 'neu' },
+    { label: '10Y TREASURY', val: '4.21%', chg: '-0.03%', dir: 'dn' },
+    { label: 'INFLATION (CPI)', val: '3.2%', chg: '-0.1%', dir: 'dn' },
+    { label: '15Y FIXED', val: '5.87%', chg: '+0.02%', dir: 'up' },
+    { label: 'MEDIAN HOME PRICE', val: '$420,800', chg: '+2.1% YoY', dir: 'up' },
+    { label: '5/1 ARM', val: '6.01%', chg: '+0.06%', dir: 'up' },
+    { label: 'UNEMPLOYMENT', val: '3.7%', chg: '—', dir: 'neu' },
+  ];
+
+  function buildTicker(items) {
+    return items.map(d => `
+      <div class="ticker-item">
+        <span class="label">${d.label}</span>
+        <span class="val">${d.val}</span>
+        <span class="chg ${d.dir}">${d.chg}</span>
+      </div>
+    `).join('');
+  }
+
+  const track = document.getElementById('ticker');
+  const html = buildTicker(tickerData);
+  track.innerHTML = html + html; // duplicate for seamless loop
+
+  // TYPING PLACEHOLDER
+  const phrases = [
+    "What's my payment on a $650k home with 20% down?",
+    "Can I afford a $550k home on $110k salary?",
+    "Does FHA allow bank statement income?",
+    "What's my break-even if I refi at 5.75%?",
+    "DSCR on a $425k rental with $2,900/mo rent",
+  ];
+
+  let phraseIndex = 0;
+  let charIndex = 0;
+  let deleting = false;
+  const input = document.getElementById('heroInput');
+
+  function typeLoop() {
+    const current = phrases[phraseIndex];
+    if (!deleting) {
+      input.placeholder = current.substring(0, charIndex + 1);
+      charIndex++;
+      if (charIndex === current.length) {
+        deleting = true;
+        setTimeout(typeLoop, 2200);
+        return;
+      }
+    } else {
+      input.placeholder = current.substring(0, charIndex - 1);
+      charIndex--;
+      if (charIndex === 0) {
+        deleting = false;
+        phraseIndex = (phraseIndex + 1) % phrases.length;
+      }
+    }
+    setTimeout(typeLoop, deleting ? 28 : 52);
+  }
+
+  setTimeout(typeLoop, 800);
+</script>
+</body>
+</html>
