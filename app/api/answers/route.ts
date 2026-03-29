@@ -4084,8 +4084,11 @@ ${uwAnswerText}`,
 
             } else if (calcDispatch.type === 'refi' && calcDispatch.params) {
                 const result = calcRefi(calcDispatch.params as any);
+                // Estimate property value as balance / 0.8 (80% LTV default) so the LTV slider shows
+                const _refiEstimatedValue = Math.round((calcDispatch.params as any).currentBalance / 0.8);
                 calcCard = buildRefiCard(result, calcAssumptions, fredRateForCard,
-                    (calcDispatch.params as any).isFHAtoConv ? 'fha_to_conv' : undefined);
+                    (calcDispatch.params as any).isFHAtoConv ? 'fha_to_conv' : undefined,
+                    _refiEstimatedValue);
                 calcDebugModel = 'calcEngine-refi';
 
             } else if (calcDispatch.type === 'refi_needs_input') {

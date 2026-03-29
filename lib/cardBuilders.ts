@@ -88,6 +88,7 @@ export interface BuiltCard {
         newRate: number;
         termMonths: number;
         closingCosts: number;
+        propertyValue?: number;
     };
     loanLimitsSlider?: {
         county: string;
@@ -583,6 +584,7 @@ export function buildRefiCard(
     assumptions: string[] = [],
     fredRateStr?: string,
     refiType?: string,
+    propertyValue?: number,
 ): BuiltCard {
     const verdictEmoji = {
         strong: '✅',
@@ -770,6 +772,7 @@ ${mipSection}${resetSection}${waitSection}
             newRate: r.newRatePct,
             termMonths: r.refiTermMonths,
             closingCosts: r.closingCosts,
+            ...(propertyValue != null && { propertyValue }),
         },
     };
 }
