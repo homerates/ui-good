@@ -20,7 +20,7 @@ import {
     createProject,
     renameProject,
     deleteProject,
-} from '../lib/projectsClient';
+} from '../../lib/projectsClient';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
