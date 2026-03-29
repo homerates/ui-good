@@ -70,13 +70,6 @@ const SCENARIOS = [
     },
 ];
 
-// Fallback values shown while the live fetch is in-flight
-const TICKER_FALLBACK = [
-    { label: '30Y FIXED', value: '—', sub: 'loading…' },
-    { label: '10Y TREASURY', value: '—', sub: 'loading…' },
-    { label: 'SPREAD', value: '—', sub: 'mtg vs T10' },
-    { label: 'FED FUNDS', value: '—', sub: 'effective rate' },
-];
 
 interface WelcomeScreenProps {
     onSend: (seed: string) => void;
@@ -86,9 +79,8 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: WelcomeScreenProps) {
     const [visible, setVisible] = useState(false);
-    const [tickerItems, setTickerItems] = useState(TICKER_FALLBACK);
     const [pcUrl, setPcUrl] = useState('');
-    // Hero rate — pulled from ticker once loaded
+    // Live 30Y rate for the Rate Alert
     const [heroRate, setHeroRate] = useState<string | null>(null);
     const [heroSub, setHeroSub] = useState<string | null>(null);
 
@@ -99,15 +91,13 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
         onSend(url);
     }
 
-    // Fetch live FRED ticker data
+    // Fetch live 30Y rate for Rate Alert
     useEffect(() => {
         let cancelled = false;
         fetch('/api/ticker', { cache: 'no-store' })
             .then((r) => r.json())
             .then((json) => {
                 if (!cancelled && json?.ok && Array.isArray(json.items)) {
-                    setTickerItems(json.items);
-                    // Pull 30Y fixed for the hero
                     const thirtyY = json.items.find((it: any) =>
                         it.label?.includes('30Y') || it.label?.includes('30-Year')
                     );
@@ -117,7 +107,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     }
                 }
             })
-            .catch(() => { /* keep fallback values */ });
+            .catch(() => { /* keep fallback */ });
         return () => { cancelled = true; };
     }, []);
 
@@ -155,23 +145,16 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
     return (
         <div className={`hr-welcome ${visible ? 'hr-welcome--visible' : ''}`}>
 
-            {/* ── Headline + hero rate ── */}
+            {/* ── Headline ── */}
             <div className="hr-hero">
                 <div className="hr-hero__text">
                     <h1 className="hr-headline__title">
                         What's your<br className="hr-headline__br--mobile" /> mortgage question?
                     </h1>
                     <p className="hr-headline__sub">
-                        Real math · Live rates · No sales pitch
+                        Real math. Live rates. No sales. No gatekeepers.
                     </p>
                 </div>
-                {heroRate && (
-                    <div className="hr-hero__rate" onClick={() => onSend('What is today\'s 30-year fixed mortgage rate and what does it mean for a $400,000 loan?')}>
-                        <span className="hr-hero__rate-value">{heroRate}</span>
-                        <span className="hr-hero__rate-label">30Y Fixed</span>
-                        <span className="hr-hero__rate-sub">{heroSub}</span>
-                    </div>
-                )}
             </div>
 
             {/* ── Rate Alert (replaces ticker) ── */}
@@ -222,8 +205,9 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 <div className="hr-price-check__hint">Works on sold, pending, and off-market properties · Instant refi readiness · No account needed</div>
             </div>
 
-            {/* ── Scenario preview cards (horizontal scroll) ── */}
+            {/* ── Scenario preview cards ── */}
             <div className="hr-scenarios-wrap">
+                <div className="hr-scenarios-label">Live Scenarios</div>
                 <div className="hr-scenarios">
                     {SCENARIOS.map((s, i) => (
                         <button
@@ -274,9 +258,9 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
             {/* ── Styles ── */}
             <style>{`
                 .hr-welcome {
-                    padding: 0 8px 32px;
+                    padding: 24px 8px 32px;
                     max-width: 720px;
-                    margin: -16px auto 0;
+                    margin: 0 auto;
                     opacity: 0;
                     transform: translateY(8px);
                     transition: opacity 0.35s ease, transform 0.35s ease;
@@ -355,121 +339,89 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 @media (max-width: 480px) {
                     .hr-headline__br--mobile { display: block; }
                 }
-                /* Hero rate badge */
-                .hr-hero__rate {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    flex-shrink: 0;
-                    padding: 12px 18px;
-                    background: rgba(0, 232, 122, 0.06);
-                    border: 1.5px solid rgba(0, 232, 122, 0.28);
-                    border-radius: 14px;
-                    cursor: pointer;
-                    transition: transform 0.12s, box-shadow 0.15s;
-                    min-width: 90px;
-                    box-shadow: 0 2px 12px rgba(0, 232, 122, 0.08);
-                    text-align: center;
-                    animation: fadeSlideIn 0.5s ease 0.2s both;
-                }
-                .hr-hero__rate:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 6px 20px rgba(0, 232, 122, 0.15);
-                    background: rgba(0, 232, 122, 0.09);
-                }
-                .hr-hero__rate-value {
-                    font-size: 1.55rem;
-                    font-weight: 800;
-                    color: var(--accent, #00e87a);
-                    font-variant-numeric: tabular-nums;
-                    letter-spacing: -0.03em;
-                    line-height: 1;
-                }
-                .hr-hero__rate-label {
+
+                /* ── Scenario section label ── */
+                .hr-scenarios-label {
+                    font-family: var(--font-dm-mono, 'DM Mono', monospace);
                     font-size: 10px;
-                    font-weight: 700;
-                    color: var(--accent, #00e87a);
-                    opacity: 0.75;
+                    font-weight: 500;
+                    color: var(--text-dim, #3a4560);
+                    letter-spacing: 0.16em;
                     text-transform: uppercase;
-                    letter-spacing: 0.07em;
-                    margin-top: 5px;
-                }
-                .hr-hero__rate-sub {
-                    font-size: 10px;
-                    color: var(--text-weak, #6b7a99);
-                    margin-top: 2px;
-                    white-space: nowrap;
-                }
-                @keyframes fadeSlideIn {
-                    from { opacity: 0; transform: translateY(6px); }
-                    to { opacity: 1; transform: translateY(0); }
+                    margin-bottom: 16px;
                 }
 
-                /* ── Scenario preview cards (2-col on mobile, 3-col on desktop) ── */
-                .hr-scenarios-wrap {
-                    margin-bottom: 20px;
-                }
+                /* ── Scenario cards — matches lp-card exactly ── */
+                .hr-scenarios-wrap { margin-bottom: 20px; }
                 .hr-scenarios {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 10px;
+                    gap: 14px;
                 }
                 @media (min-width: 640px) {
-                    .hr-scenarios {
-                        grid-template-columns: repeat(3, 1fr);
-                    }
+                    .hr-scenarios { grid-template-columns: repeat(3, 1fr); }
                 }
                 .hr-scenario {
                     display: flex;
                     flex-direction: column;
                     align-items: flex-start;
-                    padding: 12px 14px 14px;
-                    background: var(--card, #ffffff);
-                    border: 1.5px solid var(--border, #e2e8f0);
-                    border-top: 3px solid var(--scenario-accent, #e2e8f0);
+                    padding: 22px;
+                    background: var(--surface, #0e1420);
+                    border: 1px solid var(--border, rgba(255,255,255,0.07));
                     border-radius: 14px;
                     cursor: pointer;
                     text-align: left;
-                    transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s, background 0.15s;
+                    position: relative;
+                    overflow: hidden;
+                    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
                     opacity: 0;
                     animation: scenarioIn 0.4s ease forwards;
+                }
+                .hr-scenario::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0; right: 0;
+                    height: 2px;
+                    background: var(--scenario-accent, #00e87a);
+                    opacity: 0;
+                    transition: opacity 0.2s;
                 }
                 @keyframes scenarioIn {
                     from { opacity: 0; transform: translateY(6px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
                 .hr-scenario:hover {
-                    border-color: var(--scenario-accent, #e2e8f0);
-                    border-top-color: var(--scenario-accent, #e2e8f0);
-                    box-shadow: 0 4px 18px color-mix(in srgb, var(--scenario-accent, #10b981) 18%, transparent);
+                    border-color: var(--border-bright, rgba(255,255,255,0.13));
+                    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
                     transform: translateY(-2px);
-                    background: var(--surface, #f8fafc);
                 }
+                .hr-scenario:hover::before { opacity: 1; }
                 .hr-scenario:active { transform: translateY(0); }
                 .hr-scenario__icon {
-                    font-size: 1.5rem;
-                    margin-bottom: 8px;
+                    font-size: 22px;
+                    margin-bottom: 14px;
+                    display: block;
                     line-height: 1;
                 }
                 .hr-scenario__label {
-                    font-size: 0.84rem;
-                    font-weight: 700;
-                    color: var(--text, #0f172a);
+                    font-family: var(--font-syne, 'Syne', sans-serif);
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: var(--text, #f0f4ff);
                     margin-bottom: 6px;
                     line-height: 1.2;
                 }
                 .hr-scenario__line1 {
-                    font-size: 0.78rem;
-                    font-weight: 600;
-                    color: var(--scenario-accent, #10b981);
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: var(--scenario-accent, #00e87a);
                     line-height: 1.4;
-                    margin-bottom: 2px;
+                    margin-bottom: 6px;
                 }
                 .hr-scenario__line2 {
-                    font-size: 0.72rem;
-                    color: var(--text-weak, #94a3b8);
-                    line-height: 1.4;
+                    font-size: 12px;
+                    color: var(--text-weak, #6b7a99);
+                    line-height: 1.5;
                 }
 
                 /* ── Quick chips (horizontal scroll on mobile, wrap on desktop) ── */
