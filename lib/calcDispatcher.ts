@@ -617,7 +617,7 @@ export function dispatch(
     }
 
     // ── 3. FHA ──
-    if (isFHAQuestion(q)) {
+    if (isFHAQuestion(q) && !isLoanLimitsQuestion(q)) {
         // MIP duration knowledge question — no calc needed
         if (isMIPKnowledgeQuestion(q)) {
             return { type: 'mip_duration_knowledge', params: null, confidence: 1.0, assumptions: [] };
