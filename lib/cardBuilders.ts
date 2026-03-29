@@ -658,7 +658,7 @@ ${fredNote}${assumptionNote}
 |--|--|--|--|
 | P&I payment | ${f$(r.currentMonthlyPI)}/mo | ${f$(r.newMonthlyPI)}/mo | **${r.monthlyPISavings >= 0 ? '+' : ''}${f$(r.monthlyPISavings)}/mo** |
 | Annual savings | — | — | **${f$(r.annualSavings)}/yr** |
-| Closing costs | — | ~${f$(r.closingCosts)} | ~2% estimate |
+| Closing costs | — | ~${f$(r.closingCosts)} | ~1% est. — get lender quotes |
 | **Breakeven** | — | — | **${r.breakEvenMonths === 0 ? 'Immediate (no closing costs)' : r.breakEvenMonths != null ? `${r.breakEvenMonths} months (${fYr(r.breakEvenYears!)})` : 'N/A'}** |
 
 ---

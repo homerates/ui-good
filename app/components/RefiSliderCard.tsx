@@ -149,11 +149,17 @@ export default function RefiSliderCard(props: RefiSliderParams) {
         closingCosts !== props.closingCosts ||
         noCost;
 
+    function fmtBal(n: number) {
+        if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`;
+        return `$${Math.round(n / 1000)}k`;
+    }
+
     function buildSeed() {
+        // Cost string must come AFTER "closing costs" keyword so dispatcher regex matches
         const costStr = effClosing > 0
-            ? `, $${Math.round(effClosing / 500) * 500} closing costs`
+            ? `, closing costs $${Math.round(effClosing / 500) * 500}`
             : ', no closing costs';
-        return `Refi $${Math.round(balance / 1000)}k balance from ${currentRate.toFixed(2)}% to ${effNewRate.toFixed(2)}% — ${termYears}yr fixed${costStr}`;
+        return `Refi ${fmtBal(balance)} balance from ${currentRate.toFixed(2)}% to ${effNewRate.toFixed(2)}% — ${termYears}yr fixed${costStr}`;
     }
 
     function buildParams(): Record<string, number> {

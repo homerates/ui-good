@@ -220,7 +220,7 @@ export interface RefiInput {
     currentRatePct: number;
     newRatePct: number;
     remainingMonths?: number;      // default 360
-    closingCosts?: number;         // default 2% of balance
+    closingCosts?: number;         // default 1% of balance (no-cost refi industry norm)
     yearsIn?: number;              // for amortization reset warning
     refiTermMonths?: number;       // new loan term, default = remainingMonths
     isFHAtoConv?: boolean;
@@ -620,7 +620,7 @@ export function calcRefi(input: RefiInput): RefiResult {
         homeValue,
     } = input;
 
-    const effCosts = closingCosts ?? currentBalance * 0.02;
+    const effCosts = closingCosts ?? currentBalance * 0.01;
     const refiTerm = refiTermMonths ?? remainingMonths;
 
     const curPI = monthlyPI(currentBalance, currentRatePct, remainingMonths);
