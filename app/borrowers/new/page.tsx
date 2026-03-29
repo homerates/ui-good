@@ -65,7 +65,7 @@ export default function NewBorrowerPage() {
 
             // Optional: redirect after short delay
             setTimeout(() => {
-                router.push("/"); // or "/borrowers" if you later add a list page
+                router.push("/chat");
             }, 1200);
         } catch (err: any) {
             console.error("New borrower error:", err);

@@ -145,9 +145,9 @@ export default function OnboardingPage() {
 
     function handleEnterApp() {
         if (successBorrowerId) {
-            router.push(`/?borrower=${encodeURIComponent(successBorrowerId)}`);
+            router.push(`/chat?borrower=${encodeURIComponent(successBorrowerId)}`);
         } else {
-            router.push("/");
+            router.push("/chat");
         }
     }
 

@@ -13,6 +13,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isPublicRoute = createRouteMatcher([
   // Core app
   "/",
+  "/chat",
   // Calculator pages
   "/calculators(.*)",
   "/affordability-calculator(.*)",

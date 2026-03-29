@@ -132,7 +132,7 @@ export default async function SharePage(props: {
 
                 <div style={{ marginTop: 18 }}>
                     <a
-                        href="/"
+                        href="/chat"
                         style={{
                             display: "inline-block",
                             padding: "10px 12px",

@@ -23,7 +23,7 @@ export default async function ShortRedirectPage(props: any) {
     const slug = params?.slug ?? '';
 
     if (!slug || !supabase) {
-        redirect('/');
+        redirect('/chat');
     }
 
     // Check shared_threads first (full thread share)
@@ -50,5 +50,5 @@ export default async function ShortRedirectPage(props: any) {
     }
 
     // Nothing found - go home
-    redirect('/');
+    redirect('/chat');
 }

@@ -52,7 +52,7 @@ export default function JoinPage() {
 
             // Redirect into the main app after a short delay
             setTimeout(() => {
-                router.push("/"); // or "/dashboard" if that’s your main page
+                router.push("/chat");
             }, 1200);
         } catch (err: any) {
             console.error("Join error", err);
