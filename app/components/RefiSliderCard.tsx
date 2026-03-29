@@ -181,7 +181,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
     return (
         <div style={{
             background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16,
-            padding: '20px 20px 16px', marginTop: 12, maxWidth: 560,
+            padding: '20px 20px 16px', marginTop: 12, width: '100%', boxSizing: 'border-box',
             fontFamily: 'system-ui, -apple-system, sans-serif',
         }}>
             {/* ── Header ── */}
