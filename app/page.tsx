@@ -197,27 +197,11 @@ export default function LandingPage() {
         .lp-nav-logo {
           display: flex;
           align-items: center;
-          gap: 10px;
-          font-family: 'Syne', sans-serif;
-          font-size: 18px;
-          font-weight: 700;
-          color: var(--text);
           text-decoration: none;
         }
-        .lp-logo-mark {
-          width: 32px;
+        .lp-nav-logo img {
           height: 32px;
-          background: conic-gradient(from 180deg, #a855f7, #3d8bff, #00e87a, #a855f7);
-          border-radius: 50%;
-          position: relative;
-          flex-shrink: 0;
-        }
-        .lp-logo-mark::after {
-          content: '';
-          position: absolute;
-          inset: 3px;
-          background: var(--bg);
-          border-radius: 50%;
+          width: auto;
         }
         .lp-nav-links { display: flex; gap: 32px; list-style: none; }
         .lp-nav-links a {
@@ -694,8 +678,7 @@ export default function LandingPage() {
         {/* NAV */}
         <nav className="lp-nav">
           <Link href="/" className="lp-nav-logo">
-            <div className="lp-logo-mark" />
-            HomeRates.ai
+            <img src="/assets/homerates-full-horizontal-white.png" alt="HomeRates.ai" />
           </Link>
           <ul className="lp-nav-links">
             <li><Link href="/chat">How it works</Link></li>

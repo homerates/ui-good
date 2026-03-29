@@ -2,12 +2,16 @@
 // app/layout.tsx
 import "./globals.css";
 import { Inter } from "next/font/google";
+import { Syne, DM_Mono, DM_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import LegalLinks from "./components/LegalLinks";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const syne = Syne({ subsets: ["latin"], variable: "--font-syne", display: "swap", weight: ["400","500","600","700","800"] });
+const dmMono = DM_Mono({ subsets: ["latin"], variable: "--font-dm-mono", display: "swap", weight: ["300","400","500"] });
+const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans", display: "swap", weight: ["300","400","500"] });
 
 
 const BASE_URL = "https://chat.homerates.ai";
@@ -75,7 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <head>
           <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('hr-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();` }} />
         </head>
-        <body className={`app ${inter.variable}`}>
+        <body className={`app ${inter.variable} ${syne.variable} ${dmMono.variable} ${dmSans.variable}`}>
           {children}
           <Analytics />
           <SpeedInsights />
