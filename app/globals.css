@@ -98,7 +98,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 14px 16px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -416,9 +416,9 @@ body {
 
 .sidebar {
   position: fixed;
-  top: 52px;
+  top: 62px;
   left: 0;
-  height: calc(100dvh - 52px);
+  height: calc(100dvh - 62px);
   width: 256px;
   max-width: min(82vw, 280px);
   background: var(--surface);

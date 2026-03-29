@@ -2513,7 +2513,6 @@ export default function Page() {
                         {/* Right controls */}
                         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
-                            <ThemeToggle />
                         </div>
                     </div>
                 </div>
@@ -3058,43 +3057,6 @@ export default function Page() {
                                 {/* SETTINGS */}
                                 {showSettings && (
                                     <div style={{ display: 'grid', gap: 10 }}>
-                                        <label
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 8,
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                onChange={() => {
-                                                    /* next pass */
-                                                }}
-                                            />
-                                            Compact bubbles (coming soon)
-                                        </label>
-                                        <label
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 8,
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={typeof window !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        document.documentElement.setAttribute('data-theme', 'dark');
-                                                        localStorage.setItem('hr-theme', 'dark');
-                                                    } else {
-                                                        document.documentElement.removeAttribute('data-theme');
-                                                        localStorage.setItem('hr-theme', 'light');
-                                                    }
-                                                }}
-                                            />
-                                            Dark mode
-                                        </label>
                                         <button
                                             className="btn"
                                             onClick={() => {
