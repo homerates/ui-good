@@ -382,16 +382,18 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     min-width: 0;
                 }
                 .hr-headline__title {
-                    font-size: clamp(1.55rem, 4vw, 2.1rem);
+                    font-size: clamp(1.75rem, 4.5vw, 2.4rem);
                     font-weight: 800;
-                    color: var(--text, #0f172a);
-                    line-height: 1.15;
+                    font-family: var(--font-syne, 'Syne', sans-serif);
+                    color: var(--text, #f0f4ff);
+                    line-height: 1.1;
                     letter-spacing: -0.03em;
-                    margin: 0 0 8px;
+                    margin: 0 0 10px;
                 }
                 .hr-headline__sub {
-                    font-size: 0.9rem;
-                    color: var(--text-weak, #64748b);
+                    font-size: 0.875rem;
+                    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+                    color: var(--text-weak, #6b7a99);
                     line-height: 1.5;
                     margin: 0;
                     letter-spacing: 0.01em;
@@ -573,79 +575,89 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     box-shadow: 0 2px 8px rgba(96, 165, 250, 0.12);
                 }
 
-                /* ── Price Check featured banner ── */
+                /* ── Price Check / Property Lookup banner ── */
                 .hr-price-check {
                     display: flex;
                     align-items: center;
-                    gap: 14px;
+                    gap: 12px;
                     width: 100%;
-                    padding: 14px 18px;
+                    padding: 12px 14px;
                     margin-bottom: 20px;
-                    background: rgba(96, 165, 250, 0.04);
-                    border: 1.5px solid rgba(96, 165, 250, 0.15);
+                    background: var(--card, #0e1420);
+                    border: 1px solid var(--border-bright, rgba(255,255,255,0.13));
                     border-radius: 14px;
                     text-align: left;
-                    box-shadow: 0 2px 8px rgba(96, 165, 250, 0.06);
+                    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
                     opacity: 0;
                     animation: chipIn 0.4s ease 80ms forwards;
                     box-sizing: border-box;
+                    transition: border-color 0.15s, box-shadow 0.15s;
+                }
+                .hr-price-check:focus-within {
+                    border-color: rgba(0, 232, 122, 0.3);
+                    box-shadow: 0 2px 16px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,232,122,0.15);
                 }
                 .hr-price-check__icon {
-                    font-size: 26px;
+                    font-size: 20px;
                     flex-shrink: 0;
+                    opacity: 0.7;
                 }
                 .hr-price-check__body {
                     display: flex;
                     flex-direction: column;
-                    gap: 6px;
+                    gap: 4px;
                     flex: 1;
                     min-width: 0;
                 }
                 .hr-price-check__label {
-                    font-size: 14px;
+                    font-size: 10px;
                     font-weight: 700;
-                    color: rgba(147, 197, 253, 0.9);
-                    letter-spacing: -0.01em;
+                    font-family: var(--font-dm-mono, 'DM Mono', monospace);
+                    color: var(--accent, #00e87a);
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
                 }
                 .hr-price-check__form {
                     display: flex;
                     align-items: center;
-                    gap: 6px;
+                    gap: 8px;
                 }
                 .hr-price-check__input {
                     flex: 1;
                     min-width: 0;
-                    padding: 8px 12px;
-                    border: 1.5px solid rgba(96, 165, 250, 0.2);
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-family: inherit;
+                    padding: 0;
+                    border: none;
+                    border-radius: 0;
+                    font-size: 14px;
+                    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
                     color: var(--text, #f0f4ff);
-                    background: var(--card, #0e1420);
+                    background: transparent;
                     outline: none;
-                    transition: border-color 0.15s, box-shadow 0.15s;
                 }
-                .hr-price-check__input:focus {
-                    border-color: rgba(96, 165, 250, 0.5);
-                    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.08);
+                .hr-price-check__input::placeholder {
+                    color: var(--text-weak, #6b7a99);
+                    font-size: 13px;
                 }
-                .hr-price-check__input::placeholder { color: var(--text-dim, #3a4560); }
                 .hr-price-check__go {
                     flex-shrink: 0;
-                    width: 32px;
-                    height: 32px;
+                    width: 34px;
+                    height: 34px;
                     border-radius: 8px;
                     border: none;
-                    background: rgba(96, 165, 250, 0.2);
-                    color: rgba(147, 197, 253, 0.95);
+                    background: var(--accent, #00e87a);
+                    color: #000;
                     font-size: 16px;
+                    font-weight: 700;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    transition: background 0.15s;
+                    transition: background 0.15s, transform 0.1s;
                 }
-                .hr-price-check__go:hover { background: rgba(96, 165, 250, 0.32); }
+                .hr-price-check__go:hover {
+                    background: #00c96a;
+                    transform: scale(1.05);
+                }
             `}</style>
         </div>
     );

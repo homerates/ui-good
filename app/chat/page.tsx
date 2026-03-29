@@ -2491,26 +2491,40 @@ export default function Page() {
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 8,
-                            paddingLeft: 8,
+                            gap: 0,
                         }}
                     >
-                        {/* HomeRates logo */}
-                        <img
-                            src="/assets/HR Logo (1).png"
-                            alt="HomeRates.ai"
-                            style={{
-                                height: 42,
-                                width: 'auto',
-                                display: 'block',
-                            }}
-                        />
+                        {/* Logo → Home */}
+                        <a
+                            href="/"
+                            style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginRight: 20, textDecoration: 'none' }}
+                        >
+                            <img
+                                src="/assets/HR Logo (1).png"
+                                alt="HomeRates.ai"
+                                style={{ height: 32, width: 'auto', display: 'block' }}
+                            />
+                        </a>
 
-                        {/* Existing hamburger menu */}
-                        <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
+                        {/* Nav — same as landing page */}
+                        <nav className="app-nav">
+                            <a href="/" className="app-nav-link">Home</a>
+                            <a href="/chat" className="app-nav-link">Scenario Engine</a>
+                            <button
+                                className="app-nav-link"
+                                type="button"
+                                onClick={() => {
+                                    newChat();
+                                    setTimeout(() => send('Show me the HomeRates Lab'), 80);
+                                }}
+                            >
+                                HomeRates Lab
+                            </button>
+                        </nav>
 
-                        {/* Right-side controls */}
+                        {/* Right controls */}
                         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
                             <ThemeToggle />
                         </div>
                     </div>

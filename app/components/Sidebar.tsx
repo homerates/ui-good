@@ -331,20 +331,15 @@ export default function Sidebar(props: SidebarProps) {
         {/* ── Scrollable content ── */}
         <div className="sidebar-scroll">
 
-          {/* Header: logo + hamburger */}
+          {/* Header: hamburger only — logo lives in main header */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               padding: '12px 14px 10px 14px',
             }}
           >
-            <img
-              src="/assets/HR Logo (1).png"
-              alt="HomeRates.ai"
-              style={{ height: 28, width: 'auto', objectFit: 'contain' }}
-            />
             <button
               className="hamburger"
               onClick={onToggle}

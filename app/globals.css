@@ -83,7 +83,7 @@ body {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
 }
 /* Header buttons always light-on-dark regardless of page theme */
-.header button,
+.header button:not(.app-nav-link),
 .header .btn {
   color: #e2e8f0 !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
@@ -100,7 +100,36 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 8px 16px;
+}
+
+/* App nav — matches landing page header nav */
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.app-nav-link {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(176, 190, 220, 0.8);
+  text-decoration: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.app-nav-link:hover {
+  color: var(--text, #f0f4ff);
+  background: rgba(255, 255, 255, 0.06);
+}
+/* Hide nav on mobile — sidebar covers it */
+@media (max-width: 640px) {
+  .app-nav { display: none; }
 }
 
 /* Always show hamburger (we'll wire its behavior next step) */
