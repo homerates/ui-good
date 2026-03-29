@@ -9,12 +9,13 @@ import React, { useState, useMemo } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
 
 export interface RefiSliderParams {
-    balance: number;       // current loan balance
-    currentRate: number;   // current rate %
-    newRate: number;       // new rate %
-    termMonths: number;    // new loan term in months (default 360)
-    closingCosts: number;  // closing costs $
-    onRunScenario?: (seed: string) => void;
+    balance: number;           // current loan balance
+    currentRate: number;       // current rate %
+    newRate: number;           // new rate %
+    termMonths: number;        // new loan term in months (default 360)
+    closingCosts: number;      // closing costs $
+    propertyValue?: number;    // known property value — enables LTV slider
+    onRunScenario?: (seed: string, params?: Record<string, number>) => void;
 }
 
 // ── Loan tier detection (FHFA 2026 limits) ───────────────────────────────────
@@ -72,6 +73,9 @@ function beColor(months: number | null): { text: string; bg: string; border: str
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function RefiSliderCard(props: RefiSliderParams) {
+    const propVal                         = props.propertyValue ?? null;
+    const initLtv                         = propVal ? Math.round((props.balance / propVal) * 100) : 80;
+    const [ltv, setLtv]                   = useState(Math.min(97, Math.max(50, initLtv)));
     const [balance, setBalance]           = useState(props.balance);
     const [currentRate, setCurrentRate]   = useState(props.currentRate);
     const [newRate, setNewRate]           = useState(props.newRate);
@@ -79,6 +83,12 @@ export default function RefiSliderCard(props: RefiSliderParams) {
     const [closingCosts, setClosingCosts] = useState(props.closingCosts);
     const [closingInput, setClosingInput] = useState('');   // manual text input
     const [noCost, setNoCost]             = useState(false);
+
+    // When LTV changes and property value is known, drive balance from LTV
+    function handleLtvChange(newLtv: number) {
+        setLtv(newLtv);
+        if (propVal) setBalance(Math.round(propVal * newLtv / 100));
+    }
 
     // Dynamic slider ranges
     const balanceMax    = Math.max(4_000_000, Math.ceil(balance * 1.5 / 500_000) * 500_000);
@@ -144,6 +154,15 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             ? `, $${Math.round(effClosing / 500) * 500} closing costs`
             : ', no closing costs';
         return `Refi $${Math.round(balance / 1000)}k balance from ${currentRate.toFixed(2)}% to ${effNewRate.toFixed(2)}% — ${termYears}yr fixed${costStr}`;
+    }
+
+    function buildParams(): Record<string, number> {
+        return {
+            currentBalance: balance,
+            currentRatePct: currentRate,
+            newRatePct:     effNewRate,
+            closingCosts:   effClosing,
+        };
     }
 
     const beC       = beColor(calc.breakEvenMo);
@@ -310,49 +329,64 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                 </div>
             </div>
 
-            {/* Closing costs */}
-            <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Closing Costs</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {!noCost && (
+            {/* Closing costs + LTV — side by side */}
+            <div style={{ display: 'grid', gridTemplateColumns: propVal ? '1fr 1fr' : '1fr', gap: '0 16px', marginBottom: 14 }}>
+                {/* Closing costs */}
+                <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Closing Costs</span>
+                        {!noCost ? (
                             <input
                                 type="text"
                                 inputMode="numeric"
-                                value={closingInput || fmt$(closingCosts)}
+                                value={closingInput !== '' ? closingInput : fmt$(closingCosts)}
                                 onFocus={() => setClosingInput(String(closingCosts))}
-                                onBlur={() => {
-                                    const n = parseInt(closingInput.replace(/[^0-9]/g, ''));
+                                onBlur={() => setClosingInput('')}
+                                onChange={e => {
+                                    const raw = e.target.value;
+                                    setClosingInput(raw);
+                                    const n = parseInt(raw.replace(/[^0-9]/g, ''));
                                     if (!isNaN(n) && n >= 0) setClosingCosts(Math.min(n, 999_999));
-                                    setClosingInput('');
                                 }}
-                                onChange={e => setClosingInput(e.target.value)}
                                 style={{
-                                    width: 84, fontSize: 12, fontWeight: 700,
+                                    width: 80, fontSize: 12, fontWeight: 700,
                                     padding: '2px 6px', borderRadius: 5, textAlign: 'right',
                                     border: '1px solid #cbd5e1', background: '#f8fafc',
                                     color: '#0f172a', outline: 'none',
                                 }}
                             />
-                        )}
-                        {noCost && (
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>$0 (no-cost)</span>
+                        ) : (
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>$0</span>
                         )}
                     </div>
+                    <input type="range" min={0} max={closingMax} step={500} value={closingCosts}
+                        onChange={e => { setClosingCosts(Number(e.target.value)); setClosingInput(''); }}
+                        disabled={noCost}
+                        style={{ width: '100%', opacity: noCost ? 0.4 : 1, ...trackStyle(closingCosts, 0, closingMax) }}
+                    />
+                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2, textAlign: 'center' }}>
+                        1% ≈ no-cost · type to enter exact
+                    </div>
                 </div>
-                <input type="range" min={0} max={closingMax} step={500} value={closingCosts}
-                    onChange={e => setClosingCosts(Number(e.target.value))}
-                    disabled={noCost}
-                    style={{
-                        width: '100%', opacity: noCost ? 0.4 : 1,
-                        ...trackStyle(closingCosts, 0, closingMax),
-                    }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
-                    <span>$0</span>
-                    <span style={{ fontSize: 10, color: '#cbd5e1' }}>or type exact amount above</span>
-                    <span>{fmt$(closingMax)}</span>
-                </div>
+
+                {/* LTV slider — only when property value is known */}
+                {propVal && (
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>LTV</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: ltv > 80 ? '#ef4444' : '#0f172a' }}>{ltv}%</span>
+                        </div>
+                        <input type="range" min={50} max={97} step={1} value={ltv}
+                            onChange={e => handleLtvChange(Number(e.target.value))}
+                            style={{ width: '100%', ...trackStyle(ltv, 50, 97, ltv > 80 ? '#ef4444' : '#10b981') }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+                            <span>50%</span>
+                            <span style={{ color: ltv <= 80 ? '#059669' : '#94a3b8' }}>80% = no PMI</span>
+                            <span>97%</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Term toggle */}
@@ -425,7 +459,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
                 {isDirty && props.onRunScenario && (
                     <button
-                        onClick={() => props.onRunScenario!(buildSeed())}
+                        onClick={() => props.onRunScenario!(buildSeed(), buildParams())}
                         style={{
                             flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
                             background: '#0f172a', color: '#fff', fontSize: 13, fontWeight: 700,

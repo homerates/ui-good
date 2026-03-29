@@ -376,7 +376,7 @@ type ApiResponse = {
     } | null;
     refiSlider?: {
         balance: number; currentRate: number; newRate: number;
-        termMonths: number; closingCosts: number;
+        termMonths: number; closingCosts: number; propertyValue?: number;
     } | null;
     loanLimitsSlider?: {
         county: string; conformingLimit: number; nationalBaseline: number;
@@ -1777,14 +1777,16 @@ export default function Page() {
 
                     // ── OFF-MARKET / REFI path ─────────────────────────────────────────
                     if (isOffMarket) {
-                        // Use parsed balance if available; fall back to 80% of last-sale or estimated value
+                        // Use parsed balance if available; fall back to 80% LTV of known value
+                        const propVal = d.estimatedValue ?? d.lastSalePrice ?? d.price ?? null;
                         const bal = d.estimatedBalance
                             ?? (d.lastSalePrice ? Math.round(d.lastSalePrice * 0.80)
-                            : d.estimatedValue  ? Math.round(d.estimatedValue  * 0.75)
+                            : d.estimatedValue  ? Math.round(d.estimatedValue  * 0.80)
+                            : d.price           ? Math.round(d.price * 0.80)
                             : 600_000);
                         const curRate = d.purchaseRate ?? 5.5;
                         const termMo  = d.remainingMonths ?? 360;
-                        const costs   = Math.round(bal * 0.02);
+                        const costs   = Math.round(bal * 0.01); // 1% default — industry norm for no/low-cost refi
                         const equity  = d.estimatedEquity ?? null;
                         const estVal  = d.estimatedValue  ?? null;
 
@@ -1805,11 +1807,12 @@ export default function Page() {
                         const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
                         const refiSlider = {
-                            balance:      bal,
-                            currentRate:  curRate,
-                            newRate:      liveRate,
-                            termMonths:   termMo,
-                            closingCosts: costs,
+                            balance:       bal,
+                            currentRate:   curRate,
+                            newRate:       liveRate,
+                            termMonths:    termMo,
+                            closingCosts:  costs,
+                            propertyValue: propVal ?? undefined,
                         };
 
                         const refiChips = [
@@ -2612,7 +2615,13 @@ export default function Page() {
                                                         {m.meta.refiSlider && !loading && typingId === null && (
                                                             <RefiSliderCard
                                                                 {...m.meta.refiSlider}
-                                                                onRunScenario={(seed) => send(seed)}
+                                                                onRunScenario={(seed, sliderParams) => {
+                                                                    if (sliderParams && Object.keys(sliderParams).length > 0) {
+                                                                        pendingParamOverridesRef.current = sliderParams;
+                                                                        setPendingParamOverrides(sliderParams);
+                                                                    }
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
                                                             />
                                                         )}
                                                         {/* CA Loan Limits slider card */}
