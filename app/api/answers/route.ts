@@ -1491,6 +1491,19 @@ async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
         hourlyEarnings: g('CES0500000003'),
     };
 
+    // ── Unit normalization ─────────────────────────────────────────────────────
+    // EXHOSLUSM495S: FRED reports in thousands SAAR historically, but may return
+    // raw units (4,090,000) in some API vintages. Normalize to millions for display.
+    if (live.existingHomeSales !== null) {
+        if (live.existingHomeSales > 100_000)       // raw units e.g. 4090000
+            live.existingHomeSales = Math.round(live.existingHomeSales / 1_000_000 * 100) / 100;
+        else if (live.existingHomeSales > 100)      // thousands e.g. 4090
+            live.existingHomeSales = Math.round(live.existingHomeSales / 1_000 * 100) / 100;
+        // else already in millions e.g. 4.09 — keep as-is
+    }
+    // HOUST: housing starts in thousands — keep as thousands (1,487k = 1.487M starts/yr)
+    // MSPUS: median home price in dollars — keep as-is
+
     // If core rates came back null (API outage / bad key), fall back to estimates
     if (live.mort30Avg === null && live.tenYearYield === null) {
         console.warn('[FRED] All core series returned null — using fallback estimates');
