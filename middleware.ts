@@ -44,6 +44,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/piti(.*)",
   "/api/calculate(.*)",
   "/api/property/lookup(.*)",
+  "/api/alerts/check(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {

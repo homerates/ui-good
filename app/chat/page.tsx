@@ -32,6 +32,8 @@ import type { PropertyCardData } from '@/components/PropertyPreviewCard';
 import PropertyIntelligenceCard from '@/components/PropertyIntelligenceCard';
 import type { CMACardData } from '@/components/PropertyIntelligenceCard';
 import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
+import AlertBell from '@/components/AlertBell';
+import AlertSetupCard from '@/components/AlertSetupCard';
 
 
 
@@ -2513,6 +2515,7 @@ export default function Page() {
 
                         {/* Right controls */}
                         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <AlertBell />
                             <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
                         </div>
                     </div>
@@ -2583,9 +2586,18 @@ export default function Page() {
                                                         )}
                                                         {/* Property Intelligence Card (CMA) */}
                                                         {m.meta.cmaCard && !loading && typingId === null && (
-                                                            <PropertyIntelligenceCard
-                                                                data={m.meta.cmaCard as CMACardData}
-                                                            />
+                                                            <>
+                                                                <PropertyIntelligenceCard
+                                                                    data={m.meta.cmaCard as CMACardData}
+                                                                />
+                                                                <AlertSetupCard
+                                                                    type="property"
+                                                                    prefill={{
+                                                                        address: (m.meta.cmaCard as CMACardData).address,
+                                                                        propertyValue: (m.meta.cmaCard as CMACardData).estimatedValue ?? (m.meta.cmaCard as CMACardData).zestimate,
+                                                                    }}
+                                                                />
+                                                            </>
                                                         )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
                                                         {m.meta.interactiveSlider && !loading && typingId === null && (
@@ -2615,16 +2627,25 @@ export default function Page() {
                                                         )}
                                                         {/* Refi slider card — refinance answers */}
                                                         {m.meta.refiSlider && !loading && typingId === null && (
-                                                            <RefiSliderCard
-                                                                {...m.meta.refiSlider}
-                                                                onRunScenario={(seed, sliderParams) => {
-                                                                    if (sliderParams && Object.keys(sliderParams).length > 0) {
-                                                                        pendingParamOverridesRef.current = sliderParams;
-                                                                        setPendingParamOverrides(sliderParams);
-                                                                    }
-                                                                    setTimeout(() => send(seed), 50);
-                                                                }}
-                                                            />
+                                                            <>
+                                                                <RefiSliderCard
+                                                                    {...m.meta.refiSlider}
+                                                                    onRunScenario={(seed, sliderParams) => {
+                                                                        if (sliderParams && Object.keys(sliderParams).length > 0) {
+                                                                            pendingParamOverridesRef.current = sliderParams;
+                                                                            setPendingParamOverrides(sliderParams);
+                                                                        }
+                                                                        setTimeout(() => send(seed), 50);
+                                                                    }}
+                                                                />
+                                                                <AlertSetupCard
+                                                                    type="refi"
+                                                                    prefill={{
+                                                                        currentRate: m.meta.refiSlider.currentRate,
+                                                                        balance: m.meta.refiSlider.loanBalance ?? m.meta.refiSlider.balance,
+                                                                    }}
+                                                                />
+                                                            </>
                                                         )}
                                                         {/* CA Loan Limits slider card */}
                                                         {m.meta.loanLimitsSlider && !loading && typingId === null && (

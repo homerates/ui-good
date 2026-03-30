@@ -1482,6 +1482,270 @@ body {
   opacity: 0.35;
 }
 
+/* =============================================
+   Alert System — AlertSetupCard + AlertBell
+   ============================================= */
+
+/* ----- AlertSetupCard ----- */
+.hr-alert-card {
+  background: var(--surface, #0e1420);
+  border: 1px solid rgba(0, 232, 122, 0.18);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin: 8px 0;
+  font-family: var(--font-dm-sans, sans-serif);
+  max-width: 480px;
+}
+
+.hr-alert-card--done {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hr-alert-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.hr-alert-card-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.hr-alert-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f0f4ff;
+}
+
+.hr-alert-card-sub {
+  font-size: 12px;
+  color: var(--text-dim, #8090a0);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.hr-alert-card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hr-alert-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim, #8090a0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hr-alert-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #f0f4ff;
+  font-family: var(--font-dm-sans, sans-serif);
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.hr-alert-input:focus {
+  outline: none;
+  border-color: rgba(0, 232, 122, 0.5);
+}
+
+.hr-alert-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hr-alert-input-row .hr-alert-input {
+  flex: 1;
+}
+
+.hr-alert-unit {
+  font-size: 12px;
+  color: var(--text-dim, #8090a0);
+  flex-shrink: 0;
+}
+
+.hr-alert-property-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 232, 122, 0.07);
+  border: 1px solid rgba(0, 232, 122, 0.15);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: #a0d4b4;
+}
+
+.hr-alert-error {
+  font-size: 12px;
+  color: #f87171;
+  padding: 6px 10px;
+  background: rgba(248, 113, 113, 0.08);
+  border-radius: 6px;
+}
+
+.hr-alert-submit {
+  background: #00e87a;
+  color: #080c12;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-family: var(--font-dm-sans, sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.15s, opacity 0.15s;
+}
+.hr-alert-submit:hover { background: #00ff88; }
+.hr-alert-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ----- AlertBell ----- */
+.hr-alert-bell-wrap {
+  position: relative;
+}
+
+.hr-alert-bell-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-weak, #8090a0);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.hr-alert-bell-btn:hover {
+  background: rgba(0, 232, 122, 0.08);
+  color: #00e87a;
+}
+
+.hr-alert-bell-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #00e87a;
+  color: #080c12;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  font-family: var(--font-dm-mono, monospace);
+}
+
+.hr-alert-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: #0d1420;
+  border: 1px solid rgba(0, 232, 122, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 1100;
+  overflow: hidden;
+  font-family: var(--font-dm-sans, sans-serif);
+}
+
+.hr-alert-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim, #8090a0);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hr-alert-dropdown-count {
+  background: rgba(0, 232, 122, 0.15);
+  color: #00e87a;
+  border-radius: 9999px;
+  padding: 1px 7px;
+  font-size: 10px;
+}
+
+.hr-alert-dropdown-empty {
+  padding: 16px 14px;
+  font-size: 12px;
+  color: var(--text-dim, #8090a0);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.hr-alert-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.1s;
+}
+.hr-alert-dropdown-item:last-child { border-bottom: none; }
+.hr-alert-dropdown-item:hover { background: rgba(255, 255, 255, 0.03); }
+
+.hr-alert-dropdown-icon { font-size: 16px; flex-shrink: 0; }
+
+.hr-alert-dropdown-info { flex: 1; min-width: 0; }
+
+.hr-alert-dropdown-label {
+  font-size: 12px;
+  color: #e0f0e8;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hr-alert-dropdown-meta {
+  font-size: 10px;
+  color: var(--text-dim, #8090a0);
+  margin-top: 2px;
+}
+
+.hr-alert-dropdown-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-dim, #8090a0);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.hr-alert-dropdown-remove:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
 /* Sidebar legal section (unchanged) */
 .sidebar-legal {
   margin-top: 16px;
