@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -712,7 +713,14 @@ export default function LandingPage() {
             <li><Link href="/chat">HomeRates Lab</Link></li>
           </ul>
           <div className="lp-nav-cta">
-            <Link href="/sign-in" className="lp-btn-ghost">Sign in</Link>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="lp-btn-ghost">Sign in</button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton afterSignOutUrl="/" />
+            </SignedIn>
             <Link href="/chat" className="lp-btn-primary">Try free</Link>
           </div>
         </nav>
