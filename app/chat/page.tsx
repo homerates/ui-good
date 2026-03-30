@@ -1106,7 +1106,8 @@ export default function Page() {
             // fromShare: just pre-fill, don't auto-send
             setInput(sq);
         } else {
-            // SEO seed: set input and mark pending — send fires in separate effect
+            // Landing page seed: always start a clean session so old context doesn't drift
+            newChat();
             setInput(sq);
             pendingSeedRef.current = sq;
         }
