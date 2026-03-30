@@ -758,14 +758,6 @@ ul {
   white-space: nowrap;
   z-index: 800;
 
-  transition: transform 0.3s ease;
-}
-
-/* Slide footer off-screen on mobile when user scrolls down */
-@media (max-width: 640px) {
-  .footer-meta--hidden {
-    transform: translateY(100%);
-  }
 }
 
 
