@@ -34,6 +34,7 @@ import type { CMACardData } from '@/components/PropertyIntelligenceCard';
 import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
 import AlertBell from '@/components/AlertBell';
 import AlertSetupCard from '@/components/AlertSetupCard';
+import SettingsPanel from '@/components/SettingsPanel';
 
 
 
@@ -2516,6 +2517,7 @@ export default function Page() {
                         {/* Right controls */}
                         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <AlertBell />
+                            <SettingsPanel />
                             <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
                         </div>
                     </div>
