@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getSupabase } from "@/lib/supabaseServer";
+import { getSupabase } from "../../../lib/supabaseServer";
 
 export async function GET() {
   const { userId } = await auth();

@@ -6,8 +6,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabaseServer";
-import { getFredSnapshot } from "@/lib/fred";
+import { getSupabase } from "../../../../lib/supabaseServer";
+import { getFredSnapshot } from "../../../../lib/fred";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 

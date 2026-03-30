@@ -2594,7 +2594,7 @@ export default function Page() {
                                                                     type="property"
                                                                     prefill={{
                                                                         address: (m.meta.cmaCard as CMACardData).address,
-                                                                        propertyValue: (m.meta.cmaCard as CMACardData).estimatedValue ?? (m.meta.cmaCard as CMACardData).zestimate,
+                                                                        propertyValue: (m.meta.cmaCard as CMACardData).price,
                                                                     }}
                                                                 />
                                                             </>
@@ -2642,7 +2642,7 @@ export default function Page() {
                                                                     type="refi"
                                                                     prefill={{
                                                                         currentRate: m.meta.refiSlider.currentRate,
-                                                                        balance: m.meta.refiSlider.loanBalance ?? m.meta.refiSlider.balance,
+                                                                        balance: m.meta.refiSlider.balance,
                                                                     }}
                                                                 />
                                                             </>

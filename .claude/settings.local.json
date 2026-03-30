@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r \"app-footer\\\\|mobile.*footer\\\\|bottom.*nav\\\\|MobileFooter\" /c/Users/rayaa/ui-good/app --include=*.tsx --include=*.ts)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebSearch",
+      "Bash(git push:*)",
+      "Bash(git tag:*)",
+      "Bash(sed -e \"s|from ''./components/Sidebar''|from ''../components/Sidebar''|g\" -e \"s|from ''./components/MortgageCalcPanel''|from ''../components/MortgageCalcPanel''|g\" -e \"s|from ''./components/MenuButton''|from ''../components/MenuButton''|g\" -e \"s|from ''./hooks/useMobileComposerPin''|from ''../hooks/useMobileComposerPin''|g\" -e \"s|from ''../lib/logAnswerToLibrary''|from ''../../lib/logAnswerToLibrary''|g\" -e \"s|import ''./chat/styles.css''|import ''./styles.css''|g\" \"C:/Users/rayaa/ui-good/app/page.tsx\")",
+      "Bash(\"C:/Users/rayaa/ui-good/app/chat/page.tsx\")"
+    ]
+  }
+}
