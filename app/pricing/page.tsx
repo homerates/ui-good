@@ -16,8 +16,6 @@ const PLANS = [
     priceAnnual: 0,
     annualMonthly: 0,  // per month when billed annually
     description: "Try HomeRates.ai, no credit card needed.",
-    envKeyMonthly: null,
-    envKeyAnnual: null,
     cta: "Get started free",
     ctaVariant: "ghost" as const,
     features: [
@@ -40,8 +38,6 @@ const PLANS = [
     priceAnnual: 59,
     annualMonthly: 4.92,
     description: "For homebuyers and investors who want the full toolkit.",
-    envKeyMonthly: "NEXT_PUBLIC_STRIPE_PLUS_MONTHLY_PRICE_ID",
-    envKeyAnnual:  "NEXT_PUBLIC_STRIPE_PLUS_ANNUAL_PRICE_ID",
     cta: "Start Plus",
     ctaVariant: "primary" as const,
     highlight: true,
@@ -65,8 +61,6 @@ const PLANS = [
     priceAnnual: 159,
     annualMonthly: 13.25,
     description: "For loan officers managing clients and borrowers.",
-    envKeyMonthly: "NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID",
-    envKeyAnnual:  "NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID",
     cta: "Start Pro",
     ctaVariant: "ghost" as const,
     features: [
@@ -93,15 +87,24 @@ export default function PricingPage() {
     if (canceled) setError("Payment was canceled — no charge was made.");
   }, [canceled]);
 
+  // Static references required — Next.js replaces NEXT_PUBLIC_* at build time
+  const PRICE_IDS: Record<string, { monthly: string; annual: string }> = {
+    plus: {
+      monthly: process.env.NEXT_PUBLIC_STRIPE_PLUS_MONTHLY_PRICE_ID ?? "",
+      annual:  process.env.NEXT_PUBLIC_STRIPE_PLUS_ANNUAL_PRICE_ID  ?? "",
+    },
+    pro: {
+      monthly: process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID ?? "",
+      annual:  process.env.NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID  ?? "",
+    },
+  };
+
   async function handleUpgrade(planKey: string) {
     if (!isSignedIn) return;
 
-    const plan = PLANS.find((p) => p.key === planKey);
-    if (!plan || !plan.envKeyMonthly) return;
-
     const priceId = billing === "annual"
-      ? process.env[plan.envKeyAnnual ?? ""]
-      : process.env[plan.envKeyMonthly];
+      ? PRICE_IDS[planKey]?.annual
+      : PRICE_IDS[planKey]?.monthly;
 
     if (!priceId) {
       setError("Stripe price not configured. Please contact support.");
@@ -253,8 +256,9 @@ export default function PricingPage() {
           min-height: 100vh;
           background: var(--bg, #080c12);
           color: var(--text, #e0f0e8);
-          padding: 48px 16px 80px;
+          padding: 48px 16px 120px;
           font-family: var(--font-dm-sans, sans-serif);
+          overflow-x: hidden;
         }
         .pricing-logo-link { display: block; text-align: center; margin-bottom: 32px; }
         .pricing-logo { height: 36px; width: auto; }
