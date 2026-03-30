@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { stripe, getPlanFromPriceId, getBorrowerSlots, type PlanKey } from "../../../../lib/stripe";
+import { getStripe, getPlanFromPriceId, getBorrowerSlots, type PlanKey } from "../../../../lib/stripe";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, WEBHOOK_SECRET);
+    event = getStripe().webhooks.constructEvent(body, sig, WEBHOOK_SECRET);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[stripe/webhook] signature verification failed:", message);
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch full subscription
     if (session.subscription) {
-      const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+      const sub = await getStripe().subscriptions.retrieve(session.subscription as string);
       const plan = await upsertSubscription(sub.id, userId, sub);
       await updateUserPlan(
         userId,

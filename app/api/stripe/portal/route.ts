@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { stripe } from "../../../../lib/stripe";
+import { getStripe } from "../../../../lib/stripe";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
@@ -34,7 +34,7 @@ export async function POST(_req: NextRequest) {
     );
   }
 
-  const portalSession = await stripe.billingPortal.sessions.create({
+  const portalSession = await getStripe().billingPortal.sessions.create({
     customer: stripeCustomerId,
     return_url: `${APP_URL}/lo/dashboard`,
   });

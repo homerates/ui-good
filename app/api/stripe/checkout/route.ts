@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { stripe } from "../../../../lib/stripe";
+import { getStripe } from "../../../../lib/stripe";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   // Create Stripe customer if they don't have one yet
   if (!stripeCustomerId) {
-    const customer = await stripe.customers.create({
+    const customer = await getStripe().customers.create({
       email,
       metadata: { userId },
     });
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Create Checkout session
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     mode: "subscription",
     customer: stripeCustomerId,
     line_items: [{ price: priceId, quantity: 1 }],
