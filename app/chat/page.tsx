@@ -2486,7 +2486,7 @@ export default function Page() {
                 }}
             >
                 <div className="header">
-                    <div className="header-inner" style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: '100%', margin: 0, padding: '0 16px' }}>
+                    <div className="header-inner" style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: '100%', margin: 0 }}>
                         {/* Logo zone — fixed 256px, centered above sidebar */}
                         <div className="header-logo-zone">
                             <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>

@@ -23,8 +23,9 @@
 /* ----- Composer container ----- */
 .hr-composer {
     border-top: 1px solid rgba(245, 247, 250, 0.06);
-    background: transparent;
+    background: var(--bg, #080c12);
     z-index: 900;
+    position: relative;
 }
 
 .hr-composer-inner {
