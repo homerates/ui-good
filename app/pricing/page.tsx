@@ -2,9 +2,10 @@
 
 // app/pricing/page.tsx
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
+import PageShell from "../components/PageShell";
 
 type BillingPeriod = "monthly" | "annual";
 
@@ -134,12 +135,8 @@ export default function PricingPage() {
   }
 
   return (
-    <main className="pricing-page">
+    <PageShell backHref="/" backLabel="Home" maxWidth={1040}>
       <div className="pricing-header">
-        <Link href="/" className="pricing-logo-link">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" className="pricing-logo" />
-        </Link>
         <h1 className="pricing-title">Simple, honest pricing</h1>
         <p className="pricing-subtitle">
           Real mortgage math, live rates — no hidden fees, no sales pitch.
@@ -168,9 +165,6 @@ export default function PricingPage() {
 
       <div className="pricing-cards">
         {PLANS.map((plan) => {
-          const displayPrice = billing === "annual" && plan.annualMonthly
-            ? plan.annualMonthly
-            : plan.priceMonthly;
           const isLoadingThis = loading === `${plan.key}-${billing}`;
 
           return (
@@ -252,16 +246,6 @@ export default function PricingPage() {
       </p>
 
       <style>{`
-        .pricing-page {
-          min-height: 100vh;
-          background: var(--bg, #080c12);
-          color: var(--text, #e0f0e8);
-          padding: 48px 16px 120px;
-          font-family: var(--font-dm-sans, sans-serif);
-          overflow-x: hidden;
-        }
-        .pricing-logo-link { display: block; text-align: center; margin-bottom: 32px; }
-        .pricing-logo { height: 36px; width: auto; }
         .pricing-header { text-align: center; margin-bottom: 48px; }
         .pricing-title {
           font-family: var(--font-syne, sans-serif);
@@ -415,6 +399,6 @@ export default function PricingPage() {
         .pricing-footer-link { color: rgba(0,232,122,0.7); text-decoration: none; }
         .pricing-footer-link:hover { color: #00e87a; }
       `}</style>
-    </main>
+    </PageShell>
   );
 }

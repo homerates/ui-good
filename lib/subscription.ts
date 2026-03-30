@@ -42,24 +42,34 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
 
   if (!sb) return fallback;
 
-  // Fetch user row + current month usage in parallel
-  const [userResult, usageResult] = await Promise.all([
+  // Fetch user row, current month usage, and active subscription in parallel
+  const [userResult, usageResult, subResult] = await Promise.all([
     sb.from("users").select("plan, stripe_customer_id, billing_period_end").eq("id", userId).single(),
     sb.from("usage_monthly").select("chat_messages, pdf_exports").eq("user_id", userId).eq("month", currentMonth()).single(),
+    sb.from("subscriptions").select("plan, current_period_end, status").eq("user_id", userId).in("status", ["active", "trialing"]).order("current_period_end", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
-  const plan = (userResult.data?.plan ?? "free") as PlanKey;
+  // Prefer users.plan; fall back to active subscriptions row (handles webhook delivery delays)
+  const planFromUsers = (userResult.data?.plan ?? "free") as PlanKey;
+  const planFromSub   = (subResult.data?.plan ?? "free") as PlanKey;
+  const plan: PlanKey = planFromUsers !== "free" ? planFromUsers : planFromSub;
   const planConfig = PLANS[plan] ?? PLANS.free;
+
+  // Billing period: prefer users table, fall back to subscription row
+  const periodEnd =
+    userResult.data?.billing_period_end
+      ? new Date(userResult.data.billing_period_end)
+      : subResult.data?.current_period_end
+      ? new Date(subResult.data.current_period_end)
+      : null;
 
   return {
     plan,
     stripeCustomerId: userResult.data?.stripe_customer_id ?? null,
-    billingPeriodEnd: userResult.data?.billing_period_end
-      ? new Date(userResult.data.billing_period_end)
-      : null,
+    billingPeriodEnd: periodEnd,
     chatMessages: usageResult.data?.chat_messages ?? 0,
-    chatLimit: planConfig.chatMessages === Infinity ? null : planConfig.chatMessages,
-    pdfExports: usageResult.data?.pdf_exports ?? 0,
+    chatLimit:    planConfig.chatMessages === Infinity ? null : planConfig.chatMessages,
+    pdfExports:   usageResult.data?.pdf_exports ?? 0,
     borrowerSlots: planConfig.borrowerSlots,
     alertsEnabled: planConfig.alerts,
   };

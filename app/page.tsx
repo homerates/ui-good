@@ -717,11 +717,12 @@ export default function LandingPage() {
               <SignInButton mode="modal">
                 <button className="lp-btn-ghost">Sign in</button>
               </SignInButton>
+              <Link href="/chat" className="lp-btn-primary">Try free</Link>
             </SignedOut>
             <SignedIn>
+              <Link href="/chat" className="lp-btn-primary">Open chat</Link>
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
-            <Link href="/chat" className="lp-btn-primary">Try free</Link>
           </div>
         </nav>
 
