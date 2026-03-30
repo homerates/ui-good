@@ -45,6 +45,11 @@ const isPublicRoute = createRouteMatcher([
   "/api/calculate(.*)",
   "/api/property/lookup(.*)",
   "/api/alerts/check(.*)",
+  // Webhooks — verified by their own signature checks, not Clerk
+  "/api/webhooks/clerk(.*)",
+  "/api/webhooks/stripe(.*)",
+  // Pricing page (public — signed-out users must be able to see it)
+  "/pricing(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {

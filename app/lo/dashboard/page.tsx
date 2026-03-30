@@ -3,6 +3,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import { getUserPlan } from "../../../lib/subscription";
+import { PLANS } from "../../../lib/stripe";
+import BillingPortalButton from "../../components/BillingPortalButton";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -175,9 +178,14 @@ export default async function LoDashboardPage() {
     const used = borrowerCount ?? 0;
     const remaining = Math.max(slots - used, 0);
 
-    const billingStatus = loanOfficer.stripe_customer_id
-        ? "Connected to Stripe (billing details managed there)."
-        : "No billing profile connected yet. Coming soon: self-serve subscriptions.";
+    // Fetch real subscription plan from users table
+    const userPlan = await getUserPlan(userId);
+    const planConfig = PLANS[userPlan.plan];
+    const planLabel = planConfig.name;
+    const hasActiveSub = userPlan.plan !== "free";
+    const periodEnd = userPlan.billingPeriodEnd
+        ? userPlan.billingPeriodEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        : null;
 
     return (
         <main
@@ -399,36 +407,72 @@ export default async function LoDashboardPage() {
                         </p>
                     </div>
 
-                    {/* Billing / Stripe placeholder */}
+                    {/* Billing card */}
                     <div
                         style={{
                             padding: "16px 14px",
                             borderRadius: "16px",
-                            border: "1px solid rgba(148, 163, 184, 0.4)",
-                            background: "#f8fafc",
+                            border: hasActiveSub
+                                ? "1px solid rgba(0, 232, 122, 0.3)"
+                                : "1px solid rgba(148, 163, 184, 0.4)",
+                            background: hasActiveSub ? "rgba(0, 232, 122, 0.04)" : "#f8fafc",
                             display: "grid",
-                            gap: "8px",
+                            gap: "10px",
                         }}
                     >
-                        <h2
-                            style={{
-                                margin: 0,
-                                fontSize: "1rem",
-                                fontWeight: 600,
-                                color: "#0f172a",
-                            }}
-                        >
-                            Billing status
-                        </h2>
-                        <p
-                            style={{
-                                margin: 0,
-                                fontSize: "0.9rem",
-                                color: "#64748b",
-                            }}
-                        >
-                            {billingStatus}
-                        </p>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600, color: "#0f172a" }}>
+                                Billing
+                            </h2>
+                            <span
+                                style={{
+                                    fontSize: "0.7rem",
+                                    fontWeight: 700,
+                                    letterSpacing: "0.06em",
+                                    textTransform: "uppercase",
+                                    padding: "3px 10px",
+                                    borderRadius: "999px",
+                                    background: hasActiveSub ? "rgba(0,232,122,0.15)" : "rgba(148,163,184,0.15)",
+                                    color: hasActiveSub ? "#059669" : "#64748b",
+                                }}
+                            >
+                                {planLabel}
+                            </span>
+                        </div>
+
+                        {periodEnd && (
+                            <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>
+                                Renews {periodEnd}
+                            </p>
+                        )}
+
+                        {!hasActiveSub && (
+                            <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b", lineHeight: 1.5 }}>
+                                You are on the free plan. Upgrade to Pro to add borrowers, export PDFs, and set up alerts.
+                            </p>
+                        )}
+
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                            {hasActiveSub ? (
+                                <BillingPortalButton />
+                            ) : (
+                                <Link
+                                    href="/pricing"
+                                    style={{
+                                        display: "inline-block",
+                                        padding: "8px 16px",
+                                        borderRadius: "8px",
+                                        background: "#00e87a",
+                                        color: "#080c12",
+                                        fontSize: "0.85rem",
+                                        fontWeight: 600,
+                                        textDecoration: "none",
+                                    }}
+                                >
+                                    Upgrade plan →
+                                </Link>
+                            )}
+                        </div>
                     </div>
                 </section>
             </div>
