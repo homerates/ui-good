@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from "react";
+import PageShell from "../../components/PageShell";
 
 export default function LoBorrowersPage() {
     const [creating, setCreating] = React.useState(false);
@@ -16,9 +17,7 @@ export default function LoBorrowersPage() {
         setCreating(true);
 
         try {
-            const res = await fetch("/api/lo/invites", {
-                method: "POST",
-            });
+            const res = await fetch("/api/lo/invites", { method: "POST" });
 
             if (!res.ok) {
                 const data = await res.json().catch(() => null);
@@ -51,47 +50,22 @@ export default function LoBorrowersPage() {
     }
 
     return (
-        <main
-            style={{
-                minHeight: "calc(100vh - 40px)",
-                padding: "16px 16px 24px",
-                maxWidth: "960px",
-                margin: "0 auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-            }}
-        >
+        <PageShell backHref="/lo/dashboard" backLabel="LO Portal" maxWidth={860}>
             {/* Header row */}
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "10px",
-                    flexWrap: "wrap",
-                }}
-            >
+            <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
+                marginBottom: 4,
+            }}>
                 <div>
-                    <h1
-                        style={{
-                            fontSize: "1.35rem",
-                            fontWeight: 600,
-                            margin: 0,
-                            color: "#0f172a",
-                        }}
-                    >
+                    <h1 style={{ fontSize: "1.35rem", fontWeight: 700, margin: 0, color: "#f1f5f9" }}>
                         Borrowers
                     </h1>
-                    <p
-                        style={{
-                            margin: "3px 0 0 0",
-                            fontSize: "0.9rem",
-                            color: "#64748b",
-                        }}
-                    >
-                        Invite borrowers into HomeRates.ai and keep their questions tied to
-                        your file automatically.
+                    <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "rgba(160,192,168,0.7)", lineHeight: 1.5 }}>
+                        Invite borrowers into HomeRates.ai and keep their questions tied to your file automatically.
                     </p>
                 </div>
 
@@ -100,133 +74,89 @@ export default function LoBorrowersPage() {
                     onClick={handleCreateInvite}
                     disabled={creating}
                     style={{
-                        padding: "8px 16px",
-                        borderRadius: "999px",
-                        border: "1px solid #0f172a",
-                        background: creating ? "#e2e8f0" : "#0f172a",
-                        color: creating ? "#64748b" : "#f9fafb",
+                        padding: "9px 18px",
+                        borderRadius: 999,
+                        border: "none",
+                        background: creating ? "rgba(0,232,122,0.3)" : "#00e87a",
+                        color: creating ? "rgba(8,12,18,0.5)" : "#080c12",
                         fontSize: "0.9rem",
-                        fontWeight: 500,
+                        fontWeight: 600,
                         cursor: creating ? "default" : "pointer",
                         whiteSpace: "nowrap",
                     }}
                 >
-                    {creating ? "Creating invite..." : "Invite Borrower"}
+                    {creating ? "Creating invite…" : "Invite Borrower"}
                 </button>
             </div>
 
-            {/* Invite result card */}
+            {/* Invite result / error */}
             {(inviteUrl || error) && (
-                <section
-                    style={{
-                        marginTop: "4px",
-                        padding: "12px 12px",
-                        borderRadius: "12px",
-                        border: "1px solid rgba(148, 163, 184, 0.7)",
-                        background: "#f8fafc",
-                        display: "grid",
-                        gap: "6px",
-                    }}
-                >
+                <section style={{
+                    padding: "16px 14px",
+                    borderRadius: 12,
+                    border: error && !inviteUrl
+                        ? "1px solid rgba(248,113,113,0.25)"
+                        : "1px solid rgba(0,232,122,0.2)",
+                    background: error && !inviteUrl
+                        ? "rgba(248,113,113,0.05)"
+                        : "rgba(0,232,122,0.03)",
+                    display: "grid",
+                    gap: 8,
+                }}>
                     {error && (
-                        <p
-                            style={{
-                                fontSize: "0.82rem",
-                                color: "#b91c1c",
-                                margin: 0,
-                            }}
-                        >
+                        <p style={{ fontSize: "0.85rem", color: "#f87171", margin: 0 }}>
                             {error}
                         </p>
                     )}
 
                     {inviteUrl && (
                         <>
-                            <p
-                                style={{
-                                    fontSize: "0.85rem",
-                                    color: "#0f172a",
-                                    margin: 0,
-                                    fontWeight: 500,
-                                }}
-                            >
+                            <p style={{ fontSize: "0.88rem", color: "#e2e8f0", margin: 0, fontWeight: 500 }}>
                                 Send this link to your borrower:
                             </p>
 
                             {inviteCode && (
-                                <p
-                                    style={{
-                                        fontSize: "0.78rem",
-                                        color: "#64748b",
-                                        margin: "0 0 2px 0",
-                                    }}
-                                >
+                                <p style={{ fontSize: "0.78rem", color: "rgba(160,192,168,0.55)", margin: 0 }}>
                                     Invite code:{" "}
-                                    <span
-                                        style={{
-                                            fontFamily:
-                                                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                                        }}
-                                    >
+                                    <span style={{ fontFamily: "var(--font-dm-mono, monospace)", color: "#00e87a" }}>
                                         {inviteCode}
                                     </span>
                                 </p>
                             )}
 
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gap: "6px",
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid rgba(148, 163, 184, 0.8)",
-                                        fontSize: "0.8rem",
-                                        color: "#0f172a",
-                                        wordBreak: "break-all",
-                                        background: "#ffffff",
-                                    }}
-                                >
-                                    {inviteUrl}
-                                </div>
+                            <div style={{
+                                padding: "8px 10px",
+                                borderRadius: 8,
+                                border: "1px solid rgba(148,163,184,0.2)",
+                                fontSize: "0.8rem",
+                                color: "#94a3b8",
+                                wordBreak: "break-all",
+                                background: "rgba(255,255,255,0.03)",
+                                fontFamily: "var(--font-dm-mono, monospace)",
+                            }}>
+                                {inviteUrl}
+                            </div>
 
-                                <div
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                <button
+                                    type="button"
+                                    onClick={handleCopy}
                                     style={{
-                                        display: "flex",
-                                        gap: "8px",
-                                        alignItems: "center",
-                                        justifyContent: "flex-start",
-                                        flexWrap: "wrap",
+                                        padding: "7px 14px",
+                                        borderRadius: 999,
+                                        border: "1px solid rgba(0,232,122,0.4)",
+                                        background: copied ? "rgba(0,232,122,0.15)" : "transparent",
+                                        color: "#00e87a",
+                                        fontSize: "0.82rem",
+                                        fontWeight: 500,
+                                        cursor: "pointer",
                                     }}
                                 >
-                                    <button
-                                        type="button"
-                                        onClick={handleCopy}
-                                        style={{
-                                            padding: "6px 12px",
-                                            borderRadius: "999px",
-                                            border: "1px solid #0f172a",
-                                            background: "#ffffff",
-                                            fontSize: "0.8rem",
-                                            fontWeight: 500,
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        {copied ? "Copied" : "Copy link"}
-                                    </button>
-                                    <p
-                                        style={{
-                                            fontSize: "0.75rem",
-                                            color: "#64748b",
-                                            margin: 0,
-                                        }}
-                                    >
-                                        Paste this into a text or email to your borrower.
-                                    </p>
-                                </div>
+                                    {copied ? "Copied ✓" : "Copy link"}
+                                </button>
+                                <p style={{ fontSize: "0.75rem", color: "rgba(160,192,168,0.45)", margin: 0 }}>
+                                    Paste this into a text or email to your borrower.
+                                </p>
                             </div>
                         </>
                     )}
@@ -234,27 +164,16 @@ export default function LoBorrowersPage() {
             )}
 
             {/* Borrowers list placeholder */}
-            <section
-                style={{
-                    marginTop: "8px",
-                    padding: "14px 12px",
-                    borderRadius: "12px",
-                    border: "1px solid rgba(148, 163, 184, 0.4)",
-                    background: "#ffffff",
-                }}
-            >
-                <p
-                    style={{
-                        fontSize: "0.9rem",
-                        color: "#64748b",
-                        margin: 0,
-                    }}
-                >
-                    Borrower list coming next. Every borrower who completes onboarding
-                    using your invite link will appear here with their status and recent
-                    activity.
+            <section style={{
+                padding: "16px 14px",
+                borderRadius: 12,
+                border: "1px solid rgba(148,163,184,0.1)",
+                background: "rgba(255,255,255,0.02)",
+            }}>
+                <p style={{ fontSize: "0.9rem", color: "rgba(160,192,168,0.55)", margin: 0, lineHeight: 1.6 }}>
+                    Borrower list coming next. Every borrower who completes onboarding using your invite link will appear here with their status and recent activity.
                 </p>
             </section>
-        </main>
+        </PageShell>
     );
 }
