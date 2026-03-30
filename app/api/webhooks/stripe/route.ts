@@ -13,8 +13,7 @@ import type Stripe from "stripe";
 import { getStripe, getPlanFromPriceId, getBorrowerSlots, type PlanKey } from "../../../../lib/stripe";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
-const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
-if (!WEBHOOK_SECRET) throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 
 // ---------------------------------------------------------------------------
 // DB helpers
@@ -90,13 +89,18 @@ async function getUserIdFromCustomer(customerId: string): Promise<string | null>
 // Main handler
 // ---------------------------------------------------------------------------
 export async function POST(req: NextRequest) {
+  if (!WEBHOOK_SECRET) {
+    console.error("[stripe/webhook] STRIPE_WEBHOOK_SECRET is not set");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
+
   const body = await req.text();
   const sig  = req.headers.get("stripe-signature") ?? "";
 
   let event: Stripe.Event;
 
   try {
-    event = getStripe().webhooks.constructEvent(body, sig, WEBHOOK_SECRET!);
+    event = getStripe().webhooks.constructEvent(body, sig, WEBHOOK_SECRET);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[stripe/webhook] signature verification failed:", message);

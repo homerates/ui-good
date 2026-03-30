@@ -10,8 +10,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
-const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
-if (!CLERK_WEBHOOK_SECRET) throw new Error("CLERK_WEBHOOK_SECRET is not set");
+const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET ?? "";
 
 // Verify Svix signature (Clerk uses Svix for webhook delivery)
 async function verifyClerkWebhook(req: NextRequest): Promise<{ valid: boolean; payload: unknown }> {
@@ -41,6 +40,11 @@ async function verifyClerkWebhook(req: NextRequest): Promise<{ valid: boolean; p
 }
 
 export async function POST(req: NextRequest) {
+  if (!CLERK_WEBHOOK_SECRET) {
+    console.error("[clerk/webhook] CLERK_WEBHOOK_SECRET is not set");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
+
   const { valid, payload } = await verifyClerkWebhook(req);
   if (!valid) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
