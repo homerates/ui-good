@@ -1,9 +1,29 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
+  const router = useRouter();
+  const [cmdInput, setCmdInput] = useState('');
+  const [propInput, setPropInput] = useState('');
+  const cmdRef = useRef<HTMLInputElement>(null);
+
+  function goChat(q: string) {
+    if (!q.trim()) return;
+    router.push('/chat?sq=' + encodeURIComponent(q.trim()));
+  }
+
+  function handleCmdSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    goChat(cmdInput || (cmdRef.current?.placeholder ?? ''));
+  }
+
+  function handlePropSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    goChat(propInput);
+  }
   useEffect(() => {
     // TICKER
     const tickerData = [
@@ -378,6 +398,7 @@ export default function LandingPage() {
           white-space: nowrap;
           text-decoration: none;
           display: inline-block;
+          box-sizing: border-box;
         }
         .lp-chip:hover {
           color: var(--text);
@@ -502,6 +523,10 @@ export default function LandingPage() {
           overflow: hidden;
           text-decoration: none;
           display: block;
+          text-align: left;
+          width: 100%;
+          box-sizing: border-box;
+          font-family: inherit;
         }
         .lp-card::before {
           content: '';
@@ -710,26 +735,35 @@ export default function LandingPage() {
 
           {/* COMMAND BAR */}
           <div className="lp-cmd-wrap">
-            <div className="lp-cmd-bar">
-              <input className="lp-cmd-input" id="hero-input" placeholder="What's my payment on a $650k home with 20% down?" readOnly />
-              <Link href="/chat" className="lp-cmd-send" aria-label="Go to chat">
+            <form className="lp-cmd-bar" onSubmit={handleCmdSubmit}>
+              <input
+                ref={cmdRef}
+                className="lp-cmd-input"
+                id="hero-input"
+                placeholder="What's my payment on a $650k home with 20% down?"
+                value={cmdInput}
+                onChange={(e) => setCmdInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCmdSubmit(e as any); }}
+                autoComplete="off"
+              />
+              <button type="submit" className="lp-cmd-send" aria-label="Ask">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
                   <line x1="22" y1="2" x2="11" y2="13" />
                   <polygon points="22 2 15 22 11 13 2 9 22 2" />
                 </svg>
-              </Link>
-            </div>
+              </button>
+            </form>
             <div className="lp-cmd-hint">Try any scenario — no forms, no signups required</div>
           </div>
 
-          {/* CHIPS — each links to /chat with a pre-seeded question */}
+          {/* CHIPS — each pre-seeds the chat question */}
           <div className="lp-chips">
-            <Link href="/chat" className="lp-chip">$500k · 20% down</Link>
-            <Link href="/chat" className="lp-chip">FHA with 3.5% down</Link>
-            <Link href="/chat" className="lp-chip">Can I afford $650k on $120k salary?</Link>
-            <Link href="/chat" className="lp-chip">Should I refi at today&apos;s rates?</Link>
-            <Link href="/chat" className="lp-chip">DSCR rental on $400k</Link>
-            <Link href="/chat" className="lp-chip">VA loan · $0 down</Link>
+            <button className="lp-chip" onClick={() => goChat('Conventional loan on a $500,000 home with 20% down at current rates')}>$500k · 20% down</button>
+            <button className="lp-chip" onClick={() => goChat('FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP')}>FHA with 3.5% down</button>
+            <button className="lp-chip" onClick={() => goChat('I make $120,000 a year and have $42,000 saved — can I afford a $650,000 home?')}>Can I afford $650k on $120k salary?</button>
+            <button className="lp-chip" onClick={() => goChat('Should I refinance at today\'s rates? I have a $450,000 mortgage at 7.25%')}>Should I refi at today&apos;s rates?</button>
+            <button className="lp-chip" onClick={() => goChat('DSCR loan on a $400,000 rental property with $2,800/mo rent and 25% down — does it cash flow?')}>DSCR rental on $400k</button>
+            <button className="lp-chip" onClick={() => goChat('VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee')}>VA loan · $0 down</button>
           </div>
 
           {/* LIVE INSIGHT */}
@@ -743,58 +777,72 @@ export default function LandingPage() {
           {/* PROPERTY SEARCH */}
           <div className="lp-prop-wrap">
             <div className="lp-prop-label">Property Lookup</div>
-            <div className="lp-prop-bar">
+            <form className="lp-prop-bar" onSubmit={handlePropSubmit}>
               <div className="lp-prop-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                   <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
               </div>
-              <input className="lp-prop-input" placeholder="Paste a Redfin URL or enter an address — get instant refi analysis" readOnly />
-              <Link href="/chat" className="lp-prop-btn">Analyze Property</Link>
-            </div>
+              <input
+                className="lp-prop-input"
+                placeholder="Paste a Redfin URL or enter an address — get instant refi analysis"
+                value={propInput}
+                onChange={(e) => setPropInput(e.target.value)}
+                onPaste={(e) => {
+                  const text = e.clipboardData.getData('text').trim();
+                  if (text.startsWith('http')) {
+                    e.preventDefault();
+                    setPropInput(text);
+                    setTimeout(() => goChat(text), 50);
+                  }
+                }}
+                autoComplete="off"
+              />
+              <button type="submit" className="lp-prop-btn" disabled={!propInput.trim()}>Analyze Property</button>
+            </form>
             <div className="lp-prop-hint">Works on sold, pending, and off-market properties · Instant refi readiness · No account needed</div>
           </div>
 
           {/* SCENARIO CARDS */}
           <div className="lp-section-label">Live Scenarios</div>
           <div className="lp-cards-grid">
-            <Link href="/chat" className="lp-card lp-card-green">
+            <button className="lp-card lp-card-green" onClick={() => goChat('I make $120,000 a year and have $42,000 saved — how much house can I afford?')}>
               <span className="lp-card-icon">🏠</span>
               <div className="lp-card-title">Can I afford it?</div>
               <div className="lp-card-insight">~$460k max home</div>
               <div className="lp-card-desc">~$2,800/mo on $120k salary · 28% DTI</div>
-            </Link>
-            <Link href="/chat" className="lp-card lp-card-blue">
+            </button>
+            <button className="lp-card lp-card-blue" onClick={() => goChat('What would refinancing look like on a $450,000 mortgage at 7.25%? Show me breakeven and monthly savings.')}>
               <span className="lp-card-icon">📉</span>
               <div className="lp-card-title">Should I refi?</div>
               <div className="lp-card-insight">~$340/mo savings</div>
               <div className="lp-card-desc">Break even in ~26 months at 5.75%</div>
-            </Link>
-            <Link href="/chat" className="lp-card lp-card-orange">
+            </button>
+            <button className="lp-card lp-card-orange" onClick={() => goChat('DSCR loan on a $400,000 rental property with $2,800/mo rent and 25% down — does it cash flow?')}>
               <span className="lp-card-icon">📊</span>
               <div className="lp-card-title">Cash flow check</div>
               <div className="lp-card-insight">DSCR 1.12 — cash flows</div>
               <div className="lp-card-desc">$400k rental · $2,800/mo rent</div>
-            </Link>
-            <Link href="/chat" className="lp-card lp-card-purple">
+            </button>
+            <button className="lp-card lp-card-purple" onClick={() => goChat('FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP.')}>
               <span className="lp-card-icon">🏦</span>
               <div className="lp-card-title">FHA low down</div>
               <div className="lp-card-insight">3.5% down · $13,860 to close</div>
               <div className="lp-card-desc">$2,540/mo incl. MIP on $400k</div>
-            </Link>
-            <Link href="/chat" className="lp-card lp-card-red">
+            </button>
+            <button className="lp-card lp-card-red" onClick={() => goChat('VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee.')}>
               <span className="lp-card-icon">⭐</span>
               <div className="lp-card-title">VA — $0 down</div>
               <div className="lp-card-insight">No down · no PMI</div>
               <div className="lp-card-desc">$500k home · full breakdown</div>
-            </Link>
-            <Link href="/chat" className="lp-card lp-card-blue">
+            </button>
+            <button className="lp-card lp-card-blue" onClick={() => goChat('Jumbo loan on a $1,500,000 home with 20% down — show me the full payment breakdown and reserve requirements.')}>
               <span className="lp-card-icon">🏛️</span>
               <div className="lp-card-title">Jumbo $1.5M</div>
               <div className="lp-card-insight">20% down · ~$8,900/mo</div>
               <div className="lp-card-desc">Reserves &amp; qualification guide</div>
-            </Link>
+            </button>
           </div>
         </section>
 
