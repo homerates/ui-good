@@ -1,5 +1,5 @@
 # HomeRates.ai — Pitch Deck
-**March 2026**
+**March 2026 — Updated with Revenue Model & Projections**
 
 ---
 
@@ -142,42 +142,102 @@ HomeRates.ai sits at the top of the funnel, **before** the lender conversation �
 
 ---
 
-## SLIDE 10 — Business Model
+## SLIDE 10 — Five Revenue Streams
 
-### Consumer (B2C)
-- **Free tier:** Full conversation, all calculators, unlimited questions
-- **Registered accounts:** PDF export, saved analyses, history
-- **Premium (future):** Scenario comparisons, rate watch alerts, market intelligence
+HomeRates.ai is not a single-product company. It monetizes the same platform across five buyer personas — each with different pricing, sales motion, and retention dynamics.
 
-### Lender / LO (B2B) — roadmap
-- White-label homerates.ai for loan officers to share with clients
-- Warm lead routing — user opts in to connect with a verified LO
-- Analytics dashboard — what are buyers in your market asking?
+### Stream 1 — Direct to Consumer (Live)
+- **Free:** 20 msgs/mo, all calculators
+- **Plus:** $7/mo — unlimited messages, PDF export, rate alerts, saved analyses
+- **Pro:** $19/mo — everything + 10 borrower slots, LO tools
+- Gross margin: 85–92% (calc-first keeps LLM cost minimal)
 
-**Unit economics:** Low LLM cost per query (calc-first routing) = favorable margins as volume scales.
+### Stream 2 — Direct to Loan Officer (Live)
+- $49–99/mo per LO seat
+- LO gets an invite link; borrowers onboard under their profile
+- Sticky: every borrower the LO adds increases switching cost
+
+### Stream 3 — Direct to Real Estate Agents (Q3 2026)
+- $19/mo individual — $15/agent/mo for teams
+- Agents share HomeRates.ai links in listing presentations; "run the numbers" becomes their differentiator
+- 1.5M+ licensed agents in the US
+
+### Stream 4 — Broker Firm Licensing (Q4 2026)
+- $4,800–$36,000/yr annual site license per firm
+- Compliance-ready, white-label profile for every LO, firm-level analytics
+- One broker deal = 20–200 LO activations immediately
+
+### Stream 5 — Lender / Bank Enterprise (H1 2027)
+- $24,000–$120,000+/yr
+- Custom subdomain, unlimited LOs, API access, dedicated SLA
+- Compliance framing: educational-only outputs = no NMLS exposure for the bank
 
 ---
 
-## SLIDE 11 — Traction
+## SLIDE 11 — Financial Projections
 
-### Live in production. All core modules shipped.
+### ARR by Stream (3-Year)
 
+| Stream | Y1 (2026) | Y2 (2027) | Y3 (2028) |
+|---|---|---|---|
+| Direct to Consumer | $72k | $432k | $2.34M |
+| Direct to LO | $41k | $237k | $1.28M |
+| Direct to Agent | — | $132k | $750k |
+| Broker Licensing | $15k | $120k | $600k |
+| Lender / Bank | $24k | $180k | $960k |
+| **Total ARR** | **$152k** | **$1.10M** | **$5.93M** |
+
+### Unit Volume
+
+| | Y1 | Y2 | Y3 |
+|---|---|---|---|
+| Paid B2C users | 500 | 3,000 | 15,000 |
+| Active LOs | 50 | 250 | 1,200 |
+| Active Agents | — | 500 | 2,500 |
+| Broker firm deals | 3 | 15 | 60 |
+| Lender / bank deals | 1 | 5 | 20 |
+
+### Gross Margin
+
+- **Infrastructure + LLM + payments = ~8–12% of revenue** at scale
+- Calc-first architecture: 80%+ of queries never touch a paid LLM API → structural cost advantage over all-LLM competitors
+- **Y3 gross margin: ~92%**
+
+### Path to $1M ARR (without enterprise deals)
+- 7,000 paid B2C users × $12 blended ARPU = $1.0M ARR alone
+- 10 broker firm deals × $8k avg = $80k ARR (low sales cost, high retention)
+- Enterprise lender deals = significant upside once B2B credibility is established
+
+---
+
+## SLIDE 12 — Traction
+
+### Live in production. Revenue system fully operational.
+
+**Product**
 ✅ Conversational AI routing — all question types
-✅ **Five** interactive calculator modules (including CA Loan Limits Explorer)
+✅ Five interactive calculator modules (including CA Loan Limits Explorer)
 ✅ Property Intelligence — sold/off-market Redfin analysis → instant refi card
 ✅ PDF export — auth-gated, all modules, fully disclosed
 ✅ Mobile-optimized — responsive, touch-first, full-width cards
 ✅ Smart follow-up chips — contextual, per-module
 ✅ Rate ticker — live FRED mortgage rate data on every response
 ✅ 2026 FHFA loan limits ($832,750 / $1,249,125) — all 58 CA counties
-✅ Dark mode — full theme support
-✅ Full compliance posture — educational disclosures, no NMLS required
+✅ Rate & property watch alerts — email notifications when targets are hit
 
-**Deployed on Vercel. Zero infrastructure overhead. Ready to scale.**
+**Revenue Infrastructure (live)**
+✅ Clerk authentication — full user accounts, sign-up/sign-in flows
+✅ Stripe billing — Free/Plus/Pro subscriptions, monthly and annual
+✅ Stripe Customer Portal — self-serve plan management and cancellation
+✅ Supabase subscription sync — real-time plan/usage tracking via webhooks
+✅ LO Portal — loan officer dashboard, borrower slots, invite links
+✅ Settings panel — in-app account, billing, and plan management
+
+**Deployed on Vercel. Custom domain (db.homerates.ai). Zero infra overhead. Ready to scale.**
 
 ---
 
-## SLIDE 12 — Team / Positioning
+## SLIDE 13 — Team / Positioning
 
 HomeRates.ai is built by people who understand that the mortgage industry's information asymmetry hurts consumers — and that AI can fix it, if it's built on real math.
 
@@ -190,23 +250,37 @@ This is not a lead-gen tool dressed up as AI. It's a new category: **mortgage in
 
 ---
 
-## SLIDE 13 — Ask / Next Steps
+## SLIDE 14 — Ask / Next Steps
 
 ### What we're building toward:
 
-**Near term:**
-- User account history and saved analyses
-- Rate watch alerts — notify when refi breakeven target is hit
-- A/B testing on question routing accuracy
+**Shipped (Q1 2026)**
+- Full auth + subscription billing (Stripe Free/Plus/Pro)
+- Rate and property watch alerts
+- LO Portal with borrower invite links
+- In-app Settings panel (account, billing, plan management)
+- Uniform dark design system across all pages
+
+**Near term (Q2–Q3 2026)**
+- Borrower list view with status and engagement metrics for LOs
+- Direct to Agent product launch
+- National loan limits expansion (beyond CA)
+- HELOC, construction, and commercial DSCR calculator modules
+
+**Medium term (Q4 2026 – H1 2027)**
+- Broker firm licensing product
+- First enterprise lender deals
+- Lead routing module — warm opt-in hand-off to verified LOs
 
 **Fundraise / Partnership use cases:**
-- Scale marketing to the 44M+ renter audience
-- Build the LO white-label product
-- Expand to HELOC, construction, commercial DSCR
-- National loan limits expansion (beyond CA)
+- Scale SEO + content marketing to the 44M+ renter and buyer audience
+- Accelerate B2B sales motion (LO → broker → lender pipeline)
+- Engineering capacity to ship Streams 3–5 on schedule
 
 **The ask:**
 We're looking for partners who understand that the next generation of mortgage consumers will expect an AI-first experience — and that the platform serving them needs to be built on **their** side of the table.
+
+**Current ARR target: $152k (Y1 2026) → $1.1M (Y2 2027)**
 
 ---
 

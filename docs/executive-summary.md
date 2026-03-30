@@ -1,5 +1,5 @@
 # HomeRates.ai — Executive Summary
-**March 2026**
+**March 2026 — Updated with Revenue Model & Five-Stream Business Architecture**
 
 ---
 
@@ -94,16 +94,68 @@ HomeRates.ai is not a lender, broker, or lead-generation tool. It earns trust by
 
 ---
 
+## Revenue Model — Five Streams
+
+HomeRates.ai monetizes the same core platform across five distinct buyer personas, each with independent pricing, sales motion, and retention dynamics.
+
+| Stream | Model | Status | Y1 Target ARR |
+|---|---|---|---|
+| **1. Direct to Consumer** | Free / Plus $7/mo / Pro $19/mo | **Live** | $72k |
+| **2. Direct to Loan Officer** | $49–99/mo per LO seat | **Live** | $41k |
+| **3. Direct to Agent** | $19/mo per agent | Q3 2026 | — |
+| **4. Broker Firm Licensing** | $4,800–$36,000/yr per firm | Q4 2026 | $15k |
+| **5. Lender / Bank Enterprise** | $24,000–$120,000+/yr | H1 2027 | $24k |
+
+**Y1 Total ARR target: $152k**
+
+### Why Five Streams Is a Strength, Not Complexity
+
+Each stream is independent. B2C builds brand trust. LO/agent adoption creates borrower-side virality. Broker deals are one sales motion that unlocks 20–200 LO seats instantly. Enterprise lender deals are high-value and relationship-driven. The same product powers all five — the platform is already built.
+
+### Gross Margin
+
+The calc-first architecture is a structural cost advantage: 80%+ of queries never reach a paid LLM API. At scale:
+- Infrastructure + LLM + payments ≈ 8–12% of revenue
+- **Gross margin: 85–92% on paid tiers**
+
+### 3-Year ARR Projection
+
+| | Y1 (2026) | Y2 (2027) | Y3 (2028) |
+|---|---|---|---|
+| Total ARR | $152k | $1.10M | $5.93M |
+
+*Full model with stream-by-stream assumptions: [docs/revenue-model.md](revenue-model.md)*
+
+---
+
+## Revenue Infrastructure (Fully Live)
+
+- Clerk authentication — user accounts, sign-up/sign-in, session management
+- Stripe billing — Free/Plus/Pro subscriptions, monthly and annual, Customer Portal
+- Supabase subscription sync — plan and usage tracking via Stripe + Clerk webhooks
+- LO Portal — borrower slots, invite links, billing dashboard
+- Rate and property watch alerts — email notifications for refi and rate targets
+- In-app Settings panel — account, plan, billing, and navigation in one place
+
+---
+
 ## What's Next
 
-- **User accounts & history** — save, name, and revisit past analyses
-- **Rate watch alerts** — notify users when their refi breakeven rate is hit
-- **Loan officer tools** — white-label version for LOs to share with clients
-- **Lead routing (optional)** — warm hand-off to verified lenders when user opts in
-- **HELOC, construction, commercial DSCR** — expand calculator coverage
+**Q2–Q3 2026**
+- Borrower list view with status and engagement tracking for LOs
+- Direct to Agent product launch
+- National loan limits expansion beyond California
+- HELOC and commercial DSCR modules
+
+**Q4 2026 – H1 2027**
+- Broker firm licensing product
+- First enterprise lender deals
+- Warm lead routing — opt-in hand-off to verified lenders when user is ready
 
 ---
 
 ## Summary
 
-HomeRates.ai has built what didn't exist: a fast, accurate, consumer-first mortgage intelligence layer that works like a financial co-pilot. Five fully interactive calculators, live FRED data, 2026 loan limits for all CA counties, and sold-property refi analysis — all deterministic, all instant, all without touching a paid LLM. The core product is live. The technical foundation is production-grade. The next step is users.
+HomeRates.ai has built what didn't exist: a fast, accurate, consumer-first mortgage intelligence layer that works like a financial co-pilot. Five fully interactive calculators, live FRED data, 2026 loan limits for all CA counties, and sold-property refi analysis — all deterministic, all instant, all without touching a paid LLM for calculable questions.
+
+The full revenue stack is live: authentication, subscriptions, billing, the LO portal, rate alerts, and a Settings panel. Five revenue streams are identified with independent unit economics and sales motions. The core product is production-grade. The path to $1M ARR does not require a single enterprise deal.
