@@ -13,7 +13,6 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
-
 // ---------------------------------------------------------------------------
 // Plan definitions
 // Keep in sync with Stripe dashboard products/prices
@@ -22,32 +21,38 @@ export const PLANS = {
   free: {
     name: "Free",
     priceMonthly: 0,
-    priceId: null,
+    priceAnnual: 0,
+    priceIdMonthly: null,
+    priceIdAnnual: null,
     borrowerSlots: 0,
-    chatMessages: 20,         // per month
+    chatMessages: 20,       // per month
     pdfExports: 0,
     alerts: false,
     description: "Get started with HomeRates.ai",
   },
+  plus: {
+    name: "Plus",
+    priceMonthly: 7,
+    priceAnnual: 59,
+    priceIdMonthly: process.env.STRIPE_PLUS_MONTHLY_PRICE_ID ?? null,
+    priceIdAnnual:  process.env.STRIPE_PLUS_ANNUAL_PRICE_ID  ?? null,
+    borrowerSlots: 0,
+    chatMessages: Infinity,
+    pdfExports: Infinity,
+    alerts: true,
+    description: "Unlimited questions, PDF exports, alerts",
+  },
   pro: {
     name: "Pro",
-    priceMonthly: 29,
-    priceId: process.env.STRIPE_PRO_PRICE_ID ?? null,
+    priceMonthly: 19,
+    priceAnnual: 159,
+    priceIdMonthly: process.env.STRIPE_PRO_MONTHLY_PRICE_ID ?? null,
+    priceIdAnnual:  process.env.STRIPE_PRO_ANNUAL_PRICE_ID  ?? null,
     borrowerSlots: 10,
     chatMessages: Infinity,
     pdfExports: Infinity,
     alerts: true,
-    description: "For loan officers managing borrowers",
-  },
-  team: {
-    name: "Team",
-    priceMonthly: 79,
-    priceId: process.env.STRIPE_TEAM_PRICE_ID ?? null,
-    borrowerSlots: 50,
-    chatMessages: Infinity,
-    pdfExports: Infinity,
-    alerts: true,
-    description: "For teams and high-volume originators",
+    description: "Everything in Plus — plus borrower tools and LO dashboard",
   },
 } as const;
 
@@ -55,8 +60,14 @@ export type PlanKey = keyof typeof PLANS;
 
 /** Resolve a Stripe price ID back to a plan key */
 export function getPlanFromPriceId(priceId: string): PlanKey {
-  if (priceId === process.env.STRIPE_PRO_PRICE_ID) return "pro";
-  if (priceId === process.env.STRIPE_TEAM_PRICE_ID) return "team";
+  if (
+    priceId === process.env.STRIPE_PLUS_MONTHLY_PRICE_ID ||
+    priceId === process.env.STRIPE_PLUS_ANNUAL_PRICE_ID
+  ) return "plus";
+  if (
+    priceId === process.env.STRIPE_PRO_MONTHLY_PRICE_ID ||
+    priceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID
+  ) return "pro";
   return "free";
 }
 
