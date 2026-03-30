@@ -1,90 +1,90 @@
 <svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 456" width="575" height="512">
 	<style>
-		.s0 { fill: none;stroke: #18161f;stroke-width: 1.7 } 
-		.s1 { fill: none;stroke: #6b365c;stroke-width: 1.7 } 
-		.s2 { fill: none;stroke: #612e59;stroke-width: 1.7 } 
-		.s3 { fill: none;stroke: #542959;stroke-width: 1.7 } 
-		.s4 { fill: none;stroke: #46295c;stroke-width: 1.7 } 
-		.s5 { fill: none;stroke: #3b2960;stroke-width: 1.7 } 
-		.s6 { fill: none;stroke: #151527;stroke-width: 1.7 } 
-		.s7 { fill: none;stroke: #1e142d;stroke-width: 1.7 } 
-		.s8 { fill: none;stroke: #211b37;stroke-width: 1.7 } 
-		.s9 { fill: none;stroke: #271d3f;stroke-width: 1.7 } 
-		.s10 { fill: none;stroke: #453768;stroke-width: 1.7 } 
-		.s11 { fill: none;stroke: #4b3e6b;stroke-width: 1.7 } 
-		.s12 { fill: none;stroke: #584a6f;stroke-width: 1.7 } 
-		.s13 { fill: none;stroke: #635073;stroke-width: 1.7 } 
-		.s14 { fill: none;stroke: #824664;stroke-width: 1.7 } 
-		.s15 { fill: none;stroke: #753e60;stroke-width: 1.7 } 
-		.s16 { fill: none;stroke: #ea76b0;stroke-width: 1.7 } 
-		.s17 { fill: none;stroke: #864579;stroke-width: 1.7 } 
-		.s18 { fill: none;stroke: #d367a8;stroke-width: 1.7 } 
-		.s19 { fill: none;stroke: #7c3d75;stroke-width: 1.7 } 
-		.s20 { fill: none;stroke: #be57a1;stroke-width: 1.7 } 
-		.s21 { fill: none;stroke: #934d7d;stroke-width: 1.7 } 
-		.s22 { fill: none;stroke: #e264a4;stroke-width: 1.7 } 
-		.s23 { fill: none;stroke: #d6609b;stroke-width: 1.7 } 
-		.s24 { fill: none;stroke: #c962a9;stroke-width: 1.7 } 
-		.s25 { fill: none;stroke: #ba61ac;stroke-width: 1.7 } 
-		.s26 { fill: none;stroke: #b062b0;stroke-width: 1.7 } 
-		.s27 { fill: none;stroke: #4c3079;stroke-width: 1.7 } 
-		.s28 { fill: none;stroke: #322250;stroke-width: 1.7 } 
-		.s29 { fill: none;stroke: #261c40;stroke-width: 1.7 } 
-		.s30 { fill: none;stroke: #723572;stroke-width: 1.7 } 
-		.s31 { fill: none;stroke: #a84a9e;stroke-width: 1.7 } 
-		.s32 { fill: none;stroke: #775d95;stroke-width: 1.7 } 
-		.s33 { fill: none;stroke: #965387;stroke-width: 1.7 } 
-		.s34 { fill: none;stroke: #695188;stroke-width: 1.7 } 
-		.s35 { fill: none;stroke: #7e326d;stroke-width: 1.7 } 
-		.s36 { fill: none;stroke: #a84390;stroke-width: 1.7 } 
-		.s37 { fill: none;stroke: #c1458b;stroke-width: 1.7 } 
-		.s38 { fill: none;stroke: #8d45a1;stroke-width: 1.7 } 
-		.s39 { fill: none;stroke: #7445a8;stroke-width: 1.7 } 
-		.s40 { fill: none;stroke: #6d2b54;stroke-width: 1.7 } 
-		.s41 { fill: none;stroke: #c14c99;stroke-width: 1.7 } 
-		.s42 { fill: none;stroke: #61274b;stroke-width: 1.7 } 
-		.s43 { fill: none;stroke: #1f1d32;stroke-width: 1.7 } 
-		.s44 { fill: none;stroke: #433173;stroke-width: 1.7 } 
-		.s45 { fill: none;stroke: #2f2551;stroke-width: 1.7 } 
-		.s46 { fill: none;stroke: #653072;stroke-width: 1.7 } 
-		.s47 { fill: none;stroke: #5c316b;stroke-width: 1.7 } 
-		.s48 { fill: none;stroke: #ae8cce;stroke-width: 1.7 } 
-		.s49 { fill: none;stroke: #74578c;stroke-width: 1.7 } 
-		.s50 { fill: none;stroke: #5f4c8d;stroke-width: 1.7 } 
-		.s51 { fill: none;stroke: #967bc6;stroke-width: 1.7 } 
-		.s52 { fill: none;stroke: #6c5792;stroke-width: 1.7 } 
-		.s53 { fill: none;stroke: #46326b;stroke-width: 1.7 } 
-		.s54 { fill: none;stroke: #55398b;stroke-width: 1.7 } 
-		.s55 { fill: none;stroke: #3b2b61;stroke-width: 1.7 } 
-		.s56 { fill: none;stroke: #382458;stroke-width: 1.7 } 
-		.s57 { fill: none;stroke: #4d306f;stroke-width: 1.7 } 
-		.s58 { fill: none;stroke: #8368bf;stroke-width: 1.7 } 
-		.s59 { fill: none;stroke: #53467d;stroke-width: 1.7 } 
-		.s60 { fill: none;stroke: #5c4584;stroke-width: 1.7 } 
-		.s61 { fill: none;stroke: #4d3e7b;stroke-width: 1.7 } 
-		.s62 { fill: none;stroke: #563e81;stroke-width: 1.7 } 
-		.s63 { fill: none;stroke: #868689;stroke-width: 1.7 } 
-		.s64 { fill: #dd6eab } 
-		.s65 { fill: #352859 } 
-		.s66 { fill: #f67eb4 } 
-		.s67 { fill: #c85fa4 } 
-		.s68 { fill: #b992d1 } 
-		.s69 { fill: #b44e9e } 
-		.s70 { fill: #9b459d } 
-		.s71 { fill: #2f1b46 } 
-		.s72 { fill: #7e44a4 } 
-		.s73 { fill: #6945ac } 
-		.s74 { fill: #1c1c39 } 
-		.s75 { fill: #b54182 } 
-		.s76 { fill: #a386ca } 
-		.s77 { fill: #cd4993 } 
-		.s78 { fill: #412d69 } 
-		.s79 { fill: #0d0d14 } 
-		.s80 { fill: #221e2a } 
-		.s81 { fill: #896fc1 } 
-		.s82 { fill: #7d60bc } 
-		.s83 { fill: #fffefe } 
-		.s84 { opacity: .2;fill: #fffefe } 
+		.s0 { fill: none;stroke: #0e1e12;stroke-width: 1.7 } 
+		.s1 { fill: none;stroke: #2a7040;stroke-width: 1.7 } 
+		.s2 { fill: none;stroke: #226438;stroke-width: 1.7 } 
+		.s3 { fill: none;stroke: #1c5830;stroke-width: 1.7 } 
+		.s4 { fill: none;stroke: #154c28;stroke-width: 1.7 } 
+		.s5 { fill: none;stroke: #0f4020;stroke-width: 1.7 } 
+		.s6 { fill: none;stroke: #0a1810;stroke-width: 1.7 } 
+		.s7 { fill: none;stroke: #0c1a10;stroke-width: 1.7 } 
+		.s8 { fill: none;stroke: #0e1e12;stroke-width: 1.7 } 
+		.s9 { fill: none;stroke: #102014;stroke-width: 1.7 } 
+		.s10 { fill: none;stroke: #1a5030;stroke-width: 1.7 } 
+		.s11 { fill: none;stroke: #1e5834;stroke-width: 1.7 } 
+		.s12 { fill: none;stroke: #286040;stroke-width: 1.7 } 
+		.s13 { fill: none;stroke: #2e6844;stroke-width: 1.7 } 
+		.s14 { fill: none;stroke: #3a8050;stroke-width: 1.7 } 
+		.s15 { fill: none;stroke: #307248;stroke-width: 1.7 } 
+		.s16 { fill: none;stroke: #00e87a;stroke-width: 1.7 } 
+		.s17 { fill: none;stroke: #3a8454;stroke-width: 1.7 } 
+		.s18 { fill: none;stroke: #00d870;stroke-width: 1.7 } 
+		.s19 { fill: none;stroke: #2e764c;stroke-width: 1.7 } 
+		.s20 { fill: none;stroke: #00c868;stroke-width: 1.7 } 
+		.s21 { fill: none;stroke: #409060;stroke-width: 1.7 } 
+		.s22 { fill: none;stroke: #00e07a;stroke-width: 1.7 } 
+		.s23 { fill: none;stroke: #00d474;stroke-width: 1.7 } 
+		.s24 { fill: none;stroke: #00ca70;stroke-width: 1.7 } 
+		.s25 { fill: none;stroke: #00c06c;stroke-width: 1.7 } 
+		.s26 { fill: none;stroke: #00b868;stroke-width: 1.7 } 
+		.s27 { fill: none;stroke: #1a5030;stroke-width: 1.7 } 
+		.s28 { fill: none;stroke: #10301c;stroke-width: 1.7 } 
+		.s29 { fill: none;stroke: #0c2414;stroke-width: 1.7 } 
+		.s30 { fill: none;stroke: #2c7048;stroke-width: 1.7 } 
+		.s31 { fill: none;stroke: #00a860;stroke-width: 1.7 } 
+		.s32 { fill: none;stroke: #2e8060;stroke-width: 1.7 } 
+		.s33 { fill: none;stroke: #409468;stroke-width: 1.7 } 
+		.s34 { fill: none;stroke: #246044;stroke-width: 1.7 } 
+		.s35 { fill: none;stroke: #307050;stroke-width: 1.7 } 
+		.s36 { fill: none;stroke: #009858;stroke-width: 1.7 } 
+		.s37 { fill: none;stroke: #00b864;stroke-width: 1.7 } 
+		.s38 { fill: none;stroke: #3c8c5c;stroke-width: 1.7 } 
+		.s39 { fill: none;stroke: #2c7850;stroke-width: 1.7 } 
+		.s40 { fill: none;stroke: #246040;stroke-width: 1.7 } 
+		.s41 { fill: none;stroke: #00b464;stroke-width: 1.7 } 
+		.s42 { fill: none;stroke: #1e5838;stroke-width: 1.7 } 
+		.s43 { fill: none;stroke: #0e1e12;stroke-width: 1.7 } 
+		.s44 { fill: none;stroke: #184c2c;stroke-width: 1.7 } 
+		.s45 { fill: none;stroke: #102818;stroke-width: 1.7 } 
+		.s46 { fill: none;stroke: #226444;stroke-width: 1.7 } 
+		.s47 { fill: none;stroke: #1e5c3c;stroke-width: 1.7 } 
+		.s48 { fill: none;stroke: #60d098;stroke-width: 1.7 } 
+		.s49 { fill: none;stroke: #2c7858;stroke-width: 1.7 } 
+		.s50 { fill: none;stroke: #206448;stroke-width: 1.7 } 
+		.s51 { fill: none;stroke: #48b880;stroke-width: 1.7 } 
+		.s52 { fill: none;stroke: #286050;stroke-width: 1.7 } 
+		.s53 { fill: none;stroke: #183c28;stroke-width: 1.7 } 
+		.s54 { fill: none;stroke: #1e5438;stroke-width: 1.7 } 
+		.s55 { fill: none;stroke: #122818;stroke-width: 1.7 } 
+		.s56 { fill: none;stroke: #102414;stroke-width: 1.7 } 
+		.s57 { fill: none;stroke: #1a4c30;stroke-width: 1.7 } 
+		.s58 { fill: none;stroke: #34946c;stroke-width: 1.7 } 
+		.s59 { fill: none;stroke: #1c5038;stroke-width: 1.7 } 
+		.s60 { fill: none;stroke: #205844;stroke-width: 1.7 } 
+		.s61 { fill: none;stroke: #1a4c34;stroke-width: 1.7 } 
+		.s62 { fill: none;stroke: #1e5040;stroke-width: 1.7 } 
+		.s63 { fill: none;stroke: #a0d4b4;stroke-width: 1.7 } 
+		.s64 { fill: #00c864 } 
+		.s65 { fill: #0d2218 } 
+		.s66 { fill: #00e87a } 
+		.s67 { fill: #00a855 } 
+		.s68 { fill: #7fe8b4 } 
+		.s69 { fill: #009448 } 
+		.s70 { fill: #007a3c } 
+		.s71 { fill: #0a1c10 } 
+		.s72 { fill: #2d7a48 } 
+		.s73 { fill: #1a6035 } 
+		.s74 { fill: #0c1810 } 
+		.s75 { fill: #00a858 } 
+		.s76 { fill: #5dd4a0 } 
+		.s77 { fill: #00cc70 } 
+		.s78 { fill: #102a18 } 
+		.s79 { fill: #080e08 } 
+		.s80 { fill: #101810 } 
+		.s81 { fill: #3ab878 } 
+		.s82 { fill: #28a468 } 
+		.s83 { fill: #ffffff } 
+		.s84 { opacity: .2;fill: #ffffff } 
 	</style>
 	<g>
 		<path fill-rule="evenodd" class="s0" d="m-156.94-154.46q-9.77 0.47-19.54 1.01c-2.01 0.11-3.63-0.15-3.64 2.16q-0.01 1.52-0.07 12.32-0.22 33.96-0.09 228.02 0.05 75.95 0.05 153.43 0 21.47-0.11 457.23 0 9.42 0.31 22.48 0.04 1.96 0.51 2.52 0.82 0.97 2.37 0.91 3.86-0.15 13.85-0.17 96.11-0.23 542.77-0.17 25 0 25.54 0.01c22.37 0.25 40.81-0.09 63.82 0.02q29.63 0.14 61.31 0.05 84.39-0.23 166.39 0.05 0.2 0 0.39-0.08 0.18-0.07 0.33-0.22 0.14-0.14 0.22-0.33 0.08-0.19 0.08-0.39v-876.82q0-0.05-0.01-0.09-0.01-0.05-0.02-0.1-0.01-0.04-0.03-0.08-0.03-0.05-0.05-0.09-0.69-0.94-2.34-0.96-3.96-0.03-13.16-0.71"/>
