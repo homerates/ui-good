@@ -10,20 +10,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
-const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET ?? "";
+const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
+if (!CLERK_WEBHOOK_SECRET) throw new Error("CLERK_WEBHOOK_SECRET is not set");
 
 // Verify Svix signature (Clerk uses Svix for webhook delivery)
 async function verifyClerkWebhook(req: NextRequest): Promise<{ valid: boolean; payload: unknown }> {
   const svixId        = req.headers.get("svix-id") ?? "";
   const svixTimestamp = req.headers.get("svix-timestamp") ?? "";
   const svixSignature = req.headers.get("svix-signature") ?? "";
-
-  if (!CLERK_WEBHOOK_SECRET) {
-    // No secret set — skip verification (dev only)
-    console.warn("[clerk/webhook] CLERK_WEBHOOK_SECRET not set, skipping signature verification");
-    const payload = await req.json();
-    return { valid: true, payload };
-  }
 
   if (!svixId || !svixTimestamp || !svixSignature) {
     return { valid: false, payload: null };
@@ -34,7 +28,7 @@ async function verifyClerkWebhook(req: NextRequest): Promise<{ valid: boolean; p
   try {
     // Dynamic import to avoid build-time issues if svix not installed
     const { Webhook } = await import("svix");
-    const wh = new Webhook(CLERK_WEBHOOK_SECRET);
+    const wh = new Webhook(CLERK_WEBHOOK_SECRET!);
     const payload = wh.verify(body, {
       "svix-id": svixId,
       "svix-timestamp": svixTimestamp,
