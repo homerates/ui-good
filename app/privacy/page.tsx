@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         <main className="legal-page">
             <div className="legal-page-inner">
                 <h1>HomeRates.ai – Privacy &amp; Data Policy</h1>
-                <p className="legal-last-updated">Last Updated: January 2026</p>
+                <p className="legal-last-updated">Last Updated: March 2026</p>
 
                 <div style={{ margin: "8px 0 16px" }}>
                     <Link href="/" className="legal-back-link">
@@ -115,15 +115,65 @@ export default function PrivacyPage() {
                 <section>
                     <h2>5. Third-Party Services</h2>
                     <p>
-                        HomeRates.ai may use third-party services for infrastructure,
-                        analytics, or AI processing (for example, hosting providers, logging
-                        tools, or AI model providers). These services may process limited
-                        technical data in order to operate the platform.
+                        HomeRates.ai uses the following third-party services to operate the
+                        platform. Each service has its own privacy policy governing how it
+                        handles data.
                     </p>
+                    <ul>
+                        <li>
+                            <strong>Clerk</strong> — handles user authentication and account
+                            management. Clerk collects your email address and account
+                            credentials to manage sign-in and account security. See
+                            Clerk&apos;s privacy policy at clerk.com.
+                        </li>
+                        <li>
+                            <strong>Stripe</strong> — processes subscription payments. When
+                            you subscribe to a paid plan, Stripe collects your payment method
+                            details (credit card number, billing address). HomeRates.ai does
+                            not store your full card number — only a Stripe customer ID is
+                            stored on our systems. See Stripe&apos;s privacy policy at
+                            stripe.com/privacy.
+                        </li>
+                        <li>
+                            <strong>Supabase</strong> — provides the database that stores
+                            your account plan, subscription status, and usage data. Supabase
+                            infrastructure is hosted on AWS in the US East region.
+                        </li>
+                        <li>
+                            <strong>Vercel</strong> — hosts the application. Vercel may
+                            collect standard web server logs including IP address and request
+                            metadata.
+                        </li>
+                        <li>
+                            <strong>OpenAI / Anthropic</strong> — AI model providers used to
+                            generate mortgage education responses. Prompts are transmitted to
+                            these providers to generate answers. No personally identifying
+                            financial data should be entered into the chat.
+                        </li>
+                    </ul>
                     <p>
                         No third-party service is permitted to use HomeRates.ai data for
                         marketing its own products to users, and no sensitive personal
                         financial information is provided to such services through this app.
+                    </p>
+                </section>
+
+                <section>
+                    <h2>5a. Billing Data</h2>
+                    <p>
+                        When you subscribe to a paid plan, HomeRates.ai stores the following
+                        billing-related data in our database:
+                    </p>
+                    <ul>
+                        <li>your email address (from your account);</li>
+                        <li>your current subscription plan (Free, Plus, or Pro);</li>
+                        <li>your Stripe customer ID (a non-sensitive reference token);</li>
+                        <li>your subscription status and billing period end date.</li>
+                    </ul>
+                    <p>
+                        Full payment card details are never stored on HomeRates.ai servers.
+                        All payment processing and card storage is handled exclusively by
+                        Stripe in accordance with PCI-DSS standards.
                     </p>
                 </section>
 

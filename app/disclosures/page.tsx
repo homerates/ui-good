@@ -14,7 +14,7 @@ export default function DisclosuresPage() {
         <main className="legal-page">
             <div className="legal-page-inner">
                 <h1>HomeRates.ai – Terms &amp; Disclosures</h1>
-                <p className="legal-last-updated">Last Updated: January 2026</p>
+                <p className="legal-last-updated">Last Updated: March 2026</p>
 
                 <div style={{ margin: "8px 0 16px" }}>
                     <Link href="/" className="legal-back-link">
@@ -172,7 +172,79 @@ export default function DisclosuresPage() {
                 </section>
 
                 <section>
-                    <h2>7. Independence from Any Mortgage Lender</h2>
+                    <h2>7. Subscription Plans, Billing &amp; Payments</h2>
+                    <p>
+                        HomeRates.ai offers both free and paid subscription plans. Paid plans
+                        are billed on a monthly or annual basis through Stripe, a third-party
+                        payment processor. By subscribing to a paid plan, you authorize
+                        HomeRates.ai to charge your payment method on a recurring basis until
+                        you cancel.
+                    </p>
+                    <ul>
+                        <li>
+                            <strong>Monthly plans</strong> are billed once per month on the
+                            anniversary of your subscription start date.
+                        </li>
+                        <li>
+                            <strong>Annual plans</strong> are billed once per year as a single
+                            upfront charge.
+                        </li>
+                        <li>
+                            Prices are listed in USD and are subject to change with reasonable
+                            notice.
+                        </li>
+                        <li>
+                            All payments are processed securely by Stripe. HomeRates.ai does
+                            not store your full credit card details.
+                        </li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2>8. Cancellation Policy</h2>
+                    <p>
+                        You may cancel your subscription at any time through the billing
+                        portal accessible from your account dashboard. Cancellation takes
+                        effect at the end of your current billing period. You will retain
+                        full access to paid features until that date.
+                    </p>
+                    <p>
+                        HomeRates.ai does not charge cancellation fees. After your
+                        subscription ends, your account will revert to the free plan.
+                    </p>
+                </section>
+
+                <section>
+                    <h2>9. Refund Policy</h2>
+                    <p>
+                        HomeRates.ai offers a <strong>7-day money-back guarantee</strong> on
+                        all new paid subscriptions. If you are not satisfied within the first
+                        7 days of your initial subscription, contact us at support@homerates.ai
+                        and we will issue a full refund, no questions asked.
+                    </p>
+                    <p>
+                        After the 7-day period:
+                    </p>
+                    <ul>
+                        <li>
+                            <strong>Monthly plans</strong> — no refunds are issued for the
+                            current billing period. You may cancel at any time to prevent
+                            future charges.
+                        </li>
+                        <li>
+                            <strong>Annual plans</strong> — refund requests after 7 days are
+                            evaluated on a case-by-case basis. Contact support@homerates.ai
+                            to request a prorated refund.
+                        </li>
+                    </ul>
+                    <p>
+                        Refunds are issued to the original payment method and may take
+                        5–10 business days to appear depending on your bank.
+                    </p>
+                </section>
+
+                <section>
+                    <h2>10. Independence from Any Mortgage Lender</h2>
                     <p>
                         HomeRates.ai is an independent educational tool. It is not owned,
                         operated, endorsed, or sponsored by any mortgage lender or mortgage
@@ -182,7 +254,7 @@ export default function DisclosuresPage() {
                 </section>
 
                 <section>
-                    <h2>8. User Responsibility</h2>
+                    <h2>11. User Responsibility</h2>
                     <p>
                         By using HomeRates.ai, you agree that you are solely responsible
                         for:
@@ -206,7 +278,7 @@ export default function DisclosuresPage() {
                 </section>
 
                 <section>
-                    <h2>9. Limitation of Liability</h2>
+                    <h2>12. Limitation of Liability</h2>
                     <p>
                         To the fullest extent permitted by law, HomeRates.ai and its
                         operators shall not be liable for any direct, indirect, incidental,
@@ -217,7 +289,7 @@ export default function DisclosuresPage() {
                 </section>
 
                 <section>
-                    <h2>10. Changes to These Terms &amp; Disclosures</h2>
+                    <h2>13. Changes to These Terms &amp; Disclosures</h2>
                     <p>
                         HomeRates.ai may update these Terms &amp; Disclosures from time to
                         time. The most current version will always be available on this
@@ -227,7 +299,7 @@ export default function DisclosuresPage() {
                 </section>
 
                 <section>
-                    <h2>11. Contact</h2>
+                    <h2>14. Contact</h2>
                     <p>
                         For questions about these Terms &amp; Disclosures, you may contact:
                     </p>
