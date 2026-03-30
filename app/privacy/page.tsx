@@ -1,247 +1,92 @@
 // app/privacy/page.tsx
-
 import type { Metadata } from "next";
-import Link from "next/link";
+import PageShell from "../components/PageShell";
 
 export const metadata: Metadata = {
-    title: "Privacy & Data Policy | HomeRates.ai",
-    description:
-        "HomeRates.ai privacy and data handling policy, including what information is collected and how it is used.",
+  title: "Privacy & Data Policy | HomeRates.ai",
+  description: "HomeRates.ai privacy and data handling policy, including what information is collected and how it is used.",
 };
 
 export default function PrivacyPage() {
-    return (
-        <main className="legal-page">
-            <div className="legal-page-inner">
-                <h1>HomeRates.ai – Privacy &amp; Data Policy</h1>
-                <p className="legal-last-updated">Last Updated: March 2026</p>
+  return (
+    <PageShell backHref="/" backLabel="Home" maxWidth={760}>
+      <h1>Privacy &amp; Data Policy</h1>
+      <span className="page-updated">Last Updated: March 2026</span>
 
-                <div style={{ margin: "8px 0 16px" }}>
-                    <Link href="/" className="legal-back-link">
-                        ← Back to Home
-                    </Link>
-                </div>
+      <p>HomeRates.ai respects the privacy of all users and is committed to maintaining appropriate safeguards for data processed through the platform. This policy explains what information we collect, how it is used, and how it is stored.</p>
 
-                <p>
-                    HomeRates.ai respects the privacy of all users and is committed to
-                    maintaining appropriate safeguards for data and information processed
-                    through the platform. This Privacy &amp; Data Policy explains what
-                    information we collect, how it is used, and how it is stored.
-                </p>
+      <hr />
 
-                <hr />
+      <section>
+        <h2>1. Information We Do Not Collect</h2>
+        <p>HomeRates.ai is designed as an educational tool and does <strong>not</strong> request, collect, or store: Social Security numbers, credit reports or scores, tax returns, bank statements or account numbers, loan application forms, or government-issued identification numbers.</p>
+        <p>Users should never enter sensitive personal financial information into the app.</p>
+      </section>
 
-                <section>
-                    <h2>1. Information We Do Not Collect</h2>
-                    <p>
-                        HomeRates.ai is designed as an educational tool and is{" "}
-                        <strong>not</strong> a mortgage application system. The platform
-                        does <strong>not</strong> request, collect, or store:
-                    </p>
-                    <ul>
-                        <li>Social Security numbers;</li>
-                        <li>credit reports or credit scores;</li>
-                        <li>tax returns, W-2s, or pay stubs;</li>
-                        <li>bank statements or account numbers;</li>
-                        <li>loan application forms or loan numbers;</li>
-                        <li>government-issued identification numbers.</li>
-                    </ul>
-                    <p>
-                        Users should never enter sensitive personal financial information
-                        into the app. All mortgage applications and personal financial data
-                        must be handled directly and exclusively with a licensed mortgage
-                        lender through that lender&apos;s approved systems.
-                    </p>
-                </section>
+      <section>
+        <h2>2. Information We May Collect</h2>
+        <p>To operate and improve the service, HomeRates.ai may collect:</p>
+        <ul>
+          <li>Questions and prompts submitted to the AI;</li>
+          <li>Anonymized interaction logs (which features are used and how often);</li>
+          <li>Basic device or browser information;</li>
+          <li>Non-identifying technical data such as IP address and timestamps;</li>
+          <li>Optional user preferences or settings.</li>
+        </ul>
+      </section>
 
-                <section>
-                    <h2>2. Information We May Collect</h2>
-                    <p>
-                        To operate and improve the service, HomeRates.ai may collect limited
-                        technical and usage information, such as:
-                    </p>
-                    <ul>
-                        <li>questions and prompts submitted to the AI;</li>
-                        <li>
-                            anonymized or pseudonymized interaction logs (for example, which
-                            features are used and how often);
-                        </li>
-                        <li>basic device or browser information;</li>
-                        <li>non-identifying technical data such as IP address and timestamps;</li>
-                        <li>optional user preferences or settings.</li>
-                    </ul>
-                    <p>
-                        This information is used solely to maintain system performance,
-                        improve answer quality, and enhance the educational experience.
-                    </p>
-                </section>
+      <section>
+        <h2>3. How We Use Collected Data</h2>
+        <p>Collected data is used to improve answer accuracy, monitor system reliability, identify technical issues, understand which features are most helpful, and maintain security. HomeRates.ai does <strong>not</strong> sell user data and does <strong>not</strong> share personal financial information with third parties.</p>
+      </section>
 
-                <section>
-                    <h2>3. How We Use Collected Data</h2>
-                    <p>HomeRates.ai may use collected data to:</p>
-                    <ul>
-                        <li>improve answer accuracy and relevance;</li>
-                        <li>monitor system reliability and performance;</li>
-                        <li>identify and fix technical issues;</li>
-                        <li>
-                            understand which features are most helpful for users and prioritize
-                            future improvements;
-                        </li>
-                        <li>maintain security and prevent misuse of the platform.</li>
-                    </ul>
-                    <p>
-                        HomeRates.ai does <strong>not</strong> sell user data and does{" "}
-                        <strong>not</strong> share personal financial information with third
-                        parties.
-                    </p>
-                </section>
+      <section>
+        <h2>4. Data Storage &amp; Security</h2>
+        <p>HomeRates.ai is hosted on reputable cloud infrastructure providers that use industry-standard security measures. Interaction logs may be retained to support troubleshooting and quality improvement. These logs are not used to make lending decisions and are not shared with mortgage lenders.</p>
+      </section>
 
-                <section>
-                    <h2>4. Data Storage &amp; Security</h2>
-                    <p>
-                        HomeRates.ai is hosted on reputable cloud infrastructure providers
-                        that use industry-standard security measures. While no system can be
-                        guaranteed 100 percent secure, reasonable efforts are made to
-                        protect data against unauthorized access, loss, or misuse.
-                    </p>
-                    <p>
-                        Interaction logs may be retained for a period of time to support
-                        troubleshooting, quality improvement, and internal analytics. These
-                        logs are not used to make lending decisions and are not shared with
-                        mortgage lenders for underwriting purposes.
-                    </p>
-                </section>
+      <section>
+        <h2>5. Third-Party Services</h2>
+        <p>HomeRates.ai uses the following third-party services:</p>
+        <ul>
+          <li><strong>Clerk</strong> — handles user authentication. Collects your email address and account credentials to manage sign-in and account security.</li>
+          <li><strong>Stripe</strong> — processes subscription payments. Collects your payment method details. HomeRates.ai does not store your full card number — only a Stripe customer ID is stored on our systems. See <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">stripe.com/privacy</a>.</li>
+          <li><strong>Supabase</strong> — provides the database storing your account plan, subscription status, and usage data. Hosted on AWS in US East region.</li>
+          <li><strong>Vercel</strong> — hosts the application. May collect standard web server logs including IP address and request metadata.</li>
+          <li><strong>OpenAI / Anthropic</strong> — AI model providers used to generate mortgage education responses. Prompts are transmitted to these providers to generate answers.</li>
+        </ul>
+        <p>No third-party service is permitted to use HomeRates.ai data for marketing its own products to users.</p>
+      </section>
 
-                <section>
-                    <h2>5. Third-Party Services</h2>
-                    <p>
-                        HomeRates.ai uses the following third-party services to operate the
-                        platform. Each service has its own privacy policy governing how it
-                        handles data.
-                    </p>
-                    <ul>
-                        <li>
-                            <strong>Clerk</strong> — handles user authentication and account
-                            management. Clerk collects your email address and account
-                            credentials to manage sign-in and account security. See
-                            Clerk&apos;s privacy policy at clerk.com.
-                        </li>
-                        <li>
-                            <strong>Stripe</strong> — processes subscription payments. When
-                            you subscribe to a paid plan, Stripe collects your payment method
-                            details (credit card number, billing address). HomeRates.ai does
-                            not store your full card number — only a Stripe customer ID is
-                            stored on our systems. See Stripe&apos;s privacy policy at
-                            stripe.com/privacy.
-                        </li>
-                        <li>
-                            <strong>Supabase</strong> — provides the database that stores
-                            your account plan, subscription status, and usage data. Supabase
-                            infrastructure is hosted on AWS in the US East region.
-                        </li>
-                        <li>
-                            <strong>Vercel</strong> — hosts the application. Vercel may
-                            collect standard web server logs including IP address and request
-                            metadata.
-                        </li>
-                        <li>
-                            <strong>OpenAI / Anthropic</strong> — AI model providers used to
-                            generate mortgage education responses. Prompts are transmitted to
-                            these providers to generate answers. No personally identifying
-                            financial data should be entered into the chat.
-                        </li>
-                    </ul>
-                    <p>
-                        No third-party service is permitted to use HomeRates.ai data for
-                        marketing its own products to users, and no sensitive personal
-                        financial information is provided to such services through this app.
-                    </p>
-                </section>
+      <section>
+        <h2>6. Billing Data</h2>
+        <p>When you subscribe to a paid plan, HomeRates.ai stores: your email address, current subscription plan, Stripe customer ID (a non-sensitive reference token), and subscription status and billing period end date. Full payment card details are never stored on HomeRates.ai servers. All payment processing is handled exclusively by Stripe in accordance with PCI-DSS standards.</p>
+      </section>
 
-                <section>
-                    <h2>5a. Billing Data</h2>
-                    <p>
-                        When you subscribe to a paid plan, HomeRates.ai stores the following
-                        billing-related data in our database:
-                    </p>
-                    <ul>
-                        <li>your email address (from your account);</li>
-                        <li>your current subscription plan (Free, Plus, or Pro);</li>
-                        <li>your Stripe customer ID (a non-sensitive reference token);</li>
-                        <li>your subscription status and billing period end date.</li>
-                    </ul>
-                    <p>
-                        Full payment card details are never stored on HomeRates.ai servers.
-                        All payment processing and card storage is handled exclusively by
-                        Stripe in accordance with PCI-DSS standards.
-                    </p>
-                </section>
+      <section>
+        <h2>7. Cookies and Similar Technologies</h2>
+        <p>HomeRates.ai may use cookies or similar technologies to support basic functionality such as keeping a session active or remembering simple preferences. These are not used to track personal financial information.</p>
+      </section>
 
-                <section>
-                    <h2>6. Cookies and Similar Technologies</h2>
-                    <p>
-                        HomeRates.ai may use cookies or similar technologies to support
-                        basic functionality (such as keeping a session active or remembering
-                        simple preferences). These are not used to track personal financial
-                        information.
-                    </p>
-                </section>
+      <section>
+        <h2>8. User Control and Data Requests</h2>
+        <p>Users may request that their identifiable usage data be deleted by contacting <a href="mailto:support@homerates.ai">support@homerates.ai</a>. Some data may be technically anonymized or aggregated and may not be individually identifiable.</p>
+      </section>
 
-                <section>
-                    <h2>7. User Control and Data Requests</h2>
-                    <p>
-                        Users may request that their identifiable usage data be deleted,
-                        where applicable, by contacting:
-                    </p>
-                    <p>
-                        <strong>Email:</strong> support@homerates.ai
-                    </p>
-                    <p>
-                        Depending on how access is provided, some data may be technically
-                        anonymized or aggregated and may not be individually identifiable.
-                    </p>
-                </section>
+      <section>
+        <h2>9. Children&apos;s Privacy</h2>
+        <p>HomeRates.ai is intended for adults and is not directed to children under the age of 18. We do not knowingly collect personal data from children.</p>
+      </section>
 
-                <section>
-                    <h2>8. Children&apos;s Privacy</h2>
-                    <p>
-                        HomeRates.ai is intended for adults and is not directed to children
-                        under the age of 18. We do not knowingly collect personal data from
-                        children.
-                    </p>
-                </section>
+      <section>
+        <h2>10. Changes to This Policy</h2>
+        <p>HomeRates.ai may update this Privacy &amp; Data Policy from time to time. The most current version will always be available on this page. Continued use constitutes acceptance of the updated policy.</p>
+      </section>
 
-                <section>
-                    <h2>9. Data Storage Statement</h2>
-                    <p>
-                        HomeRates.ai does not store, transmit, or process formal mortgage
-                        application data and does not act as a system of record for any
-                        mortgage lender. All data processed through the app is used solely to
-                        provide educational content and improve the performance of the
-                        platform.
-                    </p>
-                </section>
-
-                <section>
-                    <h2>10. Changes to This Policy</h2>
-                    <p>
-                        HomeRates.ai may update this Privacy &amp; Data Policy from time to
-                        time. The most current version will always be available on this
-                        page. Continued use of the app after changes are posted constitutes
-                        acceptance of the updated policy.
-                    </p>
-                </section>
-
-                <section>
-                    <h2>11. Contact</h2>
-                    <p>
-                        For questions about this Privacy &amp; Data Policy, you may contact:
-                    </p>
-                    <p>
-                        <strong>Email:</strong> support@homerates.ai
-                    </p>
-                </section>
-            </div>
-        </main>
-    );
+      <section>
+        <h2>11. Contact</h2>
+        <p><strong>Email:</strong> <a href="mailto:support@homerates.ai">support@homerates.ai</a></p>
+      </section>
+    </PageShell>
+  );
 }

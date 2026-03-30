@@ -1,154 +1,70 @@
 // app/onboarding/success/page.tsx
-
 import type { Metadata } from "next";
 import Link from "next/link";
+import PageShell from "../../components/PageShell";
 
 export const metadata: Metadata = {
-    title: "Welcome to HomeRates.ai",
-    description: "Your HomeRates.ai access is now active.",
+  title: "Welcome to HomeRates.ai",
+  description: "Your HomeRates.ai access is now active.",
 };
 
-// In your Next version, searchParams is a *Promise*.
-// We mark the component async and await it.
-type SearchParamsPromise = Promise<
-    Record<string, string | string[] | undefined>
->;
+type SearchParamsPromise = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function OnboardingSuccessPage({
-    searchParams,
+  searchParams,
 }: {
-    searchParams: SearchParamsPromise;
+  searchParams: SearchParamsPromise;
 }) {
-    const resolved = await searchParams;
+  const resolved = await searchParams;
+  const rawBorrower = resolved.borrower;
+  const borrowerId = Array.isArray(rawBorrower) ? rawBorrower[0] : rawBorrower ?? "";
+  const chatHref = borrowerId
+    ? `https://chat.homerates.ai/?borrower=${encodeURIComponent(borrowerId)}`
+    : "https://chat.homerates.ai";
 
-    const rawBorrower = resolved.borrower;
-    const borrowerId = Array.isArray(rawBorrower)
-        ? rawBorrower[0]
-        : rawBorrower ?? "";
+  return (
+    <PageShell backHref="/" backLabel="Home" maxWidth={480}>
+      <div style={{
+        background: "rgba(0,232,122,0.05)",
+        border: "1px solid rgba(0,232,122,0.2)",
+        borderRadius: 16,
+        padding: "32px 28px",
+        textAlign: "center",
+      }}>
+        <div style={{ fontSize: 36, marginBottom: 16 }}>✓</div>
+        <p style={{ fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#00e87a", marginBottom: 8 }}>
+          Onboarding complete
+        </p>
+        <h1 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fff", margin: "0 0 16px" }}>
+          Your access is active
+        </h1>
+        <p style={{ fontSize: "0.9rem", color: "rgba(160,192,168,0.8)", lineHeight: 1.6, marginBottom: 24 }}>
+          You&apos;re all set. Your profile is linked to your loan officer, and your questions will stay attached to your file.
+        </p>
 
-    const chatHref = borrowerId
-        ? `https://chat.homerates.ai/?borrower=${encodeURIComponent(borrowerId)}`
-        : "https://chat.homerates.ai";
+        {borrowerId && (
+          <p style={{ fontSize: "0.72rem", color: "rgba(160,192,168,0.45)", marginBottom: 20, wordBreak: "break-all", fontFamily: "var(--font-dm-mono, monospace)" }}>
+            Borrower ID: {borrowerId}
+          </p>
+        )}
 
-    return (
-        <main
-            style={{
-                minHeight: "calc(100vh - 40px)", // keeps clear of your small footer
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "24px",
-            }}
-        >
-            <section
-                style={{
-                    width: "100%",
-                    maxWidth: "480px",
-                    padding: "24px 20px",
-                    borderRadius: "16px",
-                    border: "1px solid rgba(148, 163, 184, 0.4)",
-                    boxShadow: "0 18px 45px rgba(15, 23, 42, 0.10)",
-                    background: "rgba(255, 255, 255, 0.98)",
-                }}
-            >
-                <header style={{ marginBottom: "16px" }}>
-                    <p
-                        style={{
-                            fontSize: "0.75rem",
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                            color: "#64748b",
-                            marginBottom: "4px",
-                        }}
-                    >
-                        Onboarding complete
-                    </p>
-                    <h1
-                        style={{
-                            fontSize: "1.3rem",
-                            fontWeight: 600,
-                            lineHeight: 1.25,
-                            color: "#0f172a",
-                            margin: 0,
-                        }}
-                    >
-                        Your HomeRates.ai access is active
-                    </h1>
-                </header>
-
-                <p
-                    style={{
-                        fontSize: "0.9rem",
-                        lineHeight: 1.5,
-                        color: "#475569",
-                        marginBottom: "20px",
-                    }}
-                >
-                    You&apos;re all set. Your profile is linked to your loan officer, and
-                    your questions will now stay attached to your file behind the scenes.
-                </p>
-
-                {borrowerId && (
-                    <p
-                        style={{
-                            fontSize: "0.75rem",
-                            lineHeight: 1.4,
-                            color: "#94a3b8",
-                            marginBottom: "16px",
-                            wordBreak: "break-all",
-                        }}
-                    >
-                        Borrower ID:&nbsp;
-                        <span
-                            style={{
-                                fontFamily:
-                                    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                            }}
-                        >
-                            {borrowerId}
-                        </span>
-                    </p>
-                )}
-
-                <div
-                    style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "10px",
-                        marginTop: "8px",
-                    }}
-                >
-                    <Link
-                        href={chatHref}
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: "10px 14px",
-                            borderRadius: "999px",
-                            fontSize: "0.9rem",
-                            fontWeight: 500,
-                            textDecoration: "none",
-                            border: "1px solid #0f172a",
-                        }}
-                    >
-                        Enter HomeRates.ai
-                    </Link>
-
-                    <p
-                        style={{
-                            fontSize: "0.75rem",
-                            lineHeight: 1.4,
-                            color: "#94a3b8",
-                            textAlign: "center",
-                            marginTop: "2px",
-                        }}
-                    >
-                        You can close this tab at any time. Your conversations will stay
-                        linked to your loan officer through your borrower ID.
-                    </p>
-                </div>
-            </section>
-        </main>
-    );
+        <Link href={chatHref} style={{
+          display: "inline-block",
+          padding: "12px 28px",
+          borderRadius: 999,
+          background: "#00e87a",
+          color: "#080c12",
+          fontWeight: 700,
+          fontSize: "0.9rem",
+          textDecoration: "none",
+          marginBottom: 12,
+        }}>
+          Enter HomeRates.ai →
+        </Link>
+        <p style={{ fontSize: "0.72rem", color: "rgba(160,192,168,0.4)", marginTop: 8 }}>
+          You can close this tab at any time.
+        </p>
+      </div>
+    </PageShell>
+  );
 }
