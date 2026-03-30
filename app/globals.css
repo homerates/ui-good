@@ -738,18 +738,17 @@ ul {
   inset-inline: 0;
   bottom: 0;
 
-  padding: 2px 8px;
-  /* smaller height */
-  font-size: 9px;
-  /* smaller text */
-  line-height: 1.2;
+  padding: 4px 16px;
+  font-size: 10px;
+  line-height: 1.4;
   text-align: center;
+  font-family: var(--font-dm-sans, sans-serif);
 
-  background: rgba(240, 243, 245, 0.88);
-  color: #15161a;
+  background: rgba(8, 12, 18, 0.96);
+  color: rgba(160, 180, 160, 0.7);
 
-  backdrop-filter: blur(6px);
-  border-top: 1px solid rgba(148, 163, 184, 0.3);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(0, 232, 122, 0.12);
 
   display: flex;
   justify-content: center;
@@ -757,10 +756,8 @@ ul {
   gap: 0.25rem;
 
   white-space: nowrap;
-  /* stay single-line */
   z-index: 800;
 
-  /* Mobile auto-hide: smooth slide */
   transition: transform 0.3s ease;
 }
 
@@ -1191,13 +1188,7 @@ body {
   color: var(--text) !important;
 }
 
-/* Footer meta bar */
-[data-theme="dark"] .footer-meta {
-  background: rgba(10, 15, 30, 0.92) !important;
-  color: var(--text-weak) !important;
-  border-top-color: rgba(255,255,255,0.06) !important;
-}
-[data-theme="dark"] .footer-meta a { color: var(--text-weak) !important; }
+/* Footer meta bar — dark-first, no override needed */
 
 /* Price-check hint */
 [data-theme="dark"] .hr-price-check-hint {
@@ -1478,13 +1469,17 @@ body {
 }
 
 .legal-link {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
+  color: rgba(0, 232, 122, 0.75);
   cursor: pointer;
+  transition: color 0.15s ease;
+}
+.legal-link:hover {
+  color: #00e87a;
 }
 
 .footer-separator {
-  opacity: 0.6;
+  opacity: 0.35;
 }
 
 /* Sidebar legal section (unchanged) */
