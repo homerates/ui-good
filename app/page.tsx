@@ -705,7 +705,7 @@ export default function LandingPage() {
         {/* NAV */}
         <nav className="lp-nav">
           <Link href="/" className="lp-nav-logo">
-            <img src="/assets/HR Logo (1).png" alt="HomeRates.ai" />
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
           <ul className="lp-nav-links">
             <li><Link href="/chat">How it works</Link></li>
