@@ -40,8 +40,17 @@ export default function PageShell({
         </div>
       </header>
 
-      <main className="page-shell-body">
-        <div className="page-shell-content" style={{ maxWidth }}>
+      <main className="page-shell-body" style={{ flex: 1, padding: '40px 16px 60px', overflowY: 'auto' }}>
+        <div
+          className="page-shell-content"
+          style={{
+            maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth,
+            width: '100%',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            boxSizing: 'border-box',
+          }}
+        >
           {children}
         </div>
       </main>
