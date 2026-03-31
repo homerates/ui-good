@@ -404,6 +404,18 @@ export default function Sidebar(props: SidebarProps) {
               marginBottom: 4,
             }}
           >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.45 }}>Projects</span>
+              <button
+                className="btn"
+                type="button"
+                onClick={onNewProject}
+                title="New project"
+                style={{ fontSize: 11, padding: '2px 8px', minWidth: 0, opacity: 0.7 }}
+              >
+                + New
+              </button>
+            </div>
             <ProjectsPanel
               activeProjectId={activeProjectId}
               onSelectProject={handleSelectProject}
@@ -620,6 +632,9 @@ export default function Sidebar(props: SidebarProps) {
           </SignedOut>
 
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <SignedIn>
+              <a href="/library" className="sidebar-legal-link" style={{ color: 'rgba(0,232,122,0.6)', fontWeight: 600 }}>✦ My Vault</a>
+            </SignedIn>
             <a href="/about" className="sidebar-legal-link">About HomeRates.ai</a>
             <a href="/disclosures" className="sidebar-legal-link">Terms & Disclosures</a>
             <a href="/privacy" className="sidebar-legal-link">Privacy & Data Policy</a>
