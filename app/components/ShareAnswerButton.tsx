@@ -25,40 +25,35 @@ export function ShareAnswerButton({
     const [loading, setLoading] = React.useState(false);
     const [copied, setCopied] = React.useState(false);
 
+    async function createShareUrl(): Promise<string> {
+        const res = await fetch('/api/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages }),
+        });
+        const data = await res.json();
+        if (!data.ok || !data.url) throw new Error(data.error || 'Failed to create share link');
+        return data.url as string;
+    }
+
     async function handleShare(method: 'link' | 'email', email?: string): Promise<void> {
         setLoading(true);
 
         try {
-            // Call the share API with full messages
-            const res = await fetch('/api/share', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages,
-                    email: method === 'email' ? email : undefined,
-                }),
-            });
-
-            const data = await res.json();
-
-            if (!data.ok || !data.url) {
-                throw new Error(data.error || 'Failed to create share link');
-            }
+            const shareUrl = await createShareUrl();
 
             if (method === 'link') {
                 let didCopy = false;
 
-                // 1. Modern clipboard API (works on desktop + secure Android)
                 try {
-                    await navigator.clipboard.writeText(data.url);
+                    await navigator.clipboard.writeText(shareUrl);
                     didCopy = true;
                 } catch { /* falls through */ }
 
-                // 2. execCommand fallback (older Android / some desktop)
                 if (!didCopy) {
                     try {
                         const el = document.createElement('textarea');
-                        el.value = data.url;
+                        el.value = shareUrl;
                         el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
                         document.body.appendChild(el);
                         el.focus();
@@ -68,28 +63,67 @@ export function ShareAnswerButton({
                     } catch { /* falls through */ }
                 }
 
-                // 3. Native share sheet — iOS Safari + Android Chrome always support this
-                // and it works correctly even after an async fetch chain.
                 if (!didCopy && typeof navigator.share === 'function') {
-                    setShowModal(false); // close our modal before the system sheet opens
+                    setShowModal(false);
                     try {
-                        await navigator.share({ url: data.url, title: 'HomeRates.ai' });
+                        await navigator.share({ url: shareUrl, title: 'HomeRates.ai' });
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
-                    } catch { /* user cancelled share sheet — no feedback needed */ }
+                    } catch { /* user cancelled */ }
                     return;
                 }
 
                 setCopied(didCopy);
                 if (didCopy) setTimeout(() => setCopied(false), 2000);
+            } else if (method === 'email' && email) {
+                // Email is sent by the API directly
+                await fetch('/api/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages, email }),
+                });
             }
 
-            // Email will be sent by the API, just close modal
             setShowModal(false);
 
         } catch (err: any) {
             console.error('[ShareAnswerButton] Error:', err);
-            throw err; // Re-throw so modal can show error
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleSocialShare(platform: 'linkedin' | 'instagram'): Promise<void> {
+        setLoading(true);
+        try {
+            const shareUrl = await createShareUrl();
+
+            if (platform === 'linkedin') {
+                window.open(
+                    `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+                    '_blank',
+                    'noopener,noreferrer,width=600,height=580'
+                );
+            } else {
+                // Instagram has no web share URL — copy so user can paste into app
+                try {
+                    await navigator.clipboard.writeText(shareUrl);
+                } catch {
+                    const el = document.createElement('textarea');
+                    el.value = shareUrl;
+                    el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+                    document.body.appendChild(el);
+                    el.focus(); el.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(el);
+                }
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2500);
+            }
+            setShowModal(false);
+        } catch (err: any) {
+            console.error('[ShareAnswerButton] Social share error:', err);
         } finally {
             setLoading(false);
         }
@@ -154,6 +188,7 @@ export function ShareAnswerButton({
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 onShare={handleShare}
+                onSocialShare={handleSocialShare}
             />
         </>
     );
