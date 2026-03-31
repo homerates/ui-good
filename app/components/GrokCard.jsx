@@ -289,10 +289,11 @@ function ModernTable({ headers, rows }) {
 }
 
 // ===== GrokCard ============================================================
-export default function GrokCard({ data, onFollowUp }) {
+export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
     if (!data) return null;
 
     const { grok, answerMarkdown, followUp, data_freshness } = data;
+    const [vaultState, setVaultState] = React.useState("idle"); // idle | saving | saved | error
 
     const preparedFull = useMemo(() => injectMiniChartMarkers(answerMarkdown || ""), [answerMarkdown]);
 
@@ -441,18 +442,58 @@ export default function GrokCard({ data, onFollowUp }) {
                 })}
             </div>
 
-            {/* Educational disclaimer — always visible after every response */}
+            {/* Educational disclaimer + Save to Vault */}
             <div
                 style={{
                     marginTop: "14px",
                     paddingTop: "10px",
                     borderTop: "1px solid var(--border, rgba(0,0,0,0.06))",
-                    fontSize: "11px",
-                    color: "var(--text-weak, rgba(0,0,0,0.4))",
-                    lineHeight: 1.5,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: "12px",
                 }}
             >
-                ⓘ Educational purposes only — not financial advice, a recommendation, or a substitute for guidance from a licensed mortgage professional. Verify all rates, payments, and eligibility with a licensed lender before making any decisions.
+                <div style={{ fontSize: "11px", color: "var(--text-weak, rgba(0,0,0,0.4))", lineHeight: 1.5, flex: "1 1 auto" }}>
+                    ⓘ Educational purposes only — not financial advice, a recommendation, or a substitute for guidance from a licensed mortgage professional. Verify all rates, payments, and eligibility with a licensed lender before making any decisions.
+                </div>
+                {onSaveToVault && (
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            if (vaultState === "saved" || vaultState === "saving") return;
+                            setVaultState("saving");
+                            try {
+                                await onSaveToVault();
+                                setVaultState("saved");
+                            } catch {
+                                setVaultState("error");
+                                setTimeout(() => setVaultState("idle"), 3000);
+                            }
+                        }}
+                        style={{
+                            flexShrink: 0,
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "4px 10px",
+                            borderRadius: "999px",
+                            border: "1px solid rgba(0,232,122,0.3)",
+                            background: vaultState === "saved"
+                                ? "rgba(0,232,122,0.12)"
+                                : "rgba(0,232,122,0.05)",
+                            color: vaultState === "saved"
+                                ? "#00e87a"
+                                : vaultState === "error"
+                                ? "#ef4444"
+                                : "rgba(0,232,122,0.7)",
+                            cursor: vaultState === "saved" ? "default" : "pointer",
+                            transition: "all 150ms ease",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {vaultState === "saving" ? "Saving…" : vaultState === "saved" ? "✓ Saved" : vaultState === "error" ? "Error" : "✦ Save"}
+                    </button>
+                )}
             </div>
 
             {/* Follow-up CTA */}

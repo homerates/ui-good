@@ -183,8 +183,9 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function PropertyIntelligenceCard({ data }: { data: CMACardData }) {
+export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data: CMACardData; onSaveToVault?: () => Promise<void> }) {
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
+    const [vaultState, setVaultState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const sections = parseSections(data.answerMarkdown);
 
     const isJumbo = data.loanAmt > 832750;
@@ -312,11 +313,42 @@ export default function PropertyIntelligenceCard({ data }: { data: CMACardData }
             </div>
 
             {/* ── Footer ── */}
-            <div style={{ padding: '8px 16px', background: '#f8fafc', borderTop: '1px solid rgba(0,0,0,0.06)', fontSize: 11, color: '#9ca3af', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '8px 16px', background: '#f8fafc', borderTop: '1px solid rgba(0,0,0,0.06)', fontSize: 11, color: '#9ca3af', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <span>HomeRates.ai · Educational only — not financial advice</span>
-                <span style={{ color: data.liveMarketData ? '#3b82f6' : '#f59e0b', fontWeight: 600 }}>
-                    {data.liveMarketData ? 'Grok synthesis · Live data' : 'Grok synthesis · AI training data'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: data.liveMarketData ? '#3b82f6' : '#f59e0b', fontWeight: 600 }}>
+                        {data.liveMarketData ? 'Grok synthesis · Live data' : 'Grok synthesis · AI training data'}
+                    </span>
+                    {onSaveToVault && (
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                if (vaultState === 'saved' || vaultState === 'saving') return;
+                                setVaultState('saving');
+                                try {
+                                    await onSaveToVault();
+                                    setVaultState('saved');
+                                } catch {
+                                    setVaultState('error');
+                                    setTimeout(() => setVaultState('idle'), 3000);
+                                }
+                            }}
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                padding: '3px 9px',
+                                borderRadius: 999,
+                                border: '1px solid rgba(0,232,122,0.3)',
+                                background: vaultState === 'saved' ? 'rgba(0,232,122,0.1)' : 'transparent',
+                                color: vaultState === 'saved' ? '#16a34a' : vaultState === 'error' ? '#ef4444' : '#3b82f6',
+                                cursor: vaultState === 'saved' ? 'default' : 'pointer',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {vaultState === 'saving' ? 'Saving…' : vaultState === 'saved' ? '✓ Saved' : vaultState === 'error' ? 'Error' : '✦ Save'}
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );

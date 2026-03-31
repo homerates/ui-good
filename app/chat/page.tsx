@@ -2540,7 +2540,22 @@ export default function Page() {
                                     onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                     onPriceCheck={onPriceCheck}
                                 />
-                                : messages.map((m) => (
+                                : messages.map((m, mIdx) => {
+                                    const prevQuestion = m.role === 'assistant'
+                                        ? messages.slice(0, mIdx).reverse().find((x) => x.role === 'user')?.content ?? ''
+                                        : '';
+
+                                    const saveToVault = (user && m.role === 'assistant') ? async () => {
+                                        const assistantMeta = (m as Extract<ChatMsg, { role: 'assistant' }>).meta;
+                                        const answer = assistantMeta?.answerMarkdown ?? (typeof m.content === 'string' ? m.content : '');
+                                        await fetch('/api/library', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ question: prevQuestion, answer, tool_id: 'vault_save' }),
+                                        });
+                                    } : undefined;
+
+                                    return (
                                     <div key={m.id} data-message-id={m.id}>
                                         <Bubble role={m.role}>
                                             {m.role === 'assistant' ? (
@@ -2575,6 +2590,7 @@ export default function Page() {
                                                                 if (!q || m.meta?.follow_up_chips?.length) return;
                                                                 setInput(q);
                                                             }}
+                                                            onSaveToVault={saveToVault}
                                                         />
                                                         {/* Admin debug panel — shows raw JSON + math fields */}
                                                         {ADMIN_USER_IDS.has(user?.id ?? '') && (
@@ -2591,6 +2607,18 @@ export default function Page() {
                                                             <>
                                                                 <PropertyIntelligenceCard
                                                                     data={m.meta.cmaCard as CMACardData}
+                                                                    onSaveToVault={user ? async () => {
+                                                                        const cma = (m as Extract<ChatMsg, { role: 'assistant' }>).meta?.cmaCard as CMACardData;
+                                                                        await fetch('/api/library', {
+                                                                            method: 'POST',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({
+                                                                                question: prevQuestion || `Property analysis: ${cma.address}`,
+                                                                                answer: cma.answerMarkdown,
+                                                                                tool_id: 'vault_save_cma',
+                                                                            }),
+                                                                        });
+                                                                    } : undefined}
                                                                 />
                                                                 <AlertSetupCard
                                                                     type="property"
@@ -2737,7 +2765,8 @@ export default function Page() {
 
                                         </Bubble>
                                     </div>
-                                ))}
+                                    );
+                                })}
 
                             {loading && (
                                 <Bubble role="assistant">
