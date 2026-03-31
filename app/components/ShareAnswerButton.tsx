@@ -96,27 +96,23 @@ export function ShareAnswerButton({
 
     async function handleSocialShare(platform: 'linkedin' | 'instagram'): Promise<void> {
         setLoading(true);
-
-        // Open a blank window IMMEDIATELY (synchronous — preserves user gesture on mobile).
-        // We navigate it once the share URL is ready. Mobile browsers block window.open
-        // called after any await.
-        const popup = platform === 'linkedin'
-            ? window.open('', '_blank', 'noopener,noreferrer,width=600,height=580')
-            : null;
-
         try {
             const shareUrl = await createShareUrl();
+            const isMobile = window.innerWidth < 768;
 
             if (platform === 'linkedin') {
-                if (popup) {
-                    popup.location.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+                const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+                // Mobile: navigate same tab (popup always blocked after async on iOS/Android)
+                // Desktop: open new tab
+                if (isMobile) {
+                    window.location.href = linkedInUrl;
                 } else {
-                    // Popup was blocked — fall back to same-tab navigation
-                    window.location.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+                    window.open(linkedInUrl, '_blank', 'noopener,noreferrer');
                 }
             } else {
-                // Instagram has no web share URL — use native share sheet on mobile,
-                // fall back to clipboard copy on desktop.
+                // Instagram — no web share URL exists.
+                // Mobile: use native share sheet (lets user pick Instagram directly)
+                // Desktop: copy to clipboard
                 if (typeof navigator.share === 'function') {
                     try {
                         await navigator.share({
@@ -124,7 +120,7 @@ export function ShareAnswerButton({
                             title: 'HomeRates.ai',
                             text: 'Check out this mortgage analysis on HomeRates.ai',
                         });
-                    } catch { /* user dismissed share sheet */ }
+                    } catch { /* user dismissed */ }
                 } else {
                     try {
                         await navigator.clipboard.writeText(shareUrl);
@@ -144,7 +140,6 @@ export function ShareAnswerButton({
             setShowModal(false);
         } catch (err: any) {
             console.error('[ShareAnswerButton] Social share error:', err);
-            popup?.close();
         } finally {
             setLoading(false);
         }
