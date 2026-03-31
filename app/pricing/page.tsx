@@ -312,10 +312,16 @@ export default function PricingPage() {
 
         .pricing-cards {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
           gap: 20px;
           max-width: 960px;
+          width: 100%;
           margin: 0 auto 48px;
+        }
+        @media (max-width: 640px) {
+          .pricing-cards {
+            grid-template-columns: 1fr;
+          }
         }
         .pricing-card {
           position: relative;
