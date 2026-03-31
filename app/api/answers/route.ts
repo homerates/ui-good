@@ -4345,6 +4345,10 @@ ${uwAnswerText}`,
     // ============================================================
 
     // ========== MORTGAGE CALCULATOR BYPASS ==========
+    // Guard: skip for CMA/Property Intelligence requests — seed text like
+    // "Property intelligence report: ... $932k" would otherwise misroute to calcEngine-conventional.
+    const _cmaEarlyParams = (body as any)?.paramOverrides;
+    const _isCMAEarly = !!_cmaEarlyParams?.cmaAddress && /intelligence report|property report|cma|market analysis/i.test(question);
     let mortgageAnswer: any = null;
     let mortgageCalcContext = "";
 
@@ -5593,7 +5597,7 @@ What's your scenario?`,
         grokFinal = fhaAnswer;
         debug = { requestedModel: "fha-calculator", servedModel: "fha-calculator", promptChars: question.length, elapsedMs: 0, requestId: "fha-" + Date.now(), parseMode: "direct", repaired: false };
         console.log('[FHA] Returning FHA analysis, skipping Grok');
-    } else if (mortgageAnswer) {
+    } else if (mortgageAnswer && !_isCMAEarly) {
         grokFinal = mortgageAnswer;
         debug = { requestedModel: "mortgage-calculator", servedModel: "mortgage-calculator", promptChars: question.length, elapsedMs: 0, requestId: "mort-" + Date.now(), parseMode: "direct", repaired: false };
         console.log('[Mortgage Calc] Returning direct answer, skipping Grok');
