@@ -31,11 +31,13 @@ export async function generateMetadata(props: {
             title,
             description: "Real mortgage math, live rates — no sales pitch.",
             siteName: "HomeRates.ai",
+            images: [{ url: "/assets/og-card.png", width: 1200, height: 627, alt: "HomeRates.ai" }],
         },
         twitter: {
-            card: "summary",
+            card: "summary_large_image",
             title,
             description: "Real mortgage math, live rates — no sales pitch.",
+            images: ["/assets/og-card.png"],
         },
     };
 }
