@@ -20,7 +20,17 @@ export default function PageShell({
   maxWidth = 720,
 }: PageShellProps) {
   return (
-    <div className="page-shell">
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      overflowY: 'auto',
+      background: '#080c12',
+      color: '#e0f0e8',
+      fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+      display: 'flex',
+      flexDirection: 'column',
+      zIndex: 10,
+    }}>
       <header className="page-shell-header">
         <div className="page-shell-header-inner">
           <Link href="/" className="page-shell-logo-link">
@@ -40,17 +50,14 @@ export default function PageShell({
         </div>
       </header>
 
-      <main className="page-shell-body" style={{ flex: 1, padding: '40px 16px 60px', overflowY: 'auto' }}>
-        <div
-          className="page-shell-content"
-          style={{
+      <main style={{ flex: 1, padding: '40px 16px 60px' }}>
+        <div style={{
             maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth,
             width: '100%',
             marginLeft: 'auto',
             marginRight: 'auto',
             boxSizing: 'border-box',
-          }}
-        >
+        }}>
           {children}
         </div>
       </main>
