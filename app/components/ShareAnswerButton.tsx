@@ -101,7 +101,11 @@ export function ShareAnswerButton({
             const isMobile = window.innerWidth < 768;
 
             if (platform === 'linkedin') {
-                const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+                // shareArticle?mini=true opens the proper post composer with pre-filled text
+                const text = question
+                    ? `${question.slice(0, 120)}${question.length > 120 ? '…' : ''}`
+                    : 'Check out this mortgage analysis on HomeRates.ai';
+                const linkedInUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent('HomeRates.ai — Mortgage Intelligence')}&summary=${encodeURIComponent(text)}&source=${encodeURIComponent('HomeRates.ai')}`;
                 // Mobile: navigate same tab (popup always blocked after async on iOS/Android)
                 // Desktop: open new tab
                 if (isMobile) {
