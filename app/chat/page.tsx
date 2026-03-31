@@ -2512,6 +2512,7 @@ export default function Page() {
                             >
                                 HomeRates Lab
                             </button>
+                            {user && <a href="/library" className="app-nav-link">My Vault</a>}
                         </nav>
 
                         {/* Right controls */}

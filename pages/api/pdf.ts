@@ -10,6 +10,7 @@
 
 import { getAuth } from '@clerk/nextjs/server';
 import { renderToBuffer } from '@react-pdf/renderer';
+import { createClient } from '@supabase/supabase-js';
 import React from 'react';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
@@ -63,6 +64,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const buffer = await renderToBuffer(doc);
         const filename = FILENAMES[type] ?? 'homerates-analysis.pdf';
+
+        // Upload to vault in background — never block the download
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+        const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+        if (supabaseUrl && serviceKey) {
+            const sb = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+            const vaultPath = `${userId}/${type}-${Date.now()}.pdf`;
+            sb.storage.from('user-vault').upload(vaultPath, Buffer.from(buffer), {
+                contentType: 'application/pdf',
+                upsert: false,
+            }).then(({ error }) => {
+                if (error) console.warn('[pdf vault upload]', error.message);
+            });
+        }
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
