@@ -441,14 +441,19 @@ function extractListingUrl(text: string): string | null {
     return /^https?:\/\//i.test(url) ? url : 'https://' + url;
 }
 
-/** Detect a plain US street address typed by the user (not a listing URL). */
+/** Detect a plain US street address typed by the user (not a listing URL).
+ *  Must START with the house number so chip seeds like "Property intelligence
+ *  report: 3277 Main St..." are never mistaken for a standalone address. */
 function extractPlainAddress(text: string): string | null {
+    const t = text.trim();
     // Skip if text contains a URL or a known listing domain
-    if (/https?:\/\//i.test(text) || /(?:redfin|zillow|realtor|trulia|homes)\.com/i.test(text)) return null;
-    // Must contain a house number + street name + street type keyword
-    const ok = /\b\d{1,6}\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\s+(?:st(?:reet)?|ave(?:nue)?|blvd|boulevard|dr(?:ive)?|ln|lane|rd|road|way|ct|court|pl|place|ter(?:race)?|cir(?:cle)?|hwy|highway|pkwy|parkway|loop|trail|run|pass|grove|ridge|bend|crossing|heights|vista|walk|sq(?:uare)?)\b/i;
-    if (!ok.test(text)) return null;
-    return text.trim();
+    if (/https?:\/\//i.test(t) || /(?:redfin|zillow|realtor|trulia|homes)\.com/i.test(t)) return null;
+    // Must START with a house number (digit) — rules out question/sentence inputs
+    if (!/^\d/.test(t)) return null;
+    // Must contain a street type keyword
+    const ok = /\d{1,6}\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\s+(?:st(?:reet)?|ave(?:nue)?|blvd|boulevard|dr(?:ive)?|ln|lane|rd|road|way|ct|court|pl|place|ter(?:race)?|cir(?:cle)?|hwy|highway|pkwy|parkway|loop|trail|run|pass|grove|ridge|bend|crossing|heights|vista|walk|sq(?:uare)?)\b/i;
+    if (!ok.test(t)) return null;
+    return t;
 }
 
 /* =========================
