@@ -441,6 +441,16 @@ function extractListingUrl(text: string): string | null {
     return /^https?:\/\//i.test(url) ? url : 'https://' + url;
 }
 
+/** Detect a plain US street address typed by the user (not a listing URL). */
+function extractPlainAddress(text: string): string | null {
+    // Skip if text contains a URL or a known listing domain
+    if (/https?:\/\//i.test(text) || /(?:redfin|zillow|realtor|trulia|homes)\.com/i.test(text)) return null;
+    // Must contain a house number + street name + street type keyword
+    const ok = /\b\d{1,6}\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\s+(?:st(?:reet)?|ave(?:nue)?|blvd|boulevard|dr(?:ive)?|ln|lane|rd|road|way|ct|court|pl|place|ter(?:race)?|cir(?:cle)?|hwy|highway|pkwy|parkway|loop|trail|run|pass|grove|ridge|bend|crossing|heights|vista|walk|sq(?:uare)?)\b/i;
+    if (!ok.test(text)) return null;
+    return text.trim();
+}
+
 /* =========================
    API helpers
 ========================= */
@@ -1743,22 +1753,24 @@ export default function Page() {
         setPriceCheckMode(false);
         setLoading(true);
 
-        // ── Property listing URL branch ───────────────────────────────────────
-        const listingUrl = extractListingUrl(q);
-        if (listingUrl) {
+        // ── Property listing URL or plain address branch ─────────────────────
+        const listingUrl   = extractListingUrl(q);
+        const plainAddress = !listingUrl ? extractPlainAddress(q) : null;
+        if (listingUrl || plainAddress) {
             // Zillow blocks server-side scraping — show a friendly nudge immediately
-            if (/zillow\.com/i.test(listingUrl)) {
+            if (listingUrl && /zillow\.com/i.test(listingUrl)) {
                 typeOutAssistant(answerId, 'Zillow blocks automated lookups from our servers. For instant price data, paste the Redfin link for this property instead — Redfin works great.');
                 setLoading(false);
                 return;
             }
+            const lookupBody = listingUrl ? { url: listingUrl } : { address: plainAddress! };
             try {
                 // Fetch property data + live FRED rate in parallel
                 const [lookupRes, tickerRes] = await Promise.all([
                     fetch('/api/property/lookup', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: listingUrl }),
+                        body: JSON.stringify(lookupBody),
                     }),
                     fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
                 ]);
