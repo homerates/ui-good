@@ -1479,6 +1479,12 @@ body:has(.page-shell) {
   /* no window scroll */
 }
 
+/* page-shell must fill the body flex container (body.app is display:flex row)
+   without this, .page-shell is only content-wide and sits at the left */
+.page-shell {
+  width: 100%;
+}
+
 .main {
   display: flex;
   flex-direction: column;
