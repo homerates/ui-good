@@ -30,6 +30,7 @@ const isPublicRoute = createRouteMatcher([
   // Sharing
   "/share(.*)",
   "/s(.*)",
+  "/api/share/load(.*)",
   // Auth flows (Clerk handles these itself)
   "/sign-in(.*)",
   "/sign-up(.*)",
