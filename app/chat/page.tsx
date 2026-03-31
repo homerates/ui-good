@@ -1168,6 +1168,18 @@ export default function Page() {
         setSidebarOpen(window.innerWidth >= 1024);
     }, []);
 
+    // On mobile, navigating back from vault/library can restore bfcache state
+    // with a stale filled input. Clear it on page show if nothing is in-flight.
+    useEffect(() => {
+        function onPageShow(e: PageTransitionEvent) {
+            if (e.persisted && window.innerWidth < 1024) {
+                setInput('');
+            }
+        }
+        window.addEventListener('pageshow', onPageShow);
+        return () => window.removeEventListener('pageshow', onPageShow);
+    }, []);
+
     const toggleSidebar = () => setSidebarOpen((o) => !o);
 
 

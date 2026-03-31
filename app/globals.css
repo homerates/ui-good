@@ -1148,15 +1148,134 @@ body {
 }
 
 /* =====================================================
-   PAGE-SHELL SCROLL FIX
-   The global html/body overflow:hidden is needed for the chat app
-   but kills scroll on all standalone pages. Override it whenever
-   a .page-shell is present in the document.
+   PAGE-SHELL — standalone pages (About, Pricing, Vault, etc.)
+   Overrides the global html/body{overflow:hidden} that the chat
+   app needs, and provides the full layout for standalone pages.
    ===================================================== */
 html:has(.page-shell),
 body:has(.page-shell) {
   overflow: auto !important;
   height: auto !important;
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg, #080c12);
+  color: var(--text, #e0f0e8);
+  font-family: var(--font-dm-sans, sans-serif);
+}
+
+/* ── Header ── */
+.page-shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(8, 12, 18, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 232, 122, 0.1);
+}
+.page-shell-header-inner {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.page-shell-logo-link { display: flex; align-items: center; text-decoration: none; }
+.page-shell-logo { height: 28px; width: auto; }
+.page-shell-back {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+  color: rgba(160, 192, 168, 0.65);
+  text-decoration: none;
+  transition: color 0.15s;
+  font-family: var(--font-dm-sans, sans-serif);
+}
+.page-shell-back:hover { color: #00e87a; }
+
+/* ── Body ── */
+.page-shell-body {
+  flex: 1;
+  padding: 40px 16px 60px;
+}
+.page-shell-content {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Footer ── */
+.page-shell-footer {
+  padding: 12px 20px;
+  border-top: 1px solid rgba(0, 232, 122, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+  color: rgba(160, 192, 168, 0.4);
+  font-family: var(--font-dm-sans, sans-serif);
+}
+.page-shell-footer-sep { opacity: 0.3; }
+.page-shell-footer-link {
+  color: rgba(0, 232, 122, 0.55);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.page-shell-footer-link:hover { color: #00e87a; }
+
+/* ── Page content typography ── */
+.page-shell-content h1 {
+  font-family: var(--font-syne, sans-serif);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 6px;
+  line-height: 1.2;
+}
+.page-shell-content h2 {
+  font-family: var(--font-syne, sans-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(224, 240, 232, 0.95);
+  margin: 28px 0 10px;
+}
+.page-shell-content h2:first-of-type { margin-top: 20px; }
+.page-shell-content p {
+  color: rgba(160, 192, 168, 0.85);
+  line-height: 1.7;
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+.page-shell-content ul,
+.page-shell-content ol {
+  padding-left: 1.4rem;
+  margin: 0 0 12px;
+  color: rgba(160, 192, 168, 0.8);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.page-shell-content li { margin-bottom: 4px; }
+.page-shell-content strong { color: rgba(224, 240, 232, 0.95); }
+.page-shell-content a { color: rgba(0, 232, 122, 0.8); text-decoration: none; }
+.page-shell-content a:hover { color: #00e87a; }
+.page-shell-content hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 24px 0;
+}
+.page-shell-content section { margin-bottom: 8px; }
+.page-shell-content .page-updated {
+  font-size: 0.75rem;
+  color: rgba(160, 192, 168, 0.4);
+  margin-bottom: 24px;
+  display: block;
 }
 
 /* =====================================================
