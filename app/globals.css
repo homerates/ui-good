@@ -1148,6 +1148,18 @@ body {
 }
 
 /* =====================================================
+   PAGE-SHELL SCROLL FIX
+   The global html/body overflow:hidden is needed for the chat app
+   but kills scroll on all standalone pages. Override it whenever
+   a .page-shell is present in the document.
+   ===================================================== */
+html:has(.page-shell),
+body:has(.page-shell) {
+  overflow: auto !important;
+  height: auto !important;
+}
+
+/* =====================================================
    DARK MODE OVERRIDES
    Scoped under [data-theme="dark"] — override everything
    that uses hardcoded colors and can't use CSS vars directly.

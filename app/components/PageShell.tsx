@@ -100,15 +100,12 @@ export default function PageShell({
         /* ── Body ── */
         .page-shell-body {
           flex: 1;
-          overflow-y: auto;
           padding: 40px 16px 60px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
         }
         .page-shell-content {
           width: 100%;
           margin: 0 auto;
+          box-sizing: border-box;
         }
 
         /* ── Footer ── */
