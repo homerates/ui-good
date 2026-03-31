@@ -4296,6 +4296,9 @@ ${uwAnswerText}`,
                 }
             }
 
+            // Skip calc engine return for CMA/Property Intelligence requests
+            const _cmaEarlyCheck = paramOverrides?.cmaAddress && /intelligence report|property report|cma|market analysis/i.test(question);
+            if (!_cmaEarlyCheck) {
             return noStore({
                 ok: true,
                 memory_thread_id: memoryThreadId,
@@ -4338,6 +4341,7 @@ ${uwAnswerText}`,
                 followUp: calcCard.follow_up,
                 follow_up_chips: calcCard.follow_up_chips,
             });
+            } // end !_cmaEarlyCheck
         }
     }
     // ============================================================
