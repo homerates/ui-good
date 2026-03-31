@@ -218,6 +218,11 @@ export default function SettingsPanel() {
                 <Link href="/chat" onClick={() => setOpen(false)} style={navLink}>
                   <span>💬</span> Chat
                 </Link>
+                {isSignedIn && (
+                  <Link href="/library" onClick={() => setOpen(false)} style={{ ...navLink, color: "rgba(0,232,122,0.8)", fontWeight: 600 }}>
+                    <span>✦</span> My Vault
+                  </Link>
+                )}
                 <Link href="/pricing" onClick={() => setOpen(false)} style={navLink}>
                   <span>💳</span> Pricing
                 </Link>
