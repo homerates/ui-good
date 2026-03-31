@@ -96,34 +96,55 @@ export function ShareAnswerButton({
 
     async function handleSocialShare(platform: 'linkedin' | 'instagram'): Promise<void> {
         setLoading(true);
+
+        // Open a blank window IMMEDIATELY (synchronous — preserves user gesture on mobile).
+        // We navigate it once the share URL is ready. Mobile browsers block window.open
+        // called after any await.
+        const popup = platform === 'linkedin'
+            ? window.open('', '_blank', 'noopener,noreferrer,width=600,height=580')
+            : null;
+
         try {
             const shareUrl = await createShareUrl();
 
             if (platform === 'linkedin') {
-                window.open(
-                    `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
-                    '_blank',
-                    'noopener,noreferrer,width=600,height=580'
-                );
-            } else {
-                // Instagram has no web share URL — copy so user can paste into app
-                try {
-                    await navigator.clipboard.writeText(shareUrl);
-                } catch {
-                    const el = document.createElement('textarea');
-                    el.value = shareUrl;
-                    el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
-                    document.body.appendChild(el);
-                    el.focus(); el.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(el);
+                if (popup) {
+                    popup.location.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+                } else {
+                    // Popup was blocked — fall back to same-tab navigation
+                    window.location.href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
                 }
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2500);
+            } else {
+                // Instagram has no web share URL — use native share sheet on mobile,
+                // fall back to clipboard copy on desktop.
+                if (typeof navigator.share === 'function') {
+                    try {
+                        await navigator.share({
+                            url: shareUrl,
+                            title: 'HomeRates.ai',
+                            text: 'Check out this mortgage analysis on HomeRates.ai',
+                        });
+                    } catch { /* user dismissed share sheet */ }
+                } else {
+                    try {
+                        await navigator.clipboard.writeText(shareUrl);
+                    } catch {
+                        const el = document.createElement('textarea');
+                        el.value = shareUrl;
+                        el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+                        document.body.appendChild(el);
+                        el.focus(); el.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(el);
+                    }
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2500);
+                }
             }
             setShowModal(false);
         } catch (err: any) {
             console.error('[ShareAnswerButton] Social share error:', err);
+            popup?.close();
         } finally {
             setLoading(false);
         }
