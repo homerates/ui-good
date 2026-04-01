@@ -29,9 +29,9 @@ function buildFilename(type: string, params: Record<string, unknown>): string {
     const fmtPct = (n: unknown) => n ? `${Number(n).toFixed(2)}pct` : '';
     switch (type) {
         case 'conventional': return `homerates-conventional-${fmt$(params.price)}-${fmtPct(params.rate)}-${params.downPct ?? ''}pctdown.pdf`;
-        case 'fha':          return `homerates-fha-${fmt$(params.price)}-${fmtPct(params.rate)}-3.5pctdown.pdf`;
-        case 'va':           return `homerates-va-${fmt$(params.price)}-${fmtPct(params.rate)}.pdf`;
-        case 'jumbo':        return `homerates-jumbo-${fmt$(params.price)}-${fmtPct(params.rate)}.pdf`;
+        case 'fha':          return `homerates-fha-${fmt$(params.price)}-${fmtPct(params.rate)}-${params.downPct ?? '3.5'}pctdown.pdf`;
+        case 'va':           return `homerates-va-${fmt$(params.price)}-${fmtPct(params.rate)}-${params.downPct ?? '0'}pctdown.pdf`;
+        case 'jumbo':        return `homerates-jumbo-${fmt$(params.price)}-${fmtPct(params.rate)}-${params.downPct ?? ''}pctdown.pdf`;
         case 'refi':         return `homerates-refi-${fmt$(params.balance)}-${fmtPct(params.currentRate)}to${fmtPct(params.newRate)}.pdf`;
         case 'affordability':return `homerates-affordability-${fmt$(params.annualIncome)}-income-${fmtPct(params.rate)}.pdf`;
         case 'dscr':         return `homerates-dscr-${fmt$(params.price)}-${fmt$(params.rent)}rent-${fmtPct(params.rate)}.pdf`;
@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         let doc: React.ReactElement;
         if (type === 'refi') {
             doc = React.createElement(RefiPDF, params as unknown as RefiPdfParams);
-        } else if (type === 'conventional' || type === 'fha') {
+        } else if (type === 'conventional' || type === 'fha' || type === 'jumbo' || type === 'va') {
             doc = React.createElement(ConvFhaPDF, params as unknown as ConvFhaPdfParams);
         } else if (type === 'affordability') {
             doc = React.createElement(AffordabilityPDF, params as unknown as AffordabilityPdfParams);

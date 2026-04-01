@@ -222,7 +222,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                             />
                         ) : data.loanType !== 'dscr' ? (
                             <PdfDownloadButton
-                                type={data.loanType === 'va' || data.loanType === 'jumbo' ? 'conventional' : data.loanType}
+                                type={data.loanType}
                                 getParams={() => ({
                                     price: data.price,
                                     downPct: Math.round((1 - data.ltv) * 100),
@@ -230,7 +230,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                                     term: data.termYears,
                                     taxRate: data.taxRate ?? 0.011,
                                     insRate: data.insRate ?? 0.003,
-                                    loanType: data.loanType === 'fha' ? 'fha' : 'conventional',
+                                    loanType: data.loanType,
                                 })}
                             />
                         ) : null}

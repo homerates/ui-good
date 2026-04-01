@@ -258,7 +258,7 @@ export interface ConvFhaPdfParams {
     term: number;       // years
     taxRate: number;
     insRate: number;
-    loanType: 'conventional' | 'fha';
+    loanType: 'conventional' | 'fha' | 'jumbo' | 'va';
 }
 
 export function ConvFhaPDF({ price, downPct, rate, term, taxRate, insRate, loanType }: ConvFhaPdfParams) {
@@ -275,7 +275,7 @@ export function ConvFhaPDF({ price, downPct, rate, term, taxRate, insRate, loanT
     const total    = pi + tax + ins + mip + pmi;
     const totalInt = Math.round(pi * termMo - loanAmt);
     const ltv      = (loanAmt / price) * 100;
-    const prog     = loanType === 'fha' ? 'FHA' : 'Conventional';
+    const prog     = loanType === 'fha' ? 'FHA' : loanType === 'jumbo' ? 'Jumbo' : loanType === 'va' ? 'VA' : 'Conventional';
 
     const scenario = `${f$(price)} home  ·  ${downPct}% down (${f$(downAmt)})  ·  ${fR(rate)}  ·  ${term}-year ${prog}`;
 
