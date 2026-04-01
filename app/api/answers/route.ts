@@ -4599,7 +4599,7 @@ ${dtiSection}
         // Tavily: city market + property listing details
         const [tavCity, tavAddress] = await Promise.all([
             askTavily(req, `${city} ${state} real estate market trends home prices inventory 2026`, { depth: 'basic', max: 5 }),
-            askTavily(req, `${addr} listing features year built panoramic ocean view ADU separate entrance status contingent`, { depth: 'basic', max: 5 }),
+            askTavily(req, `${addr} listing details year built sqft lot size features amenities`, { depth: 'basic', max: 5 }),
         ]);
         console.log(`[CMA Tavily] city=${city} cityOk=${tavCity.ok} cityAnswer=${!!tavCity.answer} addrOk=${tavAddress.ok} addrAnswer=${!!tavAddress.answer}`);
 
