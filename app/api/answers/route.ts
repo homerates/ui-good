@@ -4326,6 +4326,7 @@ ${uwAnswerText}`,
                 dscrSlider: calcCard.dscrSlider ?? null,
                 refiSlider: calcCard.refiSlider ?? null,
                 loanLimitsSlider: calcCard.loanLimitsSlider ?? null,
+                lenderChecklist: calcCard.lenderChecklist ?? null,
                 debug: {
                     requestedModel: 'calcEngine',
                     servedModel: calcDebugModel,
