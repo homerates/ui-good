@@ -3080,6 +3080,22 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
                 termMonths: monthsLeft,
                 closingCosts: effCosts,
             },
+            lenderChecklist: (() => {
+                const r = effNewRate / 100 / 12;
+                const n = monthsLeft;
+                const pow = Math.pow(1 + r, n);
+                const newPI = r > 0 ? (balance * r * pow) / (pow - 1) : balance / n;
+                return {
+                    loanType: 'conventional' as const,
+                    price: Math.round(balance * 1.25),
+                    loanAmount: balance,
+                    ltv: 0.75,
+                    marketRate: effNewRate,
+                    monthlyPITI: Math.round(newPI),
+                    termYears: Math.round(monthsLeft / 12),
+                    isInvestment: false,
+                };
+            })(),
             debug: {
                 bypass: "refi_advisor_v2",
                 refiType, verdict: vTitle,

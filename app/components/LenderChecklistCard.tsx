@@ -15,6 +15,10 @@ export interface LenderChecklistData {
     monthlyPITI: number;
     termYears:   number;
     isInvestment: boolean;
+    rent?:       number;   // monthly rent — DSCR only, needed for PDF
+    vacancyRate?: number;
+    taxRate?:    number;
+    insRate?:    number;
 }
 
 function fmt$(n: number) { return `$${Math.round(n).toLocaleString()}`; }
@@ -203,7 +207,20 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                         <span style={{ color: 'rgba(160,192,168,0.55)', fontSize: 11.5, lineHeight: 1.5 }}>
                             💡 Save this analysis as a PDF and share it with your lender.
                         </span>
-                        {data.loanType !== 'dscr' && (
+                        {data.loanType === 'dscr' && data.rent ? (
+                            <PdfDownloadButton
+                                type="dscr"
+                                getParams={() => ({
+                                    price: data.price,
+                                    rent: data.rent,
+                                    downPct: Math.round((1 - data.ltv) * 100),
+                                    rate: data.marketRate,
+                                    vacancyRate: data.vacancyRate ?? 0.05,
+                                    taxRate: data.taxRate ?? 0.011,
+                                    insRate: data.insRate ?? 0.005,
+                                })}
+                            />
+                        ) : data.loanType !== 'dscr' ? (
                             <PdfDownloadButton
                                 type={data.loanType === 'va' || data.loanType === 'jumbo' ? 'conventional' : data.loanType}
                                 getParams={() => ({
@@ -211,12 +228,12 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                                     downPct: Math.round((1 - data.ltv) * 100),
                                     rate: data.marketRate,
                                     term: data.termYears,
-                                    taxRate: 0.011,
-                                    insRate: 0.003,
+                                    taxRate: data.taxRate ?? 0.011,
+                                    insRate: data.insRate ?? 0.003,
                                     loanType: data.loanType === 'fha' ? 'fha' : 'conventional',
                                 })}
                             />
-                        )}
+                        ) : null}
                     </div>
                 </div>
             )}

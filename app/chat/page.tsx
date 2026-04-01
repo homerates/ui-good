@@ -391,6 +391,7 @@ type ApiResponse = {
         price: number; loanAmount: number; ltv: number;
         marketRate: number; monthlyPITI: number; termYears: number;
         isInvestment: boolean;
+        rent?: number; vacancyRate?: number; taxRate?: number; insRate?: number;
     } | null;
     propertyCard?: {
         source: string; url: string; parsedBy: string; parseWarnings: string[];

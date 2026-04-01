@@ -1644,6 +1644,10 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
             monthlyPITI: r.monthlyPITIA,
             termYears: 30,
             isInvestment: true,
+            rent: r.grossMonthlyRent,
+            vacancyRate: r.vacancyRate,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.011,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
         },
     };
 }

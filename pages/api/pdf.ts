@@ -24,13 +24,20 @@ import {
     type DscrPdfParams,
 } from '../../lib/pdf/HomePDF';
 
-const FILENAMES: Record<string, string> = {
-    refi:          'homerates-refi-analysis.pdf',
-    conventional:  'homerates-conventional-analysis.pdf',
-    fha:           'homerates-fha-analysis.pdf',
-    affordability: 'homerates-affordability-analysis.pdf',
-    dscr:          'homerates-dscr-analysis.pdf',
-};
+function buildFilename(type: string, params: Record<string, unknown>): string {
+    const fmt$ = (n: unknown) => n ? `$${Math.round(Number(n)).toLocaleString()}` : '';
+    const fmtPct = (n: unknown) => n ? `${Number(n).toFixed(2)}pct` : '';
+    switch (type) {
+        case 'conventional': return `homerates-conventional-${fmt$(params.price)}-${fmtPct(params.rate)}-${params.downPct ?? ''}pctdown.pdf`;
+        case 'fha':          return `homerates-fha-${fmt$(params.price)}-${fmtPct(params.rate)}-3.5pctdown.pdf`;
+        case 'va':           return `homerates-va-${fmt$(params.price)}-${fmtPct(params.rate)}.pdf`;
+        case 'jumbo':        return `homerates-jumbo-${fmt$(params.price)}-${fmtPct(params.rate)}.pdf`;
+        case 'refi':         return `homerates-refi-${fmt$(params.balance)}-${fmtPct(params.currentRate)}to${fmtPct(params.newRate)}.pdf`;
+        case 'affordability':return `homerates-affordability-${fmt$(params.annualIncome)}-income-${fmtPct(params.rate)}.pdf`;
+        case 'dscr':         return `homerates-dscr-${fmt$(params.price)}-${fmt$(params.rent)}rent-${fmtPct(params.rate)}.pdf`;
+        default:             return `homerates-${type}-analysis.pdf`;
+    }
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
@@ -63,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const buffer = await renderToBuffer(doc);
-        const filename = FILENAMES[type] ?? 'homerates-analysis.pdf';
+        const filename = buildFilename(type, params);
 
         // Upload to vault in background — never block the download
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';

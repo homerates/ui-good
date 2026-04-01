@@ -40,11 +40,14 @@ export default function PdfDownloadButton({ type, getParams, style }: PdfDownloa
                 return;
             }
 
+            const disposition = res.headers.get('Content-Disposition') ?? '';
+            const match = disposition.match(/filename="([^"]+)"/);
+            const filename = match?.[1] ?? `homerates-${type}-analysis.pdf`;
             const blob = await res.blob();
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement('a');
             a.href     = url;
-            a.download = `homerates-${type}-analysis.pdf`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
