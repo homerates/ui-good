@@ -27,6 +27,30 @@ function generateSlug(length = 7): string {
     return slug;
 }
 
+async function sendLoNotification(loEmail: string, borrowerName: string, preview: string, shareUrl: string): Promise<void> {
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    if (!RESEND_API_KEY) return;
+
+    await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            from: 'HomeRates.ai <digest@homerates.ai>',
+            to: [loEmail],
+            subject: `${borrowerName} just shared a mortgage analysis`,
+            html: `
+                <h2>${borrowerName} shared a conversation</h2>
+                ${preview ? `<p style="color:#555;font-style:italic;">"${preview}"</p>` : ''}
+                <p><a href="${shareUrl}" style="background:#3b82f6;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;">View Conversation</a></p>
+                <p style="color:#666;font-size:13px;">Your borrower shared this thread from HomeRates.ai.</p>
+            `,
+        }),
+    });
+}
+
 async function sendShareEmail(toEmail: string, shareUrl: string, senderName?: string): Promise<void> {
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     if (!RESEND_API_KEY) {
@@ -125,14 +149,43 @@ export async function POST(req: NextRequest) {
                 console.log("[Share] Email sent to:", email);
             } catch (emailErr: any) {
                 console.error("[Share] Email error:", emailErr.message);
-                // Don't fail the whole request if email fails
                 return NextResponse.json({
-                    ok: true,
-                    url: shareUrl,
-                    slug,
-                    emailSent: false,
-                    emailError: emailErr.message
+                    ok: true, url: shareUrl, slug,
+                    emailSent: false, emailError: emailErr.message
                 });
+            }
+        }
+
+        // ── LO notification — if sharer is a borrower, ping their LO ──────────
+        if (userId) {
+            try {
+                // Find borrower record by Clerk user id (stored as external_ref)
+                const { data: borrower } = await supabase!
+                    .from("borrowers")
+                    .select("id, name, loan_officer_id")
+                    .eq("external_ref", userId)
+                    .maybeSingle();
+
+                if (borrower?.loan_officer_id) {
+                    const { data: lo } = await supabase!
+                        .from("loan_officers")
+                        .select("email")
+                        .eq("id", borrower.loan_officer_id)
+                        .maybeSingle();
+
+                    if (lo?.email) {
+                        // Extract first user question from the thread
+                        const firstQ = (messages as any[]).find((m: any) => m.role === 'user')?.content ?? '';
+                        const preview = firstQ.length > 120 ? firstQ.slice(0, 120) + '…' : firstQ;
+                        const borrowerName = borrower.name ?? 'Your borrower';
+
+                        await sendLoNotification(lo.email, borrowerName, preview, shareUrl);
+                        console.log("[Share] LO notified:", lo.email);
+                    }
+                }
+            } catch (loErr: any) {
+                // Don't fail the share if LO notification fails
+                console.warn("[Share] LO notification error:", loErr.message);
             }
         }
 
