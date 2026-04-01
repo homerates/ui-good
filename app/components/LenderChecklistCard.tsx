@@ -203,15 +203,20 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                         <span style={{ color: 'rgba(160,192,168,0.55)', fontSize: 11.5, lineHeight: 1.5 }}>
                             💡 Save this analysis as a PDF and share it with your lender.
                         </span>
-                        <PdfDownloadButton
-                            type={data.loanType === 'dscr' ? 'dscr' : data.loanType}
-                            getParams={() => ({
-                                price: data.price,
-                                downPaymentPct: Math.round((1 - data.ltv) * 100),
-                                annualRatePct: data.marketRate,
-                                termYears: data.termYears,
-                            })}
-                        />
+                        {data.loanType !== 'dscr' && (
+                            <PdfDownloadButton
+                                type={data.loanType === 'va' || data.loanType === 'jumbo' ? 'conventional' : data.loanType}
+                                getParams={() => ({
+                                    price: data.price,
+                                    downPct: Math.round((1 - data.ltv) * 100),
+                                    rate: data.marketRate,
+                                    term: data.termYears,
+                                    taxRate: 0.011,
+                                    insRate: 0.003,
+                                    loanType: data.loanType === 'fha' ? 'fha' : 'conventional',
+                                })}
+                            />
+                        )}
                     </div>
                 </div>
             )}
