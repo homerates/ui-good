@@ -1,6 +1,6 @@
 # HomeRates.ai — UI Architecture Diagram
 
-> Generated: 2026-03-31 | Stack: Next.js 15 · React 18 · TypeScript 5 · Tailwind CSS 4 · Clerk · Supabase · Stripe
+> Generated: 2026-04-01 | Stack: Next.js 15 · React 18 · TypeScript 5 · Tailwind CSS 4 · Clerk · Supabase · Stripe · Rentcast · Resend
 
 ---
 
@@ -128,8 +128,14 @@ graph LR
     end
 
     subgraph PROPERTY["Property"]
-        PROP["/api/property/lookup\nZillow / Redfin data"]
+        PROP["/api/property/lookup\nZillow/Redfin/Realtor/Trulia + Rentcast address"]
         LIST["/api/listings/search"]
+    end
+
+    subgraph DIGEST["Digest & Borrowers"]
+        DRN["/api/digest/run\nRentcast AVM + Resend email + snapshot"]
+        DCR["/api/digest/cron\nVercel cron — monthly send"]
+        BOR["/api/borrowers\nGET list + PATCH address/digest/email"]
     end
 
     subgraph MARKET["Market Data"]
@@ -206,6 +212,9 @@ graph TB
         ANS2["user_answers\n(saved calcs)"]
         ALTS["alerts\n(price watches)"]
         SUBS["subscriptions\n(Stripe plans)"]
+        BRW["borrowers\n(property_address, digest_enabled)"]
+        SNP["homeowner_snapshots\n(monthly AVM, equity, refi_window)"]
+        DSN["digest_sends\n(send log)"]
     end
 
     subgraph AUTH["Clerk Auth"]
@@ -222,8 +231,10 @@ graph TB
 
     subgraph EXT["External APIs"]
         FRED2["FRED API\n30Y rates, treasury, econ"]
-        TAV2["Tavily Search\nComparables, listings"]
-        ZR["Zillow / Redfin\nOpenGraph property data"]
+        TAV2["Tavily Search\nComparables + blocked-site fallback"]
+        ZR["Zillow/Redfin/Realtor/Trulia\nProperty data (Tavily fallback for 403s)"]
+        RCT["Rentcast API\nAVM, listings, property details"]
+        RSN["Resend\nDigest + LO notification emails"]
         CLAUD2["Claude API (Anthropic)"]
         GROK2["Grok API (XAI)"]
     end
@@ -335,7 +346,9 @@ graph LR
 | Validation | Zod | 3.23.8 |
 | Markdown | react-markdown | 8.0.7 |
 | Query Parsing | Chevrotain | 11.0.3 |
-| Web Search | Tavily | 0.7.2 |
+| Web Search / Extraction | Tavily | 0.7.2 |
+| Property Data | Rentcast API | — |
+| Email | Resend | — |
 | Primary LLM | Claude (Anthropic) | latest |
 | Secondary LLM | Grok (XAI) | latest |
 | Hosting | Vercel | — |

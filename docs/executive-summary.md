@@ -1,5 +1,5 @@
 # HomeRates.ai — Executive Summary
-**March 2026 — Updated with Revenue Model & Five-Stream Business Architecture**
+**April 2026 — Updated with Digest Engine, Borrower Intelligence, and Property Lookup Expansion**
 
 ---
 
@@ -39,8 +39,14 @@ Users move sliders, see results recalculate live, and can fire a new "adjusted s
 ### 2026 Loan Limits Explorer (market differentiator)
 The only mortgage AI with a fully deterministic, interactive 2026 loan limits explorer covering all 58 California counties. Users can look up conforming/high-balance/jumbo zone thresholds, payment comparisons at each boundary, and "stay conforming" callouts — by ZIP code or county name. Uses live FRED rates. Zero LLM.
 
-### Property Intelligence — Sold & Off-Market Analysis
-Paste a Redfin URL for any sold or off-market property and instantly get a refi readiness analysis: estimated balance, current monthly payment at today's rate, breakeven, and an interactive LTV + closing cost slider. Detects listing status from the Redfin page itself (not third-party text) for accuracy.
+### Property Intelligence — Any Listing Site, Any Address
+Paste a Redfin, Zillow, Realtor.com, or Trulia URL — or type a plain street address — and instantly get a full property intelligence report: PITI breakdown, income required, estimated equity and balance, CMA highlights, market snapshot, and decision trade-offs. For sold/off-market properties, includes a refi readiness analysis with an interactive LTV + closing cost slider. Realtor.com and Trulia are handled via Tavily extraction when those sites block direct access.
+
+### Monthly Homeowner Digest
+LOs can enroll borrowers in an automated monthly email — sent on the 1st of each month — with their property's current AVM value, estimated equity, prevailing rate, and a refi window indicator. Data comes from Rentcast's AVM. LOs manage addresses and digest settings from the Borrowers page; manual sends are also available at any time.
+
+### Borrowers Dashboard (`/lo/borrowers`)
+LOs see their full borrower list, set or update each borrower's property address, toggle digest enrollment, and trigger one-click manual digests. When a borrower shares a chat thread, the LO automatically receives a notification email with the borrower's name, a preview of their question, and a link to the shared conversation.
 
 ### PDF Export (Account Feature)
 Any calculator result can be saved as a branded, fully-disclosed PDF report — shareable with a spouse, a realtor, or a lender. PDF export requires a free account, creating a natural registration hook tied to user value.
@@ -84,10 +90,13 @@ HomeRates.ai is not a lender, broker, or lead-generation tool. It earns trust by
 - **Live in production** on Vercel
 - **Five** interactive calculator modules operational end-to-end
 - CA 2026 Loan Limits Explorer — all 58 counties, ZIP lookup, county adjuster
-- Property Intelligence — Redfin sold/off-market detection, instant refi analysis
+- Property Intelligence — Redfin, Zillow, Realtor.com, Trulia, plain address input; sold/off-market refi analysis
+- Monthly Homeowner Digest — Rentcast AVM snapshots, equity tracking, refi window detection, automated Resend email, Vercel cron
+- Borrowers Dashboard — inline address editor, Send Digest button, LO notification on borrower share
 - Unified Refi Slider — LTV + closing cost sliders on all refi scenarios
 - PDF export live and auth-gated across all modules
-- Conversational AI routing: conventional, FHA, DSCR, VA, jumbo, refi, affordability, loan limits
+- Conversational AI routing: conventional, FHA, DSCR, VA, jumbo, refi, affordability, loan limits, property intelligence
+- Insurance rate: 0.3%/yr of home price across all calc cards (consistent, price-scaled)
 - Mobile-optimized: responsive layout, touch-optimized sliders, full-width cards
 - Full legal compliance posture: no NMLS, educational-only disclaimers on all outputs
 - Dark mode: full theme support including Clerk auth modals and legal pages
@@ -136,13 +145,17 @@ The calc-first architecture is a structural cost advantage: 80%+ of queries neve
 - LO Portal — borrower slots, invite links, billing dashboard
 - Rate and property watch alerts — email notifications for refi and rate targets
 - In-app Settings panel — account, plan, billing, and navigation in one place
+- Monthly digest engine — Rentcast AVM, Resend email, Vercel cron (1st of month)
+- Borrowers dashboard — address management, digest enrollment, manual send
+- LO notification on share — automatic email when a borrower shares a chat thread
 
 ---
 
 ## What's Next
 
 **Q2–Q3 2026**
-- Borrower list view with status and engagement tracking for LOs
+- Property address collection during borrower onboarding (currently set by LO on borrowers page)
+- Borrower engagement metrics — last active, chat count, digest open rate
 - Direct to Agent product launch
 - National loan limits expansion beyond California
 - HELOC and commercial DSCR modules

@@ -1,5 +1,5 @@
 # HomeRates.ai — Revenue Model & Financial Projections
-**Updated: March 2026**
+**Updated: April 2026**
 
 ---
 
@@ -51,11 +51,17 @@ HomeRates.ai operates across five distinct revenue streams, each targeting a dif
 **ARPU:** ~$79/LO/mo (blended)
 
 **Acquisition path:**
-1. LO discovers HomeRates.ai through a borrower sharing a PDF
+1. LO discovers HomeRates.ai through a borrower sharing a PDF or chat thread
 2. Wants to send their own clients to the platform
 3. Creates an account → gets a personalized invite link → borrowers onboard under their profile
+4. LO is notified by email whenever a borrower shares a conversation
 
-**Value prop for LO:** Clients come better prepared, fewer basic questions, higher conversion rate. The LO doesn't pay for software they don't use — it's tied directly to borrower activity.
+**Value prop for LO:** Clients come better prepared, fewer basic questions, higher conversion rate. The LO also gets:
+- **Monthly homeowner digest** — automated email to each borrower with their property value, equity, and refi window indicator (powered by Rentcast AVM)
+- **Borrowers dashboard** — full list view, inline address editing, one-click digest send
+- **Share notifications** — instant email when a borrower shares a chat thread
+
+The LO doesn't pay for software they don't use — it's tied directly to borrower activity.
 
 ---
 
