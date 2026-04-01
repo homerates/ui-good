@@ -386,6 +386,12 @@ type ApiResponse = {
         county: string; conformingLimit: number; nationalBaseline: number;
         price: number; downPct: number; taxRate: number; insRate: number; baseRate: number;
     } | null;
+    lenderChecklist?: {
+        loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
+        price: number; loanAmount: number; ltv: number;
+        marketRate: number; monthlyPITI: number; termYears: number;
+        isInvestment: boolean;
+    } | null;
     propertyCard?: {
         source: string; url: string; parsedBy: string; parseWarnings: string[];
         price: number | null; address: string | null;
