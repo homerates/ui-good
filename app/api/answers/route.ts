@@ -1117,7 +1117,7 @@ function extractDSCRParams(q: string, fredRate?: number) {
     const vacancyRate = vacancyMatch ? parseFloat(vacancyMatch[1]) / 100 : 0;
 
     const hasInfo = !!(purchasePrice && grossMonthlyRent);
-    return { purchasePrice, downPaymentPct, interestRate, grossMonthlyRent, vacancyRate, propertyTaxRate, annualInsurance: 1200, hoaMonthly, rateFromFRED, hasInfo };
+    return { purchasePrice, downPaymentPct, interestRate, grossMonthlyRent, vacancyRate, propertyTaxRate, annualInsurance: purchasePrice ? Math.round(purchasePrice * 0.003) : 1200, hoaMonthly, rateFromFRED, hasInfo };
 }
 
 function buildDSCRMarkdown(params: ReturnType<typeof extractDSCRParams>): object {
@@ -1129,7 +1129,7 @@ function buildDSCRMarkdown(params: ReturnType<typeof extractDSCRParams>): object
     const n = 360;
     const monthlyPI = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
     const monthlyTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const monthlyIns = (annualInsurance || 1200) / 12;
+    const monthlyIns = (annualInsurance || Math.round(purchasePrice * 0.003)) / 12;
     const monthlyHOA = hoaMonthly || 0;
     const monthlyPITIA = monthlyPI + monthlyTax + monthlyIns + monthlyHOA;
     // EGI = Effective Gross Income after vacancy loss

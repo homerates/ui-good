@@ -18,7 +18,8 @@ export const CONF_HIGH_BALANCE = 1249125;  // 2026 high-cost area ceiling (FHFA,
 export const PMI_RATE_STD = 0.0055;   // ~0.55%/yr PMI (LTV 90–95%)
 export const PMI_RATE_LOW = 0.0030;   // ~0.30%/yr PMI (LTV 80–90%)
 export const TAX_RATE_DEFAULT = 0.011;    // 1.1% property tax default
-export const INS_ANNUAL_DEFAULT = 1200;    // $1,200/yr homeowner's insurance
+export const INS_ANNUAL_DEFAULT = 1200;    // $1,200/yr — legacy flat default (kept for external callers)
+export const INS_RATE_DEFAULT   = 0.003;   // 0.30%/yr of home price — used as default when no annualInsurance passed
 
 // ─────────────────────────────────────────────
 // PRIMITIVE MATH — used by every calc
@@ -396,7 +397,7 @@ export function calcConventional(input: ConventionalInput): ConventionalResult {
         annualRatePct,
         termYears = 30,
         propertyTaxRate = TAX_RATE_DEFAULT * 100,
-        annualInsurance = INS_ANNUAL_DEFAULT,
+        annualInsurance,
         hoaMonthly = 0,
         monthlyDebts = 0,
         annualIncome,
@@ -409,7 +410,7 @@ export function calcConventional(input: ConventionalInput): ConventionalResult {
 
     const mPI = monthlyPI(loanAmount, annualRatePct, termMo);
     const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const mIns = annualInsurance / 12;
+    const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mPMI = monthlyPMI(loanAmount, ltv);
     const mHOA = hoaMonthly;
     const total = mPI + mTax + mIns + mPMI + mHOA;
@@ -465,7 +466,7 @@ export function calcFHA(input: FHAInput): FHAResult {
         termYears = 30,
         creditScore = 580,
         propertyTaxRate = TAX_RATE_DEFAULT * 100,
-        annualInsurance = INS_ANNUAL_DEFAULT,
+        annualInsurance,
         hoaMonthly = 0,
         monthlyDebts = 0,
         annualIncome,
@@ -490,7 +491,7 @@ export function calcFHA(input: FHAInput): FHAResult {
     const totalMIP = mMIP * mipMonths;
 
     const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const mIns = annualInsurance / 12;
+    const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mHOA = hoaMonthly;
     const total = mPI + mMIP + mTax + mIns + mHOA;
 
@@ -1022,7 +1023,7 @@ export function calcAffordabilityScenario(
 
     const mPI = monthlyPI(loanAmt, annualRatePct, n);
     const mTax = (homePrice * propertyTaxRate) / 12;
-    const mIns = INS_ANNUAL_DEFAULT / 12;
+    const mIns = Math.round(homePrice * INS_RATE_DEFAULT) / 12;
     // MIP on BASE loan
     const mMI = isFHA
         ? Math.round(baseLoan * FHA_MIP_RATE / 12)
@@ -1113,7 +1114,7 @@ export function calcDSCR(input: DSCRInput): DSCRResult {
         annualRatePct,
         vacancyRate = 0,
         propertyTaxRate = TAX_RATE_DEFAULT * 100,
-        annualInsurance = INS_ANNUAL_DEFAULT,
+        annualInsurance,
         hoaMonthly = 0,
     } = input;
 
@@ -1123,7 +1124,7 @@ export function calcDSCR(input: DSCRInput): DSCRResult {
 
     const mPI = monthlyPI(loanAmount, annualRatePct, termMo);
     const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const mIns = annualInsurance / 12;
+    const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mHOA = hoaMonthly;
     const mPITIA = mPI + mTax + mIns + mHOA;
 
@@ -1261,7 +1262,7 @@ export function calcVA(input: VAInput): VAResult {
         fundingFeeExempt = false,
         customFundingFeePct,
         propertyTaxRate = TAX_RATE_DEFAULT * 100,
-        annualInsurance = INS_ANNUAL_DEFAULT,
+        annualInsurance,
         hoaMonthly = 0,
         monthlyDebts = 0,
         annualIncome,
@@ -1286,7 +1287,7 @@ export function calcVA(input: VAInput): VAResult {
     // Monthly payment (P&I on total loan — funding fee rolled in)
     const mPI  = monthlyPI(totalLoanAmount, effectiveRate, termMo);
     const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const mIns = annualInsurance / 12;
+    const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mHOA = hoaMonthly;
     const total = mPI + mTax + mIns + mHOA; // no PMI
 
@@ -1405,7 +1406,7 @@ export function calcJumbo(input: JumboInput): JumboResult {
         annualRatePct,
         termYears = 30,
         propertyTaxRate = TAX_RATE_DEFAULT * 100,
-        annualInsurance = INS_ANNUAL_DEFAULT,
+        annualInsurance,
         hoaMonthly = 0,
         monthlyDebts = 0,
         annualIncome,
@@ -1421,7 +1422,7 @@ export function calcJumbo(input: JumboInput): JumboResult {
 
     const mPI  = monthlyPI(loanAmount, annualRatePct, termMo);
     const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const mIns = annualInsurance / 12;
+    const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mHOA = hoaMonthly;
     // No PMI — jumbo requires 20%+ down
     const total = mPI + mTax + mIns + mHOA;
