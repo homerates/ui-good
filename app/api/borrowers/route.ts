@@ -4,6 +4,52 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
 
+export async function GET() {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+    const supabase = getSupabaseServerClient();
+    const { data: lo } = await supabase.from("loan_officers").select("id").eq("user_id", userId).single();
+    if (!lo) return NextResponse.json({ error: "LO profile not found" }, { status: 400 });
+
+    const { data, error } = await supabase
+        .from("borrowers")
+        .select("id, name, email, property_address, digest_enabled, created_at")
+        .eq("loan_officer_id", lo.id)
+        .order("created_at", { ascending: false });
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ borrowers: data ?? [] });
+}
+
+export async function PATCH(req: NextRequest) {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+    const supabase = getSupabaseServerClient();
+    const { data: lo } = await supabase.from("loan_officers").select("id").eq("user_id", userId).single();
+    if (!lo) return NextResponse.json({ error: "LO profile not found" }, { status: 400 });
+
+    const body = await req.json().catch(() => null);
+    if (!body?.id) return NextResponse.json({ error: "borrower id required" }, { status: 400 });
+
+    const updates: Record<string, any> = {};
+    if (body.property_address !== undefined) updates.property_address = body.property_address;
+    if (body.digest_enabled   !== undefined) updates.digest_enabled   = body.digest_enabled;
+    if (body.email            !== undefined) updates.email            = body.email;
+
+    const { data, error } = await supabase
+        .from("borrowers")
+        .update(updates)
+        .eq("id", body.id)
+        .eq("loan_officer_id", lo.id)
+        .select()
+        .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ borrower: data });
+}
+
 function getSupabaseServerClient() {
     const supabaseUrl =
         process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
