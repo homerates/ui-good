@@ -4,6 +4,7 @@
 // to ask any lender, based on the borrower's specific scenario.
 
 import { useState } from 'react';
+import PdfDownloadButton from './PdfDownloadButton';
 
 export interface LenderChecklistData {
     loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
@@ -194,11 +195,23 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                         padding: '10px 14px',
                         background: 'rgba(148,163,184,0.06)',
                         borderRadius: 8,
-                        color: 'rgba(160,192,168,0.55)',
-                        fontSize: 11.5,
-                        lineHeight: 1.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
                     }}>
-                        💡 Save this analysis as a PDF and share it directly with your lender — it gives them everything they need to quote accurately without a credit pull first.
+                        <span style={{ color: 'rgba(160,192,168,0.55)', fontSize: 11.5, lineHeight: 1.5 }}>
+                            💡 Save this analysis as a PDF and share it with your lender.
+                        </span>
+                        <PdfDownloadButton
+                            type={data.loanType === 'dscr' ? 'dscr' : data.loanType}
+                            getParams={() => ({
+                                price: data.price,
+                                downPaymentPct: Math.round((1 - data.ltv) * 100),
+                                annualRatePct: data.marketRate,
+                                termYears: data.termYears,
+                            })}
+                        />
                     </div>
                 </div>
             )}
