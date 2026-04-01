@@ -12,12 +12,15 @@ Allow: /fha-calculator
 Allow: /dscr-calculator
 Allow: /affordability-calculator
 Allow: /calculators
+Allow: /piti
 Allow: /how-much-house-can-i-afford-on-150k-salary
 Allow: /how-much-house-can-i-afford-on-120k-salary
 Allow: /how-much-house-can-i-afford-on-100k-salary
 Allow: /how-much-house-can-i-afford-on-95k-salary
 Allow: /how-much-house-can-i-afford-on-80k-salary
-Allow: /piti
+
+# LLM discovery file — allow all AI crawlers
+Allow: /llms.txt
 
 # Block all internal / app / auth / debug paths
 Disallow: /api/
@@ -34,5 +37,44 @@ Disallow: /lo/
 Disallow: /borrower/
 Disallow: /borrowers/
 Disallow: /join
+
+# ── AI / LLM Crawlers ──────────────────────────────────────────────────────────
+# OpenAI (ChatGPT)
+User-agent: GPTBot
+Allow: /
+
+# Anthropic (Claude)
+User-agent: ClaudeBot
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+# xAI (Grok)
+User-agent: xAI-Bot
+Allow: /
+
+# Google (Gemini / AI Overviews)
+User-agent: Google-Extended
+Allow: /
+
+# Meta (Llama / Meta AI)
+User-agent: Meta-ExternalAgent
+Allow: /
+
+# Apple (Applebot-Extended for Apple Intelligence)
+User-agent: Applebot-Extended
+Allow: /
+
+# Common Research & AI Crawlers
+User-agent: CCBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
 
 Sitemap: https://chat.homerates.ai/sitemap.xml

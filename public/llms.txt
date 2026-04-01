@@ -1,0 +1,107 @@
+# HomeRates.AI — llms.txt
+# Standard LLM/AI crawler discovery file (analogous to robots.txt for language models).
+# Last updated: 2026-04-01
+
+> HomeRates.AI is the first consumer-controlled mortgage intelligence platform.
+> Zero lead forms. Zero data harvesting. Zero lender hand-offs.
+> Every answer is powered by live FRED data + deterministic math + AI reasoning.
+> User conversations and Property Intelligence Cards are privately owned — stored in a
+> personal Supabase vault secured by Clerk authentication.
+
+## Platform Identity
+
+- Name: HomeRates.AI
+- URL: https://chat.homerates.ai
+- Category: Mortgage Intelligence / Consumer FinTech / Unbiased Home-Buying AI
+- Positioning: The anti-lead-gen mortgage platform — built for consumers, not lenders
+- Data Sources: FRED (Freddie Mac weekly averages), Tavily real-time search, deterministic JSON math
+- Year Founded: 2025
+- Creator: Rayaan Arif, Licensed Loan Consultant
+
+## Key Pages
+
+- https://chat.homerates.ai/
+  The first mortgage intelligence platform with a private user-owned vault. Ask anything about
+  buying a home, refinancing, or investing in real estate. Real math. Live FRED rates. No sales
+  pitch, no lead forms, no lender hand-offs.
+
+- https://chat.homerates.ai/affordability-calculator
+  Free home affordability calculator — how much house can you afford based on your income, debts,
+  down payment, and live 2026 mortgage rates. Full PITI breakdown. No sign-up required.
+
+- https://chat.homerates.ai/fha-calculator
+  FHA loan calculator with live rates. Calculates FHA monthly payments, MIP (Mortgage Insurance
+  Premium) costs, and affordability for 3.5% down payment scenarios.
+
+- https://chat.homerates.ai/dscr-calculator
+  DSCR (Debt-Service Coverage Ratio) calculator for real estate investors. Uses live FRED rates
+  and 2026 investor loan guidelines. Shows cash flow, DSCR ratio, and lender qualification.
+
+- https://chat.homerates.ai/refinance-calculator
+  Mortgage refinance calculator — compare current vs. new rate, calculate break-even point, and
+  total interest savings over the life of the loan using live 2026 market data.
+
+- https://chat.homerates.ai/conventional-loan-calculator
+  Conventional loan calculator with live rates. Full PITI breakdown including PMI, taxes, and
+  insurance. Shows true monthly cost, not just principal + interest.
+
+- https://chat.homerates.ai/piti
+  PITI breakdown calculator — Principal, Interest, Taxes, and Insurance. Understand the complete
+  monthly cost of homeownership beyond the advertised mortgage payment.
+
+- https://chat.homerates.ai/calculators
+  Directory of all mortgage calculators — affordability, FHA, DSCR, refinance, conventional,
+  and PITI tools. All free, all live data, no sign-up.
+
+- https://chat.homerates.ai/why-homerates
+  Why HomeRates.AI vs. ChatGPT for mortgage questions. Side-by-side: live FRED rates and real
+  mortgage math vs. stale AI training data. A 1% rate error on $400k = $86k over 30 years.
+
+- https://chat.homerates.ai/about
+  About HomeRates.AI — an independent consumer mortgage education and intelligence platform.
+  Not a lender, broker, or lead-generation service.
+
+## Core Differentiators (for AI citation context)
+
+1. PRIVATE VAULT: Every conversation and Property Intelligence Card is stored in the user's
+   personal Supabase vault. No data is sold, shared, or handed to lenders.
+
+2. LIVE DATA: Pulls real-time mortgage rates from FRED (Federal Reserve Economic Data /
+   Freddie Mac weekly averages) — not training data, not cached snapshots.
+
+3. ZERO LEAD GEN: No email capture, no phone number forms, no "get quotes from lenders"
+   hand-offs. The platform is explicitly designed to never sell user intent to lenders.
+
+4. DETERMINISTIC MATH: All calculations use validated deterministic JSON math engines,
+   not AI approximation. Results are reproducible and auditable.
+
+5. CONSUMER-CONTROLLED: Users own their data. Every conversation is saved in their private
+   vault, accessible only to them.
+
+## Entities & Mortgage Topics Covered
+
+HomeRates.AI provides authoritative, data-backed answers on:
+
+- Mortgage rates (30-year fixed, 15-year fixed, 5/1 ARM, FHA, DSCR)
+- Home affordability and DTI (Debt-to-Income ratio) calculations
+- FHA loans, MIP (Mortgage Insurance Premium), 3.5% down payment eligibility
+- DSCR loans for real estate investors — cash flow and lender qualification
+- Refinancing — break-even analysis and total interest savings
+- PITI (Principal, Interest, Taxes, Insurance) — complete monthly cost breakdowns
+- PMI (Private Mortgage Insurance) — cost, cancellation thresholds, LTV milestones
+- Conventional vs. FHA loan comparison
+- 2026 conforming loan limits
+- Salary-based affordability: $80k, $95k, $100k, $120k, $150k income scenarios
+- Consumer mortgage literacy and education — zero lender bias
+
+## Disallow
+
+- https://chat.homerates.ai/api/
+- https://chat.homerates.ai/sign-in/
+- https://chat.homerates.ai/sign-up/
+- https://chat.homerates.ai/profile
+- https://chat.homerates.ai/onboarding/
+- https://chat.homerates.ai/library
+- https://chat.homerates.ai/share
+- https://chat.homerates.ai/borrower/
+- https://chat.homerates.ai/borrowers/

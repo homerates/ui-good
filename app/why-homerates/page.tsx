@@ -22,6 +22,77 @@ export const metadata: Metadata = {
     alternates: { canonical: 'https://chat.homerates.ai/why-homerates' },
 };
 
+const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "Why use HomeRates.AI instead of ChatGPT for mortgage questions?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "ChatGPT has no live rate data and relies on training data that can be 12–24 months out of date. HomeRates.AI pulls live mortgage rates from FRED (Freddie Mac weekly averages), runs deterministic mortgage math for PITI, DTI, DSCR, and PMI calculations, and never captures your data for lead generation. A 1% rate error on a $400,000 loan costs $86,000 over 30 years."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What are today's mortgage rates?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "HomeRates.AI pulls live rates from FRED (Federal Reserve Economic Data / Freddie Mac weekly averages) every time you ask. ChatGPT and other general AI tools quote rates from their training data, which is often 12–24 months stale. For accurate 2026 mortgage rates, use a platform connected to live market data."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How much house can I afford on my salary?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "HomeRates.AI calculates affordability by working backward from your actual income and debts using current DTI (Debt-to-Income) guidelines and 2026 conforming loan limits. General AI tools use national average rules of thumb that can over- or underestimate your actual ceiling by $50,000–$100,000."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is my real monthly mortgage payment including taxes and insurance?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Your true monthly cost is PITI — Principal, Interest, Taxes, Insurance, and PMI if applicable. HomeRates.AI calculates your full PITI using your actual numbers and live rates. Most AI tools estimate principal and interest only, missing $400–$800/month in real costs on a $400,000 home."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is an unbiased mortgage AI platform?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "An unbiased mortgage AI platform provides mortgage calculations and education without capturing user data for lead generation or handing users off to lenders. HomeRates.AI is specifically designed with zero lead forms, zero data harvesting, and zero lender hand-offs. Every conversation is stored in the user's private vault — not sold to mortgage companies."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is a private vault mortgage intelligence platform?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "HomeRates.AI stores every conversation and Property Intelligence Card in a personal Supabase vault secured by Clerk authentication. Unlike lead-gen mortgage sites that capture your data and sell it to lenders, your HomeRates.AI vault is privately owned — only you can access it."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Does HomeRates.AI sell my information to mortgage lenders?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. HomeRates.AI has zero lead forms, zero data harvesting, and zero lender hand-offs. The platform is explicitly built as the anti-lead-gen mortgage tool. Your conversations are stored in your private Supabase vault and are never sold, shared, or used to generate mortgage leads."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I calculate DSCR for a rental property?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "DSCR (Debt-Service Coverage Ratio) is calculated by dividing the property's gross rental income by its total monthly debt obligations. HomeRates.AI's DSCR calculator uses live FRED rates and 2026 investor loan guidelines to show your DSCR ratio, monthly cash flow, and lender qualification status. A DSCR above 1.25 typically qualifies for investment property loans."
+            }
+        }
+    ]
+};
+
 const COMPARISONS = [
     {
         question: 'What is my real monthly payment?',
@@ -102,6 +173,11 @@ const PILLARS = [
 
 export default function WhyHomeRates() {
     return (
+        <>
+        <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
         <main style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: '#0f172a', background: '#f8fafc', minHeight: '100dvh' }}>
 
             {/* ── Nav ── */}
@@ -209,5 +285,6 @@ export default function WhyHomeRates() {
             </section>
 
         </main>
+        </>
     );
 }

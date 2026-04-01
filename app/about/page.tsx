@@ -4,11 +4,71 @@ import PageShell from "../components/PageShell";
 
 export const metadata: Metadata = {
   title: "About HomeRates.ai",
-  description: "Learn what HomeRates.ai is, what it is for, and what it is not.",
+  description:
+    "HomeRates.AI is the first consumer-controlled mortgage intelligence platform. Zero lead forms, zero data harvesting, zero lender hand-offs. Learn what we are, what we are not, and why we built it.",
+  keywords: [
+    "about HomeRates.AI",
+    "consumer-controlled mortgage platform",
+    "unbiased mortgage AI",
+    "anti-lead-gen mortgage",
+    "private mortgage intelligence",
+    "mortgage education platform",
+  ],
+  alternates: { canonical: "https://chat.homerates.ai/about" },
+  openGraph: {
+    title: "About HomeRates.AI — Consumer-Controlled Mortgage Intelligence",
+    description:
+      "The first mortgage platform built for consumers, not lenders. Zero lead forms. Zero data harvesting. Zero lender hand-offs. Every conversation privately stored in your vault.",
+    url: "https://chat.homerates.ai/about",
+    siteName: "HomeRates.ai",
+    type: "website",
+  },
 };
+
+const aboutSchema = [
+  {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "@id": "https://chat.homerates.ai/about#webpage",
+    "url": "https://chat.homerates.ai/about",
+    "name": "About HomeRates.AI",
+    "description":
+      "HomeRates.AI is the first consumer-controlled mortgage intelligence platform. Zero lead forms, zero data harvesting, zero lender hand-offs.",
+    "isPartOf": {
+      "@id": "https://chat.homerates.ai/#webapp",
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://chat.homerates.ai/#organization",
+    "name": "HomeRates.AI",
+    "url": "https://chat.homerates.ai",
+    "description":
+      "HomeRates.AI is the first consumer-controlled mortgage intelligence platform. An independent educational platform built to help consumers understand mortgage concepts, affordability, and financing trade-offs — with zero lead generation, zero data harvesting, and zero lender hand-offs. Not a lender, broker, or mortgage company.",
+    "foundingDate": "2025",
+    "knowsAbout": [
+      "Mortgage education",
+      "Home affordability",
+      "FHA loans",
+      "DSCR loans",
+      "Mortgage refinancing",
+      "Consumer mortgage literacy",
+      "PITI calculations",
+      "Debt-to-income ratio",
+      "Private mortgage insurance",
+      "Conforming loan limits 2026",
+    ],
+  },
+];
 
 export default function AboutPage() {
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(aboutSchema) }}
+      />
     <PageShell backHref="/" backLabel="Home" maxWidth={760}>
       <h1>About HomeRates.ai</h1>
       <span className="page-updated">Last Updated: January 2026</span>
@@ -49,5 +109,6 @@ export default function AboutPage() {
         <p>For full details, please review the <a href="/disclosures">Terms &amp; Disclosures</a> and <a href="/privacy">Privacy &amp; Data Policy</a>.</p>
       </section>
     </PageShell>
+    </>
   );
 }

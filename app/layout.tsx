@@ -32,6 +32,11 @@ export const metadata = {
     "FHA loan",
     "refinance calculator",
     "mortgage rates",
+    "unbiased mortgage AI",
+    "consumer-controlled mortgage platform",
+    "anti-lead-gen mortgage",
+    "private vault mortgage intelligence",
+    "mortgage intelligence platform",
   ],
   authors: [{ name: "HomeRates.ai", url: BASE_URL }],
   creator: "HomeRates.ai",
@@ -78,6 +83,79 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Anti-flash: set theme BEFORE paint so there's no white flash on dark mode */}
         <head>
           <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('hr-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();` }} />
+          {/* Organization schema — global entity signal for LLMs & search engines */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "@id": "https://chat.homerates.ai/#organization",
+                "name": "HomeRates.AI",
+                "url": "https://chat.homerates.ai",
+                "logo": "https://chat.homerates.ai/assets/og-card.png",
+                "description": "HomeRates.AI is the first consumer-controlled mortgage intelligence platform. Zero lead forms, zero data harvesting, zero lender hand-offs. Powered by live FRED data, deterministic math, and AI reasoning. Every conversation is privately stored in the user's personal vault.",
+                "slogan": "The first mortgage intelligence platform that finally puts the consumer in control.",
+                "foundingDate": "2025",
+                "knowsAbout": [
+                  "Mortgage rates",
+                  "Home affordability",
+                  "FHA loans",
+                  "DSCR loans",
+                  "Mortgage refinancing",
+                  "Consumer mortgage education",
+                  "PITI calculations",
+                  "Conforming loan limits",
+                  "Debt-to-income ratio",
+                  "Private mortgage insurance"
+                ],
+                "sameAs": [
+                  "https://homerates.ai"
+                ],
+              })
+            }}
+          />
+          {/* WebApplication schema — describes the platform for AI/LLM citation */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "WebApplication",
+                "@id": "https://chat.homerates.ai/#webapp",
+                "name": "HomeRates.AI",
+                "url": "https://chat.homerates.ai",
+                "applicationCategory": "FinanceApplication",
+                "operatingSystem": "Web",
+                "offers": {
+                  "@type": "Offer",
+                  "price": "0",
+                  "priceCurrency": "USD",
+                  "description": "Free mortgage intelligence — no sign-up required for calculators"
+                },
+                "description": "The first unbiased mortgage intelligence platform. Pulls live FRED rate data, runs deterministic math calculations, and provides AI-powered mortgage guidance with zero lead generation, zero data harvesting, and zero lender hand-offs.",
+                "featureList": [
+                  "Live FRED mortgage rate data",
+                  "Deterministic mortgage math engine",
+                  "Private user-owned conversation vault",
+                  "Zero lead forms",
+                  "Zero lender hand-offs",
+                  "Home affordability calculator",
+                  "FHA loan calculator",
+                  "DSCR investment property calculator",
+                  "Refinance break-even calculator",
+                  "Conventional loan calculator",
+                  "PITI payment breakdown",
+                  "Clerk authentication",
+                  "Supabase private vault"
+                ],
+                "author": {
+                  "@type": "Organization",
+                  "@id": "https://chat.homerates.ai/#organization"
+                },
+              })
+            }}
+          />
         </head>
         <body className={`app ${inter.variable} ${syne.variable} ${dmMono.variable} ${dmSans.variable}`}>
           {children}
