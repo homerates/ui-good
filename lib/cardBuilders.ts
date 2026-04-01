@@ -100,6 +100,16 @@ export interface BuiltCard {
         insRate: number;
         baseRate: number;
     };
+    lenderChecklist?: {
+        loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
+        price:       number;
+        loanAmount:  number;
+        ltv:         number;
+        marketRate:  number;
+        monthlyPITI: number;
+        termYears:   number;
+        isInvestment: boolean;
+    };
 }
 
 // ─────────────────────────────────────────────
@@ -244,6 +254,13 @@ ${dtiSection}${incomeSection}
             taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
             insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
             loanType: 'conventional',
+        },
+        lenderChecklist: {
+            loanType: 'conventional',
+            price: r.purchasePrice, loanAmount: r.loanAmount,
+            ltv: r.ltv, marketRate: r.annualRatePct,
+            monthlyPITI: r.totalMonthly, termYears: r.termYears,
+            isInvestment: false,
         },
     };
 }
@@ -435,6 +452,13 @@ ${dtiSection}${incomeSection}${compSection}
             taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
             insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
             loanType: 'fha',
+        },
+        lenderChecklist: {
+            loanType: 'fha',
+            price: r.purchasePrice, loanAmount: r.baseLoanAmount,
+            ltv: r.ltv, marketRate: r.annualRatePct,
+            monthlyPITI: r.totalMonthly, termYears: r.termYears,
+            isInvestment: false,
         },
     };
 }
@@ -1587,6 +1611,16 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
             taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.011,
             insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
         },
+        lenderChecklist: {
+            loanType: 'dscr' as const,
+            price: r.purchasePrice,
+            loanAmount: r.loanAmount,
+            ltv: r.purchasePrice > 0 ? r.loanAmount / r.purchasePrice : 0.75,
+            marketRate: r.annualRatePct,
+            monthlyPITI: r.monthlyPITIA,
+            termYears: 30,
+            isInvestment: true,
+        },
     };
 }
 
@@ -2615,6 +2649,13 @@ ${buydownSection}${dtiSection}
             loanType:        'va' as const,
             vaFundingFeePct: r.isExempt ? 0 : r.fundingFeePct,
         },
+        lenderChecklist: {
+            loanType: 'va',
+            price: r.purchasePrice, loanAmount: r.totalLoanAmount,
+            ltv: r.ltv, marketRate: r.annualRatePct,
+            monthlyPITI: r.totalMonthly, termYears: r.termYears,
+            isInvestment: false,
+        },
     };
 }
 
@@ -2823,6 +2864,13 @@ ${dtiSection}
             taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
             insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
             loanType: 'jumbo' as const,
+        },
+        lenderChecklist: {
+            loanType: 'jumbo',
+            price: r.purchasePrice, loanAmount: r.loanAmount,
+            ltv: r.ltv, marketRate: r.annualRatePct,
+            monthlyPITI: r.totalMonthly, termYears: r.termYears,
+            isInvestment: false,
         },
     };
 }

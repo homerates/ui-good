@@ -32,6 +32,7 @@ import type { PropertyCardData } from '@/components/PropertyPreviewCard';
 import PropertyIntelligenceCard from '@/components/PropertyIntelligenceCard';
 import type { CMACardData } from '@/components/PropertyIntelligenceCard';
 import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
+import LenderChecklistCard from '@/components/LenderChecklistCard';
 import AlertBell from '@/components/AlertBell';
 import AlertSetupCard from '@/components/AlertSetupCard';
 import SettingsPanel from '@/components/SettingsPanel';
@@ -2717,6 +2718,10 @@ export default function Page() {
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
                                                             />
+                                                        )}
+                                                        {/* Lender checklist card */}
+                                                        {m.meta.lenderChecklist && !loading && typingId === null && (
+                                                            <LenderChecklistCard data={m.meta.lenderChecklist} />
                                                         )}
                                                         {/* Smart follow-up chips — only show when typewriter is done */}
                                                         {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && typingId === null && (
