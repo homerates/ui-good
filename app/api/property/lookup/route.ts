@@ -10,6 +10,7 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { fetchPropertyData } from '@/property/fetch';
+import { lookupTaxRate }     from '@/property/taxTable';
 
 // ── Historical 30yr fixed annual averages (FRED MORTGAGE30US) ──────────────
 const HIST_RATES: Record<number, number> = {
@@ -176,6 +177,66 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
     };
 }
 
+// ── Text-based property parser (for Tavily raw_content when direct fetch blocked) ─
+
+interface BasicFields {
+    price: number | null;
+    beds:  number | null;
+    baths: number | null;
+    sqft:  number | null;
+    address: string | null;
+    city:    string | null;
+    state:   string | null;
+    zip:     string | null;
+}
+
+function parsePropertyFromText(text: string): BasicFields {
+    const t = text.slice(0, 60_000);
+
+    // Price — "$1,250,000" or "$749K" or "$1.2M"
+    let price: number | null = null;
+    const priceMatches = [...t.matchAll(/\$\s*([\d,]+(?:\.\d+)?)\s*([KkMm]?)\b/g)];
+    for (const m of priceMatches) {
+        const raw = parseFloat(m[1].replace(/,/g, ''));
+        const suffix = m[2].toUpperCase();
+        const val = suffix === 'M' ? Math.round(raw * 1_000_000)
+                  : suffix === 'K' ? Math.round(raw * 1_000)
+                  : Math.round(raw);
+        if (val >= 50_000 && val <= 20_000_000) { price = val; break; }
+    }
+
+    // Beds / baths / sqft
+    const bedsM  = t.match(/(\d+(?:\.\d+)?)\s*(?:bedroom(?:s)?|bed(?:s)?|bd)\b/i);
+    const bathsM = t.match(/(\d+(?:\.\d+)?)\s*(?:bathroom(?:s)?|bath(?:s)?|ba)\b/i);
+    const sqftM  = t.match(/([\d,]+)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)/i);
+
+    const beds  = bedsM  ? parseFloat(bedsM[1])                   : null;
+    const baths = bathsM ? parseFloat(bathsM[1])                  : null;
+    const sqft  = sqftM  ? parseInt(sqftM[1].replace(/,/g, ''))   : null;
+
+    // Address — look for lines starting with a house number
+    let address: string | null = null;
+    let city:    string | null = null;
+    let state:   string | null = null;
+    let zip:     string | null = null;
+
+    for (const line of t.split(/\n+/)) {
+        const l = line.trim();
+        if (!/^\d+\s+[A-Za-z]/.test(l) || l.length > 120) continue;
+        // Full "123 Main St, City, CA 90001" pattern
+        const full = l.match(/^(\d[^,]+),\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/i);
+        if (full) {
+            address = `${full[1].trim()}, ${full[2].trim()}, ${full[3].toUpperCase()}${full[4] ? ' ' + full[4] : ''}`;
+            city    = full[2].trim();
+            state   = full[3].toUpperCase();
+            zip     = full[4] ?? null;
+            break;
+        }
+    }
+
+    return { price, beds, baths, sqft, address, city, state, zip };
+}
+
 // ── Tavily extract helper ───────────────────────────────────────────────────
 
 async function tavilyExtract(url: string): Promise<string | null> {
@@ -224,6 +285,40 @@ async function handleUrl(rawUrl: string) {
     const text     = tavilyText.status === 'fulfilled'  ? tavilyText.value   : null;
 
     if (!base || !base.ok) {
+        // Direct fetch blocked — fall back to Tavily text if available
+        if (text && text.length > 200) {
+            const tp  = parsePropertyFromText(text);
+            const ext = parseExtended(text, tp.price, tp.sqft);
+            if (tp.price || tp.address) {
+                const { rate } = lookupTaxRate(tp.state ?? '', null);
+                const siteLabel = /realtor\.com/i.test(url) ? 'realtor'
+                                : /trulia\.com/i.test(url)  ? 'unknown'
+                                : 'unknown';
+                return NextResponse.json({
+                    ok: true,
+                    data: {
+                        source:          siteLabel,
+                        url,
+                        parsedBy:        'partial' as const,
+                        parseWarnings:   ['Listing site blocked direct access — data extracted via Tavily'],
+                        price:           tp.price,
+                        address:         tp.address,
+                        city:            tp.city,
+                        state:           tp.state,
+                        zip:             tp.zip,
+                        county:          null,
+                        beds:            (tp.beds  != null && tp.beds  <= 20) ? tp.beds  : null,
+                        baths:           (tp.baths != null && tp.baths <= 20) ? tp.baths : null,
+                        sqft:            tp.sqft,
+                        annualTaxes:     (tp.price && rate) ? Math.round(tp.price * rate) : null,
+                        taxRateEffective: rate,
+                        taxSource:       'table' as const,
+                        photoUrl:        null,
+                        ...ext,
+                    },
+                });
+            }
+        }
         const err = base && !base.ok ? base : null;
         return NextResponse.json({
             ok: false,
