@@ -100,7 +100,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
     // No-cost toggle: +0.25% to new rate, $0 closing costs
     const effNewRate  = noCost ? parseFloat((newRate + 0.25).toFixed(3)) : newRate;
     const effClosing  = noCost ? 0 : closingCosts;
-    const termYears   = termMonths / 12;
+    const termYears   = Math.round(termMonths / 12);
 
     const calc = useMemo(() => {
         // Assume current loan was originally 30yr for remaining interest calc
