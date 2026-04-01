@@ -109,6 +109,10 @@ export interface BuiltCard {
         monthlyPITI: number;
         termYears:   number;
         isInvestment: boolean;
+        rent?:       number;
+        vacancyRate?: number;
+        taxRate?:    number;
+        insRate?:    number;
     };
 }
 
