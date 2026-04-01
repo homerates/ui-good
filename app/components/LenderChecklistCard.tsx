@@ -19,6 +19,7 @@ export interface LenderChecklistData {
     vacancyRate?: number;
     taxRate?:    number;
     insRate?:    number;
+    pdfType?:    'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr' | 'refi' | 'affordability'; // overrides loanType for PDF export
 }
 
 function fmt$(n: number) { return `$${Math.round(n).toLocaleString()}`; }
@@ -222,7 +223,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                             />
                         ) : data.loanType !== 'dscr' ? (
                             <PdfDownloadButton
-                                type={data.loanType}
+                                type={data.pdfType ?? data.loanType}
                                 getParams={() => ({
                                     price: data.price,
                                     downPct: Math.round((1 - data.ltv) * 100),
@@ -231,6 +232,12 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                                     taxRate: data.taxRate ?? 0.011,
                                     insRate: data.insRate ?? 0.003,
                                     loanType: data.loanType,
+                                    // affordability-specific
+                                    ...(data.pdfType === 'affordability' && {
+                                        annualIncome: Math.round(data.monthlyPITI / 0.43 * 12),
+                                        savings: 0,
+                                        monthlyDebts: 0,
+                                    }),
                                 })}
                             />
                         ) : null}

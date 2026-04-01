@@ -392,6 +392,7 @@ type ApiResponse = {
         marketRate: number; monthlyPITI: number; termYears: number;
         isInvestment: boolean;
         rent?: number; vacancyRate?: number; taxRate?: number; insRate?: number;
+        pdfType?: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr' | 'refi' | 'affordability';
     } | null;
     propertyCard?: {
         source: string; url: string; parsedBy: string; parseWarnings: string[];

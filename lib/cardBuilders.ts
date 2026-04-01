@@ -113,6 +113,7 @@ export interface BuiltCard {
         vacancyRate?: number;
         taxRate?:    number;
         insRate?:    number;
+        pdfType?:    'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr' | 'refi' | 'affordability';
     };
 }
 
@@ -1447,6 +1448,7 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
             if (!sc0) return undefined;
             return {
                 loanType: (sc0.isFHA ? 'fha' : 'conventional') as 'fha' | 'conventional',
+                pdfType: 'affordability' as const,
                 price: sc0.homePrice,
                 loanAmount: sc0.loanAmount,
                 ltv: sc0.homePrice > 0 ? sc0.loanAmount / sc0.homePrice : 0.965,

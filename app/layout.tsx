@@ -154,6 +154,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 `}}
           />
 
+          {/* Mobile footer auto-hide + composer follow: slide footer away on scroll-down, composer drops to edge */}
+          <script dangerouslySetInnerHTML={{ __html: `(function(){var lastY=0,ticking=false,footer=null;function f(){return footer||(footer=document.querySelector('.footer-meta'));}function update(y){var el=f();if(!el){ticking=false;return;}if(window.innerWidth>640){el.classList.remove('footer-meta--hidden');ticking=false;return;}var c=document.querySelector('.hr-composer');if(y>lastY+4){el.classList.add('footer-meta--hidden');if(c)c.classList.add('hr-composer--footer-hidden');}else if(y<lastY-4){el.classList.remove('footer-meta--hidden');if(c)c.classList.remove('hr-composer--footer-hidden');}lastY=y;ticking=false;}function attach(){var s=document.querySelector('.scroll');if(s){s.addEventListener('scroll',function(){if(!ticking){var y=s.scrollTop;requestAnimationFrame(function(){update(y);});ticking=true;}},{passive:true});}else{window.addEventListener('scroll',function(){if(!ticking){requestAnimationFrame(function(){update(window.scrollY);});ticking=true;}},{passive:true});}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',attach);}else{attach();}})();` }} />
+
         </body>
       </html>
     </ClerkProvider>
