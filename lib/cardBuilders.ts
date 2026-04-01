@@ -798,6 +798,16 @@ ${mipSection}${resetSection}${waitSection}
             closingCosts: r.closingCosts,
             ...(propertyValue != null && { propertyValue }),
         },
+        lenderChecklist: {
+            loanType: 'conventional' as const,
+            price: propertyValue ?? r.currentBalance * 1.25,
+            loanAmount: r.currentBalance,
+            ltv: propertyValue ? r.currentBalance / propertyValue : 0.75,
+            marketRate: r.newRatePct,
+            monthlyPITI: r.newMonthlyPI,
+            termYears: Math.round(r.refiTermMonths / 12),
+            isInvestment: false,
+        },
     };
 }
 
@@ -1426,6 +1436,20 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
                 taxRate: refPrice > 0 ? ((sc?.monthlyTax ?? sc0?.monthlyTax ?? 300) * 12) / refPrice : 0.012,
                 insRate: refPrice > 0 ? ((sc?.monthlyInsurance ?? sc0?.monthlyInsurance ?? 125) * 12) / refPrice : 0.005,
                 loanType: sc0?.isFHA ? 'fha' : 'conventional',
+            };
+        })(),
+        lenderChecklist: (() => {
+            const sc0 = r.scenarios[0];
+            if (!sc0) return undefined;
+            return {
+                loanType: (sc0.isFHA ? 'fha' : 'conventional') as 'fha' | 'conventional',
+                price: sc0.homePrice,
+                loanAmount: sc0.loanAmount,
+                ltv: sc0.homePrice > 0 ? sc0.loanAmount / sc0.homePrice : 0.965,
+                marketRate: r.rate,
+                monthlyPITI: sc0.totalMonthly,
+                termYears: 30,
+                isInvestment: false,
             };
         })(),
     };
