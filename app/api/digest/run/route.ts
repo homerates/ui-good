@@ -109,7 +109,7 @@ export async function POST(req: Request) {
     // Load borrower + LO
     const { data: borrower } = await db
         .from('borrowers')
-        .select('*, loan_officers(user_id, name, email)')
+        .select('*, loan_officers(user_id, email)')
         .eq('id', borrower_id)
         .single();
 
@@ -161,7 +161,7 @@ export async function POST(req: Request) {
         .limit(1)
         .single();
 
-    const loName  = (borrower.loan_officers as any)?.name  ?? 'Your Loan Officer';
+    const loName  = 'HomeRates.ai';
     const loEmail = (borrower.loan_officers as any)?.email ?? null;
 
     const emailData = {
