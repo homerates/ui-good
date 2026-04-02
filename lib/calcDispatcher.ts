@@ -337,15 +337,17 @@ export function isConventionalQuestion(q: string): boolean {
     if (isAffordabilityQuestion(q)) return false;
     if (isDSCRQuestion(q)) return false;
     const hasPrice = /\$\s*[\d,]+k?\b/i.test(q);
-    const hasMortgageCtx = /home|house|property|loan|mortgage|buying|purchase|condo|townhouse/i.test(q);
+    const hasMortgageCtx = /home|house|property|loan|mortgage|buying|purchase|condo|townhouse|payment|monthly|piti/i.test(q);
+    const hasDown = /\d+\s*%\s*down|\bdown\s*payment\b/i.test(q);
     const isIncomeQualify = /how much income|what income|what salary|income.*(?:need|qualify|required?)|(?:need|qualify).{0,20}income/i.test(q);
     // Dollar amount is salary/income not price — route to affordability
     const isSalaryAmount = /(?:qualify|afford|make|earn|salary|income)\s+(?:on\s+)?\$[\d,]+k?\b|\$[\d,]+k?\s+(?:salary|income|a year|\/year)/i.test(q);
     if (isSalaryAmount) return false;
     const hasRate = /\d+\.\d+\s*%|(?:rate|at)\s+\d+/i.test(q);
-    const hasDown = /\d+\s*%\s*down/i.test(q);
     // If income question BUT has specific price + rate + down → route to conventional for income calc
     if (isIncomeQualify && hasPrice && hasRate && hasDown) return true;
+    // Price + down% alone is sufficient for a mortgage calculation (no need for explicit loan-type word)
+    if (hasPrice && hasDown && !isIncomeQualify) return true;
     return (hasPrice && hasMortgageCtx && !isIncomeQualify);
 }
 
