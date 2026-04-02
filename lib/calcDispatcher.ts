@@ -304,7 +304,10 @@ function pullFromHistory(history: string, extractor: (t: string) => any) {
 // ─────────────────────────────────────────────
 
 export function isRefiQuestion(q: string): boolean {
-    return /refinance|refi\b|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left/i.test(q);
+    return /refinance|refi\b|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left/i.test(q) ||
+        // Rate-switch intent without the word "refi": "lower my rate", "drop to 5%", "switch to 5.5%", "afford to go from X% to Y%"
+        /(?:lower|reduce|drop|switch|change|go from).{0,30}(?:my\s+)?(?:rate|mortgage|payment).{0,30}\d+\.?\d*\s*%/i.test(q) ||
+        /\bfrom\s+\d+\.?\d*\s*%\s+to\s+\d+\.?\d*\s*%/i.test(q);
 }
 
 export function isFHAQuestion(q: string): boolean {
@@ -374,9 +377,11 @@ export function isAffordabilityQuestion(q: string): boolean {
     if (isRefiQuestion(q)) return false;
     const triggers = [
         /what can i afford/i,
-        /can i afford/i,
+        // "can I afford" only when paired with a home/property target — not "can I afford to refi"
+        /can i afford\b.{0,40}(?:home|house|property|to buy)/i,
         /how much (?:home|house|property) can i (?:afford|buy)/i,
-        /\bafford\b.{0,30}\$[\d,]+[kKmM]?/i,
+        // "afford a $1.8M home" pattern — requires mortgage context word after $amount
+        /\bafford\b.{0,30}\$[\d,]+[kKmM]?.{0,20}(?:home|house|property)/i,
         /first.?time (?:buyer|home)/i,
         /(?:my|our) budget/i,
         /buying power/i,
