@@ -374,7 +374,9 @@ export function isAffordabilityQuestion(q: string): boolean {
     if (isRefiQuestion(q)) return false;
     const triggers = [
         /what can i afford/i,
+        /can i afford/i,
         /how much (?:home|house|property) can i (?:afford|buy)/i,
+        /\bafford\b.{0,30}\$[\d,]+[kKmM]?/i,
         /first.?time (?:buyer|home)/i,
         /(?:my|our) budget/i,
         /buying power/i,
@@ -732,7 +734,7 @@ export function dispatch(
     }
 
     // ── 7. JUMBO ──
-    if (isJumboQuestion(q)) {
+    if (isJumboQuestion(q) && !isAffordabilityQuestion(q)) {
         const price = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
         if (!price) {
             return { type: 'jumbo_needs_input', params: null, confidence: 0, assumptions: [] };
@@ -767,7 +769,9 @@ export function dispatch(
 
     // ── 7. IMPLICIT JUMBO — must run BEFORE conventional so high-price questions
     //    like "$1.5M, 25% down" don't fall into the conventional path first.
-    {
+    //    Guard: skip if this is an affordability question — "can I afford $1.8M?" should
+    //    route to affordability, not jumbo.
+    if (!isAffordabilityQuestion(q)) {
         const _impliedPrice = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
         if (_impliedPrice && _impliedPrice > 833_000) {
             const _impliedDown = Math.max(20, extractDownPct(q) ?? 20);
