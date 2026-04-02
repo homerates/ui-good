@@ -11,7 +11,7 @@ export default function DisclosuresPage() {
   return (
     <PageShell backHref="/" backLabel="Home" maxWidth={760}>
       <h1>Terms &amp; Disclosures</h1>
-      <span className="page-updated">Last Updated: March 2026</span>
+      <span className="page-updated">Last Updated: April 2026</span>
 
       <p>HomeRates.ai is an independent educational platform designed to help consumers and professionals understand general mortgage concepts, terminology, affordability factors, and market dynamics. HomeRates.ai is <strong>not</strong> a mortgage lender, mortgage broker, or financial institution, and does <strong>not</strong> originate loans, provide credit decisions, or issue commitments to lend.</p>
       <p>By using HomeRates.ai, you acknowledge and agree to the following Terms &amp; Disclosures. If you do not agree with these terms, you should not use the service.</p>
@@ -100,7 +100,10 @@ export default function DisclosuresPage() {
 
       <section>
         <h2>14. Contact</h2>
-        <p><strong>Email:</strong> <a href="mailto:support@homerates.ai">support@homerates.ai</a></p>
+        <p><strong>HomeRatesAi LLC</strong><br />
+        1401 Pennsylvania Ave Suite 105A PMB 70722<br />
+        Wilmington, DE 19806<br />
+        <strong>Email:</strong> <a href="mailto:support@homerates.ai">support@homerates.ai</a></p>
       </section>
     </PageShell>
   );

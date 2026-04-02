@@ -11,7 +11,7 @@ export default function PrivacyPage() {
   return (
     <PageShell backHref="/" backLabel="Home" maxWidth={760}>
       <h1>Privacy &amp; Data Policy</h1>
-      <span className="page-updated">Last Updated: March 2026</span>
+      <span className="page-updated">Last Updated: April 2026</span>
 
       <p>HomeRates.ai respects the privacy of all users and is committed to maintaining appropriate safeguards for data processed through the platform. This policy explains what information we collect, how it is used, and how it is stored.</p>
 
@@ -85,7 +85,10 @@ export default function PrivacyPage() {
 
       <section>
         <h2>11. Contact</h2>
-        <p><strong>Email:</strong> <a href="mailto:support@homerates.ai">support@homerates.ai</a></p>
+        <p><strong>HomeRatesAi LLC</strong><br />
+        1401 Pennsylvania Ave Suite 105A PMB 70722<br />
+        Wilmington, DE 19806<br />
+        <strong>Email:</strong> <a href="mailto:support@homerates.ai">support@homerates.ai</a></p>
       </section>
     </PageShell>
   );

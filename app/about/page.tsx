@@ -11,9 +11,9 @@ export default function AboutPage() {
   return (
     <PageShell backHref="/" backLabel="Home" maxWidth={760}>
       <h1>About HomeRates.ai</h1>
-      <span className="page-updated">Last Updated: January 2026</span>
+      <span className="page-updated">Last Updated: April 2026</span>
 
-      <p>HomeRates.ai is an independent educational platform built to help consumers and professionals better understand mortgage concepts, affordability factors, and real-world financing tradeoffs. It is designed to answer questions, explain terminology, and make complex topics easier to understand before any formal conversation with a mortgage lender.</p>
+      <p>HomeRates.ai is a product of <strong>HomeRatesAi LLC</strong>, a Delaware limited liability company. It is an independent educational platform built to help consumers and professionals better understand mortgage concepts, affordability factors, and real-world financing tradeoffs. It is designed to answer questions, explain terminology, and make complex topics easier to understand before any formal conversation with a mortgage lender.</p>
 
       <section>
         <h2>What HomeRates.ai Is</h2>
@@ -47,6 +47,7 @@ export default function AboutPage() {
       <section>
         <h2>More Information</h2>
         <p>For full details, please review the <a href="/disclosures">Terms &amp; Disclosures</a> and <a href="/privacy">Privacy &amp; Data Policy</a>.</p>
+        <p>Questions? Contact us at <a href="mailto:support@homerates.ai">support@homerates.ai</a>.</p>
       </section>
     </PageShell>
   );
