@@ -737,23 +737,30 @@ export function dispatch(
         }
         const rate    = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
         const downPct = Math.max(20, extractDownPct(q) ?? 20);
-        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
-        if (downPct === 20) assumptions.push('down payment assumed 20% (jumbo minimum)');
+        const loanAmt = price * (1 - downPct / 100);
+        // If the actual loan amount falls within conforming limits, treat as conventional
+        // even though the user said "jumbo" — prevents mis-routing on $900k with 20% down
+        if (loanAmt <= 832_750) {
+            // fall through to conventional path
+        } else {
+            if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+            if (downPct === 20) assumptions.push('down payment assumed 20% (jumbo minimum)');
 
-        return {
-            type: 'jumbo',
-            params: {
-                purchasePrice:   price,
-                downPaymentPct:  downPct,
-                annualRatePct:   rate,
-                termYears:       30,
-                annualIncome:    extractIncome(q) ?? pullFromHistory(hist, extractIncome),
-                monthlyDebts:    extractMonthlyDebts(q),
-                propertyTaxRate: extractTaxRate(q) ?? extractTaxRate(hist),
-            } as JumboInput,
-            confidence: 1.0,
-            assumptions,
-        };
+            return {
+                type: 'jumbo',
+                params: {
+                    purchasePrice:   price,
+                    downPaymentPct:  downPct,
+                    annualRatePct:   rate,
+                    termYears:       30,
+                    annualIncome:    extractIncome(q) ?? pullFromHistory(hist, extractIncome),
+                    monthlyDebts:    extractMonthlyDebts(q),
+                    propertyTaxRate: extractTaxRate(q) ?? extractTaxRate(hist),
+                } as JumboInput,
+                confidence: 1.0,
+                assumptions,
+            };
+        }
     }
 
     // ── 7. IMPLICIT JUMBO — must run BEFORE conventional so high-price questions
