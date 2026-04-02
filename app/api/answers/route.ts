@@ -4238,7 +4238,7 @@ ${uwAnswerText}`,
                 calcCard = buildJumboAffordabilityCard({
                     purchasePrice: _jp.purchasePrice ?? 1_500_000,
                     downPaymentPct: _jp.downPaymentPct ?? 20,
-                    annualRatePct: _jp.annualRatePct ?? ((fred?.mort30Avg ?? 6.75) + 0.40),
+                    annualRatePct: _jp.annualRatePct ?? (fred?.mort30Avg ?? 6.75),
                     countyLimit: _jCountyLimit,
                     nationalBaseline: NATIONAL_CONFORMING_BASELINE.units1,
                     county: _jLimits?.county,
