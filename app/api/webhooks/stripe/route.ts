@@ -41,6 +41,14 @@ async function updateUserPlan(userId: string, plan: PlanKey, customerId: string,
     .eq("user_id", userId);
 }
 
+// Newer Stripe API versions (clover+) moved period fields — guard against undefined
+function safeTs(ts: unknown): string | null {
+  const n = typeof ts === 'number' ? ts : null;
+  if (!n) return null;
+  const d = new Date(n * 1000);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 async function upsertSubscription(
   subId: string,
   userId: string,
@@ -52,6 +60,11 @@ async function upsertSubscription(
   const priceId = sub.items.data[0]?.price?.id ?? "";
   const plan = getPlanFromPriceId(priceId);
 
+  // current_period_* may be on items in newer API versions
+  const item0 = sub.items.data[0] as any;
+  const periodStart = (sub as any).current_period_start ?? item0?.current_period?.start ?? item0?.period?.start ?? null;
+  const periodEnd   = (sub as any).current_period_end   ?? item0?.current_period?.end   ?? item0?.period?.end   ?? null;
+
   await sb.from("subscriptions").upsert(
     {
       id: subId,
@@ -59,10 +72,10 @@ async function upsertSubscription(
       status: sub.status,
       price_id: priceId,
       plan,
-      current_period_start: new Date((sub as unknown as { current_period_start: number }).current_period_start * 1000).toISOString(),
-      current_period_end:   new Date((sub as unknown as { current_period_end: number }).current_period_end * 1000).toISOString(),
+      current_period_start: safeTs(periodStart),
+      current_period_end:   safeTs(periodEnd),
       cancel_at_period_end: sub.cancel_at_period_end,
-      canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
+      canceled_at: safeTs(sub.canceled_at),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "id", ignoreDuplicates: false }
@@ -127,11 +140,13 @@ export async function POST(req: NextRequest) {
     if (session.subscription) {
       const sub = await getStripe().subscriptions.retrieve(session.subscription as string);
       const plan = await upsertSubscription(sub.id, userId, sub);
+      const item0 = sub.items.data[0] as any;
+      const _periodEnd = (sub as any).current_period_end ?? item0?.current_period?.end ?? item0?.period?.end ?? null;
       await updateUserPlan(
         userId,
         plan ?? "free",
         customerId,
-        new Date((sub as unknown as { current_period_end: number }).current_period_end * 1000)
+        _periodEnd ? new Date(_periodEnd * 1000) : null
       );
       console.log(`[stripe/webhook] provisioned plan=${plan} for user=${userId}`);
     }
@@ -156,11 +171,13 @@ export async function POST(req: NextRequest) {
       ? (plan ?? "free")
       : "free";
 
+    const _item0 = sub.items.data[0] as any;
+    const _pe = (sub as any).current_period_end ?? _item0?.current_period?.end ?? _item0?.period?.end ?? null;
     await updateUserPlan(
       userId,
       activePlan,
       customerId,
-      new Date((sub as unknown as { current_period_end: number }).current_period_end * 1000)
+      _pe ? new Date(_pe * 1000) : null
     );
     console.log(`[stripe/webhook] subscription updated → plan=${activePlan} user=${userId}`);
   }
