@@ -2675,7 +2675,7 @@ export default function Page() {
                                                             </>
                                                         )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
-                                                        {m.meta.interactiveSlider && !loading && typingId === null && (
+                                                        {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 onRunScenario={(seed, sliderParams) => {
