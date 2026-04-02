@@ -3777,11 +3777,12 @@ ${uwAnswerText}`,
     // catches natural follow-ups like "run my numbers", "calculate", "try at 7%" that isFollowUp misses
     const isDSCRFollowUp = snapshotLoanType === 'calcEngine-dscr' &&
         snapshotJson?.scenario_inputs &&
-        (calcDispatch.type === 'dscr_needs_input' || calcDispatch.type === 'no_calc_match');
+        // conventional drift: dispatch saw price+down% and routed to conventional, but snapshot was DSCR
+        (calcDispatch.type === 'dscr_needs_input' || calcDispatch.type === 'no_calc_match' || calcDispatch.type === 'conventional');
     const isSalaryFollowUp = /(?:qualify|afford|make|earn|salary|income)\s+(?:on\s+)?\$[\d,]+k?\b|\$[\d,]+k?\s+(?:salary|income|a year|\/year)/i.test(question);
     if ((isFollowUp || isDSCRFollowUp) && snapshotLoanType && !isSalaryFollowUp &&
         calcDispatch.type !== 'uw_starter' && calcDispatch.type !== 'lab' && calcDispatch.type !== 'about' && calcDispatch.type !== 'how_it_works' &&
-        !(calcDispatch.type === 'conventional' && calcDispatch.params) &&
+        !(calcDispatch.type === 'conventional' && calcDispatch.params && !isDSCRFollowUp) &&
         !(calcDispatch.type === 'refi' && isRefiHypothetical) &&
         (calcDispatch.type === 'no_calc_match' || calcDispatch.type !== snapshotLoanType.replace('calcEngine-', ''))) {
         if (snapshotLoanType === 'calcEngine-dscr' && snapshotJson?.scenario_inputs) {
