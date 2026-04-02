@@ -32,6 +32,7 @@ import type { PropertyCardData } from '@/components/PropertyPreviewCard';
 import PropertyIntelligenceCard from '@/components/PropertyIntelligenceCard';
 import type { CMACardData } from '@/components/PropertyIntelligenceCard';
 import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
+import JumboAffordabilitySliderCard from '@/components/JumboAffordabilitySliderCard';
 import LenderChecklistCard from '@/components/LenderChecklistCard';
 import AlertBell from '@/components/AlertBell';
 import AlertSetupCard from '@/components/AlertSetupCard';
@@ -385,6 +386,11 @@ type ApiResponse = {
     loanLimitsSlider?: {
         county: string; conformingLimit: number; nationalBaseline: number;
         price: number; downPct: number; taxRate: number; insRate: number; baseRate: number;
+    } | null;
+    jumboAffordabilitySlider?: {
+        price: number; downPct: number; baseRate: number;
+        countyLimit: number; nationalBaseline: number; county?: string;
+        taxRate: number; insRate: number;
     } | null;
     lenderChecklist?: {
         loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
@@ -2720,6 +2726,17 @@ export default function Page() {
                                                         {m.meta.loanLimitsSlider && !loading && typingId === null && (
                                                             <LoanLimitsSliderCard
                                                                 {...m.meta.loanLimitsSlider}
+                                                                onRunScenario={(seed, sliderParams) => {
+                                                                    pendingParamOverridesRef.current = sliderParams;
+                                                                    setPendingParamOverrides(sliderParams);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Jumbo affordability card */}
+                                                        {m.meta.jumboAffordabilitySlider && !loading && typingId === null && (
+                                                            <JumboAffordabilitySliderCard
+                                                                {...m.meta.jumboAffordabilitySlider}
                                                                 onRunScenario={(seed, sliderParams) => {
                                                                     pendingParamOverridesRef.current = sliderParams;
                                                                     setPendingParamOverrides(sliderParams);

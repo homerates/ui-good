@@ -29,6 +29,7 @@ import {
     JumboResult,
 } from './calcEngine';
 import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
+import { NATIONAL_CONFORMING_BASELINE } from './loanLimits2026';
 
 // ─────────────────────────────────────────────
 // FORMAT HELPERS
@@ -100,6 +101,16 @@ export interface BuiltCard {
         insRate: number;
         baseRate: number;
     };
+    jumboAffordabilitySlider?: {
+        price: number;
+        downPct: number;
+        baseRate: number;
+        countyLimit: number;
+        nationalBaseline: number;
+        county?: string;
+        taxRate: number;
+        insRate: number;
+    } | null;
     lenderChecklist?: {
         loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
         price:       number;
@@ -3021,6 +3032,234 @@ Use the **Loan Limits Explorer** below to slide price and down payment — zones
             taxRate,
             insRate,
             baseRate,
+        },
+    };
+}
+// ─────────────────────────────────────────────
+// JUMBO AFFORDABILITY CARD
+// ─────────────────────────────────────────────
+
+function _jCalcPI(principal: number, annualRate: number, termYears = 30): number {
+    if (principal <= 0 || annualRate <= 0) return 0;
+    const r = annualRate / 100 / 12;
+    const n = termYears * 12;
+    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+
+const _jFmt = (n: number) => {
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (abs >= 10_000)    return `${sign}$${Math.round(abs / 1000)}k`;
+    return `${sign}$${Math.round(abs).toLocaleString()}`;
+};
+const _jFLong = (n: number) => '$' + Math.round(n).toLocaleString();
+const _jFPct  = (n: number) => n.toFixed(2) + '%';
+
+type _JZone = 'conforming' | 'high_balance' | 'jumbo';
+
+const _JSPREADS: Record<_JZone, number> = {
+    conforming: 0,
+    high_balance: 0.25,
+    jumbo: 0.40,
+};
+const _JRESERVES: Record<_JZone, number> = {
+    conforming: 2,
+    high_balance: 4,
+    jumbo: 9,
+};
+const _JZONE_LABELS: Record<_JZone, string> = {
+    conforming: 'Conforming',
+    high_balance: 'High-Balance',
+    jumbo: 'Jumbo',
+};
+
+export function buildJumboAffordabilityCard(params: {
+    purchasePrice: number;
+    downPaymentPct: number;
+    annualRatePct: number;
+    countyLimit: number;
+    nationalBaseline: number;
+    county?: string;
+    taxRate: number;
+    insRate: number;
+    fredRateStr?: string;
+}): BuiltCard {
+    const {
+        purchasePrice: price,
+        downPaymentPct: downPct,
+        annualRatePct: baseRate,
+        countyLimit,
+        nationalBaseline,
+        county,
+        taxRate,
+        insRate,
+        fredRateStr,
+    } = params;
+
+    const loanAmount = price * (1 - downPct / 100);
+    const downAmount = price - loanAmount;
+    const ltv        = loanAmount / price;
+
+    const zone: _JZone =
+        loanAmount <= nationalBaseline ? 'conforming' :
+        loanAmount <= countyLimit      ? 'high_balance' :
+        'jumbo';
+
+    const spread        = _JSPREADS[zone];
+    const reserveMos    = _JRESERVES[zone];
+    const effectiveRate = baseRate + spread;
+
+    const monthlyPI    = _jCalcPI(loanAmount, effectiveRate);
+    const monthlyTax   = (price * taxRate) / 12;
+    const monthlyIns   = (price * insRate) / 12;
+    const monthlyPMI   = zone !== 'jumbo' && downPct < 20 ? (loanAmount * 0.008) / 12 : 0;
+    const totalMonthly = monthlyPI + monthlyTax + monthlyIns + monthlyPMI;
+
+    const incomeNeeded36 = (totalMonthly / 0.36) * 12;
+    const incomeNeeded43 = (totalMonthly / 0.43) * 12;
+
+    const reservesAmt   = totalMonthly * reserveMos;
+    const closingCosts  = zone === 'jumbo' ? price * 0.02 : price * 0.025;
+    const totalCash     = downAmount + closingCosts + reservesAmt;
+    const totalInterest = monthlyPI * 360 - loanAmount;
+
+    // Crossover math
+    const downToHB =
+        zone === 'jumbo'
+            ? Math.max(0, ((loanAmount - countyLimit) / price) * 100)
+            : 0;
+    const downToConforming =
+        zone !== 'conforming'
+            ? Math.max(0, ((loanAmount - nationalBaseline) / price) * 100)
+            : 0;
+
+    const savingsHB =
+        zone === 'jumbo'
+            ? (countyLimit * (_JSPREADS.jumbo - _JSPREADS.high_balance) / 100) * 12
+            : 0;
+    const savingsConforming =
+        zone !== 'conforming'
+            ? (nationalBaseline * (spread - _JSPREADS.conforming) / 100) * 12
+            : 0;
+
+    const zoneLabel     = _JZONE_LABELS[zone];
+    const countyDisplay = county
+        ? county.charAt(0) + county.slice(1).toLowerCase().replace(/_/g, ' ') + ' County'
+        : 'this area';
+    void countyDisplay;
+
+    const tierBadge = zone === 'conforming' ? '🟢' : zone === 'high_balance' ? '🟡' : '🔴';
+
+    const crossoverLines: string[] = [];
+    if (downToHB > 0)
+        crossoverLines.push(
+            `- **High-Balance crossover:** Add ${_jFPct(downToHB)} more down to reach high-balance — saves ~${_jFLong(Math.round(savingsHB))}/yr in interest.`
+        );
+    if (downToConforming > 0)
+        crossoverLines.push(
+            `- **Conforming crossover:** Add ${_jFPct(downToConforming)} more down to reach conforming — saves ~${_jFLong(Math.round(savingsConforming))}/yr in interest.`
+        );
+
+    const answer = [
+        `## ${tierBadge} ${zoneLabel} Loan — ${_jFmt(price)} Purchase`,
+        '',
+        `| | |`,
+        `|---|---|`,
+        `| Purchase Price | ${_jFLong(price)} |`,
+        `| Down Payment | ${downPct}% (${_jFLong(Math.round(downAmount))}) |`,
+        `| Loan Amount | ${_jFLong(Math.round(loanAmount))} |`,
+        `| LTV | ${_jFPct(ltv * 100)} |`,
+        `| Loan Zone | **${zoneLabel}** |`,
+        `| Base Rate | ${_jFPct(baseRate)} |`,
+        `| Zone Spread | +${_jFPct(spread)} |`,
+        `| Effective Rate | **${_jFPct(effectiveRate)}** |`,
+        '',
+        `### Monthly Payment`,
+        '',
+        `| | |`,
+        `|---|---|`,
+        `| Principal & Interest | ${_jFLong(Math.round(monthlyPI))} |`,
+        `| Property Tax (${_jFPct(taxRate * 100)}) | ${_jFLong(Math.round(monthlyTax))} |`,
+        `| Homeowner's Insurance | ${_jFLong(Math.round(monthlyIns))} |`,
+        ...(monthlyPMI > 0 ? [`| PMI | ${_jFLong(Math.round(monthlyPMI))} |`] : []),
+        `| **Total Monthly PITI** | **${_jFLong(Math.round(totalMonthly))}** |`,
+        '',
+        `### Annual Income Needed`,
+        '',
+        `| DTI | Annual Income |`,
+        `|---|---|`,
+        `| 36% (conservative) | ${_jFLong(Math.round(incomeNeeded36 / 1000) * 1000)} |`,
+        `| **43% (standard)** | **${_jFLong(Math.round(incomeNeeded43 / 1000) * 1000)}** |`,
+        '',
+        `### Cash at Close`,
+        '',
+        `| | |`,
+        `|---|---|`,
+        `| Down Payment | ${_jFLong(Math.round(downAmount))} |`,
+        `| Est. Closing Costs (${zone === 'jumbo' ? '2%' : '2.5%'}) | ${_jFLong(Math.round(closingCosts))} |`,
+        `| ${reserveMos}-Month Reserves Required | ${_jFLong(Math.round(reservesAmt))} |`,
+        `| **Total Cash Needed** | **${_jFLong(Math.round(totalCash))}** |`,
+        '',
+        crossoverLines.length > 0 ? `### Down Payment Crossovers\n\n${crossoverLines.join('\n')}` : '',
+        '',
+        `> **Est. total interest** over 30 years: ${_jFLong(Math.round(totalInterest))}`,
+        fredRateStr ? `\n**FRED rate snapshot:** ${fredRateStr}` : '',
+    ].filter(l => l !== undefined).join('\n').trim();
+
+    const chips = [
+        {
+            label: `Rate −0.5% → ${_jFPct(effectiveRate - 0.5)} — how much do I save?`,
+            seed: `Same ${_jFmt(price)} jumbo home but rate drops to ${_jFPct(effectiveRate - 0.5)} — what is the new monthly payment?`,
+            paramOverrides: { purchasePrice: price, downPaymentPct: downPct, annualRatePct: effectiveRate - 0.5 },
+        },
+        ...(downToHB > 0 ? [{
+            label: `${_jFPct(downToHB)} more down → High-Balance`,
+            seed: `What if I put ${_jFPct(downToHB)} more down on my ${_jFmt(price)} home to stay under the high-balance limit?`,
+            paramOverrides: { purchasePrice: price, downPaymentPct: Math.min(50, downPct + Math.ceil(downToHB)), annualRatePct: baseRate + _JSPREADS.high_balance },
+        }] : []),
+        ...(downPct < 20 ? [{
+            label: `20% down scenario — ${_jFmt(price)}`,
+            seed: `Run 20% down on a ${_jFmt(price)} ${zone} loan`,
+            paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: baseRate + spread },
+        }] : []),
+        {
+            label: `Income needed for ${_jFmt(price)} at 43% DTI`,
+            seed: `What annual income do I need to qualify for a ${_jFmt(price)} home with ${downPct}% down at ${_jFPct(effectiveRate)}?`,
+        },
+    ];
+
+    return {
+        answer,
+        next_step: `Get pre-approved with 2–3 jumbo lenders — rates vary significantly. Ask for APR, not just rate.`,
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `Jumbo affordability: ${_jFmt(price)} purchase, ${downPct}% down, ${_jFPct(effectiveRate)} → ${zoneLabel}, ${_jFLong(Math.round(totalMonthly))}/mo.`,
+            scenario_inputs: { price, down_pct: downPct, effective_rate: effectiveRate, zone, county },
+            computed_financials: { loan_amount: loanAmount, total_monthly: totalMonthly, income_needed_43: incomeNeeded43, total_cash: totalCash },
+            monthly_payment: Math.round(totalMonthly),
+        },
+        jumboAffordabilitySlider: {
+            price,
+            downPct,
+            baseRate,
+            countyLimit,
+            nationalBaseline,
+            county,
+            taxRate,
+            insRate,
+        },
+        lenderChecklist: {
+            loanType: 'jumbo',
+            price,
+            loanAmount: Math.round(loanAmount),
+            ltv,
+            marketRate: effectiveRate,
+            monthlyPITI: Math.round(totalMonthly),
+            termYears: 30,
+            isInvestment: false,
         },
     };
 }

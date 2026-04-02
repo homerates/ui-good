@@ -21,6 +21,7 @@ import {
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildVACard, buildVANeedsInputCard, buildJumboCard,
     buildLoanLimitsCard,
+    buildJumboAffordabilityCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
     buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
     buildUWStarterCard, buildHowItWorksCard, getContextChips,
@@ -4024,6 +4025,44 @@ ${uwAnswerText}`,
         }
     }
 
+    // ── Jumbo Affordability detection — fires before standard affordability ──
+    // Trigger when: question contains jumbo + afford/income/qualify keywords
+    //           OR  question mentions a price > $900k + afford/income/qualify keywords
+    if (!paramOverrides && calcDispatch.type !== 'jumbo_affordability') {
+        const _jqLower = question.toLowerCase();
+        const _jAffordKeywords = /afford|income|qualify|how much|can i/i.test(question);
+        const _jIsJumboKeyword = /\bjumbo\b/i.test(question);
+
+        // Detect prices like $1.2M, $1,500,000, 1.5 million, $1.5m
+        const _jHighPriceMatch = (() => {
+            // "$1.5M" / "$1.5m" / "$1,500,000" / "1.5 million"
+            const mM = question.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[mM]\b/);
+            if (mM) {
+                const v = parseFloat(mM[1].replace(/,/g, '')) * 1_000_000;
+                if (v > 900_000) return v;
+            }
+            const mMillion = question.match(/([\d,]+(?:\.\d+)?)\s*million/i);
+            if (mMillion) {
+                const v = parseFloat(mMillion[1].replace(/,/g, '')) * 1_000_000;
+                if (v > 900_000) return v;
+            }
+            const mPlain = question.match(/\$([\d,]{7,})/);
+            if (mPlain) {
+                const v = parseFloat(mPlain[1].replace(/,/g, ''));
+                if (v > 900_000) return v;
+            }
+            void _jqLower;
+            return null;
+        })();
+
+        if (_jAffordKeywords && (_jIsJumboKeyword || _jHighPriceMatch != null)) {
+            (calcDispatch as any).type = 'jumbo_affordability';
+            (calcDispatch as any).params = {
+                purchasePrice: _jHighPriceMatch ?? 1_500_000,
+            };
+        }
+    }
+
     const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
 
     // Helper: inject CMA chip onto any calc card.
@@ -4188,6 +4227,27 @@ ${uwAnswerText}`,
                 calcCard = buildVANeedsInputCard(fredRateForCard); // reuse needs-input pattern — jumbo-specific card optional later
                 calcDebugModel = 'jumbo_needs_input';
 
+            } else if (calcDispatch.type === 'jumbo_affordability') {
+                // ── Jumbo Affordability Slider Card ──
+                const _jp = (calcDispatch.params ?? {}) as any;
+                const _jCounty = _jp.county ?? null;
+                const _jLimits = _jCounty ? getCALoanLimits(_jCounty) : null;
+                const _jCountyLimit = _jLimits?.conformingLimit ?? NATIONAL_CONFORMING_BASELINE.units1;
+                const _jTaxRate = _jp.taxRate ?? (_jLimits ? getCACountyTaxRate(_jLimits.county) : null) ?? 0.011;
+                const _jInsRate = _jp.insRate ?? 0.003;
+                calcCard = buildJumboAffordabilityCard({
+                    purchasePrice: _jp.purchasePrice ?? 1_500_000,
+                    downPaymentPct: _jp.downPaymentPct ?? 20,
+                    annualRatePct: _jp.annualRatePct ?? ((fred?.mort30Avg ?? 6.75) + 0.40),
+                    countyLimit: _jCountyLimit,
+                    nationalBaseline: NATIONAL_CONFORMING_BASELINE.units1,
+                    county: _jLimits?.county,
+                    taxRate: _jTaxRate,
+                    insRate: _jInsRate,
+                    fredRateStr: fredRateForCard,
+                });
+                calcDebugModel = 'calcEngine-jumbo-affordability';
+
             } else if (calcDispatch.type === 'loan_limits') {
                 // ── California 2026 Loan Limits explorer ──
                 // Resolve county from: paramOverrides.loanLimitsCounty > question ZIP > question city/county > fallback LA
@@ -4342,6 +4402,7 @@ ${uwAnswerText}`,
                 dscrSlider: calcCard.dscrSlider ?? null,
                 refiSlider: calcCard.refiSlider ?? null,
                 loanLimitsSlider: calcCard.loanLimitsSlider ?? null,
+                jumboAffordabilitySlider: calcCard.jumboAffordabilitySlider ?? null,
                 lenderChecklist: calcCard.lenderChecklist ?? null,
                 debug: {
                     requestedModel: 'calcEngine',

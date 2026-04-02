@@ -58,6 +58,7 @@ export type CalcType =
     | 'fha_equity_timeline'
     | 'mip_duration_knowledge'
     | 'loan_limits'
+    | 'jumbo_affordability'
     | 'lab'
     | 'uw_starter'
     | 'about'
