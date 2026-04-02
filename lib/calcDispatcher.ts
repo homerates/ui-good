@@ -797,6 +797,35 @@ export function dispatch(
         };
     }
 
+    // ── 9. IMPLICIT JUMBO — high price without the word "jumbo" ──
+    // e.g. "$2M with 25% down", "run numbers on a $1.5M home"
+    // If extracted price × (1 - down%) > conforming limit, treat as jumbo calc.
+    {
+        const _impliedPrice = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        if (_impliedPrice && _impliedPrice > 833_000) {
+            const _impliedDown = Math.max(20, extractDownPct(q) ?? 20);
+            const _impliedLoan = _impliedPrice * (1 - _impliedDown / 100);
+            if (_impliedLoan > 832_750) {
+                const _iRate = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
+                if (_iRate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+                return {
+                    type: 'jumbo',
+                    params: {
+                        purchasePrice:   _impliedPrice,
+                        downPaymentPct:  _impliedDown,
+                        annualRatePct:   _iRate,
+                        termYears:       30,
+                        annualIncome:    extractIncome(q) ?? pullFromHistory(hist, extractIncome),
+                        monthlyDebts:    extractMonthlyDebts(q),
+                        propertyTaxRate: extractTaxRate(q) ?? extractTaxRate(hist),
+                    } as JumboInput,
+                    confidence: 0.9,
+                    assumptions,
+                };
+            }
+        }
+    }
+
     // No calc type matched — let UW / Grok handle it
     return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
 }
