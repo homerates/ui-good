@@ -2857,8 +2857,9 @@ ${dtiSection}
 2. Prepare 12–24 months bank statements and asset verification
 3. Factor in closing costs (~${fK(r.purchasePrice * 0.015)}–${fK(r.purchasePrice * 0.025)})`;
 
-    const priceUp   = Math.round(r.purchasePrice * 1.1 / 25000) * 25000;
-    const priceDown = Math.round(r.purchasePrice * 0.9 / 25000) * 25000;
+    // Round to nearest $100k so fK() always produces clean X.XM labels (avoids "2.3M" for 2.25M drift)
+    const priceUp   = Math.round(r.purchasePrice * 1.1 / 100_000) * 100_000;
+    const priceDown = Math.round(r.purchasePrice * 0.9 / 100_000) * 100_000;
     const rateDown  = parseFloat((r.annualRatePct - 0.5).toFixed(2));
     const altDown   = r.downPaymentPct < 30 ? 30 : r.downPaymentPct > 20 ? 20 : 25;
 
