@@ -122,6 +122,18 @@ export function detectLoanLimits(text: string): {
 
 function extractPrice(text: string): number | undefined {
     const t = text.toLowerCase();
+    // "$2M" / "$1.5M" / "$1.5m" / "$2.5m" — million shorthand
+    const mMatch = text.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[mM]\b/);
+    if (mMatch) {
+        const v = parseFloat(mMatch[1].replace(/,/g, '')) * 1_000_000;
+        if (v >= 500_000 && v <= 20_000_000) return v;
+    }
+    // "1.5 million" / "2 million"
+    const millionMatch = text.match(/([\d,]+(?:\.\d+)?)\s*million/i);
+    if (millionMatch) {
+        const v = parseFloat(millionMatch[1].replace(/,/g, '')) * 1_000_000;
+        if (v >= 500_000 && v <= 20_000_000) return v;
+    }
     // Full number: $515,000 or $1,200,000
     const fullMatch = text.match(/\$\s*([\d,]{6,})/);
     if (fullMatch) {
