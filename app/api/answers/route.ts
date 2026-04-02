@@ -4056,9 +4056,15 @@ ${uwAnswerText}`,
         })();
 
         if (_jAffordKeywords && (_jIsJumboKeyword || _jHighPriceMatch != null)) {
+            // Also try to parse down payment % from question: "25% down", "25 percent down", "25% down payment"
+            const _jDownMatch = question.match(/(\d{1,2})\s*%\s*(?:down(?:\s*payment)?|dp)\b/i)
+                             ?? question.match(/(\d{1,2})\s*percent\s+down/i);
+            const _jDownPct = _jDownMatch ? parseInt(_jDownMatch[1], 10) : undefined;
+
             (calcDispatch as any).type = 'jumbo_affordability';
             (calcDispatch as any).params = {
                 purchasePrice: _jHighPriceMatch ?? 1_500_000,
+                ...(_jDownPct != null && _jDownPct >= 5 && _jDownPct <= 50 ? { downPaymentPct: _jDownPct } : {}),
             };
         }
     }
