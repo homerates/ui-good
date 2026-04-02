@@ -248,6 +248,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
             purchasePrice: price,
             downPaymentPct: downPct,
             annualRatePct: calc.effectiveRate,
+            loanType: 'jumbo',
             county: county || undefined,
             taxRate,
             insRate,
