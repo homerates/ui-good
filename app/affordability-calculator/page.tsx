@@ -217,6 +217,14 @@ export default function AffordabilityCalculatorPage() {
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaBreadcrumb) }}
             />
 
+            {/* ── LOGO NAV ── */}
+            <nav className="ac-nav">
+                <Link href="/" className="ac-nav-logo">
+                    <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+                </Link>
+                <Link href="/chat" className="ac-nav-cta">Try the AI →</Link>
+            </nav>
+
             <main className="affordability-page">
 
                 {/* ── BREADCRUMB ── */}
@@ -489,98 +497,136 @@ export default function AffordabilityCalculatorPage() {
                 bleed into the main chat layout
             ── */}
             <style>{`
+                body:has(.ac-nav) {
+                    display: block !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                    background: #080c12 !important;
+                }
+                html:has(.ac-nav) {
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                body:has(.ac-nav) .app-footer { display: none; }
+
+                /* NAV */
+                .ac-nav {
+                    display: flex; align-items: center; justify-content: space-between;
+                    padding: 14px 40px;
+                    border-bottom: 1px solid rgba(255,255,255,0.07);
+                    background: #080c12;
+                    position: sticky; top: 0; z-index: 10;
+                    box-sizing: border-box;
+                }
+                .ac-nav-logo { display: flex; align-items: center; text-decoration: none; }
+                .ac-nav-logo img { height: 32px; width: auto; }
+                .ac-nav-cta {
+                    display: inline-flex; align-items: center;
+                    padding: 8px 20px;
+                    background: #00e87a; color: #080c12;
+                    border-radius: 999px; font-weight: 700; font-size: 13px;
+                    text-decoration: none; transition: opacity 0.2s;
+                    font-family: 'DM Sans', sans-serif;
+                }
+                .ac-nav-cta:hover { opacity: 0.88; }
+
                 .affordability-page {
                     max-width: 860px;
                     margin: 0 auto;
                     padding: 2rem 1.5rem 4rem;
-                    font-family: var(--font-sans, system-ui, sans-serif);
-                    color: var(--fg, #111827);
+                    font-family: 'DM Sans', sans-serif;
+                    color: #f0f4ff;
                     line-height: 1.6;
+                    background: #080c12;
                 }
 
                 /* Breadcrumb */
                 .breadcrumb ol {
                     display: flex; gap: 6px; list-style: none;
                     padding: 0; margin: 0 0 2rem; font-size: 13px;
-                    color: var(--muted, #6b7280);
+                    color: #3a4560; font-family: 'DM Mono', monospace;
                 }
                 .breadcrumb a { color: inherit; text-decoration: none; }
-                .breadcrumb a:hover { text-decoration: underline; }
-                .breadcrumb li[aria-current] { color: var(--fg, #111827); font-weight: 500; }
+                .breadcrumb a:hover { color: #6b7a99; }
+                .breadcrumb li[aria-current] { color: #6b7a99; font-weight: 500; }
 
                 /* Hero */
                 .hero { margin-bottom: 3rem; }
                 h1 {
                     font-size: clamp(1.75rem, 4vw, 2.5rem);
-                    font-weight: 700; line-height: 1.15;
+                    font-weight: 800; line-height: 1.15;
                     margin: 0 0 1rem; letter-spacing: -0.02em;
+                    font-family: 'Syne', sans-serif;
+                    color: #f0f4ff;
                 }
                 .hero-sub {
                     display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-                    font-weight: 400; color: var(--muted, #6b7280);
-                    margin-top: 0.25rem;
+                    font-weight: 500; color: #6b7a99;
+                    margin-top: 0.25rem; font-family: 'DM Sans', sans-serif;
                 }
                 .hero-lead {
                     font-size: 1.1rem; max-width: 640px;
-                    color: var(--muted2, #374151); margin: 0 0 1.25rem;
+                    color: #6b7a99; margin: 0 0 1.25rem;
                 }
                 .trust-bar {
                     display: flex; flex-wrap: wrap; gap: 10px;
                     margin-top: 0.75rem;
                 }
                 .trust-item {
-                    font-size: 13px; padding: 4px 12px;
-                    background: rgba(0,0,0,0.04);
-                    border-radius: 99px; border: 1px solid rgba(0,0,0,0.08);
-                    color: var(--muted2, #374151);
+                    font-size: 12px; padding: 4px 12px;
+                    background: rgba(255,255,255,0.04);
+                    border-radius: 99px; border: 1px solid rgba(255,255,255,0.08);
+                    color: #6b7a99; font-family: 'DM Mono', monospace;
                 }
 
                 /* Calculator embed */
                 .calculator-embed {
-                    background: var(--surface, #f9fafb);
-                    border-radius: 16px; border: 1px solid rgba(0,0,0,0.08);
+                    background: #0e1420;
+                    border-radius: 16px; border: 1px solid rgba(255,255,255,0.07);
                     padding: 2rem; margin-bottom: 3rem;
                 }
-                .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; }
-                .embed-header p { margin: 0 0 1.25rem; color: var(--muted, #6b7280); font-size: 0.95rem; }
+                .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; font-family: 'Syne', sans-serif; color: #f0f4ff; }
+                .embed-header p { margin: 0 0 1.25rem; color: #6b7a99; font-size: 0.95rem; }
                 .seed-chips {
                     display: flex; flex-wrap: wrap; gap: 8px;
                     align-items: center; margin-bottom: 1rem;
                 }
-                .seed-label { font-size: 13px; color: var(--muted, #6b7280); }
+                .seed-label { font-size: 12px; color: #3a4560; font-family: 'DM Mono', monospace; }
                 .seed-chip {
                     font-size: 13px; padding: 5px 13px;
-                    background: white; border-radius: 99px;
-                    border: 1px solid rgba(0,0,0,0.12);
-                    color: var(--fg, #111827); text-decoration: none;
-                    transition: border-color 0.15s;
+                    background: #141b28; border-radius: 99px;
+                    border: 1px solid rgba(255,255,255,0.1);
+                    color: #f0f4ff; text-decoration: none;
+                    transition: border-color 0.15s, background 0.15s;
                 }
-                .seed-chip:hover { border-color: rgba(0,0,0,0.3); }
+                .seed-chip:hover { border-color: rgba(0,232,122,0.4); background: rgba(0,232,122,0.05); }
                 .cta-block {
                     text-align: center; padding: 1.5rem 0 0.5rem;
                 }
                 .cta-button {
                     display: inline-block; padding: 14px 32px;
-                    background: #111827; color: #ffffff;
+                    background: #00e87a; color: #080c12;
                     border-radius: 999px; font-size: 1rem;
-                    font-weight: 600; text-decoration: none;
-                    transition: opacity 0.15s;
+                    font-weight: 700; text-decoration: none;
+                    transition: opacity 0.15s, transform 0.15s;
+                    font-family: 'DM Sans', sans-serif;
                 }
-                .cta-button:hover { opacity: 0.85; }
+                .cta-button:hover { opacity: 0.88; transform: translateY(-1px); }
                 .cta-sub {
                     margin: 10px 0 0; font-size: 13px;
-                    color: var(--muted, #6b7280);
+                    color: #3a4560;
                 }
-                .cta-sub a { color: var(--accent, #22c55e); }
+                .cta-sub a { color: #00e87a; }
 
                 /* Sections */
                 h2 {
                     font-size: clamp(1.2rem, 2.5vw, 1.6rem);
-                    font-weight: 600; margin: 0 0 0.75rem;
-                    letter-spacing: -0.01em;
+                    font-weight: 700; margin: 0 0 0.75rem;
+                    letter-spacing: -0.01em; font-family: 'Syne', sans-serif;
+                    color: #f0f4ff;
                 }
                 .section-lead {
-                    font-size: 1rem; color: var(--muted2, #374151);
+                    font-size: 1rem; color: #6b7a99;
                     margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65;
                 }
 
@@ -592,13 +638,15 @@ export default function AffordabilityCalculatorPage() {
                     gap: 14px;
                 }
                 .feature-card {
-                    background: var(--surface, #f9fafb);
+                    background: #0e1420;
                     border-radius: 12px; padding: 1.25rem;
-                    border: 1px solid rgba(0,0,0,0.07);
+                    border: 1px solid rgba(255,255,255,0.07);
+                    transition: border-color 0.2s;
                 }
+                .feature-card:hover { border-color: rgba(255,255,255,0.13); }
                 .feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
-                .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.4rem; }
-                .feature-card p { font-size: 0.88rem; color: var(--muted2, #374151); margin: 0; line-height: 1.55; }
+                .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.4rem; color: #f0f4ff; }
+                .feature-card p { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
 
                 /* Example table */
                 .example-table-section { margin-bottom: 3rem; }
@@ -608,68 +656,71 @@ export default function AffordabilityCalculatorPage() {
                     font-size: 0.9rem; min-width: 560px;
                 }
                 .example-table th {
-                    text-align: left; font-size: 0.78rem; font-weight: 600;
-                    color: var(--muted, #6b7280); padding: 8px 12px;
-                    border-bottom: 1.5px solid rgba(0,0,0,0.1);
-                    background: var(--surface, #f9fafb);
-                    text-transform: uppercase; letter-spacing: 0.04em;
+                    text-align: left; font-size: 0.75rem; font-weight: 600;
+                    color: #3a4560; padding: 8px 12px;
+                    border-bottom: 1px solid rgba(255,255,255,0.07);
+                    background: #0e1420;
+                    text-transform: uppercase; letter-spacing: 0.08em;
+                    font-family: 'DM Mono', monospace;
                 }
-                .example-table td { padding: 10px 12px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+                .example-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #6b7a99; }
                 .example-table tr:last-child td { border-bottom: none; }
-                .income-cell { font-weight: 600; }
-                .price-cell { font-weight: 500; color: var(--accent2, #059669); }
-                .table-note { font-size: 0.8rem; color: var(--muted, #6b7280); margin: 0; line-height: 1.5; }
+                .income-cell { font-weight: 600; color: #f0f4ff !important; }
+                .price-cell { font-weight: 600; color: #00e87a !important; }
+                .table-note { font-size: 0.8rem; color: #3a4560; margin: 0; line-height: 1.5; font-family: 'DM Mono', monospace; }
 
                 /* How it works */
                 .how-it-works { margin-bottom: 3rem; }
                 .steps-list { padding-left: 1.25rem; margin: 0; }
-                .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: var(--muted2, #374151); }
-                .steps-list strong { color: var(--fg, #111827); }
+                .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #6b7a99; }
+                .steps-list strong { color: #f0f4ff; }
 
                 /* Author / E-E-A-T */
                 .author-section {
-                    background: var(--surface, #f9fafb);
+                    background: #0e1420;
                     border-radius: 12px; padding: 1.5rem;
-                    border: 1px solid rgba(0,0,0,0.07);
+                    border: 1px solid rgba(255,255,255,0.07);
                     margin-bottom: 3rem;
                 }
                 .author-card { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 1rem; }
                 .author-avatar {
                     width: 44px; height: 44px; border-radius: 50%;
-                    background: #dcfce7; display: flex;
-                    align-items: center; justify-content: center;
-                    font-weight: 600; font-size: 14px; color: #166534;
-                    flex-shrink: 0;
+                    background: rgba(0,232,122,0.12);
+                    border: 1px solid rgba(0,232,122,0.3);
+                    display: flex; align-items: center; justify-content: center;
+                    font-weight: 700; font-size: 14px; color: #00e87a;
+                    flex-shrink: 0; font-family: 'DM Mono', monospace;
                 }
-                .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
-                .author-cred { font-size: 0.82rem; color: var(--muted, #6b7280); margin-bottom: 0.4rem; }
-                .author-bio { font-size: 0.88rem; color: var(--muted2, #374151); margin: 0; line-height: 1.55; }
-                .last-updated { font-size: 0.8rem; color: var(--muted, #6b7280); margin: 0 0 0.5rem; }
-                .disclaimer { font-size: 0.8rem; color: var(--muted, #6b7280); margin: 0; line-height: 1.55; }
+                .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; color: #f0f4ff; }
+                .author-cred { font-size: 0.82rem; color: #6b7a99; margin-bottom: 0.4rem; }
+                .author-bio { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .last-updated { font-size: 0.8rem; color: #3a4560; margin: 0 0 0.5rem; font-family: 'DM Mono', monospace; }
+                .disclaimer { font-size: 0.8rem; color: #3a4560; margin: 0; line-height: 1.55; }
 
                 /* FAQ */
                 .faq-section { margin-bottom: 3rem; }
                 .faq-list { display: flex; flex-direction: column; gap: 8px; }
                 .faq-item {
-                    border: 1px solid rgba(0,0,0,0.08);
+                    border: 1px solid rgba(255,255,255,0.07);
                     border-radius: 10px; overflow: hidden;
-                    background: white;
+                    background: #0e1420; transition: border-color 0.2s;
                 }
+                .faq-item[open] { border-color: rgba(255,255,255,0.13); }
                 .faq-question {
                     padding: 1rem 1.25rem; font-weight: 500;
                     font-size: 0.95rem; cursor: pointer;
                     list-style: none; display: flex;
                     justify-content: space-between; align-items: center;
-                    color: var(--fg, #111827);
+                    color: #f0f4ff;
                 }
-                .faq-question::after { content: '+'; font-size: 1.2rem; color: var(--muted, #6b7280); }
+                .faq-question::-webkit-details-marker { display: none; }
+                .faq-question::after { content: '+'; font-size: 1.2rem; color: #3a4560; }
                 details[open] .faq-question::after { content: '−'; }
                 .faq-answer {
-                    padding: 0 1.25rem 1rem; margin: 0;
-                    font-size: 0.9rem; color: var(--muted2, #374151);
+                    padding: 0.75rem 1.25rem 1rem; margin: 0;
+                    font-size: 0.9rem; color: #6b7a99;
                     line-height: 1.65;
-                    border-top: 1px solid rgba(0,0,0,0.06);
-                    padding-top: 0.75rem;
+                    border-top: 1px solid rgba(255,255,255,0.06);
                 }
 
                 /* Related */
@@ -681,26 +732,26 @@ export default function AffordabilityCalculatorPage() {
                 }
                 .related-card {
                     display: block; padding: 1.1rem 1.25rem;
-                    border: 1px solid rgba(0,0,0,0.1);
+                    border: 1px solid rgba(255,255,255,0.07);
                     border-radius: 12px; text-decoration: none;
-                    color: var(--fg, #111827); background: white;
-                    transition: border-color 0.15s, box-shadow 0.15s;
+                    color: #f0f4ff; background: #0e1420;
+                    transition: border-color 0.2s, transform 0.15s;
                 }
                 .related-card:hover {
-                    border-color: rgba(34,197,94,0.5);
-                    box-shadow: 0 2px 12px rgba(34,197,94,0.08);
+                    border-color: rgba(0,232,122,0.35);
+                    transform: translateY(-1px);
                 }
-                .related-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; }
-                .related-desc { font-size: 0.83rem; color: var(--muted, #6b7280); line-height: 1.5; }
+                .related-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; color: #f0f4ff; }
+                .related-desc { font-size: 0.83rem; color: #6b7a99; line-height: 1.5; }
 
                 /* Responsive */
                 @media (max-width: 600px) {
+                    .ac-nav { padding: 14px 20px; }
                     .affordability-page { padding: 1.25rem 1rem 3rem; }
                     .trust-bar { gap: 6px; }
-                    .trust-item { font-size: 12px; padding: 3px 10px; }
+                    .trust-item { font-size: 11px; padding: 3px 10px; }
                     .calculator-embed { padding: 1.25rem; }
                     .features-grid { grid-template-columns: 1fr; }
-                    .chat-iframe { height: 400px; }
                 }
             `}</style>
         </>
