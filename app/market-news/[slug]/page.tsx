@@ -21,6 +21,28 @@ async function getDbArticle(slug: string) {
   } catch { return null; }
 }
 
+async function getDbRelated(slug: string, limit = 3) {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { data } = await sb
+      .from('generated_articles')
+      .select('slug, title, excerpt, tag, published_at, read_time')
+      .eq('category', 'market-news')
+      .eq('status', 'published')
+      .neq('slug', slug)
+      .order('published_at', { ascending: false })
+      .limit(limit);
+    return (data ?? []).map((a) => ({
+      slug: a.slug,
+      title: a.title,
+      tag: a.tag ?? 'Market News',
+      date: new Date(a.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      readTime: `${a.read_time ?? 5} min read`,
+    }));
+  } catch { return []; }
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -119,7 +141,12 @@ export default async function MarketNewsArticle({
   const tagColor = TAG_COLORS[article.tag] ?? '#6b7a99';
   const bodyHtml = renderMarkdown(article.body.trim());
 
-  const related = marketNewsArticles.filter((a) => a.slug !== slug).slice(0, 3);
+  const dbRelated = await getDbRelated(slug, 3);
+  const staticRelated = marketNewsArticles.filter((a) => a.slug !== slug).slice(0, Math.max(0, 3 - dbRelated.length));
+  const related = [
+    ...dbRelated,
+    ...staticRelated.map((a) => ({ slug: a.slug, title: a.title, tag: a.tag, date: a.date, readTime: a.readTime })),
+  ].slice(0, 3);
 
   return (
     <>
