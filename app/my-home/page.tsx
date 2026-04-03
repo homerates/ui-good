@@ -186,7 +186,7 @@ export default function MyHomePage() {
           {/* UNAUTHENTICATED */}
           <SignedOut>
             <div className="mh-signin-box">
-              <h2>Your Home, Tracked for Free</h2>
+              <h2>Your Home, Analyzed for Free</h2>
               <p>Sign in to save your property, monitor equity, and get a monthly digest — no agent or lender required.</p>
               <SignInButton mode="modal">
                 <button className="mh-signin-cta">Sign In — See My Home Value</button>
@@ -204,7 +204,7 @@ export default function MyHomePage() {
                   <h1>My Home</h1>
                   <p>
                     {user?.firstName ? `Welcome back, ${user.firstName}.` : 'Welcome back.'}{' '}
-                    {hasAddress ? 'Your property is tracked below.' : 'Add your address to get started.'}
+                    {hasAddress ? 'Your property analysis is below.' : 'Add your address to get started.'}
                   </p>
                 </div>
 
