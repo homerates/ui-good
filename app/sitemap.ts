@@ -1,4 +1,6 @@
 import { MetadataRoute } from 'next';
+import { knowledgeHubArticles } from './knowledge-hub/articles';
+import { marketNewsArticles } from './market-news/articles';
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const base = 'https://chat.homerates.ai';
@@ -72,6 +74,34 @@ export default function sitemap(): MetadataRoute.Sitemap {
             changeFrequency: 'monthly' as const,
             priority: 0.8,
         },
+
+        // Knowledge Hub landing + articles
+        {
+            url: `${base}/knowledge-hub`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly',
+            priority: 0.8,
+        },
+        ...knowledgeHubArticles.map((a) => ({
+            url: `${base}/knowledge-hub/${a.slug}`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly' as const,
+            priority: 0.7,
+        })),
+
+        // Market News landing + articles
+        {
+            url: `${base}/market-news`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly',
+            priority: 0.8,
+        },
+        ...marketNewsArticles.map((a) => ({
+            url: `${base}/market-news/${a.slug}`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly' as const,
+            priority: 0.75,
+        })),
 
         // Income cluster pages
         {
