@@ -4849,6 +4849,7 @@ Output JSON:
     // ========== AFFORDABILITY ADVISOR CHECK ==========
     // Guard: homeowner analysis queries must never be caught by affordability
     const isHomeownerAnalysisQuery = /homeowner analysis|run a complete.*analysis.*for|complete homeowner/i.test(question);
+    let homeownerSnapshot: Record<string, any> | null = null;
 
     // ── HOMEOWNER ANALYSIS: fetch Rentcast AVM + inject into Grok context ──────
     if (isHomeownerAnalysisQuery && !mortgageCalcContext) {
@@ -4912,6 +4913,21 @@ Output JSON:
 - Est. Equity: ${fmt(estimatedEquity)}
 - Today's 30Y Fixed Rate (FRED): ${liveRate}%
 CRITICAL: Use Rentcast AVM value (${fmt(estimatedValue)}) as the property value. Do NOT substitute generic market estimates or ranges from your training data.`;
+                        homeownerSnapshot = {
+                            address: prop?.formattedAddress ?? hoAddr,
+                            estimatedValue,
+                            estimatedValueLow,
+                            estimatedValueHigh,
+                            estimatedBalance,
+                            estimatedEquity,
+                            purchaseRate,
+                            lastSalePrice,
+                            lastSaleDate,
+                            liveRate,
+                            beds:  prop?.bedrooms      ?? null,
+                            baths: prop?.bathrooms     ?? null,
+                            sqft:  prop?.squareFootage ?? null,
+                        };
                         console.log('[HomeownerAnalysis] Rentcast data fetched for', hoAddr, '— value:', estimatedValue);
                     }
                 }
@@ -5950,6 +5966,63 @@ Return valid JSON only:
 
     mark("end (before return)");
 
+    // Build refiSlider + propertyCard from homeownerSnapshot if present
+    const hoRefiSlider = homeownerSnapshot?.estimatedBalance && homeownerSnapshot?.purchaseRate ? {
+        balance:      homeownerSnapshot.estimatedBalance,
+        currentRate:  homeownerSnapshot.purchaseRate,
+        newRate:      homeownerSnapshot.liveRate,
+        termMonths:   305,
+        closingCosts: Math.round(homeownerSnapshot.estimatedBalance * 0.01),
+        propertyValue: homeownerSnapshot.estimatedValue ?? undefined,
+    } : null;
+
+    const hoPropertyCard = homeownerSnapshot ? {
+        source:           'rentcast',
+        url:              '',
+        parsedBy:         'rentcast-api-v1',
+        parseWarnings:    [],
+        price:            null,
+        address:          homeownerSnapshot.address,
+        city:             homeownerSnapshot.address?.split(',')[1]?.trim() ?? null,
+        state:            homeownerSnapshot.address?.match(/,\s*([A-Z]{2})\s/)?.[1] ?? null,
+        zip:              homeownerSnapshot.address?.match(/\b(\d{5})\b/)?.[1] ?? null,
+        beds:             homeownerSnapshot.beds,
+        baths:            homeownerSnapshot.baths,
+        sqft:             homeownerSnapshot.sqft,
+        annualTaxes:      null,
+        taxRateEffective: 0.011,
+        taxSource:        'table',
+        photoUrl:         null,
+        listingStatus:    'OFF_MARKET',
+        daysOnMarket:     null,
+        lastSaleDate:     homeownerSnapshot.lastSaleDate,
+        lastSalePrice:    homeownerSnapshot.lastSalePrice,
+        estimatedValue:   homeownerSnapshot.estimatedValue,
+        estimatedValueLow:  homeownerSnapshot.estimatedValueLow,
+        estimatedValueHigh: homeownerSnapshot.estimatedValueHigh,
+        estimatedBalance: homeownerSnapshot.estimatedBalance,
+        estimatedEquity:  homeownerSnapshot.estimatedEquity,
+        purchaseRate:     homeownerSnapshot.purchaseRate,
+        remainingMonths:  305,
+        hoaMonthly:       null,
+        pricePerSqft:     null,
+    } : null;
+
+    const hoChips = homeownerSnapshot ? (() => {
+        const addr  = homeownerSnapshot.address as string;
+        const short = addr.split(',')[0];
+        const bal   = homeownerSnapshot.estimatedBalance;
+        const cur   = homeownerSnapshot.purchaseRate;
+        const val   = homeownerSnapshot.estimatedValue;
+        const live  = homeownerSnapshot.liveRate;
+        return [
+            { label: `Rates drop to 6% — new payment?`, seed: `Refi from ${cur}% to 6% on $${Math.round(bal/1000)}k balance`, paramOverrides: { currentBalance: bal, currentRatePct: cur, newRatePct: 6 } },
+            { label: `15-year refi — payoff timeline?`, seed: `15-year refi at ${live}% on $${Math.round(bal/1000)}k balance`, paramOverrides: { currentBalance: bal, currentRatePct: cur, newRatePct: live } },
+            { label: `Cash-out equity — what changes?`, seed: `Cash-out refi from ${short}` },
+            { label: `Full Property Intelligence Report`, seed: `Property intelligence report: ${addr}`, paramOverrides: { cmaAddress: addr, cmaCity: homeownerSnapshot.address?.split(',')[1]?.trim() ?? '', cmaState: homeownerSnapshot.address?.match(/,\s*([A-Z]{2})\s/)?.[1] ?? '', cmaPrice: homeownerSnapshot.lastSalePrice, cmaBeds: homeownerSnapshot.beds, cmaBaths: homeownerSnapshot.baths, cmaSqft: homeownerSnapshot.sqft, cmaTaxAnnual: 0, cmaTaxRate: 0.011, cmaLiveRate: live, cmaPhotoUrl: '' } },
+        ];
+    })() : null;
+
     return noStore({
         ok: true,
         memory_thread_id: memoryThreadId,
@@ -5970,8 +6043,12 @@ Return valid JSON only:
         data_freshness: grokFinal ? `Live (${XAI_MODEL})` : "Legacy stack",
         message,
         answerMarkdown: finalMarkdown,
+        ...(hoPropertyCard && { propertyCard: hoPropertyCard }),
+        ...(hoRefiSlider   && { refiSlider: hoRefiSlider }),
         followUp: grokFinal?.follow_up || followUpFor(topic),
         follow_up_chips: (() => {
+            // 0. Homeowner analysis — use property-specific chips
+            if (hoChips) return hoChips;
             // 1. UW guideline — always stays in UW pipeline
             if (isUnderwritingGuidelineQuestion(question)) {
                 return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
