@@ -270,6 +270,8 @@ export default function PricingPage() {
       <p className="pricing-footer-note">
         All paid plans include a 7-day free trial. Cancel anytime.{" "}
         <Link href="/disclosures" className="pricing-footer-link">Terms apply.</Link>
+        {" · "}
+        <Link href="/support" className="pricing-footer-link">Support</Link>
       </p>
 
       <style>{`
