@@ -711,6 +711,8 @@ export default function LandingPage() {
             <li><Link href="/chat">How it works</Link></li>
             <li><Link href="/chat">Scenario Engine</Link></li>
             <li><Link href="/chat">HomeRates Lab</Link></li>
+            <li><Link href="/market-news">Market News</Link></li>
+            <li><Link href="/knowledge-hub">Knowledge Hub</Link></li>
           </ul>
           <div className="lp-nav-cta">
             <SignedOut>
@@ -959,9 +961,10 @@ export default function LandingPage() {
             HomeRates.ai is an independent educational tool and is not a mortgage lender or broker. Educational only, not financial advice.
           </div>
           <div className="lp-footer-links">
+            <Link href="/market-news">Market News</Link>
+            <Link href="/knowledge-hub">Knowledge Hub</Link>
             <Link href="/disclosures">Terms</Link>
             <Link href="/privacy">Privacy</Link>
-            <Link href="/chat">How it works</Link>
           </div>
         </footer>
       </div>
