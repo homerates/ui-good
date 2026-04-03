@@ -83,10 +83,29 @@ export default function PricingPage() {
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (canceled) setError("Payment was canceled — no charge was made.");
   }, [canceled]);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    fetch("/api/user/plan").then(r => r.json()).then(d => {
+      if (d.plan) setCurrentPlan(d.plan);
+    }).catch(() => {});
+  }, [isSignedIn]);
+
+  async function handlePortal() {
+    setLoading("portal");
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } finally {
+      setLoading(null);
+    }
+  }
 
   // Static references required — Next.js replaces NEXT_PUBLIC_* at build time
   const PRICE_IDS: Record<string, { monthly: string; annual: string }> = {
@@ -215,7 +234,15 @@ export default function PricingPage() {
               </ul>
 
               <div className="pricing-cta-wrap">
-                {plan.key === "free" ? (
+                {currentPlan === plan.key ? (
+                  <button
+                    className="pricing-btn pricing-btn--ghost"
+                    onClick={handlePortal}
+                    disabled={loading === "portal"}
+                  >
+                    {loading === "portal" ? "Redirecting…" : plan.key === "free" ? "Current Plan" : "Manage Subscription"}
+                  </button>
+                ) : plan.key === "free" ? (
                   <Link href="/chat" className="pricing-btn pricing-btn--ghost">
                     {plan.cta}
                   </Link>
