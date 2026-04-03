@@ -230,6 +230,14 @@ export default function DSCRCalculatorPage() {
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaBreadcrumb) }}
             />
 
+            {/* ── LOGO NAV ── */}
+            <nav className="calc-nav">
+                <Link href="/" className="calc-nav-logo">
+                    <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+                </Link>
+                <Link href="/chat" className="calc-nav-cta">Try the AI →</Link>
+            </nav>
+
             <main className="dscr-page">
 
                 {/* ── BREADCRUMB ── */}
@@ -412,7 +420,7 @@ export default function DSCRCalculatorPage() {
                                         <td>{row.status}</td>
                                         <td>{row.ltv}</td>
                                         <td>{row.rate}</td>
-                                        <td style={{ fontSize: '0.82rem', color: 'var(--muted, #6b7280)' }}>{row.notes}</td>
+                                        <td style={{ fontSize: '0.82rem', color: '#6b7a99' }}>{row.notes}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -527,12 +535,37 @@ export default function DSCRCalculatorPage() {
                 Scoped to .dscr-page — mirrors .affordability-page and .fha-page exactly.
             ── */}
             <style>{`
+                body:has(.calc-nav) {
+                    display: block !important; height: auto !important;
+                    overflow: visible !important; background: #080c12 !important;
+                }
+                html:has(.calc-nav) { background: #080c12 !important; }
+                body:has(.calc-nav) .app-footer { display: none; }
+                .calc-nav {
+                    position: sticky; top: 0; z-index: 100;
+                    display: flex; align-items: center; justify-content: space-between;
+                    padding: 16px 24px;
+                    background: rgba(8,12,18,0.95); backdrop-filter: blur(8px);
+                    border-bottom: 1px solid rgba(255,255,255,0.07);
+                }
+                .calc-nav-logo { display: flex; align-items: center; text-decoration: none; }
+                .calc-nav-logo img { height: 32px; width: auto; }
+                .calc-nav-cta {
+                    padding: 8px 18px;
+                    background: #00e87a; color: #080c12;
+                    border-radius: 999px; font-size: 0.875rem;
+                    font-weight: 600; text-decoration: none;
+                    transition: opacity 0.15s;
+                }
+                .calc-nav-cta:hover { opacity: 0.88; }
+                @media (max-width: 600px) { .calc-nav { padding: 14px 20px; } }
+
                 .dscr-page {
                     max-width: 860px;
                     margin: 0 auto;
                     padding: 2rem 1.5rem 4rem;
                     font-family: var(--font-sans, system-ui, sans-serif);
-                    color: var(--fg, #111827);
+                    color: #f0f4ff;
                     line-height: 1.6;
                 }
 
@@ -540,11 +573,11 @@ export default function DSCRCalculatorPage() {
                 .dscr-page .breadcrumb ol {
                     display: flex; gap: 6px; list-style: none;
                     padding: 0; margin: 0 0 2rem; font-size: 13px;
-                    color: var(--muted, #6b7280);
+                    color: #6b7a99;
                 }
                 .dscr-page .breadcrumb a { color: inherit; text-decoration: none; }
                 .dscr-page .breadcrumb a:hover { text-decoration: underline; }
-                .dscr-page .breadcrumb li[aria-current] { color: var(--fg, #111827); font-weight: 500; }
+                .dscr-page .breadcrumb li[aria-current] { color: #f0f4ff; font-weight: 500; }
 
                 /* Hero */
                 .dscr-page .hero { margin-bottom: 3rem; }
@@ -552,15 +585,16 @@ export default function DSCRCalculatorPage() {
                     font-size: clamp(1.75rem, 4vw, 2.5rem);
                     font-weight: 700; line-height: 1.15;
                     margin: 0 0 1rem; letter-spacing: -0.02em;
+                    font-family: 'Syne', sans-serif;
                 }
                 .dscr-page .hero-sub {
                     display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-                    font-weight: 400; color: var(--muted, #6b7280);
+                    font-weight: 400; color: #6b7a99;
                     margin-top: 0.25rem;
                 }
                 .dscr-page .hero-lead {
                     font-size: 1.1rem; max-width: 640px;
-                    color: var(--muted2, #374151); margin: 0 0 1.25rem;
+                    color: #6b7a99; margin: 0 0 1.25rem;
                 }
                 .dscr-page .trust-bar {
                     display: flex; flex-wrap: wrap; gap: 10px;
@@ -568,38 +602,38 @@ export default function DSCRCalculatorPage() {
                 }
                 .dscr-page .trust-item {
                     font-size: 13px; padding: 4px 12px;
-                    background: rgba(0,0,0,0.04);
-                    border-radius: 99px; border: 1px solid rgba(0,0,0,0.08);
-                    color: var(--muted2, #374151);
+                    background: rgba(255,255,255,0.05);
+                    border-radius: 99px; border: 1px solid rgba(255,255,255,0.07);
+                    color: #6b7a99;
                 }
 
                 /* Calculator embed */
                 .dscr-page .calculator-embed {
-                    background: var(--surface, #f9fafb);
-                    border-radius: 16px; border: 1px solid rgba(0,0,0,0.08);
+                    background: #0e1420;
+                    border-radius: 16px; border: 1px solid rgba(255,255,255,0.07);
                     padding: 2rem; margin-bottom: 3rem;
                 }
                 .dscr-page .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; }
-                .dscr-page .embed-header p { margin: 0 0 1.25rem; color: var(--muted, #6b7280); font-size: 0.95rem; }
+                .dscr-page .embed-header p { margin: 0 0 1.25rem; color: #6b7a99; font-size: 0.95rem; }
                 .dscr-page .seed-chips {
                     display: flex; flex-wrap: wrap; gap: 8px;
                     align-items: center; margin-bottom: 1rem;
                 }
-                .dscr-page .seed-label { font-size: 13px; color: var(--muted, #6b7280); }
+                .dscr-page .seed-label { font-size: 13px; color: #6b7a99; }
                 .dscr-page .seed-chip {
                     font-size: 13px; padding: 5px 13px;
-                    background: white; border-radius: 99px;
-                    border: 1px solid rgba(0,0,0,0.12);
-                    color: var(--fg, #111827); text-decoration: none;
+                    background: #0e1420; border-radius: 99px;
+                    border: 1px solid rgba(255,255,255,0.10);
+                    color: #f0f4ff; text-decoration: none;
                     transition: border-color 0.15s;
                 }
-                .dscr-page .seed-chip:hover { border-color: rgba(0,0,0,0.3); }
+                .dscr-page .seed-chip:hover { border-color: rgba(255,255,255,0.3); }
                 .dscr-page .cta-block {
                     text-align: center; padding: 1.5rem 0 0.5rem;
                 }
                 .dscr-page .cta-button {
                     display: inline-block; padding: 14px 32px;
-                    background: #111827; color: #ffffff;
+                    background: #00e87a; color: #080c12;
                     border-radius: 999px; font-size: 1rem;
                     font-weight: 600; text-decoration: none;
                     transition: opacity 0.15s;
@@ -607,18 +641,19 @@ export default function DSCRCalculatorPage() {
                 .dscr-page .cta-button:hover { opacity: 0.85; }
                 .dscr-page .cta-sub {
                     margin: 10px 0 0; font-size: 13px;
-                    color: var(--muted, #6b7280);
+                    color: #6b7a99;
                 }
-                .dscr-page .cta-sub a { color: var(--accent, #22c55e); }
+                .dscr-page .cta-sub a { color: #00e87a; }
 
                 /* Sections */
                 .dscr-page h2 {
                     font-size: clamp(1.2rem, 2.5vw, 1.6rem);
                     font-weight: 600; margin: 0 0 0.75rem;
                     letter-spacing: -0.01em;
+                    font-family: 'Syne', sans-serif;
                 }
                 .dscr-page .section-lead {
-                    font-size: 1rem; color: var(--muted2, #374151);
+                    font-size: 1rem; color: #6b7a99;
                     margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65;
                 }
 
@@ -630,13 +665,13 @@ export default function DSCRCalculatorPage() {
                     gap: 14px;
                 }
                 .dscr-page .feature-card {
-                    background: var(--surface, #f9fafb);
+                    background: #0e1420;
                     border-radius: 12px; padding: 1.25rem;
                     border: 1px solid rgba(0,0,0,0.07);
                 }
                 .dscr-page .feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
                 .dscr-page .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.4rem; }
-                .dscr-page .feature-card p { font-size: 0.88rem; color: var(--muted2, #374151); margin: 0; line-height: 1.55; }
+                .dscr-page .feature-card p { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
 
                 /* Tables */
                 .dscr-page .example-table-section { margin-bottom: 3rem; }
@@ -647,28 +682,28 @@ export default function DSCRCalculatorPage() {
                 }
                 .dscr-page .example-table th {
                     text-align: left; font-size: 0.78rem; font-weight: 600;
-                    color: var(--muted, #6b7280); padding: 8px 12px;
-                    border-bottom: 1.5px solid rgba(0,0,0,0.1);
-                    background: var(--surface, #f9fafb);
+                    color: #6b7a99; padding: 8px 12px;
+                    border-bottom: 1.5px solid rgba(255,255,255,0.08);
+                    background: #0e1420;
                     text-transform: uppercase; letter-spacing: 0.04em;
                 }
-                .dscr-page .example-table td { padding: 10px 12px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+                .dscr-page .example-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
                 .dscr-page .example-table tr:last-child td { border-bottom: none; }
                 .dscr-page .income-cell { font-weight: 600; }
-                .dscr-page .price-cell { font-weight: 500; color: var(--accent2, #059669); }
-                .dscr-page .negative-cell { font-weight: 500; color: #dc2626; }
-                .dscr-page .table-note { font-size: 0.8rem; color: var(--muted, #6b7280); margin: 0; line-height: 1.5; }
-                .dscr-page .table-note a { color: var(--accent, #22c55e); }
+                .dscr-page .price-cell { font-weight: 500; color: #00e87a; }
+                .dscr-page .negative-cell { font-weight: 500; color: #ff5f5f; }
+                .dscr-page .table-note { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.5; }
+                .dscr-page .table-note a { color: #00e87a; }
 
                 /* How it works */
                 .dscr-page .how-it-works { margin-bottom: 3rem; }
                 .dscr-page .steps-list { padding-left: 1.25rem; margin: 0; }
-                .dscr-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: var(--muted2, #374151); }
-                .dscr-page .steps-list strong { color: var(--fg, #111827); }
+                .dscr-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #6b7a99; }
+                .dscr-page .steps-list strong { color: #f0f4ff; }
 
                 /* Author / E-E-A-T */
                 .dscr-page .author-section {
-                    background: var(--surface, #f9fafb);
+                    background: #0e1420;
                     border-radius: 12px; padding: 1.5rem;
                     border: 1px solid rgba(0,0,0,0.07);
                     margin-bottom: 3rem;
@@ -676,39 +711,39 @@ export default function DSCRCalculatorPage() {
                 .dscr-page .author-card { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 1rem; }
                 .dscr-page .author-avatar {
                     width: 44px; height: 44px; border-radius: 50%;
-                    background: #dcfce7; display: flex;
+                    background: rgba(0,232,122,0.15); display: flex;
                     align-items: center; justify-content: center;
-                    font-weight: 600; font-size: 14px; color: #166534;
+                    font-weight: 600; font-size: 14px; color: #00e87a;
                     flex-shrink: 0;
                 }
                 .dscr-page .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
-                .dscr-page .author-cred { font-size: 0.82rem; color: var(--muted, #6b7280); margin-bottom: 0.4rem; }
-                .dscr-page .author-bio { font-size: 0.88rem; color: var(--muted2, #374151); margin: 0; line-height: 1.55; }
-                .dscr-page .last-updated { font-size: 0.8rem; color: var(--muted, #6b7280); margin: 0 0 0.5rem; }
-                .dscr-page .disclaimer { font-size: 0.8rem; color: var(--muted, #6b7280); margin: 0; line-height: 1.55; }
+                .dscr-page .author-cred { font-size: 0.82rem; color: #6b7a99; margin-bottom: 0.4rem; }
+                .dscr-page .author-bio { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .dscr-page .last-updated { font-size: 0.8rem; color: #6b7a99; margin: 0 0 0.5rem; }
+                .dscr-page .disclaimer { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.55; }
 
                 /* FAQ */
                 .dscr-page .faq-section { margin-bottom: 3rem; }
                 .dscr-page .faq-list { display: flex; flex-direction: column; gap: 8px; }
                 .dscr-page .faq-item {
-                    border: 1px solid rgba(0,0,0,0.08);
+                    border: 1px solid rgba(255,255,255,0.07);
                     border-radius: 10px; overflow: hidden;
-                    background: white;
+                    background: #0e1420;
                 }
                 .dscr-page .faq-question {
                     padding: 1rem 1.25rem; font-weight: 500;
                     font-size: 0.95rem; cursor: pointer;
                     list-style: none; display: flex;
                     justify-content: space-between; align-items: center;
-                    color: var(--fg, #111827);
+                    color: #f0f4ff;
                 }
-                .dscr-page .faq-question::after { content: '+'; font-size: 1.2rem; color: var(--muted, #6b7280); }
+                .dscr-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #6b7a99; }
                 .dscr-page details[open] .faq-question::after { content: '−'; }
                 .dscr-page .faq-answer {
                     padding: 0.75rem 1.25rem 1rem; margin: 0;
-                    font-size: 0.9rem; color: var(--muted2, #374151);
+                    font-size: 0.9rem; color: #6b7a99;
                     line-height: 1.65;
-                    border-top: 1px solid rgba(0,0,0,0.06);
+                    border-top: 1px solid rgba(255,255,255,0.06);
                 }
 
                 /* Related */
@@ -720,17 +755,17 @@ export default function DSCRCalculatorPage() {
                 }
                 .dscr-page .related-card {
                     display: block; padding: 1.1rem 1.25rem;
-                    border: 1px solid rgba(0,0,0,0.1);
+                    border: 1px solid rgba(255,255,255,0.08);
                     border-radius: 12px; text-decoration: none;
-                    color: var(--fg, #111827); background: white;
+                    color: #f0f4ff; background: #0e1420;
                     transition: border-color 0.15s, box-shadow 0.15s;
                 }
                 .dscr-page .related-card:hover {
-                    border-color: rgba(34,197,94,0.5);
+                    border-color: rgba(0,232,122,0.4);
                     box-shadow: 0 2px 12px rgba(34,197,94,0.08);
                 }
                 .dscr-page .related-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; }
-                .dscr-page .related-desc { font-size: 0.83rem; color: var(--muted, #6b7280); line-height: 1.5; }
+                .dscr-page .related-desc { font-size: 0.83rem; color: #6b7a99; line-height: 1.5; }
 
                 /* Responsive */
                 @media (max-width: 600px) {
