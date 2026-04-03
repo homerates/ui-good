@@ -85,11 +85,11 @@ function trackStyle(val: number, min: number, max: number): React.CSSProperties 
 
 // DTI color
 function dtiColor(dti: number, isBackEnd: boolean): string {
-    if (isBackEnd) return dti <= 36 ? '#10b981' : dti <= 43 ? '#f59e0b' : '#ef4444';
-    return dti <= 28 ? '#10b981' : dti <= 36 ? '#f59e0b' : '#ef4444';
+    if (isBackEnd) return dti <= 36 ? '#00e87a' : dti <= 43 ? '#ff8c42' : '#ff5f5f';
+    return dti <= 28 ? '#00e87a' : dti <= 36 ? '#ff8c42' : '#ff5f5f';
 }
 
-const C = { pi: '#3b82f6', tax: '#f59e0b', ins: '#10b981', pmi: '#ef4444' };
+const C = { pi: '#3d8bff', tax: '#ff8c42', ins: '#00e87a', pmi: '#ff5f5f' };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

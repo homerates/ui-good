@@ -43,14 +43,14 @@ function fmtRate(r: number) { return parseFloat(r.toFixed(3)) + '%'; }
 
 function trackStyle(val: number, min: number, max: number): React.CSSProperties {
     const pct = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
-    return { background: `linear-gradient(to right,#10b981 0%,#10b981 ${pct}%,#e2e8f0 ${pct}%,#e2e8f0 100%)` };
+    return { background: `linear-gradient(to right,#00e87a 0%,#00e87a ${pct}%,rgba(255,255,255,0.08) ${pct}%,rgba(255,255,255,0.08) 100%)` };
 }
 
 function dscrInfo(dscr: number): { label: string; color: string; bg: string; border: string } {
-    if (dscr >= 1.5)  return { label: 'Excellent  ≥1.5x',         color: '#065f46', bg: '#f0fdf4', border: '#bbf7d0' };
-    if (dscr >= 1.25) return { label: 'Qualifies  ≥1.25x',        color: '#059669', bg: '#f0fdf4', border: '#6ee7b7' };
-    if (dscr >= 1.0)  return { label: 'Borderline  1.0–1.24x',    color: '#d97706', bg: '#fffbeb', border: '#fcd34d' };
-    return                    { label: 'Does Not Qualify  <1.0x', color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' };
+    if (dscr >= 1.5)  return { label: 'Excellent  ≥1.5x',         color: '#00e87a', bg: 'rgba(0,232,122,0.08)',  border: 'rgba(0,232,122,0.25)'  };
+    if (dscr >= 1.25) return { label: 'Qualifies  ≥1.25x',        color: '#00e87a', bg: 'rgba(0,232,122,0.05)',  border: 'rgba(0,232,122,0.18)'  };
+    if (dscr >= 1.0)  return { label: 'Borderline  1.0–1.24x',    color: '#ff8c42', bg: 'rgba(255,140,66,0.08)', border: 'rgba(255,140,66,0.25)' };
+    return                    { label: 'Does Not Qualify  <1.0x', color: '#ff5f5f', bg: 'rgba(255,95,95,0.08)',  border: 'rgba(255,95,95,0.25)'  };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

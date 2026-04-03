@@ -37,10 +37,10 @@ const TIER_LABEL: Record<string, string> = {
 };
 
 const TIER_COLOR: Record<string, { text: string; bg: string; border: string }> = {
-    conforming:  { text: '#059669', bg: 'rgba(5,150,105,0.08)',  border: 'rgba(5,150,105,0.25)'  },
-    high_cost:   { text: '#0ea5e9', bg: 'rgba(14,165,233,0.08)', border: 'rgba(14,165,233,0.25)' },
-    jumbo:       { text: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)' },
-    super_jumbo: { text: '#dc2626', bg: 'rgba(220,38,38,0.08)',  border: 'rgba(220,38,38,0.25)'  },
+    conforming:  { text: '#00e87a', bg: 'rgba(0,232,122,0.08)',  border: 'rgba(0,232,122,0.25)'  },
+    high_cost:   { text: '#3d8bff', bg: 'rgba(61,139,255,0.08)', border: 'rgba(61,139,255,0.25)' },
+    jumbo:       { text: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.25)' },
+    super_jumbo: { text: '#ff5f5f', bg: 'rgba(255,95,95,0.08)',  border: 'rgba(255,95,95,0.25)'  },
 };
 
 // Jumbo refis typically price 0.25–0.5% above conforming

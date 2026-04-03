@@ -48,11 +48,11 @@ function fmtRate(r: number) {
 function trackStyle(val: number, min: number, max: number): React.CSSProperties {
     const pct = ((val - min) / (max - min)) * 100;
     return {
-        background: `linear-gradient(to right, #10b981 0%, #10b981 ${pct}%, #e2e8f0 ${pct}%, #e2e8f0 100%)`,
+        background: `linear-gradient(to right, #00e87a 0%, #00e87a ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`,
     };
 }
 
-const C = { pi: '#3b82f6', tax: '#f59e0b', ins: '#10b981', pmi: '#ef4444', ff: '#dc2626' };
+const C = { pi: '#3d8bff', tax: '#ff8c42', ins: '#00e87a', pmi: '#ff5f5f', ff: '#ff5f5f' };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
