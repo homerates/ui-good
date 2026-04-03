@@ -5,10 +5,20 @@ import Link from 'next/link';
 import { marketNewsArticles } from '../articles';
 import ShareBar from '../../components/ShareBar';
 
-export const dynamicParams = false;
+export const dynamicParams = true;
+export const revalidate = 3600;
 
 export async function generateStaticParams() {
   return marketNewsArticles.map((a) => ({ slug: a.slug }));
+}
+
+async function getDbArticle(slug: string) {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { data } = await sb.from('generated_articles').select('*').eq('slug', slug).eq('category', 'market-news').eq('status', 'published').maybeSingle();
+    return data ?? null;
+  } catch { return null; }
 }
 
 export async function generateMetadata({
@@ -17,7 +27,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const article = marketNewsArticles.find((a) => a.slug === slug);
+  const article = marketNewsArticles.find((a) => a.slug === slug) ?? await getDbArticle(slug);
   if (!article) return {};
   return {
     title: `${article.title} | HomeRates.ai`,
@@ -103,7 +113,7 @@ export default async function MarketNewsArticle({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const article = marketNewsArticles.find((a) => a.slug === slug);
+  const article = marketNewsArticles.find((a) => a.slug === slug) ?? await getDbArticle(slug);
   if (!article) notFound();
 
   const tagColor = TAG_COLORS[article.tag] ?? '#6b7a99';

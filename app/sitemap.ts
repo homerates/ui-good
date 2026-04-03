@@ -1,8 +1,24 @@
 import { MetadataRoute } from 'next';
 import { knowledgeHubArticles } from './knowledge-hub/articles';
 import { marketNewsArticles } from './market-news/articles';
+import { createClient } from '@supabase/supabase-js';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const revalidate = 3600;
+
+async function getGeneratedArticles() {
+  try {
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { data } = await sb
+      .from('generated_articles')
+      .select('slug, category, updated_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(500);
+    return data ?? [];
+  } catch { return []; }
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const base = 'https://chat.homerates.ai';
 
     return [
@@ -142,5 +158,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
             changeFrequency: 'monthly',
             priority: 0.7,
         },
+
+        // Auto-generated articles from DB
+        ...(await getGeneratedArticles()).map((a) => ({
+            url: `${base}/${a.category}/${a.slug}`,
+            lastModified: new Date(a.updated_at),
+            changeFrequency: a.category === 'market-news' ? 'daily' as const : 'weekly' as const,
+            priority: a.category === 'market-news' ? 0.8 : 0.75,
+        })),
     ];
 }
