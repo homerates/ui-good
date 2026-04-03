@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { marketNewsArticles } from '../articles';
+import ShareBar from '../../components/ShareBar';
 
 export async function generateStaticParams() {
   return marketNewsArticles.map((a) => ({ slug: a.slug }));
@@ -334,6 +335,11 @@ export default async function MarketNewsArticle({
           <div
             className="mna-body"
             dangerouslySetInnerHTML={{ __html: bodyHtml }}
+          />
+
+          <ShareBar
+            url={`https://chat.homerates.ai/market-news/${article.slug}`}
+            title={article.title}
           />
 
           <div className="mna-cta">

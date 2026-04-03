@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { knowledgeHubArticles } from '../articles';
+import ShareBar from '../../components/ShareBar';
 
 export async function generateStaticParams() {
   return knowledgeHubArticles.map((a) => ({ slug: a.slug }));
@@ -350,6 +351,11 @@ export default async function KnowledgeHubArticle({
           <div
             className="kha-body"
             dangerouslySetInnerHTML={{ __html: bodyHtml }}
+          />
+
+          <ShareBar
+            url={`https://chat.homerates.ai/knowledge-hub/${article.slug}`}
+            title={article.title}
           />
 
           <div className="kha-cta">
