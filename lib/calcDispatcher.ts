@@ -562,6 +562,11 @@ export function dispatch(
         return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
     }
 
+    // ── 0. HOMEOWNER ANALYSIS — broad multi-factor query, always route to web/Grok ──
+    if (/homeowner analysis|run a complete.*analysis.*for|complete homeowner/i.test(q)) {
+        return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+    }
+
     // ── 1. REFI (highest priority — must run before affordability/conventional) ──
     if (isRefiQuestion(q)) {
         const balance = extractBalance(q) ?? extractBalance(hist) ?? null;
