@@ -4847,6 +4847,8 @@ Output JSON:
     // ========== END PROPERTY INTELLIGENCE REPORT ==========
 
     // ========== AFFORDABILITY ADVISOR CHECK ==========
+    // Guard: homeowner analysis queries must never be caught by affordability
+    const isHomeownerAnalysisQuery = /homeowner analysis|run a complete.*analysis.*for|complete homeowner/i.test(question);
     let affordabilityAnswer = null;
 
     // Detect debt/savings change follow-ups that should re-run the affordability calculator
@@ -4956,7 +4958,7 @@ Output JSON:
         /where\s*(is|are)\s*(rate|rates|the\s*10|mortgage)/i.test(question) ||
         /what\s*.{0,20}(10|ten).{0,20}(note|treasury|yield)/i.test(question);
 
-    if (!hasFHAWithPrice && !isPureRateInfo && (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
+    if (!isHomeownerAnalysisQuery && !hasFHAWithPrice && !isPureRateInfo && (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
         console.log('[Affordability] Detected affordability question');
 
         const affordParams = extractAffordabilityParams(question);
