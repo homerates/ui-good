@@ -59,6 +59,41 @@ export async function GET(req: Request) {
         }
     }
 
+    // Loop direct consumers (no LO required)
+    const { data: consumers, error: consumerError } = await db
+        .from('consumer_homeowners')
+        .select('id, name, email, property_address')
+        .eq('digest_enabled', true)
+        .not('property_address', 'is', null)
+        .not('email', 'is', null);
+
+    if (consumerError) {
+        console.error('[digest/cron] consumer fetch error:', consumerError);
+    }
+
+    for (const consumer of (consumers ?? [])) {
+        try {
+            const res = await fetch(`${APP_URL}/api/digest/run`, {
+                method:  'POST',
+                headers: {
+                    'Content-Type':  'application/json',
+                    'x-cron-secret': secret,
+                },
+                body: JSON.stringify({ consumer_id: consumer.id }),
+            });
+            const json = await res.json();
+            if (json.ok) {
+                results.sent++;
+            } else {
+                results.failed++;
+                results.errors.push(`${consumer.name ?? consumer.id}: ${json.error}`);
+            }
+        } catch (e: any) {
+            results.failed++;
+            results.errors.push(`${consumer.name ?? consumer.id}: ${e.message}`);
+        }
+    }
+
     console.log('[digest/cron] complete', results);
     return NextResponse.json({ ok: true, ...results });
 }

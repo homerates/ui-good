@@ -1,0 +1,64 @@
+// app/api/homeowner/save/route.ts
+// GET  — load current consumer_homeowner record for signed-in user
+// POST — upsert address + digest preference
+
+import { NextRequest, NextResponse } from 'next/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { createClient } from '@supabase/supabase-js';
+
+function db() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+  const { data } = await db()
+    .from('consumer_homeowners')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  return NextResponse.json({ homeowner: data ?? null });
+}
+
+export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+  const user = await currentUser();
+  const email = user?.emailAddresses?.[0]?.emailAddress ?? null;
+  const name  = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null;
+
+  const body = await req.json().catch(() => ({}));
+  const address        = typeof body.address        === 'string' ? body.address.trim() || null : undefined;
+  const digestEnabled  = typeof body.digest_enabled === 'boolean' ? body.digest_enabled : undefined;
+
+  const payload: Record<string, any> = {
+    user_id:    userId,
+    email,
+    name,
+    updated_at: new Date().toISOString(),
+  };
+  if (address       !== undefined) payload.property_address = address;
+  if (digestEnabled !== undefined) payload.digest_enabled   = digestEnabled;
+  // Default digest to true on first save
+  if (!('digest_enabled' in payload)) payload.digest_enabled = true;
+
+  const { data, error } = await db()
+    .from('consumer_homeowners')
+    .upsert(payload, { onConflict: 'user_id' })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[homeowner/save]', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, homeowner: data });
+}

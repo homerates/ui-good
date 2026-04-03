@@ -105,11 +105,98 @@ export async function POST(req: Request) {
     const { userId } = isCron ? { userId: null } : await auth();
     if (!isCron && !userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { borrower_id, preview = false } = await req.json();
-    if (!borrower_id) return NextResponse.json({ error: 'borrower_id required' }, { status: 400 });
+    const { borrower_id, consumer_id, preview = false } = await req.json();
+    if (!borrower_id && !consumer_id) return NextResponse.json({ error: 'borrower_id or consumer_id required' }, { status: 400 });
 
     const db = sb();
+    const today = new Date().toISOString().split('T')[0];
 
+    // ── CONSUMER PATH (direct-to-consumer homeowner) ──────────────────────────
+    if (consumer_id) {
+        if (!isCron) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const { data: consumer } = await db
+            .from('consumer_homeowners')
+            .select('*')
+            .eq('id', consumer_id)
+            .single();
+
+        if (!consumer) return NextResponse.json({ error: 'Consumer not found' }, { status: 404 });
+        if (!consumer.property_address) return NextResponse.json({ error: 'No property address on file.' }, { status: 400 });
+
+        const [liveRate, rentcast] = await Promise.all([getLiveRate(), rentcastLookup(consumer.property_address)]);
+        if (!rentcast) return NextResponse.json({ error: 'Could not look up property data.' }, { status: 422 });
+
+        const { data: snapshot } = await db
+            .from('consumer_snapshots')
+            .upsert({
+                consumer_id,
+                snapshot_date:        today,
+                estimated_value:      rentcast.estimatedValue,
+                estimated_value_low:  rentcast.estimatedValueLow,
+                estimated_value_high: rentcast.estimatedValueHigh,
+                estimated_balance:    rentcast.estimatedBalance,
+                estimated_equity:     rentcast.estimatedEquity,
+                purchase_rate:        rentcast.purchaseRate,
+                live_rate:            liveRate,
+                last_sale_price:      rentcast.lastSalePrice,
+                last_sale_date:       rentcast.lastSaleDate,
+            }, { onConflict: 'consumer_id,snapshot_date' })
+            .select()
+            .single();
+
+        const { data: prevSnapshot } = await db
+            .from('consumer_snapshots')
+            .select('estimated_value, estimated_equity')
+            .eq('consumer_id', consumer_id)
+            .lt('snapshot_date', today)
+            .order('snapshot_date', { ascending: false })
+            .limit(1)
+            .single();
+
+        const emailData = {
+            borrowerName: consumer.name ?? 'Homeowner',
+            address:      consumer.property_address,
+            liveRate,
+            ...rentcast,
+            valueDelta:  (rentcast.estimatedValue && prevSnapshot?.estimated_value)
+                ? rentcast.estimatedValue - prevSnapshot.estimated_value : null,
+            equityDelta: (rentcast.estimatedEquity && prevSnapshot?.estimated_equity)
+                ? rentcast.estimatedEquity - prevSnapshot.estimated_equity : null,
+            loName:  'HomeRates.ai',
+            loEmail: null,
+        };
+
+        if (preview) return NextResponse.json({ ok: true, preview: true, emailData, snapshot });
+
+        const resendKey = process.env.RESEND_API_KEY;
+        if (!resendKey) return NextResponse.json({ ok: false, error: 'RESEND_API_KEY not configured' }, { status: 503 });
+        if (!consumer.email) return NextResponse.json({ ok: false, error: 'Consumer has no email address' }, { status: 400 });
+
+        const resend = new Resend(resendKey);
+        const { data: sent, error: sendErr } = await resend.emails.send({
+            from:    `HomeRates.ai <${process.env.RESEND_FROM_EMAIL ?? 'digest@homerates.ai'}>`,
+            to:      consumer.email,
+            subject: `Your Home Update — ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+            html:    digestEmailHtml(emailData),
+        });
+
+        if (sendErr) {
+            console.error('[digest/consumer] Resend error:', sendErr);
+            return NextResponse.json({ ok: false, error: sendErr.message }, { status: 500 });
+        }
+
+        await db.from('consumer_digest_sends').insert({
+            consumer_id,
+            snapshot_id: snapshot?.id,
+            resend_id:   sent?.id,
+            status:      'sent',
+        });
+
+        return NextResponse.json({ ok: true, resend_id: sent?.id });
+    }
+
+    // ── BORROWER PATH (LO-gated) ──────────────────────────────────────────────
     // Load borrower + LO
     const { data: borrower } = await db
         .from('borrowers')
@@ -141,7 +228,7 @@ export async function POST(req: Request) {
         .from('homeowner_snapshots')
         .upsert({
             borrower_id,
-            snapshot_date:       new Date().toISOString().split('T')[0],
+            snapshot_date:       today,
             estimated_value:     rentcast.estimatedValue,
             estimated_value_low: rentcast.estimatedValueLow,
             estimated_value_high: rentcast.estimatedValueHigh,
@@ -160,7 +247,7 @@ export async function POST(req: Request) {
         .from('homeowner_snapshots')
         .select('estimated_value, estimated_equity')
         .eq('borrower_id', borrower_id)
-        .lt('snapshot_date', new Date().toISOString().split('T')[0])
+        .lt('snapshot_date', today)
         .order('snapshot_date', { ascending: false })
         .limit(1)
         .single();

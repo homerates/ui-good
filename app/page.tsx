@@ -713,6 +713,7 @@ export default function LandingPage() {
             <li><Link href="/chat">HomeRates Lab</Link></li>
             <li><Link href="/market-news">Market News</Link></li>
             <li><Link href="/knowledge-hub">Knowledge Hub</Link></li>
+            <li><Link href="/homeowner">For Homeowners</Link></li>
           </ul>
           <div className="lp-nav-cta">
             <SignedOut>
