@@ -170,7 +170,7 @@ export default function MyHomePage() {
           <Link href="/" className="mh-logo">HomeRates<span>.ai</span></Link>
           <div className="mh-nav-right">
             <Link href="/chat" className="mh-nav-link">Chat</Link>
-            <Link href="/homeowner" className="mh-nav-link">For Homeowners</Link>
+            <Link href="/homeowner" className="mh-nav-link">Home Value</Link>
             <SignedOut>
               <SignInButton mode="modal">
                 <button className="mh-nav-btn">Sign In</button>
@@ -189,7 +189,7 @@ export default function MyHomePage() {
               <h2>Your Home, Tracked for Free</h2>
               <p>Sign in to save your property, monitor equity, and get a monthly digest — no agent or lender required.</p>
               <SignInButton mode="modal">
-                <button className="mh-signin-cta">Sign In to Track My Home</button>
+                <button className="mh-signin-cta">Sign In — See My Home Value</button>
               </SignInButton>
             </div>
           </SignedOut>
