@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { marketNewsArticles } from './articles';
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: 'Market News | HomeRates.ai',
   description: 'Mortgage rate updates, housing inventory trends, and Fed policy analysis — what the market is doing and what it means for buyers.',
@@ -15,9 +17,56 @@ const TAG_COLORS: Record<string, string> = {
   'Demand': '#3d8bff',
   'Inventory': '#ff8c42',
   'Economy': '#a78bfa',
+  // DB article tags
+  'Mortgage Rates': '#00e87a',
+  'Fed Policy': '#a78bfa',
+  'Housing Market': '#3d8bff',
+  'Home Prices': '#ff8c42',
+  'Refinance': '#3d8bff',
 };
 
-export default function MarketNewsPage() {
+interface ArticleCard {
+  slug: string;
+  title: string;
+  excerpt: string;
+  tag: string;
+  date: string;
+  readTime: string;
+}
+
+async function getDbArticles(): Promise<ArticleCard[]> {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { data } = await sb
+      .from('generated_articles')
+      .select('slug, title, excerpt, tag, read_time, published_at')
+      .eq('category', 'market-news')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(50);
+    return (data ?? []).map((a) => ({
+      slug: a.slug,
+      title: a.title,
+      excerpt: a.excerpt,
+      tag: a.tag ?? 'Market News',
+      date: new Date(a.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      readTime: `${a.read_time ?? 5} min read`,
+    }));
+  } catch { return []; }
+}
+
+export default async function MarketNewsPage() {
+  const dbArticles = await getDbArticles();
+  const staticCards: ArticleCard[] = marketNewsArticles.map((a) => ({
+    slug: a.slug,
+    title: a.title,
+    excerpt: a.excerpt,
+    tag: a.tag,
+    date: a.date,
+    readTime: a.readTime,
+  }));
+  const allArticles = [...dbArticles, ...staticCards];
   const headlines = [
     '30Y Fixed: 6.47%', '10Y Treasury: 4.21%', 'CPI: 3.1% YoY', 'Fed Funds: 5.25%',
     'Jobless Claims: 218k', 'Median Home Price: $420,800', 'Housing Starts: 1.42M',
@@ -386,7 +435,7 @@ export default function MarketNewsPage() {
           <div className="mn-ticker2-label">HEADLINES</div>
           <div className="mn-ticker-wrap">
             <div className="mn-ticker2-track">
-              {[...marketNewsArticles, ...marketNewsArticles].map((a, i) => (
+              {[...allArticles, ...allArticles].map((a, i) => (
                 <div key={i} className="mn-ticker2-item">◆ {a.title}</div>
               ))}
             </div>
@@ -395,11 +444,11 @@ export default function MarketNewsPage() {
 
         {/* ARTICLES */}
         <div className="mn-grid-wrap">
-          <div className="mn-section-label">Latest Coverage — {marketNewsArticles.length} articles</div>
+          <div className="mn-section-label">Latest Coverage — {allArticles.length} articles</div>
 
-          {/* FEATURED: first article */}
-          {marketNewsArticles[0] && (() => {
-            const a = marketNewsArticles[0];
+          {/* FEATURED: first article (newest) */}
+          {allArticles[0] && (() => {
+            const a = allArticles[0];
             const tagColor = TAG_COLORS[a.tag] ?? '#6b7a99';
             return (
               <Link href={`/market-news/${a.slug}`} className="mn-featured">
@@ -421,7 +470,7 @@ export default function MarketNewsPage() {
 
           {/* REST: grid */}
           <div className="mn-grid">
-            {marketNewsArticles.slice(1).map((article) => {
+            {allArticles.slice(1).map((article) => {
               const tagColor = TAG_COLORS[article.tag] ?? '#6b7a99';
               return (
                 <Link key={article.slug} href={`/market-news/${article.slug}`} className="mn-card">

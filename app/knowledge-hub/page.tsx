@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { knowledgeHubArticles } from './articles';
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: 'Knowledge Hub | HomeRates.ai',
   description: 'In-depth mortgage education: loan types, qualification guides, rate education, and first-time buyer resources.',
@@ -14,9 +16,62 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Rate Education': '#3d8bff',
   'Loan Types': '#a78bfa',
   'Programs': '#ff8c42',
+  // DB article tags
+  'City Guide': '#00e87a',
+  'State Guide': '#3d8bff',
+  'Loan Strategy': '#a78bfa',
+  'Jumbo Loans': '#a78bfa',
+  'First-Time Buyers': '#00e87a',
+  'Refinance': '#3d8bff',
+  'Home Equity': '#ff8c42',
+  'Market Timing': '#ff8c42',
+  'Affordability': '#00e87a',
+  'DSCR Loans': '#a78bfa',
+  'Down Payment': '#3d8bff',
 };
 
-export default function KnowledgeHubPage() {
+interface ArticleCard {
+  slug: string;
+  title: string;
+  excerpt: string;
+  tag: string;
+  date: string;
+  readTime: string;
+}
+
+async function getDbArticles(): Promise<ArticleCard[]> {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { data } = await sb
+      .from('generated_articles')
+      .select('slug, title, excerpt, tag, read_time, published_at')
+      .eq('category', 'knowledge-hub')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(50);
+    return (data ?? []).map((a) => ({
+      slug: a.slug,
+      title: a.title,
+      excerpt: a.excerpt,
+      tag: a.tag ?? 'Guide',
+      date: new Date(a.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      readTime: `${a.read_time ?? 6} min read`,
+    }));
+  } catch { return []; }
+}
+
+export default async function KnowledgeHubPage() {
+  const dbArticles = await getDbArticles();
+  const staticCards: ArticleCard[] = knowledgeHubArticles.map((a) => ({
+    slug: a.slug,
+    title: a.title,
+    excerpt: a.excerpt,
+    tag: (a as { category?: string }).category ?? 'Guide',
+    date: a.date,
+    readTime: a.readTime,
+  }));
+  const allArticles = [...dbArticles, ...staticCards];
   const topics = [
     'Conventional Loans', 'FHA Loans', 'VA Loans', 'Jumbo Loans', 'DSCR Loans',
     'ARM Loans', 'Bank Statement Loans', 'Down Payment Assistance', 'Rate Buydowns',
@@ -356,7 +411,7 @@ export default function KnowledgeHubPage() {
           <div className="kh-ticker2-label">ARTICLES</div>
           <div className="kh-ticker-wrap">
             <div className="kh-ticker2-track">
-              {[...knowledgeHubArticles, ...knowledgeHubArticles].map((a, i) => (
+              {[...allArticles, ...allArticles].map((a, i) => (
                 <div key={i} className="kh-ticker2-item">✦ {a.title}</div>
               ))}
             </div>
@@ -365,13 +420,13 @@ export default function KnowledgeHubPage() {
 
         {/* ARTICLE GRID */}
         <div className="kh-grid-wrap">
-          <div className="kh-section-label">All Articles — {knowledgeHubArticles.length} guides</div>
+          <div className="kh-section-label">All Articles — {allArticles.length} guides</div>
           <div className="kh-grid">
-            {knowledgeHubArticles.map((article) => {
-              const catColor = CATEGORY_COLORS[article.category] ?? '#6b7a99';
+            {allArticles.map((article) => {
+              const catColor = CATEGORY_COLORS[article.tag] ?? '#6b7a99';
               return (
                 <Link key={article.slug} href={`/knowledge-hub/${article.slug}`} className="kh-card">
-                  <div className="kh-card-cat" style={{ color: catColor }}>{article.category}</div>
+                  <div className="kh-card-cat" style={{ color: catColor }}>{article.tag}</div>
                   <h2>{article.title}</h2>
                   <p>{article.excerpt}</p>
                   <div className="kh-card-meta">
