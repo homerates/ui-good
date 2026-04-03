@@ -211,7 +211,7 @@ export const KNOWLEDGE_HUB_TOPICS: TopicSeed[] = [
   {
     category: 'knowledge-hub',
     tag: 'DSCR Loans',
-    titleTemplate: 'DSCR Loans {year}: The Investor's Guide to No-Income Mortgages',
+    titleTemplate: "DSCR Loans {year}: The Investor's Guide to No-Income Mortgages",
     searchQuery: 'DSCR loan investment property no income verification requirements 2026',
     seoFocus: 'DSCR loan guide 2026',
   },
