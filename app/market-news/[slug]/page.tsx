@@ -103,6 +103,11 @@ export default async function MarketNewsArticle({
   return (
     <>
       <style>{`
+        html:has(.mna-root),
+        body:has(.mna-root) {
+          overflow: auto !important;
+          height: auto !important;
+        }
         .mna-root {
           --bg: #080c12;
           --surface: #0e1420;

@@ -30,6 +30,11 @@ export default function MarketNewsPage() {
   return (
     <>
       <style>{`
+        html:has(.mn-root),
+        body:has(.mn-root) {
+          overflow: auto !important;
+          height: auto !important;
+        }
         .mn-root {
           --bg: #080c12;
           --surface: #0e1420;
@@ -135,7 +140,6 @@ export default function MarketNewsPage() {
           max-width: 1100px;
           margin: 0 auto;
           padding: 64px 40px 48px;
-          animation: mn-fadeUp 0.5s ease both;
         }
         .mn-eyebrow {
           display: inline-flex; align-items: center; gap: 8px;

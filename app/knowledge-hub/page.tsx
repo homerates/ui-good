@@ -30,6 +30,11 @@ export default function KnowledgeHubPage() {
   return (
     <>
       <style>{`
+        html:has(.kh-root),
+        body:has(.kh-root) {
+          overflow: auto !important;
+          height: auto !important;
+        }
         .kh-root {
           --bg: #080c12;
           --surface: #0e1420;
@@ -124,6 +129,7 @@ export default function KnowledgeHubPage() {
           to { opacity: 1; transform: translateY(0); }
         }
 
+
         /* NAV */
         .kh-nav {
           display: flex;
@@ -154,7 +160,6 @@ export default function KnowledgeHubPage() {
           max-width: 1100px;
           margin: 0 auto;
           padding: 64px 40px 48px;
-          animation: kh-fadeUp 0.5s ease both;
         }
         .kh-eyebrow {
           display: inline-flex; align-items: center; gap: 8px;
