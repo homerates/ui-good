@@ -4849,6 +4849,78 @@ Output JSON:
     // ========== AFFORDABILITY ADVISOR CHECK ==========
     // Guard: homeowner analysis queries must never be caught by affordability
     const isHomeownerAnalysisQuery = /homeowner analysis|run a complete.*analysis.*for|complete homeowner/i.test(question);
+
+    // ── HOMEOWNER ANALYSIS: fetch Rentcast AVM + inject into Grok context ──────
+    if (isHomeownerAnalysisQuery && !mortgageCalcContext) {
+        const addrMatch = question.match(/(?:homeowner analysis|complete.*analysis)\s+for\s+(.+?)(?:\s*:|,\s*current|\s*—|\s*\u2014)/i);
+        const hoAddr = addrMatch?.[1]?.trim();
+        if (hoAddr) {
+            try {
+                const rentcastKey = process.env.RENTCAST_API_KEY;
+                if (rentcastKey) {
+                    const enc  = encodeURIComponent(hoAddr);
+                    const base = 'https://api.rentcast.io/v1';
+                    const hdrs = { 'X-Api-Key': rentcastKey, 'Accept': 'application/json' };
+                    const [propRes, avmRes] = await Promise.allSettled([
+                        fetch(`${base}/properties?address=${enc}&limit=1`, { headers: hdrs }),
+                        fetch(`${base}/avm/value?address=${enc}`,          { headers: hdrs }),
+                    ]);
+                    const propData = propRes.status === 'fulfilled' && propRes.value.ok ? await propRes.value.json() : null;
+                    const avmData  = avmRes.status  === 'fulfilled' && avmRes.value.ok  ? await avmRes.value.json()  : null;
+                    const prop = Array.isArray(propData) ? propData[0] : propData;
+                    if (prop || avmData) {
+                        const estimatedValue     = avmData?.price          ?? null;
+                        const estimatedValueLow  = avmData?.priceRangeLow  ?? null;
+                        const estimatedValueHigh = avmData?.priceRangeHigh ?? null;
+                        const lastSalePrice: number | null = prop?.lastSalePrice ?? null;
+                        const lastSaleDate: string | null  = prop?.lastSaleDate
+                            ? new Date(prop.lastSaleDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                            : null;
+                        const beds  = prop?.bedrooms     ?? null;
+                        const baths = prop?.bathrooms    ?? null;
+                        const sqft  = prop?.squareFootage ?? null;
+
+                        // Estimated balance & equity (same logic as digest/run)
+                        let estimatedBalance: number | null = null;
+                        let estimatedEquity:  number | null = null;
+                        let purchaseRate:     number | null = null;
+                        const HIST_RATES_HO: Record<number,number> = {
+                            2025:6.76,2024:6.87,2023:6.81,2022:5.34,2021:2.96,2020:3.11,
+                            2019:3.94,2018:4.54,2017:3.99,2016:3.65,2015:3.85,2014:4.17,
+                            2013:3.98,2012:3.66,2011:4.45,2010:4.69,2009:5.04,2008:6.03,
+                        };
+                        if (lastSalePrice && prop?.lastSaleDate) {
+                            const sd = new Date(prop.lastSaleDate);
+                            const elapsed = Math.max(0, (new Date().getFullYear() - sd.getFullYear()) * 12 + (new Date().getMonth() - sd.getMonth()));
+                            purchaseRate = HIST_RATES_HO[sd.getFullYear()] ?? 5.5;
+                            const r = purchaseRate / 100 / 12, n = 360, p = lastSalePrice * 0.80;
+                            const pmt = r > 0 ? (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1) : p / n;
+                            estimatedBalance = Math.max(0, Math.round(p * Math.pow(1+r,elapsed) - pmt * ((Math.pow(1+r,elapsed)-1)/r)));
+                            estimatedEquity  = Math.round((estimatedValue ?? lastSalePrice) - estimatedBalance);
+                        }
+
+                        const liveRate = fred?.mort30Avg ?? 6.5;
+                        const fmt = (n: number | null) => n != null ? `$${Math.round(n).toLocaleString()}` : 'N/A';
+                        mortgageCalcContext =
+`PROPERTY DATA (Rentcast AVM — live API, use these numbers EXACTLY):
+- Address: ${prop?.formattedAddress ?? hoAddr}
+- Beds/Baths/Sqft: ${beds ?? '?'} bd / ${baths ?? '?'} ba / ${sqft ? sqft.toLocaleString() : '?'} sqft
+- AVM Estimated Value: ${fmt(estimatedValue)} (range: ${fmt(estimatedValueLow)} – ${fmt(estimatedValueHigh)})
+- Last Sale: ${lastSaleDate ?? 'N/A'} at ${fmt(lastSalePrice)}
+- Est. Purchase Rate (historical avg at sale year): ${purchaseRate ? purchaseRate.toFixed(2) + '%' : 'N/A'}
+- Est. Remaining Mortgage Balance (20% down assumed): ${fmt(estimatedBalance)}
+- Est. Equity: ${fmt(estimatedEquity)}
+- Today's 30Y Fixed Rate (FRED): ${liveRate}%
+CRITICAL: Use Rentcast AVM value (${fmt(estimatedValue)}) as the property value. Do NOT substitute generic market estimates or ranges from your training data.`;
+                        console.log('[HomeownerAnalysis] Rentcast data fetched for', hoAddr, '— value:', estimatedValue);
+                    }
+                }
+            } catch (hoErr: any) {
+                console.warn('[HomeownerAnalysis] Rentcast fetch failed:', hoErr.message);
+            }
+        }
+    }
+
     let affordabilityAnswer = null;
 
     // Detect debt/savings change follow-ups that should re-run the affordability calculator
