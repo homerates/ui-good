@@ -113,10 +113,14 @@ export default async function KnowledgeHubArticle({
   return (
     <>
       <style>{`
-        html:has(.kha-root),
         body:has(.kha-root) {
-          overflow: auto !important;
+          display: block !important;
           height: auto !important;
+          overflow: visible !important;
+        }
+        html:has(.kha-root) {
+          height: auto !important;
+          overflow: visible !important;
         }
         .kha-root {
           --bg: #080c12;

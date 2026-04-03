@@ -30,10 +30,14 @@ export default function MarketNewsPage() {
   return (
     <>
       <style>{`
-        html:has(.mn-root),
         body:has(.mn-root) {
-          overflow: auto !important;
+          display: block !important;
           height: auto !important;
+          overflow: visible !important;
+        }
+        html:has(.mn-root) {
+          height: auto !important;
+          overflow: visible !important;
         }
         .mn-root {
           --bg: #080c12;

@@ -30,10 +30,14 @@ export default function KnowledgeHubPage() {
   return (
     <>
       <style>{`
-        html:has(.kh-root),
         body:has(.kh-root) {
-          overflow: auto !important;
+          display: block !important;
           height: auto !important;
+          overflow: visible !important;
+        }
+        html:has(.kh-root) {
+          height: auto !important;
+          overflow: visible !important;
         }
         .kh-root {
           --bg: #080c12;
