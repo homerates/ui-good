@@ -23,6 +23,8 @@ export default function robots(): MetadataRoute.Robots {
           "/identity/",
           // User account
           "/profile/",
+          // Auth-required homeowner dashboard (no SEO value — sign-in wall)
+          "/my-home/",
           // Internal/utility pages not meant for search
           "/probe/",
           "/library/",

@@ -75,6 +75,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.8,
         },
 
+        // Homeowner D2C pages
+        {
+            url: `${base}/homeowner`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.8,
+        },
+
         // Knowledge Hub landing + articles
         {
             url: `${base}/knowledge-hub`,
