@@ -299,12 +299,22 @@ export default function MarketNewsPage() {
           display: flex; align-items: center; gap: 10px;
           font-family: 'DM Mono', monospace;
           font-size: 10px; color: var(--text-dim);
+          margin-bottom: 16px;
         }
-        .mn-card-arrow {
-          margin-left: auto; color: var(--text-dim); font-size: 13px;
-          transition: transform 0.2s, color 0.2s;
+        .mn-card-read {
+          display: inline-flex; align-items: center; gap: 6px;
+          font-size: 13px; font-weight: 600;
+          color: var(--blue);
+          border: 1px solid rgba(61,139,255,0.25);
+          border-radius: 6px;
+          padding: 8px 14px;
+          transition: background 0.2s, border-color 0.2s;
+          align-self: flex-start;
         }
-        .mn-card:hover .mn-card-arrow { transform: translateX(4px); color: var(--blue); }
+        .mn-card:hover .mn-card-read {
+          background: rgba(61,139,255,0.08);
+          border-color: rgba(61,139,255,0.5);
+        }
 
         /* FOOTER */
         .mn-footer {
@@ -422,8 +432,8 @@ export default function MarketNewsPage() {
                     <span>{article.date}</span>
                     <span>·</span>
                     <span>{article.readTime}</span>
-                    <span className="mn-card-arrow">→</span>
                   </div>
+                  <div className="mn-card-read">Read full story →</div>
                 </Link>
               );
             })}

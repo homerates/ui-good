@@ -270,17 +270,22 @@ export default function KnowledgeHubPage() {
           display: flex; align-items: center; gap: 12px;
           font-family: 'DM Mono', monospace;
           font-size: 10px; color: var(--text-dim);
+          margin-bottom: 16px;
         }
         .kh-card-meta span { white-space: nowrap; }
-        .kh-card-arrow {
-          margin-left: auto;
-          color: var(--text-dim);
-          font-size: 14px;
-          transition: transform 0.2s, color 0.2s;
-        }
-        .kh-card:hover .kh-card-arrow {
-          transform: translateX(4px);
+        .kh-card-read {
+          display: inline-flex; align-items: center; gap: 6px;
+          font-size: 13px; font-weight: 600;
           color: var(--green);
+          border: 1px solid rgba(0,232,122,0.25);
+          border-radius: 6px;
+          padding: 8px 14px;
+          transition: background 0.2s, border-color 0.2s;
+          align-self: flex-start;
+        }
+        .kh-card:hover .kh-card-read {
+          background: rgba(0,232,122,0.08);
+          border-color: rgba(0,232,122,0.5);
         }
 
         /* FOOTER */
@@ -373,8 +378,8 @@ export default function KnowledgeHubPage() {
                     <span>{article.date}</span>
                     <span>·</span>
                     <span>{article.readTime}</span>
-                    <span className="kh-card-arrow">→</span>
                   </div>
+                  <div className="kh-card-read">Read full article →</div>
                 </Link>
               );
             })}
