@@ -27,15 +27,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
   // Verify scenario exists and is active
-  const { data: scenario } = await sb
+  const { data: scenarioFull } = await sb
     .from("scenario_briefs")
-    .select("id, borrower_id, status")
+    .select("id, borrower_id, status, response_count")
     .eq("id", id)
     .single();
 
-  if (!scenario) return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
-  if (scenario.status !== "active") return NextResponse.json({ error: "This scenario is no longer accepting responses" }, { status: 400 });
-  if (scenario.borrower_id === userId) return NextResponse.json({ error: "You cannot respond to your own scenario" }, { status: 400 });
+  if (!scenarioFull) return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
+  if (scenarioFull.status !== "active") return NextResponse.json({ error: "This scenario is no longer accepting responses" }, { status: 400 });
+  if (scenarioFull.borrower_id === userId) return NextResponse.json({ error: "You cannot respond to your own scenario" }, { status: 400 });
+  const scenario = scenarioFull;
 
   // One response per LO per scenario
   const { data: existing } = await sb
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Increment response count on the scenario
   await sb
     .from("scenario_briefs")
-    .update({ response_count: scenario.response_count + 1 })
+    .update({ response_count: (scenarioFull.response_count ?? 0) + 1 })
     .eq("id", id);
 
   return NextResponse.json({ response });
