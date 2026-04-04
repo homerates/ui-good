@@ -139,6 +139,26 @@ export default async function DashboardPage() {
     myConnectionCount = cc ?? 0;
   }
 
+  // ── Agent-specific data ──────────────────────────────────────────────────
+  let agentScenarioCount = 0;
+  let agentConnectionCount = 0;
+
+  if (userType === "agent" && sb) {
+    const { count: sc } = await sb
+      .from("scenario_briefs")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .in("needs_professional", ["agent", "both"]);
+    agentScenarioCount = sc ?? 0;
+
+    const { count: cc } = await sb
+      .from("scenario_responses")
+      .select("id", { count: "exact", head: true })
+      .eq("responder_id", userId)
+      .eq("responder_type", "agent");
+    agentConnectionCount = cc ?? 0;
+  }
+
   // ── Borrower-specific data ───────────────────────────────────────────────
   let activeScenario: { id: string; loan_type: string; state: string; status: string; response_count: number } | null = null;
 
@@ -186,7 +206,7 @@ export default async function DashboardPage() {
         {/* Page header */}
         <div style={{ marginBottom: "2rem" }}>
           <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#00e87a", marginBottom: 6 }}>
-            {userType === "lo" ? "Loan Officer" : "Borrower"} Dashboard
+            {userType === "lo" ? "Loan Officer" : userType === "agent" ? "Real Estate Agent" : "Borrower"} Dashboard
           </div>
           <h1 style={{ fontFamily: "var(--font-syne, sans-serif)", fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
             Welcome back, {displayName}
@@ -205,6 +225,12 @@ export default async function DashboardPage() {
               <StatCard label="New Scenarios" value={newScenarioCount} sub="awaiting your response" accent="#3d8bff" />
               <StatCard label="Connections Earned" value={myConnectionCount} sub="borrowers who chose you" accent="#00e87a" />
               <StatCard label="Active Borrowers" value={borrowerCount} sub={`of ${slots} slots`} />
+              <StatCard label="Plan" value={planLabel} sub={periodEnd ? `Renews ${periodEnd}` : "Current plan"} />
+            </>
+          ) : userType === "agent" ? (
+            <>
+              <StatCard label="Open Scenarios" value={agentScenarioCount} sub="awaiting your response" accent="#3d8bff" />
+              <StatCard label="Responses Sent" value={agentConnectionCount} sub="buyers you've responded to" accent="#00e87a" />
               <StatCard label="Plan" value={planLabel} sub={periodEnd ? `Renews ${periodEnd}` : "Current plan"} />
             </>
           ) : (
@@ -231,7 +257,36 @@ export default async function DashboardPage() {
           {/* LEFT COLUMN */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
-            {userType === "lo" ? (
+            {userType === "agent" ? (
+              <>
+                <SectionCard accent="blue">
+                  <CardTitle>Buyer Scenario Board</CardTitle>
+                  <CardBody>
+                    Browse anonymous buyer scenarios in your market. Respond with your approach and buyer rep fee — the buyer picks who earns the introduction.
+                  </CardBody>
+                  <ActionLink href="/agent/scenarios" variant="blue">
+                    View {agentScenarioCount > 0 ? `${agentScenarioCount} ` : ""}Scenarios →
+                  </ActionLink>
+                </SectionCard>
+
+                <SectionCard accent="green">
+                  <CardTitle>How It Works</CardTitle>
+                  <CardBody>
+                    Buyers post anonymously. You respond with your approach. If they like what they see, they invite you — no Zillow auction, no lead fees, no bidding wars.
+                  </CardBody>
+                  <ActionLink href="/for-pros" variant="ghost">Learn more →</ActionLink>
+                </SectionCard>
+
+                <SectionCard>
+                  <CardTitle>Coming soon</CardTitle>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.875rem", color: "rgba(160,192,168,0.55)", display: "flex", flexDirection: "column", gap: 5, lineHeight: 1.6 }}>
+                    <li>Buyer activity feed — see which buyers are most engaged</li>
+                    <li>Response analytics — track scenario types in your market</li>
+                    <li>Team seats — add colleagues to your account</li>
+                  </ul>
+                </SectionCard>
+              </>
+            ) : userType === "lo" ? (
               <>
                 <SectionCard accent="blue">
                   <CardTitle>Scenario Board</CardTitle>
@@ -372,6 +427,11 @@ export default async function DashboardPage() {
                   { href: "/lo/borrowers", label: "Borrower Invites" },
                   { href: "/chat", label: "AI Chat" },
                   { href: "/for-pros", label: "For Professionals" },
+                ] : userType === "agent" ? [
+                  { href: "/agent/scenarios", label: "Buyer Scenarios" },
+                  { href: "/chat", label: "AI Chat" },
+                  { href: "/for-pros", label: "For Professionals" },
+                  { href: "/pricing", label: "Pricing" },
                 ] : [
                   { href: "/connect", label: "Get Matched" },
                   { href: "/connect/my-scenario", label: "My Scenario" },
