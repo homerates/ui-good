@@ -52,11 +52,6 @@
   box-sizing: border-box;
 }
 
-button, input, select, textarea {
-  font-family: inherit;
-  font-size: inherit;
-}
-
 html,
 body {
   height: 100%;
@@ -72,7 +67,9 @@ body {
   background: var(--bg);
   background-attachment: fixed;
   color: var(--text);
-  font: 14px/1.5 var(--font-body), 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
@@ -383,7 +380,7 @@ body {
   background: var(--card);
   color: var(--text);
   cursor: pointer;
-  font-family: var(--font-body), 'DM Sans', sans-serif;
+  font-family: var(--font-inter), 'Inter', system-ui, sans-serif;
   font-size: 0.875rem;
 }
 
