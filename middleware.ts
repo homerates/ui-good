@@ -51,6 +51,11 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/stripe(.*)",
   // Pricing page (public — signed-out users must be able to see it)
   "/pricing(.*)",
+  // Lender Match landing (public — borrowers must see it before signing up)
+  "/connect",
+  // Knowledge hub + market news (public SEO pages)
+  "/knowledge-hub(.*)",
+  "/market-news(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {
