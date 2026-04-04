@@ -224,9 +224,9 @@ export default function ConnectPage() {
       <style>{`
         body:has(.cn-root) {
           display: block !important; height: auto !important;
-          overflow: visible !important; background: #080c12 !important;
+          overflow-y: auto !important; background: #080c12 !important;
         }
-        html:has(.cn-root) { background: #080c12 !important; }
+        html:has(.cn-root) { background: #080c12 !important; height: auto !important; overflow-y: auto !important; }
         body:has(.cn-root) .app-footer { display: none; }
 
         .cn-root {

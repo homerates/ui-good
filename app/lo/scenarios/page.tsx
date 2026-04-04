@@ -346,9 +346,9 @@ export default function LOScenariosPage() {
       <style>{`
         body:has(.los-root) {
           display: block !important; height: auto !important;
-          overflow: visible !important; background: #080c12 !important;
+          overflow-y: auto !important; background: #080c12 !important;
         }
-        html:has(.los-root) { background: #080c12 !important; }
+        html:has(.los-root) { background: #080c12 !important; height: auto !important; overflow-y: auto !important; }
         body:has(.los-root) .app-footer { display: none; }
 
         .los-root { font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; min-height: 100vh; background: #080c12; }

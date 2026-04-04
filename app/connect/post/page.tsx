@@ -254,9 +254,9 @@ export default function PostScenarioPage() {
       <style>{`
         body:has(.post-root) {
           display: block !important; height: auto !important;
-          overflow: visible !important; background: #080c12 !important;
+          overflow-y: auto !important; background: #080c12 !important;
         }
-        html:has(.post-root) { background: #080c12 !important; }
+        html:has(.post-root) { background: #080c12 !important; height: auto !important; overflow-y: auto !important; }
         body:has(.post-root) .app-footer { display: none; }
 
         .post-root { font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; min-height: 100vh; background: #080c12; }
