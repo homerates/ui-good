@@ -2,8 +2,12 @@
 // "Lender Match" — borrower-facing landing page
 // Borrowers post anonymous scenarios; LOs compete; borrower chooses
 
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
+import { getSupabase } from "../../lib/supabaseServer";
 
 export const metadata: Metadata = {
   title: "Get Matched With the Right Lender — On Your Terms | HomeRates.ai",
@@ -11,7 +15,22 @@ export const metadata: Metadata = {
     "Post your mortgage scenario anonymously. Verified loan officers respond with their approach and rate estimate. You choose who earns an introduction. No credit check. No spam.",
 };
 
-export default function ConnectPage() {
+export default async function ConnectPage() {
+  const { userId } = await auth();
+  let hasActiveScenario = false;
+  if (userId) {
+    const sb = getSupabase();
+    if (sb) {
+      const { data } = await sb
+        .from("scenario_briefs")
+        .select("id")
+        .eq("borrower_id", userId)
+        .in("status", ["active", "matched"])
+        .limit(1)
+        .maybeSingle();
+      hasActiveScenario = !!data;
+    }
+  }
   return (
     <>
       <div className="cn-root">
@@ -23,8 +42,16 @@ export default function ConnectPage() {
           </Link>
           <div className="cn-nav-links">
             <Link href="/for-pros" className="cn-nav-link">For Professionals</Link>
-            <Link href="/sign-in" className="cn-nav-signin">Sign in</Link>
-            <Link href="/connect/post" className="cn-nav-cta">Post My Scenario →</Link>
+            {userId ? (
+              <Link href="/dashboard" className="cn-nav-signin">Dashboard</Link>
+            ) : (
+              <Link href="/sign-in" className="cn-nav-signin">Sign in</Link>
+            )}
+            {hasActiveScenario ? (
+              <Link href="/connect/my-scenario" className="cn-nav-cta">View My Scenario →</Link>
+            ) : (
+              <Link href="/connect/post" className="cn-nav-cta">Post My Scenario →</Link>
+            )}
           </div>
         </nav>
 

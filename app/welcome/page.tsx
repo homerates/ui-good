@@ -2,7 +2,7 @@
 // app/welcome/page.tsx
 // Post sign-up role selection — protected route, runs once per new user
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 const TYPES = [
@@ -29,6 +29,14 @@ const TYPES = [
 type UserType = "borrower" | "lo" | "agent";
 
 export default function WelcomePage() {
+  // Redirect returning users who already have a role set
+  useEffect(() => {
+    fetch("/api/onboarding/setup")
+      .then(r => r.json())
+      .then(d => { if (d.role) window.location.replace("/dashboard"); })
+      .catch(() => {});
+  }, []);
+
   const [type, setType] = useState<UserType | "">("");
   const [nmls, setNmls] = useState("");
   const [lender, setLender] = useState("");

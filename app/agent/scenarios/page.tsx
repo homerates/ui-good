@@ -130,10 +130,12 @@ export default function AgentScenariosPage() {
       <div className="los-root">
 
         <nav className="los-nav">
-          <Link href="/" className="los-nav-logo">
+          <Link href="/dashboard" className="los-nav-logo">
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
           <div className="los-nav-links">
+            <Link href="/dashboard" className="los-nav-link">Dashboard</Link>
+            <Link href="/chat" className="los-nav-link">AI Chat</Link>
             <span className="los-nav-active">Scenario Board</span>
           </div>
         </nav>

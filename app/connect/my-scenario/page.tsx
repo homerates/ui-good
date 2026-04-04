@@ -194,6 +194,20 @@ export default function MyScenarioPage() {
                 )}
               </div>
 
+              {/* Matched — what happens next */}
+              {scenario.status === "matched" && !invited && (
+                <div className="ms-matched-next">
+                  <div className="ms-matched-next-icon">✓</div>
+                  <div>
+                    <div className="ms-matched-next-title">You've selected a professional</div>
+                    <div className="ms-matched-next-body">
+                      Both of you have each other's contact info. Reach out directly — no middleman, no callbacks you didn't ask for.
+                      If it doesn't work out, close this scenario and post a new one any time.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Responses — split by type */}
               {(() => {
                 const loResponses = responses.filter(r => r.responder_type !== "agent");
@@ -426,6 +440,22 @@ export default function MyScenarioPage() {
         .ms-invite-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .ms-invited-badge { font-size: 0.82rem; color: #00e87a; font-weight: 600; }
+
+        .ms-matched-next {
+          display: flex; gap: 14px; align-items: flex-start;
+          margin: 1.25rem 0;
+          background: rgba(0,232,122,0.06);
+          border: 1px solid rgba(0,232,122,0.2);
+          border-radius: 14px; padding: 1.25rem 1.5rem;
+        }
+        .ms-matched-next-icon {
+          flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+          background: rgba(0,232,122,0.15); color: #00e87a;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 1rem; font-weight: 700;
+        }
+        .ms-matched-next-title { font-weight: 700; color: #f0f4ff; margin-bottom: 5px; font-size: 0.95rem; }
+        .ms-matched-next-body { font-size: 0.875rem; color: #6b7a99; line-height: 1.6; }
 
         .ms-success-banner {
           margin-top: 1.5rem;

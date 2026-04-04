@@ -12,7 +12,7 @@ export default function Page() {
       </div>
 
       <div className="auth-shell-body">
-        <SignIn />
+        <SignIn fallbackRedirectUrl="/dashboard" />
       </div>
 
       <div className="auth-shell-footer">

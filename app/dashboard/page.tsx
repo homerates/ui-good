@@ -142,8 +142,11 @@ export default async function DashboardPage() {
   // ── Agent-specific data ──────────────────────────────────────────────────
   let agentScenarioCount = 0;
   let agentConnectionCount = 0;
+  let agentRecord: { brokerage: string | null } | null = null;
 
   if (userType === "agent" && sb) {
+    const { data: ar } = await sb.from("agents").select("brokerage").eq("user_id", userId).maybeSingle();
+    agentRecord = ar ?? null;
     const { count: sc } = await sb
       .from("scenario_briefs")
       .select("id", { count: "exact", head: true })
@@ -428,6 +431,22 @@ export default async function DashboardPage() {
                     }} />
                   </div>
                 )}
+              </SectionCard>
+            )}
+
+            {/* Profile completeness nudge */}
+            {userType === "lo" && !loRecord?.lender && (
+              <SectionCard>
+                <CardTitle>Complete your profile</CardTitle>
+                <CardBody>Add your lender or company name so borrowers know who they're hearing from.</CardBody>
+                <ActionLink href="/profile" variant="ghost">Update profile →</ActionLink>
+              </SectionCard>
+            )}
+            {userType === "agent" && !agentRecord?.brokerage && (
+              <SectionCard>
+                <CardTitle>Complete your profile</CardTitle>
+                <CardBody>Add your brokerage name so buyers know who they're hearing from when you respond.</CardBody>
+                <ActionLink href="/profile" variant="ghost">Update profile →</ActionLink>
               </SectionCard>
             )}
 
