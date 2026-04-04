@@ -4,35 +4,43 @@ import type { MetadataRoute } from "next";
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
+      // ── Standard crawlers ──────────────────────────────────────────
       {
         userAgent: "*",
         allow: "/",
         disallow: [
-          // API routes — never indexed
           "/api/",
-          // Auth flows
           "/sign-in/",
           "/sign-up/",
           "/onboarding/",
-          // Loan-officer portal — auth-protected, not public content
           "/lo/",
-          // Borrower-specific app flows
           "/borrower/",
           "/borrowers/",
           "/join/",
           "/identity/",
-          // User account
           "/profile/",
-          // Auth-required homeowner dashboard (no SEO value — sign-in wall)
           "/my-home/",
-          // Internal/utility pages not meant for search
           "/probe/",
           "/library/",
-          // Shared-link viewer (dynamic, no SEO value)
           "/s/",
           "/share/",
         ],
       },
+      // ── AI / LLM crawlers — explicitly welcome ─────────────────────
+      { userAgent: "GPTBot",          allow: "/" },
+      { userAgent: "ChatGPT-User",    allow: "/" },
+      { userAgent: "ClaudeBot",       allow: "/" },
+      { userAgent: "anthropic-ai",    allow: "/" },
+      { userAgent: "PerplexityBot",   allow: "/" },
+      { userAgent: "Google-Extended", allow: "/" },
+      { userAgent: "Googlebot",       allow: "/" },
+      { userAgent: "Bingbot",         allow: "/" },
+      { userAgent: "Grok",            allow: "/" },
+      { userAgent: "DeepSeekBot",     allow: "/" },
+      { userAgent: "GeminiBot",       allow: "/" },
+      { userAgent: "cohere-ai",       allow: "/" },
+      { userAgent: "Meta-ExternalAgent", allow: "/" },
+      { userAgent: "YouBot",          allow: "/" },
     ],
     sitemap: "https://chat.homerates.ai/sitemap.xml",
   };

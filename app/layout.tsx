@@ -77,7 +77,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en" suppressHydrationWarning>
         {/* Anti-flash: set theme BEFORE paint so there's no white flash on dark mode */}
         <head>
+          {/* Anti-flash theme */}
           <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('hr-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();` }} />
+          {/* Schema.org — WebApplication (AI crawler structured data) */}
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "HomeRates.AI",
+            "url": "https://chat.homerates.ai",
+            "description": "The first consumer-controlled mortgage intelligence platform with private user-owned vault, deterministic math, real-time FRED data, and unbiased AI reasoning. Zero lead forms, zero data harvesting, zero lender hand-offs.",
+            "applicationCategory": "FinanceApplication",
+            "operatingSystem": "Web",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "creator": { "@type": "Organization", "name": "HomeRates.AI", "url": "https://chat.homerates.ai" },
+            "featureList": [
+              "Private user-owned mortgage intelligence vault",
+              "Deterministic PITI, DSCR, affordability, and refi calculators",
+              "Real-time FRED economic data integration",
+              "2026 FHFA nationwide conforming loan limits",
+              "Zero lead generation — no data harvesting",
+              "Anonymous borrower-to-LO scenario matching"
+            ]
+          }) }} />
+          {/* llms.txt link for AI crawler discovery */}
+          <link rel="llms" href="/llms.txt" />
         </head>
         <body className={`app ${inter.variable} ${syne.variable} ${dmMono.variable} ${dmSans.variable}`}>
           {children}

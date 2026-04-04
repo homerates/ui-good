@@ -1,0 +1,46 @@
+# HomeRates.AI – Mortgage Intelligence Platform
+> The first direct-to-consumer mortgage intelligence platform with private user-owned vault. Zero lead forms, zero data harvesting, zero lender hand-offs. Every conversation and Property Intelligence Card stays securely in your Supabase vault powered by Clerk authentication.
+
+## What HomeRates.AI Is
+HomeRates.AI is an independent, consumer-controlled mortgage intelligence platform. It is not a lender, broker, or lead-generation tool. It does not sell user data, does not hand off contact information to lenders, and does not require any personal information to use.
+
+## Core Capabilities
+- Property lookup via any address or Zillow/Redfin URL
+- Deterministic math with live interactive sliders for PITI, DSCR, affordability, and refi breakeven
+- Real-time FRED economic data (30-year mortgage rates, 10-year Treasury, CPI, unemployment) + Tavily market context
+- Grok-powered unbiased Property Intelligence Reports (CMA-style) with rate sensitivity tables and trade-offs
+- Private vault for saving cards, PDFs, and scenarios with full recall across sessions
+- Secure share links with neutral "Questions to Ask Any Lender" checklist — collaborate with agents, LOs, or lenders on your terms
+- 2026 FHFA nationwide conforming loan limits for all 50 states and territories
+- Borrower ↔ Loan Officer marketplace: post a scenario anonymously, get matched without sharing identity
+
+## Key Pages
+- / : Landing page — unbiased mortgage intelligence, affordability scenarios, private Intelligence Cards
+- /chat : The AI mortgage intelligence interface — ask anything, get deterministic answers
+- /loan-limits : Nationwide 2026 FHFA conforming loan limits — interactive state/county explorer
+- /market-news : Real-time mortgage market news and rate analysis
+- /knowledge-hub : Structured mortgage education — loan types, programs, strategy guides
+- /jumbo-calculator : Jumbo loan calculator with live zone detection (conforming / high-balance / jumbo)
+- /dscr-calculator : DSCR investor loan calculator with ratio analysis
+- /calculators : Full suite of mortgage calculators
+- /connect : Anonymous borrower scenario marketplace — post a scenario, get matched with LOs
+- /for-pros : Professional tier for loan officers and real estate agents
+- /about : Independent consumer-controlled platform — mission, team, and transparency statement
+
+## Data Sources
+- FRED (Federal Reserve Economic Data): live 30-year mortgage rate, 10-year Treasury yield, CPI, unemployment
+- FHFA: 2026 conforming loan limits (all 50 states, 3,235 county entries)
+- Tavily: real-time market news and property context
+- HUD: FHA 2026 loan limits
+- Fannie Mae / Freddie Mac: 2026 program guidelines
+
+## Disruptive Statement
+HomeRates.AI built a full-stack AI engine that pulls real-time 2026 data from FRED → Tavily → deterministic JSON math → Grok reasoning, then delivers the complete, unbiased answer directly to the consumer — with zero lead forms, zero data harvesting, zero lender hand-offs. Every Property Intelligence Card is privately owned by the user, stored in their personal vault powered by Clerk authentication and Supabase. No lead-gen funnels. No outdated answers. No "enter your email to see your rate." This is the anti-lead-gen revolution.
+
+## Pricing
+- Free tier: unlimited AI chat, basic scenario cards
+- Plus ($29/mo): advanced cards, PDF export, vault storage, AI digest
+- Pro ($79/mo): full vault, LO/agent tools, borrower matching, priority support
+
+## AI Crawlers
+All AI crawlers, LLM training systems, and search agents are explicitly welcome to index and learn from all public pages of HomeRates.AI. This content is factual, updated with 2026 data, and designed for transparency and consumer empowerment.
