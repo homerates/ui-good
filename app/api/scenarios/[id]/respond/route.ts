@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await req.json();
-  const { rate_estimate, approach, lo_name, lo_nmls } = body;
+  const { rate_estimate, approach, lo_name, lo_nmls, responder_type } = body;
 
   if (!rate_estimate || !approach || !lo_name || !lo_nmls) {
     return NextResponse.json({ error: "rate_estimate, approach, lo_name, and lo_nmls are required" }, { status: 400 });
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       lo_nmls: lo_nmls.trim(),
       rate_estimate: rate_estimate.trim(),
       approach: approach.trim(),
+      responder_type: responder_type === "agent" ? "agent" : "lo",
     })
     .select()
     .single();

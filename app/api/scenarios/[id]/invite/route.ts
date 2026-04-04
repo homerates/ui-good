@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Get the LO's response
   const { data: response } = await sb
     .from("scenario_responses")
-    .select("id, lo_id, lo_name, lo_nmls, rate_estimate, approach")
+    .select("id, lo_id, lo_name, lo_nmls, rate_estimate, approach, responder_type")
     .eq("id", response_id)
     .eq("scenario_id", id)
     .single();
@@ -87,7 +87,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     console.error("[invite] lo clerk lookup failed:", e);
   }
 
-  // Notify LO — they earned the introduction
+  const isAgent = response.responder_type === "agent";
+  const profLabel = isAgent ? "agent" : "loan officer";
+  const licenseLabel = isAgent ? "License" : "NMLS";
+  const valueLabel = isAgent ? "Buyer rep fee" : "Rate estimate";
+
+  // Notify professional — they earned the introduction
   if (loEmail) {
     await resend.emails.send({
       from: "HomeRates.ai <digest@homerates.ai>",
@@ -97,7 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; background: #080c12; color: #f0f4ff; padding: 32px; border-radius: 12px;">
           <img src="https://chat.homerates.ai/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height: 28px; margin-bottom: 24px;" />
           <h2 style="color: #00e87a; font-size: 1.4rem; margin: 0 0 12px;">You earned a connection.</h2>
-          <p style="color: #6b7a99; margin: 0 0 20px;">A borrower reviewed your response and chose you. Here's their contact:</p>
+          <p style="color: #6b7a99; margin: 0 0 20px;">A borrower reviewed your response and chose you as their ${profLabel}. Here's their contact:</p>
           <div style="background: #0e1420; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 20px; margin-bottom: 20px;">
             <div style="font-weight: 600; font-size: 1.05rem; margin-bottom: 4px;">${borrowerName}</div>
             <div style="color: #6b7a99; font-size: 0.9rem; margin-bottom: 12px;">${borrowerEmail}</div>
@@ -123,8 +128,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           <p style="color: #6b7a99; margin: 0 0 20px;">${response.lo_name} has been notified and has your contact info. They'll reach out directly.</p>
           <div style="background: #0e1420; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 20px; margin-bottom: 20px;">
             <div style="font-weight: 600; margin-bottom: 4px;">${response.lo_name}</div>
-            <div style="color: #6b7a99; font-size: 0.85rem; margin-bottom: 8px;">NMLS #${response.lo_nmls}</div>
-            <div style="font-size: 0.85rem; color: #6b7a99;">Their rate estimate: <strong style="color: #00e87a;">${response.rate_estimate}</strong></div>
+            <div style="color: #6b7a99; font-size: 0.85rem; margin-bottom: 8px;">${licenseLabel} #${response.lo_nmls}</div>
+            <div style="font-size: 0.85rem; color: #6b7a99;">${valueLabel}: <strong style="color: #00e87a;">${response.rate_estimate}</strong></div>
           </div>
           <p style="color: #6b7a99; font-size: 0.85rem;">Remember: you chose them because their response matched what HomeRates.ai showed you. Hold them to it.</p>
           <p style="color: #3a4560; font-size: 0.78rem; margin-top: 24px;">HomeRates.ai · You stay in control.</p>

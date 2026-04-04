@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // Borrower sees full scenario + all responses with LO identifiers
     const { data: responses } = await sb
       .from("scenario_responses")
-      .select("id, lo_id, lo_name, lo_nmls, rate_estimate, approach, status, created_at")
+      .select("id, lo_id, lo_name, lo_nmls, rate_estimate, approach, status, responder_type, created_at")
       .eq("scenario_id", id)
       .order("created_at", { ascending: true });
 

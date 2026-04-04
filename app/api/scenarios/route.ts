@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes } = body;
+  const { loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional } = body;
 
   if (!loan_type || !price_range || !down_payment_pct || !income_range || !credit_tier || !timeline || !state) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       timeline,
       state,
       notes: notes ?? null,
+      needs_professional: needs_professional ?? "both",
     })
     .select()
     .single();
@@ -84,14 +85,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ scenarios: data ?? [] });
   }
 
-  // LO board (anonymized — no borrower_id exposed)
+  // LO or agent board (anonymized — no borrower_id exposed)
   const state = url.searchParams.get("state");
   const loan_type = url.searchParams.get("loan_type");
+  const responder_type = url.searchParams.get("responder_type") ?? "lo"; // 'lo' or 'agent'
+
+  // Filter scenarios to ones relevant for this professional type
+  const profFilter = responder_type === "agent" ? ["agent", "both"] : ["lender", "both"];
 
   let query = sb
     .from("scenario_briefs")
-    .select("id, loan_type, loan_purpose, price_range, down_payment_pct, credit_tier, timeline, state, notes, response_count, created_at")
+    .select("id, loan_type, loan_purpose, price_range, down_payment_pct, credit_tier, timeline, state, notes, needs_professional, response_count, created_at")
     .eq("status", "active")
+    .in("needs_professional", profFilter)
     .order("created_at", { ascending: false })
     .limit(50);
 

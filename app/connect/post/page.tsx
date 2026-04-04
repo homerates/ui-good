@@ -27,6 +27,7 @@ export default function PostScenarioPage() {
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
+    needs_professional: "both",
     loan_type: "",
     loan_purpose: "Purchase",
     price_range: "",
@@ -106,7 +107,20 @@ export default function PostScenarioPage() {
             {step === 1 && (
               <>
                 <h1 className="post-title">Tell us about the loan</h1>
-                <p className="post-sub">This is all loan officers will see — no personal details.</p>
+                <p className="post-sub">This is what professionals will see — no personal details.</p>
+
+                <div className="post-field">
+                  <label>Who do you need?</label>
+                  <div className="post-chips">
+                    {[
+                      { v: "both", label: "Lender + Agent" },
+                      { v: "lender", label: "Lender only" },
+                      { v: "agent", label: "Agent only" },
+                    ].map(({ v, label }) => (
+                      <button key={v} className={`post-chip ${form.needs_professional === v ? "selected" : ""}`} onClick={() => set("needs_professional", v)}>{label}</button>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="post-field">
                   <label>Loan type</label>
@@ -200,10 +214,11 @@ export default function PostScenarioPage() {
             {step === 3 && (
               <>
                 <h1 className="post-title">Review your scenario</h1>
-                <p className="post-sub">This is exactly what loan officers will see. No personal info is shared.</p>
+                <p className="post-sub">This is exactly what professionals will see. No personal info is shared.</p>
 
                 <div className="post-review-grid">
                   {[
+                    ["Need", form.needs_professional === "both" ? "Lender + Agent" : form.needs_professional === "agent" ? "Agent only" : "Lender only"],
                     ["Loan type", form.loan_type],
                     ["Purpose", form.loan_purpose],
                     ["Price range", form.price_range],
@@ -221,7 +236,7 @@ export default function PostScenarioPage() {
                 </div>
 
                 <div className="post-field">
-                  <label>Optional note <span className="post-optional">(visible to LOs)</span></label>
+                  <label>Optional note <span className="post-optional">(visible to professionals)</span></label>
                   <textarea
                     className="post-textarea"
                     placeholder="e.g. First-time buyer, open to ARM, have a co-borrower..."
@@ -234,7 +249,7 @@ export default function PostScenarioPage() {
                 </div>
 
                 <div className="post-privacy-note">
-                  🔒 Your name, email, and contact info are never shared until you choose to invite a specific loan officer.
+                  🔒 Your name, email, and contact info are never shared until you choose to invite a specific professional.
                 </div>
 
                 {error && <div className="post-error">{error}</div>}

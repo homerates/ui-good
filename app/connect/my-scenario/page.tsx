@@ -13,6 +13,7 @@ interface Response {
   rate_estimate: string;
   approach: string;
   status: string;
+  responder_type: string;
   created_at: string;
 }
 
@@ -188,66 +189,81 @@ export default function MyScenarioPage() {
                 )}
               </div>
 
-              {/* Response count */}
-              <div className="ms-response-header">
-                <h2 className="ms-section-title">
-                  {responses.length === 0
-                    ? "Waiting for responses..."
-                    : `${responses.length} loan officer${responses.length > 1 ? "s" : ""} responded`}
-                </h2>
-                {responses.length > 0 && scenario.status === "active" && (
-                  <p className="ms-section-sub">
-                    Compare their rate estimates against what HomeRates.ai showed you.
-                    When you're ready, invite the one you trust.
-                  </p>
-                )}
-                {responses.length === 0 && (
-                  <p className="ms-section-sub">
-                    Verified loan officers on HomeRates.ai can see your anonymous scenario.
-                    Check back in a few hours.
-                  </p>
-                )}
-              </div>
+              {/* Responses — split by type */}
+              {(() => {
+                const loResponses = responses.filter(r => r.responder_type !== "agent");
+                const agentResponses = responses.filter(r => r.responder_type === "agent");
 
-              {/* Responses */}
-              <div className="ms-responses">
-                {responses.map((r, idx) => (
-                  <div
-                    key={r.id}
-                    className={`ms-response-card ${r.status === "invited" || invited === r.id ? "ms-invited" : ""}`}
-                  >
-                    <div className="ms-response-top">
-                      <div className="ms-lo-id">
-                        <span className="ms-lo-letter">
-                          {String.fromCharCode(65 + idx)}
-                        </span>
-                        <div>
-                          <div className="ms-lo-name">{r.lo_name}</div>
-                          <div className="ms-lo-nmls">NMLS #{r.lo_nmls}</div>
+                const renderGroup = (group: Response[], startIdx: number, typeLabel: string, licenseLabel: string, valueLabel: string) => (
+                  <div className="ms-responses">
+                    {group.length === 0 ? (
+                      <p className="ms-section-sub" style={{ marginTop: "0.5rem" }}>
+                        No {typeLabel.toLowerCase()} responses yet. Check back in a few hours.
+                      </p>
+                    ) : group.map((r, idx) => (
+                      <div
+                        key={r.id}
+                        className={`ms-response-card ${r.status === "invited" || invited === r.id ? "ms-invited" : ""}`}
+                      >
+                        <div className="ms-response-top">
+                          <div className="ms-lo-id">
+                            <span className="ms-lo-letter">
+                              {String.fromCharCode(65 + startIdx + idx)}
+                            </span>
+                            <div>
+                              <div className="ms-lo-name">{r.lo_name}</div>
+                              <div className="ms-lo-nmls">{licenseLabel} #{r.lo_nmls}</div>
+                            </div>
+                          </div>
+                          <div className="ms-rate-pill" title={valueLabel}>{r.rate_estimate}</div>
+                        </div>
+                        <p className="ms-approach">"{r.approach}"</p>
+                        <div className="ms-response-footer">
+                          <span className="ms-response-time">{timeAgo(r.created_at)}</span>
+                          {(r.status === "invited" || invited === r.id) ? (
+                            <span className="ms-invited-badge">✓ Introduction sent</span>
+                          ) : scenario.status === "active" ? (
+                            <button
+                              className="ms-invite-btn"
+                              onClick={() => invite(r.id)}
+                              disabled={inviting === r.id || !!invited}
+                            >
+                              {inviting === r.id ? "Sending..." : "Invite to connect →"}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
-                      <div className="ms-rate-pill">{r.rate_estimate}</div>
-                    </div>
-
-                    <p className="ms-approach">"{r.approach}"</p>
-
-                    <div className="ms-response-footer">
-                      <span className="ms-response-time">{timeAgo(r.created_at)}</span>
-                      {(r.status === "invited" || invited === r.id) ? (
-                        <span className="ms-invited-badge">✓ Introduction sent</span>
-                      ) : scenario.status === "active" ? (
-                        <button
-                          className="ms-invite-btn"
-                          onClick={() => invite(r.id)}
-                          disabled={inviting === r.id || !!invited}
-                        >
-                          {inviting === r.id ? "Sending..." : "Invite to connect →"}
-                        </button>
-                      ) : null}
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+
+                return (
+                  <>
+                    {(scenario as Scenario & { needs_professional?: string }).needs_professional !== "agent" && (
+                      <div className="ms-response-header">
+                        <h2 className="ms-section-title">
+                          {loResponses.length === 0 ? "Waiting for loan officer responses..." : `${loResponses.length} loan officer${loResponses.length > 1 ? "s" : ""} responded`}
+                        </h2>
+                        {loResponses.length > 0 && scenario.status === "active" && (
+                          <p className="ms-section-sub">Compare their rate estimates against your HomeRates.ai analysis. Invite the one you trust.</p>
+                        )}
+                        {renderGroup(loResponses, 0, "Loan Officer", "NMLS", "Rate estimate")}
+                      </div>
+                    )}
+                    {(scenario as Scenario & { needs_professional?: string }).needs_professional !== "lender" && (
+                      <div className="ms-response-header" style={{ marginTop: "2rem" }}>
+                        <h2 className="ms-section-title">
+                          {agentResponses.length === 0 ? "Waiting for agent responses..." : `${agentResponses.length} agent${agentResponses.length > 1 ? "s" : ""} responded`}
+                        </h2>
+                        {agentResponses.length > 0 && scenario.status === "active" && (
+                          <p className="ms-section-sub">Review their approach and buyer rep fee. Invite the one whose style matches yours.</p>
+                        )}
+                        {renderGroup(agentResponses, loResponses.length, "Agent", "License", "Buyer rep fee")}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {invited && (
                 <div className="ms-success-banner">
@@ -255,7 +271,7 @@ export default function MyScenarioPage() {
                 </div>
               )}
 
-              {scenario.status === "active" && responses.length === 0 && (
+              {scenario.status === "active" && responses.length === 0 && (scenario as Scenario & { needs_professional?: string }).needs_professional !== "agent" && (
                 <div className="ms-ai-tip">
                   <div className="ms-ai-tip-icon">💡</div>
                   <div>
