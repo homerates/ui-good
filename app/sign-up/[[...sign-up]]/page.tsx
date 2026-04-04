@@ -12,7 +12,7 @@ export default function Page() {
       </div>
 
       <div className="auth-shell-body">
-        <SignUp afterSignUpUrl="/welcome" />
+        <SignUp forceRedirectUrl="/welcome" />
       </div>
 
       <div className="auth-shell-footer">
