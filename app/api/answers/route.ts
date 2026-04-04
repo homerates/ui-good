@@ -36,6 +36,9 @@ import {
     getCACountyTaxRate, getCACountyInsRate, NATIONAL_CONFORMING_BASELINE,
 } from "../../../lib/loanLimits2026";
 import {
+    getLimits as getNationalLimits, HIGH_COST_COUNTIES, STATE_NAMES,
+} from "../../../lib/loanLimitsNational2026";
+import {
     getRecentScenarioHistory,
     buildSystemPromptWithMemory,
     isFollowUpQuestion,
@@ -4268,51 +4271,113 @@ ${uwAnswerText}`,
                 calcDebugModel = 'calcEngine-jumbo-affordability';
 
             } else if (calcDispatch.type === 'loan_limits') {
-                // ── California 2026 Loan Limits explorer ──
-                // Resolve county from: paramOverrides.loanLimitsCounty > question ZIP > question city/county > fallback LA
+                // ── Nationwide 2026 Loan Limits explorer ──
+                // Resolve state + county from: paramOverrides > question text > fallback CA/LA
                 const _llCountyOverride = (paramOverrides as any)?.loanLimitsCounty as string | undefined;
-                let _llCounty: string = 'LOS ANGELES'; // default
+                const _llStateOverride  = (paramOverrides as any)?.loanLimitsState as string | undefined;
 
-                if (_llCountyOverride) {
-                    _llCounty = _llCountyOverride.toUpperCase().replace(/\s+COUNTY$/i, '').trim();
-                } else {
-                    // Try ZIP from question
-                    const _zipMatch = question.match(/\b(9[0-6]\d{3})\b/);
-                    if (_zipMatch) {
-                        const _fromZip = getCACountyByZip(_zipMatch[1]);
-                        if (_fromZip) _llCounty = _fromZip;
-                    } else {
-                        // Try city/county name from question using getCALoanLimits
-                        const _wordMatches = question.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) ?? [];
-                        for (const w of _wordMatches) {
-                            const _t = getCALoanLimits(w, 1);
-                            if (_t) { _llCounty = _t.county; break; }
+                // Detect state from question text
+                const _qLower = question.toLowerCase();
+                let _llState: string = _llStateOverride?.toUpperCase() ?? 'CA';
+
+                // Only auto-detect state if no override supplied
+                if (!_llStateOverride) {
+                    // Check for state names/codes in the question
+                    const _stateEntries = Object.entries(STATE_NAMES);
+                    for (const [code, name] of _stateEntries) {
+                        if (code === 'CA') continue; // CA handled below
+                        const nameLower = name.toLowerCase();
+                        if (_qLower.includes(nameLower) || _qLower.includes(` ${code.toLowerCase()} `)) {
+                            _llState = code;
+                            break;
                         }
+                    }
+                    // Common abbreviations / city-to-state mapping
+                    if (_llState === 'CA') {
+                        if (/\b(florida|fl)\b/i.test(question)) _llState = 'FL';
+                        else if (/\b(texas|tx)\b/i.test(question)) _llState = 'TX';
+                        else if (/\b(new york|ny|nyc)\b/i.test(question)) _llState = 'NY';
+                        else if (/\b(washington|seattle|wa)\b/i.test(question) && !/\b(washington dc|d\.c\.)\b/i.test(question)) _llState = 'WA';
+                        else if (/\b(washington dc|d\.c\.)\b/i.test(question)) _llState = 'DC';
+                        else if (/\b(colorado|co|denver)\b/i.test(question)) _llState = 'CO';
+                        else if (/\b(hawaii|hi|honolulu)\b/i.test(question)) _llState = 'HI';
+                        else if (/\b(alaska|ak)\b/i.test(question)) _llState = 'AK';
+                        else if (/\b(virginia|va)\b/i.test(question) && !/\bwva?\b/i.test(question)) _llState = 'VA';
+                        else if (/\b(massachusetts|ma|boston)\b/i.test(question)) _llState = 'MA';
+                        else if (/\b(new jersey|nj)\b/i.test(question)) _llState = 'NJ';
+                        else if (/\b(maryland|md)\b/i.test(question)) _llState = 'MD';
+                        else if (/\b(connecticut|ct)\b/i.test(question)) _llState = 'CT';
+                        else if (/\b(utah|ut)\b/i.test(question)) _llState = 'UT';
+                        else if (/\b(wyoming|wy)\b/i.test(question)) _llState = 'WY';
+                        else if (/\b(idaho|id)\b/i.test(question)) _llState = 'ID';
                     }
                 }
 
-                const _llLimits = getCALoanLimits(_llCounty, 1);
-                const _llConforming = _llLimits?.conformingLimit ?? 832_750;
-                const _llBaseline   = NATIONAL_CONFORMING_BASELINE.units1;
-                const _llTaxRate    = getCACountyTaxRate(_llCounty);
-                const _llInsRate    = getCACountyInsRate(_llCounty);
-                const _llBaseRate   = fred?.mort30Avg ?? 6.75;
+                const _isCA = _llState === 'CA';
+                let _llCounty: string;
+                let _llConforming: number;
+                let _llTaxRate: number;
+                let _llInsRate: number;
 
-                // Default price: just above the conforming limit so the zone is interesting
+                if (_isCA) {
+                    // CA path: use precise CA county data
+                    _llCounty = _llCountyOverride?.toUpperCase().replace(/\s+COUNTY$/i, '').trim() ?? 'LOS ANGELES';
+                    if (!_llCountyOverride) {
+                        // Try ZIP from question
+                        const _zipMatch = question.match(/\b(9[0-6]\d{3})\b/);
+                        if (_zipMatch) {
+                            const _fromZip = getCACountyByZip(_zipMatch[1]);
+                            if (_fromZip) _llCounty = _fromZip;
+                        } else {
+                            const _wordMatches = question.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) ?? [];
+                            for (const w of _wordMatches) {
+                                const _t = getCALoanLimits(w, 1);
+                                if (_t) { _llCounty = _t.county; break; }
+                            }
+                        }
+                    }
+                    const _caLimits = getCALoanLimits(_llCounty, 1);
+                    _llConforming = _caLimits?.conformingLimit ?? 832_750;
+                    _llTaxRate    = getCACountyTaxRate(_llCounty);
+                    _llInsRate    = getCACountyInsRate(_llCounty);
+                } else {
+                    // Non-CA path: use national limits data
+                    const _stateCounties = HIGH_COST_COUNTIES[_llState] ?? [];
+                    // Pick county from override or first high-cost county or generic name
+                    if (_llCountyOverride) {
+                        _llCounty = _llCountyOverride.toUpperCase().replace(/\s+COUNTY$/i, '').trim();
+                    } else if (_stateCounties.length > 0) {
+                        // Try to match county name from question
+                        const _qWords = question.toUpperCase();
+                        const _matched = _stateCounties.find(c => _qWords.includes(c.county.replace(/ COUNTY$/, '').replace(/ BOROUGH$/, '')));
+                        _llCounty = _matched?.county ?? _stateCounties[0].county;
+                    } else {
+                        _llCounty = 'STANDARD';
+                    }
+                    const _natLimits = getNationalLimits(_llState, _llCounty);
+                    _llConforming = _natLimits.conforming.units1;
+                    _llTaxRate    = 0.011; // national average fallback
+                    _llInsRate    = 0.003;
+                }
+
+                const _llBaseline  = NATIONAL_CONFORMING_BASELINE.units1;
+                const _llBaseRate  = fred?.mort30Avg ?? 6.75;
                 const _llParamPrice = (paramOverrides as any)?.purchasePrice;
-                const _llPrice      = _llParamPrice ?? Math.round(_llConforming * 1.1 / 25000) * 25000;
-                const _llDownPct    = (paramOverrides as any)?.downPaymentPct ?? 20;
+                const _llPrice     = _llParamPrice ?? Math.round(_llConforming * 1.1 / 25000) * 25000;
+                const _llDownPct   = (paramOverrides as any)?.downPaymentPct ?? 20;
 
                 calcCard = buildLoanLimitsCard({
-                    county:          _llCounty,
-                    conformingLimit: _llConforming,
+                    county:           _llCounty,
+                    state:            _llState,
+                    stateName:        STATE_NAMES[_llState] ?? _llState,
+                    conformingLimit:  _llConforming,
                     nationalBaseline: _llBaseline,
-                    price:           _llPrice,
-                    downPct:         _llDownPct,
-                    taxRate:         _llTaxRate,
-                    insRate:         _llInsRate,
-                    baseRate:        _llBaseRate,
-                    zip:             (paramOverrides as any)?.zip,
+                    price:            _llPrice,
+                    downPct:          _llDownPct,
+                    taxRate:          _llTaxRate,
+                    insRate:          _llInsRate,
+                    baseRate:         _llBaseRate,
+                    zip:              (paramOverrides as any)?.zip,
                 });
                 calcDebugModel = 'calcEngine-loan-limits';
 

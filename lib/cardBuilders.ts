@@ -2922,11 +2922,13 @@ ${dtiSection}
 }
 
 // ─────────────────────────────────────────────
-// LOAN LIMITS CARD (California 2026)
+// LOAN LIMITS CARD (Nationwide 2026)
 // ─────────────────────────────────────────────
 
 export interface LoanLimitsCardInput {
     county: string;
+    state?: string;            // 2-letter state code — defaults to 'CA' for backward compat
+    stateName?: string;        // human-readable state name (e.g. "Florida")
     conformingLimit: number;   // county Fannie/Freddie limit
     nationalBaseline: number;  // $832,750 (2026 FHFA baseline)
     price: number;             // purchase price
@@ -2938,7 +2940,7 @@ export interface LoanLimitsCardInput {
 }
 
 export function buildLoanLimitsCard(inp: LoanLimitsCardInput): BuiltCard {
-    const { county, conformingLimit, nationalBaseline, price, downPct, taxRate, insRate, baseRate } = inp;
+    const { county, state = 'CA', stateName, conformingLimit, nationalBaseline, price, downPct, taxRate, insRate, baseRate } = inp;
 
     const loanAmt    = price * (1 - downPct / 100);
     const RATE_HB    = 0.30;
@@ -2965,9 +2967,20 @@ export function buildLoanLimitsCard(inp: LoanLimitsCardInput): BuiltCard {
     const fmtRate = (r: number) => r.toFixed(3) + '%';
 
     const isHighBalanceCounty = conformingLimit > nationalBaseline;
-    const countyDisplay = county.replace(/_/g, ' ');
+    const countyDisplay = county.replace(/_/g, ' ').split(' ').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
+    const stateLabel = stateName ?? state;
+    const locationHeader = `${countyDisplay} County, ${stateLabel}`;
 
-    const answer = `**California 2026 Loan Limits — ${countyDisplay} County**
+    // County-label for chips — use state-specific examples where relevant
+    const isCA = state === 'CA';
+    const relatedChip1 = isCA
+        ? { label: 'LA County limits', seed: `California loan limits for Los Angeles County — 2026 conforming, high balance, and jumbo thresholds`, paramOverrides: { loanLimitsCounty: 'LOS ANGELES', loanLimitsState: 'CA' } as any }
+        : { label: `${stateLabel} standard conforming`, seed: `What is the standard conforming loan limit in ${stateLabel} for 2026?`, paramOverrides: { loanLimitsState: state } as any };
+    const relatedChip2 = isCA
+        ? { label: 'San Diego County limits', seed: `California loan limits for San Diego County — 2026 conforming, high balance, and jumbo thresholds`, paramOverrides: { loanLimitsCounty: 'SAN DIEGO', loanLimitsState: 'CA' } as any }
+        : { label: 'Nationwide loan limits explorer', seed: `Show me the nationwide 2026 conforming loan limits by state` };
+
+    const answer = `**2026 Conforming Loan Limits — ${locationHeader}**
 
 | Tier | Limit (1-unit) | Rate |
 |------|---------------|------|
@@ -2977,7 +2990,7 @@ export function buildLoanLimitsCard(inp: LoanLimitsCardInput): BuiltCard {
 
 **Your scenario:** ${fmt(price)} purchase · ${downPct}% down · **${fmt(loanAmt)} loan → ${zoneLabel}** (${fmtRate(effectiveRate)})
 
-> 📌 FHFA 2026 Fannie Mae/Freddie Mac conforming limits — effective Jan 1, 2026. National baseline: ${fmt(nationalBaseline)}.${isHighBalanceCounty ? ` ${countyDisplay} is a high-cost county — GSE loans up to ${fmt(conformingLimit)} qualify; anything above is jumbo.` : ` ${countyDisplay} is a standard conforming county — no high-balance zone. Best rates apply to all GSE loans up to ${fmt(nationalBaseline)}.`}
+> 📌 FHFA 2026 Fannie Mae/Freddie Mac conforming limits — effective Jan 1, 2026. National baseline: ${fmt(nationalBaseline)}.${isHighBalanceCounty ? ` ${countyDisplay} County is a high-cost area — GSE loans up to ${fmt(conformingLimit)} qualify; anything above is jumbo.` : ` ${countyDisplay} County uses the standard national baseline — no high-balance zone. Best rates apply to all GSE loans up to ${fmt(nationalBaseline)}.`}
 >
 > 💡 Rate premiums shown are typical mid-market estimates. Actual lender pricing varies.
 
@@ -2997,30 +3010,22 @@ Use the **Loan Limits Explorer** below to slide price and down payment — zones
             },
         },
         {
-            label: `What down payment stays conforming in ${countyDisplay} County?`,
-            seed: `What down payment do I need to stay under the conforming loan limit in ${countyDisplay} County, CA for a ${fmt(price)} home?`,
+            label: `What down payment stays conforming in ${countyDisplay}?`,
+            seed: `What down payment do I need to stay under the conforming loan limit in ${countyDisplay} County, ${stateLabel} for a ${fmt(price)} home?`,
         },
-        {
-            label: `LA County limits`,
-            seed: `California loan limits for Los Angeles County — show me the 2026 conforming, high balance, and jumbo thresholds`,
-            paramOverrides: { loanLimitsCounty: 'LOS ANGELES' } as any,
-        },
-        {
-            label: `San Diego County limits`,
-            seed: `California loan limits for San Diego County — show me the 2026 conforming, high balance, and jumbo thresholds`,
-            paramOverrides: { loanLimitsCounty: 'SAN DIEGO' } as any,
-        },
+        relatedChip1,
+        relatedChip2,
     ];
 
     return {
         answer,
-        next_step: `${county.replace(/_/g, ' ')} County: ${fmt(loanAmt)} loan → ${zoneLabel} @ ${fmtRate(effectiveRate)}.`,
+        next_step: `${countyDisplay} County, ${stateLabel}: ${fmt(loanAmt)} loan → ${zoneLabel} @ ${fmtRate(effectiveRate)}.`,
         follow_up: chips[0].label,
         follow_up_chips: chips,
         confidence: '1.00 (FHFA 2026 data — no LLM)',
         memoryPayload: {
-            plain_english_summary: `CA loan limits: ${county} County, ${fmt(price)} purchase, ${downPct}% down, ${fmt(loanAmt)} loan → ${zoneLabel}.`,
-            scenario_inputs: { county, price, down_pct: downPct, loan_amt: loanAmt, zone },
+            plain_english_summary: `Loan limits: ${countyDisplay} County, ${stateLabel}, ${fmt(price)} purchase, ${downPct}% down, ${fmt(loanAmt)} loan → ${zoneLabel}.`,
+            scenario_inputs: { county, state, price, down_pct: downPct, loan_amt: loanAmt, zone },
             computed_financials: { loan_amount: loanAmt, effective_rate: effectiveRate, zone },
             monthly_payment: 0,
         },
