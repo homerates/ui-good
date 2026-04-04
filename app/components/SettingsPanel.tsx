@@ -226,11 +226,8 @@ export default function SettingsPanel() {
                 <Link href="/pricing" onClick={() => setOpen(false)} style={navLink}>
                   <span>💳</span> Pricing
                 </Link>
-                <Link href="/lo/dashboard" onClick={() => setOpen(false)} style={navLink}>
-                  <span>📊</span> LO Dashboard
-                </Link>
-                <Link href="/lo/borrowers" onClick={() => setOpen(false)} style={navLink}>
-                  <span>👥</span> Borrowers
+                <Link href="/dashboard" onClick={() => setOpen(false)} style={navLink}>
+                  <span>📊</span> Dashboard
                 </Link>
               </div>
             </section>
