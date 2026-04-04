@@ -3,8 +3,7 @@
 // Post sign-up type selection — runs once per new user
 // Captures role (borrower / lo / agent), saves to DB, redirects to /dashboard
 
-import { useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 const TYPES = [
@@ -31,7 +30,8 @@ const TYPES = [
 type UserType = "borrower" | "lo" | "agent";
 
 export default function WelcomePage() {
-  const { isLoaded } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [type, setType] = useState<UserType | "">("");
   const [nmls, setNmls] = useState("");
   const [lender, setLender] = useState("");
@@ -82,7 +82,7 @@ export default function WelcomePage() {
         </nav>
 
         <div className="wl-container">
-          {!isLoaded ? (
+          {!mounted ? (
             <div className="wl-card" style={{alignItems:"center",justifyContent:"center",minHeight:320}}>
               <div style={{width:32,height:32,border:"3px solid rgba(0,232,122,0.3)",borderTopColor:"#00e87a",borderRadius:"50%",animation:"wl-spin 0.7s linear infinite"}} />
             </div>
