@@ -26,6 +26,7 @@ export const PLANS = {
     priceIdAnnual: null,
     borrowerSlots: 0,
     chatMessages: 20,       // per month
+    scenarioPosts: 2,       // per month
     pdfExports: 0,
     alerts: false,
     description: "Get started with HomeRates.ai",
@@ -38,6 +39,7 @@ export const PLANS = {
     priceIdAnnual:  process.env.STRIPE_PLUS_ANNUAL_PRICE_ID  ?? null,
     borrowerSlots: 0,
     chatMessages: Infinity,
+    scenarioPosts: Infinity,
     pdfExports: Infinity,
     alerts: true,
     description: "Unlimited questions, PDF exports, alerts",
@@ -50,6 +52,7 @@ export const PLANS = {
     priceIdAnnual:  process.env.STRIPE_PRO_ANNUAL_PRICE_ID  ?? null,
     borrowerSlots: 10,
     chatMessages: Infinity,
+    scenarioPosts: Infinity,
     pdfExports: Infinity,
     alerts: true,
     description: "Everything in Plus — plus borrower tools and LO dashboard",

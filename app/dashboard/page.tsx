@@ -6,7 +6,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSupabase } from "../../lib/supabaseServer";
-import { getUserPlan } from "../../lib/subscription";
+import { getUserPlan, canPostScenario } from "../../lib/subscription";
 import { PLANS } from "../../lib/stripe";
 import BillingPortalButton from "../components/BillingPortalButton";
 
@@ -161,17 +161,22 @@ export default async function DashboardPage() {
 
   // ── Borrower-specific data ───────────────────────────────────────────────
   let activeScenario: { id: string; loan_type: string; state: string; status: string; response_count: number } | null = null;
+  let scenarioQuota: { used: number; limit: number | null } = { used: 0, limit: null };
 
   if (userType === "borrower" && sb) {
-    const { data: sc } = await sb
-      .from("scenario_briefs")
-      .select("id, loan_type, state, status, response_count")
-      .eq("borrower_id", userId)
-      .in("status", ["active", "matched"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    activeScenario = sc ?? null;
+    const [scResult, quotaResult] = await Promise.all([
+      sb
+        .from("scenario_briefs")
+        .select("id, loan_type, state, status, response_count")
+        .eq("borrower_id", userId)
+        .in("status", ["active", "matched"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      canPostScenario(userId),
+    ]);
+    activeScenario = scResult.data ?? null;
+    scenarioQuota = { used: quotaResult.used, limit: quotaResult.limit };
   }
 
   const remaining = Math.max(slots - borrowerCount, 0);
@@ -241,6 +246,14 @@ export default async function DashboardPage() {
                 sub={activeScenario ? `${activeScenario.response_count} response${activeScenario.response_count !== 1 ? "s" : ""}` : "Post one to get started"}
                 accent={activeScenario?.status === "matched" ? "#00e87a" : activeScenario ? "#3d8bff" : undefined}
               />
+              {scenarioQuota.limit !== null && (
+                <StatCard
+                  label="Scenarios this month"
+                  value={`${scenarioQuota.used} / ${scenarioQuota.limit}`}
+                  sub={scenarioQuota.used >= scenarioQuota.limit ? "Limit reached — upgrade" : `${scenarioQuota.limit - scenarioQuota.used} remaining`}
+                  accent={scenarioQuota.used >= scenarioQuota.limit ? "#f87171" : undefined}
+                />
+              )}
               <StatCard label="Plan" value={planLabel} sub={periodEnd ? `Renews ${periodEnd}` : "Current plan"} />
             </>
           )}

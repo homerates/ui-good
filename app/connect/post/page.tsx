@@ -25,6 +25,7 @@ export default function PostScenarioPage() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [hitLimit, setHitLimit] = useState(false);
 
   const [form, setForm] = useState({
     needs_professional: "both",
@@ -61,6 +62,11 @@ export default function PostScenarioPage() {
       if (!res.ok) {
         if (data.existing_id) {
           router.push("/connect/my-scenario");
+          return;
+        }
+        if (data.upgrade) {
+          setHitLimit(true);
+          setSubmitting(false);
           return;
         }
         setError(data.error ?? "Something went wrong");
@@ -252,7 +258,16 @@ export default function PostScenarioPage() {
                   🔒 Your name, email, and contact info are never shared until you choose to invite a specific professional.
                 </div>
 
-                {error && <div className="post-error">{error}</div>}
+                {hitLimit && (
+                  <div className="post-limit-gate">
+                    <div className="post-limit-icon">⚡</div>
+                    <div className="post-limit-title">You've used your free scenarios this month</div>
+                    <div className="post-limit-body">Upgrade to Plus or Pro to post more scenarios and connect with unlimited professionals.</div>
+                    <a href="/pricing" className="post-limit-btn">Upgrade plan →</a>
+                  </div>
+                )}
+
+                {!hitLimit && error && <div className="post-error">{error}</div>}
 
                 <div className="post-row">
                   <button className="post-btn-ghost" onClick={() => setStep(2)}>← Back</button>
@@ -371,6 +386,21 @@ export default function PostScenarioPage() {
           border-radius: 10px; padding: 12px 16px;
           margin-bottom: 1.5rem; line-height: 1.5;
         }
+
+        .post-limit-gate {
+          display: flex; flex-direction: column; align-items: center; gap: 10px;
+          padding: 28px 20px; border-radius: 14px; text-align: center;
+          background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.2);
+        }
+        .post-limit-icon { font-size: 1.8rem; }
+        .post-limit-title { font-weight: 700; font-size: 1rem; color: #f0f4ff; }
+        .post-limit-body { font-size: 0.85rem; color: #6b7a99; line-height: 1.6; max-width: 320px; }
+        .post-limit-btn {
+          margin-top: 4px; padding: 10px 22px; border-radius: 999px;
+          background: #00e87a; color: #080c12; font-weight: 700; font-size: 0.9rem;
+          text-decoration: none; transition: opacity 0.15s;
+        }
+        .post-limit-btn:hover { opacity: 0.88; }
 
         .post-error {
           font-size: 0.875rem; color: #ff5f5f;

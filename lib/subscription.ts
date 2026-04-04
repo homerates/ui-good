@@ -99,6 +99,34 @@ export async function incrementUsage(
 }
 
 /**
+ * canPostScenario(userId)
+ * Returns whether the user can post a new scenario brief this month.
+ * Counts directly from scenario_briefs — no extra DB column needed.
+ */
+export async function canPostScenario(
+  userId: string
+): Promise<{ allowed: boolean; used: number; limit: number | null }> {
+  const plan = await getUserPlan(userId);
+  const planConfig = PLANS[plan.plan] ?? PLANS.free;
+  const limit = planConfig.scenarioPosts === Infinity ? null : planConfig.scenarioPosts;
+
+  if (limit === null) return { allowed: true, used: 0, limit: null };
+
+  const sb = getSupabase();
+  if (!sb) return { allowed: true, used: 0, limit };
+
+  const monthStart = `${currentMonth()}-01`;
+  const { count } = await sb
+    .from("scenario_briefs")
+    .select("id", { count: "exact", head: true })
+    .eq("borrower_id", userId)
+    .gte("created_at", monthStart);
+
+  const used = count ?? 0;
+  return { allowed: used < limit, used, limit };
+}
+
+/**
  * canChat(userId)
  * Returns true if the user is allowed to send another chat message.
  */

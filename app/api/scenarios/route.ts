@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
+import { canPostScenario } from "../../../lib/subscription";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -18,6 +19,15 @@ export async function POST(req: NextRequest) {
 
   if (!loan_type || !price_range || !down_payment_pct || !income_range || !credit_tier || !timeline || !state) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  // Check monthly scenario post limit
+  const quota = await canPostScenario(userId);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { error: "You've used your free scenario posts this month. Upgrade to post more.", upgrade: true },
+      { status: 403 }
+    );
   }
 
   const sb = getSupabase();
