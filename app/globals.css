@@ -67,7 +67,7 @@ body {
   background: var(--bg);
   background-attachment: fixed;
   color: var(--text);
-  font: 14px/1.5 var(--font-body), var(--font-inter), system-ui, -apple-system, sans-serif;
+  font: 14px/1.5 var(--font-body), 'DM Sans', system-ui, -apple-system, sans-serif;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
