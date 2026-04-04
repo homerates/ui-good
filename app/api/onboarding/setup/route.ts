@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
 export async function GET() {
@@ -45,14 +45,22 @@ export async function POST(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
-  // Update role on existing users row (row is created by Clerk webhook on sign-up)
+  // Upsert the users row — handles the case where the Clerk webhook hasn't
+  // fired yet (delivery lag) and the row doesn't exist yet.
+  const clerkUser = await currentUser();
+  const email = clerkUser?.emailAddresses.find(
+    e => e.id === clerkUser.primaryEmailAddressId
+  )?.emailAddress ?? "";
+
   const { error: userError } = await sb
     .from("users")
-    .update({ role })
-    .eq("id", userId);
+    .upsert(
+      { id: userId, email, role, plan: "free" },
+      { onConflict: "id" }
+    );
 
   if (userError) {
-    console.error("[onboarding/setup] users update error:", userError);
+    console.error("[onboarding/setup] users upsert error:", userError);
     return NextResponse.json({ error: "Failed to save role: " + userError.message }, { status: 500 });
   }
 
