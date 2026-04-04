@@ -45,18 +45,15 @@ export async function POST(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
-  // Upsert role on users table
+  // Update role on existing users row (row is created by Clerk webhook on sign-up)
   const { error: userError } = await sb
     .from("users")
-    .upsert({ id: userId, role }, { onConflict: "id" });
+    .update({ role })
+    .eq("id", userId);
 
   if (userError) {
-    console.error("[onboarding/setup] users upsert error:", userError);
-    // If the role column doesn't exist yet, give a clear message
-    const msg = userError.message?.includes("column")
-      ? "Database not ready — run: alter table users add column if not exists role text;"
-      : "Failed to save role";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[onboarding/setup] users update error:", userError);
+    return NextResponse.json({ error: "Failed to save role: " + userError.message }, { status: 500 });
   }
 
   // Create LO record — store lender/company for dashboard display
