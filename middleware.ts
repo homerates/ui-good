@@ -35,7 +35,8 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/onboarding(.*)",
-  "/welcome",
+  // /welcome is intentionally NOT public — it's post-signup onboarding for signed-in users
+  // Clerk must validate the session at the edge so the client context is ready when React hydrates
   // Public APIs
   "/api/shorten(.*)",
   "/api/ticker(.*)",
