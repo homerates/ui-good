@@ -146,7 +146,7 @@ export default async function DashboardPage() {
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <div style={{
+    <div className="db-root" style={{
       minHeight: "100vh",
       background: "#080c12",
       fontFamily: "var(--font-dm-sans, system-ui, sans-serif)",
@@ -187,7 +187,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* ── STATS ROW ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: "1.75rem" }}>
+        <div className="db-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: "1.75rem" }}>
           {userType === "lo" ? (
             <>
               <StatCard label="New Scenarios" value={newScenarioCount} sub="awaiting your response" accent="#3d8bff" />
@@ -209,7 +209,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* ── MAIN GRID ── */}
-        <div style={{
+        <div className="db-main-grid" style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1.35fr)",
           gap: 16,
@@ -387,13 +387,15 @@ export default async function DashboardPage() {
       </div>
 
       <style>{`
+        body:has(.db-root) {
+          display: block !important; height: auto !important;
+          overflow-y: auto !important; background: #080c12 !important;
+        }
+        html:has(.db-root) { background: #080c12 !important; height: auto !important; overflow-y: auto !important; }
+        body:has(.db-root) .app-footer { display: none; }
         @media (max-width: 680px) {
-          div[style*="gridTemplateColumns: minmax(0, 2fr)"] {
-            grid-template-columns: 1fr !important;
-          }
-          div[style*="gridTemplateColumns: repeat(auto-fill, minmax(160px"] {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
+          .db-main-grid { grid-template-columns: 1fr !important; }
+          .db-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
       `}</style>
     </div>
