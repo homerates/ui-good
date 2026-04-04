@@ -52,27 +52,29 @@ export async function POST(req: NextRequest) {
 
   if (userError) {
     console.error("[onboarding/setup] users upsert error:", userError);
-    return NextResponse.json({ error: "Failed to save role" }, { status: 500 });
+    // If the role column doesn't exist yet, give a clear message
+    const msg = userError.message?.includes("column")
+      ? "Database not ready — run: alter table users add column if not exists role text;"
+      : "Failed to save role";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  // Create professional record if LO
+  // Create LO record — store lender/company for dashboard display
+  // NMLS is collected per scenario response (already in respond modal as default)
   if (role === "lo") {
+    const loPayload: Record<string, unknown> = {
+      user_id: userId,
+      lender: lender?.trim() || null,
+      allowed_borrower_slots: 0,
+    };
+    // Store NMLS if the column exists — added via:
+    // alter table loan_officers add column if not exists nmls text;
+    if (nmls?.trim()) loPayload.nmls = nmls.trim();
+
     const { error: loError } = await sb
       .from("loan_officers")
-      .upsert(
-        {
-          user_id: userId,
-          lo_nmls: nmls.trim(),
-          lender: lender?.trim() ?? null,
-          allowed_borrower_slots: 0, // default — admin can increase
-        },
-        { onConflict: "user_id" }
-      );
-
-    if (loError) {
-      console.error("[onboarding/setup] loan_officers upsert error:", loError);
-      // Non-fatal — role is already saved
-    }
+      .upsert(loPayload, { onConflict: "user_id" });
+    if (loError) console.error("[onboarding/setup] loan_officers upsert error:", loError);
   }
 
   // Create agent record if agent
