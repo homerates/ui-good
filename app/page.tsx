@@ -225,7 +225,7 @@ export default function LandingPage() {
           height: 36px;
           width: auto;
         }
-        .lp-nav-links { display: flex; gap: 32px; list-style: none; }
+        .lp-nav-links { display: flex; gap: 32px; list-style: none; align-items: center; }
         .lp-nav-links a {
           font-size: 13px;
           color: var(--text-muted);
@@ -234,6 +234,43 @@ export default function LandingPage() {
           letter-spacing: 0.02em;
         }
         .lp-nav-links a:hover { color: var(--text); }
+
+        /* Resources dropdown */
+        .lp-nav-dropdown { position: relative; }
+        .lp-nav-dropdown-trigger {
+          display: flex; align-items: center; gap: 5px;
+          font-size: 13px; font-family: 'DM Sans', sans-serif;
+          color: var(--text-muted); background: none; border: none;
+          cursor: pointer; padding: 0; letter-spacing: 0.02em;
+          transition: color 0.2s;
+        }
+        .lp-nav-dropdown-trigger:hover { color: var(--text); }
+        .lp-nav-dropdown-trigger:hover .lp-nav-dropdown-arrow { transform: rotate(180deg); }
+        .lp-nav-dropdown-arrow { transition: transform 0.2s; display: inline-block; font-size: 10px; opacity: 0.6; }
+        .lp-nav-dropdown-menu {
+          display: none;
+          position: absolute; top: calc(100% + 12px); left: 50%;
+          transform: translateX(-50%);
+          min-width: 220px;
+          background: var(--bg);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 6px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+          z-index: 100;
+        }
+        .lp-nav-dropdown:hover .lp-nav-dropdown-menu { display: flex; flex-direction: column; }
+        .lp-nav-dropdown-menu a {
+          font-size: 13px; color: var(--text-muted);
+          text-decoration: none; padding: 9px 14px;
+          border-radius: 8px; transition: background 0.15s, color 0.15s;
+          display: flex; align-items: center; gap: 10px;
+          letter-spacing: 0.02em;
+        }
+        .lp-nav-dropdown-menu a:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+        .lp-nav-dropdown-menu .lp-ddm-icon { font-size: 15px; width: 20px; text-align: center; }
+        .lp-nav-dropdown-divider { height: 1px; background: var(--border); margin: 4px 8px; }
+
         .lp-nav-cta { display: flex; align-items: center; gap: 12px; }
         .lp-btn-ghost {
           font-family: 'DM Sans', sans-serif;
@@ -711,9 +748,21 @@ export default function LandingPage() {
             <li><Link href="/chat">How it works</Link></li>
             <li><Link href="/chat">Scenario Engine</Link></li>
             <li><Link href="/chat">HomeRates Lab</Link></li>
-            <li><Link href="/market-news">Market News</Link></li>
-            <li><Link href="/knowledge-hub">Knowledge Hub</Link></li>
             <li><Link href="/homeowner">Home Value</Link></li>
+            <li className="lp-nav-dropdown">
+              <button className="lp-nav-dropdown-trigger">
+                Resources <span className="lp-nav-dropdown-arrow">▾</span>
+              </button>
+              <div className="lp-nav-dropdown-menu">
+                <Link href="/market-news"><span className="lp-ddm-icon">📰</span>Market News</Link>
+                <Link href="/knowledge-hub"><span className="lp-ddm-icon">📚</span>Knowledge Hub</Link>
+                <Link href="/loan-limits"><span className="lp-ddm-icon">🏠</span>Loan Limits 2026</Link>
+                <div className="lp-nav-dropdown-divider" />
+                <Link href="/calculators"><span className="lp-ddm-icon">🧮</span>Calculators</Link>
+                <Link href="/jumbo-calculator"><span className="lp-ddm-icon">⚡</span>Jumbo Calculator</Link>
+                <Link href="/dscr-calculator"><span className="lp-ddm-icon">📊</span>DSCR Calculator</Link>
+              </div>
+            </li>
           </ul>
           <div className="lp-nav-cta">
             <SignedOut>
@@ -964,6 +1013,8 @@ export default function LandingPage() {
           <div className="lp-footer-links">
             <Link href="/market-news">Market News</Link>
             <Link href="/knowledge-hub">Knowledge Hub</Link>
+            <Link href="/loan-limits">Loan Limits 2026</Link>
+            <Link href="/calculators">Calculators</Link>
             <Link href="/disclosures">Terms</Link>
             <Link href="/privacy">Privacy</Link>
           </div>
