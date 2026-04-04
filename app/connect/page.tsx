@@ -22,6 +22,7 @@ export default function ConnectPage() {
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
           <div className="cn-nav-links">
+            <Link href="/for-pros" className="cn-nav-link">For Professionals</Link>
             <Link href="/sign-in" className="cn-nav-signin">Sign in</Link>
             <Link href="/connect/post" className="cn-nav-cta">Post My Scenario →</Link>
           </div>
@@ -247,6 +248,8 @@ export default function ConnectPage() {
         .cn-nav-logo { display: flex; align-items: center; text-decoration: none; }
         .cn-nav-logo img { height: 32px; width: auto; }
         .cn-nav-links { display: flex; align-items: center; gap: 14px; }
+        .cn-nav-link { color: #6b7a99; font-size: 0.875rem; text-decoration: none; transition: color 0.15s; }
+        .cn-nav-link:hover { color: #f0f4ff; }
         .cn-nav-signin { color: #6b7a99; text-decoration: none; font-size: 0.9rem; transition: color 0.15s; }
         .cn-nav-signin:hover { color: #f0f4ff; }
         .cn-nav-cta {

@@ -53,6 +53,8 @@ const isPublicRoute = createRouteMatcher([
   "/pricing(.*)",
   // Lender Match landing (public — borrowers must see it before signing up)
   "/connect",
+  // For professionals landing (public — LOs and agents must see it before signing up)
+  "/for-pros",
   // Knowledge hub + market news (public SEO pages)
   "/knowledge-hub(.*)",
   "/market-news(.*)",

@@ -645,6 +645,7 @@ export default function Sidebar(props: SidebarProps) {
             <SignedIn>
               <a href="/library" className="sidebar-legal-link" style={{ color: 'rgba(0,232,122,0.6)', fontWeight: 600 }}>✦ My Vault</a>
             </SignedIn>
+            <a href="/for-pros" className="sidebar-legal-link" style={{ color: 'rgba(61,139,255,0.7)', fontWeight: 600 }}>For Loan Officers & Agents</a>
             <a href="/about" className="sidebar-legal-link">About HomeRates.ai</a>
             <a href="/disclosures" className="sidebar-legal-link">Terms & Disclosures</a>
             <a href="/privacy" className="sidebar-legal-link">Privacy & Data Policy</a>

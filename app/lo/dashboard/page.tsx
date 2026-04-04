@@ -180,6 +180,37 @@ export default async function LoDashboardPage() {
                         </Link>
                     </div>
 
+                    {/* Scenario Board */}
+                    <div style={{
+                        padding: "20px 18px",
+                        borderRadius: 16,
+                        border: "1px solid rgba(61,139,255,0.2)",
+                        background: "rgba(61,139,255,0.04)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                    }}>
+                        <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600, color: "#f1f5f9" }}>
+                            Scenario Board
+                        </h2>
+                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(160,192,168,0.7)", lineHeight: 1.6 }}>
+                            Browse anonymous borrower scenarios in your state and loan type. Respond with your rate estimate and approach — the borrower chooses who earns an introduction.
+                        </p>
+                        <Link href="/lo/scenarios" style={{
+                            marginTop: 4,
+                            alignSelf: "flex-start",
+                            padding: "9px 18px",
+                            borderRadius: 999,
+                            background: "#3d8bff",
+                            color: "#fff",
+                            fontSize: "0.9rem",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                        }}>
+                            View Scenario Board →
+                        </Link>
+                    </div>
+
                     {/* Coming soon */}
                     <div style={{
                         padding: "20px 18px",
