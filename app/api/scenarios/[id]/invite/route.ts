@@ -10,9 +10,8 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../../lib/supabaseServer";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
