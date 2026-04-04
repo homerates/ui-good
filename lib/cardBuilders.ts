@@ -93,6 +93,8 @@ export interface BuiltCard {
     };
     loanLimitsSlider?: {
         county: string;
+        state?: string;
+        stateName?: string;
         conformingLimit: number;
         nationalBaseline: number;
         price: number;
@@ -3031,6 +3033,8 @@ Use the **Loan Limits Explorer** below to slide price and down payment — zones
         },
         loanLimitsSlider: {
             county,
+            state,
+            stateName: stateName ?? state,
             conformingLimit,
             nationalBaseline,
             price,

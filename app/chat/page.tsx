@@ -384,7 +384,8 @@ type ApiResponse = {
         termMonths: number; closingCosts: number; propertyValue?: number;
     } | null;
     loanLimitsSlider?: {
-        county: string; conformingLimit: number; nationalBaseline: number;
+        county: string; state?: string; stateName?: string;
+        conformingLimit: number; nationalBaseline: number;
         price: number; downPct: number; taxRate: number; insRate: number; baseRate: number;
     } | null;
     jumboAffordabilitySlider?: {

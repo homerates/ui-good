@@ -1,14 +1,18 @@
 'use client';
 
 // app/components/LoanLimitsSliderCard.tsx
-// California 2026 Loan Limits interactive explorer
+// Nationwide 2026 Loan Limits interactive explorer
 // Shows conforming / high-balance / jumbo zones based on purchase price + down payment.
 // All math is local — no API calls on slider move.
 
 import React, { useState, useMemo, useRef } from 'react';
+import { HIGH_COST_COUNTIES, STATE_NAMES } from '@/loanLimitsNational2026';
+import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 
 export interface LoanLimitsSliderParams {
     county: string;
+    state?: string;             // 2-letter state code — defaults to 'CA'
+    stateName?: string;         // human-readable (e.g. 'Florida')
     conformingLimit: number;    // county max (e.g. 1,249,125 for LA County)
     nationalBaseline: number;   // always 832,750 (2026 FHFA national baseline)
     price: number;              // initial purchase price
@@ -86,22 +90,52 @@ function trackStyle(val: number, min: number, max: number, color = '#10b981'): R
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-// Quick-select county markets shown on the card
-const QUICK_COUNTIES = [
-    { label: 'Los Angeles',   county: 'LOS ANGELES' },
-    { label: 'Orange',        county: 'ORANGE' },
-    { label: 'San Diego',     county: 'SAN DIEGO' },
-    { label: 'San Francisco', county: 'SAN FRANCISCO' },
-    { label: 'Santa Clara',   county: 'SANTA CLARA' },
-    { label: 'Sacramento',    county: 'SACRAMENTO' },
-    { label: 'Ventura',       county: 'VENTURA' },
-    { label: 'Riverside',     county: 'RIVERSIDE' },
-    { label: 'Alameda',       county: 'ALAMEDA' },
+// CA quick-select counties
+const CA_QUICK_COUNTIES = [
+    { label: 'Los Angeles',    county: 'LOS ANGELES' },
+    { label: 'Orange',         county: 'ORANGE' },
+    { label: 'San Diego',      county: 'SAN DIEGO' },
+    { label: 'San Francisco',  county: 'SAN FRANCISCO' },
+    { label: 'Santa Clara',    county: 'SANTA CLARA' },
+    { label: 'Sacramento',     county: 'SACRAMENTO' },
+    { label: 'Ventura',        county: 'VENTURA' },
+    { label: 'Riverside',      county: 'RIVERSIDE' },
+    { label: 'Alameda',        county: 'ALAMEDA' },
     { label: 'San Bernardino', county: 'SAN BERNARDINO' },
 ];
 
+// Build quick-select chips for a given state
+function getQuickCounties(state: string): { label: string; county: string }[] {
+    if (state === 'CA') return CA_QUICK_COUNTIES;
+    const list = HIGH_COST_COUNTIES[state] ?? [];
+    if (list.length > 0) {
+        // Show up to 8 high-cost counties, title-cased
+        return list.slice(0, 8).map(c => ({
+            label: c.county.replace(/ COUNTY$/, '').replace(/ BOROUGH$/, '').replace(/ CENSUS AREA$/, '')
+                .split(' ').map((w: string) => w.charAt(0) + w.slice(1).toLowerCase()).join(' '),
+            county: c.county,
+        }));
+    }
+    // Standard state — no high-cost counties, show a few major metros as text hints
+    return [];
+}
+
+// Title-case a county string and strip redundant "COUNTY" / "BOROUGH" suffix for display
+function formatCountyDisplay(raw: string): string {
+    return raw
+        .replace(/_/g, ' ')
+        .replace(/\s+COUNTY$/i, '')
+        .replace(/\s+BOROUGH$/i, '')
+        .split(' ')
+        .map(w => w.charAt(0) + w.slice(1).toLowerCase())
+        .join(' ');
+}
+
 export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
-    const { county, conformingLimit, nationalBaseline, taxRate, insRate, baseRate, onRunScenario } = props;
+    const { county, state = 'CA', stateName, conformingLimit, nationalBaseline, taxRate, insRate, baseRate, onRunScenario } = props;
+    const resolvedStateName = stateName ?? STATE_NAMES[state] ?? state;
+    const countyDisplay = formatCountyDisplay(county);
+    const quickCounties = getQuickCounties(state);
 
     const priceMax = Math.max(conformingLimit * 2.5, 2_500_000);
     const [price,   setPrice]   = useState(props.price);
@@ -112,12 +146,14 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
     const [adjOpen,  setAdjOpen]  = useState(false);
     const zipRef = useRef<HTMLInputElement>(null);
 
-    const handleCountyLookup = (countyOrZip: string) => {
+    const handleCountyLookup = (countyOrZip: string, targetState?: string) => {
         const val = countyOrZip.trim();
         if (!val) return;
+        const stateCtx = targetState ?? state;
+        const stateCtxName = STATE_NAMES[stateCtx] ?? stateCtx;
         onRunScenario?.(
-            `California loan limit for ${val} — show me the 2026 conforming, high balance, and jumbo thresholds`,
-            { loanLimitsCounty: val, purchasePrice: price, downPaymentPct: downPct }
+            `${stateCtxName} loan limits for ${val} — show me the 2026 conforming, high balance, and jumbo thresholds`,
+            { loanLimitsCounty: val, loanLimitsState: stateCtx, purchasePrice: price, downPaymentPct: downPct }
         );
         setZipInput('');
         setAdjOpen(false);
@@ -194,8 +230,8 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
             {/* ── Header ── */}
             <div className="ll-header">
                 <div className="ll-header__left">
-                    <span className="ll-header__county">📍 {county.replace(/_/g, ' ')} COUNTY</span>
-                    <span className="ll-header__title">2026 CA Loan Limits</span>
+                    <span className="ll-header__county">📍 {countyDisplay}, {resolvedStateName}</span>
+                    <span className="ll-header__title">2026 {resolvedStateName} Loan Limits</span>
                 </div>
                 <div className="ll-zone-badge" style={{ background: zone.badgeBg }}>
                     {zone.icon} {zone.label}
@@ -245,19 +281,23 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                                 </button>
                             </div>
 
-                            {/* Quick county chips */}
-                            <div className="ll-adj__quick-label">Quick select</div>
-                            <div className="ll-adj__quick">
-                                {QUICK_COUNTIES.map(({ label, county: c }) => (
-                                    <button
-                                        key={c}
-                                        className={`ll-adj__qchip${c === county.toUpperCase() ? ' ll-adj__qchip--active' : ''}`}
-                                        onClick={() => handleCountyLookup(c)}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
+                            {/* Quick county chips — dynamic per state */}
+                            {quickCounties.length > 0 && (
+                                <>
+                                    <div className="ll-adj__quick-label">Quick select</div>
+                                    <div className="ll-adj__quick">
+                                        {quickCounties.map(({ label, county: c }) => (
+                                            <button
+                                                key={c}
+                                                className={`ll-adj__qchip${c.toUpperCase() === county.toUpperCase() ? ' ll-adj__qchip--active' : ''}`}
+                                                onClick={() => handleCountyLookup(c)}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
