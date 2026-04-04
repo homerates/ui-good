@@ -188,27 +188,19 @@ export default function WelcomePage() {
       </div>
 
       <style>{`
-        body:has(.wl-root) {
-          display: block !important;
-          height: auto !important;
-          overflow-y: auto !important;
-          overflow-x: hidden !important;
-          background: #080c12 !important;
-        }
-        html:has(.wl-root) {
-          background: #080c12 !important;
-          height: auto !important;
-          overflow-y: auto !important;
-        }
+        /* Hide the normal app chrome when welcome is on screen */
         body:has(.wl-root) .app-footer { display: none !important; }
 
+        /* wl-root takes over the full viewport — bypasses body.app flex/overflow entirely */
         .wl-root {
+          position: fixed;
+          inset: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
           font-family: 'DM Sans', system-ui, sans-serif;
           color: #f0f4ff;
-          min-height: 100vh;
           background: #080c12;
-          position: relative;
-          z-index: 1;
+          z-index: 9000;
         }
         .wl-nav {
           padding: 18px 32px;
@@ -228,8 +220,6 @@ export default function WelcomePage() {
           display: flex;
           flex-direction: column;
           gap: 2rem;
-          position: relative;
-          z-index: 2;
         }
         .wl-header { display: flex; flex-direction: column; gap: 8px; }
         .wl-eyebrow {
@@ -254,8 +244,6 @@ export default function WelcomePage() {
           transition: border-color 0.15s, background 0.15s;
           color: #f0f4ff;
           font-family: inherit;
-          position: relative;
-          z-index: 3;
         }
         .wl-type-card:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.02); }
         .wl-type-card.selected {
@@ -303,7 +291,6 @@ export default function WelcomePage() {
           font-size: 1rem; font-weight: 700; cursor: pointer;
           transition: opacity 0.15s; width: 100%;
           font-family: inherit;
-          position: relative; z-index: 3;
         }
         .wl-submit:disabled { opacity: 0.35; cursor: not-allowed; }
         .wl-submit:not(:disabled):hover { opacity: 0.88; }
