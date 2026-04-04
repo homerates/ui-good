@@ -249,25 +249,29 @@ export default function LandingPage() {
         .lp-nav-dropdown-arrow { transition: transform 0.2s; display: inline-block; font-size: 10px; opacity: 0.6; }
         .lp-nav-dropdown-menu {
           display: none;
-          position: absolute; top: calc(100% + 12px); left: 50%;
+          position: absolute; top: 100%; left: 50%;
           transform: translateX(-50%);
           min-width: 220px;
+          padding-top: 12px; /* visual gap — keeps hover alive while crossing */
+          z-index: 100;
+        }
+        .lp-nav-dropdown-menu-inner {
           background: var(--bg);
           border: 1px solid var(--border);
           border-radius: 12px;
           padding: 6px;
           box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-          z-index: 100;
+          display: flex; flex-direction: column;
         }
-        .lp-nav-dropdown:hover .lp-nav-dropdown-menu { display: flex; flex-direction: column; }
-        .lp-nav-dropdown-menu a {
+        .lp-nav-dropdown:hover .lp-nav-dropdown-menu { display: block; }
+        .lp-nav-dropdown-menu-inner a {
           font-size: 13px; color: var(--text-muted);
           text-decoration: none; padding: 9px 14px;
           border-radius: 8px; transition: background 0.15s, color 0.15s;
           display: flex; align-items: center; gap: 10px;
           letter-spacing: 0.02em;
         }
-        .lp-nav-dropdown-menu a:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+        .lp-nav-dropdown-menu-inner a:hover { background: rgba(255,255,255,0.05); color: var(--text); }
         .lp-nav-dropdown-menu .lp-ddm-icon { font-size: 15px; width: 20px; text-align: center; }
         .lp-nav-dropdown-divider { height: 1px; background: var(--border); margin: 4px 8px; }
 
@@ -754,13 +758,15 @@ export default function LandingPage() {
                 Resources <span className="lp-nav-dropdown-arrow">▾</span>
               </button>
               <div className="lp-nav-dropdown-menu">
-                <Link href="/market-news"><span className="lp-ddm-icon">📰</span>Market News</Link>
-                <Link href="/knowledge-hub"><span className="lp-ddm-icon">📚</span>Knowledge Hub</Link>
-                <Link href="/loan-limits"><span className="lp-ddm-icon">🏠</span>Loan Limits 2026</Link>
-                <div className="lp-nav-dropdown-divider" />
-                <Link href="/calculators"><span className="lp-ddm-icon">🧮</span>Calculators</Link>
-                <Link href="/jumbo-calculator"><span className="lp-ddm-icon">⚡</span>Jumbo Calculator</Link>
-                <Link href="/dscr-calculator"><span className="lp-ddm-icon">📊</span>DSCR Calculator</Link>
+                <div className="lp-nav-dropdown-menu-inner">
+                  <Link href="/market-news"><span className="lp-ddm-icon">📰</span>Market News</Link>
+                  <Link href="/knowledge-hub"><span className="lp-ddm-icon">📚</span>Knowledge Hub</Link>
+                  <Link href="/loan-limits"><span className="lp-ddm-icon">🏠</span>Loan Limits 2026</Link>
+                  <div className="lp-nav-dropdown-divider" />
+                  <Link href="/calculators"><span className="lp-ddm-icon">🧮</span>Calculators</Link>
+                  <Link href="/jumbo-calculator"><span className="lp-ddm-icon">⚡</span>Jumbo Calculator</Link>
+                  <Link href="/dscr-calculator"><span className="lp-ddm-icon">📊</span>DSCR Calculator</Link>
+                </div>
               </div>
             </li>
           </ul>
