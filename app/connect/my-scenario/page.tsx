@@ -124,6 +124,11 @@ export default function MyScenarioPage() {
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
           <span className="ms-nav-label">My Scenario</span>
+          <div className="ms-nav-actions">
+            <Link href="/chat" className="ms-nav-btn">AI Chat</Link>
+            <Link href="/dashboard" className="ms-nav-btn">Dashboard</Link>
+            <Link href="/connect/post" className="ms-nav-btn ms-nav-btn-primary">+ New Scenario</Link>
+          </div>
         </nav>
 
         <div className="ms-container">
@@ -305,6 +310,16 @@ export default function MyScenarioPage() {
         }
         .ms-nav-logo img { height: 28px; }
         .ms-nav-label { font-size: 0.85rem; color: #6b7a99; }
+        .ms-nav-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .ms-nav-btn {
+          padding: 7px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+          text-decoration: none; color: #6b7a99;
+          border: 1px solid rgba(255,255,255,0.1); background: transparent;
+          transition: color 0.15s, border-color 0.15s;
+        }
+        .ms-nav-btn:hover { color: #f0f4ff; border-color: rgba(255,255,255,0.2); }
+        .ms-nav-btn-primary { background: #00e87a; color: #080c12 !important; border-color: transparent !important; }
+        .ms-nav-btn-primary:hover { opacity: 0.88; }
 
         .ms-container { max-width: 680px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
