@@ -3,8 +3,7 @@
 // Post sign-up type selection — runs once per new user
 // Captures role (borrower / lo / agent), saves to DB, redirects to /dashboard
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 
@@ -32,8 +31,7 @@ const TYPES = [
 type UserType = "borrower" | "lo" | "agent";
 
 export default function WelcomePage() {
-  const router = useRouter();
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
 
   const [type, setType] = useState<UserType | "">("");
   const [nmls, setNmls] = useState("");
@@ -42,15 +40,6 @@ export default function WelcomePage() {
   const [brokerage, setBrokerage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  // If user already has a role set, skip to dashboard
-  useEffect(() => {
-    if (!isLoaded) return;
-    fetch("/api/onboarding/setup", { method: "GET" })
-      .then(r => r.json())
-      .then(d => { if (d.role) router.replace("/dashboard"); })
-      .catch(() => null);
-  }, [isLoaded, router]);
 
   const canSubmit = type && (
     type === "borrower" ||
@@ -70,7 +59,7 @@ export default function WelcomePage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Something went wrong"); setSubmitting(false); return; }
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch {
       setError("Network error — please try again");
       setSubmitting(false);
