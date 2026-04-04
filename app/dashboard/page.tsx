@@ -77,12 +77,24 @@ export default async function DashboardPage() {
 
   const sb = getSupabase();
 
-  // Detect user type
+  // Check if user has completed onboarding (has a role set)
+  let userRole: string | null = null;
+  if (sb) {
+    const { data: userRow } = await sb.from("users").select("role").eq("id", userId).maybeSingle();
+    userRole = userRow?.role ?? null;
+  }
+  // First-time users go to /welcome to pick their type
+  if (!userRole) redirect("/welcome");
+
+  // Detect user type — check loan_officers table for LO record
   const { data: loRecord } = sb
     ? await sb.from("loan_officers").select("id, email, lender, allowed_borrower_slots, stripe_customer_id").eq("user_id", userId).maybeSingle()
     : { data: null };
 
-  const userType: "lo" | "borrower" = loRecord ? "lo" : "borrower";
+  const userType: "lo" | "agent" | "borrower" =
+    userRole === "lo" || loRecord ? "lo" :
+    userRole === "agent" ? "agent" :
+    "borrower";
 
   // Get plan
   const userPlan = await getUserPlan(userId);
@@ -104,7 +116,7 @@ export default async function DashboardPage() {
   let myConnectionCount = 0;
   let slots = 0;
 
-  if (userType === "lo" && sb && loRecord) {
+  if ((userType === "lo") && sb && loRecord) {
     slots = loRecord.allowed_borrower_slots ?? 0;
 
     const { count: bc } = await sb
