@@ -2071,7 +2071,7 @@ export async function POST(req: NextRequest) {
             : null;
 
     const t0 = Date.now();
-    const buildTag = "scenario-proof-12-19-25-v5";
+    const buildTag = "scenario-proof-04-04-26-v1";
     const requestId =
         (globalThis.crypto as any)?.randomUUID?.() || Math.random().toString(36).slice(2);
 
@@ -2235,6 +2235,7 @@ export async function POST(req: NextRequest) {
 
         // ── SCENARIO COMPARISON CARD (intercept before AI) ───────────────────
         const _scenarioTool = isScenarioComparisonQuestion(message);
+        console.log('[ScenarioRoute] msg=', JSON.stringify(message.slice(0, 80)), 'tool=', _scenarioTool);
         if (_scenarioTool) {
             const _scPriceM = message.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[mM]\b/);
             const _scPriceK = message.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[kK]\b/);
