@@ -542,8 +542,8 @@ function scenarioToApiResponse(s: any): ApiResponse {
     md.push(summary);
     md.push('');
 
-    // Sensitivity table (monthly payment / cash flow / DSCR)
-    if (isNarrativeOnly) { /* skip all tables for narrative-only */ } else
+    // Sensitivity table, amortization, key risks — skip for pure narrative responses
+    if (!isNarrativeOnly) {
     const sens = result?.sensitivity_table;
     if (sens && typeof sens === "object") {
         const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
@@ -605,7 +605,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
     }
 
     // Amortization Snapshot - Use API data if available, otherwise compute locally
-    if (!isNarrativeOnly) {
+    {
         const fmtMoney0 = (n: any) => {
             const x = typeof n === "number" ? n : Number(n);
             if (!isFinite(x)) return "-";
@@ -793,7 +793,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
         }
         md.push('');
     }
-    } // end if (!isNarrativeOnly)
+    } // end if (!isNarrativeOnly) — skips sens table, amortization, key risks for narratives
 
     // Key risks
     if (!isNarrativeOnly && Array.isArray(result?.key_risks) && result.key_risks.length) {
