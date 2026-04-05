@@ -3389,6 +3389,135 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
         });
     }
 
+    // ── DEEP ANALYSIS: residential comparison narrative ────────────────────────
+    // [deep-analysis] seeds from ScenarioComparisonCard "Run deeper AI analysis" button.
+    // Same /api/answers route as the card — returns a plain narrative (no card, no GrokCard).
+    // FRED data (fred.mort30Avg) is available here; was fetched above before this intercept.
+    const _isDeepAnalysis = /^\[deep-analysis\]/i.test(question);
+    if (_isDeepAnalysis) {
+        const _daMsg = question.replace(/^\[deep-analysis\]\s*/i, '');
+        const _daRate0 = fred.mort30Avg ?? 7.0;
+        const _fD = (n: number) => '$' + Math.round(n).toLocaleString();
+        const _fkD = (n: number) => n >= 10_000 ? '$' + Math.round(n / 1_000) + 'k' : _fD(n);
+
+        // Price extractor: prefer "on a $X home" pattern, then largest sensible amount
+        function _daExtractPrice(msg: string, fallback: number): number {
+            const m0 = msg.match(/on\s+(?:a\s+)?\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)\s*home/i);
+            if (m0) { const r = parseFloat(m0[1].replace(/,/g,'')); const s = m0[2].toLowerCase(); return s==='m'?r*1e6:s==='k'?r*1e3:r; }
+            const all: number[] = []; const re0 = /\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)/g; let m1: RegExpExecArray|null;
+            while ((m1=re0.exec(msg))!==null){const r=parseFloat(m1[1].replace(/,/g,''));const s=m1[2].toLowerCase();const v=s==='m'?r*1e6:s==='k'?r*1e3:r;if(v>=150_000&&v<=5_000_000)all.push(v);}
+            return all.length ? Math.max(...all) : fallback;
+        }
+        function _daExtractRate(msg: string, fallback: number): number {
+            const ps = msg.match(/(\d+\.?\d*)\s*%/g);
+            if (ps) { for (const p of ps) { const v=parseFloat(p); if(v>=3&&v<=12)return v; } }
+            return fallback;
+        }
+
+        // ── 5% vs 20% down payment ──────────────────────────────────────────
+        const _daIsDP = /5\s*%?\s*(?:vs|versus|or)\s*20\s*%?.*down|down\s*payment\s*compar|5.*vs.*20.*down|20.*vs.*5.*down|walk.*5.*20.*down/i.test(_daMsg);
+        if (_daIsDP) {
+            const _p = _daExtractPrice(_daMsg, 650_000);
+            const _rt = _daExtractRate(_daMsg, _daRate0);
+            const _lo = calculateMortgage({ price: _p, downPaymentPct: 5, rate: _rt, termYears: 30 });
+            const _hi = calculateMortgage({ price: _p, downPaymentPct: 20, rate: _rt, termYears: 30 });
+            const _pmiMo = (_lo.loanAmount * 0.0055) / 12;
+            const _cash = _hi.downPayment - _lo.downPayment;
+            let _bal = _lo.loanAmount; const _rr = _rt/100/12; let _pmiN = 0;
+            while (_bal > _p*0.80 && _pmiN < 360) { _bal -= (_lo.monthlyPI - _bal*_rr); _pmiN++; }
+            const _pmi7 = Math.min(_pmiN, 84) * _pmiMo;
+            const _inv7 = _cash * (Math.pow(1.07, 7) - 1);
+            const _totLo = _lo.monthlyPI + _pmiMo;
+            const _diff = _totLo - _hi.monthlyPI;
+            const _daPr = `You are a helpful, plain-spoken mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
+
+Write a clear, conversational residential down payment comparison. Use markdown (bold headers, bullet points). Do NOT mention DSCR, vacancy, cap rate, or investment metrics — this is a primary residence.
+
+Numbers:
+- Purchase price: ${_fD(_p)} at ${_rt}%
+- **5% down**: ${_fD(_lo.downPayment)} down → ${_fD(_lo.loanAmount)} loan → ${_fD(_lo.monthlyPI)}/mo P&I + ${_fD(_pmiMo)}/mo PMI (drops ~month ${_pmiN}) = ${_fD(_totLo)}/mo total
+- **20% down**: ${_fD(_hi.downPayment)} down → ${_fD(_hi.loanAmount)} loan → ${_fD(_hi.monthlyPI)}/mo, no PMI
+- Monthly difference: ${_fD(_diff)}/mo more with 5% down
+- Cash kept with 5% down: ${_fD(_cash)}
+- ${_fD(_cash)} invested at 7%/yr for 7 years grows by: ${_fkD(_inv7)}
+- Total PMI paid over 7 years: ${_fkD(_pmi7)}
+
+Format: 1-sentence opener, side-by-side bullet comparison, break-even / opportunity cost paragraph, recommendation, 2 follow-up questions.`;
+            const _daR = await callGrokOnce(_daPr, { maxTokens: 1200 });
+            const _nar = (typeof _daR.grokFinal?.narrative === 'string' && _daR.grokFinal.narrative.length > 50)
+                ? _daR.grokFinal.narrative
+                : `**5% vs 20% Down — ${_fD(_p)} at ${_rt}%**\n\n- 5% down: ${_fD(_totLo)}/mo (incl. PMI) · Down: ${_fD(_lo.downPayment)}\n- 20% down: ${_fD(_hi.monthlyPI)}/mo · Down: ${_fD(_hi.downPayment)}\n- Monthly diff: ${_fD(_diff)}/mo · PMI drops month ${_pmiN}\n- ${_fD(_cash)} invested 7%/7yr → +${_fkD(_inv7)} vs PMI cost ${_fkD(_pmi7)}`;
+            return noStore({ ok: true, path: 'down_payment_analysis', route: 'answers', answer: _nar, message: _nar, answerMarkdown: _nar, scenarioComparisonCard: null, grok: { answer: _nar, next_step: null, follow_up: null, follow_up_chips: [], confidence: 'high', scenarioComparisonCard: null }, fred: { tenYearYield: fred.tenYearYield, mort30Avg: fred.mort30Avg, spread: fred.spread, asOf: fred.asOf }, usedFRED: true, debug: { requestedModel: 'deep-analysis-dp', servedModel: _daR.debug.servedModel ?? 'grok', promptChars: _daMsg.length, elapsedMs: _daR.debug.elapsedMs, requestId: 'da-dp-'+Date.now(), parseMode: 'direct', repaired: false } });
+        }
+
+        // ── 15 vs 30 year term ──────────────────────────────────────────────
+        const _daIsTerm = /15\s*(?:yr|year).*(?:vs|versus|or).*30\s*(?:yr|year)|30\s*(?:yr|year).*(?:vs|versus|or).*15\s*(?:yr|year)|walk.*15.*30.*year|15.*30.*compar/i.test(_daMsg);
+        if (!_daIsDP && _daIsTerm) {
+            const _p2 = _daExtractPrice(_daMsg, 500_000);
+            const _rt2 = _daExtractRate(_daMsg, _daRate0);
+            const _dpM2 = _daMsg.match(/(\d+)\s*%\s*down/i);
+            const _dp2 = _dpM2 ? Math.min(Math.max(parseFloat(_dpM2[1]),3),50) : 20;
+            const _t30 = calculateMortgage({ price: _p2, downPaymentPct: _dp2, rate: _rt2, termYears: 30 });
+            const _t15 = calculateMortgage({ price: _p2, downPaymentPct: _dp2, rate: _rt2, termYears: 15 });
+            const _moDiff2 = _t15.monthlyPI - _t30.monthlyPI;
+            const _intSaved = _t30.totalInterest - _t15.totalInterest;
+            const _daPr2 = `You are a helpful mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
+
+Write a clear, conversational residential 15-year vs 30-year mortgage comparison. Use markdown. Do NOT mention DSCR or investment metrics — this is a primary residence.
+
+Numbers:
+- Purchase price: ${_fD(_p2)} at ${_rt2}%, ${_dp2}% down, loan: ${_fD(_t30.loanAmount)}
+- **30-year**: ${_fD(_t30.monthlyPI)}/mo P&I · Total interest: ${_fkD(_t30.totalInterest)}
+- **15-year**: ${_fD(_t15.monthlyPI)}/mo P&I · Total interest: ${_fkD(_t15.totalInterest)}
+- Monthly difference: ${_fD(_moDiff2)}/mo more with 15-year
+- Interest saved with 15-year over life of loan: ${_fkD(_intSaved)}
+- 15-year builds equity ~2× faster in the first decade
+
+Format: 1-sentence opener, bullet comparison, interest savings / payment-shock paragraph, recommendation, 2 follow-up questions.`;
+            const _daR2 = await callGrokOnce(_daPr2, { maxTokens: 1200 });
+            const _nar2 = (typeof _daR2.grokFinal?.narrative === 'string' && _daR2.grokFinal.narrative.length > 50)
+                ? _daR2.grokFinal.narrative
+                : `**15-Year vs 30-Year — ${_fD(_p2)} at ${_rt2}%**\n\n- 30-year: ${_fD(_t30.monthlyPI)}/mo · Interest: ${_fkD(_t30.totalInterest)}\n- 15-year: ${_fD(_t15.monthlyPI)}/mo · Interest: ${_fkD(_t15.totalInterest)}\n- Pay ${_fD(_moDiff2)}/mo more but save ${_fkD(_intSaved)} in interest`;
+            return noStore({ ok: true, path: 'term_analysis', route: 'answers', answer: _nar2, message: _nar2, answerMarkdown: _nar2, scenarioComparisonCard: null, grok: { answer: _nar2, next_step: null, follow_up: null, follow_up_chips: [], confidence: 'high', scenarioComparisonCard: null }, fred: { tenYearYield: fred.tenYearYield, mort30Avg: fred.mort30Avg, spread: fred.spread, asOf: fred.asOf }, usedFRED: true, debug: { requestedModel: 'deep-analysis-term', servedModel: _daR2.debug.servedModel ?? 'grok', promptChars: _daMsg.length, elapsedMs: _daR2.debug.elapsedMs, requestId: 'da-term-'+Date.now(), parseMode: 'direct', repaired: false } });
+        }
+
+        // ── Rent vs Buy ─────────────────────────────────────────────────────
+        const _daIsRB = /rent.*(?:vs|versus|or).*buy|buy.*(?:vs|versus|or).*rent|should.*(?:rent|buy)|renting.*buying|buying.*renting|walk.*rent.*buy/i.test(_daMsg);
+        if (!_daIsDP && !_daIsTerm && _daIsRB) {
+            const _p3 = _daExtractPrice(_daMsg, 550_000);
+            const _rt3 = _daExtractRate(_daMsg, _daRate0);
+            const _rentM3 = _daMsg.match(/rent(?:ing)?\s*(?:is|at|of|for)?\s*\$?\s*([\d,]+)/i);
+            const _rent3 = _rentM3 ? parseFloat(_rentM3[1].replace(/,/g,'')) : 2_800;
+            const _dpM3 = _daMsg.match(/(\d+)\s*%\s*down/i);
+            const _dp3 = _dpM3 ? Math.min(Math.max(parseFloat(_dpM3[1]),3),30) : 10;
+            const _buy3 = calculateMortgage({ price: _p3, downPaymentPct: _dp3, rate: _rt3, termYears: 30 });
+            const _pmiM3 = _dp3<20 ? (_buy3.loanAmount*0.0055)/12 : 0;
+            const _taxM3 = (_p3*0.012)/12;
+            const _insM3 = (_p3*0.005)/12;
+            const _totBuy = _buy3.monthlyPI + _pmiM3 + _taxM3 + _insM3;
+            const _futureVal = _p3 * Math.pow(1.04, 7);
+            const _totalRent3 = _rent3 * 12 * 7;
+            const _daPr3 = `You are a helpful mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
+
+Write a clear, conversational rent vs buy analysis for a residential decision. Use markdown. Include both financial and lifestyle factors.
+
+Numbers:
+- Home price: ${_fD(_p3)}, ${_dp3}% down (${_fD(_buy3.downPayment)}), loan ${_fD(_buy3.loanAmount)} at ${_rt3}%
+- **Buying total monthly**: ${_fD(_totBuy)}/mo (P&I ${_fD(_buy3.monthlyPI)} + tax ${_fD(_taxM3)} + ins ${_fD(_insM3)}${_dp3<20?` + PMI ${_fD(_pmiM3)}`:''}))
+- **Renting**: ${_fD(_rent3)}/mo
+- Monthly diff to buy: ${_fD(_totBuy-_rent3)}/mo ${_totBuy>_rent3?'more':'less'}
+- Over 7 years: total rent paid ${_fkD(_totalRent3)} · home at 4%/yr grows to ${_fkD(_futureVal)}
+
+Format: 1-sentence framing, bullets comparing monthly cost + upfront cash, equity/appreciation paragraph, balanced recommendation, 2 follow-up questions.`;
+            const _daR3 = await callGrokOnce(_daPr3, { maxTokens: 1200 });
+            const _nar3 = (typeof _daR3.grokFinal?.narrative === 'string' && _daR3.grokFinal.narrative.length > 50)
+                ? _daR3.grokFinal.narrative
+                : `**Rent vs Buy — ${_fD(_p3)} home**\n\n- Buying: ${_fD(_totBuy)}/mo total PITI · ${_fD(_buy3.downPayment)} down\n- Renting: ${_fD(_rent3)}/mo\n- Monthly diff: ${_fD(Math.abs(_totBuy-_rent3))}/mo ${_totBuy>_rent3?'more to own':'more to rent'}`;
+            return noStore({ ok: true, path: 'rent_buy_analysis', route: 'answers', answer: _nar3, message: _nar3, answerMarkdown: _nar3, scenarioComparisonCard: null, grok: { answer: _nar3, next_step: null, follow_up: null, follow_up_chips: [], confidence: 'high', scenarioComparisonCard: null }, fred: { tenYearYield: fred.tenYearYield, mort30Avg: fred.mort30Avg, spread: fred.spread, asOf: fred.asOf }, usedFRED: true, debug: { requestedModel: 'deep-analysis-rb', servedModel: _daR3.debug.servedModel ?? 'grok', promptChars: _daMsg.length, elapsedMs: _daR3.debug.elapsedMs, requestId: 'da-rb-'+Date.now(), parseMode: 'direct', repaired: false } });
+        }
+        // Seller credit / rate buydown — fall through to normal Grok with the stripped message
+    }
+
     const _earlyLoanLimitsOverride = (body as any)?.paramOverrides?.loanLimitsCounty;
     if (!isLoanLimitsQuestion(question) && !_earlyLoanLimitsOverride && isUnderwritingGuidelineQuestion(question)) {
         console.log('[UW Guidelines] Detected guideline question in answers route — calling AI with database');

@@ -2152,14 +2152,10 @@ export default function Page() {
 
             let useScenario = false;
 
-            // [deep-analysis] seeds from the "Run deeper AI analysis" button always go to the
-            // scenario route — that's where the residential narrative intercepts live.
-            // Must be first so downstream guards (isDownPaymentFollowUp, isFollowUp) can't override.
+            // [deep-analysis] seeds from the "Run deeper AI analysis" button go to /api/answers —
+            // same route as the comparison card. The narrative intercept lives there.
+            // Must be declared first so downstream guards (isDownPaymentFollowUp) can't override.
             const isDeepAnalysisSeed = /^\[deep-analysis\]/i.test(q);
-            if (isDeepAnalysisSeed) {
-                useScenario = true;
-                console.log('[Routing] Deep-analysis seed — scenario route (narrative intercepts)');
-            }
 
             // Comparison questions always go to answers route — deterministic math card, same as DSCR/FHA
             // [deep-analysis] seeds are excluded — they need narrative AI, not the card again
@@ -2198,7 +2194,8 @@ export default function Page() {
                 /rates?\s+(?:go|drop|fall|hit|come\s*down)|drop\s+to|down\s+to|what\s+if.*%|refi|refinanc/i.test(q);
 
             if (isDeepAnalysisSeed) {
-                // already set above — skip all other routing checks
+                useScenario = false; // deep analysis → /api/answers, same as the comparison card
+                console.log('[Routing] Deep-analysis seed — answers route (narrative intercept)');
             } else if (isComparisonQuestion) {
                 useScenario = false; // comparison cards are deterministic — answers route, same as DSCR/FHA
                 console.log('[Routing] Comparison question — answers route (deterministic card)');
