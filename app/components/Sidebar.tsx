@@ -395,6 +395,16 @@ export default function Sidebar(props: SidebarProps) {
               </button>
             )}
 
+            {/* Home Value — homeowner analysis via address */}
+            <a
+              href="/homeowner"
+              className="btn sidebar-tool-btn"
+              style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
+            >
+              <span className="sidebar-tool-icon">🏠</span>
+              Home Value
+            </a>
+
             {/* Get Matched — borrower scenario board */}
             <a
               href="/connect"

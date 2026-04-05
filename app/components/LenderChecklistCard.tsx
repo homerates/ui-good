@@ -195,39 +195,57 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                     ))}
 
                     {/* Get Matched CTA */}
-                    <div style={{
-                        margin: '12px 18px 0',
-                        padding: '12px 16px',
-                        background: 'rgba(0,232,122,0.06)',
-                        border: '1px solid rgba(0,232,122,0.18)',
-                        borderRadius: 10,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                    }}>
-                        <div>
-                            <div style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 12.5, marginBottom: 2 }}>
-                                Ready to find a lender or agent?
+                    {(() => {
+                        const dp = Math.round((1 - data.ltv) * 100);
+                        const purpose = data.pdfType === 'refi' ? 'Refinance' : 'Purchase';
+                        const lt = data.loanType.charAt(0).toUpperCase() + data.loanType.slice(1);
+                        const params = new URLSearchParams({
+                            from: 'scenario',
+                            lt,
+                            price: String(Math.round(data.price)),
+                            dp: String(dp),
+                            rate: data.marketRate.toFixed(2),
+                            monthly: String(Math.round(data.monthlyPITI)),
+                            term: String(data.termYears),
+                            purpose,
+                            invest: data.isInvestment ? '1' : '0',
+                        });
+                        return (
+                            <div style={{
+                                margin: '12px 18px 0',
+                                padding: '12px 16px',
+                                background: 'rgba(0,232,122,0.06)',
+                                border: '1px solid rgba(0,232,122,0.18)',
+                                borderRadius: 10,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 12,
+                            }}>
+                                <div>
+                                    <div style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 12.5, marginBottom: 2 }}>
+                                        Ready to find a lender or agent?
+                                    </div>
+                                    <div style={{ color: 'rgba(160,192,168,0.6)', fontSize: 11.5, lineHeight: 1.4 }}>
+                                        Your scenario carries over — no re-entering numbers. You choose who earns an intro.
+                                    </div>
+                                </div>
+                                <a
+                                    href={`/connect/post?${params.toString()}`}
+                                    style={{
+                                        flexShrink: 0,
+                                        padding: '7px 16px',
+                                        background: '#00e87a', color: '#080c12',
+                                        borderRadius: 999, fontWeight: 700,
+                                        fontSize: 12, textDecoration: 'none',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    Get matched →
+                                </a>
                             </div>
-                            <div style={{ color: 'rgba(160,192,168,0.6)', fontSize: 11.5, lineHeight: 1.4 }}>
-                                Post your scenario anonymously. Professionals compete. You choose who earns an intro.
-                            </div>
-                        </div>
-                        <a
-                            href="/connect"
-                            style={{
-                                flexShrink: 0,
-                                padding: '7px 16px',
-                                background: '#00e87a', color: '#080c12',
-                                borderRadius: 999, fontWeight: 700,
-                                fontSize: 12, textDecoration: 'none',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            Get matched →
-                        </a>
-                    </div>
+                        );
+                    })()}
 
                     {/* Footer note */}
                     <div style={{

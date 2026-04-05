@@ -8,12 +8,19 @@ import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 export default function HomeownerPage() {
   const router = useRouter();
   const [address, setAddress] = useState('');
+  const [urlError, setUrlError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
     const q = address.trim();
     if (!q) return;
+    // Detect listing URLs — those belong in Property Lookup, not here
+    if (/redfin\.com|zillow\.com|realtor\.com|homes\.com|trulia\.com|^https?:\/\//i.test(q)) {
+      setUrlError(true);
+      return;
+    }
+    setUrlError(false);
     const question = `Run a complete homeowner analysis for ${q}: current estimated value, how much equity I likely have, whether today's rates make refinancing worth it, and my monthly payment if I cash-out refinanced.`;
     router.push('/chat?sq=' + encodeURIComponent(question));
   }
@@ -404,6 +411,23 @@ export default function HomeownerPage() {
               </div>
             </form>
           </div>
+          {urlError && (
+            <div style={{
+              maxWidth: 620, margin: '0 auto 12px', padding: '10px 16px',
+              background: 'rgba(255,140,66,0.08)', border: '1px solid rgba(255,140,66,0.3)',
+              borderRadius: 10, fontSize: 13, color: '#ff8c42', textAlign: 'left',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <span>⚠️</span>
+              <span>
+                That looks like a listing URL.{' '}
+                <Link href="/chat" style={{ color: '#00e87a', textDecoration: 'underline' }}>
+                  Use Property Lookup in the chat →
+                </Link>
+                {' '}for active listings. Enter your home address here for a homeowner analysis.
+              </span>
+            </div>
+          )}
           <p className="ho-addr-hint">
             Instant analysis, no sign-up required.&nbsp;
             <Link href="/my-home">Create a free account</Link> to get monthly updates.

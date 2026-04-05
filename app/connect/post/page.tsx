@@ -1,9 +1,11 @@
 "use client";
 // app/connect/post/page.tsx
 // Borrower posts an anonymous scenario brief — 2-step form
+// Path A: arrived from a LenderChecklistCard with scenario context (params pre-fill form)
+// Path B: cold arrival — show nudge to run a scenario first
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "DSCR", "Other"];
@@ -20,8 +22,34 @@ const US_STATES = [
   "VA","WA","WV","WI","WY",
 ];
 
-export default function PostScenarioPage() {
+function priceToRange(price: number): string {
+  if (price < 300000) return "Under $300k";
+  if (price < 400000) return "$300k–$400k";
+  if (price < 500000) return "$400k–$500k";
+  if (price < 750000) return "$500k–$750k";
+  if (price < 1000000) return "$750k–$1M";
+  if (price < 1500000) return "$1M–$1.5M";
+  return "$1.5M+";
+}
+
+function fmt$(n: number) { return `$${Math.round(n).toLocaleString()}`; }
+
+// ── Inner component uses useSearchParams (needs Suspense boundary) ─────────
+
+function PostScenarioContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Detect Path A: arrived from a scenario card
+  const fromScenario = searchParams.get("from") === "scenario";
+  const scLoanType  = searchParams.get("lt") ?? "";
+  const scPrice     = Number(searchParams.get("price") ?? 0);
+  const scDp        = Number(searchParams.get("dp") ?? 0);
+  const scRate      = Number(searchParams.get("rate") ?? 0);
+  const scMonthly   = Number(searchParams.get("monthly") ?? 0);
+  const scTerm      = Number(searchParams.get("term") ?? 30);
+  const scPurpose   = searchParams.get("purpose") ?? "Purchase";
+
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -39,6 +67,19 @@ export default function PostScenarioPage() {
     state: "",
     notes: "",
   });
+
+  // Pre-fill form from scenario params on first render
+  useEffect(() => {
+    if (!fromScenario) return;
+    setForm(prev => ({
+      ...prev,
+      loan_type: LOAN_TYPES.includes(scLoanType) ? scLoanType : prev.loan_type,
+      loan_purpose: PURPOSES.includes(scPurpose) ? scPurpose : prev.loan_purpose,
+      price_range: scPrice > 0 ? priceToRange(scPrice) : prev.price_range,
+      down_payment_pct: scDp > 0 ? String(scDp) : prev.down_payment_pct,
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -93,6 +134,54 @@ export default function PostScenarioPage() {
 
         <div className="post-container">
 
+          {/* ── Path A: Scenario attached banner ── */}
+          {fromScenario && (
+            <div className="post-scenario-banner">
+              <div className="post-scenario-banner-header">
+                <span className="post-scenario-badge">✓ Scenario attached</span>
+                <span className="post-scenario-badge-sub">Your matched professional will see these numbers — no re-entering required.</span>
+              </div>
+              <div className="post-scenario-grid">
+                {scLoanType && (
+                  <div className="post-scenario-field">
+                    <div className="post-scenario-label">Loan type</div>
+                    <div className="post-scenario-value">{scLoanType}</div>
+                  </div>
+                )}
+                {scPrice > 0 && (
+                  <div className="post-scenario-field">
+                    <div className="post-scenario-label">Home price</div>
+                    <div className="post-scenario-value">{fmt$(scPrice)}</div>
+                  </div>
+                )}
+                {scDp > 0 && (
+                  <div className="post-scenario-field">
+                    <div className="post-scenario-label">Down payment</div>
+                    <div className="post-scenario-value">{scDp}%</div>
+                  </div>
+                )}
+                {scRate > 0 && (
+                  <div className="post-scenario-field">
+                    <div className="post-scenario-label">Rate used</div>
+                    <div className="post-scenario-value">{scRate.toFixed(2)}%</div>
+                  </div>
+                )}
+                {scMonthly > 0 && (
+                  <div className="post-scenario-field">
+                    <div className="post-scenario-label">Est. monthly P&I</div>
+                    <div className="post-scenario-value">{fmt$(scMonthly)}/mo</div>
+                  </div>
+                )}
+                {scTerm > 0 && (
+                  <div className="post-scenario-field">
+                    <div className="post-scenario-label">Term</div>
+                    <div className="post-scenario-value">{scTerm}-year</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Progress */}
           <div className="post-progress">
             <div className={`post-prog-step ${step >= 1 ? "active" : ""}`}>
@@ -113,7 +202,17 @@ export default function PostScenarioPage() {
             {step === 1 && (
               <>
                 <h1 className="post-title">Tell us about the loan</h1>
-                <p className="post-sub">This is what professionals will see — no personal details.</p>
+                {fromScenario ? (
+                  <p className="post-sub">Fields pre-filled from your scenario — adjust anything that doesn't fit.</p>
+                ) : (
+                  <>
+                    <p className="post-sub">This is what professionals will see — no personal details.</p>
+                    <div className="post-cold-nudge">
+                      💡 <strong>Better responses start with real numbers.</strong>{" "}
+                      <Link href="/chat">Run a quick scenario first</Link> and your loan details will carry over automatically.
+                    </div>
+                  </>
+                )}
 
                 <div className="post-field">
                   <label>Who do you need?</label>
@@ -222,6 +321,21 @@ export default function PostScenarioPage() {
                 <h1 className="post-title">Review your scenario</h1>
                 <p className="post-sub">This is exactly what professionals will see. No personal info is shared.</p>
 
+                {/* Path A: show attached scenario card */}
+                {fromScenario && scPrice > 0 && (
+                  <div className="post-scenario-review">
+                    <div className="post-scenario-review-label">Scenario card attached</div>
+                    <div className="post-scenario-review-row">
+                      {scLoanType && <span><strong>{scLoanType}</strong></span>}
+                      {scPrice > 0 && <span>{fmt$(scPrice)}</span>}
+                      {scDp > 0 && <span>{scDp}% down</span>}
+                      {scRate > 0 && <span>{scRate.toFixed(2)}% rate</span>}
+                      {scMonthly > 0 && <span>{fmt$(scMonthly)}/mo P&I</span>}
+                      {scTerm > 0 && <span>{scTerm}-year</span>}
+                    </div>
+                  </div>
+                )}
+
                 <div className="post-review-grid">
                   {[
                     ["Need", form.needs_professional === "both" ? "Lender + Agent" : form.needs_professional === "agent" ? "Agent only" : "Lender only"],
@@ -256,6 +370,9 @@ export default function PostScenarioPage() {
 
                 <div className="post-privacy-note">
                   🔒 Your name, email, and contact info are never shared until you choose to invite a specific professional.
+                  {fromScenario && scPrice > 0 && (
+                    <> Your matched professional will also see your scenario card (loan details above) — no personal data is included in the card.</>
+                  )}
                 </div>
 
                 {hitLimit && (
@@ -301,10 +418,77 @@ export default function PostScenarioPage() {
         .post-nav-logo img { height: 28px; }
         .post-nav-label { font-size: 0.85rem; color: #6b7a99; }
 
-        .post-container { max-width: 560px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+        .post-container { max-width: 560px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+
+        /* ── Scenario attached banner (Path A) ── */
+        .post-scenario-banner {
+          background: rgba(0,232,122,0.05);
+          border: 1px solid rgba(0,232,122,0.22);
+          border-radius: 14px;
+          padding: 14px 18px;
+          margin-bottom: 1.5rem;
+        }
+        .post-scenario-banner-header {
+          display: flex; align-items: center; gap: 10px;
+          flex-wrap: wrap; margin-bottom: 10px;
+        }
+        .post-scenario-badge {
+          font-size: 0.78rem; font-weight: 700;
+          background: rgba(0,232,122,0.12); color: #00e87a;
+          border: 1px solid rgba(0,232,122,0.3);
+          border-radius: 99px; padding: 3px 10px;
+        }
+        .post-scenario-badge-sub {
+          font-size: 0.78rem; color: #6b7a99;
+        }
+        .post-scenario-grid {
+          display: flex; flex-wrap: wrap; gap: 8px 20px;
+        }
+        .post-scenario-field {}
+        .post-scenario-label {
+          font-size: 0.68rem; color: #3a4560;
+          text-transform: uppercase; letter-spacing: 0.06em;
+          margin-bottom: 1px;
+        }
+        .post-scenario-value {
+          font-size: 0.9rem; font-weight: 700; color: #f0f4ff;
+        }
+
+        /* ── Cold arrival nudge (Path B) ── */
+        .post-cold-nudge {
+          font-size: 0.84rem; color: #6b7a99;
+          background: rgba(61,139,255,0.06);
+          border: 1px solid rgba(61,139,255,0.15);
+          border-radius: 10px; padding: 10px 14px;
+          margin-bottom: 1.5rem; line-height: 1.55;
+        }
+        .post-cold-nudge a { color: #3d8bff; text-decoration: underline; }
+        .post-cold-nudge a:hover { color: #6aaeff; }
+
+        /* ── Scenario review card (step 3, Path A) ── */
+        .post-scenario-review {
+          background: rgba(0,232,122,0.05);
+          border: 1px solid rgba(0,232,122,0.18);
+          border-radius: 10px; padding: 10px 14px;
+          margin-bottom: 1.25rem;
+        }
+        .post-scenario-review-label {
+          font-size: 0.7rem; font-weight: 700; color: #00e87a;
+          text-transform: uppercase; letter-spacing: 0.08em;
+          margin-bottom: 6px;
+        }
+        .post-scenario-review-row {
+          display: flex; flex-wrap: wrap; gap: 6px 14px;
+        }
+        .post-scenario-review-row span {
+          font-size: 0.85rem; color: #f0f4ff;
+        }
+        .post-scenario-review-row span strong {
+          color: #00e87a;
+        }
 
         .post-progress {
-          display: flex; align-items: center; margin-bottom: 2.5rem; gap: 0;
+          display: flex; align-items: center; margin-bottom: 2rem; gap: 0;
         }
         .post-prog-step {
           display: flex; align-items: center; gap: 8px;
@@ -331,7 +515,7 @@ export default function PostScenarioPage() {
           font-size: 1.5rem; font-weight: 700;
           margin: 0 0 0.4rem; color: #f0f4ff;
         }
-        .post-sub { font-size: 0.9rem; color: #6b7a99; margin: 0 0 2rem; }
+        .post-sub { font-size: 0.9rem; color: #6b7a99; margin: 0 0 1.5rem; }
 
         .post-field { margin-bottom: 1.75rem; }
         .post-field label {
@@ -435,5 +619,19 @@ export default function PostScenarioPage() {
         }
       `}</style>
     </>
+  );
+}
+
+// ── Default export wraps with Suspense for useSearchParams ─────────────────
+
+export default function PostScenarioPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#080c12", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#6b7a99", fontSize: "0.9rem" }}>Loading…</div>
+      </div>
+    }>
+      <PostScenarioContent />
+    </Suspense>
   );
 }
