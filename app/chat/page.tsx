@@ -2190,8 +2190,21 @@ export default function Page() {
                 /\b(\d+)\s*%\s*down\b/i.test(q);
 
             // Refi follow-ups ALWAYS go to answers — refi_advisor_v2 lives there, not in scenario route.
+            // Also: cash-out equity questions belong in answers (not investment scenario analysis).
+            // NOTE: "what if.*%" narrowed to rate-specific — avoids swallowing "what if I put 30% down?"
+            // from a scenario context where isFollowUp+lastRoute should take precedence.
             const isRefiFollowUp =
-                /rates?\s+(?:go|drop|fall|hit|come\s*down)|drop\s+to|down\s+to|what\s+if.*%|refi|refinanc/i.test(q);
+                /rates?\s+(?:go|drop|fall|hit|come\s*down)|drop\s+to|down\s+to|what\s+if.*(?:rate|rates?|mortgage).*%|what\s+if.*%.*(?:rate|rates?|drop|fall|go|hit)|refi|refinanc|cash.?out/i.test(q);
+
+            // Safety net: if the previous answer came from answers route, keep non-investment
+            // follow-ups there. Prevents looksLikeScenario heuristic from drifting answer-route
+            // conversations into the investment AI engine.
+            // Exception: DSCR / investment / rental property signals that genuinely need scenario.
+            const isAnswersRouteFollowUp =
+                !isDeepAnalysisSeed &&
+                !isComparisonQuestion &&
+                lastRoute === 'answers' &&
+                !/\b(dscr|cap\s*rate|vacancy|noi|gross\s*rent|net\s*operating|investment\s*property|rental\s*income|cash\s*flow|debt\s*service)\b/i.test(q);
 
             if (isDeepAnalysisSeed) {
                 useScenario = false; // deep analysis → /api/answers, same as the comparison card
@@ -2199,9 +2212,9 @@ export default function Page() {
             } else if (isComparisonQuestion) {
                 useScenario = false; // comparison cards are deterministic — answers route, same as DSCR/FHA
                 console.log('[Routing] Comparison question — answers route (deterministic card)');
-            } else if (isFHAQuestion || isDownPaymentFollowUp || isRefiFollowUp) {
+            } else if (isFHAQuestion || isDownPaymentFollowUp || isRefiFollowUp || isAnswersRouteFollowUp) {
                 useScenario = false;
-                console.log('[Routing] FHA/down-payment/refi follow-up, forcing answers route');
+                console.log('[Routing] FHA/down-payment/refi/answers-safety follow-up, forcing answers route');
             } else if (isFollowUp && lastRoute) {
                 // Follow-up: stick with previous route
                 useScenario = lastRoute === 'scenario';

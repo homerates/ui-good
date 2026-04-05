@@ -2437,7 +2437,7 @@ export function getContextChips(
             { label: `What if rate drops to ${fPct(rateDown)}?`, seed: `Same refi, rate drops to ${rateDown}%`, paramOverrides: { newRatePct: rateDown, currentBalance: bal, currentRatePct: currentRate }, changedKeys: ['newRatePct'] },
             { label: `How long to break even on closing costs?`, seed: `How long to break even on refi closing costs for a ${balLabel} loan from ${fPct(currentRate)} to ${fPct(newRate)}?` },
             { label: `Extra payments vs refi — which wins?`, seed: `Compare making $500/mo extra payments vs refinancing my ${balLabel} mortgage from ${fPct(currentRate)} to ${fPct(newRate)}` },
-            { label: `Cash-out refi — how much can I pull out?`, seed: `How much equity can I cash out on a ${balLabel} mortgage at ${fPct(currentRate)}?` },
+            { label: `Cash-out refi — how much equity can I pull?`, seed: `How much equity can I pull out via refi on a ${balLabel} mortgage at ${fPct(currentRate)}?` },
         ];
     }
 
