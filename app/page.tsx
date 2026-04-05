@@ -766,6 +766,8 @@ export default function LandingPage() {
                   <Link href="/calculators"><span className="lp-ddm-icon">🧮</span>Calculators</Link>
                   <Link href="/jumbo-calculator"><span className="lp-ddm-icon">⚡</span>Jumbo Calculator</Link>
                   <Link href="/dscr-calculator"><span className="lp-ddm-icon">📊</span>DSCR Calculator</Link>
+                  <div className="lp-nav-dropdown-divider" />
+                  <Link href="/platform"><span className="lp-ddm-icon">🔬</span>Platform Intelligence</Link>
                 </div>
               </div>
             </li>
@@ -1021,6 +1023,7 @@ export default function LandingPage() {
             <Link href="/knowledge-hub">Knowledge Hub</Link>
             <Link href="/loan-limits">Loan Limits 2026</Link>
             <Link href="/calculators">Calculators</Link>
+            <Link href="/platform">Platform Intelligence</Link>
             <Link href="/disclosures">Terms</Link>
             <Link href="/privacy">Privacy</Link>
           </div>

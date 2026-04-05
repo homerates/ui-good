@@ -423,6 +423,8 @@ export default function WhyHomeRates() {
                     <div className="whr-cta-note">
                         Educational purposes only — not financial advice.{' '}
                         <Link href="/disclosures">Full disclosures</Link>
+                        {' · '}
+                        <Link href="/platform">Platform Intelligence →</Link>
                     </div>
                 </section>
             </div>
