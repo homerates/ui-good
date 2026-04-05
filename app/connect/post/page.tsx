@@ -55,6 +55,18 @@ function PostScenarioContent() {
   const [error, setError] = useState("");
   const [hitLimit, setHitLimit] = useState(false);
 
+  // Quota state — checked on mount so user sees gate before filling the form
+  const [quota, setQuota] = useState<{ used: number; limit: number | null; allowed: boolean; plan: string } | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/scenarios/quota")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setQuota(data); })
+      .catch(() => {})
+      .finally(() => setQuotaLoading(false));
+  }, []);
+
   const [form, setForm] = useState({
     needs_professional: "both",
     loan_type: "",
@@ -129,10 +141,40 @@ function PostScenarioContent() {
           <Link href="/connect" className="post-nav-logo">
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
-          <span className="post-nav-label">Post Your Scenario</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Usage badge — shown once quota loads and limit is finite */}
+            {!quotaLoading && quota && quota.limit !== null && (
+              <span className={`post-quota-badge ${quota.allowed ? (quota.used >= quota.limit - 1 ? 'warn' : '') : 'full'}`}>
+                {quota.allowed
+                  ? `${quota.used} of ${quota.limit} posts used this month`
+                  : `${quota.limit} of ${quota.limit} posts used — limit reached`}
+              </span>
+            )}
+            <span className="post-nav-label">Post Your Scenario</span>
+          </div>
         </nav>
 
         <div className="post-container">
+
+          {/* ── Quota gate — shown immediately if at limit, before the form ── */}
+          {!quotaLoading && quota && !quota.allowed && (
+            <div className="post-hard-gate">
+              <div className="post-hard-gate-icon">⚡</div>
+              <h2 className="post-hard-gate-title">You've used your {quota.limit} free posts this month</h2>
+              <p className="post-hard-gate-body">
+                Free accounts can post {quota.limit} scenarios per calendar month. Your limit resets on the 1st.
+                Upgrade to <strong>Plus ($7/mo)</strong> for unlimited posts, unlimited chat, PDF exports, and rate alerts.
+              </p>
+              <div className="post-hard-gate-actions">
+                <a href="/pricing" className="post-hard-gate-btn">Upgrade to Plus — $7/mo →</a>
+                <Link href="/connect" className="post-hard-gate-ghost">Back to Lender Match</Link>
+              </div>
+              <p className="post-hard-gate-note">Already upgraded? It may take a moment to reflect — try refreshing.</p>
+            </div>
+          )}
+
+          {/* ── Form — only shown if quota allows or still loading ── */}
+          {(quotaLoading || !quota || quota.allowed) && <>
 
           {/* ── Path A: Scenario attached banner ── */}
           {fromScenario && (
@@ -378,9 +420,12 @@ function PostScenarioContent() {
                 {hitLimit && (
                   <div className="post-limit-gate">
                     <div className="post-limit-icon">⚡</div>
-                    <div className="post-limit-title">You've used your free scenarios this month</div>
-                    <div className="post-limit-body">Upgrade to Plus or Pro to post more scenarios and connect with unlimited professionals.</div>
-                    <a href="/pricing" className="post-limit-btn">Upgrade plan →</a>
+                    <div className="post-limit-title">Monthly limit reached</div>
+                    <div className="post-limit-body">
+                      Free accounts can post 2 scenarios per calendar month. Upgrade to{' '}
+                      <strong>Plus ($7/mo)</strong> for unlimited posts, unlimited chat, PDF exports, and rate alerts.
+                    </div>
+                    <a href="/pricing" className="post-limit-btn">Upgrade to Plus — $7/mo →</a>
                   </div>
                 )}
 
@@ -395,6 +440,9 @@ function PostScenarioContent() {
               </>
             )}
           </div>
+
+          </> /* end quota-allowed form */}
+
         </div>
       </div>
 
@@ -407,6 +455,59 @@ function PostScenarioContent() {
         body:has(.post-root) .app-footer { display: none; }
 
         .post-root { font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; min-height: 100vh; background: #080c12; }
+
+        /* ── Quota badge in nav ── */
+        .post-quota-badge {
+          font-size: 0.75rem; font-weight: 600;
+          padding: 4px 12px; border-radius: 99px;
+          background: rgba(0,232,122,0.08); color: rgba(0,232,122,0.7);
+          border: 1px solid rgba(0,232,122,0.18);
+        }
+        .post-quota-badge.warn {
+          background: rgba(255,140,66,0.08); color: #ff8c42;
+          border-color: rgba(255,140,66,0.25);
+        }
+        .post-quota-badge.full {
+          background: rgba(255,95,95,0.08); color: #ff5f5f;
+          border-color: rgba(255,95,95,0.25);
+        }
+
+        /* ── Hard gate (shown before form when limit reached) ── */
+        .post-hard-gate {
+          max-width: 480px; margin: 3rem auto;
+          background: #0e1420;
+          border: 1px solid rgba(255,95,95,0.2);
+          border-radius: 18px; padding: 3rem 2rem;
+          text-align: center;
+        }
+        .post-hard-gate-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .post-hard-gate-title {
+          font-family: 'Syne', sans-serif;
+          font-size: 1.35rem; font-weight: 700;
+          margin: 0 0 0.75rem; color: #f0f4ff;
+        }
+        .post-hard-gate-body {
+          font-size: 0.9rem; color: #6b7a99;
+          line-height: 1.65; margin: 0 0 1.75rem;
+        }
+        .post-hard-gate-body strong { color: #00e87a; }
+        .post-hard-gate-actions { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .post-hard-gate-btn {
+          display: inline-block; padding: 13px 32px;
+          background: #00e87a; color: #080c12;
+          border-radius: 999px; font-size: 0.95rem;
+          font-weight: 700; text-decoration: none;
+          transition: opacity 0.15s; width: 100%; max-width: 320px; text-align: center;
+        }
+        .post-hard-gate-btn:hover { opacity: 0.88; }
+        .post-hard-gate-ghost {
+          font-size: 0.85rem; color: #6b7a99; text-decoration: none;
+        }
+        .post-hard-gate-ghost:hover { color: #f0f4ff; }
+        .post-hard-gate-note {
+          font-size: 0.75rem; color: #3a4560;
+          margin: 1.5rem 0 0; line-height: 1.5;
+        }
 
         .post-nav {
           position: sticky; top: 0; z-index: 100;

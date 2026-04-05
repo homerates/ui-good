@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../lib/supabaseServer";
+import { canPostScenario } from "../../lib/subscription";
 
 export const metadata: Metadata = {
   title: "Get Matched With the Right Lender — On Your Terms | HomeRates.ai",
@@ -18,18 +19,18 @@ export const metadata: Metadata = {
 export default async function ConnectPage() {
   const { userId } = await auth();
   let hasActiveScenario = false;
+  let quota: { used: number; limit: number | null; allowed: boolean } | null = null;
+
   if (userId) {
     const sb = getSupabase();
-    if (sb) {
-      const { data } = await sb
-        .from("scenario_briefs")
-        .select("id")
-        .eq("borrower_id", userId)
-        .in("status", ["active", "matched"])
-        .limit(1)
-        .maybeSingle();
-      hasActiveScenario = !!data;
-    }
+    const [activeResult, quotaResult] = await Promise.all([
+      sb
+        ? sb.from("scenario_briefs").select("id").eq("borrower_id", userId).in("status", ["active", "matched"]).limit(1).maybeSingle()
+        : Promise.resolve({ data: null }),
+      canPostScenario(userId),
+    ]);
+    hasActiveScenario = !!(activeResult as any).data;
+    quota = quotaResult;
   }
   return (
     <>
@@ -46,6 +47,24 @@ export default async function ConnectPage() {
               <Link href="/dashboard" className="cn-nav-signin">Dashboard</Link>
             ) : (
               <Link href="/sign-in" className="cn-nav-signin">Sign in</Link>
+            )}
+            {/* Quota badge — visible to signed-in users with a finite limit */}
+            {quota && quota.limit !== null && (
+              <span style={{
+                fontSize: '0.75rem', fontWeight: 600,
+                padding: '4px 12px', borderRadius: 99,
+                background: quota.allowed
+                  ? (quota.used >= quota.limit - 1 ? 'rgba(255,140,66,0.1)' : 'rgba(0,232,122,0.08)')
+                  : 'rgba(255,95,95,0.08)',
+                color: quota.allowed
+                  ? (quota.used >= quota.limit - 1 ? '#ff8c42' : 'rgba(0,232,122,0.75)')
+                  : '#ff5f5f',
+                border: `1px solid ${quota.allowed
+                  ? (quota.used >= quota.limit - 1 ? 'rgba(255,140,66,0.25)' : 'rgba(0,232,122,0.2)')
+                  : 'rgba(255,95,95,0.25)'}`,
+              }}>
+                {quota.used}/{quota.limit} posts used
+              </span>
             )}
             {hasActiveScenario ? (
               <Link href="/connect/my-scenario" className="cn-nav-cta">View My Scenario →</Link>
