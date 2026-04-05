@@ -2193,7 +2193,9 @@ export default function Page() {
             }
 
             // Endpoint + payload
-            const answersEndpoint = useScenario ? '/api/answers/scenario' : '/api/answers';
+            // Scenario route retired — /api/answers handles all question types via card builders
+            const answersEndpoint = '/api/answers';
+            void useScenario; // retained for routing logic above but no longer changes endpoint
 
             const payload = useScenario
                 ? {
