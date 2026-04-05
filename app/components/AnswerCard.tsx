@@ -101,7 +101,7 @@ export default function AnswerCard({
                             }}
                         >
                             {confidence && (
-                                <span style={{ color: '#6b7a99' }}>
+                                <span style={{ color: '#8fa3b8' }}>
                                     Confidence: <b style={{ fontWeight: 600, color: '#f0f4ff' }}>{confidence}</b>
                                 </span>
                             )}
@@ -133,7 +133,7 @@ export default function AnswerCard({
                             fontWeight: 700,
                             color: '#f0f4ff',
                             lineHeight: 1.35,
-                            fontFamily: "'Syne', sans-serif",
+                            fontFamily: "'DM Sans', sans-serif",
                         }}
                     >
                         {hero}
@@ -154,7 +154,7 @@ export default function AnswerCard({
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#6b7a99',
+                        color: '#8fa3b8',
                         transition: 'background 0.15s, color 0.15s',
                     }}
                     aria-label={expanded ? 'Collapse details' : 'Expand details'}
@@ -183,7 +183,7 @@ export default function AnswerCard({
                         background: '#141b28',
                         border: '1px solid rgba(255,255,255,0.07)',
                         fontSize: 14,
-                        color: '#6b7a99',
+                        color: '#8fa3b8',
                         whiteSpace: 'pre-wrap',
                         lineHeight: 1.65,
                         fontFamily: "'DM Sans', sans-serif",
@@ -213,7 +213,7 @@ export default function AnswerCard({
                         >
                             Next step
                         </div>
-                        <div style={{ fontSize: 14, color: '#6b7a99', lineHeight: 1.6 }}>
+                        <div style={{ fontSize: 14, color: '#8fa3b8', lineHeight: 1.6 }}>
                             {nextStep}
                         </div>
                     </div>

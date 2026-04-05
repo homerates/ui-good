@@ -298,7 +298,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-rate-alert__text {
                     font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
                     font-size: 13px;
-                    color: var(--text-weak, #6b7a99);
+                    color: var(--text-weak, #8fa3b8);
                     line-height: 1.5;
                 }
                 .hr-rate-alert__text strong {
@@ -321,7 +321,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-headline__title {
                     font-size: clamp(1.75rem, 4.5vw, 2.4rem);
                     font-weight: 800;
-                    font-family: var(--font-syne, 'Syne', sans-serif);
+                    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
                     color: var(--text, #f0f4ff);
                     line-height: 1.1;
                     letter-spacing: -0.03em;
@@ -330,7 +330,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-headline__sub {
                     font-size: 0.875rem;
                     font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
-                    color: var(--text-weak, #6b7a99);
+                    color: var(--text-weak, #8fa3b8);
                     line-height: 1.5;
                     margin: 0;
                     letter-spacing: 0.01em;
@@ -404,7 +404,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     line-height: 1;
                 }
                 .hr-scenario__label {
-                    font-family: var(--font-syne, 'Syne', sans-serif);
+                    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
                     font-size: 15px;
                     font-weight: 600;
                     color: var(--text, #f0f4ff);
@@ -420,7 +420,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 }
                 .hr-scenario__line2 {
                     font-size: 12px;
-                    color: var(--text-weak, #6b7a99);
+                    color: var(--text-weak, #8fa3b8);
                     line-height: 1.5;
                 }
 

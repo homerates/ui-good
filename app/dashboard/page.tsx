@@ -26,9 +26,9 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string 
       border: "1px solid rgba(148,163,184,0.1)",
       borderRadius: 12, padding: "16px 18px",
     }}>
-      <div style={{ fontSize: "0.75rem", color: "rgba(160,192,168,0.5)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: "1.5rem", fontWeight: 700, color: accent ?? "#f1f5f9", lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: "0.78rem", color: "rgba(160,192,168,0.5)", marginTop: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.5)", marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -48,7 +48,7 @@ function CardTitle({ children }: { children: React.ReactNode }) {
 }
 
 function CardBody({ children }: { children: React.ReactNode }) {
-  return <p style={{ margin: 0, fontSize: "0.875rem", color: "rgba(160,192,168,0.7)", lineHeight: 1.6 }}>{children}</p>;
+  return <p style={{ margin: 0, fontSize: "0.875rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>{children}</p>;
 }
 
 function ActionLink({ href, children, variant = "green" }: { href: string; children: React.ReactNode; variant?: "green" | "blue" | "ghost" }) {
@@ -205,7 +205,7 @@ export default async function DashboardPage() {
           <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style={{ height: 26 }} />
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Link href="/chat" style={{ fontSize: "0.85rem", color: "#6b7a99", textDecoration: "none" }}>← Back to chat</Link>
+          <Link href="/chat" style={{ fontSize: "0.85rem", color: "#8fa3b8", textDecoration: "none" }}>← Back to chat</Link>
         </div>
       </div>
 
@@ -216,7 +216,7 @@ export default async function DashboardPage() {
           <div style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#00e87a", marginBottom: 6 }}>
             {userType === "lo" ? "Loan Officer" : userType === "agent" ? "Real Estate Agent" : "Borrower"} Dashboard
           </div>
-          <h1 style={{ fontFamily: "var(--font-syne, sans-serif)", fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontFamily: "var(--font-dm-sans, sans-serif)", fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
             Welcome back, {displayName}
           </h1>
           {userType === "lo" && loRecord?.lender && (
@@ -295,7 +295,7 @@ export default async function DashboardPage() {
 
                 <SectionCard>
                   <CardTitle>Coming soon</CardTitle>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.875rem", color: "rgba(160,192,168,0.55)", display: "flex", flexDirection: "column", gap: 5, lineHeight: 1.6 }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.875rem", color: "rgba(185,208,192,0.55)", display: "flex", flexDirection: "column", gap: 5, lineHeight: 1.6 }}>
                     <li>Buyer activity feed — see which buyers are most engaged</li>
                     <li>Response analytics — track scenario types in your market</li>
                     <li>Team seats — add colleagues to your account</li>
@@ -326,7 +326,7 @@ export default async function DashboardPage() {
 
                 <SectionCard>
                   <CardTitle>Coming soon</CardTitle>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.875rem", color: "rgba(160,192,168,0.55)", display: "flex", flexDirection: "column", gap: 5, lineHeight: 1.6 }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.875rem", color: "rgba(185,208,192,0.55)", display: "flex", flexDirection: "column", gap: 5, lineHeight: 1.6 }}>
                     <li>Borrower activity feed — see which borrowers are most engaged</li>
                     <li>Conversation analytics — track scenario types coming in</li>
                     <li>Team seats — add colleagues to your account</li>
@@ -384,8 +384,8 @@ export default async function DashboardPage() {
                 <span style={{
                   fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em",
                   textTransform: "uppercase", padding: "3px 10px", borderRadius: 999,
-                  background: isOnFreePlan ? "rgba(160,192,168,0.1)" : "rgba(0,232,122,0.12)",
-                  color: isOnFreePlan ? "rgba(160,192,168,0.6)" : "#00e87a",
+                  background: isOnFreePlan ? "rgba(185,208,192,0.1)" : "rgba(0,232,122,0.12)",
+                  color: isOnFreePlan ? "rgba(185,208,192,0.6)" : "#00e87a",
                 }}>
                   {planLabel}
                 </span>
@@ -415,7 +415,7 @@ export default async function DashboardPage() {
                     ["Slots remaining", remaining],
                   ].map(([label, val]) => (
                     <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem" }}>
-                      <span style={{ color: "rgba(160,192,168,0.6)" }}>{label}</span>
+                      <span style={{ color: "rgba(185,208,192,0.6)" }}>{label}</span>
                       <strong style={{ color: label === "Slots remaining" ? (remaining > 0 ? "#4ade80" : "#f87171") : "#e2e8f0" }}>{val}</strong>
                     </div>
                   ))}

@@ -132,7 +132,7 @@ export default function LoanLimitsPage() {
           color:#f0f4ff;margin:0 0 12px;line-height:1.2;
         }
         .ll-subtitle{
-          font-size:0.95rem;color:rgba(160,192,168,0.7);
+          font-size:0.95rem;color:rgba(185,208,192,0.7);
           max-width:580px;margin:0 auto;line-height:1.6;
         }
 
@@ -151,7 +151,7 @@ export default function LoanLimitsPage() {
           .ll-selector-row{grid-template-columns:1fr;}
         }
         .ll-field{display:flex;flex-direction:column;gap:6px;}
-        .ll-label{font-size:0.75rem;font-weight:600;color:rgba(160,192,168,0.6);text-transform:uppercase;letter-spacing:0.06em;}
+        .ll-label{font-size:0.75rem;font-weight:600;color:rgba(185,208,192,0.6);text-transform:uppercase;letter-spacing:0.06em;}
         .ll-select{
           appearance:none;-webkit-appearance:none;
           background:rgba(255,255,255,0.05);
@@ -184,7 +184,7 @@ export default function LoanLimitsPage() {
           font-size:1.1rem;font-weight:700;color:#f0f4ff;
           text-transform:capitalize;
         }
-        .ll-result-state{font-size:0.8rem;color:rgba(160,192,168,0.5);}
+        .ll-result-state{font-size:0.8rem;color:rgba(185,208,192,0.5);}
         .ll-zone-badge{
           font-size:0.7rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;
           padding:5px 12px;border-radius:8px;white-space:nowrap;
@@ -200,13 +200,13 @@ export default function LoanLimitsPage() {
           border-radius:12px;padding:16px;
           display:flex;flex-direction:column;gap:6px;
         }
-        .ll-unit-label{font-size:0.75rem;color:rgba(160,192,168,0.55);font-weight:500;}
+        .ll-unit-label{font-size:0.75rem;color:rgba(185,208,192,0.55);font-weight:500;}
         .ll-unit-value{font-size:1.25rem;font-weight:700;color:#f0f4ff;}
 
         .ll-note{
           margin-top:16px;padding:12px 16px;
           background:rgba(255,255,255,0.02);border-radius:10px;
-          font-size:0.78rem;color:rgba(160,192,168,0.5);line-height:1.5;
+          font-size:0.78rem;color:rgba(185,208,192,0.5);line-height:1.5;
         }
 
         /* ─── CTA ─── */
@@ -217,7 +217,7 @@ export default function LoanLimitsPage() {
           border:1px solid rgba(0,232,122,0.12);
           border-radius:16px;
         }
-        .ll-cta-text{font-size:0.95rem;color:rgba(160,192,168,0.7);margin-bottom:14px;}
+        .ll-cta-text{font-size:0.95rem;color:rgba(185,208,192,0.7);margin-bottom:14px;}
         .ll-cta-btn{
           display:inline-flex;align-items:center;gap:8px;
           background:#00e87a;color:#080c12;
@@ -237,16 +237,16 @@ export default function LoanLimitsPage() {
           background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);
           border-radius:12px;padding:16px;
         }
-        .ll-info-tile-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(160,192,168,0.45);margin-bottom:6px;}
+        .ll-info-tile-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(185,208,192,0.45);margin-bottom:6px;}
         .ll-info-tile-val{font-size:1rem;font-weight:700;color:#e0f0e8;}
-        .ll-info-tile-sub{font-size:0.75rem;color:rgba(160,192,168,0.45);margin-top:3px;}
+        .ll-info-tile-sub{font-size:0.75rem;color:rgba(185,208,192,0.45);margin-top:3px;}
 
         /* ─── Footer ─── */
         .ll-footer{
           width:100%;border-top:1px solid rgba(255,255,255,0.06);
           margin-top:20px;padding:20px 24px;
           display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
-          gap:8px;font-size:0.78rem;color:rgba(160,192,168,0.4);
+          gap:8px;font-size:0.78rem;color:rgba(185,208,192,0.4);
         }
         .ll-footer-link{color:rgba(0,232,122,0.5);text-decoration:none;transition:color 0.15s;}
         .ll-footer-link:hover{color:#00e87a;}
@@ -335,7 +335,7 @@ export default function LoanLimitsPage() {
               </div>
             </div>
             {!hasHighCost && (
-              <p style={{ fontSize: '0.8rem', color: 'rgba(160,192,168,0.45)', margin: 0 }}>
+              <p style={{ fontSize: '0.8rem', color: 'rgba(185,208,192,0.45)', margin: 0 }}>
                 {STATE_NAMES[state]} has no high-cost counties — standard national baseline applies statewide.
               </p>
             )}

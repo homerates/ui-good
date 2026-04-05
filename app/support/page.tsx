@@ -126,7 +126,7 @@ export default function SupportPage() {
           --border: rgba(255,255,255,0.07);
           --border-bright: rgba(255,255,255,0.13);
           --text: #f0f4ff;
-          --text-muted: #6b7a99;
+          --text-muted: #8fa3b8;
           --text-dim: #3a4560;
           --green: #00e87a;
           --blue: #3d8bff;
@@ -170,7 +170,7 @@ export default function SupportPage() {
           margin-bottom: 20px;
         }
         .sup-hero h1 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 42px; font-weight: 800;
           line-height: 1.1; margin: 0 0 16px;
         }
@@ -249,7 +249,7 @@ export default function SupportPage() {
           margin-bottom: 56px;
         }
         .sup-cta h2 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 22px; font-weight: 700;
           margin: 0 0 10px;
         }

@@ -95,7 +95,7 @@ export default async function MarketNewsPage() {
           --border: rgba(255,255,255,0.07);
           --border-bright: rgba(255,255,255,0.13);
           --text: #f0f4ff;
-          --text-muted: #6b7a99;
+          --text-muted: #8fa3b8;
           --text-dim: #3a4560;
           --green: #00e87a;
           --green-dim: rgba(0,232,122,0.10);
@@ -201,7 +201,7 @@ export default async function MarketNewsPage() {
           margin-bottom: 20px;
         }
         .mn-hero h1 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 48px; font-weight: 800;
           line-height: 1.1; margin: 0 0 16px;
         }
@@ -284,7 +284,7 @@ export default async function MarketNewsPage() {
           margin-bottom: 16px;
         }
         .mn-featured h2 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 28px; font-weight: 800;
           color: var(--text); line-height: 1.2;
           margin: 0 0 12px;
@@ -334,7 +334,7 @@ export default async function MarketNewsPage() {
           margin-bottom: 10px;
         }
         .mn-card h3 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 16px; font-weight: 700;
           color: var(--text); line-height: 1.3;
           margin: 0 0 8px;
@@ -449,7 +449,7 @@ export default async function MarketNewsPage() {
           {/* FEATURED: first article (newest) */}
           {allArticles[0] && (() => {
             const a = allArticles[0];
-            const tagColor = TAG_COLORS[a.tag] ?? '#6b7a99';
+            const tagColor = TAG_COLORS[a.tag] ?? '#8fa3b8';
             return (
               <Link href={`/market-news/${a.slug}`} className="mn-featured">
                 <div className="mn-featured-tag" style={{ color: tagColor }}>
@@ -471,7 +471,7 @@ export default async function MarketNewsPage() {
           {/* REST: grid */}
           <div className="mn-grid">
             {allArticles.slice(1).map((article) => {
-              const tagColor = TAG_COLORS[article.tag] ?? '#6b7a99';
+              const tagColor = TAG_COLORS[article.tag] ?? '#8fa3b8';
               return (
                 <Link key={article.slug} href={`/market-news/${article.slug}`} className="mn-card">
                   <div className="mn-card-tag" style={{ color: tagColor }}>{article.tag}</div>

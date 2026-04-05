@@ -38,12 +38,12 @@ export default async function OnboardingSuccessPage({
         <h1 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fff", margin: "0 0 16px" }}>
           Your access is active
         </h1>
-        <p style={{ fontSize: "0.9rem", color: "rgba(160,192,168,0.8)", lineHeight: 1.6, marginBottom: 24 }}>
+        <p style={{ fontSize: "0.9rem", color: "rgba(185,208,192,0.8)", lineHeight: 1.6, marginBottom: 24 }}>
           You&apos;re all set. Your profile is linked to your loan officer, and your questions will stay attached to your file.
         </p>
 
         {borrowerId && (
-          <p style={{ fontSize: "0.72rem", color: "rgba(160,192,168,0.45)", marginBottom: 20, wordBreak: "break-all", fontFamily: "var(--font-dm-mono, monospace)" }}>
+          <p style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.45)", marginBottom: 20, wordBreak: "break-all", fontFamily: "var(--font-dm-mono, monospace)" }}>
             Borrower ID: {borrowerId}
           </p>
         )}
@@ -61,7 +61,7 @@ export default async function OnboardingSuccessPage({
         }}>
           Enter HomeRates.ai →
         </Link>
-        <p style={{ fontSize: "0.72rem", color: "rgba(160,192,168,0.4)", marginTop: 8 }}>
+        <p style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.4)", marginTop: 8 }}>
           You can close this tab at any time.
         </p>
       </div>

@@ -51,7 +51,7 @@ export default function Page() {
           gap: 10px;
           align-items: center;
           font-size: 0.72rem;
-          color: rgba(160,192,168,0.4);
+          color: rgba(185,208,192,0.4);
         }
         .auth-shell-footer-link {
           color: rgba(0,232,122,0.55);

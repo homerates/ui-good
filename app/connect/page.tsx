@@ -294,9 +294,9 @@ export default async function ConnectPage() {
         .cn-nav-logo { display: flex; align-items: center; text-decoration: none; }
         .cn-nav-logo img { height: 32px; width: auto; }
         .cn-nav-links { display: flex; align-items: center; gap: 14px; }
-        .cn-nav-link { color: #6b7a99; font-size: 0.875rem; text-decoration: none; transition: color 0.15s; }
+        .cn-nav-link { color: #8fa3b8; font-size: 0.875rem; text-decoration: none; transition: color 0.15s; }
         .cn-nav-link:hover { color: #f0f4ff; }
-        .cn-nav-signin { color: #6b7a99; text-decoration: none; font-size: 0.9rem; transition: color 0.15s; }
+        .cn-nav-signin { color: #8fa3b8; text-decoration: none; font-size: 0.9rem; transition: color 0.15s; }
         .cn-nav-signin:hover { color: #f0f4ff; }
         .cn-nav-cta {
           padding: 8px 18px; background: #00e87a; color: #080c12;
@@ -319,7 +319,7 @@ export default async function ConnectPage() {
           border-radius: 99px; padding: 4px 14px; margin-bottom: 1.5rem;
         }
         .cn-h1 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: clamp(2.2rem, 5vw, 3.5rem);
           font-weight: 800; line-height: 1.1;
           letter-spacing: -0.03em;
@@ -327,7 +327,7 @@ export default async function ConnectPage() {
         }
         .cn-h1-green { color: #00e87a; }
         .cn-lead {
-          font-size: 1.15rem; color: #6b7a99;
+          font-size: 1.15rem; color: #8fa3b8;
           line-height: 1.7; max-width: 600px;
           margin: 0 auto 2rem;
         }
@@ -351,7 +351,7 @@ export default async function ConnectPage() {
         .cn-btn-ghost:hover { border-color: rgba(255,255,255,0.3); }
         .cn-trust-bar {
           display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
-          font-size: 0.82rem; color: #6b7a99;
+          font-size: 0.82rem; color: #8fa3b8;
         }
         .cn-trust-bar span {
           background: rgba(255,255,255,0.04);
@@ -376,14 +376,14 @@ export default async function ConnectPage() {
           margin-bottom: 1rem;
         }
         .cn-h2 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: clamp(1.5rem, 3vw, 2.2rem);
           font-weight: 700; line-height: 1.2;
           letter-spacing: -0.02em;
           margin: 0 0 1rem; color: #f0f4ff;
         }
         .cn-section-desc {
-          font-size: 1rem; color: #6b7a99;
+          font-size: 1rem; color: #8fa3b8;
           line-height: 1.65; max-width: 620px;
           margin: 0 0 2.5rem;
         }
@@ -406,11 +406,11 @@ export default async function ConnectPage() {
         }
         .cn-step-icon { font-size: 2rem; margin-bottom: 1rem; }
         .cn-step h3 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 1.1rem; font-weight: 700;
           margin: 0 0 0.75rem; color: #f0f4ff;
         }
-        .cn-step p { font-size: 0.9rem; color: #6b7a99; line-height: 1.65; margin: 0; }
+        .cn-step p { font-size: 0.9rem; color: #8fa3b8; line-height: 1.65; margin: 0; }
         .cn-step-divider {
           padding: 0 12px; align-self: center;
           color: #3a4560; font-size: 1.5rem; font-weight: 300;
@@ -444,7 +444,7 @@ export default async function ConnectPage() {
         .cn-compare-list { list-style: none; margin: 0; padding: 0; }
         .cn-compare-list li {
           display: flex; gap: 10px; align-items: flex-start;
-          font-size: 0.9rem; color: #6b7a99;
+          font-size: 0.9rem; color: #8fa3b8;
           padding: 7px 0;
           border-bottom: 1px solid rgba(255,255,255,0.05);
         }
@@ -470,7 +470,7 @@ export default async function ConnectPage() {
           color: #3d8bff; border: 1px solid rgba(61,139,255,0.25);
         }
         .cn-sample-state { font-size: 0.85rem; color: #f0f4ff; font-weight: 500; }
-        .cn-sample-time { font-size: 0.78rem; color: #6b7a99; margin-left: auto; }
+        .cn-sample-time { font-size: 0.78rem; color: #8fa3b8; margin-left: auto; }
         .cn-sample-grid {
           display: grid; grid-template-columns: repeat(3, 1fr);
           gap: 12px; margin-bottom: 1.25rem;
@@ -479,7 +479,7 @@ export default async function ConnectPage() {
         .cn-field-label { font-size: 0.72rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
         .cn-field-value { font-size: 0.95rem; font-weight: 600; color: #f0f4ff; }
         .cn-sample-note {
-          font-size: 0.88rem; color: #6b7a99;
+          font-size: 0.88rem; color: #8fa3b8;
           border-top: 1px solid rgba(255,255,255,0.07);
           padding-top: 1rem; font-style: italic;
         }
@@ -502,7 +502,7 @@ export default async function ConnectPage() {
         .cn-response-rate { font-size: 0.82rem; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
         .cn-rate-match { background: rgba(0,232,122,0.1); color: #00e87a; border: 1px solid rgba(0,232,122,0.25); }
         .cn-rate-flag { background: rgba(255,140,66,0.1); color: #ff8c42; border: 1px solid rgba(255,140,66,0.25); }
-        .cn-response-text { font-size: 0.88rem; color: #6b7a99; line-height: 1.6; margin: 0 0 0.75rem; }
+        .cn-response-text { font-size: 0.88rem; color: #8fa3b8; line-height: 1.6; margin: 0 0 0.75rem; }
         .cn-invite-demo { font-size: 0.78rem; color: #00e87a; font-weight: 600; }
 
         /* CTA section */

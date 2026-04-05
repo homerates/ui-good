@@ -420,7 +420,7 @@ export default function DSCRCalculatorPage() {
                                         <td>{row.status}</td>
                                         <td>{row.ltv}</td>
                                         <td>{row.rate}</td>
-                                        <td style={{ fontSize: '0.82rem', color: '#6b7a99' }}>{row.notes}</td>
+                                        <td style={{ fontSize: '0.82rem', color: '#8fa3b8' }}>{row.notes}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -573,7 +573,7 @@ export default function DSCRCalculatorPage() {
                 .dscr-page .breadcrumb ol {
                     display: flex; gap: 6px; list-style: none;
                     padding: 0; margin: 0 0 2rem; font-size: 13px;
-                    color: #6b7a99;
+                    color: #8fa3b8;
                 }
                 .dscr-page .breadcrumb a { color: inherit; text-decoration: none; }
                 .dscr-page .breadcrumb a:hover { text-decoration: underline; }
@@ -585,16 +585,16 @@ export default function DSCRCalculatorPage() {
                     font-size: clamp(1.75rem, 4vw, 2.5rem);
                     font-weight: 700; line-height: 1.15;
                     margin: 0 0 1rem; letter-spacing: -0.02em;
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                 }
                 .dscr-page .hero-sub {
                     display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-                    font-weight: 400; color: #6b7a99;
+                    font-weight: 400; color: #8fa3b8;
                     margin-top: 0.25rem;
                 }
                 .dscr-page .hero-lead {
                     font-size: 1.1rem; max-width: 640px;
-                    color: #6b7a99; margin: 0 0 1.25rem;
+                    color: #8fa3b8; margin: 0 0 1.25rem;
                 }
                 .dscr-page .trust-bar {
                     display: flex; flex-wrap: wrap; gap: 10px;
@@ -604,7 +604,7 @@ export default function DSCRCalculatorPage() {
                     font-size: 13px; padding: 4px 12px;
                     background: rgba(255,255,255,0.05);
                     border-radius: 99px; border: 1px solid rgba(255,255,255,0.07);
-                    color: #6b7a99;
+                    color: #8fa3b8;
                 }
 
                 /* Calculator embed */
@@ -614,12 +614,12 @@ export default function DSCRCalculatorPage() {
                     padding: 2rem; margin-bottom: 3rem;
                 }
                 .dscr-page .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; }
-                .dscr-page .embed-header p { margin: 0 0 1.25rem; color: #6b7a99; font-size: 0.95rem; }
+                .dscr-page .embed-header p { margin: 0 0 1.25rem; color: #8fa3b8; font-size: 0.95rem; }
                 .dscr-page .seed-chips {
                     display: flex; flex-wrap: wrap; gap: 8px;
                     align-items: center; margin-bottom: 1rem;
                 }
-                .dscr-page .seed-label { font-size: 13px; color: #6b7a99; }
+                .dscr-page .seed-label { font-size: 13px; color: #8fa3b8; }
                 .dscr-page .seed-chip {
                     font-size: 13px; padding: 5px 13px;
                     background: #0e1420; border-radius: 99px;
@@ -641,7 +641,7 @@ export default function DSCRCalculatorPage() {
                 .dscr-page .cta-button:hover { opacity: 0.85; }
                 .dscr-page .cta-sub {
                     margin: 10px 0 0; font-size: 13px;
-                    color: #6b7a99;
+                    color: #8fa3b8;
                 }
                 .dscr-page .cta-sub a { color: #00e87a; }
 
@@ -650,10 +650,10 @@ export default function DSCRCalculatorPage() {
                     font-size: clamp(1.2rem, 2.5vw, 1.6rem);
                     font-weight: 600; margin: 0 0 0.75rem;
                     letter-spacing: -0.01em;
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                 }
                 .dscr-page .section-lead {
-                    font-size: 1rem; color: #6b7a99;
+                    font-size: 1rem; color: #8fa3b8;
                     margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65;
                 }
 
@@ -671,7 +671,7 @@ export default function DSCRCalculatorPage() {
                 }
                 .dscr-page .feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
                 .dscr-page .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.4rem; }
-                .dscr-page .feature-card p { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .dscr-page .feature-card p { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
 
                 /* Tables */
                 .dscr-page .example-table-section { margin-bottom: 3rem; }
@@ -682,7 +682,7 @@ export default function DSCRCalculatorPage() {
                 }
                 .dscr-page .example-table th {
                     text-align: left; font-size: 0.78rem; font-weight: 600;
-                    color: #6b7a99; padding: 8px 12px;
+                    color: #8fa3b8; padding: 8px 12px;
                     border-bottom: 1.5px solid rgba(255,255,255,0.08);
                     background: #0e1420;
                     text-transform: uppercase; letter-spacing: 0.04em;
@@ -692,13 +692,13 @@ export default function DSCRCalculatorPage() {
                 .dscr-page .income-cell { font-weight: 600; }
                 .dscr-page .price-cell { font-weight: 500; color: #00e87a; }
                 .dscr-page .negative-cell { font-weight: 500; color: #ff5f5f; }
-                .dscr-page .table-note { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.5; }
+                .dscr-page .table-note { font-size: 0.8rem; color: #8fa3b8; margin: 0; line-height: 1.5; }
                 .dscr-page .table-note a { color: #00e87a; }
 
                 /* How it works */
                 .dscr-page .how-it-works { margin-bottom: 3rem; }
                 .dscr-page .steps-list { padding-left: 1.25rem; margin: 0; }
-                .dscr-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #6b7a99; }
+                .dscr-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #8fa3b8; }
                 .dscr-page .steps-list strong { color: #f0f4ff; }
 
                 /* Author / E-E-A-T */
@@ -717,10 +717,10 @@ export default function DSCRCalculatorPage() {
                     flex-shrink: 0;
                 }
                 .dscr-page .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
-                .dscr-page .author-cred { font-size: 0.82rem; color: #6b7a99; margin-bottom: 0.4rem; }
-                .dscr-page .author-bio { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
-                .dscr-page .last-updated { font-size: 0.8rem; color: #6b7a99; margin: 0 0 0.5rem; }
-                .dscr-page .disclaimer { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .dscr-page .author-cred { font-size: 0.82rem; color: #8fa3b8; margin-bottom: 0.4rem; }
+                .dscr-page .author-bio { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
+                .dscr-page .last-updated { font-size: 0.8rem; color: #8fa3b8; margin: 0 0 0.5rem; }
+                .dscr-page .disclaimer { font-size: 0.8rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
 
                 /* FAQ */
                 .dscr-page .faq-section { margin-bottom: 3rem; }
@@ -737,11 +737,11 @@ export default function DSCRCalculatorPage() {
                     justify-content: space-between; align-items: center;
                     color: #f0f4ff;
                 }
-                .dscr-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #6b7a99; }
+                .dscr-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #8fa3b8; }
                 .dscr-page details[open] .faq-question::after { content: '−'; }
                 .dscr-page .faq-answer {
                     padding: 0.75rem 1.25rem 1rem; margin: 0;
-                    font-size: 0.9rem; color: #6b7a99;
+                    font-size: 0.9rem; color: #8fa3b8;
                     line-height: 1.65;
                     border-top: 1px solid rgba(255,255,255,0.06);
                 }
@@ -765,7 +765,7 @@ export default function DSCRCalculatorPage() {
                     box-shadow: 0 2px 12px rgba(34,197,94,0.08);
                 }
                 .dscr-page .related-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; }
-                .dscr-page .related-desc { font-size: 0.83rem; color: #6b7a99; line-height: 1.5; }
+                .dscr-page .related-desc { font-size: 0.83rem; color: #8fa3b8; line-height: 1.5; }
 
                 /* Responsive */
                 @media (max-width: 600px) {

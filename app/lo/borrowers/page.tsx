@@ -91,7 +91,7 @@ export default function LoBorrowersPage() {
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
                 <div>
                     <h1 style={{ fontSize: "1.35rem", fontWeight: 700, margin: "0 0 4px", color: "#f1f5f9" }}>Borrowers</h1>
-                    <p style={{ margin: 0, fontSize: "0.88rem", color: "rgba(160,192,168,0.7)" }}>
+                    <p style={{ margin: 0, fontSize: "0.88rem", color: "rgba(185,208,192,0.7)" }}>
                         Manage borrowers, set their property address, and send monthly home digests.
                     </p>
                 </div>
@@ -117,7 +117,7 @@ export default function LoBorrowersPage() {
                     {inviteUrl && (
                         <>
                             <p style={{ fontSize: "0.85rem", color: "#e2e8f0", margin: 0, fontWeight: 500 }}>Send this link to your borrower:</p>
-                            {inviteCode && <p style={{ fontSize: "0.75rem", color: "rgba(160,192,168,0.5)", margin: 0 }}>
+                            {inviteCode && <p style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", margin: 0 }}>
                                 Code: <span style={{ fontFamily: "monospace", color: "#00e87a" }}>{inviteCode}</span>
                             </p>}
                             <div style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", fontSize: "0.78rem", color: "#94a3b8", wordBreak: "break-all", background: "rgba(255,255,255,0.03)", fontFamily: "monospace" }}>{inviteUrl}</div>
@@ -133,11 +133,11 @@ export default function LoBorrowersPage() {
 
             {/* Borrower list */}
             {loading ? (
-                <p style={{ color: "rgba(160,192,168,0.5)", fontSize: "0.88rem" }}>Loading borrowers…</p>
+                <p style={{ color: "rgba(185,208,192,0.5)", fontSize: "0.88rem" }}>Loading borrowers…</p>
             ) : borrowers.length === 0 ? (
                 <div style={{ padding: "40px 24px", borderRadius: 14, border: "1px dashed rgba(148,163,184,0.15)", textAlign: "center" }}>
-                    <p style={{ color: "rgba(160,192,168,0.5)", margin: "0 0 8px" }}>No borrowers yet.</p>
-                    <p style={{ color: "rgba(160,192,168,0.35)", fontSize: "0.82rem", margin: 0 }}>Invite a borrower using the button above.</p>
+                    <p style={{ color: "rgba(185,208,192,0.5)", margin: "0 0 8px" }}>No borrowers yet.</p>
+                    <p style={{ color: "rgba(185,208,192,0.35)", fontSize: "0.82rem", margin: 0 }}>Invite a borrower using the button above.</p>
                 </div>
             ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -154,7 +154,7 @@ export default function LoBorrowersPage() {
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                                     <div>
                                         <div style={{ fontWeight: 600, fontSize: "0.95rem", color: "#e0f0e8" }}>{b.name}</div>
-                                        {b.email && <div style={{ fontSize: "0.75rem", color: "rgba(160,192,168,0.5)", marginTop: 2 }}>{b.email}</div>}
+                                        {b.email && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", marginTop: 2 }}>{b.email}</div>}
                                     </div>
                                     {/* Send digest button */}
                                     <button
@@ -166,7 +166,7 @@ export default function LoBorrowersPage() {
                                             padding: "6px 14px", borderRadius: 999, border: "1px solid",
                                             borderColor: didSend ? "rgba(0,232,122,0.5)" : b.property_address ? "rgba(0,232,122,0.3)" : "rgba(148,163,184,0.2)",
                                             background: didSend ? "rgba(0,232,122,0.1)" : "transparent",
-                                            color: didSend ? "#00e87a" : b.property_address ? "rgba(0,232,122,0.8)" : "rgba(160,192,168,0.3)",
+                                            color: didSend ? "#00e87a" : b.property_address ? "rgba(0,232,122,0.8)" : "rgba(185,208,192,0.3)",
                                             fontSize: "0.78rem", fontWeight: 600, cursor: b.property_address && !isSending ? "pointer" : "default",
                                             whiteSpace: "nowrap",
                                         }}

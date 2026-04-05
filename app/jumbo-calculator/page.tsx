@@ -132,7 +132,7 @@ export default function JumboCalculatorPage() {
                 }
                 .jc-subtitle {
                     font-size: 0.95rem;
-                    color: rgba(160,192,168,0.7);
+                    color: rgba(185,208,192,0.7);
                     max-width: 560px;
                     margin: 0 auto;
                     line-height: 1.5;
@@ -153,7 +153,7 @@ export default function JumboCalculatorPage() {
                     flex-wrap: wrap;
                     gap: 8px;
                     font-size: 0.78rem;
-                    color: rgba(160,192,168,0.4);
+                    color: rgba(185,208,192,0.4);
                 }
                 .jc-footer-link {
                     color: rgba(0,232,122,0.5);
@@ -205,7 +205,7 @@ export default function JumboCalculatorPage() {
                         />
                     </div>
 
-                    <div style={{ marginTop: 24, textAlign: 'center', fontSize: '0.85rem', color: 'rgba(160,192,168,0.6)' }}>
+                    <div style={{ marginTop: 24, textAlign: 'center', fontSize: '0.85rem', color: 'rgba(185,208,192,0.6)' }}>
                         Want a personalized analysis?{' '}
                         <Link href="/chat" style={{ color: '#00e87a', textDecoration: 'none', fontWeight: 600 }}>
                             Chat with our AI mortgage expert →

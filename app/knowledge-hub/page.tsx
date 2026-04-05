@@ -101,7 +101,7 @@ export default async function KnowledgeHubPage() {
           --border: rgba(255,255,255,0.07);
           --border-bright: rgba(255,255,255,0.13);
           --text: #f0f4ff;
-          --text-muted: #6b7a99;
+          --text-muted: #8fa3b8;
           --text-dim: #3a4560;
           --green: #00e87a;
           --green-dim: rgba(0,232,122,0.10);
@@ -227,7 +227,7 @@ export default async function KnowledgeHubPage() {
           margin-bottom: 20px;
         }
         .kh-hero h1 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 48px; font-weight: 800;
           line-height: 1.1; margin: 0 0 16px;
         }
@@ -311,7 +311,7 @@ export default async function KnowledgeHubPage() {
           margin-bottom: 12px;
         }
         .kh-card h2 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 18px; font-weight: 700;
           color: var(--text); line-height: 1.3;
           margin: 0 0 10px;
@@ -423,7 +423,7 @@ export default async function KnowledgeHubPage() {
           <div className="kh-section-label">All Articles — {allArticles.length} guides</div>
           <div className="kh-grid">
             {allArticles.map((article) => {
-              const catColor = CATEGORY_COLORS[article.tag] ?? '#6b7a99';
+              const catColor = CATEGORY_COLORS[article.tag] ?? '#8fa3b8';
               return (
                 <Link key={article.slug} href={`/knowledge-hub/${article.slug}`} className="kh-card">
                   <div className="kh-card-cat" style={{ color: catColor }}>{article.tag}</div>

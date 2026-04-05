@@ -127,7 +127,7 @@ export default function WhyHomeRates() {
                     --border: rgba(255,255,255,0.07);
                     --border-bright: rgba(255,255,255,0.13);
                     --text: #f0f4ff;
-                    --text-muted: #6b7a99;
+                    --text-muted: #8fa3b8;
                     --text-dim: #3a4560;
                     --green: #00e87a;
                     --blue: #3d8bff;
@@ -177,7 +177,7 @@ export default function WhyHomeRates() {
                     background: rgba(0,232,122,0.06);
                 }
                 .whr-hero h1 {
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                     font-size: clamp(2rem, 5vw, 3rem);
                     font-weight: 800; line-height: 1.12;
                     letter-spacing: -0.02em; margin: 0 0 20px;
@@ -218,7 +218,7 @@ export default function WhyHomeRates() {
                 .whr-pillar:hover { border-color: var(--border-bright); }
                 .whr-pillar-icon { font-size: 1.5rem; margin-bottom: 12px; }
                 .whr-pillar-title {
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                     font-weight: 700; font-size: 15px;
                     margin-bottom: 8px; color: var(--text);
                 }
@@ -235,7 +235,7 @@ export default function WhyHomeRates() {
                     text-align: center; margin-bottom: 48px;
                 }
                 .whr-compare-header h2 {
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                     font-size: clamp(1.4rem, 3vw, 2rem);
                     font-weight: 800; letter-spacing: -0.02em;
                     margin: 0 0 10px; color: var(--text);
@@ -255,7 +255,7 @@ export default function WhyHomeRates() {
                     padding: 14px 20px;
                     background: var(--surface2);
                     border-bottom: 1px solid var(--border);
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                     font-weight: 700; font-size: 14px;
                     color: var(--text);
                 }
@@ -299,7 +299,7 @@ export default function WhyHomeRates() {
                     text-align: center;
                 }
                 .whr-cta h2 {
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                     font-size: clamp(1.5rem, 4vw, 2.2rem);
                     font-weight: 800; color: var(--text);
                     letter-spacing: -0.02em; margin: 0 0 16px;

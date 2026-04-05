@@ -323,11 +323,11 @@ export default function MyScenarioPage() {
           border-bottom: 1px solid rgba(255,255,255,0.07);
         }
         .ms-nav-logo img { height: 28px; }
-        .ms-nav-label { font-size: 0.85rem; color: #6b7a99; }
+        .ms-nav-label { font-size: 0.85rem; color: #8fa3b8; }
         .ms-nav-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
         .ms-nav-btn {
           padding: 7px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
-          text-decoration: none; color: #6b7a99;
+          text-decoration: none; color: #8fa3b8;
           border: 1px solid rgba(255,255,255,0.1); background: transparent;
           transition: color 0.15s, border-color 0.15s;
         }
@@ -337,9 +337,9 @@ export default function MyScenarioPage() {
 
         .ms-container { max-width: 680px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
-        .ms-loading, .ms-empty { text-align: center; padding: 5rem 0; color: #6b7a99; }
+        .ms-loading, .ms-empty { text-align: center; padding: 5rem 0; color: #8fa3b8; }
         .ms-empty-icon { font-size: 2.5rem; margin-bottom: 1rem; }
-        .ms-empty h2 { font-family: 'Syne', sans-serif; font-size: 1.4rem; color: #f0f4ff; margin: 0 0 0.75rem; }
+        .ms-empty h2 { font-family: 'DM Sans', sans-serif; font-size: 1.4rem; color: #f0f4ff; margin: 0 0 0.75rem; }
         .ms-empty p { margin: 0 0 2rem; line-height: 1.6; }
 
         /* Scenario card */
@@ -369,7 +369,7 @@ export default function MyScenarioPage() {
           font-size: 0.75rem; color: #3a4560; background: none; border: none;
           cursor: pointer; text-decoration: underline; padding: 0;
         }
-        .ms-close-btn:hover { color: #6b7a99; }
+        .ms-close-btn:hover { color: #8fa3b8; }
 
         .ms-scenario-grid {
           display: grid; grid-template-columns: repeat(3, 1fr);
@@ -378,7 +378,7 @@ export default function MyScenarioPage() {
         .ms-field-label { font-size: 0.7rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
         .ms-field-value { font-size: 0.9rem; font-weight: 600; color: #f0f4ff; }
         .ms-notes {
-          font-size: 0.85rem; color: #6b7a99; font-style: italic;
+          font-size: 0.85rem; color: #8fa3b8; font-style: italic;
           border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.75rem;
           margin-top: 0.5rem;
         }
@@ -386,10 +386,10 @@ export default function MyScenarioPage() {
         /* Responses section */
         .ms-response-header { margin-bottom: 1.5rem; }
         .ms-section-title {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 1.2rem; font-weight: 700; color: #f0f4ff; margin: 0 0 0.4rem;
         }
-        .ms-section-sub { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.5; }
+        .ms-section-sub { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.5; }
 
         .ms-responses { display: flex; flex-direction: column; gap: 12px; }
 
@@ -422,7 +422,7 @@ export default function MyScenarioPage() {
         }
 
         .ms-approach {
-          font-size: 0.88rem; color: #6b7a99;
+          font-size: 0.88rem; color: #8fa3b8;
           line-height: 1.65; margin: 0 0 1rem;
           font-style: italic;
         }
@@ -455,7 +455,7 @@ export default function MyScenarioPage() {
           font-size: 1rem; font-weight: 700;
         }
         .ms-matched-next-title { font-weight: 700; color: #f0f4ff; margin-bottom: 5px; font-size: 0.95rem; }
-        .ms-matched-next-body { font-size: 0.875rem; color: #6b7a99; line-height: 1.6; }
+        .ms-matched-next-body { font-size: 0.875rem; color: #8fa3b8; line-height: 1.6; }
 
         .ms-success-banner {
           margin-top: 1.5rem;
@@ -471,7 +471,7 @@ export default function MyScenarioPage() {
           background: rgba(61,139,255,0.06);
           border: 1px solid rgba(61,139,255,0.15);
           border-radius: 12px; padding: 1rem 1.25rem;
-          font-size: 0.875rem; color: #6b7a99; line-height: 1.55;
+          font-size: 0.875rem; color: #8fa3b8; line-height: 1.55;
         }
         .ms-ai-tip-icon { font-size: 1.2rem; flex-shrink: 0; }
         .ms-ai-link { color: #3d8bff; text-decoration: none; }

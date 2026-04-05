@@ -73,7 +73,7 @@ export default function HomeownerPage() {
           --border: rgba(255,255,255,0.07);
           --border-bright: rgba(255,255,255,0.15);
           --text: #f0f4ff;
-          --text-muted: #6b7a99;
+          --text-muted: #8fa3b8;
           --text-dim: #3a4560;
           --green: #00e87a;
           --green-dim: rgba(0,232,122,0.10);
@@ -135,7 +135,7 @@ export default function HomeownerPage() {
         }
         .ho-eyebrow::before { content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: ho-pulse 2s infinite; }
         .ho-h1 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 58px; font-weight: 800;
           line-height: 1.08; margin: 0 0 20px;
           letter-spacing: -0.02em;
@@ -197,7 +197,7 @@ export default function HomeownerPage() {
           margin-bottom: 80px;
         }
         .ho-stat { text-align: center; }
-        .ho-stat-num { font-family: 'Syne', sans-serif; font-size: 34px; font-weight: 800; color: var(--green); margin-bottom: 4px; }
+        .ho-stat-num { font-family: 'DM Sans', sans-serif; font-size: 34px; font-weight: 800; color: var(--green); margin-bottom: 4px; }
         .ho-stat-label { font-size: 13px; color: var(--text-muted); }
 
         /* VALUE PROPS */
@@ -232,7 +232,7 @@ export default function HomeownerPage() {
           margin-bottom: 20px;
         }
         .ho-prop-card h3 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 18px; font-weight: 700;
           margin: 0 0 10px;
         }
@@ -249,7 +249,7 @@ export default function HomeownerPage() {
           text-align: center;
         }
         .ho-how h2 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 34px; font-weight: 800;
           margin: 0 0 48px;
         }
@@ -291,7 +291,7 @@ export default function HomeownerPage() {
           margin-bottom: 0;
         }
         .ho-cta h2 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 36px; font-weight: 800;
           margin: 0 0 14px;
         }

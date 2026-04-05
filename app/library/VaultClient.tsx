@@ -68,7 +68,7 @@ export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs
                 <div style={{ marginBottom: 28, position: 'relative' }}>
                     <span style={{
                         position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                        fontSize: 14, color: 'rgba(160,192,168,0.4)', pointerEvents: 'none',
+                        fontSize: 14, color: 'rgba(185,208,192,0.4)', pointerEvents: 'none',
                     }}>🔍</span>
                     <input
                         type="text"
@@ -90,7 +90,7 @@ export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs
                     {query && (
                         <button onClick={() => setQuery('')} style={{
                             position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                            background: 'none', border: 'none', color: 'rgba(160,192,168,0.4)',
+                            background: 'none', border: 'none', color: 'rgba(185,208,192,0.4)',
                             cursor: 'pointer', fontSize: 16, padding: '0 4px', lineHeight: 1,
                         }}>×</button>
                     )}
@@ -120,7 +120,7 @@ export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs
                                         {highlight(pdf.label, query)}
                                     </div>
                                     {pdf.created_at && (
-                                        <div style={{ fontSize: '0.72rem', color: 'rgba(160,192,168,0.4)' }}>
+                                        <div style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.4)' }}>
                                             {formatDate(pdf.created_at)}
                                         </div>
                                     )}
@@ -141,7 +141,7 @@ export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs
                                         ↓ Download
                                     </a>
                                 ) : (
-                                    <span style={{ fontSize: '0.72rem', color: 'rgba(160,192,168,0.3)' }}>Expired</span>
+                                    <span style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.3)' }}>Expired</span>
                                 )}
                             </div>
                         ))}
@@ -165,7 +165,7 @@ export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs
                         border: '1px dashed rgba(148,163,184,0.15)', textAlign: 'center',
                     }}>
                         <div style={{ fontSize: '1.5rem', marginBottom: 10 }}>✦</div>
-                        <p style={{ color: 'rgba(160,192,168,0.5)', margin: '0 0 16px' }}>
+                        <p style={{ color: 'rgba(185,208,192,0.5)', margin: '0 0 16px' }}>
                             Nothing saved yet. Hit <strong style={{ color: 'rgba(0,232,122,0.7)' }}>✦ Save</strong> on any answer in the chat.
                         </p>
                         <a href="/chat" style={{
@@ -177,7 +177,7 @@ export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs
                         </a>
                     </div>
                 ) : empty && q ? (
-                    <p style={{ color: 'rgba(160,192,168,0.4)', fontSize: '0.88rem' }}>
+                    <p style={{ color: 'rgba(185,208,192,0.4)', fontSize: '0.88rem' }}>
                         No results for "<strong style={{ color: 'rgba(224,240,232,0.6)' }}>{query}</strong>"
                     </p>
                 ) : (
@@ -197,7 +197,7 @@ export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs
                                     listStyle: 'none',
                                 }}>
                                     <span style={{ flex: '1 1 auto' }}>{highlight(entry.question, query)}</span>
-                                    <span style={{ fontSize: '0.7rem', color: 'rgba(160,192,168,0.4)', flexShrink: 0, marginTop: 2 }}>
+                                    <span style={{ fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', flexShrink: 0, marginTop: 2 }}>
                                         {formatDate(entry.created_at)}
                                     </span>
                                 </summary>

@@ -86,7 +86,7 @@ export default function PageShell({
           gap: 4px;
           font-size: 0.82rem;
           font-weight: 500;
-          color: rgba(160,192,168,0.7);
+          color: rgba(185,208,192,0.7);
           text-decoration: none;
           padding: 6px 12px;
           border-radius: 8px;
@@ -120,7 +120,7 @@ export default function PageShell({
           flex-wrap: wrap;
           gap: 8px;
           font-size: 0.78rem;
-          color: rgba(160,192,168,0.4);
+          color: rgba(185,208,192,0.4);
         }
         .ps-footer-sep { opacity: 0.4; }
         .ps-footer-link {

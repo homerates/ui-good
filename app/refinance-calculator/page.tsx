@@ -385,7 +385,7 @@ export default function RefinanceCalculatorPage() {
                                     <tr key={i}>
                                         <td className="income-cell">{row.breakeven}</td>
                                         <td>{row.verdict}</td>
-                                        <td style={{ fontSize: '0.85rem', color: '#6b7a99' }}>{row.notes}</td>
+                                        <td style={{ fontSize: '0.85rem', color: '#8fa3b8' }}>{row.notes}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -528,71 +528,71 @@ export default function RefinanceCalculatorPage() {
                     font-family: var(--font-sans, system-ui, sans-serif);
                     color: #f0f4ff; line-height: 1.6;
                 }
-                .refi-page .breadcrumb ol { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0 0 2rem; font-size: 13px; color: #6b7a99; }
+                .refi-page .breadcrumb ol { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0 0 2rem; font-size: 13px; color: #8fa3b8; }
                 .refi-page .breadcrumb a { color: inherit; text-decoration: none; }
                 .refi-page .breadcrumb a:hover { text-decoration: underline; }
                 .refi-page .breadcrumb li[aria-current] { color: #f0f4ff; font-weight: 500; }
                 .refi-page .hero { margin-bottom: 3rem; }
-                .refi-page h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; line-height: 1.15; margin: 0 0 1rem; letter-spacing: -0.02em; font-family: 'Syne', sans-serif; }
-                .refi-page .hero-sub { display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem); font-weight: 400; color: #6b7a99; margin-top: 0.25rem; }
-                .refi-page .hero-lead { font-size: 1.1rem; max-width: 640px; color: #6b7a99; margin: 0 0 1.25rem; }
+                .refi-page h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; line-height: 1.15; margin: 0 0 1rem; letter-spacing: -0.02em; font-family: 'DM Sans', sans-serif; }
+                .refi-page .hero-sub { display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem); font-weight: 400; color: #8fa3b8; margin-top: 0.25rem; }
+                .refi-page .hero-lead { font-size: 1.1rem; max-width: 640px; color: #8fa3b8; margin: 0 0 1.25rem; }
                 .refi-page .trust-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 0.75rem; }
-                .refi-page .trust-item { font-size: 13px; padding: 4px 12px; background: rgba(255,255,255,0.05); border-radius: 99px; border: 1px solid rgba(255,255,255,0.07); color: #6b7a99; }
+                .refi-page .trust-item { font-size: 13px; padding: 4px 12px; background: rgba(255,255,255,0.05); border-radius: 99px; border: 1px solid rgba(255,255,255,0.07); color: #8fa3b8; }
                 .refi-page .calculator-embed { background: #0e1420; border-radius: 16px; border: 1px solid rgba(255,255,255,0.07); padding: 2rem; margin-bottom: 3rem; }
                 .refi-page .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; }
-                .refi-page .embed-header p { margin: 0 0 1.25rem; color: #6b7a99; font-size: 0.95rem; }
+                .refi-page .embed-header p { margin: 0 0 1.25rem; color: #8fa3b8; font-size: 0.95rem; }
                 .refi-page .seed-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 1rem; }
-                .refi-page .seed-label { font-size: 13px; color: #6b7a99; }
+                .refi-page .seed-label { font-size: 13px; color: #8fa3b8; }
                 .refi-page .seed-chip { font-size: 13px; padding: 5px 13px; background: #0e1420; border-radius: 99px; border: 1px solid rgba(255,255,255,0.10); color: #f0f4ff; text-decoration: none; transition: border-color 0.15s; }
                 .refi-page .seed-chip:hover { border-color: rgba(255,255,255,0.3); }
                 .refi-page .cta-block { text-align: center; padding: 1.5rem 0 0.5rem; }
                 .refi-page .cta-button { display: inline-block; padding: 14px 32px; background: #00e87a; color: #080c12; border-radius: 999px; font-size: 1rem; font-weight: 600; text-decoration: none; transition: opacity 0.15s; }
                 .refi-page .cta-button:hover { opacity: 0.85; }
-                .refi-page .cta-sub { margin: 10px 0 0; font-size: 13px; color: #6b7a99; }
+                .refi-page .cta-sub { margin: 10px 0 0; font-size: 13px; color: #8fa3b8; }
                 .refi-page .cta-sub a { color: #00e87a; }
-                .refi-page h2 { font-size: clamp(1.2rem, 2.5vw, 1.6rem); font-weight: 600; margin: 0 0 0.75rem; letter-spacing: -0.01em; font-family: 'Syne', sans-serif; }
-                .refi-page .section-lead { font-size: 1rem; color: #6b7a99; margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65; }
+                .refi-page h2 { font-size: clamp(1.2rem, 2.5vw, 1.6rem); font-weight: 600; margin: 0 0 0.75rem; letter-spacing: -0.01em; font-family: 'DM Sans', sans-serif; }
+                .refi-page .section-lead { font-size: 1rem; color: #8fa3b8; margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65; }
                 .refi-page .what-you-get { margin-bottom: 3rem; }
                 .refi-page .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
                 .refi-page .feature-card { background: #0e1420; border-radius: 12px; padding: 1.25rem; border: 1px solid rgba(0,0,0,0.07); }
                 .refi-page .feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
                 .refi-page .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.4rem; }
-                .refi-page .feature-card p { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .refi-page .feature-card p { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
                 .refi-page .example-table-section { margin-bottom: 3rem; }
                 .refi-page .example-table-wrapper { overflow-x: auto; margin-bottom: 0.75rem; }
                 .refi-page .example-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 560px; }
-                .refi-page .example-table th { text-align: left; font-size: 0.78rem; font-weight: 600; color: #6b7a99; padding: 8px 12px; border-bottom: 1.5px solid rgba(255,255,255,0.08); background: #0e1420; text-transform: uppercase; letter-spacing: 0.04em; }
+                .refi-page .example-table th { text-align: left; font-size: 0.78rem; font-weight: 600; color: #8fa3b8; padding: 8px 12px; border-bottom: 1.5px solid rgba(255,255,255,0.08); background: #0e1420; text-transform: uppercase; letter-spacing: 0.04em; }
                 .refi-page .example-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
                 .refi-page .example-table tr:last-child td { border-bottom: none; }
                 .refi-page .income-cell { font-weight: 600; }
                 .refi-page .price-cell { font-weight: 500; color: #00e87a; }
-                .refi-page .table-note { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.5; }
+                .refi-page .table-note { font-size: 0.8rem; color: #8fa3b8; margin: 0; line-height: 1.5; }
                 .refi-page .table-note a { color: #00e87a; }
                 .refi-page .how-it-works { margin-bottom: 3rem; }
                 .refi-page .steps-list { padding-left: 1.25rem; margin: 0; }
-                .refi-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #6b7a99; }
+                .refi-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #8fa3b8; }
                 .refi-page .steps-list strong { color: #f0f4ff; }
                 .refi-page .author-section { background: #0e1420; border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(0,0,0,0.07); margin-bottom: 3rem; }
                 .refi-page .author-card { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 1rem; }
                 .refi-page .author-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,232,122,0.15); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #00e87a; flex-shrink: 0; }
                 .refi-page .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
-                .refi-page .author-cred { font-size: 0.82rem; color: #6b7a99; margin-bottom: 0.4rem; }
-                .refi-page .author-bio { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
-                .refi-page .last-updated { font-size: 0.8rem; color: #6b7a99; margin: 0 0 0.5rem; }
-                .refi-page .disclaimer { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .refi-page .author-cred { font-size: 0.82rem; color: #8fa3b8; margin-bottom: 0.4rem; }
+                .refi-page .author-bio { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
+                .refi-page .last-updated { font-size: 0.8rem; color: #8fa3b8; margin: 0 0 0.5rem; }
+                .refi-page .disclaimer { font-size: 0.8rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
                 .refi-page .faq-section { margin-bottom: 3rem; }
                 .refi-page .faq-list { display: flex; flex-direction: column; gap: 8px; }
                 .refi-page .faq-item { border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; background: #0e1420; }
                 .refi-page .faq-question { padding: 1rem 1.25rem; font-weight: 500; font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; color: #f0f4ff; }
-                .refi-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #6b7a99; }
+                .refi-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #8fa3b8; }
                 .refi-page details[open] .faq-question::after { content: '−'; }
-                .refi-page .faq-answer { padding: 0.75rem 1.25rem 1rem; margin: 0; font-size: 0.9rem; color: #6b7a99; line-height: 1.65; border-top: 1px solid rgba(255,255,255,0.06); }
+                .refi-page .faq-answer { padding: 0.75rem 1.25rem 1rem; margin: 0; font-size: 0.9rem; color: #8fa3b8; line-height: 1.65; border-top: 1px solid rgba(255,255,255,0.06); }
                 .refi-page .related-section { margin-bottom: 2rem; }
                 .refi-page .related-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 1rem; }
                 .refi-page .related-card { display: block; padding: 1.1rem 1.25rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; text-decoration: none; color: #f0f4ff; background: #0e1420; transition: border-color 0.15s, box-shadow 0.15s; }
                 .refi-page .related-card:hover { border-color: rgba(0,232,122,0.4); box-shadow: 0 2px 12px rgba(34,197,94,0.08); }
                 .refi-page .related-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; }
-                .refi-page .related-desc { font-size: 0.83rem; color: #6b7a99; line-height: 1.5; }
+                .refi-page .related-desc { font-size: 0.83rem; color: #8fa3b8; line-height: 1.5; }
                 @media (max-width: 600px) {
                     .refi-page { padding: 1.25rem 1rem 3rem; }
                     .refi-page .trust-bar { gap: 6px; }

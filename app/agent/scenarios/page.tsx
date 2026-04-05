@@ -364,15 +364,15 @@ export default function AgentScenariosPage() {
         }
         .los-nav-logo img { height: 28px; }
         .los-nav-links { display: flex; align-items: center; gap: 20px; }
-        .los-nav-link { color: #6b7a99; text-decoration: none; font-size: 0.875rem; transition: color 0.15s; }
+        .los-nav-link { color: #8fa3b8; text-decoration: none; font-size: 0.875rem; transition: color 0.15s; }
         .los-nav-link:hover { color: #f0f4ff; }
         .los-nav-active { font-size: 0.875rem; color: #f0f4ff; font-weight: 600; }
 
         .los-container { max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
         .los-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2rem; }
-        .los-title { font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 700; margin: 0 0 0.3rem; }
-        .los-sub { font-size: 0.9rem; color: #6b7a99; margin: 0; }
+        .los-title { font-family: 'DM Sans', sans-serif; font-size: 1.75rem; font-weight: 700; margin: 0 0 0.3rem; }
+        .los-sub { font-size: 0.9rem; color: #8fa3b8; margin: 0; }
         .los-stat {
           font-size: 0.82rem; font-weight: 700; color: #00e87a;
           background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.25);
@@ -384,7 +384,7 @@ export default function AgentScenariosPage() {
         .los-filter-chip {
           padding: 6px 14px; border-radius: 99px;
           border: 1px solid rgba(255,255,255,0.08); background: transparent;
-          color: #6b7a99; font-size: 0.82rem; cursor: pointer; transition: all 0.15s;
+          color: #8fa3b8; font-size: 0.82rem; cursor: pointer; transition: all 0.15s;
         }
         .los-filter-chip:hover { border-color: rgba(255,255,255,0.2); color: #f0f4ff; }
         .los-filter-chip.active { background: rgba(0,232,122,0.1); border-color: rgba(0,232,122,0.35); color: #00e87a; font-weight: 600; }
@@ -396,7 +396,7 @@ export default function AgentScenariosPage() {
         }
         .los-state-input:focus { border-color: rgba(0,232,122,0.35); }
 
-        .los-loading, .los-empty { text-align: center; padding: 4rem 0; color: #6b7a99; }
+        .los-loading, .los-empty { text-align: center; padding: 4rem 0; color: #8fa3b8; }
         .los-empty-icon { font-size: 2rem; margin-bottom: 0.75rem; }
 
         .los-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
@@ -419,7 +419,7 @@ export default function AgentScenariosPage() {
           border-radius: 99px; border: 1px solid;
         }
         .los-card-state { font-size: 0.82rem; font-weight: 600; color: #f0f4ff; }
-        .los-card-purpose { font-size: 0.75rem; color: #6b7a99; }
+        .los-card-purpose { font-size: 0.75rem; color: #8fa3b8; }
         .los-agent-only-badge {
           font-size: 0.68rem; font-weight: 600; padding: 2px 8px;
           border-radius: 99px; color: #ff8c42;
@@ -431,7 +431,7 @@ export default function AgentScenariosPage() {
         .los-cf-label { font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
         .los-cf-value { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
 
-        .los-card-note { font-size: 0.8rem; color: #6b7a99; font-style: italic; margin: 0 0 0.75rem; line-height: 1.45; }
+        .los-card-note { font-size: 0.8rem; color: #8fa3b8; font-style: italic; margin: 0 0 0.75rem; line-height: 1.45; }
 
         .los-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); }
         .los-card-responses { font-size: 0.75rem; color: #3a4560; }
@@ -456,8 +456,8 @@ export default function AgentScenariosPage() {
           max-height: 90vh; overflow-y: auto;
         }
         .los-modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; }
-        .los-modal-title { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; margin: 0 0 3px; }
-        .los-modal-sub { font-size: 0.82rem; color: #6b7a99; margin: 0; }
+        .los-modal-title { font-family: 'DM Sans', sans-serif; font-size: 1.2rem; font-weight: 700; margin: 0 0 3px; }
+        .los-modal-sub { font-size: 0.82rem; color: #8fa3b8; margin: 0; }
         .los-modal-x { background: none; border: none; color: #3a4560; font-size: 1.1rem; cursor: pointer; padding: 4px; }
         .los-modal-x:hover { color: #f0f4ff; }
 
@@ -468,11 +468,11 @@ export default function AgentScenariosPage() {
         .los-ms-grid { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 0.5rem; }
         .los-ms-label { font-size: 0.7rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 6px; }
         .los-ms-val { font-size: 0.85rem; font-weight: 600; color: #f0f4ff; }
-        .los-ms-note { font-size: 0.82rem; color: #6b7a99; font-style: italic; margin: 0.5rem 0 0; }
+        .los-ms-note { font-size: 0.82rem; color: #8fa3b8; font-style: italic; margin: 0.5rem 0 0; }
 
         .los-modal-fields { display: flex; flex-direction: column; gap: 1rem; }
         .los-mf { display: flex; flex-direction: column; }
-        .los-mf label { font-size: 0.78rem; font-weight: 600; color: #6b7a99; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+        .los-mf label { font-size: 0.78rem; font-weight: 600; color: #8fa3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
         .los-mf-req { color: #ff5f5f; }
         .los-input, .los-textarea {
           padding: 10px 14px; background: #141b28;
@@ -498,7 +498,7 @@ export default function AgentScenariosPage() {
         }
         .los-modal-cancel {
           padding: 10px 20px; background: transparent;
-          border: 1px solid rgba(255,255,255,0.10); color: #6b7a99;
+          border: 1px solid rgba(255,255,255,0.10); color: #8fa3b8;
           border-radius: 999px; font-size: 0.875rem; cursor: pointer;
         }
         .los-modal-cancel:hover { border-color: rgba(255,255,255,0.2); color: #f0f4ff; }
@@ -517,8 +517,8 @@ export default function AgentScenariosPage() {
           display: flex; align-items: center; justify-content: center;
           font-size: 1.5rem; font-weight: 700; margin: 0 auto 1rem;
         }
-        .los-modal-success h3 { font-family: 'Syne', sans-serif; font-size: 1.2rem; margin: 0 0 0.75rem; }
-        .los-modal-success p { font-size: 0.9rem; color: #6b7a99; line-height: 1.6; margin: 0 0 1.5rem; }
+        .los-modal-success h3 { font-family: 'DM Sans', sans-serif; font-size: 1.2rem; margin: 0 0 0.75rem; }
+        .los-modal-success p { font-size: 0.9rem; color: #8fa3b8; line-height: 1.6; margin: 0 0 1.5rem; }
         .los-modal-close-btn {
           padding: 10px 28px; background: #00e87a; color: #080c12;
           border: none; border-radius: 999px; font-weight: 700;

@@ -482,12 +482,12 @@ function PostScenarioContent() {
         }
         .post-hard-gate-icon { font-size: 2.5rem; margin-bottom: 1rem; }
         .post-hard-gate-title {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 1.35rem; font-weight: 700;
           margin: 0 0 0.75rem; color: #f0f4ff;
         }
         .post-hard-gate-body {
-          font-size: 0.9rem; color: #6b7a99;
+          font-size: 0.9rem; color: #8fa3b8;
           line-height: 1.65; margin: 0 0 1.75rem;
         }
         .post-hard-gate-body strong { color: #00e87a; }
@@ -501,7 +501,7 @@ function PostScenarioContent() {
         }
         .post-hard-gate-btn:hover { opacity: 0.88; }
         .post-hard-gate-ghost {
-          font-size: 0.85rem; color: #6b7a99; text-decoration: none;
+          font-size: 0.85rem; color: #8fa3b8; text-decoration: none;
         }
         .post-hard-gate-ghost:hover { color: #f0f4ff; }
         .post-hard-gate-note {
@@ -517,7 +517,7 @@ function PostScenarioContent() {
           border-bottom: 1px solid rgba(255,255,255,0.07);
         }
         .post-nav-logo img { height: 28px; }
-        .post-nav-label { font-size: 0.85rem; color: #6b7a99; }
+        .post-nav-label { font-size: 0.85rem; color: #8fa3b8; }
 
         .post-container { max-width: 560px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
 
@@ -540,7 +540,7 @@ function PostScenarioContent() {
           border-radius: 99px; padding: 3px 10px;
         }
         .post-scenario-badge-sub {
-          font-size: 0.78rem; color: #6b7a99;
+          font-size: 0.78rem; color: #8fa3b8;
         }
         .post-scenario-grid {
           display: flex; flex-wrap: wrap; gap: 8px 20px;
@@ -557,7 +557,7 @@ function PostScenarioContent() {
 
         /* ── Cold arrival nudge (Path B) ── */
         .post-cold-nudge {
-          font-size: 0.84rem; color: #6b7a99;
+          font-size: 0.84rem; color: #8fa3b8;
           background: rgba(61,139,255,0.06);
           border: 1px solid rgba(61,139,255,0.15);
           border-radius: 10px; padding: 10px 14px;
@@ -612,16 +612,16 @@ function PostScenarioContent() {
           border-radius: 16px; padding: 2.5rem;
         }
         .post-title {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 1.5rem; font-weight: 700;
           margin: 0 0 0.4rem; color: #f0f4ff;
         }
-        .post-sub { font-size: 0.9rem; color: #6b7a99; margin: 0 0 1.5rem; }
+        .post-sub { font-size: 0.9rem; color: #8fa3b8; margin: 0 0 1.5rem; }
 
         .post-field { margin-bottom: 1.75rem; }
         .post-field label {
           display: block; font-size: 0.82rem; font-weight: 600;
-          color: #6b7a99; text-transform: uppercase; letter-spacing: 0.06em;
+          color: #8fa3b8; text-transform: uppercase; letter-spacing: 0.06em;
           margin-bottom: 0.75rem;
         }
         .post-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #3a4560; }
@@ -630,7 +630,7 @@ function PostScenarioContent() {
         .post-chip {
           padding: 7px 16px; border-radius: 99px;
           border: 1px solid rgba(255,255,255,0.10);
-          background: transparent; color: #6b7a99;
+          background: transparent; color: #8fa3b8;
           font-size: 0.875rem; cursor: pointer;
           transition: all 0.15s;
         }
@@ -665,7 +665,7 @@ function PostScenarioContent() {
         .post-review-value { font-size: 0.9rem; font-weight: 600; color: #f0f4ff; }
 
         .post-privacy-note {
-          font-size: 0.83rem; color: #6b7a99;
+          font-size: 0.83rem; color: #8fa3b8;
           background: rgba(0,232,122,0.05);
           border: 1px solid rgba(0,232,122,0.15);
           border-radius: 10px; padding: 12px 16px;
@@ -679,7 +679,7 @@ function PostScenarioContent() {
         }
         .post-limit-icon { font-size: 1.8rem; }
         .post-limit-title { font-weight: 700; font-size: 1rem; color: #f0f4ff; }
-        .post-limit-body { font-size: 0.85rem; color: #6b7a99; line-height: 1.6; max-width: 320px; }
+        .post-limit-body { font-size: 0.85rem; color: #8fa3b8; line-height: 1.6; max-width: 320px; }
         .post-limit-btn {
           margin-top: 4px; padding: 10px 22px; border-radius: 999px;
           background: #00e87a; color: #080c12; font-weight: 700; font-size: 0.9rem;
@@ -706,7 +706,7 @@ function PostScenarioContent() {
 
         .post-btn-ghost {
           padding: 12px 20px; background: transparent;
-          border: 1px solid rgba(255,255,255,0.12); color: #6b7a99;
+          border: 1px solid rgba(255,255,255,0.12); color: #8fa3b8;
           border-radius: 999px; font-size: 0.9rem; cursor: pointer;
           transition: all 0.15s;
         }
@@ -729,7 +729,7 @@ export default function PostScenarioPage() {
   return (
     <Suspense fallback={
       <div style={{ minHeight: "100vh", background: "#080c12", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "#6b7a99", fontSize: "0.9rem" }}>Loading…</div>
+        <div style={{ color: "#8fa3b8", fontSize: "0.9rem" }}>Loading…</div>
       </div>
     }>
       <PostScenarioContent />

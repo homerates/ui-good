@@ -7,7 +7,7 @@
   --surface: #0e1420;
   --surface2: #141b28;
   --text: #f0f4ff;
-  --text-weak: #6b7a99;
+  --text-weak: #8fa3b8;
   --text-dim: #3a4560;
   --border: rgba(255,255,255,0.07);
   --border-bright: rgba(255,255,255,0.13);
@@ -20,7 +20,7 @@
   --footer-h: 40px;
 
   /* Font families — Next.js injects these CSS vars */
-  --font-display: var(--font-syne), 'Syne', sans-serif;
+  --font-display: var(--font-dm-sans), 'DM Sans', sans-serif;
   --font-body: var(--font-dm-sans), 'DM Sans', sans-serif;
   --font-mono: var(--font-dm-mono), 'DM Mono', monospace;
 }
@@ -32,7 +32,7 @@
   --surface: #0e1420;
   --surface2: #141b28;
   --text: #f0f4ff;
-  --text-weak: #6b7a99;
+  --text-weak: #8fa3b8;
   --border: rgba(255,255,255,0.07);
   --muted: #141b28;
   --input-bg: #141b28;
@@ -1201,7 +1201,7 @@ body:has(.page-shell) {
   display: flex;
   align-items: center;
   font-size: 0.8rem;
-  color: rgba(160, 192, 168, 0.65);
+  color: rgba(185, 208, 192, 0.65);
   text-decoration: none;
   transition: color 0.15s;
   font-family: var(--font-dm-sans, sans-serif);
@@ -1230,7 +1230,7 @@ body:has(.page-shell) {
   gap: 8px;
   flex-wrap: wrap;
   font-size: 0.7rem;
-  color: rgba(160, 192, 168, 0.4);
+  color: rgba(185, 208, 192, 0.4);
   font-family: var(--font-dm-sans, sans-serif);
 }
 .page-shell-footer-sep { opacity: 0.3; }
@@ -1243,7 +1243,7 @@ body:has(.page-shell) {
 
 /* ── Page content typography ── */
 .page-shell-content h1 {
-  font-family: var(--font-syne, sans-serif);
+  font-family: var(--font-dm-sans, sans-serif);
   font-size: clamp(1.5rem, 3vw, 2rem);
   font-weight: 700;
   color: #fff;
@@ -1251,7 +1251,7 @@ body:has(.page-shell) {
   line-height: 1.2;
 }
 .page-shell-content h2 {
-  font-family: var(--font-syne, sans-serif);
+  font-family: var(--font-dm-sans, sans-serif);
   font-size: 1.05rem;
   font-weight: 600;
   color: rgba(224, 240, 232, 0.95);
@@ -1259,7 +1259,7 @@ body:has(.page-shell) {
 }
 .page-shell-content h2:first-of-type { margin-top: 20px; }
 .page-shell-content p {
-  color: rgba(160, 192, 168, 0.85);
+  color: rgba(185, 208, 192, 0.85);
   line-height: 1.7;
   margin: 0 0 12px;
   font-size: 0.9rem;
@@ -1268,7 +1268,7 @@ body:has(.page-shell) {
 .page-shell-content ol {
   padding-left: 1.4rem;
   margin: 0 0 12px;
-  color: rgba(160, 192, 168, 0.8);
+  color: rgba(185, 208, 192, 0.8);
   font-size: 0.9rem;
   line-height: 1.7;
 }
@@ -1284,7 +1284,7 @@ body:has(.page-shell) {
 .page-shell-content section { margin-bottom: 8px; }
 .page-shell-content .page-updated {
   font-size: 0.75rem;
-  color: rgba(160, 192, 168, 0.4);
+  color: rgba(185, 208, 192, 0.4);
   margin-bottom: 24px;
   display: block;
 }

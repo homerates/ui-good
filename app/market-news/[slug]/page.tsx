@@ -138,7 +138,7 @@ export default async function MarketNewsArticle({
   const article = marketNewsArticles.find((a) => a.slug === slug) ?? await getDbArticle(slug);
   if (!article) notFound();
 
-  const tagColor = TAG_COLORS[article.tag] ?? '#6b7a99';
+  const tagColor = TAG_COLORS[article.tag] ?? '#8fa3b8';
   const bodyHtml = renderMarkdown(article.body.trim());
 
   const dbRelated = await getDbRelated(slug, 3);
@@ -167,7 +167,7 @@ export default async function MarketNewsArticle({
           --border: rgba(255,255,255,0.07);
           --border-bright: rgba(255,255,255,0.13);
           --text: #f0f4ff;
-          --text-muted: #6b7a99;
+          --text-muted: #8fa3b8;
           --text-dim: #3a4560;
           --green: #00e87a;
           --blue: #3d8bff;
@@ -212,7 +212,7 @@ export default async function MarketNewsArticle({
           display: flex; align-items: center; gap: 6px;
         }
         .mna-wrap h1 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 38px; font-weight: 800;
           line-height: 1.15; margin: 0 0 16px;
           color: var(--text);
@@ -231,8 +231,8 @@ export default async function MarketNewsArticle({
         }
 
         /* BODY */
-        .mna-body h1 { font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800; margin: 48px 0 16px; color: var(--text); }
-        .mna-body h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; margin: 40px 0 12px; color: var(--text); }
+        .mna-body h1 { font-family: 'DM Sans', sans-serif; font-size: 30px; font-weight: 800; margin: 48px 0 16px; color: var(--text); }
+        .mna-body h2 { font-family: 'DM Sans', sans-serif; font-size: 22px; font-weight: 700; margin: 40px 0 12px; color: var(--text); }
         .mna-body h3 { font-size: 17px; font-weight: 600; margin: 28px 0 10px; color: var(--text); }
         .mna-body p { font-size: 16px; color: var(--text-muted); line-height: 1.75; margin: 0 0 16px; }
         .mna-body strong { color: var(--text); font-weight: 600; }
@@ -320,7 +320,7 @@ export default async function MarketNewsArticle({
         }
         .mna-related-card:hover { border-color: var(--border-bright); }
         .mna-related-card h4 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 15px; font-weight: 700;
           color: var(--text); margin: 0 0 4px;
         }

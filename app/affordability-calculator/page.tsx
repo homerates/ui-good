@@ -547,8 +547,8 @@ export default function AffordabilityCalculatorPage() {
                     color: #3a4560; font-family: 'DM Mono', monospace;
                 }
                 .breadcrumb a { color: inherit; text-decoration: none; }
-                .breadcrumb a:hover { color: #6b7a99; }
-                .breadcrumb li[aria-current] { color: #6b7a99; font-weight: 500; }
+                .breadcrumb a:hover { color: #8fa3b8; }
+                .breadcrumb li[aria-current] { color: #8fa3b8; font-weight: 500; }
 
                 /* Hero */
                 .hero { margin-bottom: 3rem; }
@@ -556,17 +556,17 @@ export default function AffordabilityCalculatorPage() {
                     font-size: clamp(1.75rem, 4vw, 2.5rem);
                     font-weight: 800; line-height: 1.15;
                     margin: 0 0 1rem; letter-spacing: -0.02em;
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                     color: #f0f4ff;
                 }
                 .hero-sub {
                     display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-                    font-weight: 500; color: #6b7a99;
+                    font-weight: 500; color: #8fa3b8;
                     margin-top: 0.25rem; font-family: 'DM Sans', sans-serif;
                 }
                 .hero-lead {
                     font-size: 1.1rem; max-width: 640px;
-                    color: #6b7a99; margin: 0 0 1.25rem;
+                    color: #8fa3b8; margin: 0 0 1.25rem;
                 }
                 .trust-bar {
                     display: flex; flex-wrap: wrap; gap: 10px;
@@ -576,7 +576,7 @@ export default function AffordabilityCalculatorPage() {
                     font-size: 12px; padding: 4px 12px;
                     background: rgba(255,255,255,0.04);
                     border-radius: 99px; border: 1px solid rgba(255,255,255,0.08);
-                    color: #6b7a99; font-family: 'DM Mono', monospace;
+                    color: #8fa3b8; font-family: 'DM Mono', monospace;
                 }
 
                 /* Calculator embed */
@@ -585,8 +585,8 @@ export default function AffordabilityCalculatorPage() {
                     border-radius: 16px; border: 1px solid rgba(255,255,255,0.07);
                     padding: 2rem; margin-bottom: 3rem;
                 }
-                .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; font-family: 'Syne', sans-serif; color: #f0f4ff; }
-                .embed-header p { margin: 0 0 1.25rem; color: #6b7a99; font-size: 0.95rem; }
+                .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; font-family: 'DM Sans', sans-serif; color: #f0f4ff; }
+                .embed-header p { margin: 0 0 1.25rem; color: #8fa3b8; font-size: 0.95rem; }
                 .seed-chips {
                     display: flex; flex-wrap: wrap; gap: 8px;
                     align-items: center; margin-bottom: 1rem;
@@ -622,11 +622,11 @@ export default function AffordabilityCalculatorPage() {
                 h2 {
                     font-size: clamp(1.2rem, 2.5vw, 1.6rem);
                     font-weight: 700; margin: 0 0 0.75rem;
-                    letter-spacing: -0.01em; font-family: 'Syne', sans-serif;
+                    letter-spacing: -0.01em; font-family: 'DM Sans', sans-serif;
                     color: #f0f4ff;
                 }
                 .section-lead {
-                    font-size: 1rem; color: #6b7a99;
+                    font-size: 1rem; color: #8fa3b8;
                     margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65;
                 }
 
@@ -646,7 +646,7 @@ export default function AffordabilityCalculatorPage() {
                 .feature-card:hover { border-color: rgba(255,255,255,0.13); }
                 .feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
                 .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.4rem; color: #f0f4ff; }
-                .feature-card p { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .feature-card p { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
 
                 /* Example table */
                 .example-table-section { margin-bottom: 3rem; }
@@ -663,7 +663,7 @@ export default function AffordabilityCalculatorPage() {
                     text-transform: uppercase; letter-spacing: 0.08em;
                     font-family: 'DM Mono', monospace;
                 }
-                .example-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #6b7a99; }
+                .example-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #8fa3b8; }
                 .example-table tr:last-child td { border-bottom: none; }
                 .income-cell { font-weight: 600; color: #f0f4ff !important; }
                 .price-cell { font-weight: 600; color: #00e87a !important; }
@@ -672,7 +672,7 @@ export default function AffordabilityCalculatorPage() {
                 /* How it works */
                 .how-it-works { margin-bottom: 3rem; }
                 .steps-list { padding-left: 1.25rem; margin: 0; }
-                .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #6b7a99; }
+                .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #8fa3b8; }
                 .steps-list strong { color: #f0f4ff; }
 
                 /* Author / E-E-A-T */
@@ -692,8 +692,8 @@ export default function AffordabilityCalculatorPage() {
                     flex-shrink: 0; font-family: 'DM Mono', monospace;
                 }
                 .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; color: #f0f4ff; }
-                .author-cred { font-size: 0.82rem; color: #6b7a99; margin-bottom: 0.4rem; }
-                .author-bio { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .author-cred { font-size: 0.82rem; color: #8fa3b8; margin-bottom: 0.4rem; }
+                .author-bio { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
                 .last-updated { font-size: 0.8rem; color: #3a4560; margin: 0 0 0.5rem; font-family: 'DM Mono', monospace; }
                 .disclaimer { font-size: 0.8rem; color: #3a4560; margin: 0; line-height: 1.55; }
 
@@ -718,7 +718,7 @@ export default function AffordabilityCalculatorPage() {
                 details[open] .faq-question::after { content: '−'; }
                 .faq-answer {
                     padding: 0.75rem 1.25rem 1rem; margin: 0;
-                    font-size: 0.9rem; color: #6b7a99;
+                    font-size: 0.9rem; color: #8fa3b8;
                     line-height: 1.65;
                     border-top: 1px solid rgba(255,255,255,0.06);
                 }
@@ -742,7 +742,7 @@ export default function AffordabilityCalculatorPage() {
                     transform: translateY(-1px);
                 }
                 .related-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; color: #f0f4ff; }
-                .related-desc { font-size: 0.83rem; color: #6b7a99; line-height: 1.5; }
+                .related-desc { font-size: 0.83rem; color: #8fa3b8; line-height: 1.5; }
 
                 /* Responsive */
                 @media (max-width: 600px) {

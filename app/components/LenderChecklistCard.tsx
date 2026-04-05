@@ -137,12 +137,12 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                         <div style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 14, lineHeight: 1.3 }}>
                             Ready to talk to a lender?
                         </div>
-                        <div style={{ color: 'rgba(160,192,168,0.7)', fontSize: 12, marginTop: 2 }}>
+                        <div style={{ color: 'rgba(185,208,192,0.7)', fontSize: 12, marginTop: 2 }}>
                             5 questions to ask about your {loanLabel} — {fmt$(data.loanAmount)} at {fmtPct(data.marketRate)}
                         </div>
                     </div>
                 </div>
-                <span style={{ color: 'rgba(160,192,168,0.5)', fontSize: 12, flexShrink: 0 }}>
+                <span style={{ color: 'rgba(185,208,192,0.5)', fontSize: 12, flexShrink: 0 }}>
                     {open ? '▲ Hide' : '▼ Show checklist'}
                 </span>
             </button>
@@ -184,7 +184,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                                 </div>
                                 <p style={{
                                     margin: 0,
-                                    color: 'rgba(160,192,168,0.85)',
+                                    color: 'rgba(185,208,192,0.85)',
                                     fontSize: 12.5,
                                     lineHeight: 1.6,
                                 }}>
@@ -226,7 +226,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                                     <div style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 12.5, marginBottom: 2 }}>
                                         Ready to find a lender or agent?
                                     </div>
-                                    <div style={{ color: 'rgba(160,192,168,0.6)', fontSize: 11.5, lineHeight: 1.4 }}>
+                                    <div style={{ color: 'rgba(185,208,192,0.6)', fontSize: 11.5, lineHeight: 1.4 }}>
                                         Your scenario carries over — no re-entering numbers. You choose who earns an intro.
                                     </div>
                                 </div>
@@ -258,7 +258,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                         justifyContent: 'space-between',
                         gap: 12,
                     }}>
-                        <span style={{ color: 'rgba(160,192,168,0.55)', fontSize: 11.5, lineHeight: 1.5 }}>
+                        <span style={{ color: 'rgba(185,208,192,0.55)', fontSize: 11.5, lineHeight: 1.5 }}>
                             💡 Save this analysis as a PDF and share it with your lender.
                         </span>
                         {data.loanType === 'dscr' && data.rent ? (

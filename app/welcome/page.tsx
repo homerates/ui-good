@@ -185,8 +185,8 @@ export default function WelcomePage() {
         }
         .wl-header { display: flex; flex-direction: column; gap: 8px; }
         .wl-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #00e87a; }
-        .wl-title { font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 800; margin: 0; line-height: 1.2; letter-spacing: -0.02em; color: #f0f4ff; }
-        .wl-sub { font-size: 0.9rem; color: #6b7a99; margin: 0; line-height: 1.6; }
+        .wl-title { font-family: 'DM Sans', sans-serif; font-size: 1.75rem; font-weight: 800; margin: 0; line-height: 1.2; letter-spacing: -0.02em; color: #f0f4ff; }
+        .wl-sub { font-size: 0.9rem; color: #8fa3b8; margin: 0; line-height: 1.6; }
         .wl-types { display: flex; flex-direction: column; gap: 10px; }
         .wl-type-card {
           display: flex; align-items: center; gap: 14px; padding: 16px 18px;
@@ -199,7 +199,7 @@ export default function WelcomePage() {
         .wl-type-icon { font-size: 1.6rem; flex-shrink: 0; }
         .wl-type-text { flex: 1; min-width: 0; }
         .wl-type-label { font-weight: 600; font-size: 0.975rem; color: #f0f4ff; margin-bottom: 3px; }
-        .wl-type-sub { font-size: 0.8rem; color: #6b7a99; line-height: 1.4; }
+        .wl-type-sub { font-size: 0.8rem; color: #8fa3b8; line-height: 1.4; }
         .wl-type-check {
           margin-left: auto; flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
           background: rgba(0,232,122,0.15); color: #00e87a;
@@ -210,7 +210,7 @@ export default function WelcomePage() {
         .wl-fields { display: flex; flex-direction: column; gap: 12px; }
         .wl-field-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .wl-field { display: flex; flex-direction: column; gap: 6px; }
-        .wl-field label { font-size: 0.78rem; font-weight: 600; color: #6b7a99; text-transform: uppercase; letter-spacing: 0.06em; }
+        .wl-field label { font-size: 0.78rem; font-weight: 600; color: #8fa3b8; text-transform: uppercase; letter-spacing: 0.06em; }
         .wl-req { color: #ff5f5f; }
         .wl-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #3a4560; }
         .wl-input {

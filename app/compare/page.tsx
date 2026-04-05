@@ -21,6 +21,23 @@ function fmtK(n: number) {
 }
 function fmtPct(n: number) { return n.toFixed(2) + '%'; }
 
+// ── AI Analysis button ────────────────────────────────────────────────────────
+function AIAnalysisBtn({ seed }: { seed: string }) {
+  return (
+    <Link
+      href={`/chat?sq=${encodeURIComponent(seed)}`}
+      className="cmp-ai-btn"
+    >
+      <span className="cmp-ai-icon">🤖</span>
+      <span className="cmp-ai-text">
+        <span className="cmp-ai-label">Get full AI Analysis</span>
+        <span className="cmp-ai-sub">Opens HomeRates chat with this exact scenario pre-loaded</span>
+      </span>
+      <span className="cmp-ai-arrow">→</span>
+    </Link>
+  );
+}
+
 // ── Slider ────────────────────────────────────────────────────────────────────
 function Slider({ label, value, min, max, step, onChange, display }: {
   label: string; value: number; min: number; max: number; step: number;
@@ -464,7 +481,7 @@ export default function ComparePage() {
           display:flex;align-items:center;justify-content:space-between;gap:12px;}
         .cp-logo-link{display:flex;align-items:center;text-decoration:none;flex-shrink:0;}
         .cp-logo{height:24px;width:auto;}
-        .cp-header-title{font-size:0.82rem;font-weight:600;color:rgba(160,192,168,0.5);}
+        .cp-header-title{font-size:0.82rem;font-weight:600;color:rgba(185,208,192,0.5);}
         .cp-chat-link{display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;
           font-weight:600;color:#00e87a;text-decoration:none;padding:5px 12px;
           border:1px solid rgba(0,232,122,0.3);border-radius:7px;flex-shrink:0;transition:background 0.15s;}
@@ -479,14 +496,14 @@ export default function ComparePage() {
           text-transform:uppercase;color:#00e87a;background:rgba(0,232,122,0.1);
           border:1px solid rgba(0,232,122,0.2);border-radius:5px;padding:3px 9px;margin-bottom:10px;}
         .cp-h1{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:800;color:#f0f4ff;line-height:1.15;margin:0 0 8px;}
-        .cp-subtitle{font-size:0.88rem;color:rgba(160,192,168,0.6);max-width:540px;margin:0 auto;line-height:1.6;}
+        .cp-subtitle{font-size:0.88rem;color:rgba(185,208,192,0.6);max-width:540px;margin:0 auto;line-height:1.6;}
 
         /* Tabs */
         .cp-tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
         .cp-tab{display:flex;align-items:center;gap:7px;padding:9px 18px;
           border-radius:10px;border:1px solid rgba(255,255,255,0.08);
           background:rgba(255,255,255,0.03);cursor:pointer;
-          font-size:0.82rem;font-weight:600;color:rgba(160,192,168,0.6);
+          font-size:0.82rem;font-weight:600;color:rgba(185,208,192,0.6);
           transition:all 0.15s;white-space:nowrap;}
         .cp-tab:hover{border-color:rgba(0,232,122,0.2);color:#e0f0e8;}
         .cp-tab.active{background:rgba(0,232,122,0.1);border-color:rgba(0,232,122,0.35);color:#00e87a;}
@@ -506,20 +523,20 @@ export default function ComparePage() {
           border-bottom:1px solid rgba(255,255,255,0.06);}
         .cmp-col-badge{display:inline-block;font-size:0.65rem;font-weight:800;letter-spacing:0.08em;
           text-transform:uppercase;color:#080c12;padding:3px 9px;border-radius:5px;width:fit-content;}
-        .cmp-col-sub{font-size:0.78rem;color:rgba(160,192,168,0.5);}
+        .cmp-col-sub{font-size:0.78rem;color:rgba(185,208,192,0.5);}
 
         /* Stats */
         .cmp-stat{display:flex;flex-direction:column;gap:2px;}
-        .cmp-stat-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(160,192,168,0.45);}
+        .cmp-stat-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(185,208,192,0.45);}
         .cmp-stat-value{font-size:1.05rem;font-weight:700;color:#f0f4ff;}
-        .cmp-stat-sub{font-size:0.72rem;color:rgba(160,192,168,0.4);}
+        .cmp-stat-sub{font-size:0.72rem;color:rgba(185,208,192,0.4);}
 
         /* Delta row */
         .cmp-delta-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
         @media(max-width:640px){.cmp-delta-row{grid-template-columns:repeat(2,1fr);}}
         .cmp-delta{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);
           border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;}
-        .cmp-delta-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(160,192,168,0.45);}
+        .cmp-delta-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(185,208,192,0.45);}
         .cmp-delta-val{font-size:0.98rem;font-weight:700;color:#f0f4ff;}
 
         /* Insight */
@@ -531,7 +548,7 @@ export default function ComparePage() {
           border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:14px;}
         .cmp-slider-row{display:flex;flex-direction:column;gap:6px;}
         .cmp-slider-label-row{display:flex;justify-content:space-between;align-items:center;}
-        .cmp-slider-label{font-size:0.78rem;color:rgba(160,192,168,0.6);}
+        .cmp-slider-label{font-size:0.78rem;color:rgba(185,208,192,0.6);}
         .cmp-slider-val{font-size:0.82rem;font-weight:700;color:#00e87a;}
         input[type=range]{width:100%;height:4px;border-radius:2px;outline:none;cursor:pointer;
           -webkit-appearance:none;appearance:none;}
@@ -541,7 +558,7 @@ export default function ComparePage() {
         /* CTA */
         .cp-cta{text-align:center;padding:24px;background:rgba(255,255,255,0.02);
           border:1px solid rgba(255,255,255,0.06);border-radius:14px;}
-        .cp-cta p{font-size:0.88rem;color:rgba(160,192,168,0.6);margin:0 0 14px;}
+        .cp-cta p{font-size:0.88rem;color:rgba(185,208,192,0.6);margin:0 0 14px;}
         .cp-cta-btn{display:inline-flex;align-items:center;gap:7px;background:#00e87a;
           color:#080c12;font-size:0.88rem;font-weight:700;padding:12px 28px;
           border-radius:9px;text-decoration:none;transition:background 0.15s;}
@@ -550,7 +567,7 @@ export default function ComparePage() {
         /* Footer */
         .cp-footer{width:100%;border-top:1px solid rgba(255,255,255,0.06);padding:18px 24px;
           display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
-          gap:8px;font-size:0.75rem;color:rgba(160,192,168,0.35);}
+          gap:8px;font-size:0.75rem;color:rgba(185,208,192,0.35);}
         .cp-footer a{color:rgba(0,232,122,0.45);text-decoration:none;}
         .cp-footer a:hover{color:#00e87a;}
         .cp-footer-sep{opacity:0.3;}

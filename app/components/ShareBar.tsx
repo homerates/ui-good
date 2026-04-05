@@ -52,7 +52,7 @@ export default function ShareBar({ url, title }: ShareBarProps) {
           border-radius: 6px;
           border: 1px solid rgba(255,255,255,0.10);
           background: #0e1420;
-          color: #6b7a99;
+          color: #8fa3b8;
           text-decoration: none;
           cursor: pointer;
           font-family: inherit;

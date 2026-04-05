@@ -294,7 +294,7 @@ export default function PricingPage() {
       <style>{`
         .pricing-header { text-align: center; margin-bottom: 48px; }
         .pricing-title {
-          font-family: var(--font-syne, sans-serif);
+          font-family: var(--font-dm-sans, sans-serif);
           font-size: clamp(1.8rem, 4vw, 2.8rem);
           font-weight: 700;
           margin: 0 0 12px;
@@ -302,7 +302,7 @@ export default function PricingPage() {
         }
         .pricing-subtitle {
           font-size: 1rem;
-          color: rgba(160, 192, 168, 0.8);
+          color: rgba(185, 208, 192, 0.8);
           max-width: 480px;
           margin: 0 auto 28px;
           line-height: 1.6;
@@ -400,7 +400,7 @@ export default function PricingPage() {
           white-space: nowrap;
         }
         .pricing-plan-name {
-          font-family: var(--font-syne, sans-serif);
+          font-family: var(--font-dm-sans, sans-serif);
           font-size: 1.1rem;
           font-weight: 700;
           color: #fff;
@@ -409,17 +409,17 @@ export default function PricingPage() {
         .pricing-plan-price { display: flex; align-items: baseline; gap: 2px; margin-bottom: 4px; }
         .pricing-price-currency { font-size: 1.2rem; color: rgba(224,240,232,0.7); margin-top: 6px; }
         .pricing-price-amount { font-size: 2.4rem; font-weight: 700; color: #fff; line-height: 1; }
-        .pricing-price-period { font-size: 0.9rem; color: rgba(160,192,168,0.7); margin-left: 2px; }
+        .pricing-price-period { font-size: 0.9rem; color: rgba(185,208,192,0.7); margin-left: 2px; }
         .pricing-billed-annual { font-size: 0.75rem; color: rgba(0,232,122,0.7); margin-bottom: 4px; }
-        .pricing-plan-desc { font-size: 0.85rem; color: rgba(160,192,168,0.75); margin: 0; line-height: 1.5; }
+        .pricing-plan-desc { font-size: 0.85rem; color: rgba(185,208,192,0.75); margin: 0; line-height: 1.5; }
 
         .pricing-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; flex: 1; }
         .pricing-feature { display: flex; align-items: flex-start; gap: 8px; font-size: 0.875rem; line-height: 1.4; }
         .pricing-feature--yes { color: rgba(224,240,232,0.9); }
-        .pricing-feature--no  { color: rgba(160,192,168,0.3); }
+        .pricing-feature--no  { color: rgba(185,208,192,0.3); }
         .pricing-feature-icon { flex-shrink: 0; width: 16px; font-size: 0.75rem; margin-top: 1px; }
         .pricing-feature--yes .pricing-feature-icon { color: #00e87a; }
-        .pricing-feature--no  .pricing-feature-icon { color: rgba(160,192,168,0.25); }
+        .pricing-feature--no  .pricing-feature-icon { color: rgba(185,208,192,0.25); }
 
         .pricing-cta-wrap { margin-top: auto; }
         .pricing-btn {
@@ -444,7 +444,7 @@ export default function PricingPage() {
         .pricing-footer-note {
           text-align: center;
           font-size: 0.8rem;
-          color: rgba(160,192,168,0.5);
+          color: rgba(185,208,192,0.5);
           max-width: 480px;
           margin: 0 auto;
         }
@@ -461,7 +461,7 @@ export default function PricingPage() {
           border-radius: 10px;
           max-width: 480px;
         }
-        .pricing-lo-callout-label { font-size: 0.85rem; color: rgba(160,192,168,0.7); }
+        .pricing-lo-callout-label { font-size: 0.85rem; color: rgba(185,208,192,0.7); }
         .pricing-lo-callout-link { font-size: 0.85rem; font-weight: 600; color: #3d8bff; text-decoration: none; white-space: nowrap; }
         .pricing-lo-callout-link:hover { color: #6aaeff; }
       `}</style>

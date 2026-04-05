@@ -225,9 +225,9 @@ export default function ForProsPage() {
         }
         .fp-nav-logo img { height: 28px; }
         .fp-nav-links { display: flex; align-items: center; gap: 20px; }
-        .fp-nav-link { color: #6b7a99; font-size: 0.875rem; text-decoration: none; transition: color 0.15s; }
+        .fp-nav-link { color: #8fa3b8; font-size: 0.875rem; text-decoration: none; transition: color 0.15s; }
         .fp-nav-link:hover { color: #f0f4ff; }
-        .fp-nav-signin { color: #6b7a99; font-size: 0.875rem; text-decoration: none; transition: color 0.15s; }
+        .fp-nav-signin { color: #8fa3b8; font-size: 0.875rem; text-decoration: none; transition: color 0.15s; }
         .fp-nav-signin:hover { color: #f0f4ff; }
         .fp-nav-cta {
           padding: 8px 20px; background: #00e87a; color: #080c12;
@@ -252,7 +252,7 @@ export default function ForProsPage() {
           margin-bottom: 1.5rem;
         }
         .fp-h1 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: clamp(2.2rem, 5vw, 3.5rem);
           font-weight: 800; line-height: 1.1;
           letter-spacing: -0.02em; margin: 0 0 1.25rem;
@@ -261,7 +261,7 @@ export default function ForProsPage() {
         .fp-h1-green { color: #00e87a; }
         .fp-lead {
           font-size: clamp(1rem, 2vw, 1.15rem);
-          color: #6b7a99; line-height: 1.7;
+          color: #8fa3b8; line-height: 1.7;
           max-width: 640px; margin: 0 auto 2rem;
         }
         .fp-hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
@@ -289,12 +289,12 @@ export default function ForProsPage() {
         .fp-section-inner { max-width: 860px; margin: 0 auto; }
         .fp-section-narrow { max-width: 640px; }
         .fp-section-title {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: clamp(1.5rem, 3vw, 2rem);
           font-weight: 700; margin: 0 0 0.5rem;
           letter-spacing: -0.01em;
         }
-        .fp-section-sub { color: #6b7a99; font-size: 1rem; margin: 0 0 2rem; line-height: 1.65; }
+        .fp-section-sub { color: #8fa3b8; font-size: 1rem; margin: 0 0 2rem; line-height: 1.65; }
 
         /* HOW IT WORKS */
         .fp-steps { display: flex; flex-direction: column; gap: 2rem; margin-top: 2.5rem; }
@@ -305,10 +305,10 @@ export default function ForProsPage() {
           background: rgba(0,232,122,0.1); color: #00e87a;
           border: 1px solid rgba(0,232,122,0.25);
           display: flex; align-items: center; justify-content: center;
-          font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem;
+          font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1rem;
         }
         .fp-step-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; color: #f0f4ff; }
-        .fp-step-body { font-size: 0.9rem; color: #6b7a99; line-height: 1.65; margin: 0; }
+        .fp-step-body { font-size: 0.9rem; color: #8fa3b8; line-height: 1.65; margin: 0; }
 
         /* COMPARISON */
         .fp-compare {
@@ -328,7 +328,7 @@ export default function ForProsPage() {
         .fp-compare-old .fp-compare-header { background: rgba(255,95,95,0.08); color: #ff5f5f; }
         .fp-compare-new .fp-compare-header { background: rgba(0,232,122,0.08); color: #00e87a; }
         .fp-compare-row {
-          padding: 10px 20px; font-size: 0.875rem; color: #6b7a99;
+          padding: 10px 20px; font-size: 0.875rem; color: #8fa3b8;
           border-top: 1px solid rgba(255,255,255,0.05);
           display: flex; align-items: flex-start; gap: 10px; line-height: 1.45;
         }
@@ -343,8 +343,8 @@ export default function ForProsPage() {
           display: flex; flex-direction: column; gap: 12px;
         }
         .fp-pro-icon { font-size: 2rem; }
-        .fp-pro-title { font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 700; margin: 0; }
-        .fp-pro-body { font-size: 0.9rem; color: #6b7a99; line-height: 1.65; margin: 0; flex: 1; }
+        .fp-pro-title { font-family: 'DM Sans', sans-serif; font-size: 1.15rem; font-weight: 700; margin: 0; }
+        .fp-pro-body { font-size: 0.9rem; color: #8fa3b8; line-height: 1.65; margin: 0; flex: 1; }
         .fp-pro-link {
           display: inline-block; font-size: 0.875rem; font-weight: 600;
           color: #00e87a; text-decoration: none; margin-top: 4px;
@@ -360,18 +360,18 @@ export default function ForProsPage() {
           border-radius: 10px; padding: 12px 16px;
         }
         .fp-knows-dot { color: #3d8bff; flex-shrink: 0; margin-top: 2px; font-size: 0.65rem; }
-        .fp-knows-footer { font-size: 0.9rem; color: #6b7a99; line-height: 1.65; margin-top: 1rem; }
+        .fp-knows-footer { font-size: 0.9rem; color: #8fa3b8; line-height: 1.65; margin-top: 1rem; }
 
         /* FINAL CTA */
         .fp-cta-section { padding: 6rem 2rem; }
         .fp-cta-inner { max-width: 600px; margin: 0 auto; text-align: center; }
         .fp-cta-title {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: clamp(1.6rem, 3vw, 2.2rem);
           font-weight: 800; margin: 0 0 1rem;
           letter-spacing: -0.02em;
         }
-        .fp-cta-sub { font-size: 1rem; color: #6b7a99; line-height: 1.65; margin: 0 0 2rem; }
+        .fp-cta-sub { font-size: 1rem; color: #8fa3b8; line-height: 1.65; margin: 0 0 2rem; }
         .fp-cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
         .fp-cta-fine { font-size: 0.78rem; color: #3a4560; line-height: 1.5; }
 

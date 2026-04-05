@@ -447,16 +447,16 @@ export default function ScenarioComparisonCard({
                   border-bottom:1px solid rgba(255,255,255,0.05);}
                 .sc-col-badge{display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:0.07em;
                   text-transform:uppercase;color:#080c12;padding:2px 8px;border-radius:4px;width:fit-content;}
-                .sc-col-sub{font-size:0.73rem;color:rgba(160,192,168,0.45);}
+                .sc-col-sub{font-size:0.73rem;color:rgba(185,208,192,0.45);}
                 .sc-stat{display:flex;flex-direction:column;gap:1px;}
-                .sc-stat-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(160,192,168,0.4);}
+                .sc-stat-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(185,208,192,0.4);}
                 .sc-stat-value{font-size:1rem;font-weight:700;color:#f0f4ff;}
-                .sc-stat-sub{font-size:0.68rem;color:rgba(160,192,168,0.35);}
+                .sc-stat-sub{font-size:0.68rem;color:rgba(185,208,192,0.35);}
                 .sc-delta-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
                 @media(max-width:580px){.sc-delta-row{grid-template-columns:repeat(2,1fr);}}
                 .sc-delta{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);
                   border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;}
-                .sc-delta-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.04em;color:rgba(160,192,168,0.4);}
+                .sc-delta-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.04em;color:rgba(185,208,192,0.4);}
                 .sc-delta-val{font-size:0.92rem;font-weight:700;color:#f0f4ff;}
                 .sc-insight{background:rgba(0,232,122,0.05);border:1px solid rgba(0,232,122,0.12);
                   border-radius:9px;padding:12px 15px;font-size:0.84rem;line-height:1.55;color:#a0c0a8;}
@@ -464,7 +464,7 @@ export default function ScenarioComparisonCard({
                   border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
                 .sc-slider-row{display:flex;flex-direction:column;gap:5px;}
                 .sc-slider-label-row{display:flex;justify-content:space-between;align-items:center;}
-                .sc-slider-label{font-size:0.75rem;color:rgba(160,192,168,0.55);}
+                .sc-slider-label{font-size:0.75rem;color:rgba(185,208,192,0.55);}
                 .sc-slider-val{font-size:0.78rem;font-weight:700;color:#00e87a;}
                 .sc-sliders input[type=range]{width:100%;height:3px;border-radius:2px;outline:none;
                   cursor:pointer;-webkit-appearance:none;appearance:none;}
@@ -477,7 +477,7 @@ export default function ScenarioComparisonCard({
                 .sc-ai-icon{font-size:1.3rem;flex-shrink:0;}
                 .sc-ai-text{display:flex;flex-direction:column;gap:2px;flex:1;}
                 .sc-ai-label{font-size:0.85rem;font-weight:700;color:#00e87a;}
-                .sc-ai-sub{font-size:0.73rem;color:rgba(160,192,168,0.5);}
+                .sc-ai-sub{font-size:0.73rem;color:rgba(185,208,192,0.5);}
                 .sc-ai-arrow{font-size:1rem;color:#00e87a;flex-shrink:0;}
             `}</style>
             <div className="sc-card">

@@ -42,7 +42,7 @@ export default async function LoDashboardPage() {
                     <h1 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 600, color: "#f1f5f9" }}>
                         Please sign in
                     </h1>
-                    <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(160,192,168,0.7)", lineHeight: 1.6 }}>
+                    <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
                         The Loan Officer Portal is only available to signed-in users. Please sign in with your HomeRates.ai account, then return here.
                     </p>
                     <Link href="/sign-in" style={{
@@ -139,12 +139,12 @@ export default async function LoDashboardPage() {
                         <h1 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700, color: "#f1f5f9" }}>
                             Loan Officer Portal
                         </h1>
-                        <p style={{ margin: "6px 0 0", fontSize: "0.9rem", color: "rgba(160,192,168,0.7)", lineHeight: 1.6 }}>
+                        <p style={{ margin: "6px 0 0", fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
                             Manage your borrowers and access pro tools powered by HomeRates.ai.
                         </p>
                         {loanOfficer.lender && (
-                            <p style={{ margin: "6px 0 0", fontSize: "0.8rem", color: "rgba(160,192,168,0.5)" }}>
-                                Lender: <strong style={{ color: "rgba(160,192,168,0.8)" }}>{loanOfficer.lender}</strong>
+                            <p style={{ margin: "6px 0 0", fontSize: "0.8rem", color: "rgba(185,208,192,0.5)" }}>
+                                Lender: <strong style={{ color: "rgba(185,208,192,0.8)" }}>{loanOfficer.lender}</strong>
                             </p>
                         )}
                     </div>
@@ -162,7 +162,7 @@ export default async function LoDashboardPage() {
                         <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600, color: "#f1f5f9" }}>
                             Invite borrowers
                         </h2>
-                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(160,192,168,0.7)", lineHeight: 1.6 }}>
+                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
                             Generate a unique invite link so your borrowers can onboard into HomeRates.ai and have their questions automatically tied to your file.
                         </p>
                         <Link href="/lo/borrowers" style={{
@@ -193,7 +193,7 @@ export default async function LoDashboardPage() {
                         <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600, color: "#f1f5f9" }}>
                             Scenario Board
                         </h2>
-                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(160,192,168,0.7)", lineHeight: 1.6 }}>
+                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
                             Browse anonymous borrower scenarios in your state and loan type. Respond with your rate estimate and approach — the borrower chooses who earns an introduction.
                         </p>
                         <Link href="/lo/scenarios" style={{
@@ -227,7 +227,7 @@ export default async function LoDashboardPage() {
                             margin: 0,
                             paddingLeft: 18,
                             fontSize: "0.88rem",
-                            color: "rgba(160,192,168,0.6)",
+                            color: "rgba(185,208,192,0.6)",
                             display: "grid",
                             gap: 5,
                             lineHeight: 1.6,
@@ -253,10 +253,10 @@ export default async function LoDashboardPage() {
                         <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600, color: "#f1f5f9" }}>
                             Borrower capacity
                         </h2>
-                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(160,192,168,0.7)" }}>
+                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)" }}>
                             Active borrowers: <strong style={{ color: "#e2e8f0" }}>{used}</strong>
                         </p>
-                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(160,192,168,0.7)" }}>
+                        <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)" }}>
                             Plan limit: <strong style={{ color: "#e2e8f0" }}>{slots}</strong> borrowers
                         </p>
                         <p style={{ margin: 0, fontSize: "0.9rem", color: remaining > 0 ? "#4ade80" : "#f87171" }}>
@@ -292,13 +292,13 @@ export default async function LoDashboardPage() {
                         </div>
 
                         {periodEnd && (
-                            <p style={{ margin: 0, fontSize: "0.8rem", color: "rgba(160,192,168,0.55)" }}>
+                            <p style={{ margin: 0, fontSize: "0.8rem", color: "rgba(185,208,192,0.55)" }}>
                                 Renews {periodEnd}
                             </p>
                         )}
 
                         {!hasActiveSub && (
-                            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(160,192,168,0.6)", lineHeight: 1.5 }}>
+                            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(185,208,192,0.6)", lineHeight: 1.5 }}>
                                 You are on the free plan. Upgrade to add borrowers, export PDFs, and set up alerts.
                             </p>
                         )}

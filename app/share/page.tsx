@@ -134,7 +134,7 @@ export default async function SharePage(props: {
                         lineHeight: 1.3,
                         color: "#fff",
                         margin: "0 0 24px",
-                        fontFamily: "var(--font-syne, 'Syne', sans-serif)",
+                        fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
                     }}>
                         {question}
                     </h1>
@@ -153,10 +153,10 @@ export default async function SharePage(props: {
                                 fontSize: "0.7rem",
                                 textTransform: "uppercase",
                                 letterSpacing: "0.08em",
-                                color: "rgba(160,192,168,0.5)",
+                                color: "rgba(185,208,192,0.5)",
                                 fontWeight: 600,
                             }}>Question</span>
-                            <p style={{ margin: "6px 0 0", fontSize: "0.9rem", color: "rgba(160,192,168,0.45)", lineHeight: 1.5 }}>
+                            <p style={{ margin: "6px 0 0", fontSize: "0.9rem", color: "rgba(185,208,192,0.45)", lineHeight: 1.5 }}>
                                 Question not included in this link.
                             </p>
                         </div>
@@ -175,7 +175,7 @@ export default async function SharePage(props: {
                             whiteSpace: "pre-wrap",
                             fontSize: "0.92rem",
                             lineHeight: 1.7,
-                            color: hasAnswer ? "rgba(224,240,232,0.9)" : "rgba(160,192,168,0.4)",
+                            color: hasAnswer ? "rgba(224,240,232,0.9)" : "rgba(185,208,192,0.4)",
                         }}>
                             {hasAnswer ? answer : "Answer not included in this link."}
                         </div>
@@ -186,7 +186,7 @@ export default async function SharePage(props: {
                 <p style={{
                     marginTop: 14,
                     fontSize: "0.75rem",
-                    color: "rgba(160,192,168,0.4)",
+                    color: "rgba(185,208,192,0.4)",
                     lineHeight: 1.6,
                 }}>
                     This is a read-only educational snapshot. Outputs are for informational purposes only and do not constitute financial or mortgage advice. Verify all figures with a licensed mortgage professional.
@@ -211,7 +211,7 @@ export default async function SharePage(props: {
                         padding: "10px 18px",
                         borderRadius: 999,
                         border: "1px solid rgba(148,163,184,0.2)",
-                        color: "rgba(160,192,168,0.7)",
+                        color: "rgba(185,208,192,0.7)",
                         textDecoration: "none",
                         fontSize: "0.85rem",
                     }}>
@@ -230,7 +230,7 @@ export default async function SharePage(props: {
                 gap: 8,
                 flexWrap: "wrap",
                 fontSize: "0.7rem",
-                color: "rgba(160,192,168,0.35)",
+                color: "rgba(185,208,192,0.35)",
             }}>
                 <span>HomeRates.ai — independent educational tool, not a mortgage lender.</span>
                 <span style={{ opacity: 0.4 }}>•</span>

@@ -89,7 +89,7 @@ export default function PlatformPage() {
         .ph-logo-link{display:flex;align-items:center;text-decoration:none;}
         .ph-logo{height:26px;width:auto;}
         .ph-nav-links{display:flex;align-items:center;gap:24px;}
-        .ph-nav-link{font-size:0.82rem;color:rgba(160,192,168,0.6);text-decoration:none;transition:color 0.15s;}
+        .ph-nav-link{font-size:0.82rem;color:rgba(185,208,192,0.6);text-decoration:none;transition:color 0.15s;}
         .ph-nav-link:hover{color:#e0f0e8;}
         .ph-cta-link{display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;
           font-weight:600;color:#00e87a;text-decoration:none;padding:6px 14px;
@@ -104,13 +104,13 @@ export default function PlatformPage() {
           border:1px solid rgba(0,232,122,0.2);border-radius:6px;padding:4px 10px;margin-bottom:16px;}
         .ph-h1{font-size:clamp(2rem,4vw,3rem);font-weight:800;color:#f0f4ff;
           line-height:1.12;margin:0 0 16px;}
-        .ph-subtitle{font-size:1rem;color:rgba(160,192,168,0.7);max-width:580px;
+        .ph-subtitle{font-size:1rem;color:rgba(185,208,192,0.7);max-width:580px;
           margin:0 auto;line-height:1.65;}
 
         /* Disruptive banner */
         .ph-banner{background:rgba(0,232,122,0.05);border:1px solid rgba(0,232,122,0.15);
           border-radius:14px;padding:20px 24px;font-size:0.9rem;line-height:1.7;
-          color:rgba(160,192,168,0.8);text-align:center;}
+          color:rgba(185,208,192,0.8);text-align:center;}
         .ph-banner strong{color:#00e87a;}
 
         /* Pillar grid */
@@ -127,7 +127,7 @@ export default function PlatformPage() {
         .ph-card-eyebrow{font-size:0.68rem;font-weight:700;letter-spacing:0.08em;
           text-transform:uppercase;color:rgba(0,232,122,0.7);}
         .ph-card-title{font-size:0.98rem;font-weight:700;color:#f0f4ff;line-height:1.3;}
-        .ph-card-summary{font-size:0.85rem;color:rgba(160,192,168,0.7);line-height:1.6;flex:1;}
+        .ph-card-summary{font-size:0.85rem;color:rgba(185,208,192,0.7);line-height:1.6;flex:1;}
         .ph-card-read{font-size:0.82rem;font-weight:600;color:#00e87a;margin-top:4px;}
         .ph-card:hover .ph-card-read::after{content:' →';}
         .ph-card-read::after{content:' ›';}
@@ -135,7 +135,7 @@ export default function PlatformPage() {
         /* CTA */
         .ph-cta-block{text-align:center;padding:32px;
           background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:16px;}
-        .ph-cta-p{font-size:0.95rem;color:rgba(160,192,168,0.7);margin:0 0 16px;}
+        .ph-cta-p{font-size:0.95rem;color:rgba(185,208,192,0.7);margin:0 0 16px;}
         .ph-cta-btn{display:inline-flex;align-items:center;gap:8px;background:#00e87a;
           color:#080c12;font-size:0.95rem;font-weight:700;padding:14px 32px;
           border-radius:10px;text-decoration:none;transition:background 0.15s;}
@@ -144,7 +144,7 @@ export default function PlatformPage() {
         /* Footer */
         .ph-footer{width:100%;border-top:1px solid rgba(255,255,255,0.06);padding:20px 24px;
           display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
-          gap:8px;font-size:0.78rem;color:rgba(160,192,168,0.4);}
+          gap:8px;font-size:0.78rem;color:rgba(185,208,192,0.4);}
         .ph-footer a{color:rgba(0,232,122,0.5);text-decoration:none;}
         .ph-footer a:hover{color:#00e87a;}
         .ph-footer-sep{opacity:0.4;}

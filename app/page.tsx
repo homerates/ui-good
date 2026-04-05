@@ -102,7 +102,7 @@ export default function LandingPage() {
           --border: rgba(255,255,255,0.07);
           --border-bright: rgba(255,255,255,0.13);
           --text: #f0f4ff;
-          --text-muted: #6b7a99;
+          --text-muted: #8fa3b8;
           --text-dim: #3a4560;
           --green: #00e87a;
           --green-dim: rgba(0,232,122,0.12);
@@ -342,7 +342,7 @@ export default function LandingPage() {
           animation: lp-fadeUp 0.6s ease forwards;
         }
         .lp-headline {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: clamp(42px, 6vw, 80px);
           font-weight: 800;
           line-height: 1.0;
@@ -591,7 +591,7 @@ export default function LandingPage() {
         .lp-card-red::before { background: var(--red); }
         .lp-card-icon { font-size: 22px; margin-bottom: 14px; display: block; }
         .lp-card-title {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: 15px; font-weight: 600;
           color: var(--text); margin-bottom: 6px;
         }
@@ -612,7 +612,7 @@ export default function LandingPage() {
           align-items: center;
         }
         .lp-intel-left h2 {
-          font-family: 'Syne', sans-serif;
+          font-family: 'DM Sans', sans-serif;
           font-size: clamp(28px, 3.5vw, 44px);
           font-weight: 800;
           line-height: 1.1;
@@ -670,7 +670,7 @@ export default function LandingPage() {
           background: var(--surface2); border: 1px solid var(--border);
           border-radius: 12px; padding: 14px 16px;
         }
-        .lp-card-num { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: var(--green); margin-bottom: 2px; }
+        .lp-card-num { font-family: 'DM Sans', sans-serif; font-size: 22px; font-weight: 700; color: var(--green); margin-bottom: 2px; }
         .lp-card-sub { font-size: 11px; color: var(--text-muted); }
         .lp-card-row {
           display: flex; justify-content: space-between;
@@ -690,7 +690,7 @@ export default function LandingPage() {
         .lp-stats-inner { max-width: 1200px; margin: 0 auto; }
         .lp-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
         .lp-stat { text-align: center; }
-        .lp-stat-num { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; color: var(--green); margin-bottom: 4px; }
+        .lp-stat-num { font-family: 'DM Sans', sans-serif; font-size: 36px; font-weight: 800; color: var(--green); margin-bottom: 4px; }
         .lp-stat-label { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
         .lp-stat-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 

@@ -614,7 +614,7 @@ export default function FHACalculatorPage() {
                 .fha-page .breadcrumb ol {
                     display: flex; gap: 6px; list-style: none;
                     padding: 0; margin: 0 0 2rem; font-size: 13px;
-                    color: #6b7a99;
+                    color: #8fa3b8;
                 }
                 .fha-page .breadcrumb a { color: inherit; text-decoration: none; }
                 .fha-page .breadcrumb a:hover { text-decoration: underline; }
@@ -626,16 +626,16 @@ export default function FHACalculatorPage() {
                     font-size: clamp(1.75rem, 4vw, 2.5rem);
                     font-weight: 700; line-height: 1.15;
                     margin: 0 0 1rem; letter-spacing: -0.02em;
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                 }
                 .fha-page .hero-sub {
                     display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-                    font-weight: 400; color: #6b7a99;
+                    font-weight: 400; color: #8fa3b8;
                     margin-top: 0.25rem;
                 }
                 .fha-page .hero-lead {
                     font-size: 1.1rem; max-width: 640px;
-                    color: #6b7a99; margin: 0 0 1.25rem;
+                    color: #8fa3b8; margin: 0 0 1.25rem;
                 }
                 .fha-page .trust-bar {
                     display: flex; flex-wrap: wrap; gap: 10px;
@@ -645,7 +645,7 @@ export default function FHACalculatorPage() {
                     font-size: 13px; padding: 4px 12px;
                     background: rgba(255,255,255,0.05);
                     border-radius: 99px; border: 1px solid rgba(255,255,255,0.07);
-                    color: #6b7a99;
+                    color: #8fa3b8;
                 }
 
                 /* Calculator embed */
@@ -655,12 +655,12 @@ export default function FHACalculatorPage() {
                     padding: 2rem; margin-bottom: 3rem;
                 }
                 .fha-page .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; }
-                .fha-page .embed-header p { margin: 0 0 1.25rem; color: #6b7a99; font-size: 0.95rem; }
+                .fha-page .embed-header p { margin: 0 0 1.25rem; color: #8fa3b8; font-size: 0.95rem; }
                 .fha-page .seed-chips {
                     display: flex; flex-wrap: wrap; gap: 8px;
                     align-items: center; margin-bottom: 1rem;
                 }
-                .fha-page .seed-label { font-size: 13px; color: #6b7a99; }
+                .fha-page .seed-label { font-size: 13px; color: #8fa3b8; }
                 .fha-page .seed-chip {
                     font-size: 13px; padding: 5px 13px;
                     background: #0e1420; border-radius: 99px;
@@ -682,7 +682,7 @@ export default function FHACalculatorPage() {
                 .fha-page .cta-button:hover { opacity: 0.85; }
                 .fha-page .cta-sub {
                     margin: 10px 0 0; font-size: 13px;
-                    color: #6b7a99;
+                    color: #8fa3b8;
                 }
                 .fha-page .cta-sub a { color: #00e87a; }
 
@@ -691,10 +691,10 @@ export default function FHACalculatorPage() {
                     font-size: clamp(1.2rem, 2.5vw, 1.6rem);
                     font-weight: 600; margin: 0 0 0.75rem;
                     letter-spacing: -0.01em;
-                    font-family: 'Syne', sans-serif;
+                    font-family: 'DM Sans', sans-serif;
                 }
                 .fha-page .section-lead {
-                    font-size: 1rem; color: #6b7a99;
+                    font-size: 1rem; color: #8fa3b8;
                     margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65;
                 }
 
@@ -712,7 +712,7 @@ export default function FHACalculatorPage() {
                 }
                 .fha-page .feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
                 .fha-page .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.4rem; }
-                .fha-page .feature-card p { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .fha-page .feature-card p { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
 
                 /* Tables */
                 .fha-page .example-table-section { margin-bottom: 3rem; }
@@ -723,7 +723,7 @@ export default function FHACalculatorPage() {
                 }
                 .fha-page .example-table th {
                     text-align: left; font-size: 0.78rem; font-weight: 600;
-                    color: #6b7a99; padding: 8px 12px;
+                    color: #8fa3b8; padding: 8px 12px;
                     border-bottom: 1.5px solid rgba(255,255,255,0.08);
                     background: #0e1420;
                     text-transform: uppercase; letter-spacing: 0.04em;
@@ -732,13 +732,13 @@ export default function FHACalculatorPage() {
                 .fha-page .example-table tr:last-child td { border-bottom: none; }
                 .fha-page .income-cell { font-weight: 600; }
                 .fha-page .price-cell { font-weight: 500; color: #00e87a; }
-                .fha-page .table-note { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.5; }
+                .fha-page .table-note { font-size: 0.8rem; color: #8fa3b8; margin: 0; line-height: 1.5; }
                 .fha-page .table-note a { color: #00e87a; }
 
                 /* How it works */
                 .fha-page .how-it-works { margin-bottom: 3rem; }
                 .fha-page .steps-list { padding-left: 1.25rem; margin: 0; }
-                .fha-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #6b7a99; }
+                .fha-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #8fa3b8; }
                 .fha-page .steps-list strong { color: #f0f4ff; }
 
                 /* Author / E-E-A-T */
@@ -757,10 +757,10 @@ export default function FHACalculatorPage() {
                     flex-shrink: 0;
                 }
                 .fha-page .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
-                .fha-page .author-cred { font-size: 0.82rem; color: #6b7a99; margin-bottom: 0.4rem; }
-                .fha-page .author-bio { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
-                .fha-page .last-updated { font-size: 0.8rem; color: #6b7a99; margin: 0 0 0.5rem; }
-                .fha-page .disclaimer { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .fha-page .author-cred { font-size: 0.82rem; color: #8fa3b8; margin-bottom: 0.4rem; }
+                .fha-page .author-bio { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
+                .fha-page .last-updated { font-size: 0.8rem; color: #8fa3b8; margin: 0 0 0.5rem; }
+                .fha-page .disclaimer { font-size: 0.8rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
 
                 /* FAQ */
                 .fha-page .faq-section { margin-bottom: 3rem; }
@@ -777,11 +777,11 @@ export default function FHACalculatorPage() {
                     justify-content: space-between; align-items: center;
                     color: #f0f4ff;
                 }
-                .fha-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #6b7a99; }
+                .fha-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #8fa3b8; }
                 .fha-page details[open] .faq-question::after { content: '−'; }
                 .fha-page .faq-answer {
                     padding: 0.75rem 1.25rem 1rem; margin: 0;
-                    font-size: 0.9rem; color: #6b7a99;
+                    font-size: 0.9rem; color: #8fa3b8;
                     line-height: 1.65;
                     border-top: 1px solid rgba(255,255,255,0.06);
                 }
@@ -805,7 +805,7 @@ export default function FHACalculatorPage() {
                     box-shadow: 0 2px 12px rgba(34,197,94,0.08);
                 }
                 .fha-page .related-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; }
-                .fha-page .related-desc { font-size: 0.83rem; color: #6b7a99; line-height: 1.5; }
+                .fha-page .related-desc { font-size: 0.83rem; color: #8fa3b8; line-height: 1.5; }
 
                 /* Responsive */
                 @media (max-width: 600px) {

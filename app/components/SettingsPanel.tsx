@@ -14,7 +14,7 @@ interface UserPlanData {
 }
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
-  free:  { label: "Free",  color: "rgba(160,192,168,0.6)" },
+  free:  { label: "Free",  color: "rgba(185,208,192,0.6)" },
   plus:  { label: "Plus",  color: "#00e87a" },
   pro:   { label: "Pro",   color: "#00e87a" },
 };
@@ -85,7 +85,7 @@ export default function SettingsPanel() {
           borderRadius: "50%",
           border: "none",
           background: open ? "rgba(0,232,122,0.12)" : "transparent",
-          color: open ? "#00e87a" : "rgba(160,192,168,0.7)",
+          color: open ? "#00e87a" : "rgba(185,208,192,0.7)",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
@@ -126,7 +126,7 @@ export default function SettingsPanel() {
           }}>
             <span style={{ color: "#fff", fontWeight: 600, fontSize: "0.95rem" }}>Settings</span>
             <button onClick={() => setOpen(false)} style={{
-              background: "none", border: "none", color: "rgba(160,192,168,0.6)",
+              background: "none", border: "none", color: "rgba(185,208,192,0.6)",
               cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "2px 4px",
             }}>✕</button>
           </div>
@@ -147,7 +147,7 @@ export default function SettingsPanel() {
                       <div style={{ color: "#fff", fontWeight: 600, fontSize: "0.875rem" }}>
                         {user.fullName ?? user.username ?? "Account"}
                       </div>
-                      <div style={{ color: "rgba(160,192,168,0.6)", fontSize: "0.75rem" }}>
+                      <div style={{ color: "rgba(185,208,192,0.6)", fontSize: "0.75rem" }}>
                         {user.primaryEmailAddress?.emailAddress}
                       </div>
                     </div>
@@ -161,9 +161,9 @@ export default function SettingsPanel() {
               <div style={sectionLabel}>Subscription</div>
               <div style={card}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <span style={{ color: "rgba(160,192,168,0.8)", fontSize: "0.8rem" }}>Current plan</span>
+                  <span style={{ color: "rgba(185,208,192,0.8)", fontSize: "0.8rem" }}>Current plan</span>
                   <span style={{
-                    background: isOnFreePlan ? "rgba(160,192,168,0.1)" : "rgba(0,232,122,0.12)",
+                    background: isOnFreePlan ? "rgba(185,208,192,0.1)" : "rgba(0,232,122,0.12)",
                     color: planMeta.color,
                     fontSize: "0.7rem",
                     fontWeight: 700,
@@ -177,7 +177,7 @@ export default function SettingsPanel() {
                 {/* Free tier usage bar */}
                 {isOnFreePlan && (
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "rgba(160,192,168,0.6)", marginBottom: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "rgba(185,208,192,0.6)", marginBottom: 4 }}>
                       <span>Questions this month</span>
                       <span>{msgUsed} / {msgLimit}</span>
                     </div>
@@ -194,7 +194,7 @@ export default function SettingsPanel() {
                 )}
 
                 {periodEnd && (
-                  <div style={{ fontSize: "0.75rem", color: "rgba(160,192,168,0.5)", marginBottom: 10 }}>
+                  <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", marginBottom: 10 }}>
                     Renews {periodEnd}
                   </div>
                 )}
@@ -259,7 +259,7 @@ export default function SettingsPanel() {
                   borderRadius: 8,
                   border: "1px solid rgba(255,255,255,0.1)",
                   background: "transparent",
-                  color: "rgba(160,192,168,0.7)",
+                  color: "rgba(185,208,192,0.7)",
                   fontSize: "0.85rem",
                   fontWeight: 500,
                   cursor: "pointer",
@@ -282,7 +282,7 @@ const sectionLabel: React.CSSProperties = {
   fontWeight: 700,
   letterSpacing: "0.1em",
   textTransform: "uppercase",
-  color: "rgba(160,192,168,0.4)",
+  color: "rgba(185,208,192,0.4)",
   marginBottom: 8,
 };
 

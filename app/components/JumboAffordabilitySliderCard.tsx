@@ -281,7 +281,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
         title: {
             fontSize: '0.9rem',
             fontWeight: 700,
-            color: 'rgba(160,192,168,0.7)',
+            color: 'rgba(185,208,192,0.7)',
             letterSpacing: '0.05em',
             textTransform: 'uppercase' as const,
         } as CSSProperties,
@@ -317,7 +317,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
         } as CSSProperties,
         heroLabel: {
             fontSize: '0.7rem',
-            color: 'rgba(160,192,168,0.6)',
+            color: 'rgba(185,208,192,0.6)',
             marginTop: 4,
             textTransform: 'uppercase' as const,
             letterSpacing: '0.04em',
@@ -337,13 +337,13 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
             borderRadius: 10,
             padding: '10px 14px',
             fontSize: '0.82rem',
-            color: 'rgba(160,192,168,0.85)',
+            color: 'rgba(185,208,192,0.85)',
             marginBottom: 10,
         } as CSSProperties,
         sectionLabel: {
             fontSize: '0.72rem',
             fontWeight: 700,
-            color: 'rgba(160,192,168,0.5)',
+            color: 'rgba(185,208,192,0.5)',
             letterSpacing: '0.06em',
             textTransform: 'uppercase' as const,
             marginBottom: 8,
@@ -360,7 +360,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
         } as CSSProperties,
         sliderLabel: {
             fontSize: '0.82rem',
-            color: 'rgba(160,192,168,0.8)',
+            color: 'rgba(185,208,192,0.8)',
         } as CSSProperties,
         sliderVal: {
             fontSize: '0.85rem',
@@ -386,7 +386,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
         } as CSSProperties,
         tdLabel: {
             padding: '7px 0',
-            color: 'rgba(160,192,168,0.7)',
+            color: 'rgba(185,208,192,0.7)',
         } as CSSProperties,
         tdVal: {
             padding: '7px 0',
@@ -434,7 +434,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
             borderRadius: 10,
             padding: '10px 14px',
             fontSize: '0.82rem',
-            color: 'rgba(160,192,168,0.85)',
+            color: 'rgba(185,208,192,0.85)',
             marginBottom: 14,
             display: 'flex',
             alignItems: 'center',
@@ -515,7 +515,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                     onChange={e => { setPrice(+e.target.value); markDirty(); }}
                     style={{ ...S.rangeInput, ...trackStyle(price, 500_000, 5_000_000, z.color) }}
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(160,192,168,0.4)', marginTop: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 3 }}>
                     <span>$500k</span><span>$5M</span>
                 </div>
             </div>
@@ -535,7 +535,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                     onChange={e => { setDownPct(+e.target.value); markDirty(); }}
                     style={{ ...S.rangeInput, ...trackStyle(downPct, 10, 50, z.color) }}
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(160,192,168,0.4)', marginTop: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 3 }}>
                     <span>10%</span><span>50%</span>
                 </div>
             </div>
@@ -557,7 +557,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                     onChange={e => { setRateAdj(+e.target.value / 100); markDirty(); }}
                     style={{ ...S.rangeInput, ...trackStyle(rateAdj, -1, 1, z.color) }}
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(160,192,168,0.4)', marginTop: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 3 }}>
                     <span>−1%</span><span>+1%</span>
                 </div>
             </div>
@@ -575,7 +575,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                 <div style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: 4 }}>{zipError}</div>
             )}
             {countyDisplay && !zipError && (
-                <div style={{ fontSize: '0.75rem', color: 'rgba(160,192,168,0.6)', marginTop: 4 }}>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(185,208,192,0.6)', marginTop: 4 }}>
                     {countyDisplay} County — conforming limit {fLong(countyLimit)}
                 </div>
             )}
@@ -622,8 +622,8 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                         <td style={S.tdVal}>{fLong(Math.round(calc.incomeNeeded43 / 1000) * 1000)}</td>
                     </tr>
                     <tr>
-                        <td style={{ ...S.tdTotal, color: 'rgba(160,192,168,0.6)', fontWeight: 500 }}>50% DTI (stretch)</td>
-                        <td style={{ ...S.tdTotalVal, color: 'rgba(160,192,168,0.6)', fontSize: '0.85rem' }}>{fLong(Math.round(calc.incomeNeeded50 / 1000) * 1000)}</td>
+                        <td style={{ ...S.tdTotal, color: 'rgba(185,208,192,0.6)', fontWeight: 500 }}>50% DTI (stretch)</td>
+                        <td style={{ ...S.tdTotalVal, color: 'rgba(185,208,192,0.6)', fontSize: '0.85rem' }}>{fLong(Math.round(calc.incomeNeeded50 / 1000) * 1000)}</td>
                     </tr>
                 </tbody>
             </table>

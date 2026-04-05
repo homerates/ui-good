@@ -487,73 +487,73 @@ export default function ConventionalLoanCalculatorPage() {
                 @media (max-width: 600px) { .calc-nav { padding: 14px 20px; } }
 
                 .conv-page { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; font-family: var(--font-sans, system-ui, sans-serif); color: #f0f4ff; line-height: 1.6; }
-                .conv-page .breadcrumb ol { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0 0 2rem; font-size: 13px; color: #6b7a99; }
+                .conv-page .breadcrumb ol { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0 0 2rem; font-size: 13px; color: #8fa3b8; }
                 .conv-page .breadcrumb a { color: inherit; text-decoration: none; }
                 .conv-page .breadcrumb a:hover { text-decoration: underline; }
                 .conv-page .breadcrumb li[aria-current] { color: #f0f4ff; font-weight: 500; }
                 .conv-page .hero { margin-bottom: 3rem; }
-                .conv-page h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; line-height: 1.15; margin: 0 0 1rem; letter-spacing: -0.02em; font-family: 'Syne', sans-serif; }
-                .conv-page .hero-sub { display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem); font-weight: 400; color: #6b7a99; margin-top: 0.25rem; }
-                .conv-page .hero-lead { font-size: 1.1rem; max-width: 640px; color: #6b7a99; margin: 0 0 1.25rem; }
+                .conv-page h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; line-height: 1.15; margin: 0 0 1rem; letter-spacing: -0.02em; font-family: 'DM Sans', sans-serif; }
+                .conv-page .hero-sub { display: block; font-size: clamp(1.1rem, 2.5vw, 1.5rem); font-weight: 400; color: #8fa3b8; margin-top: 0.25rem; }
+                .conv-page .hero-lead { font-size: 1.1rem; max-width: 640px; color: #8fa3b8; margin: 0 0 1.25rem; }
                 .conv-page .trust-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 0.75rem; }
-                .conv-page .trust-item { font-size: 13px; padding: 4px 12px; background: rgba(255,255,255,0.05); border-radius: 99px; border: 1px solid rgba(255,255,255,0.07); color: #6b7a99; }
+                .conv-page .trust-item { font-size: 13px; padding: 4px 12px; background: rgba(255,255,255,0.05); border-radius: 99px; border: 1px solid rgba(255,255,255,0.07); color: #8fa3b8; }
                 .conv-page .calculator-embed { background: #0e1420; border-radius: 16px; border: 1px solid rgba(255,255,255,0.07); padding: 2rem; margin-bottom: 3rem; }
                 .conv-page .embed-header h2 { margin: 0 0 0.5rem; font-size: 1.35rem; }
-                .conv-page .embed-header p { margin: 0 0 1.25rem; color: #6b7a99; font-size: 0.95rem; }
+                .conv-page .embed-header p { margin: 0 0 1.25rem; color: #8fa3b8; font-size: 0.95rem; }
                 .conv-page .seed-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 1rem; }
-                .conv-page .seed-label { font-size: 13px; color: #6b7a99; }
+                .conv-page .seed-label { font-size: 13px; color: #8fa3b8; }
                 .conv-page .seed-chip { font-size: 13px; padding: 5px 13px; background: #0e1420; border-radius: 99px; border: 1px solid rgba(255,255,255,0.10); color: #f0f4ff; text-decoration: none; transition: border-color 0.15s; }
                 .conv-page .seed-chip:hover { border-color: rgba(255,255,255,0.3); }
                 .conv-page .cta-block { text-align: center; padding: 1.5rem 0 0.5rem; }
                 .conv-page .cta-button { display: inline-block; padding: 14px 32px; background: #00e87a; color: #080c12; border-radius: 999px; font-size: 1rem; font-weight: 600; text-decoration: none; transition: opacity 0.15s; }
                 .conv-page .cta-button:hover { opacity: 0.85; }
-                .conv-page .cta-sub { margin: 10px 0 0; font-size: 13px; color: #6b7a99; }
+                .conv-page .cta-sub { margin: 10px 0 0; font-size: 13px; color: #8fa3b8; }
                 .conv-page .cta-sub a { color: #00e87a; }
-                .conv-page h2 { font-size: clamp(1.2rem, 2.5vw, 1.6rem); font-weight: 600; margin: 0 0 0.75rem; letter-spacing: -0.01em; font-family: 'Syne', sans-serif; }
-                .conv-page .section-lead { font-size: 1rem; color: #6b7a99; margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65; }
+                .conv-page h2 { font-size: clamp(1.2rem, 2.5vw, 1.6rem); font-weight: 600; margin: 0 0 0.75rem; letter-spacing: -0.01em; font-family: 'DM Sans', sans-serif; }
+                .conv-page .section-lead { font-size: 1rem; color: #8fa3b8; margin: 0 0 1.5rem; max-width: 680px; line-height: 1.65; }
                 .conv-page .what-you-get { margin-bottom: 3rem; }
                 .conv-page .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
                 .conv-page .feature-card { background: #0e1420; border-radius: 12px; padding: 1.25rem; border: 1px solid rgba(0,0,0,0.07); }
                 .conv-page .feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
                 .conv-page .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.4rem; }
-                .conv-page .feature-card p { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .conv-page .feature-card p { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
                 .conv-page .example-table-section { margin-bottom: 3rem; }
                 .conv-page .example-table-wrapper { overflow-x: auto; margin-bottom: 0.75rem; }
                 .conv-page .example-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 560px; }
-                .conv-page .example-table th { text-align: left; font-size: 0.78rem; font-weight: 600; color: #6b7a99; padding: 8px 12px; border-bottom: 1.5px solid rgba(255,255,255,0.08); background: #0e1420; text-transform: uppercase; letter-spacing: 0.04em; }
+                .conv-page .example-table th { text-align: left; font-size: 0.78rem; font-weight: 600; color: #8fa3b8; padding: 8px 12px; border-bottom: 1.5px solid rgba(255,255,255,0.08); background: #0e1420; text-transform: uppercase; letter-spacing: 0.04em; }
                 .conv-page .example-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
                 .conv-page .example-table tr:last-child td { border-bottom: none; }
                 .conv-page .income-cell { font-weight: 600; }
                 .conv-page .price-cell { font-weight: 500; color: #00e87a; }
                 .conv-page .pmi-cell { font-weight: 500; color: #ff8c42; }
                 .conv-page .no-pmi { font-size: 0.82rem; color: #00e87a; }
-                .conv-page .table-note { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.5; }
+                .conv-page .table-note { font-size: 0.8rem; color: #8fa3b8; margin: 0; line-height: 1.5; }
                 .conv-page .table-note a { color: #00e87a; }
                 .conv-page .how-it-works { margin-bottom: 3rem; }
                 .conv-page .steps-list { padding-left: 1.25rem; margin: 0; }
-                .conv-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #6b7a99; }
+                .conv-page .steps-list li { margin-bottom: 0.9rem; font-size: 0.95rem; line-height: 1.6; color: #8fa3b8; }
                 .conv-page .steps-list strong { color: #f0f4ff; }
                 .conv-page .author-section { background: #0e1420; border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(0,0,0,0.07); margin-bottom: 3rem; }
                 .conv-page .author-card { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 1rem; }
                 .conv-page .author-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,232,122,0.15); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #00e87a; flex-shrink: 0; }
                 .conv-page .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
-                .conv-page .author-cred { font-size: 0.82rem; color: #6b7a99; margin-bottom: 0.4rem; }
-                .conv-page .author-bio { font-size: 0.88rem; color: #6b7a99; margin: 0; line-height: 1.55; }
-                .conv-page .last-updated { font-size: 0.8rem; color: #6b7a99; margin: 0 0 0.5rem; }
-                .conv-page .disclaimer { font-size: 0.8rem; color: #6b7a99; margin: 0; line-height: 1.55; }
+                .conv-page .author-cred { font-size: 0.82rem; color: #8fa3b8; margin-bottom: 0.4rem; }
+                .conv-page .author-bio { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
+                .conv-page .last-updated { font-size: 0.8rem; color: #8fa3b8; margin: 0 0 0.5rem; }
+                .conv-page .disclaimer { font-size: 0.8rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
                 .conv-page .faq-section { margin-bottom: 3rem; }
                 .conv-page .faq-list { display: flex; flex-direction: column; gap: 8px; }
                 .conv-page .faq-item { border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; background: #0e1420; }
                 .conv-page .faq-question { padding: 1rem 1.25rem; font-weight: 500; font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; color: #f0f4ff; }
-                .conv-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #6b7a99; }
+                .conv-page .faq-question::after { content: '+'; font-size: 1.2rem; color: #8fa3b8; }
                 .conv-page details[open] .faq-question::after { content: '−'; }
-                .conv-page .faq-answer { padding: 0.75rem 1.25rem 1rem; margin: 0; font-size: 0.9rem; color: #6b7a99; line-height: 1.65; border-top: 1px solid rgba(255,255,255,0.06); }
+                .conv-page .faq-answer { padding: 0.75rem 1.25rem 1rem; margin: 0; font-size: 0.9rem; color: #8fa3b8; line-height: 1.65; border-top: 1px solid rgba(255,255,255,0.06); }
                 .conv-page .related-section { margin-bottom: 2rem; }
                 .conv-page .related-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 1rem; }
                 .conv-page .related-card { display: block; padding: 1.1rem 1.25rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; text-decoration: none; color: #f0f4ff; background: #0e1420; transition: border-color 0.15s, box-shadow 0.15s; }
                 .conv-page .related-card:hover { border-color: rgba(0,232,122,0.4); box-shadow: 0 2px 12px rgba(34,197,94,0.08); }
                 .conv-page .related-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 5px; }
-                .conv-page .related-desc { font-size: 0.83rem; color: #6b7a99; line-height: 1.5; }
+                .conv-page .related-desc { font-size: 0.83rem; color: #8fa3b8; line-height: 1.5; }
                 @media (max-width: 600px) { .conv-page { padding: 1.25rem 1rem 3rem; } .conv-page .trust-bar { gap: 6px; } .conv-page .trust-item { font-size: 12px; padding: 3px 10px; } .conv-page .calculator-embed { padding: 1.25rem; } .conv-page .features-grid { grid-template-columns: 1fr; } }
             `}</style>
         </>
