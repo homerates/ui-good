@@ -821,7 +821,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
         undefined;
 
     return {
-        path: 'dynamic',
+        path: s?.scenarioComparisonCard ? 'scenario_comparison' as any : 'dynamic',
         usedFRED: marketData?.usedFallbacks === false || Boolean(marketData?.date),
         confidence: conf,
         message: summary,
@@ -831,6 +831,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
         data_freshness: marketData?.date ? `Live (FRED) as of ${marketData.date}` : undefined,
         followUp: followUpLabel,
         follow_up_chips: chips,
+        scenarioComparisonCard: s?.scenarioComparisonCard ?? null,
         grok: {
             scenario: true,
             provider: s?.provider,

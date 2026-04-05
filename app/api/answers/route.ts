@@ -3348,7 +3348,39 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
             rent: _scRent,
             credit: _scCredit,
         });
-        return NextResponse.json({ ...compCard, path: 'scenario_comparison' });
+        return noStore({
+            ok: true,
+            memory_thread_id: memoryThreadId,
+            chat_id: chatId,
+            project_id: projectId,
+            chat_thread_id: null,
+            route: 'answers',
+            intent,
+            path: 'scenario_comparison',
+            tag,
+            generatedAt,
+            usedFRED: false,
+            usedTavily: false,
+            fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
+            topSources: [],
+            grok: {
+                answer: compCard.answer,
+                next_step: compCard.next_step,
+                follow_up: compCard.follow_up,
+                follow_up_chips: compCard.follow_up_chips,
+                confidence: compCard.confidence,
+                scenarioComparisonCard: compCard.scenarioComparisonCard,
+            },
+            debug: {
+                requestedModel: 'scenario-comparison',
+                servedModel: 'scenario-comparison',
+                promptChars: question.length,
+                elapsedMs: 0,
+                requestId: 'sc-' + Date.now(),
+                parseMode: 'direct',
+                repaired: false,
+            },
+        });
     }
 
     const _earlyLoanLimitsOverride = (body as any)?.paramOverrides?.loanLimitsCounty;

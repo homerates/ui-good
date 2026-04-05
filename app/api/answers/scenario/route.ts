@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { runScenarioMath } from "../../../../lib/scenarioMath";
+import { isScenarioComparisonQuestion } from "../../../../lib/calcDispatcher";
+import { buildScenarioComparisonCard } from "../../../../lib/cardBuilders";
 import { createClient } from "@supabase/supabase-js";
 import { routeAIRequest } from "../../../../lib/ai-providers/router";
 import {
@@ -2229,6 +2231,43 @@ export async function POST(req: NextRequest) {
                 { error: "Message is required" },
                 { status: 400, headers: { "X-Hr-Build-Tag": buildTag, "X-Hr-Request-Id": requestId } }
             );
+        }
+
+        // ── SCENARIO COMPARISON CARD (intercept before AI) ───────────────────
+        const _scenarioTool = isScenarioComparisonQuestion(message);
+        if (_scenarioTool) {
+            const _scPriceM = message.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[mM]\b/);
+            const _scPriceK = message.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[kK]\b/);
+            const _scPricePl = message.match(/\$\s*([\d,]{5,})/);
+            const _scPrice = _scPriceM ? parseFloat(_scPriceM[1].replace(/,/g, '')) * 1_000_000
+                : _scPriceK ? parseFloat(_scPriceK[1].replace(/,/g, '')) * 1_000
+                : _scPricePl ? parseFloat(_scPricePl[1].replace(/,/g, ''))
+                : undefined;
+            const _scRateM = message.match(/(\d+\.?\d*)\s*%/);
+            const _scRate = _scRateM ? parseFloat(_scRateM[1]) : undefined;
+            const _scRentM = message.match(/rent(?:ing)?\s*(?:is|at|of|for)?\s*\$?\s*([\d,]+)/i);
+            const _scRent = _scRentM ? parseFloat(_scRentM[1].replace(/,/g, '')) : undefined;
+            const _scCreditM = message.match(/(?:seller\s*credit|credit|concession)\s*(?:of|is)?\s*\$?\s*([\d,]+)/i);
+            const _scCredit = _scCreditM ? parseFloat(_scCreditM[1].replace(/,/g, '')) : undefined;
+            const compCard = buildScenarioComparisonCard({
+                tool: _scenarioTool,
+                price: _scPrice,
+                rate: _scRate && _scRate >= 3 && _scRate <= 12 ? _scRate : undefined,
+                rent: _scRent,
+                credit: _scCredit,
+            });
+            return respond({
+                success: true,
+                path: 'scenario_comparison',
+                grok: {
+                    answer: compCard.answer,
+                    next_step: compCard.next_step,
+                    follow_up: compCard.follow_up,
+                    follow_up_chips: compCard.follow_up_chips,
+                    confidence: compCard.confidence,
+                    scenarioComparisonCard: compCard.scenarioComparisonCard,
+                },
+            });
         }
 
         // 1) FRED
