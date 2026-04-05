@@ -2127,6 +2127,21 @@ export default function Page() {
 
             let useScenario = false;
 
+            // Comparison questions always go to scenario route — card intercept lives there
+            // Must be checked BEFORE any other routing that could override it
+            // [deep-analysis] seeds are excluded — they need narrative AI, not the card again
+            const isComparisonQuestion = !/^\[deep-analysis\]/i.test(q) && (
+                /\b(5\s*%|five\s*percent)\s*(vs|versus|or|compared\s*to)\s*(20\s*%|twenty\s*percent)\b/i.test(q) ||
+                /\bdown\s*payment\s*(comparison|vs|versus)\b/i.test(q) ||
+                /\b(5.*20|20.*5)\s*%?\s*(down)\b/i.test(q) ||
+                /\brate\s*buydown\b.{0,30}\b(vs|versus|price\s*reduction)\b/i.test(q) ||
+                /\bseller\s*credit\b.{0,30}\b(rate|buydown|reduction)\b/i.test(q) ||
+                /\b15\s*(yr|year).{0,20}(vs|versus).{0,20}30\s*(yr|year)\b/i.test(q) ||
+                /\b30\s*(yr|year).{0,20}(vs|versus).{0,20}15\s*(yr|year)\b/i.test(q) ||
+                /\brent\s*(vs|versus)\s*buy\b/i.test(q) ||
+                /\bshould\s*i\s*(rent|buy)\b/i.test(q)
+            );
+
             // FHA questions (with or without conventional comparison) ALWAYS stay in answers route.
             // Also: if last route was FHA/answers and this looks like a down-payment follow-up,
             // keep it in answers (e.g. "show me 10% down scenario" after FHA analysis).
@@ -2136,7 +2151,9 @@ export default function Page() {
                 /3\.5\s*%\s*down/i.test(q);
 
             // Follow-up that changes down payment % while in FHA/affordability context
+            // Excluded: comparison questions have their own routing above
             const isDownPaymentFollowUp =
+                !isComparisonQuestion &&
                 lastRoute === 'answers' &&
                 /\b(\d+)\s*%\s*down\b/i.test(q);
 
@@ -2144,9 +2161,12 @@ export default function Page() {
             const isRefiFollowUp =
                 /rates?\s+(?:go|drop|fall|hit|come\s*down)|drop\s+to|down\s+to|what\s+if.*%|refi|refinanc/i.test(q);
 
-            if (/^\[deep-analysis\]/i.test(q) || isFHAQuestion || isDownPaymentFollowUp || isRefiFollowUp) {
+            if (isComparisonQuestion) {
+                useScenario = true;
+                console.log('[Routing] Comparison question — forcing scenario route for card intercept');
+            } else if (isFHAQuestion || isDownPaymentFollowUp || isRefiFollowUp) {
                 useScenario = false;
-                console.log('[Routing] FHA/down-payment/refi follow-up or deep-analysis seed, forcing answers route');
+                console.log('[Routing] FHA/down-payment/refi follow-up, forcing answers route');
             } else if (isFollowUp && lastRoute) {
                 // Follow-up: stick with previous route
                 useScenario = lastRoute === 'scenario';

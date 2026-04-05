@@ -3321,7 +3321,7 @@ export function buildScenarioComparisonCard(inp: ScenarioComparisonCardInput): B
         next_step: 'Move any slider to see how the math changes for your scenario.',
         follow_up: `Want me to run a deeper AI analysis on your specific numbers?`,
         follow_up_chips: [
-            { label: `Run deeper AI analysis on this scenario`, seed: `Give me a full analysis of ${label.toLowerCase()} for a ${f$(inp.price ?? d.price)} home at ${fPct(inp.rate ?? d.rate)}` },
+            { label: `Run deeper AI analysis on this scenario`, seed: `[deep-analysis] Walk me through the full analysis of ${label.toLowerCase()} on a ${f$(inp.price ?? d.price)} home at ${fPct(inp.rate ?? d.rate)}` },
         ],
         confidence: 'high',
         scenarioComparisonCard: {

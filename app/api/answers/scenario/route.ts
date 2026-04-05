@@ -2270,6 +2270,9 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        // Strip [deep-analysis] prefix — scenario AI receives clean question for narrative analysis
+        const aiMessage = message.replace(/^\[deep-analysis\]\s*/i, '');
+
         // 1) FRED
         const tFred = Date.now();
         const marketData = await getCurrentMortgageData();
@@ -2279,7 +2282,7 @@ export async function POST(req: NextRequest) {
         // ===== MORTGAGE CALCULATOR PRE-CALCULATION =====
         let mortgageCalcContext = "";
 
-        if (needsMortgageCalculation(message)) {
+        if (needsMortgageCalculation(aiMessage)) {
             const params = extractScenarioMortgageParams(message, marketData);
 
             if (params && params.price) {
@@ -3008,7 +3011,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}
 
         if (isFollowUp && memoryHistory.length > 0) {
             console.log('[Memory] Adding context from', memoryHistory.length, 'previous scenarios');
-            contextualPrompt = buildSystemPromptWithMemory(systemPrompt, message, memoryHistory);
+            contextualPrompt = buildSystemPromptWithMemory(systemPrompt, aiMessage, memoryHistory);
         } else if (isFollowUp && memoryHistory.length === 0) {
             console.log('[Memory WARNING] Follow-up detected but NO history available!');
         } else if (!isFollowUp && lastScenarioSnapshot) {
@@ -3065,7 +3068,7 @@ YOU MUST OUTPUT ALL FIELDS:
 }
 `;
 
-        const aiResult = await routeAIRequest(enhancedPrompt, message, maxTokens, 'auto');
+        const aiResult = await routeAIRequest(enhancedPrompt, aiMessage, maxTokens, 'auto');
         ai_ms = Date.now() - tAI;
         provider = aiResult.provider; // 'claude' or 'grok'
 
