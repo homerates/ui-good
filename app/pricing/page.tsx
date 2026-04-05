@@ -84,6 +84,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [isLO, setIsLO] = useState<boolean | null>(null); // null = not yet loaded
 
   useEffect(() => {
     if (canceled) setError("Payment was canceled — no charge was made.");
@@ -93,8 +94,16 @@ export default function PricingPage() {
     if (!isSignedIn) return;
     fetch("/api/user/plan").then(r => r.json()).then(d => {
       if (d.plan) setCurrentPlan(d.plan);
+      setIsLO(d.isLO ?? false);
     }).catch(() => {});
   }, [isSignedIn]);
+
+  // Which plans to show:
+  // - Not signed in: all 3 (unknown role, let them see everything)
+  // - Signed in LO: all 3
+  // - Signed in borrower (not LO): Free + Plus only
+  const showPro = !isSignedIn || isLO === null || isLO === true;
+  const visiblePlans = showPro ? PLANS : PLANS.filter(p => p.key !== "pro");
 
   async function handlePortal() {
     setLoading("portal");
@@ -183,7 +192,7 @@ export default function PricingPage() {
       )}
 
       <div className="pricing-cards">
-        {PLANS.map((plan) => {
+        {visiblePlans.map((plan) => {
           const isLoadingThis = loading === `${plan.key}-${billing}`;
 
           return (
@@ -266,6 +275,14 @@ export default function PricingPage() {
           );
         })}
       </div>
+
+      {/* LO callout — shown to signed-in borrowers in place of the Pro card */}
+      {isSignedIn && isLO === false && (
+        <div className="pricing-lo-callout">
+          <span className="pricing-lo-callout-label">Are you a Loan Officer or Agent?</span>
+          <Link href="/for-pros" className="pricing-lo-callout-link">See Pro plan for professionals →</Link>
+        </div>
+      )}
 
       <p className="pricing-footer-note">
         All paid plans include a 7-day free trial. Cancel anytime.{" "}
@@ -433,6 +450,20 @@ export default function PricingPage() {
         }
         .pricing-footer-link { color: rgba(0,232,122,0.7); text-decoration: none; }
         .pricing-footer-link:hover { color: #00e87a; }
+
+        .pricing-lo-callout {
+          display: flex; align-items: center; justify-content: center;
+          gap: 16px; flex-wrap: wrap;
+          margin: 0 auto 28px;
+          padding: 12px 20px;
+          background: rgba(61,139,255,0.06);
+          border: 1px solid rgba(61,139,255,0.15);
+          border-radius: 10px;
+          max-width: 480px;
+        }
+        .pricing-lo-callout-label { font-size: 0.85rem; color: rgba(160,192,168,0.7); }
+        .pricing-lo-callout-link { font-size: 0.85rem; font-weight: 600; color: #3d8bff; text-decoration: none; white-space: nowrap; }
+        .pricing-lo-callout-link:hover { color: #6aaeff; }
       `}</style>
     </PageShell>
   );

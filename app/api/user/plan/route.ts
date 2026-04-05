@@ -7,12 +7,20 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getUserPlan } from "../../../../lib/subscription";
+import { getSupabase } from "../../../../lib/supabaseServer";
 
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const plan = await getUserPlan(userId);
+  const sb = getSupabase();
+
+  const [plan, loResult] = await Promise.all([
+    getUserPlan(userId),
+    sb
+      ? sb.from("loan_officers").select("id").eq("user_id", userId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
   return NextResponse.json({
     plan: plan.plan,
@@ -22,5 +30,6 @@ export async function GET() {
     pdfExports: plan.pdfExports,
     borrowerSlots: plan.borrowerSlots,
     alertsEnabled: plan.alertsEnabled,
+    isLO: !!((loResult as any).data),
   });
 }
