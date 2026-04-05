@@ -368,13 +368,13 @@ export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool 
     // Bypass: seeds fired from the "deeper analysis" button are prefixed with [deep-analysis]
     if (/^\[deep-analysis\]/i.test(q)) return null;
     // 5% vs 20% down / down payment comparison
+    // NOTE: avoid \b(5.*20) patterns — match "5" in "$1,500,000" as a false positive
     if (/(?:5\s*%|five\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:20\s*%|twenty\s*percent)/i.test(q) ||
         /(?:20\s*%|twenty\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:5\s*%|five\s*percent)/i.test(q) ||
-        /\bdown\s*payment\s*(comparison|vs|versus|5.*20|which.*down)\b/i.test(q) ||
-        /\b(5.*20|20.*5)\s*%?\s*(down)\b/i.test(q) ||
-        /compare.*down\s*payment/i.test(q) ||
         /compare\s+5\s*%?\s*(?:vs?|versus|or)\s*20\s*%/i.test(q) ||
-        /compare\s+20\s*%?\s*(?:vs?|versus|or)\s*5\s*%/i.test(q)) return 'down_payment';
+        /compare\s+20\s*%?\s*(?:vs?|versus|or)\s*5\s*%/i.test(q) ||
+        /\bdown\s*payment\s*(comparison|vs|versus)\b/i.test(q) ||
+        /compare.*down\s*payment/i.test(q)) return 'down_payment';
     // Rate buydown vs price reduction / seller credit
     if (/\b(rate\s*buydown|buy\s*down\s*(the\s*)?rate|points?\s*vs|seller\s*credit)\b/i.test(q) &&
         /\b(vs|versus|or|price\s*reduction|compared)\b/i.test(q)) return 'seller_credit';

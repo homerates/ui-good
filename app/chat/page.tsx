@@ -2155,12 +2155,13 @@ export default function Page() {
             // Comparison questions always go to scenario route — card intercept lives there
             // Must be checked BEFORE any other routing that could override it
             // [deep-analysis] seeds are excluded — they need narrative AI, not the card again
+            // Comparison cards live in /api/answers (deterministic math, same as DSCR/FHA/conventional)
+            // NOTE: avoid \b(5.*20) patterns — "5" in "$1,500,000" triggers a false positive
             const isComparisonQuestion = !/^\[deep-analysis\]/i.test(q) && (
                 /(?:5\s*%|five\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:20\s*%|twenty\s*percent)/i.test(q) ||
                 /(?:20\s*%|twenty\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:5\s*%|five\s*percent)/i.test(q) ||
                 /compare\s+5\s*%?\s*(?:vs?|versus|or)\s*20\s*%/i.test(q) ||
                 /\bdown\s*payment\s*(comparison|vs|versus)\b/i.test(q) ||
-                /\b(5.*20|20.*5)\s*%?\s*(down)\b/i.test(q) ||
                 /\brate\s*buydown\b.{0,30}\b(vs|versus|price\s*reduction)\b/i.test(q) ||
                 /\bseller\s*credit\b.{0,30}\b(rate|buydown|reduction)\b/i.test(q) ||
                 /\b15\s*(yr|year).{0,20}(vs|versus).{0,20}30\s*(yr|year)\b/i.test(q) ||
@@ -2189,8 +2190,8 @@ export default function Page() {
                 /rates?\s+(?:go|drop|fall|hit|come\s*down)|drop\s+to|down\s+to|what\s+if.*%|refi|refinanc/i.test(q);
 
             if (isComparisonQuestion) {
-                useScenario = true;
-                console.log('[Routing] Comparison question — forcing scenario route for card intercept');
+                useScenario = false; // comparison cards are deterministic — answers route, same as DSCR/FHA
+                console.log('[Routing] Comparison question — answers route (deterministic card)');
             } else if (isFHAQuestion || isDownPaymentFollowUp || isRefiFollowUp) {
                 useScenario = false;
                 console.log('[Routing] FHA/down-payment/refi follow-up, forcing answers route');

@@ -3363,6 +3363,12 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
             usedTavily: false,
             fred: { tenYearYield: null, mort30Avg: null, spread: null, asOf: null },
             topSources: [],
+            // Top-level fields so chat/page.tsx render can access without scenarioToApiResponse
+            answer: compCard.answer,
+            message: compCard.answer,
+            answerMarkdown: compCard.answer,
+            follow_up_chips: compCard.follow_up_chips,
+            scenarioComparisonCard: compCard.scenarioComparisonCard,
             grok: {
                 answer: compCard.answer,
                 next_step: compCard.next_step,
