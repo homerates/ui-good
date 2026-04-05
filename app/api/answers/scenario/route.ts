@@ -2272,12 +2272,113 @@ export async function POST(req: NextRequest) {
         }
 
         // Strip [deep-analysis] prefix — scenario AI receives clean question for narrative analysis
+        const isDeepAnalysis = /^\[deep-analysis\]/i.test(message);
         const aiMessage = message.replace(/^\[deep-analysis\]\s*/i, '');
 
         // 1) FRED
         const tFred = Date.now();
         const marketData = await getCurrentMortgageData();
         fred_ms = Date.now() - tFred;
+
+        // ── DEEP ANALYSIS: residential comparison narrative (skip DSCR template) ─
+        if (isDeepAnalysis) {
+            // Detect comparison type from the aiMessage
+            const isDP = /5\s*%?\s*(?:vs|versus|or)\s*20\s*%?.*down|down\s*payment\s*compar|5.*vs.*20.*down|20.*vs.*5.*down|walk.*5.*20.*down/i.test(aiMessage);
+            if (isDP) {
+                // Extract price and rate — prefer "on a $X home" pattern, then largest sensible amount
+                const _onAHome = aiMessage.match(/on\s+(?:a\s+)?\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)\s*home/i);
+                const _allDollarAmounts: number[] = [];
+                const _dollarRe = /\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)/g;
+                let _dm: RegExpExecArray | null;
+                while ((_dm = _dollarRe.exec(aiMessage)) !== null) {
+                    const _raw = parseFloat(_dm[1].replace(/,/g,''));
+                    const _suf = _dm[2].toLowerCase();
+                    const _val = _suf === 'm' ? _raw * 1_000_000 : _suf === 'k' ? _raw * 1_000 : _raw;
+                    if (_val >= 150_000 && _val <= 5_000_000) _allDollarAmounts.push(_val);
+                }
+                let daPrice = 650_000;
+                if (_onAHome) {
+                    const _raw2 = parseFloat(_onAHome[1].replace(/,/g,''));
+                    const _suf2 = _onAHome[2].toLowerCase();
+                    daPrice = _suf2 === 'm' ? _raw2 * 1_000_000 : _suf2 === 'k' ? _raw2 * 1_000 : _raw2;
+                } else if (_allDollarAmounts.length) {
+                    daPrice = Math.max(..._allDollarAmounts);
+                }
+                // Rate: find first plausible mortgage rate (3–12%)
+                const _rateM = aiMessage.match(/(\d+\.?\d*)\s*%/g);
+                let daRate = marketData?.thirtyYearFixed ?? 7.0;
+                if (_rateM) {
+                    for (const _rt of _rateM) {
+                        const _v = parseFloat(_rt);
+                        if (_v >= 3 && _v <= 12) { daRate = _v; break; }
+                    }
+                }
+
+                const { calculateMortgage: _calcMtg } = await import('../../../../lib/mortgageCalculator');
+                const _low = _calcMtg({ price: daPrice, downPaymentPct: 5, rate: daRate, termYears: 30 });
+                const _high = _calcMtg({ price: daPrice, downPaymentPct: 20, rate: daRate, termYears: 30 });
+                const _pmiMonthly = (_low.loanAmount * 0.0055) / 12;
+                const _cashDiff = _high.downPayment - _low.downPayment;
+                const _f = (n: number) => '$' + Math.round(n).toLocaleString();
+                const _fk = (n: number) => n >= 10_000 ? '$' + Math.round(n/1_000) + 'k' : _f(n);
+
+                // PMI drop-off
+                let _bal = _low.loanAmount;
+                const _r = daRate / 100 / 12;
+                let _pmiMo = 0;
+                while (_bal > daPrice * 0.80 && _pmiMo < 360) {
+                    _bal -= (_low.monthlyPI - _bal * _r);
+                    _pmiMo++;
+                }
+                const _pmi7yr = Math.min(_pmiMo, 84) * _pmiMonthly;
+                const _invest7yr = _cashDiff * (Math.pow(1.07, 7) - 1);
+                const _totalLow = _low.monthlyPI + _pmiMonthly;
+                const _diff = _totalLow - _high.monthlyPI;
+
+                const daPrompt = `You are a helpful, plain-spoken mortgage advisor. Return valid JSON with this exact schema:
+{"narrative":"...markdown text..."}
+
+Write a clear, conversational residential down payment comparison. Use markdown (bold headers, bullet points). Do NOT mention DSCR, vacancy, cap rate, or investment metrics — this is a primary residence purchase.
+
+Use these exact numbers:
+- Purchase price: ${_f(daPrice)} at ${daRate}%
+- **5% down**: ${_f(_low.downPayment)} down → ${_f(_low.loanAmount)} loan → ${_f(_low.monthlyPI)}/mo P&I + ${_f(_pmiMonthly)}/mo PMI (drops ~month ${_pmiMo}) = ${_f(_totalLow)}/mo total
+- **20% down**: ${_f(_high.downPayment)} down → ${_f(_high.loanAmount)} loan → ${_f(_high.monthlyPI)}/mo, no PMI
+- Monthly difference: ${_f(_diff)}/mo more with 5% down
+- Cash you keep with 5% down: ${_f(_cashDiff)}
+- That ${_f(_cashDiff)} invested at 7%/yr for 7 years grows by: ${_fk(_invest7yr)}
+- Total PMI paid over 7 years: ${_fk(_pmi7yr)}
+
+Format:
+1. One sentence opener framing the trade-off
+2. Side-by-side bullet comparison (monthly cost, cash needed, PMI)
+3. Break-even / opportunity cost paragraph
+4. One-paragraph recommendation that addresses both camps
+5. Two follow-up questions for the borrower to consider`;
+
+                const tAI2 = Date.now();
+                const daAI = await routeAIRequest(daPrompt, aiMessage, 1200, 'claude');
+                ai_ms = Date.now() - tAI2;
+                provider = daAI.provider;
+
+                const narrative = (typeof daAI.parsed?.narrative === 'string' && daAI.parsed.narrative.length > 50)
+                    ? daAI.parsed.narrative
+                    : `**5% vs 20% Down — ${_f(daPrice)} at ${daRate}%**\n\n- 5% down: ${_f(_totalLow)}/mo (incl. PMI) · Down: ${_f(_low.downPayment)}\n- 20% down: ${_f(_high.monthlyPI)}/mo · Down: ${_f(_high.downPayment)}\n- Monthly diff: ${_f(_diff)}/mo · PMI drops off at month ${_pmiMo}\n- Keeping ${_f(_cashDiff)} invested at 7%/7yr → +${_fk(_invest7yr)} vs PMI cost of ${_fk(_pmi7yr)}`;
+
+                return respond({
+                    success: true,
+                    path: 'down_payment_analysis',
+                    grok: {
+                        answer: narrative,
+                        next_step: null,
+                        follow_up: null,
+                        follow_up_chips: [],
+                        confidence: 'high',
+                        scenarioComparisonCard: null,
+                    },
+                });
+            }
+        }
 
         // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
         // ===== MORTGAGE CALCULATOR PRE-CALCULATION =====
