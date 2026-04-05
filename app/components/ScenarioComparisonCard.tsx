@@ -92,7 +92,7 @@ function DownPaymentTool({ initPrice, initRate, onRunScenario }: {
         const cashKept = high.down - low.down;
         const invested = cashKept * Math.pow(1.07, years) - cashKept;
         const totalPMIPaid = Math.min(pmiMonths, years * 12) * lowPMI;
-        const seed = `Compare 5% down (${fmt(low.down)}) vs 20% down (${fmt(high.down)}) on a ${fmt(price)} home at ${fmtPct(rate)}. 5% down: ${fmt(lowTotal)}/mo including PMI which drops off at month ${pmiMonths}. 20% down: ${fmt(highTotal)}/mo, no PMI. Cash saved by going 5% down: ${fmt(cashKept)}, invested at 7% over ${years} years grows to ${fmtK(invested + cashKept)} (${fmtK(invested)} gain). Total PMI paid over ${years} years: ${fmtK(totalPMIPaid)}. Which is better and walk me through the break-even analysis.`;
+        const seed = `[deep-analysis] 5% down (${fmt(low.down)}) vs 20% down (${fmt(high.down)}) on a ${fmt(price)} home at ${fmtPct(rate)}. 5% down: ${fmt(lowTotal)}/mo including PMI which drops off at month ${pmiMonths}. 20% down: ${fmt(highTotal)}/mo, no PMI. Cash saved by going 5% down: ${fmt(cashKept)}, invested at 7% over ${years} years grows to ${fmtK(invested + cashKept)} (${fmtK(invested)} gain). Total PMI paid over ${years} years: ${fmtK(totalPMIPaid)}. Which is better and walk me through the break-even analysis.`;
         return { low: { down: low.down, loan: low.loan, pi: lowPI, pmi: lowPMI, total: lowTotal }, high: { down: high.down, loan: high.loan, pi: highPI, total: highTotal }, monthlyDiff, pmiMonths, cashKept, invested, totalPMIPaid, seed };
     }, [price, rate, years]);
 
@@ -175,7 +175,7 @@ function SellerCreditTool({ initPrice, initRate, initCredit, onRunScenario }: {
         const totalSavedB = monthlyDiff * years * 12;
         const savingsFromSmallerLoan = (calcPI(loanB, baseRate) - piA) * years * 12;
         const winner = totalSavedB > savingsFromSmallerLoan ? 'B' : 'A';
-        const seed = `Compare seller credit options on a ${fmt(price)} home at ${fmtPct(baseRate)} with ${fmtPct(downPct)} down. Option A: Price reduction of ${fmt(credit)} → loan ${fmt(loanA)} at ${fmtPct(baseRate)}, payment ${fmt(piA)}/mo. Option B: Rate buydown using ${fmt(credit)} as ${points.toFixed(2)} points → rate drops to ${fmtPct(reducedRate)}, payment ${fmt(piB)}/mo. Monthly diff: ${fmt(Math.abs(monthlyDiff))}. Over ${years} years, buydown saves ${fmtK(totalSavedB)}, price reduction saves ${fmtK(savingsFromSmallerLoan)}. Which is better and why? Walk me through the break-even and long-term math.`;
+        const seed = `[deep-analysis] Seller credit options on a ${fmt(price)} home at ${fmtPct(baseRate)} with ${fmtPct(downPct)} down. Option A: Price reduction of ${fmt(credit)} → loan ${fmt(loanA)} at ${fmtPct(baseRate)}, payment ${fmt(piA)}/mo. Option B: Rate buydown using ${fmt(credit)} as ${points.toFixed(2)} points → rate drops to ${fmtPct(reducedRate)}, payment ${fmt(piB)}/mo. Monthly diff: ${fmt(Math.abs(monthlyDiff))}. Over ${years} years, buydown saves ${fmtK(totalSavedB)}, price reduction saves ${fmtK(savingsFromSmallerLoan)}. Which is better and why? Walk me through the break-even and long-term math.`;
         return { A: { loan: loanA, rate: baseRate, pi: piA, down }, B: { loan: loanB, rate: reducedRate, pi: piB, down, points: points.toFixed(2), rateReduction: rateReduction.toFixed(3) }, monthlyDiff, totalSavedB, savingsFromSmallerLoan, winner, seed };
     }, [price, credit, baseRate, downPct, years]);
 
@@ -264,7 +264,7 @@ function TermTool({ initPrice, initRate, onRunScenario }: {
         const equity30at5 = equityAtYear(rate30, 30);
         const equity15at5 = equityAtYear(rate15, 15);
         const extraEquity = equity15at5 - equity30at5;
-        const seed = `Compare 15-year vs 30-year mortgage on a ${fmt(price)} home with ${fmtPct(downPct)} down. 30-year at ${fmtPct(rate30)}: ${fmt(pi30)}/mo, total interest ${fmtK(totalInterest30)}, equity at year 5: ${fmtK(equity30at5)}. 15-year at ${fmtPct(rate15)} (typical ~0.65% lower): ${fmt(pi15)}/mo (${fmt(monthlyDiff)}/mo more), total interest ${fmtK(totalInterest15)}, interest saved ${fmtK(interestSaved)}, extra equity at year 5: ${fmtK(extraEquity)}. Walk me through the full analysis — when does 15-year make sense vs 30-year?`;
+        const seed = `[deep-analysis] 15-year mortgage on a ${fmt(price)} home with ${fmtPct(downPct)} down. 30-year at ${fmtPct(rate30)}: ${fmt(pi30)}/mo, total interest ${fmtK(totalInterest30)}, equity at year 5: ${fmtK(equity30at5)}. 15-year at ${fmtPct(rate15)} (typical ~0.65% lower): ${fmt(pi15)}/mo (${fmt(monthlyDiff)}/mo more), total interest ${fmtK(totalInterest15)}, interest saved ${fmtK(interestSaved)}, extra equity at year 5: ${fmtK(extraEquity)}. Walk me through the full analysis — when does a 15-year make sense and what are the trade-offs?`;
         return { loan, rate15, pi30, pi15, monthlyDiff, totalInterest30, totalInterest15, interestSaved, equity30at5, equity15at5, extraEquity, seed };
     }, [price, downPct, rate30]);
 
@@ -352,7 +352,7 @@ function RentBuyTool({ initPrice, initRate, initRent, onRunScenario }: {
         for (let y = 0; y < years; y++) { totalRent += monthlyRent * 12; monthlyRent *= 1.03; }
         const rentAtYearN = rent * Math.pow(1.03, years);
         const monthlyDiff = totalBuy - rent;
-        const seed = `Rent vs buy comparison: ${fmt(price)} home, ${fmtPct(downPct)} down, ${fmtPct(rate)} rate vs ${fmt(rent)}/mo rent. Buying: ${fmt(totalBuy)}/mo PITI${pmi > 0 ? ' + PMI' : ''}, down + closing ${fmtK(down + closingCosts)}. After ${years} years buying builds ${fmtK(netBuyPosition)} net equity (after selling costs). Total rent paid: ${fmtK(totalRent)}, rent rises to ${fmt(rentAtYearN)}/mo at year ${years} (3%/yr). Monthly cost difference: ${fmt(Math.abs(monthlyDiff))}/mo ${monthlyDiff > 0 ? 'more to buy' : 'cheaper to buy'}. Run a full rent vs buy analysis and tell me when buying becomes clearly better.`;
+        const seed = `[deep-analysis] Renting at ${fmt(rent)}/mo versus buying a ${fmt(price)} home with ${fmtPct(downPct)} down at ${fmtPct(rate)}. Buying costs ${fmt(totalBuy)}/mo PITI${pmi > 0 ? ' + PMI' : ''}, down + closing ${fmtK(down + closingCosts)}. After ${years} years buying builds ${fmtK(netBuyPosition)} net equity (after selling costs). Total rent paid: ${fmtK(totalRent)}, rent rises to ${fmt(rentAtYearN)}/mo at year ${years} (3%/yr). Monthly cost difference: ${fmt(Math.abs(monthlyDiff))}/mo ${monthlyDiff > 0 ? 'more to buy' : 'cheaper to buy'}. Run a full analysis — when does buying become clearly better and what are the key factors?`;
         return { down, loan, pi, tax, ins, pmi, totalBuy, closingCosts, appreciation, paydownEquity, netBuyPosition, totalRent, rentAtYearN, monthlyDiff, futureValue, seed };
     }, [price, rent, downPct, rate, years]);
 

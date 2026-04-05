@@ -365,6 +365,8 @@ export function isJumboQuestion(q: string): boolean {
 export type ScenarioComparisonTool = 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
 
 export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool | null {
+    // Bypass: seeds fired from the "deeper analysis" button are prefixed with [deep-analysis]
+    if (/^\[deep-analysis\]/i.test(q)) return null;
     // 5% vs 20% down / down payment comparison
     if (/\b(5\s*%|five\s*percent)\s*(vs|versus|or|compared\s*to)\s*(20\s*%|twenty\s*percent)\b/i.test(q) ||
         /\bdown\s*payment\s*(comparison|vs|versus|5.*20|which.*down)\b/i.test(q) ||
