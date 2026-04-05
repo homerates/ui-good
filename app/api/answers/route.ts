@@ -3431,18 +3431,45 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
             const _diff = _totLo - _hi.monthlyPI;
             const _daPr = `You are a helpful, plain-spoken mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
 
-Write a clear, conversational residential down payment comparison. Use markdown (bold headers, bullet points). Do NOT mention DSCR, vacancy, cap rate, or investment metrics — this is a primary residence.
+Write a clear, visually rich residential down payment comparison. Use markdown with emoji icons on every stat line. Do NOT mention DSCR, vacancy, cap rate, or investment metrics — this is a primary residence.
 
-Numbers:
+Use EXACTLY these numbers (do not recalculate):
 - Purchase price: ${_fD(_p)} at ${_rt}%
-- **5% down**: ${_fD(_lo.downPayment)} down → ${_fD(_lo.loanAmount)} loan → ${_fD(_lo.monthlyPI)}/mo P&I + ${_fD(_pmiMo)}/mo PMI (drops ~month ${_pmiN}) = ${_fD(_totLo)}/mo total
-- **20% down**: ${_fD(_hi.downPayment)} down → ${_fD(_hi.loanAmount)} loan → ${_fD(_hi.monthlyPI)}/mo, no PMI
+- **5% down**: ${_fD(_lo.downPayment)} down → ${_fD(_lo.loanAmount)} loan → ${_fD(_lo.monthlyPI)}/mo P&I + ${_fD(_pmiMo)}/mo PMI (drops ~month ${_pmiN}) = **${_fD(_totLo)}/mo total**
+- **20% down**: ${_fD(_hi.downPayment)} down → ${_fD(_hi.loanAmount)} loan → **${_fD(_hi.monthlyPI)}/mo**, no PMI
 - Monthly difference: ${_fD(_diff)}/mo more with 5% down
 - Cash kept with 5% down: ${_fD(_cash)}
 - ${_fD(_cash)} invested at 7%/yr for 7 years grows by: ${_fkD(_inv7)}
 - Total PMI paid over 7 years: ${_fkD(_pmi7)}
 
-Format: 1-sentence opener, side-by-side bullet comparison, break-even / opportunity cost paragraph, recommendation, 2 follow-up questions.`;
+Required format (use these section headers and emojis):
+## 💵 5% vs 20% Down — ${_fD(_p)} at ${_rt}%
+[1-sentence opener framing the core trade-off]
+
+**💰 5% Down — ${_fD(_lo.downPayment)} upfront**
+- 🏦 Loan: ${_fD(_lo.loanAmount)}
+- 📅 Monthly P&I: ${_fD(_lo.monthlyPI)}/mo
+- 🛡️ PMI: ${_fD(_pmiMo)}/mo (drops ~month ${_pmiN})
+- **Total: ${_fD(_totLo)}/mo**
+
+**💰 20% Down — ${_fD(_hi.downPayment)} upfront**
+- 🏦 Loan: ${_fD(_hi.loanAmount)}
+- 📅 Monthly P&I: ${_fD(_hi.monthlyPI)}/mo
+- ✅ No PMI
+- **Total: ${_fD(_hi.monthlyPI)}/mo**
+
+**📊 The Numbers**
+- ⬆️ Monthly cost difference: ${_fD(_diff)}/mo more with 5% down
+- 💰 Cash you keep: ${_fD(_cash)}
+- 📈 That ${_fD(_cash)} invested at 7%/7yr: +${_fkD(_inv7)} gain
+- 🛑 Total PMI over 7 years: ${_fkD(_pmi7)}
+
+**🎯 Break-Even & Recommendation**
+[2-3 sentence analysis: when does 5% down pay off vs 20% down? Include the break-even point.]
+
+**❓ Questions to Consider**
+- [question 1 about their financial situation]
+- [question 2 about their goals]`;
             const _daR = await callGrokOnce(_daPr, { maxTokens: 1200 });
             const _nar = (typeof _daR.grokFinal?.narrative === 'string' && _daR.grokFinal.narrative.length > 50)
                 ? _daR.grokFinal.narrative
@@ -3463,17 +3490,36 @@ Format: 1-sentence opener, side-by-side bullet comparison, break-even / opportun
             const _intSaved = _t30.totalInterest - _t15.totalInterest;
             const _daPr2 = `You are a helpful mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
 
-Write a clear, conversational residential 15-year vs 30-year mortgage comparison. Use markdown. Do NOT mention DSCR or investment metrics — this is a primary residence.
+Write a clear, visually rich residential 15-year vs 30-year mortgage comparison. Use markdown with emoji icons on every stat line. Do NOT mention DSCR or investment metrics — this is a primary residence.
 
-Numbers:
+Use EXACTLY these numbers (do not recalculate):
 - Purchase price: ${_fD(_p2)} at ${_rt2}%, ${_dp2}% down, loan: ${_fD(_t30.loanAmount)}
-- **30-year**: ${_fD(_t30.monthlyPI)}/mo P&I · Total interest: ${_fkD(_t30.totalInterest)}
-- **15-year**: ${_fD(_t15.monthlyPI)}/mo P&I · Total interest: ${_fkD(_t15.totalInterest)}
+- 30-year: ${_fD(_t30.monthlyPI)}/mo P&I · Total interest: ${_fkD(_t30.totalInterest)}
+- 15-year: ${_fD(_t15.monthlyPI)}/mo P&I · Total interest: ${_fkD(_t15.totalInterest)}
 - Monthly difference: ${_fD(_moDiff2)}/mo more with 15-year
-- Interest saved with 15-year over life of loan: ${_fkD(_intSaved)}
-- 15-year builds equity ~2× faster in the first decade
+- Interest saved with 15-year: ${_fkD(_intSaved)}
 
-Format: 1-sentence opener, bullet comparison, interest savings / payment-shock paragraph, recommendation, 2 follow-up questions.`;
+Required format:
+## 📊 15-Year vs 30-Year — ${_fD(_p2)} at ${_rt2}%
+[1-sentence opener]
+
+**📅 30-Year Mortgage**
+- 💵 Monthly P&I: ${_fD(_t30.monthlyPI)}/mo
+- 💸 Total interest paid: ${_fkD(_t30.totalInterest)}
+- ✅ Lower monthly payment — more cash flow flexibility
+
+**📅 15-Year Mortgage**
+- 💵 Monthly P&I: ${_fD(_t15.monthlyPI)}/mo
+- 💸 Total interest paid: ${_fkD(_t15.totalInterest)}
+- ⬆️ Pay ${_fD(_moDiff2)}/mo more but save ${_fkD(_intSaved)} in interest
+- 🏠 Builds equity ~2× faster in the first decade
+
+**🎯 Break-Even & Recommendation**
+[2-3 sentences: when does 15-year make sense vs 30-year? Cash flow vs total cost trade-off.]
+
+**❓ Questions to Consider**
+- [question 1 about monthly budget flexibility]
+- [question 2 about long-term goals]`;
             const _daR2 = await callGrokOnce(_daPr2, { maxTokens: 1200 });
             const _nar2 = (typeof _daR2.grokFinal?.narrative === 'string' && _daR2.grokFinal.narrative.length > 50)
                 ? _daR2.grokFinal.narrative
@@ -3499,16 +3545,41 @@ Format: 1-sentence opener, bullet comparison, interest savings / payment-shock p
             const _totalRent3 = _rent3 * 12 * 7;
             const _daPr3 = `You are a helpful mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
 
-Write a clear, conversational rent vs buy analysis for a residential decision. Use markdown. Include both financial and lifestyle factors.
+Write a clear, visually rich rent vs buy analysis. Use markdown with emoji icons on every stat line. Include both financial and lifestyle factors.
 
-Numbers:
+Use EXACTLY these numbers (do not recalculate):
 - Home price: ${_fD(_p3)}, ${_dp3}% down (${_fD(_buy3.downPayment)}), loan ${_fD(_buy3.loanAmount)} at ${_rt3}%
-- **Buying total monthly**: ${_fD(_totBuy)}/mo (P&I ${_fD(_buy3.monthlyPI)} + tax ${_fD(_taxM3)} + ins ${_fD(_insM3)}${_dp3<20?` + PMI ${_fD(_pmiM3)}`:''}))
-- **Renting**: ${_fD(_rent3)}/mo
+- Buying total monthly: ${_fD(_totBuy)}/mo (P&I ${_fD(_buy3.monthlyPI)} + tax ${_fD(_taxM3)} + ins ${_fD(_insM3)}${_dp3<20?` + PMI ${_fD(_pmiM3)}`:''}))
+- Renting: ${_fD(_rent3)}/mo
 - Monthly diff to buy: ${_fD(_totBuy-_rent3)}/mo ${_totBuy>_rent3?'more':'less'}
 - Over 7 years: total rent paid ${_fkD(_totalRent3)} · home at 4%/yr grows to ${_fkD(_futureVal)}
 
-Format: 1-sentence framing, bullets comparing monthly cost + upfront cash, equity/appreciation paragraph, balanced recommendation, 2 follow-up questions.`;
+Required format:
+## 🏠 Rent vs. Buy — ${_fD(_p3)} at ${_rt3}%
+[1-sentence framing of the decision]
+
+**❌ Renting**
+- 💵 Monthly rent: ${_fD(_rent3)}/mo
+- ✅ No maintenance, taxes, or upfront cash needed
+- ❌ No equity built, rent rises ~3%/yr
+
+**🏡 Buying (${_dp3}% down)**
+- 💵 Down payment: ${_fD(_buy3.downPayment)}
+- 📅 Monthly PITI${_dp3<20?' + PMI':''}: ${_fD(_totBuy)}/mo
+- 🏠 Home value at 4%/yr over 7 years: ${_fkD(_futureVal)}
+- 💸 Total rent over 7 years: ${_fkD(_totalRent3)}
+
+**📊 The Decision**
+- ↕️ Monthly difference: ${_fD(Math.abs(_totBuy-_rent3))}/mo ${_totBuy>_rent3?'more to own':'more to rent'}
+- 🏡 Equity & appreciation work for you as an owner
+- 🛑 Buying costs more upfront — breakeven typically 5–8 years
+
+**🎯 Recommendation**
+[2-3 sentences: when does buying make sense? Address both financial and lifestyle angles.]
+
+**❓ Questions to Consider**
+- [question 1 about timeline/stability]
+- [question 2 about financial readiness]`;
             const _daR3 = await callGrokOnce(_daPr3, { maxTokens: 1200 });
             const _nar3 = (typeof _daR3.grokFinal?.narrative === 'string' && _daR3.grokFinal.narrative.length > 50)
                 ? _daR3.grokFinal.narrative
