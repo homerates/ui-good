@@ -2131,7 +2131,9 @@ export default function Page() {
             // Must be checked BEFORE any other routing that could override it
             // [deep-analysis] seeds are excluded — they need narrative AI, not the card again
             const isComparisonQuestion = !/^\[deep-analysis\]/i.test(q) && (
-                /\b(5\s*%|five\s*percent)\s*(vs|versus|or|compared\s*to)\s*(20\s*%|twenty\s*percent)\b/i.test(q) ||
+                /(?:5\s*%|five\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:20\s*%|twenty\s*percent)/i.test(q) ||
+                /(?:20\s*%|twenty\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:5\s*%|five\s*percent)/i.test(q) ||
+                /compare\s+5\s*%?\s*(?:vs?|versus|or)\s*20\s*%/i.test(q) ||
                 /\bdown\s*payment\s*(comparison|vs|versus)\b/i.test(q) ||
                 /\b(5.*20|20.*5)\s*%?\s*(down)\b/i.test(q) ||
                 /\brate\s*buydown\b.{0,30}\b(vs|versus|price\s*reduction)\b/i.test(q) ||
