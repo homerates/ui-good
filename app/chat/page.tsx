@@ -2144,9 +2144,9 @@ export default function Page() {
             const isRefiFollowUp =
                 /rates?\s+(?:go|drop|fall|hit|come\s*down)|drop\s+to|down\s+to|what\s+if.*%|refi|refinanc/i.test(q);
 
-            if (isFHAQuestion || isDownPaymentFollowUp || isRefiFollowUp) {
+            if (/^\[deep-analysis\]/i.test(q) || isFHAQuestion || isDownPaymentFollowUp || isRefiFollowUp) {
                 useScenario = false;
-                console.log('[Routing] FHA/down-payment/refi follow-up, forcing answers route');
+                console.log('[Routing] FHA/down-payment/refi follow-up or deep-analysis seed, forcing answers route');
             } else if (isFollowUp && lastRoute) {
                 // Follow-up: stick with previous route
                 useScenario = lastRoute === 'scenario';
