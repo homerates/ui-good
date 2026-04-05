@@ -51,10 +51,10 @@ function Slider({ label, value, min, max, step, onChange, display }: {
     );
 }
 
-function Stat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
+function Stat({ label, value, sub, accent, icon }: { label: string; value: string; sub?: string; accent?: boolean; icon?: string }) {
     return (
         <div className="sc-stat">
-            <div className="sc-stat-label">{label}</div>
+            <div className="sc-stat-label">{icon && <span style={{ marginRight: 4, opacity: 0.6 }}>{icon}</span>}{label}</div>
             <div className="sc-stat-value" style={accent ? { color: '#00e87a' } : {}}>{value}</div>
             {sub && <div className="sc-stat-sub">{sub}</div>}
         </div>
@@ -108,29 +108,29 @@ function DownPaymentTool({ initPrice, initRate, onRunScenario }: {
                         <span className="sc-col-badge" style={{ background: '#ff8c42' }}>5% DOWN</span>
                         <span className="sc-col-sub">Lower cash in — higher monthly</span>
                     </div>
-                    <Stat label="Down payment" value={fmt(calc.low.down)} sub="+ closing costs" />
-                    <Stat label="Loan amount" value={fmt(calc.low.loan)} />
-                    <Stat label="Monthly P&I" value={fmt(calc.low.pi)} />
-                    <Stat label="PMI (est.)" value={fmt(calc.low.pmi) + '/mo'} sub={`drops off ~month ${calc.pmiMonths}`} />
-                    <Stat label="Total monthly" value={fmt(calc.low.total)} />
+                    <Stat icon="💵" label="Down payment" value={fmt(calc.low.down)} sub="+ closing costs" />
+                    <Stat icon="🏦" label="Loan amount" value={fmt(calc.low.loan)} />
+                    <Stat icon="📅" label="Monthly P&I" value={fmt(calc.low.pi)} />
+                    <Stat icon="🛡️" label="PMI (est.)" value={fmt(calc.low.pmi) + '/mo'} sub={`drops off ~month ${calc.pmiMonths}`} />
+                    <Stat icon="💳" label="Total monthly" value={fmt(calc.low.total)} />
                 </div>
                 <div className="sc-col sc-col-b">
                     <div className="sc-col-header">
                         <span className="sc-col-badge" style={{ background: '#00e87a' }}>20% DOWN</span>
                         <span className="sc-col-sub">Higher cash in — no PMI</span>
                     </div>
-                    <Stat label="Down payment" value={fmt(calc.high.down)} sub="+ closing costs" />
-                    <Stat label="Loan amount" value={fmt(calc.high.loan)} />
-                    <Stat label="Monthly P&I" value={fmt(calc.high.pi)} />
-                    <Stat label="PMI" value="None" />
-                    <Stat label="Total monthly" value={fmt(calc.high.total)} />
+                    <Stat icon="💵" label="Down payment" value={fmt(calc.high.down)} sub="+ closing costs" />
+                    <Stat icon="🏦" label="Loan amount" value={fmt(calc.high.loan)} />
+                    <Stat icon="📅" label="Monthly P&I" value={fmt(calc.high.pi)} />
+                    <Stat icon="✅" label="PMI" value="None" />
+                    <Stat icon="💳" label="Total monthly" value={fmt(calc.high.total)} />
                 </div>
             </div>
             <div className="sc-delta-row">
-                <div className="sc-delta"><span className="sc-delta-label">Monthly diff</span><span className="sc-delta-val">{fmt(calc.monthlyDiff)}/mo</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Cash kept (5%)</span><span className="sc-delta-val">{fmt(calc.cashKept)}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Invested @7%/{years}yr</span><span className="sc-delta-val">{fmtK(calc.invested)}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Total PMI/{years}yr</span><span className="sc-delta-val">{fmtK(calc.totalPMIPaid)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">⬆️ Monthly diff</span><span className="sc-delta-val">{fmt(calc.monthlyDiff)}/mo</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">💰 Cash kept (5%)</span><span className="sc-delta-val">{fmt(calc.cashKept)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">📈 Invested @7%/{years}yr</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{fmtK(calc.invested)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🛑 Total PMI/{years}yr</span><span className="sc-delta-val" style={{ color: '#ff8c42' }}>{fmtK(calc.totalPMIPaid)}</span></div>
             </div>
             <div className="sc-insight">💡 {winner}</div>
             <div className="sc-sliders">
@@ -191,29 +191,29 @@ function SellerCreditTool({ initPrice, initRate, initCredit, onRunScenario }: {
                         <span className="sc-col-badge" style={{ background: '#ff8c42' }}>PRICE REDUCTION</span>
                         <span className="sc-col-sub">Seller drops price by {fmt(credit)}</span>
                     </div>
-                    <Stat label="Purchase price" value={fmt(price - credit)} />
-                    <Stat label="Loan amount" value={fmt(calc.A.loan)} />
-                    <Stat label="Interest rate" value={fmtPct(calc.A.rate)} />
-                    <Stat label="Monthly P&I" value={fmt(calc.A.pi)} />
-                    <Stat label="Down payment" value={fmt(calc.A.down)} />
+                    <Stat icon="🏷️" label="Purchase price" value={fmt(price - credit)} />
+                    <Stat icon="🏦" label="Loan amount" value={fmt(calc.A.loan)} />
+                    <Stat icon="📊" label="Interest rate" value={fmtPct(calc.A.rate)} />
+                    <Stat icon="📅" label="Monthly P&I" value={fmt(calc.A.pi)} />
+                    <Stat icon="💵" label="Down payment" value={fmt(calc.A.down)} />
                 </div>
                 <div className="sc-col sc-col-b">
                     <div className="sc-col-header">
                         <span className="sc-col-badge" style={{ background: '#00e87a' }}>RATE BUYDOWN</span>
                         <span className="sc-col-sub">{calc.B.points} pts → −{calc.B.rateReduction}% rate</span>
                     </div>
-                    <Stat label="Purchase price" value={fmt(price)} />
-                    <Stat label="Loan amount" value={fmt(calc.B.loan)} />
-                    <Stat label="Bought-down rate" value={fmtPct(calc.B.rate)} sub={`was ${fmtPct(baseRate)}`} />
-                    <Stat label="Monthly P&I" value={fmt(calc.B.pi)} />
-                    <Stat label="Down payment" value={fmt(calc.B.down)} />
+                    <Stat icon="🏷️" label="Purchase price" value={fmt(price)} />
+                    <Stat icon="🏦" label="Loan amount" value={fmt(calc.B.loan)} />
+                    <Stat icon="📉" label="Bought-down rate" value={fmtPct(calc.B.rate)} sub={`was ${fmtPct(baseRate)}`} />
+                    <Stat icon="📅" label="Monthly P&I" value={fmt(calc.B.pi)} />
+                    <Stat icon="💵" label="Down payment" value={fmt(calc.B.down)} />
                 </div>
             </div>
             <div className="sc-delta-row">
-                <div className="sc-delta"><span className="sc-delta-label">Monthly diff</span><span className="sc-delta-val">{fmt(Math.abs(calc.monthlyDiff))}/mo</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Buydown saves/{years}yr</span><span className="sc-delta-val">{fmtK(calc.totalSavedB)}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Price cut saves/{years}yr</span><span className="sc-delta-val">{fmtK(calc.savingsFromSmallerLoan)}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Winner</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{calc.winner === 'B' ? 'Rate Buydown' : 'Price Reduction'}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">↕️ Monthly diff</span><span className="sc-delta-val">{fmt(Math.abs(calc.monthlyDiff))}/mo</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">📉 Buydown saves/{years}yr</span><span className="sc-delta-val" style={calc.winner === 'B' ? { color: '#00e87a' } : {}}>{fmtK(calc.totalSavedB)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🏷️ Price cut saves/{years}yr</span><span className="sc-delta-val" style={calc.winner === 'A' ? { color: '#00e87a' } : {}}>{fmtK(calc.savingsFromSmallerLoan)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🏆 Winner</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{calc.winner === 'B' ? 'Rate Buydown' : 'Price Reduction'}</span></div>
             </div>
             <div className="sc-insight">💡 {insight}</div>
             <div className="sc-sliders">
@@ -276,29 +276,29 @@ function TermTool({ initPrice, initRate, onRunScenario }: {
                         <span className="sc-col-badge" style={{ background: '#ff8c42' }}>30-YEAR</span>
                         <span className="sc-col-sub">Lower payment, slower equity</span>
                     </div>
-                    <Stat label="Rate" value={fmtPct(rate30)} />
-                    <Stat label="Monthly P&I" value={fmt(calc.pi30)} />
-                    <Stat label="Total interest" value={fmtK(calc.totalInterest30)} />
-                    <Stat label="Equity at year 5" value={fmtK(calc.equity30at5)} />
-                    <Stat label="Paid off" value="Year 30" />
+                    <Stat icon="📊" label="Rate" value={fmtPct(rate30)} />
+                    <Stat icon="📅" label="Monthly P&I" value={fmt(calc.pi30)} />
+                    <Stat icon="💸" label="Total interest" value={fmtK(calc.totalInterest30)} />
+                    <Stat icon="🏠" label="Equity at year 5" value={fmtK(calc.equity30at5)} />
+                    <Stat icon="🗓️" label="Paid off" value="Year 30" />
                 </div>
                 <div className="sc-col sc-col-b">
                     <div className="sc-col-header">
                         <span className="sc-col-badge" style={{ background: '#00e87a' }}>15-YEAR</span>
                         <span className="sc-col-sub">Higher payment, massive savings</span>
                     </div>
-                    <Stat label="Rate" value={fmtPct(calc.rate15)} sub="~0.65% lower (typical)" />
-                    <Stat label="Monthly P&I" value={fmt(calc.pi15)} />
-                    <Stat label="Total interest" value={fmtK(calc.totalInterest15)} />
-                    <Stat label="Equity at year 5" value={fmtK(calc.equity15at5)} />
-                    <Stat label="Paid off" value="Year 15" />
+                    <Stat icon="📊" label="Rate" value={fmtPct(calc.rate15)} sub="~0.65% lower (typical)" />
+                    <Stat icon="📅" label="Monthly P&I" value={fmt(calc.pi15)} />
+                    <Stat icon="✅" label="Total interest" value={fmtK(calc.totalInterest15)} />
+                    <Stat icon="🏠" label="Equity at year 5" value={fmtK(calc.equity15at5)} accent />
+                    <Stat icon="🎯" label="Paid off" value="Year 15" />
                 </div>
             </div>
             <div className="sc-delta-row">
-                <div className="sc-delta"><span className="sc-delta-label">Extra monthly (15yr)</span><span className="sc-delta-val">{fmt(calc.monthlyDiff)}/mo</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Interest saved</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{fmtK(calc.interestSaved)}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Extra equity yr 5</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{fmtK(calc.extraEquity)}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Paid off sooner</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>15 yrs earlier</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">⬆️ Extra monthly (15yr)</span><span className="sc-delta-val">{fmt(calc.monthlyDiff)}/mo</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">💰 Interest saved</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{fmtK(calc.interestSaved)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🏠 Extra equity yr 5</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{fmtK(calc.extraEquity)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🎯 Paid off sooner</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>15 yrs earlier</span></div>
             </div>
             <div className="sc-insight">💡 The 15-year saves {fmtK(calc.interestSaved)} in total interest and builds {fmtK(calc.extraEquity)} more equity in 5 years — at the cost of {fmt(calc.monthlyDiff)}/mo. The 30-year frees that cash flow for investing.</div>
             <div className="sc-sliders">
@@ -368,27 +368,27 @@ function RentBuyTool({ initPrice, initRate, initRent, onRunScenario }: {
                         <span className="sc-col-badge" style={{ background: '#ff8c42' }}>RENT</span>
                         <span className="sc-col-sub">Flexibility, zero equity</span>
                     </div>
-                    <Stat label="Monthly rent (today)" value={fmt(rent)} />
-                    <Stat label={`Rent at year ${years}`} value={fmt(calc.rentAtYearN)} sub="at 3%/yr increase" />
-                    <Stat label={`Total rent / ${years}yr`} value={fmtK(calc.totalRent)} />
-                    <Stat label="Equity built" value="$0" />
+                    <Stat icon="🏠" label="Monthly rent (today)" value={fmt(rent)} />
+                    <Stat icon="📈" label={`Rent at year ${years}`} value={fmt(calc.rentAtYearN)} sub="at 3%/yr increase" />
+                    <Stat icon="💸" label={`Total rent / ${years}yr`} value={fmtK(calc.totalRent)} />
+                    <Stat icon="❌" label="Equity built" value="$0" />
                 </div>
                 <div className="sc-col sc-col-b">
                     <div className="sc-col-header">
                         <span className="sc-col-badge" style={{ background: '#00e87a' }}>BUY</span>
                         <span className="sc-col-sub">Building equity + appreciation</span>
                     </div>
-                    <Stat label="Monthly PITI" value={fmt(calc.totalBuy)} />
-                    <Stat label="Down + closing" value={fmtK(calc.down + calc.closingCosts)} />
-                    <Stat label={`Appreciation / ${years}yr`} value={fmtK(calc.appreciation)} sub="at 4%/yr" />
-                    <Stat label="Net equity (after sell)" value={fmtK(calc.netBuyPosition)} accent />
+                    <Stat icon="📅" label="Monthly PITI" value={fmt(calc.totalBuy)} />
+                    <Stat icon="💵" label="Down + closing" value={fmtK(calc.down + calc.closingCosts)} />
+                    <Stat icon="🏡" label={`Appreciation / ${years}yr`} value={fmtK(calc.appreciation)} sub="at 4%/yr" />
+                    <Stat icon="🏆" label="Net equity (after sell)" value={fmtK(calc.netBuyPosition)} accent />
                 </div>
             </div>
             <div className="sc-delta-row">
-                <div className="sc-delta"><span className="sc-delta-label">Monthly diff</span><span className="sc-delta-val">{fmt(Math.abs(calc.monthlyDiff))}/mo {calc.monthlyDiff > 0 ? 'more to buy' : 'more to rent'}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Home value in {years}yr</span><span className="sc-delta-val">{fmtK(calc.futureValue)}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Net equity built</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{fmtK(calc.netBuyPosition)}</span></div>
-                <div className="sc-delta"><span className="sc-delta-label">Total rent paid</span><span className="sc-delta-val">{fmtK(calc.totalRent)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">↕️ Monthly diff</span><span className="sc-delta-val">{fmt(Math.abs(calc.monthlyDiff))}/mo {calc.monthlyDiff > 0 ? 'more to buy' : 'more to rent'}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🏡 Home value in {years}yr</span><span className="sc-delta-val">{fmtK(calc.futureValue)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">💰 Net equity built</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{fmtK(calc.netBuyPosition)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🛑 Total rent paid</span><span className="sc-delta-val">{fmtK(calc.totalRent)}</span></div>
             </div>
             <div className="sc-insight">💡 {insight}</div>
             <div className="sc-sliders">

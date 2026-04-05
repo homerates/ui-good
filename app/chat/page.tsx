@@ -533,12 +533,17 @@ function scenarioToApiResponse(s: any): ApiResponse {
 
 
     const md: string[] = [];
-    md.push('## Smart Scenario');
-    md.push('');
+    // For pure narrative responses (deep analysis), skip the Smart Scenario wrapper and tables
+    const isNarrativeOnly = !result?.scenario_inputs && !result?.plain_english_summary && !result?.monthly_payment;
+    if (!isNarrativeOnly) {
+        md.push('## Smart Scenario');
+        md.push('');
+    }
     md.push(summary);
     md.push('');
 
     // Sensitivity table (monthly payment / cash flow / DSCR)
+    if (isNarrativeOnly) { /* skip all tables for narrative-only */ } else
     const sens = result?.sensitivity_table;
     if (sens && typeof sens === "object") {
         const order = ["current_rate", "plus_0_5pct", "plus_1pct", "minus_0_5pct"];
@@ -600,7 +605,7 @@ function scenarioToApiResponse(s: any): ApiResponse {
     }
 
     // Amortization Snapshot - Use API data if available, otherwise compute locally
-    {
+    if (!isNarrativeOnly) {
         const fmtMoney0 = (n: any) => {
             const x = typeof n === "number" ? n : Number(n);
             if (!isFinite(x)) return "-";
@@ -788,9 +793,10 @@ function scenarioToApiResponse(s: any): ApiResponse {
         }
         md.push('');
     }
+    } // end if (!isNarrativeOnly)
 
     // Key risks
-    if (Array.isArray(result?.key_risks) && result.key_risks.length) {
+    if (!isNarrativeOnly && Array.isArray(result?.key_risks) && result.key_risks.length) {
         md.push('### Key Risks');
         md.push('');
         for (const r of result.key_risks) md.push(`- ${r}`);

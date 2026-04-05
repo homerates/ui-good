@@ -2378,6 +2378,122 @@ Format:
                     },
                 });
             }
+
+            // ── 15 vs 30 year term comparison ─────────────────────────────────
+            const isTerm = /15\s*(?:yr|year).*(?:vs|versus|or).*30\s*(?:yr|year)|30\s*(?:yr|year).*(?:vs|versus|or).*15\s*(?:yr|year)|walk.*15.*30.*year|15.*30.*compar/i.test(aiMessage);
+            if (!isDP && isTerm) {
+                const _prM2 = aiMessage.match(/on\s+(?:a\s+)?\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)\s*home/i);
+                const _allAmt2: number[] = [];
+                const _dr2 = /\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)/g;
+                let _dm2: RegExpExecArray | null;
+                while ((_dm2 = _dr2.exec(aiMessage)) !== null) {
+                    const _rv = parseFloat(_dm2[1].replace(/,/g,''));
+                    const _sf = _dm2[2].toLowerCase();
+                    const _vv = _sf === 'm' ? _rv * 1_000_000 : _sf === 'k' ? _rv * 1_000 : _rv;
+                    if (_vv >= 150_000 && _vv <= 5_000_000) _allAmt2.push(_vv);
+                }
+                let daPrice2 = 500_000;
+                if (_prM2) {
+                    const _rr = parseFloat(_prM2[1].replace(/,/g,''));
+                    const _ss = _prM2[2].toLowerCase();
+                    daPrice2 = _ss === 'm' ? _rr * 1_000_000 : _ss === 'k' ? _rr * 1_000 : _rr;
+                } else if (_allAmt2.length) { daPrice2 = Math.max(..._allAmt2); }
+                const _rm2 = aiMessage.match(/(\d+\.?\d*)\s*%/g);
+                let daRate2 = marketData?.thirtyYearFixed ?? 7.0;
+                if (_rm2) { for (const _rt of _rm2) { const _v = parseFloat(_rt); if (_v >= 3 && _v <= 12) { daRate2 = _v; break; } } }
+                const _dpM2 = aiMessage.match(/(\d+)\s*%\s*down/i);
+                const _dp2 = _dpM2 ? Math.min(Math.max(parseFloat(_dpM2[1]), 3), 50) : 20;
+
+                const { calculateMortgage: _cm2 } = await import('../../../../lib/mortgageCalculator');
+                const _t30 = _cm2({ price: daPrice2, downPaymentPct: _dp2, rate: daRate2, termYears: 30 });
+                const _t15 = _cm2({ price: daPrice2, downPaymentPct: _dp2, rate: daRate2, termYears: 15 });
+                const _f2 = (n: number) => '$' + Math.round(n).toLocaleString();
+                const _fk2 = (n: number) => n >= 10_000 ? '$' + Math.round(n/1_000) + 'k' : _f2(n);
+                const _moDiff = _t15.monthlyPI - _t30.monthlyPI;
+                const _intSaved = _t30.totalInterest - _t15.totalInterest;
+
+                const daPrompt2 = `You are a helpful mortgage advisor. Return valid JSON: {"narrative":"...markdown text..."}
+
+Write a clear, conversational residential 15-year vs 30-year mortgage comparison. Use markdown. Do NOT mention DSCR or investment metrics — this is a primary residence.
+
+Numbers:
+- Purchase price: ${_f2(daPrice2)} at ${daRate2}%, ${_dp2}% down, loan: ${_f2(_t30.loanAmount)}
+- **30-year**: ${_f2(_t30.monthlyPI)}/mo P&I · Total interest: ${_fk2(_t30.totalInterest)}
+- **15-year**: ${_f2(_t15.monthlyPI)}/mo P&I · Total interest: ${_fk2(_t15.totalInterest)}
+- Monthly difference: ${_f2(_moDiff)}/mo more with 15-year
+- Interest saved with 15-year over life of loan: ${_fk2(_intSaved)}
+- 15-year builds equity ~2× faster in the first decade
+
+Format: 1-sentence opener, bullet comparison, interest savings / payment-shock analysis paragraph, recommendation, 2 follow-up questions.`;
+
+                const _tAI2 = Date.now();
+                const _ai2 = await routeAIRequest(daPrompt2, aiMessage, 1200, 'claude');
+                ai_ms = Date.now() - _tAI2;
+                provider = _ai2.provider;
+                const _nar2 = (typeof _ai2.parsed?.narrative === 'string' && _ai2.parsed.narrative.length > 50)
+                    ? _ai2.parsed.narrative
+                    : `**15-Year vs 30-Year — ${_f2(daPrice2)} at ${daRate2}%**\n\n- 30-year: ${_f2(_t30.monthlyPI)}/mo · Interest: ${_fk2(_t30.totalInterest)}\n- 15-year: ${_f2(_t15.monthlyPI)}/mo · Interest: ${_fk2(_t15.totalInterest)}\n- You pay ${_f2(_moDiff)}/mo more but save ${_fk2(_intSaved)} in interest`;
+                return respond({ success: true, path: 'term_analysis',
+                    grok: { answer: _nar2, next_step: null, follow_up: null, follow_up_chips: [], confidence: 'high', scenarioComparisonCard: null } });
+            }
+
+            // ── Rent vs Buy ────────────────────────────────────────────────────
+            const isRB = /rent.*(?:vs|versus|or).*buy|buy.*(?:vs|versus|or).*rent|should.*(?:rent|buy)|renting.*buying|buying.*renting|walk.*rent.*buy/i.test(aiMessage);
+            if (!isDP && !isTerm && isRB) {
+                const _allAmt3: number[] = [];
+                const _dr3 = /\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)/g;
+                let _dm3: RegExpExecArray | null;
+                while ((_dm3 = _dr3.exec(aiMessage)) !== null) {
+                    const _rv = parseFloat(_dm3[1].replace(/,/g,''));
+                    const _sf = _dm3[2].toLowerCase();
+                    const _vv = _sf === 'm' ? _rv * 1_000_000 : _sf === 'k' ? _rv * 1_000 : _rv;
+                    if (_vv >= 150_000 && _vv <= 5_000_000) _allAmt3.push(_vv);
+                }
+                const _rentM = aiMessage.match(/rent(?:ing)?\s*(?:is|at|of|for)?\s*\$?\s*([\d,]+)/i);
+                const _rent3 = _rentM ? parseFloat(_rentM[1].replace(/,/g,'')) : 2_800;
+                const _price3 = _allAmt3.length ? Math.max(..._allAmt3) : 550_000;
+                const _rm3 = aiMessage.match(/(\d+\.?\d*)\s*%/g);
+                let _rate3 = marketData?.thirtyYearFixed ?? 7.0;
+                if (_rm3) { for (const _rt of _rm3) { const _v = parseFloat(_rt); if (_v >= 3 && _v <= 12) { _rate3 = _v; break; } } }
+                const _dpM3 = aiMessage.match(/(\d+)\s*%\s*down/i);
+                const _dp3 = _dpM3 ? Math.min(Math.max(parseFloat(_dpM3[1]), 3), 30) : 10;
+
+                const { calculateMortgage: _cm3 } = await import('../../../../lib/mortgageCalculator');
+                const _buy = _cm3({ price: _price3, downPaymentPct: _dp3, rate: _rate3, termYears: 30 });
+                const _pmiM3 = _dp3 < 20 ? (_buy.loanAmount * 0.0055) / 12 : 0;
+                const _taxM3 = (_price3 * 0.012) / 12;
+                const _insM3 = (_price3 * 0.005) / 12;
+                const _totalBuy = _buy.monthlyPI + _pmiM3 + _taxM3 + _insM3;
+                const _f3 = (n: number) => '$' + Math.round(n).toLocaleString();
+                const _fk3 = (n: number) => n >= 10_000 ? '$' + Math.round(n/1_000) + 'k' : _f3(n);
+                const _years3 = 7;
+                const _futureVal = _price3 * Math.pow(1.04, _years3);
+                const _equity = _futureVal - _buy.loanAmount * (1 - 0.04 * _years3);
+                const _totalRent = _rent3 * 12 * _years3;
+
+                const daPrompt3 = `You are a helpful mortgage advisor. Return valid JSON: {"narrative":"...markdown text..."}
+
+Write a clear, conversational rent vs buy analysis for a residential decision. Use markdown. Include both financial and lifestyle factors.
+
+Numbers:
+- Home price: ${_f3(_price3)}, ${_dp3}% down (${_f3(_buy.downPayment)}), loan ${_f3(_buy.loanAmount)} at ${_rate3}%
+- **Buying total monthly**: ${_f3(_totalBuy)}/mo (P&I ${_f3(_buy.monthlyPI)} + tax ${_f3(_taxM3)} + ins ${_f3(_insM3)}${_dp3 < 20 ? ` + PMI ${_f3(_pmiM3)}` : ''})
+- **Renting**: ${_f3(_rent3)}/mo
+- Monthly diff to buy: ${_f3(_totalBuy - _rent3)}/mo ${_totalBuy > _rent3 ? 'more' : 'less'}
+- Over ${_years3} years: total rent paid ${_fk3(_totalRent)} · home value at 4%/yr grows to ${_fk3(_futureVal)}
+
+Format: 1-sentence framing, bullets comparing monthly cost + upfront cash, equity/appreciation paragraph, a balanced recommendation covering both camps, 2 follow-up questions.`;
+
+                const _tAI3 = Date.now();
+                const _ai3 = await routeAIRequest(daPrompt3, aiMessage, 1200, 'claude');
+                ai_ms = Date.now() - _tAI3;
+                provider = _ai3.provider;
+                const _nar3 = (typeof _ai3.parsed?.narrative === 'string' && _ai3.parsed.narrative.length > 50)
+                    ? _ai3.parsed.narrative
+                    : `**Rent vs Buy — ${_f3(_price3)} home**\n\n- Buying: ${_f3(_totalBuy)}/mo total PITI · ${_f3(_buy.downPayment)} down\n- Renting: ${_f3(_rent3)}/mo\n- Monthly diff: ${_f3(Math.abs(_totalBuy - _rent3))}/mo ${_totalBuy > _rent3 ? 'more to own' : 'more to rent'}`;
+                return respond({ success: true, path: 'rent_buy_analysis',
+                    grok: { answer: _nar3, next_step: null, follow_up: null, follow_up_chips: [], confidence: 'high', scenarioComparisonCard: null } });
+            }
         }
 
         // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
