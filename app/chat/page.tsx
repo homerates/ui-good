@@ -826,6 +826,24 @@ function scenarioToApiResponse(s: any): ApiResponse {
         (s as any)?.followUp ??
         undefined;
 
+    // Narrative-only responses (deep analysis) render as plain chat bubbles, not GrokCard
+    if (isNarrativeOnly) {
+        return {
+            path: 'dynamic',
+            usedFRED: false,
+            confidence: conf,
+            message: summary,
+            summary,
+            answer: summary,
+            answerMarkdown: undefined,
+            data_freshness: undefined,
+            followUp: undefined,
+            follow_up_chips: undefined,
+            scenarioComparisonCard: null,
+            grok: null,
+        } as any;
+    }
+
     return {
         path: s?.scenarioComparisonCard ? 'scenario_comparison' as any : 'dynamic',
         usedFRED: marketData?.usedFallbacks === false || Boolean(marketData?.date),
