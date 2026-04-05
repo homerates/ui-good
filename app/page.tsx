@@ -763,6 +763,7 @@ export default function LandingPage() {
                   <Link href="/knowledge-hub"><span className="lp-ddm-icon">📚</span>Knowledge Hub</Link>
                   <Link href="/loan-limits"><span className="lp-ddm-icon">🏠</span>Loan Limits 2026</Link>
                   <div className="lp-nav-dropdown-divider" />
+                  <Link href="/compare"><span className="lp-ddm-icon">⚖️</span>Compare Scenarios</Link>
                   <Link href="/calculators"><span className="lp-ddm-icon">🧮</span>Calculators</Link>
                   <Link href="/jumbo-calculator"><span className="lp-ddm-icon">⚡</span>Jumbo Calculator</Link>
                   <Link href="/dscr-calculator"><span className="lp-ddm-icon">📊</span>DSCR Calculator</Link>
