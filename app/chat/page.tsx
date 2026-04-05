@@ -534,7 +534,8 @@ function scenarioToApiResponse(s: any): ApiResponse {
 
     const md: string[] = [];
     // For pure narrative responses (deep analysis), skip the Smart Scenario wrapper and tables
-    const isNarrativeOnly = !result?.scenario_inputs && !result?.plain_english_summary && !result?.monthly_payment;
+    // True only for deep-analysis narratives (no DSCR result data, no comparison card to render)
+    const isNarrativeOnly = !result?.scenario_inputs && !result?.plain_english_summary && !result?.monthly_payment && !s?.scenarioComparisonCard;
     if (!isNarrativeOnly) {
         md.push('## Smart Scenario');
         md.push('');
