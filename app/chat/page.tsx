@@ -2152,12 +2152,19 @@ export default function Page() {
 
             let useScenario = false;
 
-            // Comparison questions always go to scenario route — card intercept lives there
-            // Must be checked BEFORE any other routing that could override it
+            // [deep-analysis] seeds from the "Run deeper AI analysis" button always go to the
+            // scenario route — that's where the residential narrative intercepts live.
+            // Must be first so downstream guards (isDownPaymentFollowUp, isFollowUp) can't override.
+            const isDeepAnalysisSeed = /^\[deep-analysis\]/i.test(q);
+            if (isDeepAnalysisSeed) {
+                useScenario = true;
+                console.log('[Routing] Deep-analysis seed — scenario route (narrative intercepts)');
+            }
+
+            // Comparison questions always go to answers route — deterministic math card, same as DSCR/FHA
             // [deep-analysis] seeds are excluded — they need narrative AI, not the card again
-            // Comparison cards live in /api/answers (deterministic math, same as DSCR/FHA/conventional)
             // NOTE: avoid \b(5.*20) patterns — "5" in "$1,500,000" triggers a false positive
-            const isComparisonQuestion = !/^\[deep-analysis\]/i.test(q) && (
+            const isComparisonQuestion = !isDeepAnalysisSeed && (
                 /(?:5\s*%|five\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:20\s*%|twenty\s*percent)/i.test(q) ||
                 /(?:20\s*%|twenty\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:5\s*%|five\s*percent)/i.test(q) ||
                 /compare\s+5\s*%?\s*(?:vs?|versus|or)\s*20\s*%/i.test(q) ||
@@ -2179,8 +2186,9 @@ export default function Page() {
                 /3\.5\s*%\s*down/i.test(q);
 
             // Follow-up that changes down payment % while in FHA/affordability context
-            // Excluded: comparison questions have their own routing above
+            // Excluded: comparison questions and deep-analysis seeds have their own routing above
             const isDownPaymentFollowUp =
+                !isDeepAnalysisSeed &&
                 !isComparisonQuestion &&
                 lastRoute === 'answers' &&
                 /\b(\d+)\s*%\s*down\b/i.test(q);
@@ -2189,7 +2197,9 @@ export default function Page() {
             const isRefiFollowUp =
                 /rates?\s+(?:go|drop|fall|hit|come\s*down)|drop\s+to|down\s+to|what\s+if.*%|refi|refinanc/i.test(q);
 
-            if (isComparisonQuestion) {
+            if (isDeepAnalysisSeed) {
+                // already set above — skip all other routing checks
+            } else if (isComparisonQuestion) {
                 useScenario = false; // comparison cards are deterministic — answers route, same as DSCR/FHA
                 console.log('[Routing] Comparison question — answers route (deterministic card)');
             } else if (isFHAQuestion || isDownPaymentFollowUp || isRefiFollowUp) {
