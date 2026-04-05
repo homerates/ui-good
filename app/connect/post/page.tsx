@@ -41,14 +41,14 @@ function PostScenarioContent() {
   const searchParams = useSearchParams();
 
   // Detect Path A: arrived from a scenario card
-  const fromScenario = searchParams.get("from") === "scenario";
-  const scLoanType  = searchParams.get("lt") ?? "";
-  const scPrice     = Number(searchParams.get("price") ?? 0);
-  const scDp        = Number(searchParams.get("dp") ?? 0);
-  const scRate      = Number(searchParams.get("rate") ?? 0);
-  const scMonthly   = Number(searchParams.get("monthly") ?? 0);
-  const scTerm      = Number(searchParams.get("term") ?? 30);
-  const scPurpose   = searchParams.get("purpose") ?? "Purchase";
+  const fromScenario = searchParams?.get("from") === "scenario";
+  const scLoanType  = searchParams?.get("lt") ?? "";
+  const scPrice     = Number(searchParams?.get("price") ?? 0);
+  const scDp        = Number(searchParams?.get("dp") ?? 0);
+  const scRate      = Number(searchParams?.get("rate") ?? 0);
+  const scMonthly   = Number(searchParams?.get("monthly") ?? 0);
+  const scTerm      = Number(searchParams?.get("term") ?? 30);
+  const scPurpose   = searchParams?.get("purpose") ?? "Purchase";
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
