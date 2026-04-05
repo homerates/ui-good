@@ -34,6 +34,7 @@ import type { CMACardData } from '@/components/PropertyIntelligenceCard';
 import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
 import JumboAffordabilitySliderCard from '@/components/JumboAffordabilitySliderCard';
 import LenderChecklistCard from '@/components/LenderChecklistCard';
+import ScenarioComparisonCard from '@/components/ScenarioComparisonCard';
 import AlertBell from '@/components/AlertBell';
 import AlertSetupCard from '@/components/AlertSetupCard';
 import SettingsPanel from '@/components/SettingsPanel';
@@ -400,6 +401,11 @@ type ApiResponse = {
         isInvestment: boolean;
         rent?: number; vacancyRate?: number; taxRate?: number; insRate?: number;
         pdfType?: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr' | 'refi' | 'affordability';
+    } | null;
+    scenarioComparisonCard?: {
+        tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
+        price: number; rate: number;
+        downPct?: number; years?: number; credit?: number; rent?: number;
     } | null;
     propertyCard?: {
         source: string; url: string; parsedBy: string; parseWarnings: string[];
@@ -2743,6 +2749,13 @@ export default function Page() {
                                                                     setPendingParamOverrides(sliderParams);
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
+                                                            />
+                                                        )}
+                                                        {/* Scenario comparison card */}
+                                                        {m.meta.scenarioComparisonCard && !loading && typingId === null && (
+                                                            <ScenarioComparisonCard
+                                                                {...m.meta.scenarioComparisonCard}
+                                                                onRunScenario={(seed) => send(seed)}
                                                             />
                                                         )}
                                                         {/* Lender checklist card */}

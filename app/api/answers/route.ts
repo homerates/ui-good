@@ -13,7 +13,7 @@ import {
     calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale, calcOneExtraPaymentPerYear,
     calcVA, calcJumbo,
 } from "../../../lib/calcEngine";
-import { dispatch, isRefiQuestion, isLoanLimitsQuestion } from "../../../lib/calcDispatcher";
+import { dispatch, isRefiQuestion, isLoanLimitsQuestion, isScenarioComparisonQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
     buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
@@ -22,6 +22,7 @@ import {
     buildVACard, buildVANeedsInputCard, buildJumboCard,
     buildLoanLimitsCard,
     buildJumboAffordabilityCard,
+    buildScenarioComparisonCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
     buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
     buildUWStarterCard, buildHowItWorksCard, getContextChips,
@@ -3323,6 +3324,33 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
 
         return false;
     }
+    // ── SCENARIO COMPARISON CARD ──────────────────────────────────────────────
+    const _scenarioTool = isScenarioComparisonQuestion(question);
+    if (_scenarioTool) {
+        // Extract numbers from question (best-effort — card has defaults if not found)
+        const _scPriceM = question.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[mM]\b/);
+        const _scPriceK = question.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[kK]\b/);
+        const _scPricePl = question.match(/\$\s*([\d,]{5,})/);
+        const _scPrice = _scPriceM ? parseFloat(_scPriceM[1].replace(/,/g, '')) * 1_000_000
+            : _scPriceK ? parseFloat(_scPriceK[1].replace(/,/g, '')) * 1_000
+            : _scPricePl ? parseFloat(_scPricePl[1].replace(/,/g, ''))
+            : undefined;
+        const _scRateM = question.match(/(\d+\.?\d*)\s*%/);
+        const _scRate = _scRateM ? parseFloat(_scRateM[1]) : undefined;
+        const _scRentM = question.match(/rent(?:ing)?\s*(?:is|at|of|for)?\s*\$?\s*([\d,]+)/i);
+        const _scRent = _scRentM ? parseFloat(_scRentM[1].replace(/,/g, '')) : undefined;
+        const _scCreditM = question.match(/(?:seller\s*credit|credit|concession)\s*(?:of|is)?\s*\$?\s*([\d,]+)/i);
+        const _scCredit = _scCreditM ? parseFloat(_scCreditM[1].replace(/,/g, '')) : undefined;
+        const compCard = buildScenarioComparisonCard({
+            tool: _scenarioTool,
+            price: _scPrice,
+            rate: _scRate && _scRate >= 3 && _scRate <= 12 ? _scRate : undefined,
+            rent: _scRent,
+            credit: _scCredit,
+        });
+        return NextResponse.json({ ...compCard, path: 'scenario_comparison' });
+    }
+
     const _earlyLoanLimitsOverride = (body as any)?.paramOverrides?.loanLimitsCounty;
     if (!isLoanLimitsQuestion(question) && !_earlyLoanLimitsOverride && isUnderwritingGuidelineQuestion(question)) {
         console.log('[UW Guidelines] Detected guideline question in answers route — calling AI with database');

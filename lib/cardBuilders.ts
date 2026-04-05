@@ -113,6 +113,15 @@ export interface BuiltCard {
         taxRate: number;
         insRate: number;
     } | null;
+    scenarioComparisonCard?: {
+        tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
+        price: number;
+        rate: number;
+        downPct?: number;
+        years?: number;
+        credit?: number;
+        rent?: number;
+    } | null;
     lenderChecklist?: {
         loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
         price:       number;
@@ -3270,6 +3279,59 @@ export function buildJumboAffordabilityCard(params: {
             monthlyPITI: Math.round(totalMonthly),
             termYears: 30,
             isInvestment: false,
+        },
+    };
+}
+
+// ─────────────────────────────────────────────
+// SCENARIO COMPARISON CARD
+// ─────────────────────────────────────────────
+
+export interface ScenarioComparisonCardInput {
+    tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
+    price?: number;
+    rate?: number;
+    downPct?: number;
+    years?: number;
+    credit?: number;
+    rent?: number;
+}
+
+const TOOL_LABELS: Record<string, string> = {
+    down_payment:  '5% vs 20% Down Payment',
+    seller_credit: 'Rate Buydown vs Price Reduction',
+    term:          '15-Year vs 30-Year',
+    rent_buy:      'Rent vs Buy',
+};
+
+export function buildScenarioComparisonCard(inp: ScenarioComparisonCardInput): BuiltCard {
+    const { tool } = inp;
+    const label = TOOL_LABELS[tool] ?? tool;
+
+    const defaults: Record<string, { price: number; rate: number; downPct: number; years: number; credit: number; rent: number }> = {
+        down_payment:  { price: 600_000, rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800 },
+        seller_credit: { price: 650_000, rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800 },
+        term:          { price: 600_000, rate: 6.75, downPct: 20, years: 10, credit: 15_000, rent: 2_800 },
+        rent_buy:      { price: 550_000, rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800 },
+    };
+    const d = defaults[tool];
+
+    return {
+        answer: `Here's a live **${label}** comparison. Adjust the sliders — all numbers update instantly.`,
+        next_step: 'Move any slider to see how the math changes for your scenario.',
+        follow_up: `Want me to run a deeper AI analysis on your specific numbers?`,
+        follow_up_chips: [
+            { label: `Run deeper AI analysis on this scenario`, seed: `Give me a full analysis of ${label.toLowerCase()} for a ${f$(inp.price ?? d.price)} home at ${fPct(inp.rate ?? d.rate)}` },
+        ],
+        confidence: 'high',
+        scenarioComparisonCard: {
+            tool,
+            price:   inp.price   ?? d.price,
+            rate:    inp.rate    ?? d.rate,
+            downPct: inp.downPct ?? d.downPct,
+            years:   inp.years   ?? d.years,
+            credit:  inp.credit  ?? d.credit,
+            rent:    inp.rent    ?? d.rent,
         },
     };
 }

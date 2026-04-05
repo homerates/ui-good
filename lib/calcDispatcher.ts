@@ -362,6 +362,29 @@ export function isJumboQuestion(q: string): boolean {
         (/\$\s*[\d,]+[kKmM]?\b/.test(q) && /\bjumbo\b/i.test(q));
 }
 
+export type ScenarioComparisonTool = 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
+
+export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool | null {
+    // 5% vs 20% down / down payment comparison
+    if (/\b(5\s*%|five\s*percent)\s*(vs|versus|or|compared\s*to)\s*(20\s*%|twenty\s*percent)\b/i.test(q) ||
+        /\bdown\s*payment\s*(comparison|vs|versus|5.*20|which.*down)\b/i.test(q) ||
+        /\b(5.*20|20.*5)\s*%?\s*(down)\b/i.test(q) ||
+        /compare.*down\s*payment/i.test(q)) return 'down_payment';
+    // Rate buydown vs price reduction / seller credit
+    if (/\b(rate\s*buydown|buy\s*down\s*(the\s*)?rate|points?\s*vs|seller\s*credit)\b/i.test(q) &&
+        /\b(vs|versus|or|price\s*reduction|compared)\b/i.test(q)) return 'seller_credit';
+    if (/\b(seller\s*credit|seller\s*concession)\b/i.test(q) &&
+        /\b(rate|buydown|points?|reduction)\b/i.test(q)) return 'seller_credit';
+    // 15 vs 30 year
+    if (/\b15\s*(yr|year).{0,20}(vs|versus|or|compared).{0,20}30\s*(yr|year)\b/i.test(q) ||
+        /\b30\s*(yr|year).{0,20}(vs|versus|or|compared).{0,20}15\s*(yr|year)\b/i.test(q) ||
+        /\b(15|fifteen)\s*year\s*(vs|versus|or)\s*(30|thirty)\s*year\b/i.test(q)) return 'term';
+    // Rent vs buy
+    if (/\b(rent\s*(vs|versus|or)\s*buy|buy\s*(vs|versus|or)\s*rent|should\s*i\s*(rent|buy))\b/i.test(q) ||
+        /\b(renting\s*vs\s*buying|buying\s*vs\s*renting)\b/i.test(q)) return 'rent_buy';
+    return null;
+}
+
 export function isLoanLimitsQuestion(q: string): boolean {
     return /\b(?:loan\s*limits?|conforming\s*limits?|high.?balance\s*limits?|jumbo\s*threshold|conforming\s*zone|high.?cost\s*area|fhfa\s*limits?)\b/i.test(q) ||
         /\b(?:stay\s+conforming|conforming\s+vs\s+jumbo|jumbo\s+vs\s+conforming)\b/i.test(q) ||
