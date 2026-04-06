@@ -113,6 +113,15 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // Look up the LO's Clerk userId so we can store it as referred_by
+        const { data: loRecord } = await supabase
+            .from("loan_officers")
+            .select("user_id")
+            .eq("id", loanOfficerId)
+            .maybeSingle();
+
+        const referredByClerkId = (loRecord?.user_id as string | null) ?? null;
+
         // 4) Create borrower row using your actual schema
         const { data: newBorrower, error: insertBorrowerError } = await supabase
             .from("borrowers")
@@ -146,7 +155,17 @@ export async function POST(req: NextRequest) {
 
         const borrowerId = newBorrower.id as string;
 
-        // 5) Increment used_count on invite
+        // 5) Record the referral on the borrower's users row (upsert — row may already exist from Clerk webhook)
+        if (referredByClerkId) {
+            await supabase
+                .from("users")
+                .upsert(
+                    { id: userId, referred_by: referredByClerkId },
+                    { onConflict: "id", ignoreDuplicates: false }
+                );
+        }
+
+        // 6) Increment used_count on invite
         const { error: updateInviteError } = await supabase
             .from("invite_codes")
             .update({
@@ -165,7 +184,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 6) Done – client can redirect to success/dashboard
+        // 7) Done – client can redirect to success/dashboard
         return NextResponse.json(
             {
                 ok: true,

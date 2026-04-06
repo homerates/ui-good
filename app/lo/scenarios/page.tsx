@@ -22,6 +22,8 @@ interface Scenario {
   closes_at?: string;
   created_at: string;
   already_responded: boolean;
+  visibility?: string;         // 'public' | 'private'
+  referred_pro_id?: string;
   // Card data — present when borrower posted from an AI analysis card
   has_card_data?: boolean;
   card_price?: number;
@@ -60,7 +62,9 @@ interface RespondModal {
 }
 
 export default function LOScenariosPage() {
+  const [tab, setTab] = useState<"board" | "referrals">("board");
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [referrals, setReferrals] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("All");
   const [filterState, setFilterState] = useState("");
@@ -79,6 +83,14 @@ export default function LOScenariosPage() {
     load();
   }, [filterType, filterState]);
 
+  // Load referrals once on mount (private scenarios — not filter-dependent)
+  useEffect(() => {
+    fetch("/api/scenarios?my_referrals=1")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setReferrals(d.scenarios ?? []); })
+      .catch(() => {});
+  }, []);
+
   async function load() {
     setLoading(true);
     const params = new URLSearchParams();
@@ -87,7 +99,15 @@ export default function LOScenariosPage() {
     const res = await fetch(`/api/scenarios?${params}`);
     if (res.ok) {
       const data = await res.json();
-      setScenarios(data.scenarios ?? []);
+      // Public board only — separate out private referrals
+      setScenarios((data.scenarios ?? []).filter((s: Scenario) => s.visibility !== "private"));
+      setReferrals(prev => {
+        // Merge any private scenarios returned here with our existing referrals list
+        const privates = (data.scenarios ?? []).filter((s: Scenario) => s.visibility === "private");
+        const ids = new Set(prev.map(s => s.id));
+        const merged = [...prev, ...privates.filter((s: Scenario) => !ids.has(s.id))];
+        return merged;
+      });
     }
     setLoading(false);
   }
@@ -165,40 +185,102 @@ export default function LOScenariosPage() {
 
           <div className="los-header">
             <div>
-              <h1 className="los-title">Scenario Board</h1>
-              <p className="los-sub">Anonymous borrower scenarios. Respond to earn an introduction.</p>
+              <h1 className="los-title">{tab === "referrals" ? "My Referrals" : "Match Board"}</h1>
+              <p className="los-sub">
+                {tab === "referrals"
+                  ? "Private scenarios from borrowers you referred. Only you can see these."
+                  : "Anonymous borrower scenarios open to all verified professionals. Respond to earn an introduction."}
+              </p>
             </div>
             <div className="los-stats">
-              <span className="los-stat">{scenarios.filter(s => !s.already_responded).length} new</span>
+              {tab === "board" && <span className="los-stat">{scenarios.filter(s => !s.already_responded).length} new</span>}
+              {tab === "referrals" && referrals.length > 0 && <span className="los-stat los-stat-private">🔒 {referrals.length} private</span>}
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="los-filters">
-            <div className="los-filter-group">
-              {LOAN_TYPES.map(t => (
-                <button
-                  key={t}
-                  className={`los-filter-chip ${filterType === t ? "active" : ""}`}
-                  onClick={() => setFilterType(t)}
-                >
-                  {t === "All" ? "All types" : LABEL_MAP[t]}
-                </button>
-              ))}
-            </div>
-            <input
-              className="los-state-input"
-              placeholder="Filter by state (e.g. CA)"
-              value={filterState}
-              onChange={e => setFilterState(e.target.value.toUpperCase().slice(0, 2))}
-              maxLength={2}
-            />
+          {/* Tab switcher */}
+          <div className="los-tabs">
+            <button
+              className={`los-tab ${tab === "board" ? "active" : ""}`}
+              onClick={() => setTab("board")}
+            >
+              Match Board
+              {scenarios.filter(s => !s.already_responded).length > 0 && (
+                <span className="los-tab-badge">{scenarios.filter(s => !s.already_responded).length}</span>
+              )}
+            </button>
+            <button
+              className={`los-tab ${tab === "referrals" ? "active" : ""}`}
+              onClick={() => setTab("referrals")}
+            >
+              My Referrals
+              {referrals.length > 0 && <span className="los-tab-badge los-tab-badge-private">{referrals.length}</span>}
+            </button>
           </div>
 
-          {/* Board */}
-          {loading ? (
+          {/* Filters — only on Match Board tab */}
+          {tab === "board" && (
+            <div className="los-filters">
+              <div className="los-filter-group">
+                {LOAN_TYPES.map(t => (
+                  <button
+                    key={t}
+                    className={`los-filter-chip ${filterType === t ? "active" : ""}`}
+                    onClick={() => setFilterType(t)}
+                  >
+                    {t === "All" ? "All types" : LABEL_MAP[t]}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="los-state-input"
+                placeholder="Filter by state (e.g. CA)"
+                value={filterState}
+                onChange={e => setFilterState(e.target.value.toUpperCase().slice(0, 2))}
+                maxLength={2}
+              />
+            </div>
+          )}
+
+          {/* My Referrals tab */}
+          {tab === "referrals" && (
+            referrals.length === 0 ? (
+              <div className="los-empty">
+                <div className="los-empty-icon">🔒</div>
+                <p>No private referrals yet.</p>
+                <p className="los-empty-sub">When you invite a borrower and they post a scenario, it will appear here — exclusively for you.</p>
+              </div>
+            ) : (
+              <div className="los-board">
+                {referrals.map(s => (
+                  <div key={s.id} className="los-card los-card-private" onClick={() => openModal(s)}>
+                    <div className="los-card-private-badge">🔒 Private — only you</div>
+                    <div className="los-card-top">
+                      <span className="los-loan-badge">{LABEL_MAP[s.loan_type] ?? s.loan_type}</span>
+                      <span className="los-state-badge">{s.state}</span>
+                      {s.has_card_data && <span className="los-ai-badge">⚡ AI card</span>}
+                    </div>
+                    <div className="los-card-grid">
+                      <div className="los-card-field"><div className="los-card-label">Price</div><div className="los-card-value">{s.price_range}</div></div>
+                      <div className="los-card-field"><div className="los-card-label">Down</div><div className="los-card-value">{s.down_payment_pct}%</div></div>
+                      <div className="los-card-field"><div className="los-card-label">Credit</div><div className="los-card-value">{s.credit_tier?.split(" ")[0]}</div></div>
+                      <div className="los-card-field"><div className="los-card-label">Timeline</div><div className="los-card-value">{s.timeline?.split(" ")[0]}</div></div>
+                    </div>
+                    <div className="los-card-footer">
+                      {s.already_responded
+                        ? <span className="los-responded-badge">✓ Responded</span>
+                        : <span className="los-respond-cta">View & respond →</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* Match Board tab */}
+          {tab === "board" && loading ? (
             <div className="los-loading">Loading scenarios...</div>
-          ) : filtered.length === 0 ? (
+          ) : tab === "board" && filtered.length === 0 ? (
             <div className="los-empty">
               <div className="los-empty-icon">📋</div>
               <p>No active scenarios match your filters. Check back soon.</p>
@@ -535,6 +617,51 @@ export default function LOScenariosPage() {
 
         .los-loading, .los-empty { text-align: center; padding: 4rem 0; color: #8fa3b8; }
         .los-empty-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+        .los-empty-sub { font-size: 0.82rem; color: #3a4560; margin-top: 0.5rem; max-width: 340px; margin-left: auto; margin-right: auto; }
+
+        /* Tab switcher */
+        .los-tabs {
+          display: flex; gap: 4px;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          margin-bottom: 1.25rem;
+        }
+        .los-tab {
+          padding: 10px 18px; border: none; background: none;
+          color: #8fa3b8; font-size: 0.875rem; font-weight: 600;
+          cursor: pointer; border-bottom: 2px solid transparent;
+          margin-bottom: -1px; display: flex; align-items: center; gap: 7px;
+          transition: color 0.15s;
+        }
+        .los-tab:hover { color: #f0f4ff; }
+        .los-tab.active { color: #f0f4ff; border-bottom-color: #00e87a; }
+        .los-tab-badge {
+          background: #3d8bff; color: #fff;
+          font-size: 0.68rem; font-weight: 800;
+          border-radius: 99px; padding: 1px 7px;
+        }
+        .los-tab-badge-private { background: #ff8c42; }
+
+        /* Private referral cards */
+        .los-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+        .los-card-private {
+          background: rgba(255,140,66,0.04);
+          border: 1px solid rgba(255,140,66,0.25) !important;
+          cursor: pointer;
+        }
+        .los-card-private:hover { border-color: rgba(255,140,66,0.5) !important; }
+        .los-card-private-badge {
+          font-size: 0.7rem; font-weight: 700; color: #ff8c42;
+          text-transform: uppercase; letter-spacing: 0.06em;
+          margin-bottom: 10px;
+        }
+        .los-card-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+        .los-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .los-card-label { font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.05em; }
+        .los-card-value { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
+        .los-card-footer { display: flex; align-items: center; justify-content: flex-end; }
+        .los-respond-cta { font-size: 0.8rem; color: #00e87a; font-weight: 600; }
+        .los-responded-badge { font-size: 0.78rem; color: #3a4560; }
+        .los-stat-private { color: #ff8c42 !important; border-color: rgba(255,140,66,0.25) !important; }
 
         .los-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 

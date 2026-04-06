@@ -24,7 +24,7 @@ export async function GET() {
   // Run both queries in parallel
   const [loResult, userResult] = await Promise.all([
     sb.from("loan_officers").select("id, email, lender, nmls, license_state").eq("user_id", userId).maybeSingle(),
-    sb.from("users").select("role, full_name").eq("id", userId).maybeSingle(),
+    sb.from("users").select("role, full_name, referred_by").eq("id", userId).maybeSingle(),
   ]);
 
   const loRow = loResult.data;
@@ -34,6 +34,20 @@ export async function GET() {
   const isLO = !!loRow || userRow?.role === "lo";
   const role = userRow?.role ?? (loRow ? "lo" : "borrower");
 
+  // Resolve the referring professional's display name if this user was referred
+  let referredByName: string | null = null;
+  const referredById = userRow?.referred_by ?? null;
+  if (referredById) {
+    try {
+      const referringUser = await clerk.users.getUser(referredById);
+      referredByName = [referringUser.firstName, referringUser.lastName].filter(Boolean).join(" ")
+        || referringUser.emailAddresses[0]?.emailAddress
+        || null;
+    } catch {
+      // non-fatal — name just won't resolve
+    }
+  }
+
   return NextResponse.json({
     userId,
     email,
@@ -42,6 +56,8 @@ export async function GET() {
     role,
     isLO,
     lo: loRow ?? null,
+    referred_by: referredById,
+    referred_by_name: referredByName,
   });
 }
 

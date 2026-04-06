@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     credit_tier, timeline, state, notes, needs_professional,
     max_responses, response_window_hours, anonymity_level,
     card_price, card_dp_pct, card_rate, card_monthly, card_term,
+    visibility: requestedVisibility, // 'public' | 'private' — borrower's explicit choice
   } = body;
 
   const hasCardData = !!(card_price && card_rate && card_monthly);
@@ -44,6 +45,15 @@ export async function POST(req: NextRequest) {
 
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
+
+  // Look up whether this borrower was referred by a professional
+  const { data: userRow } = await sb.from("users").select("referred_by").eq("id", userId).maybeSingle();
+  const referredBy = userRow?.referred_by ?? null;
+
+  // Visibility: borrower can explicitly choose 'public', otherwise default to
+  // 'private' if they were referred (protecting the referring professional's lead).
+  const visibility = requestedVisibility === "public" ? "public" : (referredBy ? "private" : "public");
+  const referredProId = visibility === "private" ? referredBy : null;
 
   // One active scenario per borrower at a time
   const { data: existing } = await sb
@@ -75,6 +85,8 @@ export async function POST(req: NextRequest) {
       response_window_hours: windowHours,
       closes_at: closesAt,
       anonymity_level: anonymity_level ?? "full",
+      visibility,
+      referred_pro_id: referredProId,
       has_card_data: hasCardData,
       card_price:   card_price   ?? null,
       card_dp_pct:  card_dp_pct  ?? null,
@@ -121,23 +133,58 @@ export async function GET(req: NextRequest) {
   const state = url.searchParams.get("state");
   const loan_type = url.searchParams.get("loan_type");
   const responder_type = url.searchParams.get("responder_type") ?? "lo"; // 'lo' or 'agent'
+  const myReferrals = url.searchParams.get("my_referrals") === "1";
+
+  // Short-circuit: LO fetching only their private referred scenarios
+  if (myReferrals) {
+    const { data: refs } = await sb
+      .from("scenario_briefs")
+      .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term, visibility, referred_pro_id")
+      .eq("referred_pro_id", userId)
+      .eq("visibility", "private")
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+
+    const refIds = (refs ?? []).map(s => s.id);
+    let respondedRefIds: string[] = [];
+    if (refIds.length > 0) {
+      const { data: myR } = await sb.from("scenario_responses").select("scenario_id").eq("lo_id", userId).in("scenario_id", refIds);
+      respondedRefIds = (myR ?? []).map(r => r.scenario_id);
+    }
+    return NextResponse.json({
+      scenarios: (refs ?? []).map(s => ({ ...s, already_responded: respondedRefIds.includes(s.id) })),
+    });
+  }
 
   // Filter scenarios to ones relevant for this professional type
   const profFilter = responder_type === "agent" ? ["agent", "both"] : ["lender", "both"];
 
-  let query = sb
-    .from("scenario_briefs")
-    .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term")
-    .eq("status", "active")
+  const BOARD_SELECT = "id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term, visibility, referred_pro_id";
+
+  // Two queries merged in JS — avoids .or() parser issues:
+  // 1) Public scenarios on the board
+  // 2) Private scenarios where I am the referred professional
+  let publicQ = sb.from("scenario_briefs").select(BOARD_SELECT)
+    .eq("status", "active").eq("visibility", "public")
     .in("needs_professional", profFilter)
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .order("created_at", { ascending: false }).limit(50);
+  let privateQ = sb.from("scenario_briefs").select(BOARD_SELECT)
+    .eq("status", "active").eq("visibility", "private").eq("referred_pro_id", userId)
+    .in("needs_professional", profFilter)
+    .order("created_at", { ascending: false }).limit(20);
 
-  if (state) query = query.eq("state", state);
-  if (loan_type) query = query.eq("loan_type", loan_type);
+  if (state) { publicQ = publicQ.eq("state", state); privateQ = privateQ.eq("state", state); }
+  if (loan_type) { publicQ = publicQ.eq("loan_type", loan_type); privateQ = privateQ.eq("loan_type", loan_type); }
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: "Failed to load board" }, { status: 500 });
+  const [publicRes, privateRes] = await Promise.all([publicQ, privateQ]);
+  if (publicRes.error) return NextResponse.json({ error: "Failed to load board" }, { status: 500 });
+
+  // Merge: private referrals first (top of board), then public
+  const seen = new Set<string>();
+  const data: NonNullable<typeof publicRes.data> = [];
+  for (const s of [...(privateRes.data ?? []), ...(publicRes.data ?? [])]) {
+    if (!seen.has(s.id)) { seen.add(s.id); data.push(s); }
+  }
 
   // Check which ones the current LO already responded to
   const ids = (data ?? []).map(s => s.id);

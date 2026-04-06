@@ -59,12 +59,27 @@ function PostScenarioContent() {
   const [quota, setQuota] = useState<{ used: number; limit: number | null; allowed: boolean; plan: string } | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(true);
 
+  // Referral state — if this borrower was referred by a professional, scenarios default to private
+  const [referredProName, setReferredProName] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<"private" | "public">("public");
+
   useEffect(() => {
     fetch("/api/scenarios/quota")
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setQuota(data); })
       .catch(() => {})
       .finally(() => setQuotaLoading(false));
+
+    // Check if this user was referred — used to set default visibility
+    fetch("/api/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.referred_by_name) {
+          setReferredProName(data.referred_by_name);
+          setVisibility("private"); // default: protect the referral
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const [form, setForm] = useState({
@@ -114,6 +129,7 @@ function PostScenarioContent() {
           down_payment_pct: parseInt(form.down_payment_pct),
           max_responses: parseInt(form.max_responses),
           response_window_hours: parseInt(form.response_window_hours),
+          visibility, // 'private' (referred) or 'public' (Match Board)
           // Card data — only present on Path A (arrived from LenderChecklistCard)
           ...(fromScenario && scPrice > 0 ? {
             card_price:    scPrice,
@@ -397,6 +413,38 @@ function PostScenarioContent() {
                   </div>
                 </div>
 
+                {/* Visibility — only shown for referred borrowers */}
+                {referredProName && (
+                  <div className="post-field">
+                    <label>Who can see your scenario?</label>
+                    <div className="post-vis-options">
+                      <button
+                        className={`post-vis-option ${visibility === "private" ? "selected" : ""}`}
+                        onClick={() => setVisibility("private")}
+                      >
+                        <span className="post-vis-icon">🔒</span>
+                        <div>
+                          <div className="post-vis-title">Private — {referredProName} only</div>
+                          <div className="post-vis-sub">Only your professional can see and respond. No one else on the platform.</div>
+                        </div>
+                      </button>
+                      <button
+                        className={`post-vis-option ${visibility === "public" ? "selected" : ""}`}
+                        onClick={() => setVisibility("public")}
+                      >
+                        <span className="post-vis-icon">🌐</span>
+                        <div>
+                          <div className="post-vis-title">Match Board — open to all verified professionals</div>
+                          <div className="post-vis-sub">More options, but your professional will compete with others.</div>
+                        </div>
+                      </button>
+                    </div>
+                    <span className="post-field-hint">
+                      {referredProName} referred you to HomeRates.ai. Private keeps your scenario exclusive to them.
+                    </span>
+                  </div>
+                )}
+
                 <div className="post-row">
                   <button className="post-btn-ghost" onClick={() => setStep(1)}>← Back</button>
                   <button className="post-btn" disabled={!step2Valid} onClick={() => setStep(3)}>Continue →</button>
@@ -437,6 +485,7 @@ function PostScenarioContent() {
                     ["State", form.state],
                     ["Max responses", `${form.max_responses} professionals`],
                     ["Window", `${form.response_window_hours}h — closes automatically`],
+                    ...(referredProName ? [["Visibility", visibility === "private" ? `🔒 Private — ${referredProName} only` : "🌐 Match Board — open to verified professionals"]] : []),
                   ].map(([label, value]) => (
                     <div key={label} className="post-review-field">
                       <div className="post-review-label">{label}</div>
@@ -727,6 +776,21 @@ function PostScenarioContent() {
         }
         .post-review-label { font-size: 0.72rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
         .post-review-value { font-size: 0.9rem; font-weight: 600; color: #f0f4ff; }
+
+        /* Visibility toggle */
+        .post-vis-options { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+        .post-vis-option {
+          display: flex; align-items: flex-start; gap: 14px;
+          background: #0e1420; border: 1px solid rgba(255,255,255,0.09);
+          border-radius: 12px; padding: 14px 16px;
+          text-align: left; cursor: pointer; width: 100%;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .post-vis-option:hover { border-color: rgba(255,255,255,0.18); }
+        .post-vis-option.selected { border-color: rgba(0,232,122,0.45); background: rgba(0,232,122,0.05); }
+        .post-vis-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+        .post-vis-title { font-size: 0.9rem; font-weight: 600; color: #f0f4ff; margin-bottom: 3px; }
+        .post-vis-sub { font-size: 0.78rem; color: #8fa3b8; line-height: 1.45; }
 
         .post-privacy-note {
           font-size: 0.83rem; color: #8fa3b8;

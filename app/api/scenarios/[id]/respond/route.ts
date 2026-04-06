@@ -29,13 +29,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Verify scenario exists and is active
   const { data: scenarioFull } = await sb
     .from("scenario_briefs")
-    .select("id, borrower_id, status, response_count, max_responses, closes_at")
+    .select("id, borrower_id, status, response_count, max_responses, closes_at, visibility, referred_pro_id")
     .eq("id", id)
     .single();
 
   if (!scenarioFull) return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
   if (scenarioFull.status !== "active") return NextResponse.json({ error: "This scenario is no longer accepting responses" }, { status: 400 });
   if (scenarioFull.borrower_id === userId) return NextResponse.json({ error: "You cannot respond to your own scenario" }, { status: 400 });
+
+  // Private scenarios: only the referring professional can respond
+  if (scenarioFull.visibility === "private" && scenarioFull.referred_pro_id !== userId) {
+    return NextResponse.json({ error: "This scenario is private" }, { status: 403 });
+  }
 
   // Enforce borrower's max_responses cap
   const maxResp = scenarioFull.max_responses ?? 5;
@@ -47,8 +52,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (scenarioFull.closes_at && new Date(scenarioFull.closes_at) < new Date()) {
     return NextResponse.json({ error: "The response window for this scenario has closed" }, { status: 400 });
   }
-
-  const scenario = scenarioFull;
 
   // One response per LO per scenario
   const { data: existing } = await sb
