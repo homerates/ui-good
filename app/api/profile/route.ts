@@ -55,6 +55,11 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json();
   const { full_name, role, lender, nmls, license_state, company_nmls } = body;
 
+  // Get email from Clerk for LO row creation
+  const clerk = await clerkClient();
+  const clerkUser = await clerk.users.getUser(userId);
+  const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+
   // Update users table
   const userUpdates: Record<string, string> = {};
   if (full_name !== undefined) userUpdates.full_name = full_name.trim();
@@ -63,21 +68,52 @@ export async function PATCH(req: NextRequest) {
     await sb.from("users").update(userUpdates).eq("id", userId);
   }
 
-  // Update loan_officers row if it exists
-  const { data: loRow } = await sb
-    .from("loan_officers")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
+  // If role is 'lo', ensure a loan_officers row exists (upsert on user_id)
+  if (role === "lo") {
+    const { data: existing } = await sb
+      .from("loan_officers")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-  if (loRow) {
-    const updates: Record<string, string> = {};
-    if (lender !== undefined) updates.lender = lender.trim();
-    if (nmls !== undefined) updates.nmls = nmls.trim();
-    if (license_state !== undefined) updates.license_state = license_state.trim();
-    if (company_nmls !== undefined) updates.company_nmls = company_nmls.trim();
-    if (Object.keys(updates).length > 0) {
-      await sb.from("loan_officers").update(updates).eq("id", loRow.id);
+    if (!existing) {
+      await sb.from("loan_officers").insert({
+        user_id: userId,
+        email,
+        lender: lender?.trim() ?? null,
+        nmls: nmls?.trim() ?? null,
+        license_state: license_state?.trim() ?? null,
+        company_nmls: company_nmls?.trim() ?? null,
+        allowed_borrower_slots: 0,
+      });
+    } else {
+      // Update existing row
+      const updates: Record<string, string> = {};
+      if (lender !== undefined) updates.lender = lender.trim();
+      if (nmls !== undefined) updates.nmls = nmls.trim();
+      if (license_state !== undefined) updates.license_state = license_state.trim();
+      if (company_nmls !== undefined) updates.company_nmls = company_nmls.trim();
+      if (Object.keys(updates).length > 0) {
+        await sb.from("loan_officers").update(updates).eq("id", existing.id);
+      }
+    }
+  } else {
+    // Not LO — still update if a row exists (agent may have one from earlier)
+    const { data: loRow } = await sb
+      .from("loan_officers")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (loRow) {
+      const updates: Record<string, string> = {};
+      if (lender !== undefined) updates.lender = lender.trim();
+      if (nmls !== undefined) updates.nmls = nmls.trim();
+      if (license_state !== undefined) updates.license_state = license_state.trim();
+      if (company_nmls !== undefined) updates.company_nmls = company_nmls.trim();
+      if (Object.keys(updates).length > 0) {
+        await sb.from("loan_officers").update(updates).eq("id", loRow.id);
+      }
     }
   }
 
