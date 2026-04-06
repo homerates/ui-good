@@ -48,6 +48,10 @@ export default function ProfilePage() {
   const [licenseState, setLicenseState] = useState("");
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
+  // Borrower-specific
+  const [borrowerPhone, setBorrowerPhone] = useState("");
+  const [propertyAddress, setPropertyAddress] = useState("");
+  const [currentLoanBal, setCurrentLoanBal] = useState("");
 
   const showPro = role === "lo" || role === "agent";
 
@@ -86,6 +90,9 @@ export default function ProfilePage() {
           license_state: licenseState,
           phone,
           website,
+          borrower_phone: borrowerPhone,
+          property_address: propertyAddress,
+          current_loan_balance: currentLoanBal,
         }),
       });
       if (!res.ok) {
@@ -157,20 +164,79 @@ export default function ProfilePage() {
                 <div className="pr-field">
                   <label className="pr-label">I am a</label>
                   <div className="pr-role-chips">
-                    {ROLE_OPTIONS.map(({ v, label }) => (
-                      <button
-                        key={v}
-                        type="button"
-                        className={`pr-role-chip ${role === v ? "active" : ""}`}
-                        onClick={() => setRole(v)}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                    {ROLE_OPTIONS.map(({ v, label }) => {
+                      const isActive = role === v;
+                      // Borrowers cannot self-upgrade to LO/agent — those roles
+                      // require admin provisioning. Show chips but locked.
+                      const isLocked = role === "borrower" && v !== "borrower";
+                      return (
+                        <button
+                          key={v}
+                          type="button"
+                          className={`pr-role-chip ${isActive ? "active" : ""} ${isLocked ? "locked" : ""}`}
+                          onClick={() => !isLocked && setRole(v)}
+                          title={isLocked ? "Contact support to register as a professional" : undefined}
+                        >
+                          {label}
+                          {isLocked && <span className="pr-chip-lock"> 🔒</span>}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <span className="pr-hint">Sets which tools and views are available to you.</span>
+                  <span className="pr-hint">
+                    {role === "borrower"
+                      ? "Loan Officer and Agent access requires professional registration. Contact us to get set up."
+                      : "Sets which tools and views are available to you."}
+                  </span>
                 </div>
               </div>
+
+              {/* Borrower-specific section */}
+              {role === "borrower" && (
+                <div className="pr-section">
+                  <div className="pr-section-title">Your details <span className="pr-section-optional">— optional, helps lenders respond more accurately</span></div>
+
+                  <div className="pr-field">
+                    <label className="pr-label" htmlFor="b_phone">Phone number</label>
+                    <input
+                      id="b_phone"
+                      className="pr-input"
+                      type="tel"
+                      value={borrowerPhone}
+                      onChange={e => setBorrowerPhone(e.target.value)}
+                      placeholder="e.g. (818) 555-0100"
+                      maxLength={20}
+                    />
+                    <span className="pr-hint">Only shared with a professional if you choose to invite them.</span>
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label" htmlFor="b_property">Current property address</label>
+                    <input
+                      id="b_property"
+                      className="pr-input"
+                      value={propertyAddress}
+                      onChange={e => setPropertyAddress(e.target.value)}
+                      placeholder="e.g. 123 Main St, Los Angeles CA 90001"
+                      maxLength={200}
+                    />
+                    <span className="pr-hint">Useful if you're refinancing or want a home value estimate.</span>
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label" htmlFor="b_loan_bal">Current loan balance</label>
+                    <input
+                      id="b_loan_bal"
+                      className="pr-input"
+                      value={currentLoanBal}
+                      onChange={e => setCurrentLoanBal(e.target.value)}
+                      placeholder="e.g. $420,000"
+                      maxLength={30}
+                    />
+                    <span className="pr-hint">Helps lenders provide accurate refi quotes.</span>
+                  </div>
+                </div>
+              )}
 
               {/* Pro fields — LO or Agent */}
               {showPro && (
@@ -381,6 +447,13 @@ export default function ProfilePage() {
           background: rgba(0,232,122,0.12); border-color: rgba(0,232,122,0.4);
           color: #00e87a; font-weight: 600;
         }
+        .pr-role-chip.locked {
+          opacity: 0.35; cursor: not-allowed;
+          border-color: rgba(255,255,255,0.06);
+        }
+        .pr-role-chip.locked:hover { border-color: rgba(255,255,255,0.06); color: #8fa3b8; }
+        .pr-chip-lock { font-size: 0.7rem; }
+        .pr-section-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #3a4560; font-size: 0.7rem; }
 
         .pr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 

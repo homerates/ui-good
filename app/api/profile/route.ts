@@ -53,17 +53,21 @@ export async function PATCH(req: NextRequest) {
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
   const body = await req.json();
-  const { full_name, role, lender, nmls, license_state, company_nmls } = body;
+  const { full_name, role, lender, nmls, license_state, company_nmls,
+          borrower_phone, property_address, current_loan_balance } = body;
 
   // Get email from Clerk for LO row creation
   const clerk = await clerkClient();
   const clerkUser = await clerk.users.getUser(userId);
   const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
 
-  // Update users table
+  // Update users table (including optional borrower fields)
   const userUpdates: Record<string, string> = {};
   if (full_name !== undefined) userUpdates.full_name = full_name.trim();
   if (role !== undefined) userUpdates.role = role;
+  if (borrower_phone !== undefined) userUpdates.phone = borrower_phone.trim();
+  if (property_address !== undefined) userUpdates.property_address = property_address.trim();
+  if (current_loan_balance !== undefined) userUpdates.current_loan_balance = current_loan_balance.trim();
   if (Object.keys(userUpdates).length > 0) {
     await sb.from("users").update(userUpdates).eq("id", userId);
   }
