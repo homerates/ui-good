@@ -22,6 +22,13 @@ interface Scenario {
   closes_at?: string;
   created_at: string;
   already_responded: boolean;
+  // Card data — present when borrower posted from an AI analysis card
+  has_card_data?: boolean;
+  card_price?: number;
+  card_dp_pct?: number;
+  card_rate?: number;
+  card_monthly?: number;
+  card_term?: number;
 }
 
 const LOAN_TYPES = ["All", "conventional", "fha", "va", "jumbo", "dscr"];
@@ -244,6 +251,18 @@ export default function LOScenariosPage() {
                     </div>
                   </div>
 
+                  {/* AI card data badge */}
+                  {scenario.has_card_data && (
+                    <div className="los-card-ai-badge">
+                      <span className="los-card-ai-icon">⚡</span>
+                      <span>AI analysis attached</span>
+                      <span className="los-card-ai-nums">
+                        {scenario.card_rate ? `${scenario.card_rate.toFixed(2)}%` : ""}
+                        {scenario.card_monthly ? ` · $${Math.round(scenario.card_monthly).toLocaleString()}/mo` : ""}
+                      </span>
+                    </div>
+                  )}
+
                   {scenario.notes && (
                     <p className="los-card-note">"{scenario.notes}"</p>
                   )}
@@ -302,9 +321,62 @@ export default function LOScenariosPage() {
                     <button className="los-modal-x" onClick={() => setModal(null)}>✕</button>
                   </div>
 
-                  {/* Full scenario breakdown for LO to review before responding */}
+                  {/* Full scenario breakdown */}
                   <div className="los-modal-scenario">
-                    <div className="los-ms-header">Borrower scenario</div>
+
+                    {/* AI card block — shown when borrower posted from analysis */}
+                    {modal.scenario.has_card_data && (
+                      <div className="los-ms-card-block">
+                        <div className="los-ms-card-label">⚡ Borrower's AI analysis — real numbers</div>
+                        <div className="los-ms-card-row">
+                          {modal.scenario.card_price && (
+                            <div className="los-ms-card-stat">
+                              <span className="los-ms-label">Purchase price</span>
+                              <span className="los-ms-card-val">${Math.round(modal.scenario.card_price).toLocaleString()}</span>
+                            </div>
+                          )}
+                          {modal.scenario.card_dp_pct && modal.scenario.card_price && (
+                            <div className="los-ms-card-stat">
+                              <span className="los-ms-label">Down payment</span>
+                              <span className="los-ms-card-val">
+                                {modal.scenario.card_dp_pct}% · ${Math.round(modal.scenario.card_price * modal.scenario.card_dp_pct / 100).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                          {modal.scenario.card_price && modal.scenario.card_dp_pct && (
+                            <div className="los-ms-card-stat">
+                              <span className="los-ms-label">Loan amount</span>
+                              <span className="los-ms-card-val">
+                                ${Math.round(modal.scenario.card_price * (1 - modal.scenario.card_dp_pct / 100)).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                          {modal.scenario.card_rate && (
+                            <div className="los-ms-card-stat">
+                              <span className="los-ms-label">AI rate estimate</span>
+                              <span className="los-ms-card-val los-ms-card-rate">{modal.scenario.card_rate.toFixed(3)}%</span>
+                            </div>
+                          )}
+                          {modal.scenario.card_monthly && (
+                            <div className="los-ms-card-stat">
+                              <span className="los-ms-label">Est. P&amp;I / mo</span>
+                              <span className="los-ms-card-val">${Math.round(modal.scenario.card_monthly).toLocaleString()}</span>
+                            </div>
+                          )}
+                          {modal.scenario.card_term && (
+                            <div className="los-ms-card-stat">
+                              <span className="los-ms-label">Term</span>
+                              <span className="los-ms-card-val">{modal.scenario.card_term}-year</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="los-ms-card-note">
+                          The borrower ran this through HomeRates.ai before posting. Beat or match this rate to earn the introduction.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="los-ms-header">Borrower profile</div>
                     <div className="los-ms-grid">
                       <div>
                         <span className="los-ms-label">Price range</span>
@@ -490,6 +562,16 @@ export default function LOScenariosPage() {
         .los-cf-label { font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
         .los-cf-value { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
 
+        /* AI card badge on board card */
+        .los-card-ai-badge {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 0.75rem; font-weight: 600; color: #00e87a;
+          background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.2);
+          border-radius: 8px; padding: 6px 10px; margin-bottom: 0.6rem;
+        }
+        .los-card-ai-icon { font-size: 0.85rem; }
+        .los-card-ai-nums { margin-left: auto; font-weight: 700; color: #00e87a; }
+
         .los-card-note { font-size: 0.8rem; color: #8fa3b8; font-style: italic; margin: 0 0 0.75rem; line-height: 1.45; }
 
         .los-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); }
@@ -526,6 +608,27 @@ export default function LOScenariosPage() {
           background: #141b28; border-radius: 12px; padding: 1.25rem;
           margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.06);
         }
+        /* AI card block inside modal */
+        .los-ms-card-block {
+          background: rgba(0,232,122,0.05);
+          border: 1px solid rgba(0,232,122,0.2);
+          border-radius: 10px; padding: 1rem;
+          margin-bottom: 1.25rem;
+        }
+        .los-ms-card-label {
+          font-size: 0.72rem; font-weight: 700; color: #00e87a;
+          text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem;
+        }
+        .los-ms-card-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 0.75rem; }
+        .los-ms-card-stat { display: flex; flex-direction: column; gap: 2px; }
+        .los-ms-card-val { font-size: 0.95rem; font-weight: 700; color: #f0f4ff; }
+        .los-ms-card-rate { color: #00e87a; font-size: 1.05rem; }
+        .los-ms-card-note {
+          font-size: 0.78rem; color: rgba(0,232,122,0.6);
+          margin: 0; line-height: 1.5; border-top: 1px solid rgba(0,232,122,0.12);
+          padding-top: 0.6rem;
+        }
+
         .los-ms-header {
           font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
           text-transform: uppercase; color: #3a4560;

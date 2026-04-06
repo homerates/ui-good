@@ -19,7 +19,10 @@ export async function POST(req: NextRequest) {
     loan_type, loan_purpose, price_range, down_payment_pct, income_range,
     credit_tier, timeline, state, notes, needs_professional,
     max_responses, response_window_hours, anonymity_level,
+    card_price, card_dp_pct, card_rate, card_monthly, card_term,
   } = body;
+
+  const hasCardData = !!(card_price && card_rate && card_monthly);
 
   if (!loan_type || !price_range || !down_payment_pct || !income_range || !credit_tier || !timeline || !state) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -72,6 +75,12 @@ export async function POST(req: NextRequest) {
       response_window_hours: windowHours,
       closes_at: closesAt,
       anonymity_level: anonymity_level ?? "full",
+      has_card_data: hasCardData,
+      card_price:   card_price   ?? null,
+      card_dp_pct:  card_dp_pct  ?? null,
+      card_rate:    card_rate    ?? null,
+      card_monthly: card_monthly ?? null,
+      card_term:    card_term    ?? null,
     })
     .select()
     .single();
@@ -118,7 +127,7 @@ export async function GET(req: NextRequest) {
 
   let query = sb
     .from("scenario_briefs")
-    .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at")
+    .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term")
     .eq("status", "active")
     .in("needs_professional", profFilter)
     .or(`closes_at.is.null,closes_at.gt.${new Date().toISOString()}`)  // exclude expired, allow null (legacy rows)

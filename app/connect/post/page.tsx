@@ -114,6 +114,14 @@ function PostScenarioContent() {
           down_payment_pct: parseInt(form.down_payment_pct),
           max_responses: parseInt(form.max_responses),
           response_window_hours: parseInt(form.response_window_hours),
+          // Card data — only present on Path A (arrived from LenderChecklistCard)
+          ...(fromScenario && scPrice > 0 ? {
+            card_price:    scPrice,
+            card_dp_pct:   scDp,
+            card_rate:     scRate,
+            card_monthly:  scMonthly,
+            card_term:     scTerm,
+          } : {}),
         }),
       });
       const data = await res.json();
