@@ -156,10 +156,37 @@ const tests = [
     ['COMP: deep analysis TR','[deep-analysis] Walk me through 15-year vs 30-year on a $600k home at 6.75%',  'answers', 'answers'],
     ['COMP: deep analysis RB','[deep-analysis] Walk me through rent vs buy on a $550k home at 6.75%',         'answers', 'answers'],
 
-    // ── Slider context chips (getContextChips) ───────────────────────────────
-    ['CTX: refi rate drop',   'Same refi, rate drops to 6.0%',                                                'answers', 'answers'],
+    // ── Slider context chips (getContextChips) — new explicit-number seeds ─────
+    ['CTX: conv rate drop',   'Conventional loan on a $500k home with 20% down, rate drops to 6.5%',         'answers', 'answers'],
+    ['CTX: conv rate drop2',  'Conventional loan on a $650k home with 10% down, rate drops to 6.25%',        'answers', 'answers'],
+    ['CTX: conv alt down',    'Conventional loan on a $500k home with 10% down at 7%',                       'answers', 'answers'],
+    ['CTX: conv income qual', 'How much income do I need to qualify for a $500k home with 20% down?',        'answers', 'answers'],
+    ['CTX: conv fha compare', 'Compare FHA 3.5% down vs conventional 20% down on a $500k home at 7%',       'answers', 'answers'],
+    ['CTX: fha rate drop',    'FHA loan on $400k home with 3.5% down, rate drops to 6.0%',                  'answers', 'answers'],
+    ['CTX: fha 10pct down',   'FHA loan on $400k home with 10% down at 7%',                                 'answers', 'answers'],
+    ['CTX: fha vs conv',      'Compare FHA 3.5% down vs conventional 5% down on a $400k home at 7%',        'answers', 'answers'],
+    ['CTX: dscr rent up',     'DSCR loan on $400k rental property, 25% down, rent increases to $3,200/month at 7%', 'answers', 'answers'],
+    ['CTX: dscr rent down',   'DSCR loan on $400k rental property, 25% down, rent drops to $2,600/month at 7%',    'answers', 'answers'],
+    ['CTX: dscr rate drop',   'DSCR loan on $400k rental property, 25% down, $2,900/mo rent, rate drops to 6.5%',  'answers', 'answers'],
+    ['CTX: refi rate drop',   'Refi $450k from 7.25% to 6.75% — full breakeven and savings',                'answers', 'answers'],
     ['CTX: refi breakeven',   'How long to break even on refi closing costs for a $500k loan from 6.5% to 5.99%?', 'answers', 'answers'],
     ['CTX: loan limits FHA',  'Compare FHA 3.5% down vs conventional 20% down on a $700k home at 7%',        'answers', 'answers'],
+
+    // ── FHA needs-input starter chips ────────────────────────────────────────
+    ['FHA-NI: basic',         'FHA loan on a $300k home at 6.5%',                                           'answers', 'answers'],
+    ['FHA-NI: income qualify','FHA loan on a $300k home with 3.5% down at current rates — does $75k income qualify?', 'answers', 'answers'],
+    ['FHA-NI: fha vs conv',   'Compare FHA 3.5% down vs conventional 5% down on a $350k home',             'answers', 'answers'],
+
+    // ── Home page hero chips ──────────────────────────────────────────────────
+    ['HP: conv 20pct',        'Conventional loan on a $500,000 home with 20% down at current rates',        'answers', 'answers'],
+    ['HP: fha 3.5pct',        'FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP', 'answers', 'answers'],
+    ['HP: afford 650k',       'I make $120,000 a year and have $42,000 saved — can I afford a $650,000 home?', 'answers', 'answers'],
+    ['HP: refi today',        "Should I refinance at today's rates? I have a $450,000 mortgage at 7.25%",   'answers', 'answers'],
+    ['HP: dscr rental',       'DSCR loan on a $400,000 rental property with $2,800/mo rent and 25% down — does it cash flow?', 'answers', 'answers'],
+    ['HP: va loan',           'VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee', 'answers', 'answers'],
+    ['HP: afford how much',   'I make $120,000 a year and have $42,000 saved — how much house can I afford?', 'answers', 'answers'],
+    ['HP: refi breakeven',    'What would refinancing look like on a $450,000 mortgage at 7.25%? Show me breakeven and monthly savings.', 'answers', 'answers'],
+    ['HP: jumbo',             'Jumbo loan on a $1,500,000 home with 20% down — show me the full payment breakdown and reserve requirements.', 'answers', 'answers'],
 
     // ── Refi needs-input chips ───────────────────────────────────────────────
     ['REFI-NI: trigger rate', "What rate would I need to refi my $650k mortgage at 6.5%?",                    'answers', 'answers'],

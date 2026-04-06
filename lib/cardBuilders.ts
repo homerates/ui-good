@@ -1202,7 +1202,7 @@ export function buildFHANeedsInputCard(parsed: FHANeedsInput, fredRate?: number)
     const rateHint = fredRate ? ` (or I'll use the current FRED rate: ${fPct(fredRate)})` : '';
     const chips: BuiltCard['follow_up_chips'] = [
         { label: 'FHA loan on $300k home at 6.5%', seed: 'FHA loan on a $300k home at 6.5%' },
-        { label: 'FHA with 3.5% down, $75k income', seed: 'I make $75k and have $15k saved — can I get an FHA loan?' },
+        { label: 'FHA with 3.5% down, $75k income', seed: 'FHA loan on a $300k home with 3.5% down at current rates — does $75k income qualify?' },
         { label: 'FHA vs conventional — compare both', seed: 'Compare FHA 3.5% down vs conventional 5% down on a $350k home' },
     ];
     const answer = `**FHA Loan Calculator**
@@ -2393,10 +2393,11 @@ export function getContextChips(
     if (snapshotLoanType === 'calcEngine-conventional' && sPrice && sRate) {
         const rateDown = parseFloat((Number(sRate) - 0.5).toFixed(2));
         const downPct = Number(sDown ?? 15);
+        const altDown = downPct < 20 ? 20 : 10;
         return [
-            { label: `Rate drops to ${fPct(rateDown)} — new payment?`, seed: `Same home, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), downPaymentPct: downPct }, changedKeys: ['annualRatePct'] },
-            { label: downPct < 20 ? `What if I put 20% down?` : `What if I put 10% down?`, seed: downPct < 20 ? `Same home with 20% down` : `Same home with 10% down`, paramOverrides: { downPaymentPct: downPct < 20 ? 20 : 10, purchasePrice: Number(sPrice), annualRatePct: Number(sRate) }, changedKeys: ['downPaymentPct'] },
-            { label: `What income do I need for ${priceLabel}?`, seed: `How much income do I need to qualify for this home?` },
+            { label: `Rate drops to ${fPct(rateDown)} — new payment?`, seed: `Conventional loan on a ${priceLabel} home with ${downPct}% down, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), downPaymentPct: downPct }, changedKeys: ['annualRatePct'] },
+            { label: downPct < 20 ? `What if I put 20% down?` : `What if I put 10% down?`, seed: `Conventional loan on a ${priceLabel} home with ${altDown}% down at ${fPct(Number(sRate))}`, paramOverrides: { downPaymentPct: altDown, purchasePrice: Number(sPrice), annualRatePct: Number(sRate) }, changedKeys: ['downPaymentPct'] },
+            { label: `What income do I need for ${priceLabel}?`, seed: `How much income do I need to qualify for a ${priceLabel} home with ${downPct}% down?` },
             { label: `FHA vs conventional on ${priceLabel}`, seed: `Compare FHA 3.5% down vs conventional ${downPct}% down on a ${priceLabel} home at ${fPct(Number(sRate))}` },
         ];
     }
@@ -2406,8 +2407,8 @@ export function getContextChips(
         const rateDown = parseFloat((Number(sRate) - 0.5).toFixed(2));
         const downPct = Number(sDown ?? 3.5);
         return [
-            { label: `Rate drops to ${fPct(rateDown)} — new payment?`, seed: `Same FHA loan, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), downPaymentPct: downPct, isFHA: true }, changedKeys: ['annualRatePct'] },
-            { label: `What if I put 10% down?`, seed: `Same FHA loan with 10% down`, paramOverrides: { downPaymentPct: 10, purchasePrice: Number(sPrice), annualRatePct: Number(sRate), isFHA: true }, changedKeys: ['downPaymentPct'] },
+            { label: `Rate drops to ${fPct(rateDown)} — new payment?`, seed: `FHA loan on ${priceLabel} home with ${downPct}% down, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), downPaymentPct: downPct, isFHA: true }, changedKeys: ['annualRatePct'] },
+            { label: `What if I put 10% down?`, seed: `FHA loan on ${priceLabel} home with 10% down at ${fPct(Number(sRate))}`, paramOverrides: { downPaymentPct: 10, purchasePrice: Number(sPrice), annualRatePct: Number(sRate), isFHA: true }, changedKeys: ['downPaymentPct'] },
             { label: `When can I remove FHA MIP?`, seed: `Ask Underwriting: when can I remove FHA MIP on a ${priceLabel} home with ${downPct}% down?` },
             { label: `FHA vs conventional on ${priceLabel}`, seed: `Compare FHA ${downPct}% down vs conventional 5% down on a ${priceLabel} home at ${fPct(Number(sRate))}` },
         ];
@@ -2418,10 +2419,11 @@ export function getContextChips(
         const rentUp = Math.round(Number(sRent) + 200);
         const rentDown = Math.round(Number(sRent) - 200);
         const rateDown = sRate ? parseFloat((Number(sRate) - 0.5).toFixed(2)) : null;
+        const downPct = Number(sDown ?? 25);
         return [
-            { label: `Rent increases to ${f$(rentUp)}/mo`, seed: `Same property, rent increases to $${rentUp}/month`, paramOverrides: { grossMonthlyRent: rentUp, purchasePrice: Number(sPrice), annualRatePct: Number(sRate ?? 7) }, changedKeys: ['grossMonthlyRent'] },
-            { label: `Rent drops to ${f$(rentDown)}/mo — still cash flows?`, seed: `Same property, rent drops to $${rentDown}/month`, paramOverrides: { grossMonthlyRent: rentDown, purchasePrice: Number(sPrice), annualRatePct: Number(sRate ?? 7) }, changedKeys: ['grossMonthlyRent'] },
-            ...(rateDown ? [{ label: `Rate drops to ${fPct(rateDown)} — new DSCR?`, seed: `Same rental property, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), grossMonthlyRent: Number(sRent) }, changedKeys: ['annualRatePct'] }] : []),
+            { label: `Rent increases to ${f$(rentUp)}/mo`, seed: `DSCR loan on ${priceLabel} rental property, ${downPct}% down, rent increases to $${rentUp}/month at ${fPct(Number(sRate ?? 7))}`, paramOverrides: { grossMonthlyRent: rentUp, purchasePrice: Number(sPrice), annualRatePct: Number(sRate ?? 7) }, changedKeys: ['grossMonthlyRent'] },
+            { label: `Rent drops to ${f$(rentDown)}/mo — still cash flows?`, seed: `DSCR loan on ${priceLabel} rental property, ${downPct}% down, rent drops to $${rentDown}/month at ${fPct(Number(sRate ?? 7))}`, paramOverrides: { grossMonthlyRent: rentDown, purchasePrice: Number(sPrice), annualRatePct: Number(sRate ?? 7) }, changedKeys: ['grossMonthlyRent'] },
+            ...(rateDown ? [{ label: `Rate drops to ${fPct(rateDown)} — new DSCR?`, seed: `DSCR loan on ${priceLabel} rental property, ${downPct}% down, $${Number(sRent)}/mo rent, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), grossMonthlyRent: Number(sRent) }, changedKeys: ['annualRatePct'] }] : []),
             { label: `What DSCR do lenders require?`, seed: `Ask Underwriting: what minimum DSCR ratio do lenders require for investment property loans?` },
         ];
     }
@@ -2434,7 +2436,7 @@ export function getContextChips(
         const rateDown = parseFloat((newRate - 0.5).toFixed(2));
         const balLabel = fK(bal);
         return [
-            { label: `What if rate drops to ${fPct(rateDown)}?`, seed: `Same refi, rate drops to ${rateDown}%`, paramOverrides: { newRatePct: rateDown, currentBalance: bal, currentRatePct: currentRate }, changedKeys: ['newRatePct'] },
+            { label: `What if rate drops to ${fPct(rateDown)}?`, seed: `Refi ${balLabel} from ${fPct(currentRate)} to ${rateDown}% — full breakeven and savings`, paramOverrides: { newRatePct: rateDown, currentBalance: bal, currentRatePct: currentRate }, changedKeys: ['newRatePct'] },
             { label: `How long to break even on closing costs?`, seed: `How long to break even on refi closing costs for a ${balLabel} loan from ${fPct(currentRate)} to ${fPct(newRate)}?` },
             { label: `Extra payments vs refi — which wins?`, seed: `Compare making $500/mo extra payments vs refinancing my ${balLabel} mortgage from ${fPct(currentRate)} to ${fPct(newRate)}` },
             { label: `Cash-out refi — how much equity can I pull?`, seed: `How much equity can I pull out via refi on a ${balLabel} mortgage at ${fPct(currentRate)}?` },
@@ -2444,11 +2446,15 @@ export function getContextChips(
     // ── Affordability ──
     if (snapshotLoanType === 'calcEngine-affordability') {
         const sPiti = snapshotJson.computed_financials?.monthly_pitia ?? snapshotJson.monthly_payment;
+        const sIncome = snapshotJson.scenario_inputs?.annual_income ?? snapshotJson.annual_income;
+        const sSavings = snapshotJson.scenario_inputs?.savings ?? snapshotJson.savings;
+        const incomeLabel = sIncome ? `$${Math.round(Number(sIncome) / 1000)}k income` : 'my income';
+        const savingsLabel = sSavings ? `, $${Math.round(Number(sSavings) / 1000)}k saved` : '';
         if (sPiti) return [
-            { label: `With $500/mo in debts — what changes?`, seed: `Same affordability scenario with $500/month in other debts`, paramOverrides: { monthlyDebt: 500 } },
-            { label: `What if I put 20% down?`, seed: `Same scenario with 20% down payment`, paramOverrides: { downPctOverride: 20 } },
-            { label: `Show FHA option on max price`, seed: `What's the FHA loan option on my maximum affordable home price?` },
-            { label: `What income do I need to qualify?`, seed: `How much income do I need to qualify for this home?` },
+            { label: `With $500/mo in debts — what changes?`, seed: `What can I afford with $500/month in other debts — I make ${incomeLabel.replace('$','').replace(' income','')}${savingsLabel}`, paramOverrides: { monthlyDebt: 500 } },
+            { label: `What if I put 20% down?`, seed: `Affordability with 20% down — I make ${incomeLabel.replace('$','').replace(' income','')}${savingsLabel}`, paramOverrides: { downPctOverride: 20 } },
+            { label: `Show FHA option on max price`, seed: `What's the FHA loan option for someone with ${incomeLabel}${savingsLabel}?` },
+            { label: `What income do I need to qualify?`, seed: `How much income do I need to qualify for the maximum affordable home at current rates?` },
         ];
     }
 
