@@ -1,6 +1,6 @@
 "use client";
 // app/profile/page.tsx
-// Role-aware profile editor — LOs see license fields; borrowers see basics
+// Role-aware profile editor — LOs/agents see license + company fields
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -15,6 +15,7 @@ interface ProfileData {
     lender: string | null;
     nmls: string | null;
     license_state: string | null;
+    company_nmls?: string | null;
   } | null;
 }
 
@@ -23,6 +24,12 @@ const US_STATES = [
   "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
   "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
   "VA","WA","WV","WI","WY",
+];
+
+const ROLE_OPTIONS = [
+  { v: "borrower", label: "Borrower / Home Buyer" },
+  { v: "lo",       label: "Loan Officer" },
+  { v: "agent",    label: "Real Estate Agent" },
 ];
 
 export default function ProfilePage() {
@@ -34,9 +41,15 @@ export default function ProfilePage() {
 
   // Form fields
   const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState("borrower");
   const [lender, setLender] = useState("");
   const [nmls, setNmls] = useState("");
+  const [companyNmls, setCompanyNmls] = useState("");
   const [licenseState, setLicenseState] = useState("");
+  const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
+
+  const showPro = role === "lo" || role === "agent";
 
   useEffect(() => {
     fetch("/api/profile")
@@ -45,8 +58,10 @@ export default function ProfilePage() {
         if (!d) return;
         setData(d);
         setFullName(d.full_name || d.clerkName || "");
+        setRole(d.role || "borrower");
         setLender(d.lo?.lender ?? "");
         setNmls(d.lo?.nmls ?? "");
+        setCompanyNmls(d.lo?.company_nmls ?? "");
         setLicenseState(d.lo?.license_state ?? "");
       })
       .catch(() => {})
@@ -64,9 +79,13 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: fullName,
+          role,
           lender,
           nmls,
+          company_nmls: companyNmls,
           license_state: licenseState,
+          phone,
+          website,
         }),
       });
       if (!res.ok) {
@@ -101,8 +120,8 @@ export default function ProfilePage() {
           <div className="pr-header">
             <h1 className="pr-title">My Profile</h1>
             <p className="pr-sub">
-              {data?.isLO
-                ? "Your name and license info appear when you respond to borrower scenarios."
+              {showPro
+                ? "Your name, license, and company info appear when you respond to borrower scenarios."
                 : "Your profile details for your HomeRates.ai account."}
             </p>
           </div>
@@ -112,14 +131,16 @@ export default function ProfilePage() {
           ) : (
             <form className="pr-form" onSubmit={save}>
 
-              {/* Account info (read-only) */}
+              {/* Account info */}
               <div className="pr-section">
                 <div className="pr-section-title">Account</div>
+
                 <div className="pr-field">
                   <label className="pr-label">Email</label>
                   <div className="pr-readonly">{data?.email ?? "—"}</div>
-                  <span className="pr-hint">Managed by your sign-in provider. Change it in account settings.</span>
+                  <span className="pr-hint">Managed by your sign-in provider.</span>
                 </div>
+
                 <div className="pr-field">
                   <label className="pr-label" htmlFor="full_name">Display Name</label>
                   <input
@@ -132,42 +153,82 @@ export default function ProfilePage() {
                   />
                   <span className="pr-hint">Shown on your responses to borrowers.</span>
                 </div>
+
+                <div className="pr-field">
+                  <label className="pr-label">I am a</label>
+                  <div className="pr-role-chips">
+                    {ROLE_OPTIONS.map(({ v, label }) => (
+                      <button
+                        key={v}
+                        type="button"
+                        className={`pr-role-chip ${role === v ? "active" : ""}`}
+                        onClick={() => setRole(v)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="pr-hint">Sets which tools and views are available to you.</span>
+                </div>
               </div>
 
-              {/* LO-only: License & Company */}
-              {data?.isLO && (
-                <div className="pr-section">
-                  <div className="pr-section-title">License &amp; Company</div>
+              {/* Pro fields — LO or Agent */}
+              {showPro && (
+                <div className="pr-section pr-section-pro">
+                  <div className="pr-section-title">
+                    {role === "agent" ? "License & Brokerage" : "License & Company"}
+                  </div>
 
                   <div className="pr-field">
-                    <label className="pr-label" htmlFor="lender">Lender / Company Name</label>
+                    <label className="pr-label" htmlFor="lender">
+                      {role === "agent" ? "Brokerage / Company" : "Lender / Company Name"}
+                    </label>
                     <input
                       id="lender"
                       className="pr-input"
                       value={lender}
                       onChange={e => setLender(e.target.value)}
-                      placeholder="e.g. Rocket Mortgage, CrossCountry, etc."
+                      placeholder={role === "agent" ? "e.g. Compass, Keller Williams..." : "e.g. Rocket Mortgage, CrossCountry..."}
                       maxLength={100}
                     />
-                    <span className="pr-hint">Borrowers see this when you respond to their scenario.</span>
+                    <span className="pr-hint">Visible to borrowers when you respond to their scenario.</span>
                   </div>
 
                   <div className="pr-row">
                     <div className="pr-field">
-                      <label className="pr-label" htmlFor="nmls">NMLS #</label>
+                      <label className="pr-label" htmlFor="nmls">
+                        {role === "agent" ? "License #" : "NMLS # (Individual)"}
+                      </label>
                       <input
                         id="nmls"
                         className="pr-input"
                         value={nmls}
                         onChange={e => setNmls(e.target.value.replace(/\D/g, ""))}
-                        placeholder="e.g. 123456"
+                        placeholder={role === "agent" ? "e.g. 01234567" : "e.g. 123456"}
                         maxLength={12}
                       />
-                      <span className="pr-hint">Your individual NMLS license number.</span>
+                      <span className="pr-hint">Your individual license number.</span>
                     </div>
 
+                    {role === "lo" && (
+                      <div className="pr-field">
+                        <label className="pr-label" htmlFor="company_nmls">Company NMLS #</label>
+                        <input
+                          id="company_nmls"
+                          className="pr-input"
+                          value={companyNmls}
+                          onChange={e => setCompanyNmls(e.target.value.replace(/\D/g, ""))}
+                          placeholder="e.g. 3030"
+                          maxLength={12}
+                        />
+                        <span className="pr-hint">Your lender's company NMLS ID.</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pr-row">
                     <div className="pr-field">
-                      <label className="pr-label" htmlFor="license_state">Primary State</label>
+                      <label className="pr-label" htmlFor="license_state">Primary Licensed State</label>
                       <select
                         id="license_state"
                         className="pr-select"
@@ -179,8 +240,36 @@ export default function ProfilePage() {
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
-                      <span className="pr-hint">Your primary licensed state.</span>
+                      <span className="pr-hint">Your primary state of licensure.</span>
                     </div>
+
+                    <div className="pr-field">
+                      <label className="pr-label" htmlFor="phone">Phone (optional)</label>
+                      <input
+                        id="phone"
+                        className="pr-input"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        placeholder="e.g. (818) 555-0100"
+                        maxLength={20}
+                        type="tel"
+                      />
+                      <span className="pr-hint">Only shared when a borrower invites you.</span>
+                    </div>
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label" htmlFor="website">Website / LinkedIn (optional)</label>
+                    <input
+                      id="website"
+                      className="pr-input"
+                      value={website}
+                      onChange={e => setWebsite(e.target.value)}
+                      placeholder="https://..."
+                      maxLength={200}
+                      type="url"
+                    />
+                    <span className="pr-hint">Borrowers can review your background before deciding to connect.</span>
                   </div>
                 </div>
               )}
@@ -198,7 +287,6 @@ export default function ProfilePage() {
 
             </form>
           )}
-
         </div>
       </div>
 
@@ -224,7 +312,7 @@ export default function ProfilePage() {
         .pr-nav-link { font-size: 0.875rem; color: #8fa3b8; text-decoration: none; transition: color 0.15s; }
         .pr-nav-link:hover { color: #f0f4ff; }
 
-        .pr-container { max-width: 560px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+        .pr-container { max-width: 580px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
         .pr-header { margin-bottom: 2rem; }
         .pr-title { font-family: 'DM Sans', sans-serif; font-size: 1.75rem; font-weight: 700; margin: 0 0 0.4rem; }
@@ -232,13 +320,17 @@ export default function ProfilePage() {
 
         .pr-loading { text-align: center; padding: 4rem 0; color: #8fa3b8; }
 
-        .pr-form { display: flex; flex-direction: column; gap: 2rem; }
+        .pr-form { display: flex; flex-direction: column; gap: 1.5rem; }
 
         .pr-section {
           background: #0e1420;
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 16px; padding: 1.5rem;
           display: flex; flex-direction: column; gap: 1.25rem;
+        }
+        .pr-section-pro {
+          border-color: rgba(0,232,122,0.15);
+          background: rgba(0,232,122,0.02);
         }
         .pr-section-title {
           font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
@@ -260,7 +352,11 @@ export default function ProfilePage() {
           transition: border-color 0.15s;
         }
         .pr-input:focus, .pr-select:focus { border-color: rgba(0,232,122,0.4); }
-        .pr-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238fa3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+        .pr-select {
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238fa3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+          background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px;
+        }
 
         .pr-readonly {
           padding: 11px 14px;
@@ -271,6 +367,20 @@ export default function ProfilePage() {
         }
 
         .pr-hint { font-size: 0.75rem; color: #3a4560; line-height: 1.4; }
+
+        .pr-role-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .pr-role-chip {
+          padding: 8px 18px; border-radius: 99px;
+          border: 1px solid rgba(255,255,255,0.10);
+          background: transparent; color: #8fa3b8;
+          font-size: 0.875rem; cursor: pointer; font-family: inherit;
+          transition: all 0.15s;
+        }
+        .pr-role-chip:hover { border-color: rgba(255,255,255,0.25); color: #f0f4ff; }
+        .pr-role-chip.active {
+          background: rgba(0,232,122,0.12); border-color: rgba(0,232,122,0.4);
+          color: #00e87a; font-weight: 600;
+        }
 
         .pr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
@@ -299,6 +409,7 @@ export default function ProfilePage() {
 
         @media (max-width: 480px) {
           .pr-row { grid-template-columns: 1fr; }
+          .pr-role-chips { flex-direction: column; }
         }
       `}</style>
     </>
