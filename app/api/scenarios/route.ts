@@ -15,11 +15,20 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional } = body;
+  const {
+    loan_type, loan_purpose, price_range, down_payment_pct, income_range,
+    credit_tier, timeline, state, notes, needs_professional,
+    max_responses, response_window_hours, anonymity_level,
+  } = body;
 
   if (!loan_type || !price_range || !down_payment_pct || !income_range || !credit_tier || !timeline || !state) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+
+  // Validate matching controls
+  const maxResp = Math.min(Math.max(parseInt(max_responses ?? "3") || 3, 1), 5);
+  const windowHours = [24, 48, 72].includes(parseInt(response_window_hours ?? "48")) ? parseInt(response_window_hours) : 48;
+  const closesAt = new Date(Date.now() + windowHours * 3600 * 1000).toISOString();
 
   // Check monthly scenario post limit
   const quota = await canPostScenario(userId);
@@ -59,6 +68,10 @@ export async function POST(req: NextRequest) {
       state,
       notes: notes ?? null,
       needs_professional: needs_professional ?? "both",
+      max_responses: maxResp,
+      response_window_hours: windowHours,
+      closes_at: closesAt,
+      anonymity_level: anonymity_level ?? "full",
     })
     .select()
     .single();
@@ -105,9 +118,10 @@ export async function GET(req: NextRequest) {
 
   let query = sb
     .from("scenario_briefs")
-    .select("id, loan_type, loan_purpose, price_range, down_payment_pct, credit_tier, timeline, state, notes, needs_professional, response_count, created_at")
+    .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at")
     .eq("status", "active")
     .in("needs_professional", profFilter)
+    .or(`closes_at.is.null,closes_at.gt.${new Date().toISOString()}`)  // exclude expired, allow null (legacy rows)
     .order("created_at", { ascending: false })
     .limit(50);
 

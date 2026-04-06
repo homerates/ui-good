@@ -78,6 +78,9 @@ function PostScenarioContent() {
     timeline: "",
     state: "",
     notes: "",
+    max_responses: "3",
+    response_window_hours: "48",
+    anonymity_level: "full",
   });
 
   // Pre-fill form from scenario params on first render
@@ -109,6 +112,8 @@ function PostScenarioContent() {
           ...form,
           loan_type: form.loan_type.toLowerCase().replace(/ /g, "_"),
           down_payment_pct: parseInt(form.down_payment_pct),
+          max_responses: parseInt(form.max_responses),
+          response_window_hours: parseInt(form.response_window_hours),
         }),
       });
       const data = await res.json();
@@ -351,6 +356,39 @@ function PostScenarioContent() {
                   </select>
                 </div>
 
+                {/* ── Matching controls ── */}
+                <div className="post-matching-section">
+                  <div className="post-matching-title">Your matching preferences</div>
+                  <div className="post-matching-body">
+                    You control exactly how many professionals respond and how long the request stays open.
+                    Once the limit is reached, the request closes automatically.
+                  </div>
+
+                  <div className="post-field">
+                    <label>Max responses <span className="post-optional">(default 3, max 5)</span></label>
+                    <div className="post-chips">
+                      {["1", "2", "3", "4", "5"].map(n => (
+                        <button key={n} className={`post-chip ${form.max_responses === n ? "selected" : ""}`} onClick={() => set("max_responses", n)}>{n}</button>
+                      ))}
+                    </div>
+                    <span className="post-field-hint">When this limit is reached, the post closes. No more responses come in.</span>
+                  </div>
+
+                  <div className="post-field">
+                    <label>Response window</label>
+                    <div className="post-chips">
+                      {[
+                        { v: "24", label: "24 hours" },
+                        { v: "48", label: "48 hours" },
+                        { v: "72", label: "72 hours" },
+                      ].map(({ v, label }) => (
+                        <button key={v} className={`post-chip ${form.response_window_hours === v ? "selected" : ""}`} onClick={() => set("response_window_hours", v)}>{label}</button>
+                      ))}
+                    </div>
+                    <span className="post-field-hint">After this window closes, no new responses are accepted regardless of count.</span>
+                  </div>
+                </div>
+
                 <div className="post-row">
                   <button className="post-btn-ghost" onClick={() => setStep(1)}>← Back</button>
                   <button className="post-btn" disabled={!step2Valid} onClick={() => setStep(3)}>Continue →</button>
@@ -389,6 +427,8 @@ function PostScenarioContent() {
                     ["Credit tier", form.credit_tier],
                     ["Timeline", form.timeline],
                     ["State", form.state],
+                    ["Max responses", `${form.max_responses} professionals`],
+                    ["Window", `${form.response_window_hours}h — closes automatically`],
                   ].map(([label, value]) => (
                     <div key={label} className="post-review-field">
                       <div className="post-review-label">{label}</div>
@@ -625,6 +665,22 @@ function PostScenarioContent() {
           margin-bottom: 0.75rem;
         }
         .post-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #3a4560; }
+        .post-field-hint { display: block; font-size: 0.75rem; color: #3a4560; margin-top: 7px; line-height: 1.45; }
+
+        /* ── Matching preferences section ── */
+        .post-matching-section {
+          background: rgba(61,139,255,0.04);
+          border: 1px solid rgba(61,139,255,0.15);
+          border-radius: 14px; padding: 1.5rem;
+          margin-bottom: 1.75rem;
+        }
+        .post-matching-title {
+          font-size: 0.78rem; font-weight: 700; letter-spacing: 0.07em;
+          text-transform: uppercase; color: #3d8bff; margin-bottom: 0.5rem;
+        }
+        .post-matching-body {
+          font-size: 0.85rem; color: #8fa3b8; line-height: 1.55; margin-bottom: 1.25rem;
+        }
 
         .post-chips { display: flex; flex-wrap: wrap; gap: 8px; }
         .post-chip {

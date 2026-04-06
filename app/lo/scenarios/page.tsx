@@ -11,11 +11,15 @@ interface Scenario {
   loan_purpose: string;
   price_range: string;
   down_payment_pct: number;
+  income_range?: string;
   credit_tier: string;
   timeline: string;
   state: string;
   notes?: string;
   response_count: number;
+  max_responses?: number;
+  response_window_hours?: number;
+  closes_at?: string;
   created_at: string;
   already_responded: boolean;
 }
@@ -123,6 +127,15 @@ export default function LOScenariosPage() {
     return `${Math.floor(h / 24)}d ago`;
   };
 
+  const timeLeft = (closes_at?: string) => {
+    if (!closes_at) return null;
+    const diff = new Date(closes_at).getTime() - Date.now();
+    if (diff <= 0) return "Closing";
+    const h = Math.ceil(diff / 3600000);
+    if (h < 24) return `${h}h left`;
+    return `${Math.ceil(h / 24)}d left`;
+  };
+
   const filtered = scenarios.filter(s => !filterState || s.state === filterState);
 
   return (
@@ -213,11 +226,21 @@ export default function LOScenariosPage() {
                     </div>
                     <div className="los-card-field">
                       <div className="los-cf-label">Credit</div>
-                      <div className="los-cf-value">{scenario.credit_tier.split(" ")[0]}</div>
+                      <div className="los-cf-value">{scenario.credit_tier}</div>
                     </div>
                     <div className="los-card-field">
                       <div className="los-cf-label">Timeline</div>
-                      <div className="los-cf-value">{scenario.timeline.split(" ")[0]}</div>
+                      <div className="los-cf-value">{scenario.timeline}</div>
+                    </div>
+                    {scenario.income_range && (
+                      <div className="los-card-field">
+                        <div className="los-cf-label">Income</div>
+                        <div className="los-cf-value">{scenario.income_range}</div>
+                      </div>
+                    )}
+                    <div className="los-card-field">
+                      <div className="los-cf-label">Purpose</div>
+                      <div className="los-cf-value">{scenario.loan_purpose}</div>
                     </div>
                   </div>
 
@@ -226,11 +249,18 @@ export default function LOScenariosPage() {
                   )}
 
                   <div className="los-card-footer">
-                    <span className="los-card-responses">
-                      {scenario.response_count} response{scenario.response_count !== 1 ? "s" : ""}
-                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span className="los-card-responses">
+                        {scenario.response_count}{scenario.max_responses ? `/${scenario.max_responses}` : ""} response{scenario.response_count !== 1 ? "s" : ""}
+                      </span>
+                      {scenario.closes_at && (
+                        <span className="los-card-timeleft">{timeLeft(scenario.closes_at)}</span>
+                      )}
+                    </div>
                     {scenario.already_responded ? (
                       <span className="los-responded-badge">✓ Responded</span>
+                    ) : scenario.max_responses && scenario.response_count >= scenario.max_responses ? (
+                      <span className="los-full-badge">Response limit reached</span>
                     ) : (
                       <button className="los-respond-btn" onClick={() => openModal(scenario)}>
                         Respond →
@@ -264,19 +294,52 @@ export default function LOScenariosPage() {
                       <h3 className="los-modal-title">Respond to scenario</h3>
                       <p className="los-modal-sub">
                         {LABEL_MAP[modal.scenario.loan_type]} · {modal.scenario.price_range} · {modal.scenario.state}
+                        {modal.scenario.closes_at && (
+                          <span className="los-modal-timeleft"> · {timeLeft(modal.scenario.closes_at)}</span>
+                        )}
                       </p>
                     </div>
                     <button className="los-modal-x" onClick={() => setModal(null)}>✕</button>
                   </div>
 
+                  {/* Full scenario breakdown for LO to review before responding */}
                   <div className="los-modal-scenario">
+                    <div className="los-ms-header">Borrower scenario</div>
                     <div className="los-ms-grid">
-                      <div><span className="los-ms-label">Credit</span><span className="los-ms-val">{modal.scenario.credit_tier}</span></div>
-                      <div><span className="los-ms-label">Down</span><span className="los-ms-val">{modal.scenario.down_payment_pct}%</span></div>
-                      <div><span className="los-ms-label">Timeline</span><span className="los-ms-val">{modal.scenario.timeline}</span></div>
+                      <div>
+                        <span className="los-ms-label">Price range</span>
+                        <span className="los-ms-val">{modal.scenario.price_range}</span>
+                      </div>
+                      <div>
+                        <span className="los-ms-label">Down</span>
+                        <span className="los-ms-val">{modal.scenario.down_payment_pct}%</span>
+                      </div>
+                      <div>
+                        <span className="los-ms-label">Credit</span>
+                        <span className="los-ms-val">{modal.scenario.credit_tier}</span>
+                      </div>
+                      <div>
+                        <span className="los-ms-label">Timeline</span>
+                        <span className="los-ms-val">{modal.scenario.timeline}</span>
+                      </div>
+                      {modal.scenario.income_range && (
+                        <div>
+                          <span className="los-ms-label">Income</span>
+                          <span className="los-ms-val">{modal.scenario.income_range}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="los-ms-label">Purpose</span>
+                        <span className="los-ms-val">{modal.scenario.loan_purpose}</span>
+                      </div>
                     </div>
                     {modal.scenario.notes && (
                       <p className="los-ms-note">"{modal.scenario.notes}"</p>
+                    )}
+                    {modal.scenario.max_responses && (
+                      <p className="los-ms-slots">
+                        {modal.scenario.max_responses - modal.scenario.response_count} response slot{(modal.scenario.max_responses - modal.scenario.response_count) !== 1 ? "s" : ""} remaining — borrower set a max of {modal.scenario.max_responses}
+                      </p>
                     )}
                   </div>
 
@@ -313,13 +376,16 @@ export default function LOScenariosPage() {
                       <label>Your approach <span className="los-mf-req">*</span></label>
                       <textarea
                         className="los-textarea"
-                        placeholder="Why are you the right LO for this scenario? What would you do for this borrower? Max 500 characters."
-                        maxLength={500}
-                        rows={4}
+                        placeholder={`Tell the borrower:\n• Why you're the right LO for this loan type and scenario\n• Estimated closing costs or lender fees at this rate\n• Your turn time and what to expect\n• Any key conditions or caveats they should know\n\nMax 800 characters — be specific, not generic.`}
+                        maxLength={800}
+                        rows={8}
                         value={approach}
                         onChange={e => setApproach(e.target.value)}
                       />
-                      <span className="los-mf-count">{approach.length}/500</span>
+                      <div className="los-mf-footer">
+                        <span className="los-mf-hint">The borrower compares your response against their HomeRates.ai analysis. Specific details earn the introduction.</span>
+                        <span className="los-mf-count">{approach.length}/800</span>
+                      </div>
                     </div>
                   </div>
 
@@ -428,6 +494,8 @@ export default function LOScenariosPage() {
 
         .los-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); }
         .los-card-responses { font-size: 0.75rem; color: #3a4560; }
+        .los-card-timeleft { font-size: 0.72rem; color: #ff8c42; margin-top: 2px; }
+        .los-full-badge { font-size: 0.75rem; color: #3a4560; }
         .los-respond-btn {
           padding: 7px 18px; background: #00e87a; color: #080c12;
           border: none; border-radius: 999px;
@@ -445,8 +513,8 @@ export default function LOScenariosPage() {
         .los-modal {
           background: #0e1420; border: 1px solid rgba(255,255,255,0.10);
           border-radius: 20px; padding: 2rem;
-          width: 100%; max-width: 520px;
-          max-height: 90vh; overflow-y: auto;
+          width: 100%; max-width: 660px;
+          max-height: 92vh; overflow-y: auto;
         }
         .los-modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; }
         .los-modal-title { font-family: 'DM Sans', sans-serif; font-size: 1.2rem; font-weight: 700; margin: 0 0 3px; }
@@ -455,13 +523,25 @@ export default function LOScenariosPage() {
         .los-modal-x:hover { color: #f0f4ff; }
 
         .los-modal-scenario {
-          background: #141b28; border-radius: 10px; padding: 1rem;
+          background: #141b28; border-radius: 12px; padding: 1.25rem;
           margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.06);
         }
-        .los-ms-grid { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 0.5rem; }
-        .los-ms-label { font-size: 0.7rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 6px; }
-        .los-ms-val { font-size: 0.85rem; font-weight: 600; color: #f0f4ff; }
-        .los-ms-note { font-size: 0.82rem; color: #8fa3b8; font-style: italic; margin: 0.5rem 0 0; }
+        .los-ms-header {
+          font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+          text-transform: uppercase; color: #3a4560;
+          margin-bottom: 0.75rem;
+        }
+        .los-ms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 0.75rem; }
+        .los-ms-label { display: block; font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+        .los-ms-val { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
+        .los-ms-note { font-size: 0.82rem; color: #8fa3b8; font-style: italic; margin: 0.75rem 0 0; line-height: 1.5; }
+        .los-ms-slots {
+          font-size: 0.78rem; color: #ff8c42;
+          margin: 0.5rem 0 0; background: rgba(255,140,66,0.08);
+          border: 1px solid rgba(255,140,66,0.2); border-radius: 7px;
+          padding: 6px 10px;
+        }
+        .los-modal-timeleft { color: #ff8c42; font-size: 0.8rem; }
 
         .los-modal-fields { display: flex; flex-direction: column; gap: 1rem; }
         .los-mf { display: flex; flex-direction: column; }
@@ -475,8 +555,9 @@ export default function LOScenariosPage() {
         }
         .los-input:focus, .los-textarea:focus { border-color: rgba(0,232,122,0.4); }
         .los-textarea { resize: vertical; line-height: 1.5; }
-        .los-mf-hint { font-size: 0.75rem; color: #3a4560; margin-top: 5px; line-height: 1.4; }
-        .los-mf-count { font-size: 0.72rem; color: #3a4560; text-align: right; margin-top: 4px; }
+        .los-mf-hint { font-size: 0.75rem; color: #3a4560; line-height: 1.4; }
+        .los-mf-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 5px; }
+        .los-mf-count { font-size: 0.72rem; color: #3a4560; white-space: nowrap; flex-shrink: 0; }
 
         .los-modal-error {
           font-size: 0.85rem; color: #ff5f5f;

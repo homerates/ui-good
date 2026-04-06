@@ -19,8 +19,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!rate_estimate || !approach || !lo_name || !lo_nmls) {
     return NextResponse.json({ error: "rate_estimate, approach, lo_name, and lo_nmls are required" }, { status: 400 });
   }
-  if (approach.length > 500) {
-    return NextResponse.json({ error: "Approach must be 500 characters or less" }, { status: 400 });
+  if (approach.length > 800) {
+    return NextResponse.json({ error: "Approach must be 800 characters or less" }, { status: 400 });
   }
 
   const sb = getSupabase();
@@ -29,13 +29,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Verify scenario exists and is active
   const { data: scenarioFull } = await sb
     .from("scenario_briefs")
-    .select("id, borrower_id, status, response_count")
+    .select("id, borrower_id, status, response_count, max_responses, closes_at")
     .eq("id", id)
     .single();
 
   if (!scenarioFull) return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
   if (scenarioFull.status !== "active") return NextResponse.json({ error: "This scenario is no longer accepting responses" }, { status: 400 });
   if (scenarioFull.borrower_id === userId) return NextResponse.json({ error: "You cannot respond to your own scenario" }, { status: 400 });
+
+  // Enforce borrower's max_responses cap
+  const maxResp = scenarioFull.max_responses ?? 5;
+  if ((scenarioFull.response_count ?? 0) >= maxResp) {
+    return NextResponse.json({ error: "This scenario has reached its response limit" }, { status: 400 });
+  }
+
+  // Enforce closes_at window
+  if (scenarioFull.closes_at && new Date(scenarioFull.closes_at) < new Date()) {
+    return NextResponse.json({ error: "The response window for this scenario has closed" }, { status: 400 });
+  }
+
   const scenario = scenarioFull;
 
   // One response per LO per scenario
