@@ -152,10 +152,28 @@ export async function GET(req: NextRequest) {
     respondedIds = (myResponses ?? []).map(r => r.scenario_id);
   }
 
-  const scenarios = (data ?? []).map(s => ({
-    ...s,
-    already_responded: respondedIds.includes(s.id),
-  }));
+  const scenarios = (data ?? []).map(s => {
+    const base = {
+      ...s,
+      already_responded: respondedIds.includes(s.id),
+    };
+
+    // Agents must not see financial/loan fields — strip them server-side
+    if (responder_type === "agent") {
+      const {
+        credit_tier, income_range, down_payment_pct, loan_type,
+        card_rate, card_monthly, card_dp_pct, card_price, card_term,
+        has_card_data,
+        ...agentSafe
+      } = base;
+      void credit_tier; void income_range; void down_payment_pct; void loan_type;
+      void card_rate; void card_monthly; void card_dp_pct; void card_price;
+      void card_term; void has_card_data;
+      return agentSafe;
+    }
+
+    return base;
+  });
 
   return NextResponse.json({ scenarios });
 }
