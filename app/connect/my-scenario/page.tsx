@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Response {
   id: string;
@@ -51,6 +52,7 @@ const BADGE_COLOR: Record<string, string> = {
 };
 
 export default function MyScenarioPage() {
+  const router = useRouter();
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,7 @@ export default function MyScenarioPage() {
   const [inviting, setInviting] = useState<string | null>(null);
   const [invited, setInvited] = useState<string | null>(null);
   const [closingScenario, setClosingScenario] = useState(false);
+  const [messaging, setMessaging] = useState<string | null>(null); // responseId being opened
 
   useEffect(() => {
     load();
@@ -97,6 +100,26 @@ export default function MyScenarioPage() {
       setScenario(prev => prev ? { ...prev, status: "matched" } : prev);
     }
     setInviting(null);
+  }
+
+  async function openChat(r: Response) {
+    if (!scenario) return;
+    setMessaging(r.id);
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        professional_id: r.lo_id,
+        scenario_id: scenario.id,
+        message: `Hi ${r.lo_name}, I reviewed your response to my scenario and wanted to connect.`,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      router.push(`/messages/${data.thread_id}`);
+    } else {
+      setMessaging(null);
+    }
   }
 
   async function closeScenario() {
@@ -239,17 +262,26 @@ export default function MyScenarioPage() {
                         <p className="ms-approach">"{r.approach}"</p>
                         <div className="ms-response-footer">
                           <span className="ms-response-time">{timeAgo(r.created_at)}</span>
-                          {(r.status === "invited" || invited === r.id) ? (
-                            <span className="ms-invited-badge">✓ Introduction sent</span>
-                          ) : scenario.status === "active" ? (
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                             <button
-                              className="ms-invite-btn"
-                              onClick={() => invite(r.id)}
-                              disabled={inviting === r.id || !!invited}
+                              className="ms-msg-btn"
+                              onClick={() => openChat(r)}
+                              disabled={messaging === r.id}
                             >
-                              {inviting === r.id ? "Sending..." : "Invite to connect →"}
+                              {messaging === r.id ? "Opening..." : "Message"}
                             </button>
-                          ) : null}
+                            {(r.status === "invited" || invited === r.id) ? (
+                              <span className="ms-invited-badge">✓ Introduction sent</span>
+                            ) : scenario.status === "active" ? (
+                              <button
+                                className="ms-invite-btn"
+                                onClick={() => invite(r.id)}
+                                disabled={inviting === r.id || !!invited}
+                              >
+                                {inviting === r.id ? "Sending..." : "Invite to connect →"}
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -438,6 +470,15 @@ export default function MyScenarioPage() {
         }
         .ms-invite-btn:hover:not(:disabled) { opacity: 0.88; }
         .ms-invite-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .ms-msg-btn {
+          padding: 8px 16px; background: transparent; color: #3d8bff;
+          border: 1px solid rgba(61,139,255,0.35); border-radius: 999px;
+          font-size: 0.8rem; font-weight: 600; cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .ms-msg-btn:hover:not(:disabled) { background: rgba(61,139,255,0.1); border-color: rgba(61,139,255,0.55); }
+        .ms-msg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .ms-invited-badge { font-size: 0.82rem; color: #00e87a; font-weight: 600; }
 

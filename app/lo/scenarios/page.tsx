@@ -156,6 +156,7 @@ export default function LOScenariosPage() {
           <div className="los-nav-links">
             <Link href="/lo/dashboard" className="los-nav-link">Dashboard</Link>
             <Link href="/lo/borrowers" className="los-nav-link">Borrowers</Link>
+            <Link href="/messages" className="los-nav-link">Messages</Link>
             <span className="los-nav-active">Scenario Board</span>
           </div>
         </nav>

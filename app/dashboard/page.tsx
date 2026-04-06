@@ -162,6 +162,20 @@ export default async function DashboardPage() {
     agentConnectionCount = cc ?? 0;
   }
 
+  // ── Unread messages (all user types) ────────────────────────────────────
+  let unreadMessages = 0;
+  if (sb) {
+    const { data: threads } = await sb
+      .from("conversation_threads")
+      .select("borrower_id, professional_id, unread_borrower, unread_professional")
+      .or(`borrower_id.eq.${userId},professional_id.eq.${userId}`);
+    if (threads) {
+      unreadMessages = threads.reduce((sum, t) => {
+        return sum + (t.borrower_id === userId ? (t.unread_borrower ?? 0) : (t.unread_professional ?? 0));
+      }, 0);
+    }
+  }
+
   // ── Borrower-specific data ───────────────────────────────────────────────
   let activeScenario: { id: string; loan_type: string; state: string; status: string; response_count: number } | null = null;
   let scenarioQuota: { used: number; limit: number | null } = { used: 0, limit: null };
@@ -465,11 +479,13 @@ export default async function DashboardPage() {
                 {(userType === "lo" ? [
                   { href: "/lo/scenarios", label: "Scenario Board" },
                   { href: "/lo/borrowers", label: "Borrower Invites" },
+                  { href: "/messages", label: "Messages", badge: unreadMessages > 0 ? unreadMessages : 0 },
                   { href: "/chat", label: "AI Chat" },
                   { href: "/profile", label: "My Profile" },
                   { href: "/for-pros", label: "For Professionals" },
                 ] : userType === "agent" ? [
                   { href: "/agent/scenarios", label: "Buyer Scenarios" },
+                  { href: "/messages", label: "Messages", badge: unreadMessages > 0 ? unreadMessages : 0 },
                   { href: "/chat", label: "AI Chat" },
                   { href: "/profile", label: "My Profile" },
                   { href: "/for-pros", label: "For Professionals" },
@@ -477,11 +493,12 @@ export default async function DashboardPage() {
                 ] : [
                   { href: "/connect", label: "Get Matched" },
                   { href: "/connect/my-scenario", label: "My Scenario" },
+                  { href: "/messages", label: "Messages", badge: unreadMessages > 0 ? unreadMessages : 0 },
                   { href: "/chat", label: "AI Analysis" },
                   { href: "/library", label: "My Vault" },
                   { href: "/profile", label: "My Profile" },
                   { href: "/pricing", label: "Pricing" },
-                ]).map(({ href, label }) => (
+                ]).map(({ href, label, badge }) => (
                   <Link key={href} href={href} style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     padding: "8px 10px", borderRadius: 8,
@@ -490,7 +507,16 @@ export default async function DashboardPage() {
                     border: "1px solid transparent",
                     transition: "background 0.12s",
                   }}>
-                    {label}
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {label}
+                      {badge ? (
+                        <span style={{
+                          background: "#ff5f5f", color: "#fff",
+                          fontSize: "0.65rem", fontWeight: 800,
+                          borderRadius: 99, padding: "1px 6px", lineHeight: 1.4,
+                        }}>{badge}</span>
+                      ) : null}
+                    </span>
                     <span style={{ color: "#3a4560", fontSize: "0.75rem" }}>→</span>
                   </Link>
                 ))}
