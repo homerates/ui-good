@@ -405,10 +405,12 @@ export function isAffordabilityQuestion(q: string): boolean {
     if (isRefiQuestion(q)) return false;
     const triggers = [
         /what can i afford/i,
-        // "can I afford" only when paired with a home/property target — not "can I afford to refi"
+        // "can I afford" paired with home/property word
         /can i afford\b.{0,40}(?:home|house|property|to buy)/i,
+        // "can I afford $650k" — price target without explicit home/house word
+        /can i afford\b.{0,20}\$[\d,]+[kKmM]?\b/i,
         /how much (?:home|house|property) can i (?:afford|buy)/i,
-        // "afford a $1.8M home" pattern — requires mortgage context word after $amount
+        // "afford a $1.8M home" pattern
         /\bafford\b.{0,30}\$[\d,]+[kKmM]?.{0,20}(?:home|house|property)/i,
         /first.?time (?:buyer|home)/i,
         /(?:my|our) budget/i,
@@ -420,7 +422,11 @@ export function isAffordabilityQuestion(q: string): boolean {
     if (triggers.some(p => p.test(q))) return true;
     const hasIncome = extractIncome(q) !== undefined;
     const hasSavings = extractSavings(q) !== undefined;
-    return hasIncome && hasSavings;
+    if (hasIncome && hasSavings) return true;
+    // Income + price target is enough — "can I afford $650k on $120k salary"
+    const hasPrice = /\$[\d,]+[kKmM]?\b/.test(q);
+    if (hasIncome && hasPrice && /afford|qualify|buy|purchase/i.test(q)) return true;
+    return false;
 }
 
 export function isMIPKnowledgeQuestion(q: string): boolean {

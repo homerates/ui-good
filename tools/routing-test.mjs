@@ -141,6 +141,9 @@ const tests = [
     ['DSCR: UW guidelines',   'Ask Underwriting: what minimum DSCR ratio do lenders require for investment property loans?', 'answers', 'answers'],
 
     // ── Affordability card chips ─────────────────────────────────────────────
+    ['AFF: price+salary',     'can i afford $650k on $120k salary',                                           'answers', 'answers'],
+    ['AFF: price+salary2',    'can I afford a $500k home on $95k salary',                                     'answers', 'answers'],
+    ['AFF: price no home',    'can i afford $800k on $150k a year',                                           'answers', 'answers'],
     ['AFF: $500 debts',       'Same affordability scenario with $500/month in other debts',                    'answers', 'answers'],
     ['AFF: 20% down',         'Same scenario with 20% down payment',                                           'answers', 'answers'],
     ['AFF: FHA option',       "What's the FHA loan option on my maximum affordable home price?",               'answers', 'answers'],
