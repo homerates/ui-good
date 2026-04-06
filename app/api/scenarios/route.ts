@@ -130,7 +130,6 @@ export async function GET(req: NextRequest) {
     .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term")
     .eq("status", "active")
     .in("needs_professional", profFilter)
-    .or(`closes_at.is.null,closes_at.gt.${new Date().toISOString()}`)  // exclude expired, allow null (legacy rows)
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -152,7 +151,11 @@ export async function GET(req: NextRequest) {
     respondedIds = (myResponses ?? []).map(r => r.scenario_id);
   }
 
-  const scenarios = (data ?? []).map(s => {
+  const now = Date.now();
+  // Filter expired scenarios in JS (avoids Supabase .or() timestamp syntax issues)
+  const active = (data ?? []).filter(s => !s.closes_at || new Date(s.closes_at).getTime() > now);
+
+  const scenarios = active.map(s => {
     const base = {
       ...s,
       already_responded: respondedIds.includes(s.id),
