@@ -434,19 +434,27 @@ export default async function DashboardPage() {
               </SectionCard>
             )}
 
-            {/* Profile completeness nudge */}
-            {userType === "lo" && !loRecord?.lender && (
+            {/* Profile card — always visible for pros */}
+            {userType === "lo" && (
               <SectionCard>
-                <CardTitle>Complete your profile</CardTitle>
-                <CardBody>Add your lender or company name so borrowers know who they're hearing from.</CardBody>
-                <ActionLink href="/profile" variant="ghost">Update profile →</ActionLink>
+                <CardTitle>My Profile</CardTitle>
+                <CardBody>
+                  {loRecord?.lender
+                    ? `${loRecord.lender}${loRecord?.lender ? " · " : ""}Update your license info, NMLS, and company details.`
+                    : "Add your lender or company name so borrowers know who they're hearing from."}
+                </CardBody>
+                <ActionLink href="/profile" variant="ghost">Edit profile →</ActionLink>
               </SectionCard>
             )}
-            {userType === "agent" && !agentRecord?.brokerage && (
+            {userType === "agent" && (
               <SectionCard>
-                <CardTitle>Complete your profile</CardTitle>
-                <CardBody>Add your brokerage name so buyers know who they're hearing from when you respond.</CardBody>
-                <ActionLink href="/profile" variant="ghost">Update profile →</ActionLink>
+                <CardTitle>My Profile</CardTitle>
+                <CardBody>
+                  {agentRecord?.brokerage
+                    ? `${agentRecord.brokerage} · Update your license and brokerage details.`
+                    : "Add your brokerage name so buyers know who they're hearing from when you respond."}
+                </CardBody>
+                <ActionLink href="/profile" variant="ghost">Edit profile →</ActionLink>
               </SectionCard>
             )}
 
@@ -458,10 +466,12 @@ export default async function DashboardPage() {
                   { href: "/lo/scenarios", label: "Scenario Board" },
                   { href: "/lo/borrowers", label: "Borrower Invites" },
                   { href: "/chat", label: "AI Chat" },
+                  { href: "/profile", label: "My Profile" },
                   { href: "/for-pros", label: "For Professionals" },
                 ] : userType === "agent" ? [
                   { href: "/agent/scenarios", label: "Buyer Scenarios" },
                   { href: "/chat", label: "AI Chat" },
+                  { href: "/profile", label: "My Profile" },
                   { href: "/for-pros", label: "For Professionals" },
                   { href: "/pricing", label: "Pricing" },
                 ] : [
@@ -469,6 +479,7 @@ export default async function DashboardPage() {
                   { href: "/connect/my-scenario", label: "My Scenario" },
                   { href: "/chat", label: "AI Analysis" },
                   { href: "/library", label: "My Vault" },
+                  { href: "/profile", label: "My Profile" },
                   { href: "/pricing", label: "Pricing" },
                 ]).map(({ href, label }) => (
                   <Link key={href} href={href} style={{
