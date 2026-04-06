@@ -16,19 +16,32 @@ export async function GET() {
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
-  // Fetch threads where this user is either party
-  const { data, error } = await sb
-    .from("conversation_threads")
-    .select("id, scenario_id, borrower_id, professional_id, professional_type, status, unread_borrower, unread_professional, last_message_at, created_at")
-    .or(`borrower_id.eq.${userId},professional_id.eq.${userId}`)
-    .order("last_message_at", { ascending: false, nullsFirst: false });
+  // Fetch threads where this user is borrower OR professional
+  // Two separate queries + merge — avoids .or() parser issues with Clerk IDs
+  const SELECT = "id, scenario_id, borrower_id, professional_id, professional_type, status, unread_borrower, unread_professional, last_message_at, created_at";
 
-  if (error) {
-    console.error("[messages] GET error:", error);
-    return NextResponse.json({ error: "Failed to load threads" }, { status: 500 });
-  }
+  const [asBorrower, asPro] = await Promise.all([
+    sb.from("conversation_threads").select(SELECT).eq("borrower_id", userId),
+    sb.from("conversation_threads").select(SELECT).eq("professional_id", userId),
+  ]);
 
-  const threads = data ?? [];
+  if (asBorrower.error) console.error("[messages] GET asBorrower error:", asBorrower.error);
+  if (asPro.error) console.error("[messages] GET asPro error:", asPro.error);
+
+  // Merge and deduplicate, then sort by last_message_at desc
+  const seen = new Set<string>();
+  const merged = [...(asBorrower.data ?? []), ...(asPro.data ?? [])].filter(t => {
+    if (seen.has(t.id)) return false;
+    seen.add(t.id);
+    return true;
+  });
+  merged.sort((a, b) => {
+    const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+    const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+    return tb - ta;
+  });
+
+  const threads = merged;
 
   // Resolve display names for the other party in each thread
   const otherIds = threads.map(t =>

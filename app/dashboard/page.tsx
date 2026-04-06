@@ -165,15 +165,13 @@ export default async function DashboardPage() {
   // ── Unread messages (all user types) ────────────────────────────────────
   let unreadMessages = 0;
   if (sb) {
-    const { data: threads } = await sb
-      .from("conversation_threads")
-      .select("borrower_id, professional_id, unread_borrower, unread_professional")
-      .or(`borrower_id.eq.${userId},professional_id.eq.${userId}`);
-    if (threads) {
-      unreadMessages = threads.reduce((sum, t) => {
-        return sum + (t.borrower_id === userId ? (t.unread_borrower ?? 0) : (t.unread_professional ?? 0));
-      }, 0);
-    }
+    const [asBorrower, asPro] = await Promise.all([
+      sb.from("conversation_threads").select("unread_borrower").eq("borrower_id", userId),
+      sb.from("conversation_threads").select("unread_professional").eq("professional_id", userId),
+    ]);
+    unreadMessages =
+      (asBorrower.data ?? []).reduce((s, t) => s + (t.unread_borrower ?? 0), 0) +
+      (asPro.data ?? []).reduce((s, t) => s + (t.unread_professional ?? 0), 0);
   }
 
   // ── Borrower-specific data ───────────────────────────────────────────────

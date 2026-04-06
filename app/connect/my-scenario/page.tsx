@@ -61,6 +61,7 @@ export default function MyScenarioPage() {
   const [invited, setInvited] = useState<string | null>(null);
   const [closingScenario, setClosingScenario] = useState(false);
   const [messaging, setMessaging] = useState<string | null>(null); // responseId being opened
+  const [msgError, setMsgError] = useState("");
 
   useEffect(() => {
     load();
@@ -105,6 +106,7 @@ export default function MyScenarioPage() {
   async function openChat(r: Response) {
     if (!scenario) return;
     setMessaging(r.id);
+    setMsgError("");
     const res = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -118,6 +120,8 @@ export default function MyScenarioPage() {
       const data = await res.json();
       router.push(`/messages/${data.thread_id}`);
     } else {
+      const data = await res.json().catch(() => ({}));
+      setMsgError(data.error ?? "Failed to open chat. Please try again.");
       setMessaging(null);
     }
   }
@@ -316,6 +320,10 @@ export default function MyScenarioPage() {
                 );
               })()}
 
+              {msgError && (
+                <div className="ms-error-banner">{msgError}</div>
+              )}
+
               {invited && (
                 <div className="ms-success-banner">
                   ✓ Introduction sent. Check your email — both of you have each other's contact info. No surprises.
@@ -497,6 +505,14 @@ export default function MyScenarioPage() {
         }
         .ms-matched-next-title { font-weight: 700; color: #f0f4ff; margin-bottom: 5px; font-size: 0.95rem; }
         .ms-matched-next-body { font-size: 0.875rem; color: #8fa3b8; line-height: 1.6; }
+
+        .ms-error-banner {
+          margin-top: 1rem;
+          background: rgba(255,95,95,0.08);
+          border: 1px solid rgba(255,95,95,0.25);
+          border-radius: 12px; padding: 0.875rem 1.25rem;
+          font-size: 0.88rem; color: #ff5f5f; line-height: 1.5;
+        }
 
         .ms-success-banner {
           margin-top: 1.5rem;
