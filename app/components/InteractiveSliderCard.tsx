@@ -6,6 +6,7 @@
 
 import React, { useState, useMemo } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
+import SliderField from './SliderField';
 
 export interface SliderCardParams {
     price: number;
@@ -219,33 +220,27 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             <div className="isc__sliders">
 
                 {/* Home Price */}
-                <div className="isc__row">
-                    <div className="isc__row-hdr">
-                        <span className="isc__row-name">Home Price</span>
-                        <span className="isc__row-val">{fmtDollar(price)}</span>
-                    </div>
-                    <input type="range" className="isc__range"
-                        min={100000} max={priceMax} step={5000} value={price}
-                        onChange={e => setPrice(+e.target.value)}
-                        style={trackStyle(price, 100000, priceMax)} />
-                    <div className="isc__minmax"><span>$100k</span><span>{priceMaxLabel}</span></div>
-                </div>
+                <SliderField
+                    label="Home Price"
+                    value={price}
+                    min={100000} max={priceMax} step={5000}
+                    onChange={setPrice}
+                    format={fmtDollar}
+                    minLabel="$100k" maxLabel={priceMaxLabel}
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Down Payment */}
-                <div className="isc__row">
-                    <div className="isc__row-hdr">
-                        <span className="isc__row-name">Down Payment</span>
-                        <span className="isc__row-val">{downPct}% · {fmtDollar(downAmt)}</span>
-                    </div>
-                    <input type="range" className="isc__range"
-                        min={minDown} max={50} step={loanType === 'va' ? 1 : 0.5} value={downPct}
-                        onChange={e => setDownPct(+e.target.value)}
-                        style={trackStyle(downPct, minDown, 50)} />
-                    <div className="isc__minmax">
-                        <span>{loanType === 'va' ? '0%' : loanType === 'jumbo' ? '20%' : `${minDown}%`}</span>
-                        <span>50%</span>
-                    </div>
-                </div>
+                <SliderField
+                    label="Down Payment"
+                    value={downPct}
+                    min={minDown} max={50} step={loanType === 'va' ? 1 : 0.5}
+                    onChange={setDownPct}
+                    format={v => `${v}% · ${fmtDollar(price * v / 100)}`}
+                    minLabel={loanType === 'va' ? '0%' : loanType === 'jumbo' ? '20%' : `${minDown}%`}
+                    maxLabel="50%"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* VA Funding Fee toggle — only when VA tab active */}
                 {loanType === 'va' && (
@@ -269,17 +264,15 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 )}
 
                 {/* Interest Rate */}
-                <div className="isc__row">
-                    <div className="isc__row-hdr">
-                        <span className="isc__row-name">Interest Rate</span>
-                        <span className="isc__row-val">{fmtRate(rate)}</span>
-                    </div>
-                    <input type="range" className="isc__range"
-                        min={3} max={12} step={0.125} value={rate}
-                        onChange={e => setRate(+e.target.value)}
-                        style={trackStyle(rate, 3, 12)} />
-                    <div className="isc__minmax"><span>3%</span><span>12%</span></div>
-                </div>
+                <SliderField
+                    label="Interest Rate"
+                    value={rate}
+                    min={3} max={12} step={0.125}
+                    onChange={setRate}
+                    format={fmtRate}
+                    minLabel="3%" maxLabel="12%"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Loan Term */}
                 <div className="isc__row">
@@ -494,75 +487,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     flex-direction: column;
                     gap: 18px;
                 }
-                .isc__row {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                }
-                .isc__row-hdr {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .isc__row-name {
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: #374151;
-                }
-                .isc__row-val {
-                    font-size: 13px;
-                    font-weight: 700;
-                    color: #0f172a;
-                    font-variant-numeric: tabular-nums;
-                }
-                .isc__minmax {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 10px;
-                    color: #94a3b8;
-                    font-weight: 500;
-                }
                 .isc__ff-hint {
                     font-size: 10px;
                     color: #94a3b8;
                     line-height: 1.4;
-                }
-
-                /* Custom range input */
-                .isc__range {
-                    -webkit-appearance: none;
-                    appearance: none;
-                    width: 100%;
-                    height: 6px;
-                    border-radius: 9999px;
-                    outline: none;
-                    cursor: pointer;
-                }
-                .isc__range::-webkit-slider-thumb {
-                    -webkit-appearance: none;
-                    width: 22px;
-                    height: 22px;
-                    border-radius: 50%;
-                    background: #10b981;
-                    border: 3px solid #fff;
-                    box-shadow: 0 0 0 1.5px #10b981, 0 2px 6px rgba(16,185,129,.3);
-                    cursor: pointer;
-                    transition: box-shadow .15s;
-                }
-                .isc__range::-webkit-slider-thumb:hover {
-                    box-shadow: 0 0 0 3px rgba(16,185,129,.25), 0 3px 10px rgba(16,185,129,.4);
-                }
-                .isc__range::-moz-range-thumb {
-                    width: 22px;
-                    height: 22px;
-                    border-radius: 50%;
-                    background: #10b981;
-                    border: 3px solid #fff;
-                    box-shadow: 0 0 0 1.5px #10b981;
-                    cursor: pointer;
-                }
-                .isc__range:active::-webkit-slider-thumb {
-                    box-shadow: 0 0 0 5px rgba(16,185,129,.2), 0 3px 10px rgba(16,185,129,.5);
                 }
 
                 /* Term / FF toggle */

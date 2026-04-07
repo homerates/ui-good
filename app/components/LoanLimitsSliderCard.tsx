@@ -8,6 +8,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { HIGH_COST_COUNTIES, STATE_NAMES } from '@/loanLimitsNational2026';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
+import SliderField from './SliderField';
 
 export interface LoanLimitsSliderParams {
     county: string;
@@ -306,48 +307,24 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
             {/* ── Sliders ── */}
             <div className="ll-sliders">
                 {/* Purchase Price */}
-                <div className="ll-slider-row">
-                    <div className="ll-slider-label">
-                        <span>Purchase Price</span>
-                        <span className="ll-slider-val">{fmtDollar(price)}</span>
-                    </div>
-                    <input
-                        type="range"
-                        min={200000}
-                        max={priceMax}
-                        step={25000}
-                        value={price}
-                        onChange={e => setPrice(Number(e.target.value))}
-                        style={trackStyle(price, 200000, priceMax)}
-                        className="ll-range"
-                    />
-                    <div className="ll-slider-limits">
-                        <span>$200k</span>
-                        <span>{fmtK(priceMax)}</span>
-                    </div>
-                </div>
+                <SliderField
+                    label="Purchase Price" value={price}
+                    min={200000} max={priceMax} step={25000}
+                    onChange={setPrice}
+                    format={fmtDollar}
+                    minLabel="$200k" maxLabel={fmtK(priceMax)}
+                    trackColor={zone.barColor} theme="dark"
+                />
 
                 {/* Down Payment */}
-                <div className="ll-slider-row">
-                    <div className="ll-slider-label">
-                        <span>Down Payment</span>
-                        <span className="ll-slider-val">{downPct.toFixed(1)}% · {fmtDollar(calc.downAmt)}</span>
-                    </div>
-                    <input
-                        type="range"
-                        min={0}
-                        max={60}
-                        step={0.5}
-                        value={downPct}
-                        onChange={e => setDownPct(Number(e.target.value))}
-                        style={trackStyle(downPct, 0, 60)}
-                        className="ll-range"
-                    />
-                    <div className="ll-slider-limits">
-                        <span>0%</span>
-                        <span>60%</span>
-                    </div>
-                </div>
+                <SliderField
+                    label="Down Payment" value={downPct}
+                    min={0} max={60} step={0.5}
+                    onChange={setDownPct}
+                    format={v => `${v.toFixed(1)}% · ${fmtDollar(price * v / 100)}`}
+                    minLabel="0%" maxLabel="60%"
+                    trackColor={zone.barColor} theme="dark"
+                />
             </div>
 
             {/* ── Loan Amount + Zone bar ── */}

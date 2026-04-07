@@ -7,6 +7,7 @@
 
 import React, { useState, useMemo } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
+import SliderField from './SliderField';
 
 export interface RefiSliderParams {
     balance: number;           // current loan balance
@@ -294,104 +295,58 @@ export default function RefiSliderCard(props: RefiSliderParams) {
 
             {/* Balance */}
             <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Loan Balance</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{fmt$(balance)}</span>
-                </div>
-                <input type="range" min={50_000} max={balanceMax} step={balance >= 1_000_000 ? 25_000 : 5_000} value={balance}
-                    onChange={e => setBalance(Number(e.target.value))}
-                    style={{ width: '100%', ...trackStyle(balance, 50_000, balanceMax) }}
+                <SliderField
+                    label="Loan Balance" value={balance}
+                    min={50_000} max={balanceMax} step={balance >= 1_000_000 ? 25_000 : 5_000}
+                    onChange={setBalance}
+                    format={fmt$}
+                    trackColor="#10b981" theme="light"
                 />
             </div>
 
             {/* Dual rate sliders */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 28px 1fr', gap: '0 8px', marginBottom: 14, alignItems: 'end' }}>
-                <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Current Rate</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#ef4444' }}>{fmtRate(currentRate)}</span>
-                    </div>
-                    <input type="range" min={3} max={12} step={0.125} value={currentRate}
-                        onChange={e => setCurrentRate(Number(e.target.value))}
-                        style={{ width: '100%', ...trackStyle(currentRate, 3, 12, '#ef4444') }}
-                    />
-                </div>
+                <SliderField
+                    label="Current Rate" value={currentRate}
+                    min={3} max={12} step={0.125}
+                    onChange={setCurrentRate}
+                    format={fmtRate}
+                    trackColor="#ef4444" theme="light"
+                />
                 <div style={{ textAlign: 'center', paddingBottom: 6, fontSize: 14, color: '#cbd5e1', fontWeight: 700 }}>→</div>
-                <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>
-                            New Rate{noCost ? ' +0.25%' : ''}
-                        </span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#059669' }}>{fmtRate(effNewRate)}</span>
-                    </div>
-                    <input type="range" min={3} max={12} step={0.125} value={newRate}
-                        onChange={e => setNewRate(Number(e.target.value))}
-                        disabled={noCost}
-                        style={{
-                            width: '100%', opacity: noCost ? 0.45 : 1,
-                            ...trackStyle(newRate, 3, 12, '#10b981'),
-                        }}
-                    />
-                </div>
+                <SliderField
+                    label={`New Rate${noCost ? ' +0.25%' : ''}`} value={newRate}
+                    min={3} max={12} step={0.125}
+                    onChange={setNewRate}
+                    format={fmtRate}
+                    disabled={noCost}
+                    trackColor="#059669" theme="light"
+                />
             </div>
 
             {/* Closing costs + LTV — side by side */}
             <div style={{ display: 'grid', gridTemplateColumns: propVal ? '1fr 1fr' : '1fr', gap: '0 16px', marginBottom: 14 }}>
                 {/* Closing costs */}
-                <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Closing Costs</span>
-                        {!noCost ? (
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                value={closingInput !== '' ? closingInput : fmt$(closingCosts)}
-                                onFocus={() => setClosingInput(String(closingCosts))}
-                                onBlur={() => setClosingInput('')}
-                                onChange={e => {
-                                    const raw = e.target.value;
-                                    setClosingInput(raw);
-                                    const n = parseInt(raw.replace(/[^0-9]/g, ''));
-                                    if (!isNaN(n) && n >= 0) setClosingCosts(Math.min(n, 999_999));
-                                }}
-                                style={{
-                                    width: 80, fontSize: 12, fontWeight: 700,
-                                    padding: '2px 6px', borderRadius: 5, textAlign: 'right',
-                                    border: '1px solid #cbd5e1', background: '#f8fafc',
-                                    color: '#0f172a', outline: 'none',
-                                }}
-                            />
-                        ) : (
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>$0</span>
-                        )}
-                    </div>
-                    <input type="range" min={0} max={closingMax} step={500} value={closingCosts}
-                        onChange={e => { setClosingCosts(Number(e.target.value)); setClosingInput(''); }}
-                        disabled={noCost}
-                        style={{ width: '100%', opacity: noCost ? 0.4 : 1, ...trackStyle(closingCosts, 0, closingMax) }}
-                    />
-                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2, textAlign: 'center' }}>
-                        1% ≈ no-cost · type to enter exact
-                    </div>
-                </div>
+                <SliderField
+                    label="Closing Costs" value={closingCosts}
+                    min={0} max={closingMax} step={500}
+                    onChange={v => { setClosingCosts(v); setClosingInput(''); }}
+                    format={fmt$}
+                    disabled={noCost}
+                    midLabel="1% ≈ no-cost · click to type"
+                    trackColor="#10b981" theme="light"
+                />
 
                 {/* LTV slider — only when property value is known */}
                 {propVal && (
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>LTV</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: ltv > 80 ? '#ef4444' : '#0f172a' }}>{ltv}%</span>
-                        </div>
-                        <input type="range" min={50} max={97} step={1} value={ltv}
-                            onChange={e => handleLtvChange(Number(e.target.value))}
-                            style={{ width: '100%', ...trackStyle(ltv, 50, 97, ltv > 80 ? '#ef4444' : '#10b981') }}
-                        />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
-                            <span>50%</span>
-                            <span style={{ color: ltv <= 80 ? '#059669' : '#94a3b8' }}>80% = no PMI</span>
-                            <span>97%</span>
-                        </div>
-                    </div>
+                    <SliderField
+                        label="LTV" value={ltv}
+                        min={50} max={97} step={1}
+                        onChange={handleLtvChange}
+                        format={v => `${v}%`}
+                        minLabel="50%" midLabel="80% = no PMI" maxLabel="97%"
+                        trackColor={ltv > 80 ? '#ef4444' : '#10b981'} theme="light"
+                    />
                 )}
             </div>
 

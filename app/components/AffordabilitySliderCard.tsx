@@ -6,6 +6,7 @@
 
 import React, { useState, useMemo } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
+import SliderField from './SliderField';
 
 export interface AffordabilitySliderParams {
     annualIncome: number;
@@ -226,59 +227,44 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
             <div className="asc__sliders">
 
                 {/* Annual Income */}
-                <div className="asc__row">
-                    <div className="asc__row-hdr">
-                        <span className="asc__row-name">Annual Income</span>
-                        <span className="asc__row-val">{fmtK(income)}</span>
-                    </div>
-                    <input type="range" className="asc__range"
-                        min={30000} max={500000} step={1000} value={income}
-                        onChange={e => setIncome(+e.target.value)}
-                        style={trackStyle(income, 30000, 500000)} />
-                    <div className="asc__minmax"><span>$30k</span><span>$500k</span></div>
-                </div>
+                <SliderField
+                    label="Annual Income" value={income}
+                    min={30000} max={500000} step={1000}
+                    onChange={setIncome}
+                    format={fmtK}
+                    minLabel="$30k" maxLabel="$500k"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Monthly Debts */}
-                <div className="asc__row">
-                    <div className="asc__row-hdr">
-                        <span className="asc__row-name">Monthly Debts</span>
-                        <span className="asc__row-val">{debts === 0 ? 'None' : fmt$(debts) + '/mo'}</span>
-                    </div>
-                    <input type="range" className="asc__range"
-                        min={0} max={5000} step={50} value={debts}
-                        onChange={e => setDebts(+e.target.value)}
-                        style={trackStyle(debts, 0, 5000)} />
-                    <div className="asc__minmax"><span>$0</span><span>$5k/mo</span></div>
-                </div>
+                <SliderField
+                    label="Monthly Debts" value={debts}
+                    min={0} max={5000} step={50}
+                    onChange={setDebts}
+                    format={v => v === 0 ? 'None' : `${fmt$(v)}/mo`}
+                    minLabel="$0" maxLabel="$5k/mo"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Down Payment */}
-                <div className="asc__row">
-                    <div className="asc__row-hdr">
-                        <span className="asc__row-name">Down Payment</span>
-                        <span className="asc__row-val">
-                            {effectiveDown}%
-                            {calc ? ` · ${fmt$(calc.down)}` : ''}
-                        </span>
-                    </div>
-                    <input type="range" className="asc__range"
-                        min={minDown} max={30} step={0.5} value={effectiveDown}
-                        onChange={e => setDownPct(+e.target.value)}
-                        style={trackStyle(effectiveDown, minDown, 30)} />
-                    <div className="asc__minmax"><span>{minDown}%</span><span>30%</span></div>
-                </div>
+                <SliderField
+                    label="Down Payment" value={effectiveDown}
+                    min={minDown} max={30} step={0.5}
+                    onChange={setDownPct}
+                    format={v => `${v}%${calc ? ` · ${fmt$(calc.maxPrice * v / 100)}` : ''}`}
+                    minLabel={`${minDown}%`} maxLabel="30%"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Rate */}
-                <div className="asc__row">
-                    <div className="asc__row-hdr">
-                        <span className="asc__row-name">Interest Rate</span>
-                        <span className="asc__row-val">{fmtRate(rate)}</span>
-                    </div>
-                    <input type="range" className="asc__range"
-                        min={3} max={12} step={0.125} value={rate}
-                        onChange={e => setRate(+e.target.value)}
-                        style={trackStyle(rate, 3, 12)} />
-                    <div className="asc__minmax"><span>3%</span><span>12%</span></div>
-                </div>
+                <SliderField
+                    label="Interest Rate" value={rate}
+                    min={3} max={12} step={0.125}
+                    onChange={setRate}
+                    format={fmtRate}
+                    minLabel="3%" maxLabel="12%"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Term */}
                 <div className="asc__row">

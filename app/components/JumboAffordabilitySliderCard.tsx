@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, CSSProperties } from 'react';
+import SliderField from './SliderField';
 import {
     getCALoanLimits,
     getCACountyByZip,
@@ -502,62 +503,40 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
 
             {/* Price slider */}
             <div style={S.sliderWrap}>
-                <div style={S.sliderRow}>
-                    <span style={S.sliderLabel}>Purchase Price</span>
-                    <span style={S.sliderVal}>{fLong(price)}</span>
-                </div>
-                <input
-                    type="range"
-                    min={500_000}
-                    max={5_000_000}
-                    step={25_000}
-                    value={price}
-                    onChange={e => { setPrice(+e.target.value); markDirty(); }}
-                    style={{ ...S.rangeInput, ...trackStyle(price, 500_000, 5_000_000, z.color) }}
+                <SliderField
+                    label="Purchase Price" value={price}
+                    min={500_000} max={5_000_000} step={25_000}
+                    onChange={v => { setPrice(v); markDirty(); }}
+                    format={fLong}
+                    minLabel="$500k" maxLabel="$5M"
+                    trackColor={z.color} theme="dark"
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 3 }}>
-                    <span>$500k</span><span>$5M</span>
-                </div>
             </div>
 
             {/* Down payment slider */}
             <div style={S.sliderWrap}>
-                <div style={S.sliderRow}>
-                    <span style={S.sliderLabel}>Down Payment</span>
-                    <span style={S.sliderVal}>{downPct}% ({fLong(Math.round(calc.downAmount))})</span>
-                </div>
-                <input
-                    type="range"
-                    min={10}
-                    max={50}
-                    step={1}
-                    value={downPct}
-                    onChange={e => { setDownPct(+e.target.value); markDirty(); }}
-                    style={{ ...S.rangeInput, ...trackStyle(downPct, 10, 50, z.color) }}
+                <SliderField
+                    label="Down Payment" value={downPct}
+                    min={10} max={50} step={1}
+                    onChange={v => { setDownPct(v); markDirty(); }}
+                    format={v => `${v}% (${fLong(Math.round(price * v / 100))})`}
+                    minLabel="10%" maxLabel="50%"
+                    trackColor={z.color} theme="dark"
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 3 }}>
-                    <span>10%</span><span>50%</span>
-                </div>
             </div>
 
             {/* Rate slider */}
             <div style={S.sliderWrap}>
-                <div style={S.sliderRow}>
-                    <span style={S.sliderLabel}>Interest Rate</span>
-                    <span style={S.sliderVal}>{fPct(rate)}</span>
-                </div>
-                <input
-                    type="range"
-                    min={350}
-                    max={1000}
-                    step={12.5}
-                    value={Math.round(rate * 100)}
-                    onChange={e => { setRate(Math.round(+e.target.value) / 100); markDirty(); }}
-                    style={{ ...S.rangeInput, ...trackStyle(rate, 3.5, 10, z.color) }}
+                <SliderField
+                    label="Interest Rate" value={rate}
+                    min={3.5} max={10} step={0.125}
+                    onChange={v => { setRate(v); markDirty(); }}
+                    format={fPct}
+                    minLabel="3.5%"
+                    midLabel={`FRED: ${fPct(props.baseRate)}`}
+                    maxLabel="10%"
+                    trackColor={z.color} theme="dark"
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 3 }}>
-                    <span>3.5%</span><span style={{ color: 'rgba(185,208,192,0.5)' }}>FRED: {fPct(props.baseRate)}</span><span>10%</span>
-                </div>
                 {zone !== 'conforming' && (
                     <div style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.45)', marginTop: 5, lineHeight: 1.5 }}>
                         💡 {zone === 'jumbo' ? 'Jumbo loans typically run 0.25–0.50% above conforming' : 'High-balance loans typically run 0.125–0.25% above conforming'} — varies by lender, credit, and reserves.

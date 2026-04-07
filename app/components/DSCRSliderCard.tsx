@@ -7,6 +7,7 @@
 
 import React, { useState, useMemo } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
+import SliderField from './SliderField';
 
 export interface DSCRSliderParams {
     price: number;
@@ -178,56 +179,44 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
             <div className="dsc__sliders">
 
                 {/* Purchase Price */}
-                <div className="dsc__row">
-                    <div className="dsc__row-hdr">
-                        <span className="dsc__row-name">Purchase Price</span>
-                        <span className="dsc__row-val">${price.toLocaleString()}</span>
-                    </div>
-                    <input type="range" className="dsc__range"
-                        min={100000} max={2000000} step={5000} value={price}
-                        onChange={e => setPrice(+e.target.value)}
-                        style={trackStyle(price, 100000, 2000000)} />
-                    <div className="dsc__minmax"><span>$100k</span><span>$2M</span></div>
-                </div>
+                <SliderField
+                    label="Purchase Price" value={price}
+                    min={100000} max={2000000} step={5000}
+                    onChange={setPrice}
+                    format={v => `$${v.toLocaleString()}`}
+                    minLabel="$100k" maxLabel="$2M"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Monthly Rent */}
-                <div className="dsc__row">
-                    <div className="dsc__row-hdr">
-                        <span className="dsc__row-name">Monthly Rent</span>
-                        <span className="dsc__row-val">${rent.toLocaleString()}/mo</span>
-                    </div>
-                    <input type="range" className="dsc__range"
-                        min={500} max={15000} step={50} value={rent}
-                        onChange={e => setRent(+e.target.value)}
-                        style={trackStyle(rent, 500, 15000)} />
-                    <div className="dsc__minmax"><span>$500</span><span>$15k</span></div>
-                </div>
+                <SliderField
+                    label="Monthly Rent" value={rent}
+                    min={500} max={15000} step={50}
+                    onChange={setRent}
+                    format={v => `$${v.toLocaleString()}/mo`}
+                    minLabel="$500" maxLabel="$15k"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Down Payment */}
-                <div className="dsc__row">
-                    <div className="dsc__row-hdr">
-                        <span className="dsc__row-name">Down Payment</span>
-                        <span className="dsc__row-val">{downPct}% · ${calc.downAmt.toLocaleString()}</span>
-                    </div>
-                    <input type="range" className="dsc__range"
-                        min={15} max={40} step={1} value={downPct}
-                        onChange={e => setDownPct(+e.target.value)}
-                        style={trackStyle(downPct, 15, 40)} />
-                    <div className="dsc__minmax"><span>15%</span><span>40%</span></div>
-                </div>
+                <SliderField
+                    label="Down Payment" value={downPct}
+                    min={15} max={40} step={1}
+                    onChange={setDownPct}
+                    format={v => `${v}% · $${Math.round(price * v / 100).toLocaleString()}`}
+                    minLabel="15%" maxLabel="40%"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Interest Rate */}
-                <div className="dsc__row">
-                    <div className="dsc__row-hdr">
-                        <span className="dsc__row-name">Interest Rate</span>
-                        <span className="dsc__row-val">{fmtRate(rate)}</span>
-                    </div>
-                    <input type="range" className="dsc__range"
-                        min={5} max={12} step={0.125} value={rate}
-                        onChange={e => setRate(+e.target.value)}
-                        style={trackStyle(rate, 5, 12)} />
-                    <div className="dsc__minmax"><span>5%</span><span>12%</span></div>
-                </div>
+                <SliderField
+                    label="Interest Rate" value={rate}
+                    min={5} max={12} step={0.125}
+                    onChange={setRate}
+                    format={fmtRate}
+                    minLabel="5%" maxLabel="12%"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Vacancy + Management toggles */}
                 <div className="dsc__toggles">
