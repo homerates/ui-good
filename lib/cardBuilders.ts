@@ -1244,9 +1244,25 @@ function scenarioTagline(s: AffordabilityScenario): string {
     return '🎯 Lowest conventional entry';
 }
 
+export interface AffordabilityGeo {
+    county_name: string | null;
+    state_abbr: string | null;
+    ami_4person: number | null;
+    ami_pct_of_income: number | null;
+    dpa_likely: boolean;
+    dpa_tier: string | null;
+    ami_120pct: number | null;
+    insurance_pressure: string | null;
+    insurance_est_low: number | null;
+    insurance_est_high: number | null;
+    fema_dominant_hazard: string | null;
+    fema_risk_label: string | null;
+}
+
 export function buildAffordabilityCard(
     r: AffordabilityResult,
     assumptions: string[] = [],
+    geo?: AffordabilityGeo | null,
 ): BuiltCard {
     const mGross = r.annualIncome / 12;
     const assumptionNote = assumptions.length
@@ -1323,6 +1339,36 @@ ${gapLine}`;
         ? `✅ You can close on **${sFast.label}** today with your current savings.`
         : `⚡ **You need ${f$(sFast.savingsGap)} more to close on ${sFast.label}** — the fastest path to homeownership on your income.\n- At $500/mo savings: **${Math.ceil(sFast.savingsGap / 500)} months** to closing-ready\n- At $1,000/mo savings: **${Math.ceil(sFast.savingsGap / 1000)} months** to closing-ready\n- Alternative: Ask about **gift funds** — FHA allows 100% of down payment as a gift from family`;
 
+    // ── GEO INTELLIGENCE BLOCK (HUD AMI + FEMA) ─────────────────────────────
+    let geoBlock = '';
+    if (geo) {
+        const geoLines: string[] = [];
+        const areaLabel = geo.county_name && geo.state_abbr
+            ? `${geo.county_name}, ${geo.state_abbr}`
+            : geo.state_abbr ?? '';
+
+        // DPA signal
+        if (geo.dpa_likely && geo.ami_4person) {
+            const pctLabel = geo.ami_pct_of_income !== null
+                ? ` (you're at ${geo.ami_pct_of_income}% of AMI)`
+                : '';
+            geoLines.push(`🏠 **Down Payment Assistance likely available${areaLabel ? ` in ${areaLabel}` : ''}**${pctLabel} — income under 120% AMI (${f$(geo.ami_120pct ?? 0)}) qualifies for most state and county DPA programs. Ask me about specific programs for your area.`);
+        }
+
+        // Insurance pressure signal
+        if (geo.insurance_pressure && geo.insurance_pressure !== 'low' && geo.insurance_est_low !== null && geo.insurance_est_high !== null) {
+            const hazardNote = geo.fema_dominant_hazard
+                ? ` (dominant risk: ${geo.fema_dominant_hazard.replace('_', ' ')})`
+                : '';
+            const pressureLabel = geo.insurance_pressure.replace('_', ' ').toUpperCase();
+            geoLines.push(`⚠️ **Insurance pressure: ${pressureLabel}${hazardNote}** — budget an additional **$${geo.insurance_est_low}–$${geo.insurance_est_high}/mo** above national average for homeowner's insurance. This changes your real all-in payment.`);
+        }
+
+        if (geoLines.length) {
+            geoBlock = `\n\n---\n\n## 📍 Local Market Intelligence\n\n${geoLines.join('\n\n')}\n\n_Source: HUD FY2025 Income Limits, FEMA NRI 2024_`;
+        }
+    }
+
     const answer = `**What You Can Afford — Income-Based Analysis**
 ${assumptionNote}
 ${anchorLine}
@@ -1345,7 +1391,7 @@ ${compRows}
 ## 💡 Your Best Path Forward
 
 ${fastestPath}
-${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans, credit cards) and I'll show how they shift your numbers._` : ''}`;
+${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans, credit cards) and I'll show how they shift your numbers._` : ''}${geoBlock}`;
 
     // ── CHIPS — specific to actual numbers in this result ───────────────────
     const fhaS = r.scenarios.find(sc => sc.isFHA) ?? r.scenarios[0];
@@ -1518,7 +1564,20 @@ To show you 3 scenarios (FHA, Conventional 3%, Conventional 20%), I need:
 // DSCR CARD
 // ─────────────────────────────────────────────
 
-export function buildDSCRCard(r: DSCRResult, assumptions: string[] = []): BuiltCard {
+export interface DSCRGeo {
+    county_name: string | null;
+    state_abbr: string | null;
+    fmr_1br: number | null;
+    fmr_2br: number | null;
+    fmr_3br: number | null;
+    fmr_4br: number | null;
+    insurance_pressure: string | null;
+    insurance_est_low: number | null;
+    insurance_est_high: number | null;
+    fema_dominant_hazard: string | null;
+}
+
+export function buildDSCRCard(r: DSCRResult, assumptions: string[] = [], geo?: DSCRGeo | null): BuiltCard {
     const priceK = Math.round(r.purchasePrice / 1000);
     const rateStr = fPct(r.annualRatePct);
     const assumptionNote = assumptions.length
@@ -1602,7 +1661,34 @@ ${snapRows}
 ## ⚠️ Key Risks
 
 ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves required\n' : ''}${r.downPaymentPct < 20 ? '- **<20% down** — most DSCR programs require 20–25% minimum\n' : ''}- Vacancy (5–10% typical) reduces effective DSCR
-- Maintenance/CapEx (1–2%/yr) not included`;
+- Maintenance/CapEx (1–2%/yr) not included${(() => {
+        if (!geo) return '';
+        const lines: string[] = [];
+        const areaLabel = geo.county_name && geo.state_abbr ? `${geo.county_name}, ${geo.state_abbr}` : '';
+
+        // FMR rent benchmark — pick bedroom count closest to likely unit type
+        const fmrForRent = geo.fmr_2br ?? geo.fmr_3br ?? geo.fmr_1br;
+        if (fmrForRent && safeRent) {
+            const diff = safeRent - fmrForRent;
+            const pct = Math.round(Math.abs(diff) / fmrForRent * 100);
+            const vs = diff >= 0
+                ? `${pct}% above HUD FMR — strong rent assumption`
+                : `${pct}% below HUD FMR — conservative; upside possible`;
+            lines.push(`\n\n---\n\n## 📍 Local Market Intelligence${areaLabel ? ` — ${areaLabel}` : ''}\n\n**HUD Fair Market Rents (FY2025):** 1BR ${f$(geo.fmr_1br ?? 0)} | 2BR ${f$(geo.fmr_2br ?? 0)} | 3BR ${f$(geo.fmr_3br ?? 0)}\nYour rent estimate of ${f$(safeRent)}/mo is **${vs}**. DSCR at HUD FMR: **${(fmrForRent / r.monthlyPITIA).toFixed(2)}x**`);
+        } else if (fmrForRent) {
+            lines.push(`\n\n---\n\n## 📍 Local Rent Benchmark${areaLabel ? ` — ${areaLabel}` : ''}\n\n**HUD Fair Market Rents (FY2025):** 1BR ${f$(geo.fmr_1br ?? 0)} | 2BR ${f$(geo.fmr_2br ?? 0)} | 3BR ${f$(geo.fmr_3br ?? 0)}\nDSCR at 2BR FMR: **${(fmrForRent / r.monthlyPITIA).toFixed(2)}x**`);
+        }
+
+        // Insurance pressure
+        if (geo.insurance_pressure && geo.insurance_pressure !== 'low' && geo.insurance_est_low !== null && geo.insurance_est_high !== null) {
+            const hazard = geo.fema_dominant_hazard ? ` (dominant: ${geo.fema_dominant_hazard.replace('_', ' ')})` : '';
+            lines.push(`⚠️ **Insurance pressure: ${geo.insurance_pressure.replace('_', ' ').toUpperCase()}${hazard}** — budget +$${geo.insurance_est_low}–$${geo.insurance_est_high}/mo above national average. This impacts your PITIA and DSCR.\n\n_Source: HUD FY2025 FMR, FEMA NRI 2024_`);
+        } else if (lines.length) {
+            lines.push(`_Source: HUD FY2025 Fair Market Rents_`);
+        }
+
+        return lines.join('\n\n');
+    })()}`;
 
 
     const chipRentStr = safeRent ? `, rent ${f$(safeRent)}/mo` : '';

@@ -44,6 +44,7 @@ import {
     buildSystemPromptWithMemory,
     isFollowUpQuestion,
 } from "../../../lib/memory";
+import { resolveGeoFeatures, extractZip, extractIncome } from "../../../lib/geoFeatures";
 import { tavily as createTavilyClient } from '@tavily/core';
 // Verify calc engine on cold start — logs failures, never throws
 try {
@@ -2524,6 +2525,31 @@ async function handle(req: NextRequest, intentParam?: string) {
     const fredContext = fredLines.length > 0
         ? `FRED LIVE DATA:\n${fredLines.join('\n')}`
         : "FRED data unavailable — use ~6.0% as rate estimate";
+
+    // ── GEO INTELLIGENCE: HUD + FEMA context ─────────────────────────────────
+    // Resolve if question contains a ZIP code. Non-blocking — silently skips if
+    // tables are empty (pre-ETL) or ZIP not found.
+    let geoContext = "";
+    let geoFeatures: Awaited<ReturnType<typeof resolveGeoFeatures>> = null;
+    try {
+        const detectedZip = extractZip(question);
+        if (detectedZip && supabase) {
+            const detectedIncome = extractIncome(question);
+            geoFeatures = await resolveGeoFeatures(detectedZip, {
+                annualIncome: detectedIncome ?? undefined,
+                householdSize: 4,
+            });
+            if (geoFeatures?.promptBlock) {
+                geoContext = geoFeatures.promptBlock;
+                console.log(`[GeoIntel] Resolved ZIP ${detectedZip} → ${geoFeatures.county_name ?? 'unknown county'}`);
+            }
+        }
+    } catch (geoErr) {
+        // Never block an answer due to geo lookup failure
+        console.warn('[GeoIntel] Lookup failed (silently ignored):', geoErr);
+    }
+    // ── END GEO INTELLIGENCE ──────────────────────────────────────────────────
+
     // Inject live rate into qualify prompt so model stops using its hardcoded 6.25%
     if (module === "qualify" && modulePrompts["qualify"]) {
         modulePrompts["qualify"] = modulePrompts["qualify"].replace(
@@ -4462,7 +4488,7 @@ ${uwAnswerText}`,
 
             } else if (calcDispatch.type === 'dscr' && calcDispatch.params) {
                 const result = calcDSCR(calcDispatch.params as any);
-                calcCard = buildDSCRCard(result, calcAssumptions);
+                calcCard = buildDSCRCard(result, calcAssumptions, geoFeatures);
                 calcDebugModel = 'calcEngine-dscr';
                 injectCmaChip(calcCard);
 
@@ -4655,7 +4681,7 @@ ${uwAnswerText}`,
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
                 const result = calcAffordability(calcDispatch.params as any);
-                calcCard = buildAffordabilityCard(result, calcAssumptions);
+                calcCard = buildAffordabilityCard(result, calcAssumptions, geoFeatures);
                 calcDebugModel = 'calcEngine-affordability';
                 injectCmaChip(calcCard);
 
@@ -6139,6 +6165,7 @@ If lender guideline context is provided, treat it as primary for that lender.
 
 Date: ${today}
 ${fredContext}
+${geoContext ? `\n${geoContext}` : ""}
 
 ${mortgageCalcContext}
 
