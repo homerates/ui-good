@@ -94,21 +94,112 @@ export async function emailNewReply({
 
 // ─── Contact share: email both parties ──────────────────────────────────────
 
+export interface ProCard {
+  name: string;
+  email: string | null;
+  phone?: string | null;
+  photoUrl?: string | null;
+  title?: string | null;
+  company?: string | null;       // lender name or brokerage
+  nmls?: string | null;          // individual NMLS or license#
+  companyNmls?: string | null;
+  licenseState?: string | null;
+  website?: string | null;
+  officeAddress?: string | null;
+  bio?: string | null;
+  role?: string;                 // 'lo' | 'agent'
+}
+
+function buildProCardHtml(pro: ProCard, link: string): string {
+  const avatar = pro.photoUrl
+    ? `<img src="${pro.photoUrl}" alt="${pro.name}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid #00c896;display:block;">`
+    : `<div style="width:72px;height:72px;border-radius:50%;background:#0e3a28;border:2px solid #00c896;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#00c896;">${pro.name.charAt(0).toUpperCase()}</div>`;
+
+  const licenseLabel = pro.role === "agent" ? "License #" : "NMLS #";
+  const rows = [
+    pro.phone       ? `<tr><td style="color:#888;font-size:12px;padding:3px 0;white-space:nowrap;padding-right:16px;">📞 Phone</td><td style="font-size:14px;"><a href="tel:${pro.phone}" style="color:#00c896;text-decoration:none;">${pro.phone}</a></td></tr>` : "",
+    pro.email       ? `<tr><td style="color:#888;font-size:12px;padding:3px 0;white-space:nowrap;padding-right:16px;">✉️ Email</td><td style="font-size:14px;"><a href="mailto:${pro.email}" style="color:#00c896;text-decoration:none;">${pro.email}</a></td></tr>` : "",
+    pro.nmls        ? `<tr><td style="color:#888;font-size:12px;padding:3px 0;white-space:nowrap;padding-right:16px;">${licenseLabel}</td><td style="font-size:14px;color:#f0f4ff;">${pro.nmls}</td></tr>` : "",
+    pro.companyNmls ? `<tr><td style="color:#888;font-size:12px;padding:3px 0;white-space:nowrap;padding-right:16px;">Company NMLS</td><td style="font-size:14px;color:#f0f4ff;">${pro.companyNmls}</td></tr>` : "",
+    pro.licenseState ? `<tr><td style="color:#888;font-size:12px;padding:3px 0;white-space:nowrap;padding-right:16px;">Licensed in</td><td style="font-size:14px;color:#f0f4ff;">${pro.licenseState}</td></tr>` : "",
+    pro.officeAddress ? `<tr><td style="color:#888;font-size:12px;padding:3px 0;white-space:nowrap;padding-right:16px;">📍 Office</td><td style="font-size:14px;color:#f0f4ff;">${pro.officeAddress}</td></tr>` : "",
+    pro.website     ? `<tr><td style="color:#888;font-size:12px;padding:3px 0;white-space:nowrap;padding-right:16px;">🔗 Web</td><td style="font-size:14px;"><a href="${pro.website}" style="color:#00c896;text-decoration:none;">${pro.website.replace(/^https?:\/\//, "")}</a></td></tr>` : "",
+  ].filter(Boolean).join("");
+
+  return `
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+
+        <!-- Header -->
+        <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
+          <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
+        </td></tr>
+
+        <!-- Pro card -->
+        <tr><td style="background:#0e1420;padding:32px;">
+          <p style="margin:0 0 24px;font-size:14px;color:#8fa3b8;">You're connected — here are their full contact details:</p>
+
+          <!-- Card -->
+          <table cellpadding="0" cellspacing="0" width="100%" style="background:#141b28;border:1px solid rgba(0,200,150,0.2);border-radius:14px;overflow:hidden;">
+            <tr>
+              <!-- Avatar col -->
+              <td style="padding:24px 20px;vertical-align:top;width:92px;">
+                ${avatar}
+              </td>
+              <!-- Name + title col -->
+              <td style="padding:24px 24px 24px 0;vertical-align:top;">
+                <div style="font-size:20px;font-weight:700;color:#f0f4ff;margin-bottom:3px;">${pro.name}</div>
+                ${pro.title   ? `<div style="font-size:13px;color:#00c896;font-weight:600;margin-bottom:2px;">${pro.title}</div>` : ""}
+                ${pro.company ? `<div style="font-size:13px;color:#8fa3b8;margin-bottom:12px;">${pro.company}</div>` : `<div style="margin-bottom:12px;"></div>`}
+                ${pro.bio     ? `<div style="font-size:13px;color:#a0b4c8;line-height:1.55;border-left:3px solid #00c896;padding-left:10px;font-style:italic;">${pro.bio}</div>` : ""}
+              </td>
+            </tr>
+
+            <!-- Divider -->
+            <tr><td colspan="2" style="padding:0 24px;"><div style="height:1px;background:rgba(255,255,255,0.07);"></div></td></tr>
+
+            <!-- Contact rows -->
+            <tr><td colspan="2" style="padding:16px 24px 20px;">
+              <table cellpadding="0" cellspacing="0">${rows}</table>
+            </td></tr>
+          </table>
+
+          <!-- CTA -->
+          <div style="text-align:center;margin-top:28px;">
+            <a href="${link}" style="display:inline-block;background:#00c896;color:#000;font-weight:700;font-size:15px;padding:14px 32px;border-radius:999px;text-decoration:none;">
+              View Conversation →
+            </a>
+          </div>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
+          <p style="margin:0;font-size:11px;color:#3a4560;line-height:1.6;">
+            HomeRates.ai · Contact shared with your consent.<br>
+            ${pro.nmls ? `This professional is NMLS licensed. Always verify credentials at <a href="https://nmlsconsumeraccess.org" style="color:#3a4560;">nmlsconsumeraccess.org</a>` : ""}
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
 export async function emailContactShare({
   borrowerEmail,
   borrowerName,
   borrowerPhone,
-  proEmail,
-  proName,
-  proPhone,
+  pro,
   threadId,
 }: {
   borrowerEmail: string | null;
   borrowerName: string;
   borrowerPhone?: string | null;
-  proEmail: string | null;
-  proName: string;
-  proPhone?: string | null;
+  pro: ProCard;
   threadId: string;
 }) {
   const resend = getResend();
@@ -116,20 +207,22 @@ export async function emailContactShare({
 
   const link = `${BASE}/messages/${threadId}`;
 
-  // Email to professional — gets borrower's contact
-  if (proEmail) {
+  // Email to professional — simple confirmation with borrower contact
+  if (pro.email) {
     const borrowerContact = [borrowerEmail, borrowerPhone].filter(Boolean).join(" · ");
     try {
       await resend.emails.send({
         from: `HomeRates.ai <${FROM}>`,
-        to: proEmail,
+        to: pro.email,
         subject: `${borrowerName} shared their contact info`,
         html: `
-          <p>Hi ${proName},</p>
-          <p><strong>${borrowerName}</strong> is ready to move forward and shared their contact details with you:</p>
-          <p style="font-size:16px;font-weight:600;">${borrowerContact}</p>
-          <p><a href="${link}" style="background:#00c896;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600;">View Conversation →</a></p>
-          <p style="color:#888;font-size:12px;">HomeRates.ai · This contact was shared with your consent.</p>
+          <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 16px;">
+            <p style="color:#333;">Hi ${pro.name},</p>
+            <p style="color:#333;"><strong>${borrowerName}</strong> is ready to move forward and shared their contact details with you:</p>
+            <p style="font-size:18px;font-weight:700;color:#000;background:#f4f6f9;padding:14px 18px;border-radius:8px;border-left:4px solid #00c896;">${borrowerContact}</p>
+            <p><a href="${link}" style="background:#00c896;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:700;">View Conversation →</a></p>
+            <p style="color:#888;font-size:12px;">HomeRates.ai · This contact was shared with your consent.</p>
+          </div>
         `,
       });
     } catch (err) {
@@ -137,21 +230,14 @@ export async function emailContactShare({
     }
   }
 
-  // Email to borrower — gets professional's contact
+  // Email to borrower — full professional card
   if (borrowerEmail) {
-    const proContact = [proEmail, proPhone].filter(Boolean).join(" · ");
     try {
       await resend.emails.send({
         from: `HomeRates.ai <${FROM}>`,
         to: borrowerEmail,
-        subject: `You're connected with ${proName}`,
-        html: `
-          <p>Hi ${borrowerName},</p>
-          <p>Great news — you're connected with <strong>${proName}</strong>. Here are their contact details:</p>
-          <p style="font-size:16px;font-weight:600;">${proContact}</p>
-          <p><a href="${link}" style="background:#00c896;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600;">View Conversation →</a></p>
-          <p style="color:#888;font-size:12px;">HomeRates.ai · Next step: reach out directly to start your application.</p>
-        `,
+        subject: `You're connected with ${pro.name} — contact details inside`,
+        html: buildProCardHtml(pro, link),
       });
     } catch (err) {
       console.error("[sendEmail] emailContactShare (borrower) failed:", err);

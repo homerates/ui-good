@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../../lib/supabaseServer";
-import { emailContactShare } from "../../../../../lib/sendEmail";
+import { emailContactShare, type ProCard } from "../../../../../lib/sendEmail";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
   const { userId } = await auth();
@@ -44,9 +44,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
   const borrowerEmail = borrowerClerk.emailAddresses[0]?.emailAddress ?? null;
   const proEmail = proClerk.emailAddresses[0]?.emailAddress ?? null;
 
-  // Fetch phones from users table
+  // Fetch phones + role from users table
   const { data: borrowerRow } = await sb.from("users").select("phone").eq("id", userId).maybeSingle();
-  const { data: proRow } = await sb.from("users").select("phone").eq("id", thread.professional_id).maybeSingle();
+  const { data: proRow } = await sb.from("users").select("phone, role").eq("id", thread.professional_id).maybeSingle();
 
   // Store contact share record
   const { error: shareErr } = await sb
@@ -79,16 +79,68 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
     content: systemMsg,
   });
 
-  // Email both parties their contact details (fire-and-forget)
+  // Build full professional card from DB profile
   const borrowerName = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ") || "Borrower";
   const proName      = [proClerk.firstName, proClerk.lastName].filter(Boolean).join(" ") || "Your professional";
+
+  // Fetch LO or agent profile for the card
+  const proRole = proRow?.role ?? "lo";
+  let proCard: ProCard = {
+    name: proName,
+    email: proEmail,
+    phone: proRow?.phone ?? null,
+    photoUrl: proClerk.imageUrl ?? null,
+    role: proRole,
+  };
+  try {
+    if (proRole === "lo") {
+      const { data: loRow } = await sb
+        .from("loan_officers")
+        .select("lender, nmls, company_nmls, license_state, title, bio, phone, website, office_address")
+        .eq("user_id", thread.professional_id)
+        .maybeSingle();
+      if (loRow) {
+        proCard = {
+          ...proCard,
+          phone:         loRow.phone        ?? proCard.phone,
+          title:         loRow.title        ?? null,
+          bio:           loRow.bio          ?? null,
+          company:       loRow.lender       ?? null,
+          nmls:          loRow.nmls         ?? null,
+          companyNmls:   loRow.company_nmls ?? null,
+          licenseState:  loRow.license_state ?? null,
+          website:       loRow.website      ?? null,
+          officeAddress: loRow.office_address ?? null,
+        };
+      }
+    } else {
+      const { data: agentRow } = await sb
+        .from("agents")
+        .select("brokerage, license, title, bio, phone, website, office_address")
+        .eq("user_id", thread.professional_id)
+        .maybeSingle();
+      if (agentRow) {
+        proCard = {
+          ...proCard,
+          phone:         agentRow.phone        ?? proCard.phone,
+          title:         agentRow.title        ?? null,
+          bio:           agentRow.bio          ?? null,
+          company:       agentRow.brokerage    ?? null,
+          nmls:          agentRow.license      ?? null,
+          website:       agentRow.website      ?? null,
+          officeAddress: agentRow.office_address ?? null,
+        };
+      }
+    }
+  } catch (e) {
+    console.error("[share-contact] pro profile fetch failed:", e);
+  }
+
   emailContactShare({
     borrowerEmail,
     borrowerName,
     borrowerPhone: borrowerRow?.phone ?? null,
-    proEmail,
-    proName,
-    proPhone: proRow?.phone ?? null,
+    pro: proCard,
     threadId,
   });
 

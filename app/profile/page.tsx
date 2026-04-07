@@ -8,6 +8,7 @@ import Link from "next/link";
 interface ProfileData {
   email: string;
   clerkName: string;
+  photoUrl?: string | null;
   full_name: string;
   role: string;
   isLO: boolean;
@@ -16,6 +17,20 @@ interface ProfileData {
     nmls: string | null;
     license_state: string | null;
     company_nmls?: string | null;
+    title?: string | null;
+    bio?: string | null;
+    phone?: string | null;
+    website?: string | null;
+    office_address?: string | null;
+  } | null;
+  agent: {
+    brokerage?: string | null;
+    license?: string | null;
+    title?: string | null;
+    bio?: string | null;
+    phone?: string | null;
+    website?: string | null;
+    office_address?: string | null;
   } | null;
 }
 
@@ -46,8 +61,11 @@ export default function ProfilePage() {
   const [nmls, setNmls] = useState("");
   const [companyNmls, setCompanyNmls] = useState("");
   const [licenseState, setLicenseState] = useState("");
+  const [title, setTitle] = useState("");
+  const [bio, setBio] = useState("");
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
+  const [officeAddress, setOfficeAddress] = useState("");
   // Borrower-specific
   const [borrowerPhone, setBorrowerPhone] = useState("");
   const [propertyAddress, setPropertyAddress] = useState("");
@@ -63,10 +81,16 @@ export default function ProfilePage() {
         setData(d);
         setFullName(d.full_name || d.clerkName || "");
         setRole(d.role || "borrower");
-        setLender(d.lo?.lender ?? "");
-        setNmls(d.lo?.nmls ?? "");
+        const pro = d.lo ?? d.agent;
+        setLender(d.lo?.lender ?? d.agent?.brokerage ?? "");
+        setNmls(d.lo?.nmls ?? d.agent?.license ?? "");
         setCompanyNmls(d.lo?.company_nmls ?? "");
         setLicenseState(d.lo?.license_state ?? "");
+        setTitle(pro?.title ?? "");
+        setBio(pro?.bio ?? "");
+        setPhone(pro?.phone ?? "");
+        setWebsite(pro?.website ?? "");
+        setOfficeAddress(pro?.office_address ?? "");
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -88,8 +112,11 @@ export default function ProfilePage() {
           nmls,
           company_nmls: companyNmls,
           license_state: licenseState,
+          title,
+          bio,
           phone,
           website,
+          office_address: officeAddress,
           borrower_phone: borrowerPhone,
           property_address: propertyAddress,
           current_loan_balance: currentLoanBal,
@@ -336,6 +363,51 @@ export default function ProfilePage() {
                       type="url"
                     />
                     <span className="pr-hint">Borrowers can review your background before deciding to connect.</span>
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label" htmlFor="title">Job Title (optional)</label>
+                    <input
+                      id="title"
+                      className="pr-input"
+                      value={title}
+                      onChange={e => setTitle(e.target.value)}
+                      placeholder={role === "agent" ? "e.g. Realtor®, Buyer's Agent" : "e.g. Senior Loan Officer, Mortgage Advisor"}
+                      maxLength={80}
+                    />
+                    <span className="pr-hint">Shown on your contact card when a borrower connects with you.</span>
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label" htmlFor="office_address">Office Address (optional)</label>
+                    <input
+                      id="office_address"
+                      className="pr-input"
+                      value={officeAddress}
+                      onChange={e => setOfficeAddress(e.target.value)}
+                      placeholder="e.g. 123 Main St, Suite 200, Los Angeles CA 90001"
+                      maxLength={200}
+                    />
+                    <span className="pr-hint">Included in your contact card email to build trust with new borrowers.</span>
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label" htmlFor="bio">Personal Statement (optional)</label>
+                    <textarea
+                      id="bio"
+                      className="pr-input"
+                      style={{ resize: "vertical", minHeight: 90, lineHeight: 1.55 }}
+                      value={bio}
+                      onChange={e => setBio(e.target.value)}
+                      placeholder={role === "agent"
+                        ? "e.g. I specialize in first-time buyers in the LA market. 12 years experience, 200+ closings."
+                        : "e.g. 15 years helping first-time buyers. Specializing in FHA, VA, and jumbo. NMLS licensed in CA, TX, and FL."}
+                      maxLength={280}
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span className="pr-hint">Your 30-second pitch. Shown on the contact card borrowers receive.</span>
+                      <span className="pr-hint">{bio.length}/280</span>
+                    </div>
                   </div>
                 </div>
               )}
