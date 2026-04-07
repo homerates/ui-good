@@ -4529,7 +4529,7 @@ ${uwAnswerText}`,
                 calcCard.jumboAffordabilitySlider = {
                     price:             _jp2.purchasePrice,
                     downPct:           _jp2.downPaymentPct ?? 20,
-                    baseRate:          fred?.mort30Avg ?? _jp2.annualRatePct ?? 6.75,
+                    baseRate:          _jp2.annualRatePct ?? fred?.mort30Avg ?? 6.75,
                     countyLimit:       NATIONAL_CONFORMING_BASELINE.units1,
                     nationalBaseline:  NATIONAL_CONFORMING_BASELINE.units1,
                     county:            undefined,
