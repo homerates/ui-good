@@ -56,13 +56,14 @@ export async function POST(req: NextRequest) {
   const referredProId = visibility === "private" ? referredBy : null;
 
   // One active scenario per borrower at a time
-  const { data: existing } = await sb
+  const { data: existing, error: existingErr } = await sb
     .from("scenario_briefs")
     .select("id")
     .eq("borrower_id", userId)
     .eq("status", "active")
     .maybeSingle();
 
+  if (existingErr) console.error("[scenarios] existing check error:", existingErr);
   if (existing) {
     return NextResponse.json({ error: "You already have an active scenario. Close it before posting a new one.", existing_id: existing.id }, { status: 400 });
   }
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
     .insert({
       borrower_id: userId,
       loan_type,
-      loan_purpose: loan_purpose ?? "purchase",
+      loan_purpose: (loan_purpose ?? "purchase").toLowerCase(),
       price_range,
       down_payment_pct,
       income_range,
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     console.error("[scenarios] insert error:", error);
-    return NextResponse.json({ error: "Failed to create scenario" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create scenario", detail: error.message, code: error.code }, { status: 500 });
   }
 
   return NextResponse.json({ scenario: data });
