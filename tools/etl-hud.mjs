@@ -30,11 +30,22 @@ const STATES = [
   'TN','TX','UT','VT','VA','WA','WV','WI','WY','PR',
 ];
 
-async function hudGet(path) {
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function hudGet(path, retries = 3) {
   const url = `${HUD_BASE}${path}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${HUD_TOKEN}` } });
-  if (!res.ok) throw new Error(`HUD ${res.status} for ${path}`);
-  return res.json();
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${HUD_TOKEN}` } });
+    if (res.status === 429) {
+      const wait = 12000 * (attempt + 1); // 12s, 24s, 36s back-off
+      process.stdout.write(` [rate-limited, waiting ${wait/1000}s]`);
+      await sleep(wait);
+      continue;
+    }
+    if (!res.ok) throw new Error(`HUD ${res.status} for ${path}`);
+    return res.json();
+  }
+  throw new Error(`HUD 429 rate limit exhausted for ${path}`);
 }
 
 // HUD entity FIPS codes are 10 chars like '0600199999'
@@ -98,14 +109,14 @@ async function processState(stateAbbr) {
       updated_at:   new Date().toISOString(),
     });
 
-    // Polite rate limit
-    await new Promise(r => setTimeout(r, 80));
+    // Polite rate limit — HUD API: ~120 req/min free tier
+    await sleep(600);
   }
 
   // Step 3: ZIP crosswalk
   let xwRows = [];
   try {
-    const xw = await hudGet(`/usps?type=4&query=${stateAbbr}&year=2024&quarter=4`);
+    const xw = await hudGet(`/usps?type=2&query=${stateAbbr}&year=2024&quarter=4`);
     const results = xw?.data?.results ?? [];
     xwRows = results.map(row => {
       const zip = String(row.zip ?? '').padStart(5, '0');
@@ -159,7 +170,7 @@ async function run() {
       console.log(` ✗ ${err.message.slice(0, 80)}`);
     }
 
-    await new Promise(r => setTimeout(r, 150));
+    await sleep(3000); // 3s between states to stay well under rate limit
   }
 
   console.log(`\n📊 Done`);
