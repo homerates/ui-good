@@ -126,7 +126,7 @@ function PostScenarioContent() {
         body: JSON.stringify({
           ...form,
           loan_type: form.loan_type.toLowerCase().replace(/ /g, "_"),
-          down_payment_pct: parseInt(form.down_payment_pct),
+          down_payment_pct: parseFloat(form.down_payment_pct),
           max_responses: parseInt(form.max_responses),
           response_window_hours: parseInt(form.response_window_hours),
           visibility, // 'private' (referred) or 'public' (Match Board)

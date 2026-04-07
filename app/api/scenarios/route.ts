@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     console.error("[scenarios] insert error:", error);
-    return NextResponse.json({ error: "Failed to create scenario", detail: error.message, code: error.code }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create scenario" }, { status: 500 });
   }
 
   return NextResponse.json({ scenario: data });
