@@ -1,15 +1,14 @@
 /**
- * ETL: HUD Income Limits + Fair Market Rents
+ * ETL: HUD Income Limits + Fair Market Rents + ZIP Crosswalk
  *
- * Sources:
- *   Income Limits: https://www.huduser.gov/hudapi/public/il
- *   Fair Market Rents: https://www.huduser.gov/hudapi/public/fmr
- *   ZIP crosswalk: https://www.huduser.gov/hudapi/public/usps
+ * Endpoints (confirmed working 2026):
+ *   County list:  GET /hudapi/public/fmr/listCounties/{stateCode}
+ *   FMR data:     GET /hudapi/public/fmr/data/{entityId}
+ *   IL data:      GET /hudapi/public/il/data/{entityId}
+ *   ZIP crosswalk: GET /hudapi/public/usps?type=4&query={stateCode}&year=2024&quarter=4
  *
- * Requires: HUD_TOKEN env var (free registration at huduser.gov/portal/datasets/api.html)
+ * Requires: HUD_TOKEN env var — register free at https://www.huduser.gov/hudapi/public/register
  * Run: node tools/etl-hud.mjs
- *
- * Upserts into: hud_features, geo_crosswalk
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -18,21 +17,12 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const HUD_TOKEN = process.env.HUD_TOKEN;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-  process.exit(1);
-}
-if (!HUD_TOKEN) {
-  console.error('Missing HUD_TOKEN — register free at https://www.huduser.gov/portal/datasets/api.html');
-  process.exit(1);
-}
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) { console.error('Missing Supabase env vars'); process.exit(1); }
+if (!HUD_TOKEN) { console.error('Missing HUD_TOKEN'); process.exit(1); }
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
 const HUD_BASE = 'https://www.huduser.gov/hudapi/public';
-const FISCAL_YEAR = 2025;
 
-// All 50 states + DC + PR + territories
 const STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL',
   'IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE',
@@ -42,193 +32,140 @@ const STATES = [
 
 async function hudGet(path) {
   const url = `${HUD_BASE}${path}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${HUD_TOKEN}` },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HUD API error ${res.status} for ${path}: ${text.slice(0, 200)}`);
-  }
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${HUD_TOKEN}` } });
+  if (!res.ok) throw new Error(`HUD ${res.status} for ${path}`);
   return res.json();
 }
 
-// ── Income Limits ────────────────────────────────────────────────────────────
-
-async function fetchILForState(stateAbbr) {
-  // Returns array of entities (counties/metros) with income limit data
-  const data = await hudGet(`/il/il${FISCAL_YEAR}?stateId=${stateAbbr}&type=county`);
-  return data?.data?.entities ?? [];
+// HUD entity FIPS codes are 10 chars like '0600199999'
+// Standard 5-digit FIPS = first 5 chars
+function toStdFips(entityCode) {
+  const s = String(entityCode ?? '');
+  // If it's 10 chars, take chars 0-4 (state+county)
+  if (s.length === 10) return s.slice(0, 5);
+  return s.padStart(5, '0').slice(0, 5);
 }
 
-function parseILEntity(entity, stateAbbr) {
-  const limits = entity.medianhouseholdincome
-    ? {
-        ami_4person: entity.medianhouseholdincome ?? null,
-        ami_1person: entity.il_1 ?? null,
-        ami_2person: entity.il_2 ?? null,
-        ami_3person: entity.il_3 ?? null,
-        ami_4person_check: entity.il_4 ?? null,
-        ami_5person: entity.il_5 ?? null,
-        ami_80pct: entity.l80_4 ?? null,
-        ami_50pct: entity.l50_4 ?? null,
-        ami_120pct: entity.m120_4 ?? entity.medianhouseholdincome
-          ? Math.round((entity.medianhouseholdincome ?? 0) * 1.2)
-          : null,
-      }
-    : {};
+async function processState(stateAbbr) {
+  // Step 1: Get county list for state
+  const counties = await hudGet(`/fmr/listCounties/${stateAbbr}`);
+  if (!Array.isArray(counties) || !counties.length) return { hudRows: [], xwRows: [] };
 
-  // county_fips from geoid (5 chars) or from entity.fips2010
-  const countyFips = entity.fips2010
-    ? String(entity.fips2010).padStart(5, '0')
-    : null;
+  const hudRows = [];
 
-  if (!countyFips) return null;
+  // Step 2: Fetch FMR + IL for each county (rate-limited)
+  for (const county of counties) {
+    const entityId = county.fips_code;
+    const countyFips = toStdFips(entityId);
+    if (!countyFips || countyFips.length !== 5) continue;
 
-  return {
-    county_fips: countyFips,
-    fiscal_year: FISCAL_YEAR,
-    county_name: entity.areaname ?? null,
-    state_abbr: stateAbbr,
-    cbsa_code: entity.cbsasub ?? entity.cbsa ?? null,
-    ami_1person: entity.il_1 ?? null,
-    ami_2person: entity.il_2 ?? null,
-    ami_3person: entity.il_3 ?? null,
-    ami_4person: entity.medianhouseholdincome ?? entity.il_4 ?? null,
-    ami_5person: entity.il_5 ?? null,
-    ami_80pct: entity.l80_4 ?? null,
-    ami_50pct: entity.l50_4 ?? null,
-    ami_120pct: entity.medianhouseholdincome
-      ? Math.round(entity.medianhouseholdincome * 1.2)
-      : null,
-    updated_at: new Date().toISOString(),
-  };
+    let fmr = null, il = null;
+    try {
+      const fmrRes = await hudGet(`/fmr/data/${entityId}`);
+      fmr = fmrRes?.data?.basicdata ?? null;
+    } catch { /* skip */ }
+
+    try {
+      const ilRes = await hudGet(`/il/data/${entityId}`);
+      il = ilRes?.data ?? null;
+    } catch { /* skip */ }
+
+    if (!fmr && !il) continue;
+
+    const ami4 = il?.median_income ?? null;
+    hudRows.push({
+      county_fips:  countyFips,
+      fiscal_year:  2025,
+      county_name:  county.county_name?.replace(/ County.*$/, '') ?? null,
+      state_abbr:   stateAbbr,
+      cbsa_code:    null,
+      // Income limits by person count
+      ami_1person:  il?.low?.il80_p1 ? Math.round(il.low.il80_p1 / 0.8) : null,
+      ami_2person:  il?.low?.il80_p2 ? Math.round(il.low.il80_p2 / 0.8) : null,
+      ami_3person:  il?.low?.il80_p3 ? Math.round(il.low.il80_p3 / 0.8) : null,
+      ami_4person:  ami4,
+      ami_5person:  il?.low?.il80_p5 ? Math.round(il.low.il80_p5 / 0.8) : null,
+      // AMI thresholds
+      ami_80pct:    il?.low?.il80_p4 ?? null,
+      ami_50pct:    il?.very_low?.il50_p4 ?? null,
+      ami_120pct:   ami4 ? Math.round(ami4 * 1.2) : null,
+      // Fair Market Rents
+      fmr_0br:      fmr?.Efficiency ?? null,
+      fmr_1br:      fmr?.['One-Bedroom'] ?? null,
+      fmr_2br:      fmr?.['Two-Bedroom'] ?? null,
+      fmr_3br:      fmr?.['Three-Bedroom'] ?? null,
+      fmr_4br:      fmr?.['Four-Bedroom'] ?? null,
+      updated_at:   new Date().toISOString(),
+    });
+
+    // Polite rate limit
+    await new Promise(r => setTimeout(r, 80));
+  }
+
+  // Step 3: ZIP crosswalk
+  let xwRows = [];
+  try {
+    const xw = await hudGet(`/usps?type=4&query=${stateAbbr}&year=2024&quarter=4`);
+    const results = xw?.data?.results ?? [];
+    xwRows = results.map(row => {
+      const zip = String(row.zip ?? '').padStart(5, '0');
+      const fips = String(row.geoid ?? row.county ?? '').slice(0, 5).padStart(5, '0');
+      if (!zip || !fips || zip.length !== 5 || fips.length !== 5 || zip === '00000') return null;
+      return {
+        zip,
+        county_fips: fips,
+        state_fips:  fips.slice(0, 2),
+        cbsa_code:   null,
+        cbsa_name:   null,
+        county_name: null,
+        state_abbr:  stateAbbr,
+        res_ratio:   row.res_ratio ?? null,
+        updated_at:  new Date().toISOString(),
+      };
+    }).filter(Boolean);
+  } catch { /* skip crosswalk if fails */ }
+
+  return { hudRows, xwRows };
 }
 
-// ── Fair Market Rents ────────────────────────────────────────────────────────
-
-async function fetchFMRForState(stateAbbr) {
-  const data = await hudGet(`/fmr/statedata?state=${stateAbbr}&year=${FISCAL_YEAR}`);
-  return data?.data?.counties ?? [];
-}
-
-function parseFMREntity(entity) {
-  const fips = entity.fips_code
-    ? String(entity.fips_code).padStart(5, '0')
-    : null;
-  if (!fips) return null;
-
-  return {
-    county_fips: fips,
-    fmr_0br: entity.basic_studio ?? entity.Efficiency ?? null,
-    fmr_1br: entity.basic_1br ?? entity.One_Bedroom ?? null,
-    fmr_2br: entity.basic_2br ?? entity.Two_Bedroom ?? null,
-    fmr_3br: entity.basic_3br ?? entity.Three_Bedroom ?? null,
-    fmr_4br: entity.basic_4br ?? entity.Four_Bedroom ?? null,
-  };
-}
-
-// ── ZIP Crosswalk ────────────────────────────────────────────────────────────
-
-async function fetchCrosswalkForState(stateAbbr) {
-  // HUD crosswalk: ZIP to county, Q4 of most recent year
-  // type=4 = ZIP to county
-  const data = await hudGet(`/usps?type=4&query=${stateAbbr}&year=${FISCAL_YEAR}&quarter=4`);
-  return data?.data?.results ?? [];
-}
-
-function parseCrosswalkRow(row, stateAbbr) {
-  const zip = String(row.zip ?? row.geoid ?? '').padStart(5, '0');
-  const fips = String(row.county ?? row.county_fips ?? '').padStart(5, '0');
-  if (!zip || !fips || zip.length !== 5 || fips.length !== 5) return null;
-
-  return {
-    zip,
-    county_fips: fips,
-    state_fips: fips.slice(0, 2),
-    cbsa_code: row.cbsa ?? null,
-    cbsa_name: row.cbsa_name ?? null,
-    county_name: row.county_name ?? null,
-    state_abbr: stateAbbr,
-    res_ratio: row.res_ratio ?? null,
-    updated_at: new Date().toISOString(),
-  };
-}
-
-// ── Upsert helpers ───────────────────────────────────────────────────────────
-
-async function upsertBatch(table, rows, conflictCols) {
+async function upsertBatch(table, rows, conflict) {
   if (!rows.length) return;
-  const { error } = await sb
-    .from(table)
-    .upsert(rows, { onConflict: conflictCols });
-  if (error) throw new Error(`Upsert ${table}: ${error.message}`);
+  const { error } = await sb.from(table).upsert(rows, { onConflict: conflict });
+  if (error) throw new Error(`${table}: ${error.message}`);
 }
-
-// ── Main ─────────────────────────────────────────────────────────────────────
 
 async function run() {
-  console.log(`\n🏠 HUD ETL — FY${FISCAL_YEAR}\n`);
+  console.log('\n🏠 HUD ETL — FY2025\n');
 
-  let ilTotal = 0, fmrTotal = 0, xwTotal = 0, errors = 0;
+  let totalHud = 0, totalXw = 0, errors = 0;
 
   for (const state of STATES) {
     process.stdout.write(`  ${state} ...`);
     try {
-      // Income limits
-      const ilEntities = await fetchILForState(state);
-      const ilRows = ilEntities.map(e => parseILEntity(e, state)).filter(Boolean);
+      const { hudRows, xwRows } = await processState(state);
 
-      // FMR
-      const fmrEntities = await fetchFMRForState(state);
-      const fmrRows = fmrEntities.map(parseFMREntity).filter(Boolean);
-
-      // Merge FMR into IL rows by county_fips
-      const fmrMap = Object.fromEntries(fmrRows.map(r => [r.county_fips, r]));
-      const merged = ilRows.map(row => ({
-        ...row,
-        ...(fmrMap[row.county_fips]
-          ? {
-              fmr_0br: fmrMap[row.county_fips].fmr_0br,
-              fmr_1br: fmrMap[row.county_fips].fmr_1br,
-              fmr_2br: fmrMap[row.county_fips].fmr_2br,
-              fmr_3br: fmrMap[row.county_fips].fmr_3br,
-              fmr_4br: fmrMap[row.county_fips].fmr_4br,
-            }
-          : {}),
-      }));
-
-      if (merged.length) {
-        await upsertBatch('hud_features', merged, 'county_fips,fiscal_year');
-        ilTotal += merged.length;
+      if (hudRows.length) {
+        await upsertBatch('hud_features', hudRows, 'county_fips,fiscal_year');
+        totalHud += hudRows.length;
       }
-
-      // Crosswalk
-      const xwRaw = await fetchCrosswalkForState(state);
-      const xwRows = xwRaw.map(r => parseCrosswalkRow(r, state)).filter(Boolean);
       if (xwRows.length) {
         await upsertBatch('geo_crosswalk', xwRows, 'zip,county_fips');
-        xwTotal += xwRows.length;
+        totalXw += xwRows.length;
       }
 
-      fmrTotal += fmrRows.length;
-      console.log(` ✓ IL:${merged.length} FMR:${fmrRows.length} XW:${xwRows.length}`);
+      console.log(` ✓ ${hudRows.length} counties, ${xwRows.length} ZIP mappings`);
     } catch (err) {
       errors++;
-      console.log(` ✗ ${err.message.slice(0, 100)}`);
+      console.log(` ✗ ${err.message.slice(0, 80)}`);
     }
 
-    // Polite rate limit — HUD API allows ~10 req/s
-    await new Promise(r => setTimeout(r, 120));
+    await new Promise(r => setTimeout(r, 150));
   }
 
   console.log(`\n📊 Done`);
-  console.log(`   hud_features rows: ${ilTotal}`);
-  console.log(`   fmr rows merged:   ${fmrTotal}`);
-  console.log(`   geo_crosswalk rows: ${xwTotal}`);
-  console.log(`   States with errors: ${errors}/${STATES.length}\n`);
+  console.log(`   hud_features: ${totalHud} counties`);
+  console.log(`   geo_crosswalk: ${totalXw} ZIP mappings`);
+  console.log(`   Errors: ${errors}/${STATES.length}\n`);
 }
 
-run().catch(err => {
-  console.error('Fatal:', err.message);
-  process.exit(1);
-});
+run().catch(err => { console.error('Fatal:', err.message); process.exit(1); });
