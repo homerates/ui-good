@@ -3226,7 +3226,8 @@ export function buildJumboAffordabilityCard(params: {
 
     const spread        = _JSPREADS[zone];
     const reserveMos    = _JRESERVES[zone];
-    const effectiveRate = baseRate + spread;
+    // Use FRED rate directly — zone spread shown as informational guidance, not auto-applied
+    const effectiveRate = baseRate;
 
     const monthlyPI    = _jCalcPI(loanAmount, effectiveRate);
     const monthlyTax   = (price * taxRate) / 12;
@@ -3289,9 +3290,9 @@ export function buildJumboAffordabilityCard(params: {
         `| Loan Amount | ${_jFLong(Math.round(loanAmount))} |`,
         `| LTV | ${_jFPct(ltv * 100)} |`,
         `| Loan Zone | **${zoneLabel}** |`,
-        `| Base Rate | ${_jFPct(baseRate)} |`,
-        `| Zone Spread | +${_jFPct(spread)} |`,
-        `| Effective Rate | **${_jFPct(effectiveRate)}** |`,
+        `| Rate (FRED 30yr) | **${_jFPct(baseRate)}** |`,
+        `| Loan Zone | **${zoneLabel}** |`,
+        zone !== 'conforming' ? `| Typical Zone Premium | +${_jFPct(spread)} (varies by lender) |` : '',
         '',
         `### Monthly Payment`,
         '',

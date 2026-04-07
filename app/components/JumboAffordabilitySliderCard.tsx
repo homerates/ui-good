@@ -101,7 +101,7 @@ const ZONE_CONFIG: Record<Zone, {
 export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySliderParams) {
     const [price, setPrice] = useState(Math.max(500_000, Math.min(5_000_000, Math.round(props.price / 25000) * 25000)));
     const [downPct, setDownPct] = useState(Math.max(10, Math.min(50, props.downPct)));
-    const [rateAdj, setRateAdj] = useState(0);
+    const [rate, setRate] = useState(Math.round(props.baseRate * 8) / 8); // snap to 0.125% steps
     const [zipInput, setZipInput] = useState(props.county ?? '');
     const [countyLimit, setCountyLimit] = useState(props.countyLimit);
     const [county, setCounty] = useState(props.county ?? '');
@@ -162,7 +162,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
             'jumbo';
 
         const z = ZONE_CONFIG[zone];
-        const effectiveRate = props.baseRate + z.spread + rateAdj;
+        const effectiveRate = rate;
 
         const monthlyPI = calcPI(loanAmount, effectiveRate, 30);
         const monthlyTax = (price * taxRate) / 12;
@@ -233,7 +233,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
             savingsConforming,
             totalInterest,
         };
-    }, [price, downPct, rateAdj, countyLimit, nationalBaseline, taxRate, insRate, props.baseRate]);
+    }, [price, downPct, rate, countyLimit, nationalBaseline, taxRate, insRate]);
 
     const { zone, z } = calc;
 
@@ -243,11 +243,11 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
 
     function handleRunScenario() {
         if (!props.onRunScenario) return;
-        const seed = `Jumbo affordability: ${f$(price)} home, ${downPct}% down, ${fPct(calc.effectiveRate)} rate — ${county || 'CA'}`;
+        const seed = `Jumbo affordability: ${f$(price)} home, ${downPct}% down, ${fPct(rate)} rate — ${county || 'CA'}`;
         props.onRunScenario(seed, {
             purchasePrice: price,
             downPaymentPct: downPct,
-            annualRatePct: calc.effectiveRate,
+            annualRatePct: rate,
             loanType: 'jumbo',
             county: county || undefined,
             taxRate,
@@ -540,26 +540,29 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                 </div>
             </div>
 
-            {/* Rate adjustment slider */}
+            {/* Rate slider */}
             <div style={S.sliderWrap}>
                 <div style={S.sliderRow}>
-                    <span style={S.sliderLabel}>Rate Adjustment</span>
-                    <span style={S.sliderVal}>
-                        {rateAdj >= 0 ? '+' : ''}{rateAdj.toFixed(2)}% → {fPct(calc.effectiveRate)}
-                    </span>
+                    <span style={S.sliderLabel}>Interest Rate</span>
+                    <span style={S.sliderVal}>{fPct(rate)}</span>
                 </div>
                 <input
                     type="range"
-                    min={-100}
-                    max={100}
-                    step={5}
-                    value={Math.round(rateAdj * 100)}
-                    onChange={e => { setRateAdj(+e.target.value / 100); markDirty(); }}
-                    style={{ ...S.rangeInput, ...trackStyle(rateAdj, -1, 1, z.color) }}
+                    min={350}
+                    max={1000}
+                    step={12.5}
+                    value={Math.round(rate * 100)}
+                    onChange={e => { setRate(Math.round(+e.target.value) / 100); markDirty(); }}
+                    style={{ ...S.rangeInput, ...trackStyle(rate, 3.5, 10, z.color) }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 3 }}>
-                    <span>−1%</span><span>+1%</span>
+                    <span>3.5%</span><span style={{ color: 'rgba(185,208,192,0.5)' }}>FRED: {fPct(props.baseRate)}</span><span>10%</span>
                 </div>
+                {zone !== 'conforming' && (
+                    <div style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.45)', marginTop: 5, lineHeight: 1.5 }}>
+                        💡 {zone === 'jumbo' ? 'Jumbo loans typically run 0.25–0.50% above conforming' : 'High-balance loans typically run 0.125–0.25% above conforming'} — varies by lender, credit, and reserves.
+                    </div>
+                )}
             </div>
 
             {/* ZIP / County input */}
@@ -641,7 +644,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                         <td style={S.tdVal}>{fPct(calc.ltv * 100)}</td>
                     </tr>
                     <tr style={S.tr}>
-                        <td style={S.tdLabel}>Effective Rate</td>
+                        <td style={S.tdLabel}>Rate</td>
                         <td style={S.tdVal}>{fPct(calc.effectiveRate)}</td>
                     </tr>
                     <tr style={S.tr}>
