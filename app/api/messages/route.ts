@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
+import { emailNewThread } from "../../../lib/sendEmail";
 
 export async function GET() {
   const { userId } = await auth();
@@ -157,6 +158,28 @@ export async function POST(req: NextRequest) {
       unread_professional: (thread.unread_professional ?? 0) + 1,
     })
     .eq("id", thread.id);
+
+  // Email the professional on new thread (fire-and-forget)
+  if (!existing) {
+    try {
+      const clerk = await clerkClient();
+      const [borrowerClerk, proClerk] = await Promise.all([
+        clerk.users.getUser(userId),
+        clerk.users.getUser(professional_id),
+      ]);
+      const borrowerName = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ") || "A borrower";
+      const proName      = [proClerk.firstName, proClerk.lastName].filter(Boolean).join(" ") || "there";
+      const proEmail     = proClerk.emailAddresses[0]?.emailAddress ?? null;
+      const { data: scenario } = scenario_id
+        ? await sb.from("scenario_briefs").select("loan_type").eq("id", scenario_id).maybeSingle()
+        : { data: null };
+      if (proEmail) {
+        emailNewThread({ toEmail: proEmail, toName: proName, fromName: borrowerName, threadId: thread.id, loanType: scenario?.loan_type });
+      }
+    } catch (e) {
+      console.error("[messages] emailNewThread lookup failed:", e);
+    }
+  }
 
   return NextResponse.json({ thread_id: thread.id, message: msg });
 }

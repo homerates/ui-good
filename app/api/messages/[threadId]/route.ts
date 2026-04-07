@@ -6,8 +6,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { emailNewReply } from "../../../../lib/sendEmail";
 
 // PII patterns to block from being sent
 const PII_PATTERNS = [
@@ -161,6 +162,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       [unreadField]: (currentUnread ?? 0) + 1,
     })
     .eq("id", threadId);
+
+  // Email the other party — only when they had 0 unread (were caught up), to avoid spam
+  if ((currentUnread ?? 0) === 0) {
+    try {
+      const clerk = await clerkClient();
+      const recipientId = isBorrower ? thread.professional_id : thread.borrower_id;
+      const [recipientClerk, senderClerk] = await Promise.all([
+        clerk.users.getUser(recipientId),
+        clerk.users.getUser(userId),
+      ]);
+      const recipientEmail = recipientClerk.emailAddresses[0]?.emailAddress ?? null;
+      const recipientName  = [recipientClerk.firstName, recipientClerk.lastName].filter(Boolean).join(" ") || "there";
+      const senderName     = [senderClerk.firstName, senderClerk.lastName].filter(Boolean).join(" ") || "Someone";
+      if (recipientEmail) {
+        emailNewReply({ toEmail: recipientEmail, toName: recipientName, fromName: senderName, threadId, preview: finalContent });
+      }
+    } catch (e) {
+      console.error("[messages/threadId] emailNewReply lookup failed:", e);
+    }
+  }
 
   return NextResponse.json({ message: msg });
 }

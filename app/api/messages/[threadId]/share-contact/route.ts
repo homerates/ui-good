@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../../lib/supabaseServer";
+import { emailContactShare } from "../../../../../lib/sendEmail";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
   const { userId } = await auth();
@@ -76,6 +77,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
     thread_id: threadId,
     sender_role: "system",
     content: systemMsg,
+  });
+
+  // Email both parties their contact details (fire-and-forget)
+  const borrowerName = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ") || "Borrower";
+  const proName      = [proClerk.firstName, proClerk.lastName].filter(Boolean).join(" ") || "Your professional";
+  emailContactShare({
+    borrowerEmail,
+    borrowerName,
+    borrowerPhone: borrowerRow?.phone ?? null,
+    proEmail,
+    proName,
+    proPhone: proRow?.phone ?? null,
+    threadId,
   });
 
   return NextResponse.json({
