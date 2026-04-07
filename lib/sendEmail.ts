@@ -4,7 +4,7 @@
 
 import { Resend } from "resend";
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? "notifications@homerates.ai";
+const FROM = process.env.RESEND_FROM_EMAIL ?? "digest@homerates.ai";
 const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
 
 function getResend(): Resend | null {
