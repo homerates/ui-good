@@ -11,6 +11,7 @@ export interface LenderChecklistData {
     price:       number;
     loanAmount:  number;
     ltv:         number;   // decimal e.g. 0.80
+    downPaymentPct?: number; // explicit dp% — avoids UFMIP distortion when computing from ltv
     marketRate:  number;   // FRED live rate used in calc
     monthlyPITI: number;
     termYears:   number;
@@ -196,7 +197,9 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
 
                     {/* Get Matched CTA */}
                     {(() => {
-                        const dp = Math.round((1 - data.ltv) * 100);
+                        // Use explicit downPaymentPct when available — avoids UFMIP distortion
+                        // (FHA financed UFMIP inflates loanAmount, making ltv-derived dp wrong)
+                        const dp = data.downPaymentPct ?? Math.round((1 - data.ltv) * 100);
                         const purpose = data.pdfType === 'refi' ? 'Refinance' : 'Purchase';
                         const lt = data.loanType.charAt(0).toUpperCase() + data.loanType.slice(1);
                         const params = new URLSearchParams({

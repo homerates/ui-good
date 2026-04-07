@@ -127,6 +127,7 @@ export interface BuiltCard {
         price:       number;
         loanAmount:  number;
         ltv:         number;
+        downPaymentPct?: number;
         marketRate:  number;
         monthlyPITI: number;
         termYears:   number;
@@ -285,7 +286,8 @@ ${dtiSection}${incomeSection}
         lenderChecklist: {
             loanType: 'conventional',
             price: r.purchasePrice, loanAmount: r.loanAmount,
-            ltv: r.ltv, marketRate: r.annualRatePct,
+            ltv: r.ltv, downPaymentPct: r.downPaymentPct,
+            marketRate: r.annualRatePct,
             monthlyPITI: r.totalMonthly, termYears: r.termYears,
             isInvestment: false,
         },
@@ -483,7 +485,8 @@ ${dtiSection}${incomeSection}${compSection}
         lenderChecklist: {
             loanType: 'fha',
             price: r.purchasePrice, loanAmount: r.baseLoanAmount,
-            ltv: r.ltv, marketRate: r.annualRatePct,
+            ltv: r.ltv, downPaymentPct: r.downPaymentPct,
+            marketRate: r.annualRatePct,
             monthlyPITI: r.totalMonthly, termYears: r.termYears,
             isInvestment: false,
         },
@@ -1520,6 +1523,7 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
                 price: sc0.homePrice,
                 loanAmount: sc0.loanAmount,
                 ltv: sc0.homePrice > 0 ? sc0.loanAmount / sc0.homePrice : 0.965,
+                downPaymentPct: sc0?.isFHA ? (sc0?.downPaymentPct ?? 3.5) : (sc0?.downPaymentPct ?? 5),
                 marketRate: r.rate,
                 monthlyPITI: sc0.totalMonthly,
                 termYears: 30,
@@ -1754,6 +1758,7 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
             price: r.purchasePrice,
             loanAmount: r.loanAmount,
             ltv: r.purchasePrice > 0 ? r.loanAmount / r.purchasePrice : 0.75,
+            downPaymentPct: r.downPaymentPct,
             marketRate: r.annualRatePct,
             monthlyPITI: r.monthlyPITIA,
             termYears: 30,
@@ -2800,7 +2805,8 @@ ${buydownSection}${dtiSection}
         lenderChecklist: {
             loanType: 'va',
             price: r.purchasePrice, loanAmount: r.totalLoanAmount,
-            ltv: r.ltv, marketRate: r.annualRatePct,
+            ltv: r.ltv, downPaymentPct: r.downPaymentPct,
+            marketRate: r.annualRatePct,
             monthlyPITI: r.totalMonthly, termYears: r.termYears,
             isInvestment: false,
         },
@@ -3017,7 +3023,8 @@ ${dtiSection}
         lenderChecklist: {
             loanType: 'jumbo',
             price: r.purchasePrice, loanAmount: r.loanAmount,
-            ltv: r.ltv, marketRate: r.annualRatePct,
+            ltv: r.ltv, downPaymentPct: r.downPaymentPct,
+            marketRate: r.annualRatePct,
             monthlyPITI: r.totalMonthly, termYears: r.termYears,
             isInvestment: false,
         },
@@ -3367,6 +3374,7 @@ export function buildJumboAffordabilityCard(params: {
             price,
             loanAmount: Math.round(loanAmount),
             ltv,
+            downPaymentPct: downPct,
             marketRate: effectiveRate,
             monthlyPITI: Math.round(totalMonthly),
             termYears: 30,

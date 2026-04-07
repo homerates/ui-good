@@ -11,7 +11,7 @@ import Link from "next/link";
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "DSCR", "Other"];
 const PURPOSES = ["Purchase", "Refinance"];
 const PRICE_RANGES = ["Under $300k", "$300k–$400k", "$400k–$500k", "$500k–$750k", "$750k–$1M", "$1M–$1.5M", "$1.5M+"];
-const DOWN_PAYMENTS = [3, 5, 10, 15, 20, 25, 30];
+const DOWN_PAYMENTS = [3, 3.5, 5, 10, 15, 20, 25, 30];
 const INCOME_RANGES = ["Under $60k", "$60k–$80k", "$80k–$100k", "$100k–$150k", "$150k–$200k", "$200k+"];
 const CREDIT_TIERS = ["Excellent (740+)", "Good (700–739)", "Fair (660–699)", "Below 660"];
 const TIMELINES = ["ASAP (under 30 days)", "1–2 months", "3–6 months", "Just researching"];
@@ -133,7 +133,7 @@ function PostScenarioContent() {
           // Card snapshot: only attach if the user hasn't changed down payment from
           // the original card. If they changed dp, the price/monthly no longer match
           // the card and the snapshot would be misleading to LOs.
-          ...(fromScenario && scPrice > 0 && (parseInt(form.down_payment_pct) === scDp || !scDp) ? {
+          ...(fromScenario && scPrice > 0 && (Number(form.down_payment_pct) === scDp || !scDp) ? {
             card_price:    scPrice,
             card_dp_pct:   scDp,
             card_rate:     scRate,
@@ -459,14 +459,14 @@ function PostScenarioContent() {
                 <h1 className="post-title">Review your scenario</h1>
                 <p className="post-sub">This is exactly what professionals will see. No personal info is shared.</p>
 
-                {/* Path A: show attached scenario card */}
-                {fromScenario && scPrice > 0 && (
+                {/* Path A: show attached scenario card — only when dp still matches (snapshot will be attached) */}
+                {fromScenario && scPrice > 0 && (Number(form.down_payment_pct) === scDp || !scDp) && (
                   <div className="post-scenario-review">
                     <div className="post-scenario-review-label">Scenario card attached</div>
                     <div className="post-scenario-review-row">
                       {scLoanType && <span><strong>{scLoanType}</strong></span>}
                       {scPrice > 0 && <span>{fmt$(scPrice)}</span>}
-                      {scDp > 0 && <span>{scDp}% down</span>}
+                      {form.down_payment_pct && <span>{form.down_payment_pct}% down</span>}
                       {scRate > 0 && <span>{scRate.toFixed(2)}% rate</span>}
                       {scMonthly > 0 && <span>{fmt$(scMonthly)}/mo P&I</span>}
                       {scTerm > 0 && <span>{scTerm}-year</span>}
