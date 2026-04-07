@@ -130,8 +130,10 @@ function PostScenarioContent() {
           max_responses: parseInt(form.max_responses),
           response_window_hours: parseInt(form.response_window_hours),
           visibility, // 'private' (referred) or 'public' (Match Board)
-          // Card data — only present on Path A (arrived from LenderChecklistCard)
-          ...(fromScenario && scPrice > 0 ? {
+          // Card snapshot: only attach if the user hasn't changed down payment from
+          // the original card. If they changed dp, the price/monthly no longer match
+          // the card and the snapshot would be misleading to LOs.
+          ...(fromScenario && scPrice > 0 && (parseInt(form.down_payment_pct) === scDp || !scDp) ? {
             card_price:    scPrice,
             card_dp_pct:   scDp,
             card_rate:     scRate,
