@@ -2,6 +2,8 @@
 // app/lo/borrowers/page.tsx
 
 import * as React from "react";
+import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import PageShell from "../../components/PageShell";
 
 type Borrower = {
@@ -14,6 +16,8 @@ type Borrower = {
 };
 
 export default function LoBorrowersPage() {
+    const { isLoaded, isSignedIn } = useAuth();
+    const router = useRouter();
     const [borrowers, setBorrowers] = React.useState<Borrower[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [creating, setCreating] = React.useState(false);
@@ -26,6 +30,12 @@ export default function LoBorrowersPage() {
     const [saving, setSaving] = React.useState<string | null>(null);
     const [sending, setSending] = React.useState<string | null>(null);
     const [sentOk, setSentOk] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (isLoaded && !isSignedIn) {
+            router.replace("/sign-in?redirect_url=" + encodeURIComponent("/lo/borrowers"));
+        }
+    }, [isLoaded, isSignedIn, router]);
 
     React.useEffect(() => {
         fetch("/api/borrowers")

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AppNav from '../components/AppNav';
 
 interface HomeownerRecord {
   property_address: string | null;
@@ -76,14 +77,9 @@ export default function MyHomePage() {
     .mh-root{min-height:100vh;background:#0a0a0f;color:#f0f0f0;font-family:'Inter',system-ui,sans-serif}
 
     /* NAV */
-    .mh-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:64px;background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.07)}
-    .mh-logo{font-size:1.15rem;font-weight:700;color:#fff;text-decoration:none;letter-spacing:-0.02em}
-    .mh-logo span{color:#22c55e}
-    .mh-nav-right{display:flex;align-items:center;gap:1rem}
-    .mh-nav-link{font-size:0.875rem;color:rgba(255,255,255,0.6);text-decoration:none;transition:color 0.2s}
-    .mh-nav-link:hover{color:#fff}
-    .mh-nav-btn{font-size:0.875rem;font-weight:600;padding:0.45rem 1rem;border-radius:8px;background:#22c55e;color:#000;text-decoration:none;border:none;cursor:pointer;transition:background 0.2s}
-    .mh-nav-btn:hover{background:#16a34a}
+    .mh-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.07)}
+    .mh-logo{font-size:1.1rem;font-weight:700;color:#fff;text-decoration:none;letter-spacing:-0.02em}
+    .mh-logo span{color:#00e87a}
 
     /* SHELL */
     .mh-shell{max-width:760px;margin:0 auto;padding:3rem 1.5rem 5rem}
@@ -168,18 +164,7 @@ export default function MyHomePage() {
         {/* NAV */}
         <nav className="mh-nav">
           <Link href="/" className="mh-logo">HomeRates<span>.ai</span></Link>
-          <div className="mh-nav-right">
-            <Link href="/chat" className="mh-nav-link">Chat</Link>
-            <Link href="/homeowner" className="mh-nav-link">Home Value</Link>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="mh-nav-btn">Sign In</button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <Link href="/chat" className="mh-nav-btn">Open Chat</Link>
-            </SignedIn>
-          </div>
+          <AppNav drawerOnly />
         </nav>
 
         <div className="mh-shell">
