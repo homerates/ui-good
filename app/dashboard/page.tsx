@@ -362,7 +362,7 @@ export default async function DashboardPage() {
                   ) : (
                     <>
                       <CardBody>
-                        Post your scenario anonymously. Verified loan officers and agents respond with their rates and approach. You review and invite the one who earns your trust — no credit check, no spam.
+                        Post your scenario anonymously. Loan officers on HomeRates.ai respond with their rates and approach. You review and invite the one who earns your trust — no credit check, no spam.
                       </CardBody>
                       <ActionLink href="/connect/post" variant="green">Post my scenario →</ActionLink>
                     </>

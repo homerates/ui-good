@@ -445,7 +445,7 @@ function PostScenarioContent() {
                       >
                         <span className="post-vis-icon">🌐</span>
                         <div>
-                          <div className="post-vis-title">Match Board — open to all verified professionals</div>
+                          <div className="post-vis-title">Match Board — open to all professionals on HomeRates.ai</div>
                           <div className="post-vis-sub">More options, but your professional will compete with others.</div>
                         </div>
                       </button>
@@ -496,7 +496,7 @@ function PostScenarioContent() {
                     ["State", form.state],
                     ["Max responses", `${form.max_responses} professionals`],
                     ["Window", `${form.response_window_hours}h — closes automatically`],
-                    ...(referredProName ? [["Visibility", visibility === "private" ? `🔒 Private — ${referredProName} only` : "🌐 Match Board — open to verified professionals"]] : []),
+                    ...(referredProName ? [["Visibility", visibility === "private" ? `🔒 Private — ${referredProName} only` : "🌐 Match Board — open to professionals on HomeRates.ai"]] : []),
                   ].map(([label, value]) => (
                     <div key={label} className="post-review-field">
                       <div className="post-review-label">{label}</div>

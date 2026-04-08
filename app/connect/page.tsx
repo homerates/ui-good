@@ -14,7 +14,7 @@ import { canPostScenario } from "../../lib/subscription";
 export const metadata: Metadata = {
   title: "Get Matched With the Right Lender — On Your Terms | HomeRates.ai",
   description:
-    "Post your mortgage scenario anonymously. Verified loan officers respond with their approach and rate estimate. You choose who earns an introduction. No credit check. No spam.",
+    "Post your mortgage scenario anonymously. Loan officers on HomeRates.ai respond with their approach and rate estimate. You choose who earns an introduction. No credit check. No spam.",
 };
 
 export default async function ConnectPage() {
@@ -84,7 +84,7 @@ export default async function ConnectPage() {
             <span className="cn-h1-green">you interview the lender.</span>
           </h1>
           <p className="cn-lead">
-            Post your mortgage scenario anonymously. Verified loan officers respond with their
+            Post your mortgage scenario anonymously. Loan officers on HomeRates.ai respond with their
             rate estimate and approach. You compare their answers against what our AI already
             told you — and invite the one who earned your trust.
           </p>
@@ -121,7 +121,7 @@ export default async function ConnectPage() {
               <div className="cn-step-icon">📨</div>
               <h3>Receive responses</h3>
               <p>
-                Verified loan officers on HomeRates.ai review your scenario and respond with
+                Loan officers on HomeRates.ai review your scenario and respond with
                 their rate estimate, their approach, and their NMLS number.
                 You see who's being honest — because HomeRates.ai already told you what the right answer looks like.
               </p>
@@ -144,18 +144,21 @@ export default async function ConnectPage() {
         <section className="cn-section-dark">
           <div className="cn-inner">
           <div className="cn-section-label">Why it's different</div>
-          <h2 className="cn-h2">The mortgage industry sells borrowers as leads.<br />We don't.</h2>
+          <h2 className="cn-h2">Fill out one form. Get 14 callbacks.<br /><span style={{color:"#00e87a"}}>We built the opposite.</span></h2>
+          <p style={{fontSize:"0.95rem",color:"#8fa3b8",lineHeight:1.65,maxWidth:620,marginBottom:"2rem"}}>
+            Lead aggregators like Zillow, LendingTree, and BankRate collect your info and sell it to dozens of lenders simultaneously. You get flooded with calls within minutes — from lenders who know almost nothing about your situation.
+          </p>
           <div className="cn-compare">
             <div className="cn-compare-col cn-compare-old">
               <div className="cn-compare-header">
-                <span className="cn-badge-red">Traditional lead gen</span>
+                <span className="cn-badge-red">Lead aggregator model</span>
               </div>
               <ul className="cn-compare-list">
-                <li><span className="cn-x">✗</span> Fill out a form with your personal info</li>
-                <li><span className="cn-x">✗</span> Get sold to 10–15 lenders simultaneously</li>
-                <li><span className="cn-x">✗</span> Receive calls for weeks whether you're ready or not</li>
-                <li><span className="cn-x">✗</span> No way to evaluate if a rate quote is honest</li>
-                <li><span className="cn-x">✗</span> Lender knows nothing about you when they call</li>
+                <li><span className="cn-x">✗</span> Fill out a form — your info gets sold to 10–15 lenders</li>
+                <li><span className="cn-x">✗</span> Calls, texts, and emails start within minutes</li>
+                <li><span className="cn-x">✗</span> Lenders know nothing about your situation when they call</li>
+                <li><span className="cn-x">✗</span> No way to tell if a rate quote is honest or a bait</li>
+                <li><span className="cn-x">✗</span> You have to talk to 14 people just to find one good one</li>
               </ul>
             </div>
             <div className="cn-compare-col cn-compare-new">
@@ -179,7 +182,7 @@ export default async function ConnectPage() {
           <div className="cn-section-label">What it looks like</div>
           <h2 className="cn-h2">A real scenario. What an LO sees.</h2>
           <p className="cn-section-desc">
-            This is exactly what verified loan officers see on the board.
+            This is exactly what loan officers see on the board.
             No borrower identity — just the scenario they need to respond to intelligently.
           </p>
           <div className="cn-sample-card">
@@ -271,6 +274,17 @@ export default async function ConnectPage() {
           </Link>
           <p className="cn-cta-sub">No account required to browse · Sign up free to post</p>
         </section>
+
+        {/* ── DISCLOSURE ── */}
+        <div className="cn-disclosure">
+          <p>
+            <strong>Professional credential disclosure:</strong> Loan officers and other professionals on HomeRates.ai self-identify their role and license information. HomeRates.ai does not independently verify credentials, licenses, or affiliations.
+            Users are responsible for independently confirming that any professional they engage is properly licensed in their state.{" "}
+            <a href="https://www.nmlsconsumeraccess.org" target="_blank" rel="noopener noreferrer" className="cn-disclosure-link">
+              Verify via NMLS Consumer Access →
+            </a>
+          </p>
+        </div>
 
       </div>
 
@@ -519,6 +533,20 @@ export default async function ConnectPage() {
           background: linear-gradient(to bottom, #080c12, #0a1019);
         }
         .cn-cta-sub { font-size: 0.82rem; color: #3a4560; margin-top: 1rem; }
+
+        /* Disclosure */
+        .cn-disclosure {
+          max-width: 760px; margin: 0 auto;
+          padding: 2rem 1.5rem 3rem;
+          border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .cn-disclosure p {
+          font-size: 0.78rem; color: rgba(255,255,255,0.28);
+          line-height: 1.65; margin: 0;
+        }
+        .cn-disclosure strong { color: rgba(255,255,255,0.35); }
+        .cn-disclosure-link { color: rgba(61,139,255,0.6); text-decoration: none; }
+        .cn-disclosure-link:hover { color: #3d8bff; }
 
         /* Mobile */
         @media (max-width: 700px) {

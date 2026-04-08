@@ -170,7 +170,7 @@ export default function MyScenarioPage() {
             <div className="ms-empty">
               <div className="ms-empty-icon">📋</div>
               <h2>No active scenario</h2>
-              <p>You haven't posted a scenario yet. Post one and let verified loan officers respond.</p>
+              <p>You haven't posted a scenario yet. Post one and let loan officers on HomeRates.ai respond.</p>
               <Link href="/connect/post" className="ms-btn-primary">Post My Scenario →</Link>
             </div>
           )}

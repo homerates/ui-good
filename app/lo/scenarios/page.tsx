@@ -198,7 +198,7 @@ export default function LOScenariosPage() {
           <div className="los-header">
             <div>
               <h1 className="los-title">Match Board</h1>
-              <p className="los-sub">Anonymous borrower scenarios open to verified professionals.</p>
+              <p className="los-sub">Anonymous borrower scenarios open to professionals on HomeRates.ai.</p>
             </div>
             <span className="los-stat" style={{ background: "rgba(0,232,122,0.1)", color: "#00e87a", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 999, padding: "4px 14px", fontSize: "0.82rem", fontWeight: 700 }}>Live now</span>
           </div>
@@ -229,7 +229,7 @@ export default function LOScenariosPage() {
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
               <div style={{ background: "rgba(8,12,18,0.92)", backdropFilter: "blur(8px)", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 20, padding: "32px 40px", textAlign: "center", maxWidth: 380 }}>
                 <div style={{ fontSize: "2rem", marginBottom: 12 }}>🔒</div>
-                <div style={{ fontFamily: "var(--font-dm-sans, sans-serif)", fontSize: "1.1rem", fontWeight: 700, color: "#f0f4ff", marginBottom: 8 }}>Verified professionals only</div>
+                <div style={{ fontFamily: "var(--font-dm-sans, sans-serif)", fontSize: "1.1rem", fontWeight: 700, color: "#f0f4ff", marginBottom: 8 }}>For registered professionals</div>
                 <div style={{ fontSize: "0.85rem", color: "#8fa3b8", marginBottom: 20, lineHeight: 1.5 }}>Create a free account to see live borrower scenarios and respond directly in your area.</div>
                 <Link href="/sign-up" style={{ display: "inline-block", background: "#00e87a", color: "#080c12", fontWeight: 700, fontSize: "0.9rem", borderRadius: 999, padding: "10px 28px", textDecoration: "none" }}>Create free account →</Link>
                 <div style={{ marginTop: 10, fontSize: "0.78rem", color: "#3a4560" }}>Already have an account? <Link href="/sign-in?redirect_url=/lo/scenarios" style={{ color: "#3d8bff" }}>Sign in</Link></div>
@@ -266,7 +266,7 @@ export default function LOScenariosPage() {
               <p className="los-sub">
                 {tab === "referrals"
                   ? "Private scenarios from borrowers you referred. Only you can see these."
-                  : "Anonymous borrower scenarios open to all verified professionals. Respond to earn an introduction."}
+                  : "Anonymous borrower scenarios open to all professionals on HomeRates.ai. Respond to earn an introduction."}
               </p>
             </div>
             <div className="los-stats">
