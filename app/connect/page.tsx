@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
+import AppNav from "../components/AppNav";
 import { getSupabase } from "../../lib/supabaseServer";
 import { canPostScenario } from "../../lib/subscription";
 
@@ -72,6 +73,7 @@ export default async function ConnectPage() {
               <Link href="/connect/post" className="cn-nav-cta">Post My Scenario →</Link>
             )}
           </div>
+          <AppNav drawerOnly />
         </nav>
 
         {/* ── HERO ── */}
@@ -521,6 +523,7 @@ export default async function ConnectPage() {
           .cn-sample-grid { grid-template-columns: repeat(2, 1fr); }
           .cn-hero { padding: 4rem 1.25rem 3rem; }
           .cn-response-header { flex-direction: column; align-items: flex-start; }
+          .cn-nav-links { display: none; }
         }
       `}</style>
     </>
