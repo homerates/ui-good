@@ -304,7 +304,9 @@ export default function ProfessionalsPage() {
 
                     {/* Identity */}
                     <div>
-                      <div className="pd-name">{pro.name}</div>
+                      <Link href={`/professionals/${pro.id}`} className="pd-name" style={{ textDecoration: "none", display: "block" }}>
+                        {pro.name}
+                      </Link>
                       {pro.company_name && (
                         <div className="pd-company">{pro.company_name}</div>
                       )}
@@ -337,15 +339,18 @@ export default function ProfessionalsPage() {
                           {pro.website && (
                             <a href={pro.website} target="_blank" rel="noopener noreferrer" className="pd-contact-btn">🌐 Website</a>
                           )}
-                          <Link href="/connect/post" className="pd-claim-btn">Post scenario →</Link>
+                          <Link href={`/professionals/${pro.id}`} className="pd-claim-btn">View profile →</Link>
                         </>
                       ) : (
-                        <Link
-                          href={`/sign-up?redirect_url=/professionals/claim/${pro.id}`}
-                          className="pd-claim-btn"
-                        >
-                          Claim this listing →
-                        </Link>
+                        <>
+                          <Link href={`/professionals/${pro.id}`} className="pd-contact-btn" style={{ flex: 1, textAlign: "center" }}>View</Link>
+                          <Link
+                            href={`/sign-up?redirect_url=/professionals/claim/${pro.id}`}
+                            className="pd-claim-btn"
+                          >
+                            Claim listing →
+                          </Link>
+                        </>
                       )}
                     </div>
                   </div>
