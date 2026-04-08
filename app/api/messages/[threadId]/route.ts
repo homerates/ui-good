@@ -10,6 +10,19 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { emailNewReply } from "../../../../lib/sendEmail";
 
+interface ProCardData {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+  company: string | null;
+  nmls: string | null;
+  website: string | null;
+  officeAddress: string | null;
+  licenseState: string | null;
+  role: string;
+}
+
 // PII patterns to block from being sent
 const PII_PATTERNS = [
   /\b\d{3}-\d{2}-\d{4}\b/,               // SSN XXX-XX-XXXX
@@ -80,6 +93,63 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
     .eq("thread_id", threadId)
     .maybeSingle();
 
+  // If contact shared, enrich with pro's professional profile
+  let proCard: ProCardData | null = null;
+  if (contactShare) {
+    try {
+      const clerk = await clerkClient();
+      const proClerk = await clerk.users.getUser(thread.professional_id);
+      const proEmail = proClerk.emailAddresses[0]?.emailAddress ?? null;
+      const proName = [proClerk.firstName, proClerk.lastName].filter(Boolean).join(" ") || null;
+
+      proCard = {
+        name: proName,
+        email: proEmail,
+        phone: null,
+        title: null,
+        company: null,
+        nmls: null,
+        website: null,
+        officeAddress: null,
+        licenseState: null,
+        role: thread.professional_type ?? "lo",
+      };
+
+      if (thread.professional_type === "agent") {
+        const { data: agentRow } = await sb
+          .from("agents")
+          .select("brokerage, license, title, phone, website, office_address")
+          .eq("user_id", thread.professional_id)
+          .maybeSingle();
+        if (agentRow) {
+          proCard.phone = agentRow.phone ?? null;
+          proCard.title = agentRow.title ?? null;
+          proCard.company = agentRow.brokerage ?? null;
+          proCard.nmls = agentRow.license ?? null;
+          proCard.website = agentRow.website ?? null;
+          proCard.officeAddress = agentRow.office_address ?? null;
+        }
+      } else {
+        const { data: loRow } = await sb
+          .from("loan_officers")
+          .select("lender, nmls, license_state, title, phone, website, office_address")
+          .eq("user_id", thread.professional_id)
+          .maybeSingle();
+        if (loRow) {
+          proCard.phone = loRow.phone ?? null;
+          proCard.title = loRow.title ?? null;
+          proCard.company = loRow.lender ?? null;
+          proCard.nmls = loRow.nmls ?? null;
+          proCard.licenseState = loRow.license_state ?? null;
+          proCard.website = loRow.website ?? null;
+          proCard.officeAddress = loRow.office_address ?? null;
+        }
+      }
+    } catch (e) {
+      console.error("[messages/threadId] pro card fetch failed:", e);
+    }
+  }
+
   return NextResponse.json({
     thread: {
       ...thread,
@@ -87,6 +157,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
     },
     messages: messages ?? [],
     contact_share: contactShare ?? null,
+    pro_card: proCard,
   });
 }
 

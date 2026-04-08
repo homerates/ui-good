@@ -36,12 +36,26 @@ interface ContactShare {
   shared_at: string;
 }
 
+interface ProCard {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+  company: string | null;
+  nmls: string | null;
+  website: string | null;
+  officeAddress: string | null;
+  licenseState: string | null;
+  role: string;
+}
+
 export default function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [contactShare, setContactShare] = useState<ContactShare | null>(null);
+  const [proCard, setProCard] = useState<ProCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -67,6 +81,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     setThread(data.thread);
     setMessages(data.messages ?? []);
     setContactShare(data.contact_share ?? null);
+    setProCard(data.pro_card ?? null);
     setLoading(false);
   }
 
@@ -147,41 +162,73 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         <div className="ch-page-body">
           <div className="ch-portal">
 
-            {/* Contact share banner */}
+            {/* Contact share banner — professional card */}
             {contactShared && contactShare && (
               <div className="ch-share-banner">
                 <div className="ch-share-banner-inner">
                   <div className="ch-share-check">✓</div>
                   <div className="ch-share-banner-text">
                     <div className="ch-share-banner-title">Contact information exchanged</div>
-                    <div className="ch-share-portal">Ready to proceed? Continue your full application in your lender's secure portal.</div>
+                    <div className="ch-share-portal">You&apos;re connected. Reach out directly to move forward.</div>
                   </div>
                 </div>
-                <div className="ch-share-cards">
-                  <div className="ch-share-card">
-                    <div className="ch-share-card-label">Your contact</div>
-                    <div className="ch-share-card-value">
-                      {(isBorrower ? contactShare.borrower_email : contactShare.pro_email) ?? "—"}
+
+                {/* Professional card (shown to borrower) */}
+                {isBorrower && proCard && (
+                  <div className="ch-pro-card">
+                    <div className="ch-pro-card-avatar">
+                      {(proCard.name ?? proLabel).charAt(0).toUpperCase()}
                     </div>
-                    {(isBorrower ? contactShare.borrower_phone : contactShare.pro_phone) && (
-                      <div className="ch-share-card-value ch-share-card-phone">
-                        {isBorrower ? contactShare.borrower_phone : contactShare.pro_phone}
+                    <div className="ch-pro-card-body">
+                      <div className="ch-pro-card-name">{proCard.name ?? proLabel}</div>
+                      {proCard.title && <div className="ch-pro-card-title">{proCard.title}</div>}
+                      {proCard.company && <div className="ch-pro-card-company">{proCard.company}</div>}
+                      <div className="ch-pro-card-contacts">
+                        {proCard.email && (
+                          <a className="ch-pro-card-link" href={`mailto:${proCard.email}`}>
+                            <span>✉</span>{proCard.email}
+                          </a>
+                        )}
+                        {proCard.phone && (
+                          <a className="ch-pro-card-link" href={`tel:${proCard.phone}`}>
+                            <span>📞</span>{proCard.phone}
+                          </a>
+                        )}
+                        {proCard.website && (
+                          <a className="ch-pro-card-link" href={proCard.website} target="_blank" rel="noopener noreferrer">
+                            <span>🌐</span>{proCard.website.replace(/^https?:\/\//, "")}
+                          </a>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="ch-share-arrow">↔</div>
-                  <div className="ch-share-card">
-                    <div className="ch-share-card-label">{isBorrower ? proLabel : "Borrower"}</div>
-                    <div className="ch-share-card-value">
-                      {(isBorrower ? contactShare.pro_email : contactShare.borrower_email) ?? "—"}
+                      {(proCard.nmls || proCard.officeAddress) && (
+                        <div className="ch-pro-card-meta">
+                          {proCard.nmls && (
+                            <span className="ch-pro-card-badge">
+                              {proCard.role === "agent" ? "License" : "NMLS"} #{proCard.nmls}
+                              {proCard.licenseState ? ` · ${proCard.licenseState}` : ""}
+                            </span>
+                          )}
+                          {proCard.officeAddress && (
+                            <span className="ch-pro-card-office">{proCard.officeAddress}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {(isBorrower ? contactShare.pro_phone : contactShare.borrower_phone) && (
-                      <div className="ch-share-card-value ch-share-card-phone">
-                        {isBorrower ? contactShare.pro_phone : contactShare.borrower_phone}
-                      </div>
-                    )}
                   </div>
-                </div>
+                )}
+
+                {/* Borrower contact (shown to professional) */}
+                {!isBorrower && (
+                  <div className="ch-share-cards">
+                    <div className="ch-share-card">
+                      <div className="ch-share-card-label">Borrower contact</div>
+                      <div className="ch-share-card-value">{contactShare.borrower_email ?? "—"}</div>
+                      {contactShare.borrower_phone && (
+                        <div className="ch-share-card-value ch-share-card-phone">{contactShare.borrower_phone}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -380,6 +427,56 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         }
         .ch-share-card-phone { font-weight: 400; color: #8fa3b8; font-size: 0.82rem; margin-top: 2px; }
         .ch-share-arrow { color: #3a4560; font-size: 1rem; flex-shrink: 0; }
+
+        /* ── Professional contact card ── */
+        .ch-pro-card {
+          display: flex; align-items: flex-start; gap: 14px;
+          background: linear-gradient(135deg, rgba(0,232,122,0.06), rgba(0,232,122,0.02));
+          border: 1px solid rgba(0,232,122,0.15);
+          border-radius: 14px; padding: 16px 18px;
+          margin-top: 4px;
+        }
+        .ch-pro-card-avatar {
+          width: 48px; height: 48px; border-radius: 50%;
+          background: linear-gradient(135deg, #00e87a22, #00e87a44);
+          border: 2px solid rgba(0,232,122,0.3);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 1.2rem; font-weight: 800; color: #00e87a;
+          flex-shrink: 0;
+        }
+        .ch-pro-card-body { flex: 1; min-width: 0; }
+        .ch-pro-card-name {
+          font-size: 1rem; font-weight: 700; color: #f0f4ff;
+          margin-bottom: 1px;
+        }
+        .ch-pro-card-title {
+          font-size: 0.8rem; color: #8fa3b8; font-weight: 500; margin-bottom: 1px;
+        }
+        .ch-pro-card-company {
+          font-size: 0.8rem; color: #00e87a; font-weight: 600; margin-bottom: 8px;
+        }
+        .ch-pro-card-contacts {
+          display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;
+        }
+        .ch-pro-card-link {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 0.825rem; color: #8fa3b8; text-decoration: none;
+          transition: color 0.15s;
+        }
+        .ch-pro-card-link:hover { color: #f0f4ff; }
+        .ch-pro-card-link span { font-size: 0.85rem; flex-shrink: 0; }
+        .ch-pro-card-meta {
+          display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+        }
+        .ch-pro-card-badge {
+          font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
+          background: rgba(0,232,122,0.1); color: #00e87a;
+          border: 1px solid rgba(0,232,122,0.2);
+          border-radius: 6px; padding: 2px 8px;
+        }
+        .ch-pro-card-office {
+          font-size: 0.73rem; color: #3a4560;
+        }
 
         /* ── Messages scroll area ── */
         .ch-messages-wrap {
