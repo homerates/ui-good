@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import AppNav from "../components/AppNav";
+import AppNav from "../../components/AppNav";
 
 interface Scenario {
   id: string;
