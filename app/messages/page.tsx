@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import AppNav from "../components/AppNav";
 
 interface Thread {
   id: string;
@@ -51,20 +52,13 @@ export default function MessagesPage() {
   return (
     <>
       <div className="mb-root">
-        <nav className="mb-nav">
-          <Link href="/dashboard" className="mb-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
-          </Link>
-          <span className="mb-nav-label">
-            Messages {totalUnread > 0 && <span className="mb-nav-badge">{totalUnread}</span>}
-          </span>
-          <div className="mb-nav-actions">
-            <Link href="/dashboard" className="mb-nav-btn">Dashboard</Link>
-          </div>
-        </nav>
+        <AppNav activePage="messages" unreadCount={totalUnread} />
 
         <div className="mb-container">
-          <h1 className="mb-heading">Inbox</h1>
+          <h1 className="mb-heading">
+            Inbox
+            {totalUnread > 0 && <span className="mb-heading-badge">{totalUnread}</span>}
+          </h1>
 
           {loading && <div className="mb-loading">Loading messages...</div>}
 
@@ -122,37 +116,18 @@ export default function MessagesPage() {
 
         .mb-root { font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; min-height: 100vh; background: #080c12; }
 
-        .mb-nav {
-          position: sticky; top: 0; z-index: 100;
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 24px;
-          background: rgba(8,12,18,0.97); backdrop-filter: blur(8px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-        .mb-nav-logo img { height: 28px; }
-        .mb-nav-label {
-          font-size: 0.85rem; color: #8fa3b8;
-          display: flex; align-items: center; gap: 8px;
-        }
-        .mb-nav-badge {
-          background: #ff5f5f; color: #fff;
-          font-size: 0.68rem; font-weight: 800;
-          border-radius: 99px; padding: 1px 7px; min-width: 20px; text-align: center;
-        }
-        .mb-nav-actions { display: flex; align-items: center; gap: 8px; }
-        .mb-nav-btn {
-          padding: 7px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
-          text-decoration: none; color: #8fa3b8;
-          border: 1px solid rgba(255,255,255,0.1); background: transparent;
-          transition: color 0.15s;
-        }
-        .mb-nav-btn:hover { color: #f0f4ff; }
-
         .mb-container { max-width: 600px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
 
         .mb-heading {
           font-family: 'DM Sans', sans-serif; font-size: 1.5rem; font-weight: 800;
           color: #f0f4ff; margin: 0 0 1.5rem;
+          display: flex; align-items: center; gap: 10px;
+        }
+        .mb-heading-badge {
+          background: #ff5f5f; color: #fff;
+          font-size: 0.72rem; font-weight: 800;
+          border-radius: 99px; padding: 2px 9px; min-width: 22px;
+          text-align: center;
         }
 
         .mb-loading { color: #3a4560; padding: 3rem 0; text-align: center; }
@@ -179,6 +154,7 @@ export default function MessagesPage() {
           border-radius: 14px;
           text-decoration: none; color: inherit;
           transition: border-color 0.15s, background 0.15s;
+          margin-bottom: 4px;
         }
         .mb-thread:hover { border-color: rgba(255,255,255,0.14); background: #121929; }
         .mb-thread.mb-unread { border-color: rgba(61,139,255,0.25); }

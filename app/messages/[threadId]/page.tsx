@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState, use } from "react";
 import Link from "next/link";
+import AppNav from "../../components/AppNav";
 
 interface Message {
   id: string;
@@ -134,14 +135,13 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     <>
       <div className="ch-root">
         {/* Nav */}
-        <nav className="ch-nav">
-          <Link href="/messages" className="ch-back">← Inbox</Link>
-          <div className="ch-nav-title">
-            {isBorrower ? proLabel : "Borrower"}
-            {contactShared && <span className="ch-contact-badge">Contact shared</span>}
-          </div>
-          <div style={{ width: 80 }} />
-        </nav>
+        <AppNav
+          mode="thread"
+          backHref="/messages"
+          backLabel="← Inbox"
+          title={isBorrower ? proLabel : "Borrower"}
+          titleBadge={contactShared ? <span className="ch-contact-badge">Contact shared</span> : undefined}
+        />
 
         {/* Contact share banner (shown after share) */}
         {contactShared && contactShare && (
@@ -303,23 +303,6 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           background: #080c12;
         }
 
-        /* Nav */
-        .ch-nav {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 14px 20px;
-          background: rgba(8,12,18,0.97); backdrop-filter: blur(8px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-          flex-shrink: 0;
-        }
-        .ch-back {
-          font-size: 0.85rem; color: #3d8bff; text-decoration: none; font-weight: 600;
-          padding: 6px 0; min-width: 80px;
-        }
-        .ch-back:hover { text-decoration: underline; }
-        .ch-nav-title {
-          font-size: 0.95rem; font-weight: 700; color: #f0f4ff;
-          display: flex; align-items: center; gap: 10px;
-        }
         .ch-contact-badge {
           font-size: 0.7rem; font-weight: 600; color: #00e87a;
           background: rgba(0,232,122,0.12); border: 1px solid rgba(0,232,122,0.25);

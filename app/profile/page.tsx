@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import AppNav from "../components/AppNav";
 
 interface ProfileData {
   email: string;
@@ -140,15 +141,7 @@ export default function ProfilePage() {
     <>
       <div className="pr-root">
 
-        <nav className="pr-nav">
-          <Link href="/" className="pr-nav-logo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
-          </Link>
-          <div className="pr-nav-links">
-            <Link href="/dashboard" className="pr-nav-link">← Dashboard</Link>
-          </div>
-        </nav>
+        <AppNav activePage="profile" />
 
         <div className="pr-container">
 
@@ -451,19 +444,7 @@ export default function ProfilePage() {
 
         .pr-root { font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; min-height: 100vh; background: #080c12; }
 
-        .pr-nav {
-          position: sticky; top: 0; z-index: 100;
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 24px;
-          background: rgba(8,12,18,0.95); backdrop-filter: blur(8px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-        .pr-nav-logo img { height: 28px; }
-        .pr-nav-links { display: flex; gap: 16px; align-items: center; }
-        .pr-nav-link { font-size: 0.875rem; color: #8fa3b8; text-decoration: none; transition: color 0.15s; }
-        .pr-nav-link:hover { color: #f0f4ff; }
-
-        .pr-container { max-width: 580px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+.pr-container { max-width: 580px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
         .pr-header { margin-bottom: 2rem; }
         .pr-title { font-family: 'DM Sans', sans-serif; font-size: 1.75rem; font-weight: 700; margin: 0 0 0.4rem; }
