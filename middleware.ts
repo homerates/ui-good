@@ -57,6 +57,9 @@ const isPublicRoute = createRouteMatcher([
   "/connect",
   // For professionals landing (public — LOs and agents must see it before signing up)
   "/for-pros",
+  // Professional directory + self-registration (public browsing; form handles its own auth check)
+  "/professionals(.*)",
+  "/api/pro-directory(.*)",
   // Knowledge hub + market news (public SEO pages)
   "/knowledge-hub(.*)",
   "/market-news(.*)",
