@@ -4626,8 +4626,14 @@ ${uwAnswerText}`,
 
                 if (_isCA) {
                     // CA path: use precise CA county data
-                    _llCounty = _llCountyOverride?.toUpperCase().replace(/\s+COUNTY$/i, '').trim() ?? 'LOS ANGELES';
-                    if (!_llCountyOverride) {
+                    _llCounty = 'LOS ANGELES';
+                    if (_llCountyOverride && /^\d{5}$/.test(_llCountyOverride.trim())) {
+                        // Override looks like a ZIP — resolve to county name
+                        const _fromOverrideZip = getCACountyByZip(_llCountyOverride.trim());
+                        if (_fromOverrideZip) _llCounty = _fromOverrideZip;
+                    } else if (_llCountyOverride) {
+                        _llCounty = _llCountyOverride.toUpperCase().replace(/\s+COUNTY$/i, '').trim();
+                    } else {
                         // Try ZIP from question
                         const _zipMatch = question.match(/\b(9[0-6]\d{3})\b/);
                         if (_zipMatch) {
