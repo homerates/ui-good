@@ -71,6 +71,7 @@ export default function ProfilePage() {
   const [propertyAddress, setPropertyAddress] = useState("");
   const [currentLoanBal, setCurrentLoanBal] = useState("");
 
+  const serverRole = data?.role ?? "borrower";
   const showPro = role === "lo" || role === "agent";
 
   useEffect(() => {
@@ -195,7 +196,6 @@ export default function ProfilePage() {
                       const isActive = role === v;
                       // Role is fixed at registration — all other chips are locked.
                       // Borrowers can't self-upgrade; LOs/agents can't switch or downgrade.
-                      const serverRole = data?.role ?? "borrower";
                       const isLocked = v !== serverRole;
                       return (
                         <button
