@@ -1,6 +1,7 @@
 // app/support/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AppNav from '../components/AppNav';
 
 export const metadata: Metadata = {
   title: 'Support | HomeRates.ai',
@@ -300,6 +301,7 @@ export default function SupportPage() {
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
           <Link href="/" className="sup-nav-back">← Home</Link>
+          <AppNav drawerOnly />
         </nav>
 
         <div className="sup-hero">
