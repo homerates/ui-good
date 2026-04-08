@@ -483,6 +483,7 @@ export default function ComparePage() {
         .cp-logo-link{display:flex;align-items:center;text-decoration:none;flex-shrink:0;}
         .cp-logo{height:24px;width:auto;}
         .cp-header-title{font-size:0.82rem;font-weight:600;color:rgba(185,208,192,0.5);}
+        @media(max-width:640px){.cp-header-title{display:none;}.cp-chat-link{display:none;}}
         .cp-chat-link{display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;
           font-weight:600;color:#00e87a;text-decoration:none;padding:5px 12px;
           border:1px solid rgba(0,232,122,0.3);border-radius:7px;flex-shrink:0;transition:background 0.15s;}

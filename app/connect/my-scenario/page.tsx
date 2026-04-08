@@ -367,6 +367,7 @@ export default function MyScenarioPage() {
         .ms-nav-logo img { height: 28px; }
         .ms-nav-label { font-size: 0.85rem; color: #8fa3b8; }
         .ms-nav-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        @media (max-width: 640px) { .ms-nav-label { display: none; } .ms-nav-btn:not(:last-child) { display: none; } }
         .ms-nav-btn {
           padding: 7px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
           text-decoration: none; color: #8fa3b8;

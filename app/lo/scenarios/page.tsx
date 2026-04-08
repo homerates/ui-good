@@ -588,6 +588,7 @@ export default function LOScenariosPage() {
         .los-nav-link { color: #8fa3b8; text-decoration: none; font-size: 0.875rem; transition: color 0.15s; }
         .los-nav-link:hover { color: #f0f4ff; }
         .los-nav-active { font-size: 0.875rem; color: #f0f4ff; font-weight: 600; }
+        @media (max-width: 640px) { .los-nav-links { display: none; } }
 
         .los-container { max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
