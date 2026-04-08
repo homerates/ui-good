@@ -4574,50 +4574,48 @@ ${uwAnswerText}`,
 
                 // Only auto-detect state if no override supplied
                 if (!_llStateOverride) {
-                    // CA ZIP codes (9[0-6]xxx) take priority — detect before state loop
+                    // Priority 1: CA ZIP (9[0-6]xxxx) → always CA
                     const _caZipEarly = question.match(/\b(9[0-6]\d{3})\b/);
                     if (_caZipEarly) {
                         _llState = 'CA';
                     } else {
-                    // Check for state names/codes in the question
-                    // Use full name match OR word-boundary code match (e.g. \bme\b would still match "me" — so only match codes 3+ chars OR well-known 2-letter ones)
-                    const _stateEntries = Object.entries(STATE_NAMES);
-                    for (const [code, name] of _stateEntries) {
-                        if (code === 'CA') continue; // CA handled below
-                        const nameLower = name.toLowerCase();
-                        // Full state name match (safe)
-                        const nameMatch = _qLower.includes(nameLower);
-                        // State code: only match when surrounded by word boundaries and NOT a common English word
-                        const codeRegex = new RegExp(`\\b${code.toLowerCase()}\\b`, 'i');
-                        const AMBIGUOUS_CODES = new Set(['ME','IN','OR','OK','DE','CO','HI','ID','OH','AL','AR','AS','IA','IL','LA','MA','MD','MI','MN','MO','MS','MT','NE','NH','NJ','NM','NV','NY','PA','RI','SC','SD','TN','TX','UT','VA','VT','WA','WI','WV','WY','AK','AZ','FL','GA','KS','KY','NC','ND','DC','PR']);
-                        // Only use code match when it's clearly an address context (zip nearby, "county", "state" nearby)
-                        const hasAddressContext = /\b(county|zip|state|limits?|conforming)\b/i.test(question);
-                        const codeMatch = !AMBIGUOUS_CODES.has(code) ? codeRegex.test(question) : (hasAddressContext && codeRegex.test(question));
-                        if (nameMatch || codeMatch) {
-                            _llState = code;
-                            break;
+                        // Priority 2: full state name match (case-insensitive — safe, no false positives)
+                        const _stateEntries = Object.entries(STATE_NAMES);
+                        for (const [code, name] of _stateEntries) {
+                            if (code === 'CA') continue;
+                            if (_qLower.includes(name.toLowerCase())) { _llState = code; break; }
+                        }
+                        // Priority 3: UPPERCASE state code in original text (e.g. "Hayward, CA" or "TX" typed explicitly)
+                        // Only match uppercase to avoid "me", "in", "or", "ok" false positives
+                        if (_llState === 'CA') {
+                            const _ucMatch = question.match(/\b([A-Z]{2})\b/g) ?? [];
+                            for (const uc of _ucMatch) {
+                                if (uc !== 'CA' && STATE_NAMES[uc]) { _llState = uc; break; }
+                            }
+                        }
+                        // Priority 4: well-known city/region names that imply a state
+                        if (_llState === 'CA') {
+                            if (/\b(florida)\b/i.test(question)) _llState = 'FL';
+                            else if (/\b(texas|dallas|houston|austin|san antonio)\b/i.test(question)) _llState = 'TX';
+                            else if (/\b(new york|nyc|brooklyn|manhattan|queens|bronx)\b/i.test(question)) _llState = 'NY';
+                            else if (/\b(seattle|washington state)\b/i.test(question)) _llState = 'WA';
+                            else if (/\b(washington dc|district of columbia)\b/i.test(question)) _llState = 'DC';
+                            else if (/\b(colorado|denver|boulder)\b/i.test(question)) _llState = 'CO';
+                            else if (/\b(hawaii|honolulu|maui)\b/i.test(question)) _llState = 'HI';
+                            else if (/\b(alaska|anchorage)\b/i.test(question)) _llState = 'AK';
+                            else if (/\b(virginia|northern virginia|nova)\b/i.test(question) && !/\bwest virginia\b/i.test(question)) _llState = 'VA';
+                            else if (/\b(massachusetts|boston|cambridge)\b/i.test(question)) _llState = 'MA';
+                            else if (/\b(new jersey|jersey city|newark)\b/i.test(question)) _llState = 'NJ';
+                            else if (/\b(maryland|bethesda|annapolis)\b/i.test(question)) _llState = 'MD';
+                            else if (/\b(connecticut|greenwich|stamford)\b/i.test(question)) _llState = 'CT';
+                            else if (/\b(utah|salt lake)\b/i.test(question)) _llState = 'UT';
+                            else if (/\b(wyoming|jackson hole)\b/i.test(question)) _llState = 'WY';
+                            else if (/\b(idaho|boise|sun valley)\b/i.test(question)) _llState = 'ID';
+                            else if (/\b(arizona|phoenix|scottsdale|tucson)\b/i.test(question)) _llState = 'AZ';
+                            else if (/\b(nevada|las vegas|reno)\b/i.test(question)) _llState = 'NV';
+                            else if (/\b(oregon|portland|bend)\b/i.test(question)) _llState = 'OR';
                         }
                     }
-                    // Common abbreviations / city-to-state mapping
-                    if (_llState === 'CA') {
-                        if (/\b(florida|fl)\b/i.test(question)) _llState = 'FL';
-                        else if (/\b(texas|tx)\b/i.test(question)) _llState = 'TX';
-                        else if (/\b(new york|ny|nyc)\b/i.test(question)) _llState = 'NY';
-                        else if (/\b(washington|seattle|wa)\b/i.test(question) && !/\b(washington dc|d\.c\.)\b/i.test(question)) _llState = 'WA';
-                        else if (/\b(washington dc|d\.c\.)\b/i.test(question)) _llState = 'DC';
-                        else if (/\b(colorado|co|denver)\b/i.test(question)) _llState = 'CO';
-                        else if (/\b(hawaii|hi|honolulu)\b/i.test(question)) _llState = 'HI';
-                        else if (/\b(alaska|ak)\b/i.test(question)) _llState = 'AK';
-                        else if (/\b(virginia|va)\b/i.test(question) && !/\bwva?\b/i.test(question)) _llState = 'VA';
-                        else if (/\b(massachusetts|ma|boston)\b/i.test(question)) _llState = 'MA';
-                        else if (/\b(new jersey|nj)\b/i.test(question)) _llState = 'NJ';
-                        else if (/\b(maryland|md)\b/i.test(question)) _llState = 'MD';
-                        else if (/\b(connecticut|ct)\b/i.test(question)) _llState = 'CT';
-                        else if (/\b(utah|ut)\b/i.test(question)) _llState = 'UT';
-                        else if (/\b(wyoming|wy)\b/i.test(question)) _llState = 'WY';
-                        else if (/\b(idaho|id)\b/i.test(question)) _llState = 'ID';
-                    }
-                    } // end else (non-CA-ZIP path)
                 }
 
                 const _isCA = _llState === 'CA';
