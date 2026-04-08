@@ -100,7 +100,11 @@ const ZONE_CONFIG: Record<Zone, {
 
 // ─── component ──────────────────────────────────────────────────
 export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySliderParams) {
-    const [price, setPrice] = useState(Math.max(500_000, Math.min(5_000_000, Math.round(props.price / 25000) * 25000)));
+    // Dynamic price slider bounds — scale with the actual property value
+    const priceMax  = Math.max(5_000_000, Math.ceil(props.price * 1.3 / 5_000_000) * 5_000_000);
+    const priceStep = priceMax > 20_000_000 ? 500_000 : priceMax > 5_000_000 ? 100_000 : 25_000;
+
+    const [price, setPrice] = useState(Math.max(500_000, Math.min(priceMax, Math.round(props.price / priceStep) * priceStep)));
     const [downPct, setDownPct] = useState(Math.max(10, Math.min(50, props.downPct)));
     const [rate, setRate] = useState(Math.round(props.baseRate * 8) / 8); // snap to 0.125% steps
     const [zipInput, setZipInput] = useState(props.county ?? '');
@@ -505,10 +509,10 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
             <div style={S.sliderWrap}>
                 <SliderField
                     label="Purchase Price" value={price}
-                    min={500_000} max={5_000_000} step={25_000}
+                    min={500_000} max={priceMax} step={priceStep}
                     onChange={v => { setPrice(v); markDirty(); }}
                     format={fLong}
-                    minLabel="$500k" maxLabel="$5M"
+                    minLabel="$500k" maxLabel={f$(priceMax)}
                     trackColor={z.color} theme="dark"
                 />
             </div>
