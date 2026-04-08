@@ -4574,12 +4574,26 @@ ${uwAnswerText}`,
 
                 // Only auto-detect state if no override supplied
                 if (!_llStateOverride) {
+                    // CA ZIP codes (9[0-6]xxx) take priority — detect before state loop
+                    const _caZipEarly = question.match(/\b(9[0-6]\d{3})\b/);
+                    if (_caZipEarly) {
+                        _llState = 'CA';
+                    } else {
                     // Check for state names/codes in the question
+                    // Use full name match OR word-boundary code match (e.g. \bme\b would still match "me" — so only match codes 3+ chars OR well-known 2-letter ones)
                     const _stateEntries = Object.entries(STATE_NAMES);
                     for (const [code, name] of _stateEntries) {
                         if (code === 'CA') continue; // CA handled below
                         const nameLower = name.toLowerCase();
-                        if (_qLower.includes(nameLower) || _qLower.includes(` ${code.toLowerCase()} `)) {
+                        // Full state name match (safe)
+                        const nameMatch = _qLower.includes(nameLower);
+                        // State code: only match when surrounded by word boundaries and NOT a common English word
+                        const codeRegex = new RegExp(`\\b${code.toLowerCase()}\\b`, 'i');
+                        const AMBIGUOUS_CODES = new Set(['ME','IN','OR','OK','DE','CO','HI','ID','OH','AL','AR','AS','IA','IL','LA','MA','MD','MI','MN','MO','MS','MT','NE','NH','NJ','NM','NV','NY','PA','RI','SC','SD','TN','TX','UT','VA','VT','WA','WI','WV','WY','AK','AZ','FL','GA','KS','KY','NC','ND','DC','PR']);
+                        // Only use code match when it's clearly an address context (zip nearby, "county", "state" nearby)
+                        const hasAddressContext = /\b(county|zip|state|limits?|conforming)\b/i.test(question);
+                        const codeMatch = !AMBIGUOUS_CODES.has(code) ? codeRegex.test(question) : (hasAddressContext && codeRegex.test(question));
+                        if (nameMatch || codeMatch) {
                             _llState = code;
                             break;
                         }
@@ -4603,6 +4617,7 @@ ${uwAnswerText}`,
                         else if (/\b(wyoming|wy)\b/i.test(question)) _llState = 'WY';
                         else if (/\b(idaho|id)\b/i.test(question)) _llState = 'ID';
                     }
+                    } // end else (non-CA-ZIP path)
                 }
 
                 const _isCA = _llState === 'CA';
