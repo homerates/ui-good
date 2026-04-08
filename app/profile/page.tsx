@@ -193,16 +193,17 @@ export default function ProfilePage() {
                   <div className="pr-role-chips">
                     {ROLE_OPTIONS.map(({ v, label }) => {
                       const isActive = role === v;
-                      // Borrowers cannot self-upgrade to LO/agent — those roles
-                      // require admin provisioning. Show chips but locked.
-                      const isLocked = role === "borrower" && v !== "borrower";
+                      // Role is fixed at registration — all other chips are locked.
+                      // Borrowers can't self-upgrade; LOs/agents can't switch or downgrade.
+                      const serverRole = data?.role ?? "borrower";
+                      const isLocked = v !== serverRole;
                       return (
                         <button
                           key={v}
                           type="button"
                           className={`pr-role-chip ${isActive ? "active" : ""} ${isLocked ? "locked" : ""}`}
                           onClick={() => !isLocked && setRole(v)}
-                          title={isLocked ? "Contact support to register as a professional" : undefined}
+                          title={isLocked ? "Your account type is set at registration. Contact support to change." : undefined}
                         >
                           {label}
                           {isLocked && <span className="pr-chip-lock"> 🔒</span>}
@@ -211,9 +212,9 @@ export default function ProfilePage() {
                     })}
                   </div>
                   <span className="pr-hint">
-                    {role === "borrower"
+                    {serverRole === "borrower"
                       ? "Loan Officer and Agent access requires professional registration. Contact us to get set up."
-                      : "Sets which tools and views are available to you."}
+                      : "Your account type is set at registration. Contact support@homerates.ai to change."}
                   </span>
                 </div>
               </div>
@@ -300,7 +301,19 @@ export default function ProfilePage() {
                         placeholder={role === "agent" ? "e.g. 01234567" : "e.g. 123456"}
                         maxLength={12}
                       />
-                      <span className="pr-hint">Your individual license number.</span>
+                      <span className="pr-hint">
+                        Your individual license number.{" "}
+                        {role === "lo" && nmls.length >= 5 && (
+                          <a
+                            className="pr-verify-link"
+                            href={`https://www.nmlsconsumeraccess.org/EntityDetails.aspx/INDIVIDUAL/${nmls}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Verify on NMLS Consumer Access →
+                          </a>
+                        )}
+                      </span>
                     </div>
 
                     {role === "lo" && (
@@ -505,6 +518,8 @@ export default function ProfilePage() {
         }
 
         .pr-hint { font-size: 0.75rem; color: #3a4560; line-height: 1.4; }
+        .pr-verify-link { color: #00e87a; text-decoration: none; font-weight: 500; }
+        .pr-verify-link:hover { text-decoration: underline; }
 
         .pr-role-chips { display: flex; flex-wrap: wrap; gap: 8px; }
         .pr-role-chip {
