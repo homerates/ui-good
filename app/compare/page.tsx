@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
+import AppNav from '../components/AppNav';
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
 function calcPI(loan: number, annualRate: number, years = 30): number {
@@ -581,7 +582,10 @@ export default function ComparePage() {
               <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.AI" className="cp-logo" />
             </Link>
             <span className="cp-header-title">LO Comparison Tools</span>
-            <Link href="/chat" className="cp-chat-link">Full AI chat →</Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href="/chat" className="cp-chat-link">Full AI chat →</Link>
+              <AppNav drawerOnly />
+            </div>
           </div>
         </header>
 

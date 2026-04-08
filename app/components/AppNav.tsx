@@ -20,6 +20,11 @@ export interface AppNavProps {
   unreadCount?: number;
   // active page — highlights the matching nav link
   activePage?: "chat" | "messages" | "library" | "dashboard" | "profile";
+  /**
+   * drawerOnly — renders just the hamburger button + slide-out drawer,
+   * with no nav bar. Drop into any existing page header.
+   */
+  drawerOnly?: boolean;
 }
 
 let stylesInjected = false;
@@ -185,6 +190,7 @@ export default function AppNav({
   titleBadge,
   unreadCount,
   activePage,
+  drawerOnly = false,
 }: AppNavProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -199,6 +205,65 @@ export default function AppNav({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [drawerOpen]);
+
+  // Shared drawer JSX — reused in both drawerOnly and full modes
+  const drawer = drawerOpen ? (
+    <div className="an-overlay" onClick={() => setDrawerOpen(false)}>
+      <div className="an-drawer" onClick={e => e.stopPropagation()}>
+        <div className="an-drawer-head">
+          <Link href="/" className="an-drawer-logo" onClick={() => setDrawerOpen(false)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+          </Link>
+          <button className="an-close" onClick={() => setDrawerOpen(false)} aria-label="Close menu">✕</button>
+        </div>
+        <div className="an-drawer-section">
+          <div className="an-drawer-label">Navigation</div>
+          {NAV_LINKS.map(l => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`an-drawer-link ${activePage === l.key ? "an-drawer-active" : ""}`}
+              onClick={() => setDrawerOpen(false)}
+            >
+              <span className="an-drawer-icon">{l.icon}</span>
+              {l.label}
+              {l.key === "messages" && (unreadCount ?? 0) > 0 && (
+                <span className="an-badge">{unreadCount}</span>
+              )}
+            </Link>
+          ))}
+          <div className="an-drawer-divider" />
+          <div className="an-drawer-label">Quick links</div>
+          <Link href="/connect/my-scenario" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">🎯</span>My Scenario
+          </Link>
+          <Link href="/loan-limits" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">🏠</span>Loan Limits
+          </Link>
+          <Link href="/support" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">❓</span>Support
+          </Link>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  // drawerOnly mode — just the hamburger button + drawer, no nav bar
+  if (drawerOnly) {
+    return (
+      <>
+        <button
+          className="an-hamburger"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open menu"
+        >
+          <span /><span /><span />
+        </button>
+        {drawer}
+      </>
+    );
+  }
 
   return (
     <>
@@ -246,54 +311,7 @@ export default function AppNav({
         </button>
       </nav>
 
-      {/* Slide-out drawer */}
-      {drawerOpen && (
-        <div className="an-overlay" onClick={() => setDrawerOpen(false)}>
-          <div className="an-drawer" onClick={e => e.stopPropagation()}>
-            <div className="an-drawer-head">
-              <Link href="/" className="an-drawer-logo" onClick={() => setDrawerOpen(false)}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
-              </Link>
-              <button className="an-close" onClick={() => setDrawerOpen(false)} aria-label="Close menu">✕</button>
-            </div>
-
-            <div className="an-drawer-section">
-              <div className="an-drawer-label">Navigation</div>
-              {NAV_LINKS.map(l => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className={`an-drawer-link ${activePage === l.key ? "an-drawer-active" : ""}`}
-                  onClick={() => setDrawerOpen(false)}
-                >
-                  <span className="an-drawer-icon">{l.icon}</span>
-                  {l.label}
-                  {l.key === "messages" && (unreadCount ?? 0) > 0 && (
-                    <span className="an-badge">{unreadCount}</span>
-                  )}
-                </Link>
-              ))}
-
-              <div className="an-drawer-divider" />
-
-              <div className="an-drawer-label">Quick links</div>
-              <Link href="/connect/my-scenario" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">🎯</span>
-                My Scenario
-              </Link>
-              <Link href="/loan-limits" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">🏠</span>
-                Loan Limits
-              </Link>
-              <Link href="/support" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">❓</span>
-                Support
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {drawer}
     </>
   );
 }

@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import AppNav from "../components/AppNav";
 
 interface Scenario {
   id: string;
@@ -135,6 +136,7 @@ export default function AgentScenariosPage() {
             <Link href="/profile" className="ag-nav-link">My Profile</Link>
             <span className="ag-nav-active">Buyer Scenarios</span>
           </div>
+          <AppNav drawerOnly />
         </nav>
 
         <div className="ag-container">

@@ -3,6 +3,7 @@
 // All CSS is embedded inline with ps- prefix so it never fights globals.css.
 
 import Link from "next/link";
+import AppNav from "./AppNav";
 
 interface PageShellProps {
   children: React.ReactNode;
@@ -142,12 +143,15 @@ export default function PageShell({
                 className="ps-logo"
               />
             </Link>
-            <Link href={backHref} className="ps-back">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              {backLabel}
-            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href={backHref} className="ps-back">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                {backLabel}
+              </Link>
+              <AppNav drawerOnly />
+            </div>
           </div>
         </header>
 

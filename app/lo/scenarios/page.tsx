@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import AppNav from "../components/AppNav";
 
 interface Scenario {
   id: string;
@@ -179,6 +180,7 @@ export default function LOScenariosPage() {
             <Link href="/messages" className="los-nav-link">Messages</Link>
             <span className="los-nav-active">Scenario Board</span>
           </div>
+          <AppNav drawerOnly />
         </nav>
 
         <div className="los-container">
