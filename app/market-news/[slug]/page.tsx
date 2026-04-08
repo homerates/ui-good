@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import AppNav from '../../components/AppNav';
 import { marketNewsArticles } from '../articles';
 import ShareBar from '../../components/ShareBar';
 
@@ -361,9 +362,10 @@ export default async function MarketNewsArticle({
           <Link href="/" className="mna-nav-logo">
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
-          <Link href="/market-news" className="mna-nav-back">
-            ← Market News
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Link href="/market-news" className="mna-nav-back">← Market News</Link>
+            <AppNav drawerOnly />
+          </div>
         </nav>
 
         <div className="mna-wrap">

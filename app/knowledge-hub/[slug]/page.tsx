@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { knowledgeHubArticles } from '../articles';
 import ShareBar from '../../components/ShareBar';
+import AppNav from '../../components/AppNav';
 
 export const dynamicParams = true;
 export const revalidate = 3600; // ISR: re-check DB every hour
@@ -377,9 +378,10 @@ export default async function KnowledgeHubArticle({
           <Link href="/" className="kha-nav-logo">
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
-          <Link href="/knowledge-hub" className="kha-nav-back">
-            ← Knowledge Hub
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Link href="/knowledge-hub" className="kha-nav-back">← Knowledge Hub</Link>
+            <AppNav drawerOnly />
+          </div>
         </nav>
 
         {/* ARTICLE */}

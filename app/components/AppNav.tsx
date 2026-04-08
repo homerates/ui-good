@@ -7,6 +7,7 @@
 //   "thread"   — back-link left, title center, hamburger right
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 
 export interface AppNavProps {
@@ -193,9 +194,11 @@ export default function AppNav({
   drawerOnly = false,
 }: AppNavProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     ensureStyles();
+    setMounted(true);
   }, []);
 
   // Close drawer on Escape
@@ -206,8 +209,8 @@ export default function AppNav({
     return () => window.removeEventListener("keydown", handler);
   }, [drawerOpen]);
 
-  // Shared drawer JSX — reused in both drawerOnly and full modes
-  const drawer = drawerOpen ? (
+  // Drawer inner JSX (portal target = document.body to escape backdrop-filter stacking context)
+  const drawerInner = (
     <div className="an-overlay" onClick={() => setDrawerOpen(false)}>
       <div className="an-drawer" onClick={e => e.stopPropagation()}>
         <div className="an-drawer-head">
@@ -247,7 +250,12 @@ export default function AppNav({
         </div>
       </div>
     </div>
-  ) : null;
+  );
+
+  // Portal to document.body so backdrop-filter on parent headers doesn't trap fixed positioning
+  const drawer = mounted && drawerOpen
+    ? createPortal(drawerInner, document.body)
+    : null;
 
   // drawerOnly mode — just the hamburger button + drawer, no nav bar
   if (drawerOnly) {
