@@ -134,7 +134,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   return (
     <>
       <div className="ch-root">
-        {/* Nav */}
+        {/* Shared app nav */}
         <AppNav
           mode="thread"
           backHref="/messages"
@@ -143,307 +143,413 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           titleBadge={contactShared ? <span className="ch-contact-badge">Contact shared</span> : undefined}
         />
 
-        {/* Contact share banner (shown after share) */}
-        {contactShared && contactShare && (
-          <div className="ch-share-banner">
-            <div className="ch-share-banner-title">Contact information exchanged</div>
-            <div className="ch-share-grid">
-              <div className="ch-share-party">
-                <div className="ch-share-party-label">Your contact</div>
-                {isBorrower ? (
-                  <>
-                    <div className="ch-share-field">{contactShare.borrower_email ?? "—"}</div>
-                    <div className="ch-share-field">{contactShare.borrower_phone ?? "—"}</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="ch-share-field">{contactShare.pro_email ?? "—"}</div>
-                    <div className="ch-share-field">{contactShare.pro_phone ?? "—"}</div>
-                  </>
-                )}
-              </div>
-              <div className="ch-share-divider">↔</div>
-              <div className="ch-share-party">
-                <div className="ch-share-party-label">{isBorrower ? proLabel : "Borrower"}</div>
-                {isBorrower ? (
-                  <>
-                    <div className="ch-share-field">{contactShare.pro_email ?? "—"}</div>
-                    <div className="ch-share-field">{contactShare.pro_phone ?? "—"}</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="ch-share-field">{contactShare.borrower_email ?? "—"}</div>
-                    <div className="ch-share-field">{contactShare.borrower_phone ?? "—"}</div>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="ch-share-portal">
-              Ready to proceed? Continue your full application in your lender's secure portal.
-            </div>
-          </div>
-        )}
+        {/* Page body — centers the portal card */}
+        <div className="ch-page-body">
+          <div className="ch-portal">
 
-        {/* Messages */}
-        <div className="ch-messages-wrap">
-          {loading && <div className="ch-loading">Loading conversation...</div>}
-
-          {!loading && messages.length === 0 && (
-            <div className="ch-empty">Start the conversation below.</div>
-          )}
-
-          {!loading && messages.map(m => {
-            if (m.sender_role === "system") {
-              return (
-                <div key={m.id} className="ch-system-msg">
-                  {m.content.split("\n").map((line, i) => (
-                    <span key={i}>{line}<br /></span>
-                  ))}
-                </div>
-              );
-            }
-            const mine = (isBorrower && m.sender_role === "borrower") || (!isBorrower && m.sender_role === "professional");
-            return (
-              <div key={m.id} className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
-                <div className={`ch-bubble ${mine ? "ch-bubble-mine" : "ch-bubble-theirs"}`}>
-                  <div className="ch-bubble-content">
-                    {m.content.split("\n").map((line, i) => (
-                      <span key={i}>{line}{i < m.content.split("\n").length - 1 ? <br /> : null}</span>
-                    ))}
+            {/* Contact share banner */}
+            {contactShared && contactShare && (
+              <div className="ch-share-banner">
+                <div className="ch-share-banner-inner">
+                  <div className="ch-share-check">✓</div>
+                  <div className="ch-share-banner-text">
+                    <div className="ch-share-banner-title">Contact information exchanged</div>
+                    <div className="ch-share-portal">Ready to proceed? Continue your full application in your lender's secure portal.</div>
                   </div>
-                  <div className="ch-bubble-time">{fmt(m.created_at)}</div>
+                </div>
+                <div className="ch-share-cards">
+                  <div className="ch-share-card">
+                    <div className="ch-share-card-label">Your contact</div>
+                    <div className="ch-share-card-value">
+                      {(isBorrower ? contactShare.borrower_email : contactShare.pro_email) ?? "—"}
+                    </div>
+                    {(isBorrower ? contactShare.borrower_phone : contactShare.pro_phone) && (
+                      <div className="ch-share-card-value ch-share-card-phone">
+                        {isBorrower ? contactShare.borrower_phone : contactShare.pro_phone}
+                      </div>
+                    )}
+                  </div>
+                  <div className="ch-share-arrow">↔</div>
+                  <div className="ch-share-card">
+                    <div className="ch-share-card-label">{isBorrower ? proLabel : "Borrower"}</div>
+                    <div className="ch-share-card-value">
+                      {(isBorrower ? contactShare.pro_email : contactShare.borrower_email) ?? "—"}
+                    </div>
+                    {(isBorrower ? contactShare.pro_phone : contactShare.borrower_phone) && (
+                      <div className="ch-share-card-value ch-share-card-phone">
+                        {isBorrower ? contactShare.pro_phone : contactShare.borrower_phone}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            );
-          })}
+            )}
 
-          <div ref={bottomRef} />
-        </div>
+            {/* Messages scroll area */}
+            <div className="ch-messages-wrap">
+              {loading && <div className="ch-loading">Loading conversation…</div>}
 
-        {/* Footer */}
-        <div className="ch-footer">
-          {/* LO disclaimer */}
-          {!isBorrower && (
-            <div className="ch-lo-disclaimer">Rate indications only — not a Loan Estimate. Disclosure is auto-appended when you mention a rate.</div>
-          )}
+              {!loading && messages.length === 0 && (
+                <div className="ch-empty">Start the conversation below.</div>
+              )}
 
-          {/* Share contact CTA (borrower only, not yet shared) */}
-          {isBorrower && !contactShared && !isClosed && messages.length >= 2 && (
-            <div className="ch-share-cta">
-              <span>Ready to move forward?</span>
-              <button className="ch-share-btn" onClick={() => setShowShareConfirm(true)}>
-                Share contact info →
-              </button>
+              {!loading && messages.map(m => {
+                if (m.sender_role === "system") {
+                  return (
+                    <div key={m.id} className="ch-system-msg">
+                      {m.content.split("\n").map((line, i) => (
+                        <span key={i}>{line}<br /></span>
+                      ))}
+                    </div>
+                  );
+                }
+                const mine = (isBorrower && m.sender_role === "borrower") || (!isBorrower && m.sender_role === "professional");
+                return (
+                  <div key={m.id} className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
+                    {!mine && (
+                      <div className="ch-avatar">
+                        {(isBorrower ? proLabel : "B").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className={`ch-bubble ${mine ? "ch-bubble-mine" : "ch-bubble-theirs"}`}>
+                      <div className="ch-bubble-content">
+                        {m.content.split("\n").map((line, i) => (
+                          <span key={i}>{line}{i < m.content.split("\n").length - 1 ? <br /> : null}</span>
+                        ))}
+                      </div>
+                      <div className="ch-bubble-time">{fmt(m.created_at)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div ref={bottomRef} />
             </div>
-          )}
 
-          {/* Confirm share modal */}
-          {showShareConfirm && (
-            <div className="ch-share-confirm">
-              <div className="ch-share-confirm-box">
-                <div className="ch-share-confirm-title">Share contact information?</div>
-                <p className="ch-share-confirm-body">
-                  This will share your email and phone number with the {proLabel.toLowerCase()},
-                  and give you theirs. This is irreversible for this conversation.
-                </p>
-                <div className="ch-share-confirm-actions">
-                  <button className="ch-share-confirm-cancel" onClick={() => setShowShareConfirm(false)}>Cancel</button>
-                  <button className="ch-share-confirm-ok" onClick={shareContact} disabled={sharing}>
-                    {sharing ? "Sharing..." : "Yes, share contact →"}
+            {/* Footer / compose */}
+            <div className="ch-footer">
+              {!isBorrower && (
+                <div className="ch-lo-disclaimer">Rate indications only — not a Loan Estimate. Disclosure is auto-appended when you mention a rate.</div>
+              )}
+
+              {isBorrower && !contactShared && !isClosed && messages.length >= 2 && (
+                <div className="ch-share-cta">
+                  <span>Ready to move forward?</span>
+                  <button className="ch-share-btn" onClick={() => setShowShareConfirm(true)}>
+                    Share contact info →
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {isClosed ? (
-            <div className="ch-closed-msg">This conversation is closed.</div>
-          ) : (
-            <div className="ch-compose">
-              <textarea
-                ref={textareaRef}
-                className="ch-input"
-                placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={handleKey}
-                rows={3}
-                maxLength={1000}
-                disabled={sending}
-              />
-              <div className="ch-compose-bottom">
-                {sendError && <span className="ch-send-error">{sendError}</span>}
-                <span className="ch-char-count">{draft.length}/1000</span>
-                <button
-                  className="ch-send-btn"
-                  onClick={send}
-                  disabled={!draft.trim() || sending}
-                >
-                  {sending ? "Sending..." : "Send"}
+              {isClosed ? (
+                <div className="ch-closed-msg">This conversation is closed.</div>
+              ) : (
+                <div className="ch-compose">
+                  <textarea
+                    ref={textareaRef}
+                    className="ch-input"
+                    placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={handleKey}
+                    rows={3}
+                    maxLength={1000}
+                    disabled={sending}
+                  />
+                  <div className="ch-compose-bottom">
+                    {sendError && <span className="ch-send-error">{sendError}</span>}
+                    <span className="ch-char-count">{draft.length}/1000</span>
+                    <button
+                      className="ch-send-btn"
+                      onClick={send}
+                      disabled={!draft.trim() || sending}
+                    >
+                      {sending ? "Sending…" : "Send"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>{/* /ch-portal */}
+        </div>{/* /ch-page-body */}
+
+        {/* Share confirm modal — outside portal so it overlays everything */}
+        {showShareConfirm && (
+          <div className="ch-share-confirm">
+            <div className="ch-share-confirm-box">
+              <div className="ch-share-confirm-title">Share contact information?</div>
+              <p className="ch-share-confirm-body">
+                This will share your email and phone number with the {proLabel.toLowerCase()},
+                and give you theirs. This is irreversible for this conversation.
+              </p>
+              <div className="ch-share-confirm-actions">
+                <button className="ch-share-confirm-cancel" onClick={() => setShowShareConfirm(false)}>Cancel</button>
+                <button className="ch-share-confirm-ok" onClick={shareContact} disabled={sharing}>
+                  {sharing ? "Sharing…" : "Yes, share contact →"}
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <style>{`
         body:has(.ch-root) {
           display: block !important; height: 100vh !important; overflow: hidden !important;
-          background: #080c12 !important;
+          background: #060a14 !important;
         }
-        html:has(.ch-root) { background: #080c12 !important; height: 100% !important; overflow: hidden !important; }
+        html:has(.ch-root) { background: #060a14 !important; height: 100% !important; overflow: hidden !important; }
         body:has(.ch-root) .app-footer { display: none; }
 
+        /* Root shell */
         .ch-root {
           font-family: 'DM Sans', system-ui, sans-serif;
           color: #f0f4ff;
           height: 100vh;
           display: flex; flex-direction: column;
-          background: #080c12;
+          background: #060a14;
         }
 
+        /* Contact shared badge in AppNav */
         .ch-contact-badge {
           font-size: 0.7rem; font-weight: 600; color: #00e87a;
           background: rgba(0,232,122,0.12); border: 1px solid rgba(0,232,122,0.25);
           border-radius: 99px; padding: 2px 9px;
         }
 
-        /* Contact share banner */
+        /* Page body — centers the portal card horizontally */
+        .ch-page-body {
+          flex: 1; min-height: 0;
+          display: flex; justify-content: center;
+          padding: 0 16px 16px;
+          overflow: hidden;
+        }
+
+        /* Portal card */
+        .ch-portal {
+          width: 100%; max-width: 780px;
+          display: flex; flex-direction: column;
+          background: #0b1220;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-top: none;
+          border-radius: 0 0 20px 20px;
+          box-shadow: 0 0 0 1px rgba(0,232,122,0.04),
+                      0 32px 80px rgba(0,0,0,0.45);
+          overflow: hidden;
+        }
+
+        /* ── Contact share banner ── */
         .ch-share-banner {
-          background: rgba(0,232,122,0.06);
-          border-bottom: 1px solid rgba(0,232,122,0.2);
-          padding: 1rem 1.5rem;
           flex-shrink: 0;
+          background: rgba(0,232,122,0.05);
+          border-bottom: 1px solid rgba(0,232,122,0.14);
+          padding: 14px 20px;
         }
-        .ch-share-banner-title { font-size: 0.8rem; font-weight: 700; color: #00e87a; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; }
-        .ch-share-grid { display: flex; align-items: center; gap: 12px; margin-bottom: 0.75rem; }
-        .ch-share-party { flex: 1; }
-        .ch-share-party-label { font-size: 0.72rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
-        .ch-share-field { font-size: 0.85rem; font-weight: 600; color: #f0f4ff; }
-        .ch-share-divider { font-size: 0.9rem; color: #3a4560; }
-        .ch-share-portal { font-size: 0.78rem; color: #8fa3b8; }
+        .ch-share-banner-inner {
+          display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px;
+        }
+        .ch-share-check {
+          width: 22px; height: 22px; border-radius: 50%;
+          background: rgba(0,232,122,0.15); color: #00e87a;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.75rem; font-weight: 800; flex-shrink: 0; margin-top: 1px;
+        }
+        .ch-share-banner-text { flex: 1; }
+        .ch-share-banner-title {
+          font-size: 0.78rem; font-weight: 700; color: #00e87a;
+          text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 2px;
+        }
+        .ch-share-portal { font-size: 0.78rem; color: #8fa3b8; line-height: 1.4; }
 
-        /* Messages area */
+        .ch-share-cards {
+          display: flex; align-items: center; gap: 10px;
+        }
+        .ch-share-card {
+          flex: 1; background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 10px; padding: 10px 14px;
+        }
+        .ch-share-card-label {
+          font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+          text-transform: uppercase; color: #3a4560; margin-bottom: 4px;
+        }
+        .ch-share-card-value {
+          font-size: 0.875rem; font-weight: 600; color: #f0f4ff;
+          word-break: break-all;
+        }
+        .ch-share-card-phone { font-weight: 400; color: #8fa3b8; font-size: 0.82rem; margin-top: 2px; }
+        .ch-share-arrow { color: #3a4560; font-size: 1rem; flex-shrink: 0; }
+
+        /* ── Messages scroll area ── */
         .ch-messages-wrap {
-          flex: 1; overflow-y: auto;
-          padding: 1.25rem 1rem;
-          display: flex; flex-direction: column; gap: 6px;
+          flex: 1; min-height: 0;
+          overflow-y: auto;
+          padding: 20px 20px 12px;
+          display: flex; flex-direction: column; gap: 8px;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.08) transparent;
         }
-        .ch-loading, .ch-empty { text-align: center; color: #3a4560; padding: 3rem; font-size: 0.9rem; }
+        .ch-loading, .ch-empty {
+          text-align: center; color: #3a4560;
+          padding: 3rem; font-size: 0.875rem;
+        }
 
-        .ch-bubble-row { display: flex; }
+        /* Message rows */
+        .ch-bubble-row {
+          display: flex; align-items: flex-end; gap: 8px;
+        }
         .ch-mine { justify-content: flex-end; }
         .ch-theirs { justify-content: flex-start; }
 
+        /* Sender avatar (their messages only) */
+        .ch-avatar {
+          width: 28px; height: 28px; border-radius: 50%;
+          background: rgba(61,139,255,0.15); color: #3d8bff;
+          display: flex; align-items: center; justify-content: center;
+          font-weight: 800; font-size: 0.75rem; flex-shrink: 0;
+        }
+
         .ch-bubble {
-          max-width: 72%; padding: 10px 14px;
-          border-radius: 18px;
-          font-size: 0.9rem; line-height: 1.5;
+          max-width: 68%; padding: 10px 14px 8px;
+          border-radius: 16px;
+          font-size: 0.9rem; line-height: 1.55;
+          position: relative;
         }
         .ch-bubble-mine {
-          background: #1a3d6e; color: #e8f0ff;
+          background: linear-gradient(135deg, #1e4280, #1a3468);
+          color: #ddeaff;
           border-bottom-right-radius: 4px;
+          box-shadow: 0 2px 8px rgba(30,66,128,0.4);
         }
         .ch-bubble-theirs {
-          background: #0e1420; color: #f0f4ff;
-          border: 1px solid rgba(255,255,255,0.09);
+          background: #111826;
+          color: #f0f4ff;
+          border: 1px solid rgba(255,255,255,0.08);
           border-bottom-left-radius: 4px;
         }
         .ch-bubble-content { word-break: break-word; white-space: pre-wrap; }
-        .ch-bubble-time { font-size: 0.68rem; color: rgba(255,255,255,0.35); margin-top: 5px; text-align: right; }
-
-        .ch-system-msg {
-          text-align: center;
-          background: rgba(0,232,122,0.06);
-          border: 1px solid rgba(0,232,122,0.15);
-          border-radius: 12px;
-          padding: 0.75rem 1rem;
-          font-size: 0.82rem; color: #8fa3b8; line-height: 1.6;
-          margin: 8px auto; max-width: 90%;
+        .ch-bubble-time {
+          font-size: 0.65rem; color: rgba(255,255,255,0.3);
+          margin-top: 4px; text-align: right;
         }
 
-        /* Footer */
+        /* System message */
+        .ch-system-msg {
+          text-align: center; align-self: center;
+          background: rgba(0,232,122,0.05);
+          border: 1px solid rgba(0,232,122,0.12);
+          border-radius: 10px;
+          padding: 10px 16px;
+          font-size: 0.8rem; color: #8fa3b8; line-height: 1.6;
+          max-width: 85%;
+        }
+
+        /* ── Footer / compose ── */
         .ch-footer {
           flex-shrink: 0;
           border-top: 1px solid rgba(255,255,255,0.07);
-          background: #080c12;
-          padding: 10px 16px 16px;
+          background: #0b1220;
+          padding: 10px 16px 14px;
         }
         .ch-lo-disclaimer {
-          font-size: 0.72rem; color: #3a4560;
-          margin-bottom: 6px; line-height: 1.4;
+          font-size: 0.7rem; color: #3a4560;
+          margin-bottom: 8px; line-height: 1.4;
         }
-
         .ch-share-cta {
           display: flex; align-items: center; justify-content: space-between;
-          background: rgba(0,232,122,0.06); border: 1px solid rgba(0,232,122,0.18);
-          border-radius: 10px; padding: 8px 14px; margin-bottom: 8px;
+          background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.16);
+          border-radius: 10px; padding: 9px 14px; margin-bottom: 10px;
           font-size: 0.82rem; color: #8fa3b8;
         }
         .ch-share-btn {
-          font-size: 0.8rem; font-weight: 700; color: #00e87a;
+          font-size: 0.82rem; font-weight: 700; color: #00e87a;
           background: none; border: none; cursor: pointer; padding: 0;
         }
         .ch-share-btn:hover { text-decoration: underline; }
 
-        /* Share confirm */
+        .ch-closed-msg { text-align: center; color: #3a4560; font-size: 0.85rem; padding: 0.75rem 0; }
+
+        /* Compose box */
+        .ch-compose { display: flex; flex-direction: column; gap: 8px; }
+        .ch-input {
+          width: 100%;
+          background: #141e30;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 12px; color: #f0f4ff;
+          font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+          padding: 10px 14px; resize: none; outline: none;
+          transition: border-color 0.15s, background 0.15s;
+          box-sizing: border-box;
+        }
+        .ch-input:focus {
+          border-color: rgba(61,139,255,0.4);
+          background: #162236;
+        }
+        .ch-input::placeholder { color: #2a3550; }
+        .ch-input:disabled { opacity: 0.45; }
+
+        .ch-compose-bottom {
+          display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+        }
+        .ch-char-count { font-size: 0.7rem; color: #3a4560; }
+        .ch-send-error { font-size: 0.78rem; color: #ff5f5f; flex: 1; }
+        .ch-send-btn {
+          padding: 9px 24px;
+          background: #00e87a; color: #080c12;
+          border: none; border-radius: 999px;
+          font-size: 0.875rem; font-weight: 700; cursor: pointer;
+          transition: opacity 0.15s, transform 0.1s;
+        }
+        .ch-send-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+        .ch-send-btn:active:not(:disabled) { transform: translateY(0); }
+        .ch-send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* ── Share confirm modal ── */
         .ch-share-confirm {
-          position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.72);
+          backdrop-filter: blur(4px);
           display: flex; align-items: center; justify-content: center;
           z-index: 1000; padding: 1rem;
         }
         .ch-share-confirm-box {
-          background: #0e1420; border: 1px solid rgba(255,255,255,0.12);
-          border-radius: 16px; padding: 1.75rem; max-width: 420px; width: 100%;
+          background: #0e1826;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 20px; padding: 2rem;
+          max-width: 440px; width: 100%;
+          box-shadow: 0 24px 64px rgba(0,0,0,0.6);
         }
-        .ch-share-confirm-title { font-size: 1.1rem; font-weight: 700; color: #f0f4ff; margin-bottom: 0.75rem; }
-        .ch-share-confirm-body { font-size: 0.875rem; color: #8fa3b8; line-height: 1.6; margin: 0 0 1.25rem; }
+        .ch-share-confirm-title {
+          font-size: 1.1rem; font-weight: 700; color: #f0f4ff; margin-bottom: 0.75rem;
+        }
+        .ch-share-confirm-body {
+          font-size: 0.875rem; color: #8fa3b8; line-height: 1.65; margin: 0 0 1.5rem;
+        }
         .ch-share-confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
         .ch-share-confirm-cancel {
-          padding: 9px 18px; background: none; color: #8fa3b8;
-          border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
-          font-size: 0.875rem; cursor: pointer;
+          padding: 10px 20px; background: none; color: #8fa3b8;
+          border: 1px solid rgba(255,255,255,0.1); border-radius: 999px;
+          font-size: 0.875rem; cursor: pointer; font-family: inherit;
+          transition: border-color 0.15s, color 0.15s;
         }
+        .ch-share-confirm-cancel:hover { border-color: rgba(255,255,255,0.22); color: #f0f4ff; }
         .ch-share-confirm-ok {
-          padding: 9px 20px; background: #00e87a; color: #080c12;
+          padding: 10px 22px; background: #00e87a; color: #080c12;
           border: none; border-radius: 999px;
-          font-size: 0.875rem; font-weight: 700; cursor: pointer;
-        }
-        .ch-share-confirm-ok:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        .ch-closed-msg { text-align: center; color: #3a4560; font-size: 0.85rem; padding: 0.75rem 0; }
-
-        /* Compose */
-        .ch-compose { display: flex; flex-direction: column; gap: 8px; }
-        .ch-input {
-          width: 100%; background: #0e1420;
-          border: 1px solid rgba(255,255,255,0.12);
-          border-radius: 12px; color: #f0f4ff;
-          font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
-          padding: 10px 14px; resize: none; outline: none;
-          transition: border-color 0.15s;
-          box-sizing: border-box;
-        }
-        .ch-input:focus { border-color: rgba(61,139,255,0.45); }
-        .ch-input::placeholder { color: #3a4560; }
-        .ch-input:disabled { opacity: 0.5; }
-
-        .ch-compose-bottom { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-        .ch-char-count { font-size: 0.72rem; color: #3a4560; }
-        .ch-send-error { font-size: 0.78rem; color: #ff5f5f; flex: 1; }
-        .ch-send-btn {
-          padding: 9px 22px; background: #00e87a; color: #080c12;
-          border: none; border-radius: 999px;
-          font-size: 0.875rem; font-weight: 700; cursor: pointer;
+          font-size: 0.875rem; font-weight: 700; cursor: pointer; font-family: inherit;
           transition: opacity 0.15s;
         }
-        .ch-send-btn:hover:not(:disabled) { opacity: 0.88; }
-        .ch-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .ch-share-confirm-ok:hover:not(:disabled) { opacity: 0.88; }
+        .ch-share-confirm-ok:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        @media (max-width: 500px) {
-          .ch-bubble { max-width: 88%; }
-          .ch-share-grid { flex-direction: column; gap: 8px; }
+        /* ── Responsive ── */
+        @media (max-width: 520px) {
+          .ch-page-body { padding: 0 0 0; }
+          .ch-portal { border-radius: 0; border-left: none; border-right: none; }
+          .ch-bubble { max-width: 86%; }
+          .ch-share-cards { flex-direction: column; }
+          .ch-share-arrow { transform: rotate(90deg); }
         }
       `}</style>
     </>
