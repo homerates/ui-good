@@ -6,6 +6,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "DSCR", "Other"];
@@ -39,6 +40,14 @@ function fmt$(n: number) { return `$${Math.round(n).toLocaleString()}`; }
 function PostScenarioContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isLoaded, isSignedIn } = useAuth();
+
+  // Redirect signed-out users to sign-in, preserving return URL
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace("/sign-in?redirect_url=" + encodeURIComponent("/connect/post" + (typeof window !== "undefined" ? window.location.search : "")));
+    }
+  }, [isLoaded, isSignedIn, router]);
 
   // Detect Path A: arrived from a scenario card
   const fromScenario = searchParams?.get("from") === "scenario";

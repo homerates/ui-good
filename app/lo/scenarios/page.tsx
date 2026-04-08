@@ -4,6 +4,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import AppNav from "../../components/AppNav";
 
 interface Scenario {
@@ -62,7 +64,16 @@ interface RespondModal {
   scenario: Scenario;
 }
 
+const SAMPLE_SCENARIOS: Scenario[] = [
+  { id: "s1", loan_type: "jumbo", loan_purpose: "purchase", price_range: "$1.5M+", down_payment_pct: 25, income_range: "$200k+", credit_tier: "Excellent (740+)", timeline: "ASAP (under 30 days)", state: "CA", response_count: 1, max_responses: 3, already_responded: false, created_at: new Date(Date.now() - 2 * 3600000).toISOString(), has_card_data: true, card_price: 1800000, card_rate: 6.875, card_monthly: 9420 },
+  { id: "s2", loan_type: "conventional", loan_purpose: "purchase", price_range: "$500k–$750k", down_payment_pct: 20, income_range: "$150k–$200k", credit_tier: "Good (700–739)", timeline: "1–2 months", state: "TX", response_count: 2, max_responses: 3, already_responded: false, created_at: new Date(Date.now() - 5 * 3600000).toISOString() },
+  { id: "s3", loan_type: "fha", loan_purpose: "purchase", price_range: "$300k–$400k", down_payment_pct: 3.5, income_range: "$80k–$100k", credit_tier: "Fair (660–699)", timeline: "3–6 months", state: "FL", response_count: 0, max_responses: 3, already_responded: false, created_at: new Date(Date.now() - 8 * 3600000).toISOString() },
+  { id: "s4", loan_type: "dscr", loan_purpose: "purchase", price_range: "$750k–$1M", down_payment_pct: 30, income_range: "$200k+", credit_tier: "Excellent (740+)", timeline: "1–2 months", state: "AZ", response_count: 1, max_responses: 2, already_responded: false, created_at: new Date(Date.now() - 24 * 3600000).toISOString() },
+];
+
 export default function LOScenariosPage() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
   const [tab, setTab] = useState<"board" | "referrals">("board");
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [referrals, setReferrals] = useState<Scenario[]>([]);
@@ -83,6 +94,13 @@ export default function LOScenariosPage() {
   useEffect(() => {
     load();
   }, [filterType, filterState]);
+
+  // Redirect signed-out users to sign-in
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace("/sign-in?redirect_url=" + encodeURIComponent("/lo/scenarios"));
+    }
+  }, [isLoaded, isSignedIn, router]);
 
   // Load referrals once on mount (private scenarios — not filter-dependent)
   useEffect(() => {
@@ -165,6 +183,63 @@ export default function LOScenariosPage() {
   };
 
   const filtered = scenarios.filter(s => !filterState || s.state === filterState);
+
+  // Teaser view for signed-out users — sample board with lock overlay
+  if (isLoaded && !isSignedIn) {
+    return (
+      <div className="los-root">
+        <nav className="los-nav">
+          <Link href="/" className="los-nav-logo">
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+          </Link>
+          <Link href="/sign-in" className="los-nav-link" style={{ marginLeft: "auto" }}>Sign in →</Link>
+        </nav>
+        <div className="los-container" style={{ position: "relative" }}>
+          <div className="los-header">
+            <div>
+              <h1 className="los-title">Match Board</h1>
+              <p className="los-sub">Anonymous borrower scenarios open to verified professionals.</p>
+            </div>
+            <span className="los-stat" style={{ background: "rgba(0,232,122,0.1)", color: "#00e87a", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 999, padding: "4px 14px", fontSize: "0.82rem", fontWeight: 700 }}>Live now</span>
+          </div>
+          {/* Sample scenario cards — blurred */}
+          <div style={{ position: "relative" }}>
+            <div style={{ filter: "blur(3px)", pointerEvents: "none", userSelect: "none", opacity: 0.7 }}>
+              {SAMPLE_SCENARIOS.map(s => (
+                <div key={s.id} className="los-card">
+                  <div className="los-card-top">
+                    <span className="los-badge" style={{ background: BADGE_BG[s.loan_type] ?? "rgba(255,255,255,0.08)", border: `1px solid ${BADGE_BORDER[s.loan_type] ?? "rgba(255,255,255,0.15)"}`, color: BADGE_COLOR[s.loan_type] ?? "#f0f4ff" }}>{LABEL_MAP[s.loan_type] ?? s.loan_type}</span>
+                    <span className="los-card-state">{s.state}</span>
+                    <span className="los-card-purpose">{s.loan_purpose}</span>
+                    <span className="los-card-age" style={{ marginLeft: "auto" }}>{Math.round((Date.now() - new Date(s.created_at).getTime()) / 3600000)}h ago</span>
+                  </div>
+                  <div className="los-card-grid">
+                    <div className="los-card-field"><div className="los-card-label">PRICE RANGE</div><div className="los-card-value">{s.price_range}</div></div>
+                    <div className="los-card-field"><div className="los-card-label">DOWN</div><div className="los-card-value">{s.down_payment_pct}%</div></div>
+                    <div className="los-card-field"><div className="los-card-label">CREDIT</div><div className="los-card-value">{s.credit_tier}</div></div>
+                    <div className="los-card-field"><div className="los-card-label">TIMELINE</div><div className="los-card-value">{s.timeline}</div></div>
+                  </div>
+                  <div className="los-card-footer">
+                    <span className="los-resp-count">{s.response_count}/{s.max_responses} responses</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Lock overlay */}
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+              <div style={{ background: "rgba(8,12,18,0.92)", backdropFilter: "blur(8px)", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 20, padding: "32px 40px", textAlign: "center", maxWidth: 380 }}>
+                <div style={{ fontSize: "2rem", marginBottom: 12 }}>🔒</div>
+                <div style={{ fontFamily: "var(--font-dm-sans, sans-serif)", fontSize: "1.1rem", fontWeight: 700, color: "#f0f4ff", marginBottom: 8 }}>Verified professionals only</div>
+                <div style={{ fontSize: "0.85rem", color: "#8fa3b8", marginBottom: 20, lineHeight: 1.5 }}>Create a free account to see live borrower scenarios and respond directly in your area.</div>
+                <Link href="/sign-up" style={{ display: "inline-block", background: "#00e87a", color: "#080c12", fontWeight: 700, fontSize: "0.9rem", borderRadius: 999, padding: "10px 28px", textDecoration: "none" }}>Create free account →</Link>
+                <div style={{ marginTop: 10, fontSize: "0.78rem", color: "#3a4560" }}>Already have an account? <Link href="/sign-in?redirect_url=/lo/scenarios" style={{ color: "#3d8bff" }}>Sign in</Link></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
