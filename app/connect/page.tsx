@@ -141,7 +141,8 @@ export default async function ConnectPage() {
         </section>
 
         {/* ── THE DIFFERENCE ── */}
-        <section className="cn-section cn-section-dark">
+        <section className="cn-section-dark">
+          <div className="cn-inner">
           <div className="cn-section-label">Why it's different</div>
           <h2 className="cn-h2">The mortgage industry sells borrowers as leads.<br />We don't.</h2>
           <div className="cn-compare">
@@ -169,6 +170,7 @@ export default async function ConnectPage() {
                 <li><span className="cn-check">✓</span> Your LO already knows your full scenario before the first call</li>
               </ul>
             </div>
+          </div>
           </div>
         </section>
 
@@ -222,7 +224,8 @@ export default async function ConnectPage() {
         </section>
 
         {/* ── SAMPLE RESPONSE ── */}
-        <section className="cn-section cn-section-dark">
+        <section className="cn-section-dark">
+          <div className="cn-inner">
           <div className="cn-section-label">What an LO response looks like</div>
           <h2 className="cn-h2">You see who's being straight with you before you talk to anyone.</h2>
           <div className="cn-responses-demo">
@@ -253,6 +256,7 @@ export default async function ConnectPage() {
             HomeRates.ai shows you what the market rate is for your scenario.
             You can tell immediately who's quoting points, who's being vague, and who's straight with you.
           </p>
+          </div>
         </section>
 
         {/* ── CTA ── */}
@@ -367,11 +371,12 @@ export default async function ConnectPage() {
           padding: 5rem 1.5rem;
         }
         .cn-section-dark {
-          max-width: 100%;
           background: #0e1420;
-          padding: 5rem 1.5rem;
+          padding: 5rem 0;
         }
-        .cn-section-dark > * { max-width: 1000px; margin-left: auto; margin-right: auto; }
+        .cn-inner {
+          max-width: 1000px; margin: 0 auto; padding: 0 1.5rem;
+        }
         .cn-section-label {
           font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em;
           text-transform: uppercase; color: #3d8bff;
