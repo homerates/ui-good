@@ -172,6 +172,9 @@ export default function ProfessionalsPage() {
         .pd-page-btn:disabled{opacity:0.3;cursor:default}
         .pd-page-info{font-size:0.82rem;color:rgba(255,255,255,0.3);padding:0 0.5rem}
 
+        .pd-list-btn{display:inline-block;margin-top:1rem;padding:0.6rem 1.25rem;background:#00e87a;color:#080c12;font-weight:700;font-size:0.84rem;border-radius:9px;text-decoration:none;transition:opacity 0.2s}
+        .pd-list-btn:hover{opacity:0.85}
+
         .pd-disclosure{max-width:760px;margin:3rem auto 0;padding:1.5rem;border-top:1px solid rgba(255,255,255,0.05)}
         .pd-disclosure p{font-size:0.75rem;color:rgba(255,255,255,0.22);line-height:1.6;margin:0}
         .pd-disclosure a{color:rgba(61,139,255,0.5);text-decoration:none}
@@ -196,9 +199,10 @@ export default function ProfessionalsPage() {
             <div className="pd-eyebrow">California Professionals</div>
             <h1 className="pd-h1">Find a Loan Officer or Real Estate Agent</h1>
             <p className="pd-sub">
-              Licensed California professionals from public NMLS and CA DRE records.
-              Claimed profiles include verified contact info and bios.
+              California-licensed mortgage and real estate professionals.
+              All listings are self-verified — pros create and manage their own profiles.
             </p>
+            <a href="/professionals/new" className="pd-list-btn">+ List yourself free →</a>
           </div>
 
           {/* Filters */}
@@ -254,8 +258,25 @@ export default function ProfessionalsPage() {
             <div className="pd-loading">Loading professionals…</div>
           ) : pros.length === 0 ? (
             <div className="pd-empty">
-              <p>No professionals found for these filters.</p>
-              <p style={{ fontSize: "0.82rem", marginTop: "0.5rem" }}>Try broadening your search.</p>
+              {(q || city || type) ? (
+                <>
+                  <p>No professionals found for these filters.</p>
+                  <p style={{ fontSize: "0.82rem", marginTop: "0.5rem" }}>Try broadening your search.</p>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: "1rem", fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>No listings yet.</p>
+                  <p style={{ fontSize: "0.85rem", marginTop: "0.5rem", color: "rgba(255,255,255,0.3)" }}>
+                    Be the first to add yourself to the directory.
+                  </p>
+                  <a
+                    href="/professionals/new"
+                    style={{ display: "inline-block", marginTop: "1.25rem", padding: "0.7rem 1.5rem", background: "#00e87a", color: "#080c12", fontWeight: 700, borderRadius: 10, textDecoration: "none", fontSize: "0.88rem" }}
+                  >
+                    Create your free listing →
+                  </a>
+                </>
+              )}
             </div>
           ) : (
             <div className="pd-grid">
@@ -353,9 +374,9 @@ export default function ProfessionalsPage() {
           {/* Disclosure */}
           <div className="pd-disclosure">
             <p>
-              Professional listings are sourced from public NMLS Consumer Access and California Department of Real Estate (DRE) records.
-              HomeRates.ai does not independently verify credentials, licenses, or affiliations displayed here.
-              Users are responsible for confirming that any professional they engage is properly licensed.{" "}
+              Professional listings on HomeRates.ai are self-submitted. HomeRates.ai does not independently verify
+              credentials, licenses, or affiliations displayed here. Users are responsible for confirming that any
+              professional they engage is properly licensed.{" "}
               <a href="https://www.nmlsconsumeraccess.org" target="_blank" rel="noopener noreferrer">
                 Verify mortgage professionals via NMLS Consumer Access
               </a>{" · "}
