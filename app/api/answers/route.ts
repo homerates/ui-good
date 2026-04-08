@@ -4001,11 +4001,16 @@ ${uwAnswerText}`,
             (calcDispatch as any).type = 'dscr_needs_input';
             (calcDispatch as any).params = null;
         } else if (paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
-            (calcDispatch as any).type = 'conventional';
+            // Auto-detect jumbo: if loan amount exceeds 2026 conforming limit, force jumbo not conventional
+            const _poDownFB = paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20;
+            const _poLoanFB = paramOverrides.purchasePrice * (1 - _poDownFB / 100);
+            const _isImplicitJumboFB = _poLoanFB > CONF_STANDARD;
+            (calcDispatch as any).type = _isImplicitJumboFB ? 'jumbo' : 'conventional';
             (calcDispatch as any).params = {
                 purchasePrice: paramOverrides.purchasePrice,
-                downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20,
+                downPaymentPct: _isImplicitJumboFB ? Math.max(20, _poDownFB) : _poDownFB,
                 annualRatePct: paramOverrides.annualRatePct,
+                ...(_isImplicitJumboFB ? { termYears: 30 } : {}),
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {
@@ -4295,11 +4300,16 @@ ${uwAnswerText}`,
             (calcDispatch as any).type = 'dscr_needs_input';
             (calcDispatch as any).params = null;
         } else if (paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
-            (calcDispatch as any).type = 'conventional';
+            // Auto-detect jumbo: if loan amount exceeds 2026 conforming limit, force jumbo not conventional
+            const _poDownFB = paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20;
+            const _poLoanFB = paramOverrides.purchasePrice * (1 - _poDownFB / 100);
+            const _isImplicitJumboFB = _poLoanFB > CONF_STANDARD;
+            (calcDispatch as any).type = _isImplicitJumboFB ? 'jumbo' : 'conventional';
             (calcDispatch as any).params = {
                 purchasePrice: paramOverrides.purchasePrice,
-                downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20,
+                downPaymentPct: _isImplicitJumboFB ? Math.max(20, _poDownFB) : _poDownFB,
                 annualRatePct: paramOverrides.annualRatePct,
+                ...(_isImplicitJumboFB ? { termYears: 30 } : {}),
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {
@@ -5148,38 +5158,41 @@ Output JSON:
             cmaFinal.answer = cmaFinal.answer + rateTable;
 
             // Build structured chips with paramOverrides so downstream calcs pre-fill correctly
+            // VA loans are only practical under ~$2M (no-down jumbo is portfolio, not VA)
+            const _cmaBase = { cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price, cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft, cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl };
+            const _cmaLoanType = isJumboCMA ? 'jumbo' : undefined;
+            const _cmaDown = isJumboCMA ? 25 : 20;
+
             const cmaChips = [
                 {
                     label: `DSCR — what rent covers this at ${priceFmtCMA}?`,
                     seed: `DSCR rental analysis — what monthly rent covers ${priceFmtCMA} with 25% down at ${liveRate}%?`,
                     paramOverrides: {
                         purchasePrice: price, downPaymentPct: 25, annualRatePct: liveRate, isDSCR: true,
-                        // cma* fields — forwarded so Re-run CMA chip works on downstream cards
-                        cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price,
-                        cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft,
-                        cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl,
+                        ..._cmaBase,
                     },
                 },
                 {
                     label: `Rate sensitivity — payment at 5.75%`,
-                    seed: `What is the monthly payment on ${priceFmtCMA} at 5.75% with 20% down?`,
-                    paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: 5.75, cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price, cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft, cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl },
+                    seed: `What is the monthly payment on ${priceFmtCMA} at 5.75% with ${_cmaDown}% down?`,
+                    paramOverrides: { purchasePrice: price, downPaymentPct: _cmaDown, annualRatePct: 5.75, ...(_cmaLoanType ? { loanType: _cmaLoanType } : {}), ..._cmaBase },
                 },
                 {
                     label: `What income qualifies for this home?`,
                     seed: `What income do I need to qualify for a ${priceFmtCMA} home?`,
-                    paramOverrides: { purchasePrice: price, downPaymentPct: 20, annualRatePct: liveRate, cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price, cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft, cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl },
+                    paramOverrides: { purchasePrice: price, downPaymentPct: _cmaDown, annualRatePct: liveRate, ...(_cmaLoanType ? { loanType: _cmaLoanType } : {}), ..._cmaBase },
                 },
-                {
-                    label: `VA loan on this home — no down payment`,
-                    seed: `VA loan on a ${priceFmtCMA} home with no down payment at ${liveRate}%`,
-                    paramOverrides: {
-                        purchasePrice: price, downPaymentPct: 0, annualRatePct: liveRate, loanType: 'va',
-                        cmaAddress: addr, cmaCity: city, cmaState: state, cmaPrice: price,
-                        cmaBeds: beds, cmaBaths: baths, cmaSqft: sqft,
-                        cmaTaxAnnual: taxAnnual, cmaTaxRate: taxRate, cmaLiveRate: liveRate, cmaPhotoUrl: photoUrl,
+                isJumboCMA
+                    ? {
+                        label: `30% down — how does payment change?`,
+                        seed: `Jumbo loan on a ${priceFmtCMA} home with 30% down at ${liveRate}%`,
+                        paramOverrides: { purchasePrice: price, downPaymentPct: 30, annualRatePct: liveRate, loanType: 'jumbo', ..._cmaBase },
+                    }
+                    : {
+                        label: `VA loan on this home — no down payment`,
+                        seed: `VA loan on a ${priceFmtCMA} home with no down payment at ${liveRate}%`,
+                        paramOverrides: { purchasePrice: price, downPaymentPct: 0, annualRatePct: liveRate, loanType: 'va', ..._cmaBase },
                     },
-                },
             ];
             // Use Grok chips if they exist, but always override with our structured chips
             cmaFinal.follow_up_chips = cmaChips;
