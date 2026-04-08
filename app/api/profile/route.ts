@@ -162,5 +162,26 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // Write-back to pro_directory — keep the claimed listing in sync with profile edits
+  // Only updates enrichment fields (bio/phone/website); never touches source data or claimed_by
+  const { data: dirListing } = await sb
+    .from("pro_directory")
+    .select("id")
+    .eq("claimed_by", userId)
+    .maybeSingle();
+
+  if (dirListing) {
+    const dirUpdates: Record<string, string | null> = {};
+    if (bio     !== undefined) dirUpdates.bio     = bio?.trim()     || null;
+    if (phone   !== undefined) dirUpdates.phone   = phone?.trim()   || null;
+    if (website !== undefined) dirUpdates.website = website?.trim() || null;
+    if (Object.keys(dirUpdates).length > 0) {
+      await sb
+        .from("pro_directory")
+        .update({ ...dirUpdates, updated_at: new Date().toISOString() })
+        .eq("id", dirListing.id);
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
