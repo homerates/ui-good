@@ -21,6 +21,7 @@ interface ProCardData {
   officeAddress: string | null;
   licenseState: string | null;
   role: string;
+  imageUrl: string | null;
 }
 
 // PII patterns to block from being sent
@@ -113,6 +114,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
         officeAddress: null,
         licenseState: null,
         role: thread.professional_type ?? "lo",
+        imageUrl: proClerk.imageUrl ?? null,
       };
 
       if (thread.professional_type === "agent") {

@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useClerk } from "@clerk/nextjs";
 import AppNav from "../components/AppNav";
 
 interface ProfileData {
@@ -49,6 +50,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function ProfilePage() {
+  const { openUserProfile } = useClerk();
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -146,6 +148,26 @@ export default function ProfilePage() {
         <div className="pr-container">
 
           <div className="pr-header">
+            <div className="pr-avatar-row">
+              {data?.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={data.photoUrl} alt="Profile photo" className="pr-avatar-img" />
+              ) : (
+                <div className="pr-avatar-initials">
+                  {(data?.clerkName || data?.full_name || "?").charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="pr-avatar-meta">
+                <div className="pr-avatar-name">{data?.clerkName || data?.full_name || "—"}</div>
+                <button
+                  type="button"
+                  className="pr-avatar-change"
+                  onClick={() => openUserProfile()}
+                >
+                  Change photo →
+                </button>
+              </div>
+            </div>
             <h1 className="pr-title">My Profile</h1>
             <p className="pr-sub">
               {showPro
@@ -447,6 +469,29 @@ export default function ProfilePage() {
 .pr-container { max-width: 580px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
         .pr-header { margin-bottom: 2rem; }
+        .pr-avatar-row {
+          display: flex; align-items: center; gap: 14px; margin-bottom: 1.25rem;
+        }
+        .pr-avatar-img {
+          width: 64px; height: 64px; border-radius: 50%;
+          object-fit: cover; border: 2px solid rgba(0,232,122,0.3);
+          flex-shrink: 0;
+        }
+        .pr-avatar-initials {
+          width: 64px; height: 64px; border-radius: 50%;
+          background: linear-gradient(135deg, #0e2a1a, #0a1f14);
+          border: 2px solid rgba(0,232,122,0.2);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 1.5rem; font-weight: 800; color: #00e87a; flex-shrink: 0;
+        }
+        .pr-avatar-meta { display: flex; flex-direction: column; gap: 3px; }
+        .pr-avatar-name { font-size: 1rem; font-weight: 700; color: #f0f4ff; }
+        .pr-avatar-change {
+          font-size: 0.75rem; color: #3d8bff;
+          background: none; border: none; padding: 0; cursor: pointer;
+          font-family: inherit;
+        }
+        .pr-avatar-change:hover { text-decoration: underline; }
         .pr-title { font-family: 'DM Sans', sans-serif; font-size: 1.75rem; font-weight: 700; margin: 0 0 0.4rem; }
         .pr-sub { font-size: 0.9rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
 

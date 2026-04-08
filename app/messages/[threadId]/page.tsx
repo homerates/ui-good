@@ -47,6 +47,7 @@ interface ProCard {
   officeAddress: string | null;
   licenseState: string | null;
   role: string;
+  imageUrl: string | null;
 }
 
 export default function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
@@ -176,9 +177,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 {/* Professional card (shown to borrower) */}
                 {isBorrower && proCard && (
                   <div className="ch-pro-card">
-                    <div className="ch-pro-card-avatar">
-                      {(proCard.name ?? proLabel).charAt(0).toUpperCase()}
-                    </div>
+                    {proCard.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={proCard.imageUrl} alt={proCard.name ?? proLabel} className="ch-pro-card-avatar-img" />
+                    ) : (
+                      <div className="ch-pro-card-avatar">
+                        {(proCard.name ?? proLabel).charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div className="ch-pro-card-body">
                       <div className="ch-pro-card-name">{proCard.name ?? proLabel}</div>
                       {proCard.title && <div className="ch-pro-card-title">{proCard.title}</div>}
@@ -437,11 +443,16 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           margin-top: 4px;
         }
         .ch-pro-card-avatar {
-          width: 48px; height: 48px; border-radius: 50%;
+          width: 56px; height: 56px; border-radius: 50%;
           background: linear-gradient(135deg, #00e87a22, #00e87a44);
           border: 2px solid rgba(0,232,122,0.3);
           display: flex; align-items: center; justify-content: center;
-          font-size: 1.2rem; font-weight: 800; color: #00e87a;
+          font-size: 1.3rem; font-weight: 800; color: #00e87a;
+          flex-shrink: 0;
+        }
+        .ch-pro-card-avatar-img {
+          width: 56px; height: 56px; border-radius: 50%;
+          object-fit: cover; border: 2px solid rgba(0,232,122,0.3);
           flex-shrink: 0;
         }
         .ch-pro-card-body { flex: 1; min-width: 0; }
