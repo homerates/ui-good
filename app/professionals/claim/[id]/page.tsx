@@ -91,8 +91,7 @@ export default function ClaimPage() {
         html:has(.cl-root){height:auto!important;overflow:visible!important}
         .cl-root{min-height:100vh;background:#080c12;color:#f0f4ff;font-family:'DM Sans',system-ui,sans-serif}
         .cl-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;background:rgba(8,12,18,0.96);border-bottom:1px solid rgba(255,255,255,0.07)}
-        .cl-logo{font-size:1.1rem;font-weight:700;color:#fff;text-decoration:none;letter-spacing:-0.02em}
-        .cl-logo span{color:#00e87a}
+        .cl-logo img{height:26px;display:block}
         .cl-shell{max-width:520px;margin:0 auto;padding:4rem 1.5rem 5rem;text-align:center}
         .cl-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:20px;padding:2.5rem 2rem;margin-bottom:1.5rem}
         .cl-badge{display:inline-block;font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(61,139,255,0.12);color:#3d8bff;border:1px solid rgba(61,139,255,0.25);margin-bottom:1rem}
@@ -115,7 +114,8 @@ export default function ClaimPage() {
 
       <div className="cl-root">
         <nav className="cl-nav">
-          <Link href="/" className="cl-logo">HomeRates<span>.ai</span></Link>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <Link href="/" className="cl-logo"><img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" /></Link>
           <AppNav drawerOnly />
         </nav>
 
