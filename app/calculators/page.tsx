@@ -159,7 +159,7 @@ export default function CalculatorsPage() {
                     <h1 className="calc-h1">Mortgage Calculators</h1>
                     <p className="calc-lead">
                         Free calculators built on 2026 HUD and FHFA guidelines, live FRED rate data,
-                        and deterministic math — no AI guesswork in the numbers.
+                        and deterministic math — no AI guesswork in the numbers. Built by HomeRates.ai.
                     </p>
 
                     <div className="calc-grid">
