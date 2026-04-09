@@ -5500,8 +5500,15 @@ CRITICAL: Use Rentcast AVM value (${fmt(estimatedValue)}) as the property value.
             return !isIncome;
         });
     })();
+    // "what income do I need for a $500k home" is a REVERSE calc — it has a home price but
+    // it's NOT a payment calc — it MUST go through the affordability path, not the mortgage calc.
+    const isIncomeNeededQuery = /(?:what|how much)\s+income.{0,30}(?:need|qualify|required|to buy)/i.test(question) ||
+        /(?:what|how much)\s+salary.{0,30}(?:need|qualify|required)/i.test(question) ||
+        /income.{0,20}(?:need|required).{0,20}(?:qualify|home|house|mortgage)/i.test(question) ||
+        /do i qualify|can i qualify/i.test(question);
     const hasSpecificHomePrice = hasNonIncomePrice &&
-        /\b(?:home|house|property|purchase|payment on|on a)\b/i.test(question);
+        /\b(?:home|house|property|purchase|payment on|on a)\b/i.test(question) &&
+        !isIncomeNeededQuery;  // income-needed queries have a home price but must use affordability
     const hasFHAWithPrice = /\bfha\b/i.test(question) ? true : hasSpecificHomePrice;
 
     const isPureRateInfo =
