@@ -1,6 +1,7 @@
 // app/unbiased-mortgage-rates/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
   title: 'Unbiased Mortgage Rates and Affordability Tool 2026 | HomeRates.AI',
@@ -53,7 +54,10 @@ export default function UnbiasedMortgageRatesPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.AI" className="pl-logo" />
             </Link>
-            <Link href="/chat" className="pl-cta-link">Get live rates →</Link>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <Link href="/chat" className="pl-cta-link">Get live rates →</Link>
+              <AppNav drawerOnly />
+            </div>
           </div>
         </header>
         <main className="pl-main">

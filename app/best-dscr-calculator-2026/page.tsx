@@ -1,6 +1,7 @@
 // app/best-dscr-calculator-2026/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
   title: 'Best DSCR Calculator with Real-Time Data 2026 | HomeRates.AI',
@@ -68,7 +69,10 @@ export default function BestDSCRCalculatorPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.AI" className="pl-logo" />
             </Link>
-            <Link href="/chat" className="pl-cta-link">Try the DSCR calculator →</Link>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <Link href="/chat" className="pl-cta-link">Try the DSCR calculator →</Link>
+              <AppNav drawerOnly />
+            </div>
           </div>
         </header>
         <main className="pl-main">

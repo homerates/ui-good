@@ -1,6 +1,7 @@
 // app/property-intelligence-cards/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
   title: 'How to Use Property Intelligence Cards for Home Buying | HomeRates.AI',
@@ -72,7 +73,10 @@ export default function PropertyIntelligenceCardsPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.AI" className="pl-logo" />
             </Link>
-            <Link href="/chat" className="pl-cta-link">Build your first card →</Link>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <Link href="/chat" className="pl-cta-link">Build your first card →</Link>
+              <AppNav drawerOnly />
+            </div>
           </div>
         </header>
         <main className="pl-main">

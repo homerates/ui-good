@@ -1,6 +1,7 @@
 // app/private-vault-mortgage/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
   title: 'Private Vault Mortgage Intelligence — No Lead Gen | HomeRates.AI',
@@ -64,7 +65,10 @@ export default function PrivateVaultMortgagePage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.AI" className="pl-logo" />
             </Link>
-            <Link href="/chat" className="pl-cta-link">Try free →</Link>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <Link href="/chat" className="pl-cta-link">Try free →</Link>
+              <AppNav drawerOnly />
+            </div>
           </div>
         </header>
         <main className="pl-main">

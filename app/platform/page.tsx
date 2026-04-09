@@ -2,6 +2,7 @@
 // Hub page for all 7 Platform Intelligence pillar pages
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
   title: 'Platform Intelligence — How HomeRates.AI Works | HomeRates.AI',
@@ -166,6 +167,7 @@ export default function PlatformPage() {
               <Link href="/about" className="ph-nav-link">About</Link>
               <Link href="/why-homerates" className="ph-nav-link">Why HomeRates</Link>
               <Link href="/chat" className="ph-cta-link">Try free →</Link>
+              <AppNav drawerOnly />
             </nav>
           </div>
         </header>

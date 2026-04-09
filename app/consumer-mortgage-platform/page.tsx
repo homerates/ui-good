@@ -1,6 +1,7 @@
 // app/consumer-mortgage-platform/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
   title: 'Consumer-Controlled Mortgage Platform vs Traditional Lead-Gen Sites | HomeRates.AI',
@@ -55,7 +56,10 @@ export default function ConsumerMortgagePlatformPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.AI" className="pl-logo" />
             </Link>
-            <Link href="/chat" className="pl-cta-link">Try free →</Link>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <Link href="/chat" className="pl-cta-link">Try free →</Link>
+              <AppNav drawerOnly />
+            </div>
           </div>
         </header>
         <main className="pl-main">
