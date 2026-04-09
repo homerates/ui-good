@@ -1145,7 +1145,11 @@ export default function Page() {
         { id: string; title: string; updatedAt?: number }[]
     >([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+    // Set to true when typewriter finishes — suppresses autoscroll so we can
+    // scroll back to the TOP of the new message instead of leaving at bottom
+    const suppressAutoScrollRef = React.useRef(false);
     useEffect(() => {
+        if (suppressAutoScrollRef.current) return;
         const el = scrollRef.current;
         if (!el) return;
 
@@ -1384,8 +1388,9 @@ export default function Page() {
         });
     }, [messages, activeId]);
 
-    // autoscroll
+    // autoscroll — suppressed when typewriter finishes (we scroll to top of message instead)
     useEffect(() => {
+        if (suppressAutoScrollRef.current) return;
         scrollRef.current?.scrollTo({
             top: scrollRef.current.scrollHeight,
             behavior: 'smooth',
@@ -1716,7 +1721,14 @@ export default function Page() {
                             m.id === id ? { ...m, content: full } : m
                         )
                     );
+                    // Suppress autoscroll-to-bottom so we can scroll to top of this message
+                    suppressAutoScrollRef.current = true;
                     setTypingId(null);
+                    setTimeout(() => {
+                        suppressAutoScrollRef.current = false;
+                        const el = document.querySelector(`[data-message-id="${id}"]`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
                     return;
                 }
 
