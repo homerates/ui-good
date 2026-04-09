@@ -4,6 +4,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AppNav from "../components/AppNav";
 import JumboAffordabilitySliderCard from '@/components/JumboAffordabilitySliderCard';
 import { NATIONAL_CONFORMING_BASELINE } from '@/loanLimits2026';
 
@@ -176,9 +177,10 @@ export default function JumboCalculatorPage() {
                                 className="jc-logo"
                             />
                         </Link>
-                        <Link href="/chat" className="jc-chat-link">
-                            Chat with an expert →
-                        </Link>
+                        <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+                          <Link href="/chat" className="jc-chat-link">Chat with an expert →</Link>
+                          <AppNav drawerOnly />
+                        </div>
                     </div>
                 </header>
 
