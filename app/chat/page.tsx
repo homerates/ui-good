@@ -1721,14 +1721,20 @@ export default function Page() {
                             m.id === id ? { ...m, content: full } : m
                         )
                     );
-                    // Suppress autoscroll-to-bottom so we can scroll to top of this message
+                    // Suppress autoscroll-to-bottom so we can scroll to top of this message.
+                    // Keep suppressed for 800ms — slider/lenderChecklist meta arrives shortly
+                    // after typewriter ends and would re-trigger scroll-to-bottom without this.
                     suppressAutoScrollRef.current = true;
                     setTypingId(null);
-                    setTimeout(() => {
-                        suppressAutoScrollRef.current = false;
+                    // Scroll to top of message immediately
+                    requestAnimationFrame(() => {
                         const el = document.querySelector(`[data-message-id="${id}"]`);
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 50);
+                    });
+                    // Release suppression after meta updates have landed
+                    setTimeout(() => {
+                        suppressAutoScrollRef.current = false;
+                    }, 800);
                     return;
                 }
 
