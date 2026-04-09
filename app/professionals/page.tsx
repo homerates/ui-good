@@ -342,15 +342,9 @@ export default function ProfessionalsPage() {
                           <Link href={`/professionals/${pro.id}`} className="pd-claim-btn">View profile →</Link>
                         </>
                       ) : (
-                        <>
-                          <Link href={`/professionals/${pro.id}`} className="pd-contact-btn" style={{ flex: 1, textAlign: "center" }}>View</Link>
-                          <Link
-                            href={`/sign-up?redirect_url=/professionals/claim/${pro.id}`}
-                            className="pd-claim-btn"
-                          >
-                            Claim listing →
-                          </Link>
-                        </>
+                        <Link href={`/professionals/${pro.id}`} className="pd-claim-btn">
+                          View profile →
+                        </Link>
                       )}
                     </div>
                   </div>
