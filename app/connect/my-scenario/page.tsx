@@ -151,7 +151,6 @@ export default function MyScenarioPage() {
           <Link href="/connect" className="ms-nav-logo">
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
-          <span className="ms-nav-label">My Scenario</span>
           <div className="ms-nav-actions">
             <Link href="/chat" className="ms-nav-btn">AI Chat</Link>
             <Link href="/dashboard" className="ms-nav-btn">Dashboard</Link>
@@ -378,7 +377,7 @@ export default function MyScenarioPage() {
         .ms-nav-btn-primary { background: #00e87a; color: #080c12 !important; border-color: transparent !important; }
         .ms-nav-btn-primary:hover { opacity: 0.88; }
 
-        .ms-container { max-width: 680px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+        .ms-container { max-width: 860px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
         .ms-loading, .ms-empty { text-align: center; padding: 5rem 0; color: #8fa3b8; }
         .ms-empty-icon { font-size: 2.5rem; margin-bottom: 1rem; }

@@ -8,6 +8,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
+import AppNav from "../../components/AppNav";
 
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "DSCR", "Other"];
 const PURPOSES = ["Purchase", "Refinance"];
@@ -181,7 +182,7 @@ function PostScenarioContent() {
           <Link href="/connect" className="post-nav-logo">
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Usage badge — shown once quota loads and limit is finite */}
             {!quotaLoading && quota && quota.limit !== null && (
               <span className={`post-quota-badge ${quota.allowed ? (quota.used >= quota.limit - 1 ? 'warn' : '') : 'full'}`}>
@@ -190,7 +191,7 @@ function PostScenarioContent() {
                   : `${quota.limit} of ${quota.limit} posts used — limit reached`}
               </span>
             )}
-            <span className="post-nav-label">Post Your Scenario</span>
+            <AppNav drawerOnly />
           </div>
         </nav>
 
@@ -627,7 +628,7 @@ function PostScenarioContent() {
         .post-nav-logo img { height: 28px; }
         .post-nav-label { font-size: 0.85rem; color: #8fa3b8; }
 
-        .post-container { max-width: 560px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+        .post-container { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
 
         /* ── Scenario attached banner (Path A) ── */
         .post-scenario-banner {
