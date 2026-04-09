@@ -353,6 +353,24 @@ export default function ProProfilePage() {
                 </div>
               )}
 
+              {/* Know this pro? Invite them — signed-out users see a sign-in prompt */}
+              {!isClaimed && userLoaded && !user && (
+                <div style={{
+                  background: "#141414", border: "1px solid #222", borderRadius: 16,
+                  padding: "20px 28px", marginBottom: 20,
+                  display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+                }}>
+                  <div style={{ color: "#666", fontSize: 14 }}>
+                    Know this professional? Sign in to send them an invite.
+                  </div>
+                  <Link href={`/sign-in?redirect_url=/professionals/${pro.id}`} style={{
+                    color: "#3d8bff", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
+                  }}>
+                    Sign in →
+                  </Link>
+                </div>
+              )}
+
               {/* Know this pro? Invite them — visible to signed-in users on unclaimed listings */}
               {!isClaimed && userLoaded && user && (
                 <div style={{
