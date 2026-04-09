@@ -9,6 +9,7 @@ export default function LandingPage() {
   const router = useRouter();
   const [cmdInput, setCmdInput] = useState('');
   const [propInput, setPropInput] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const cmdRef = useRef<HTMLInputElement>(null);
 
   function goChat(q: string) {
@@ -393,7 +394,7 @@ export default function LandingPage() {
           color: var(--text);
           padding: 14px 0;
         }
-        .lp-cmd-input::placeholder { color: var(--text-dim); }
+        .lp-cmd-input::placeholder { color: rgba(143,163,184,0.45); }
         .lp-cmd-send {
           flex-shrink: 0;
           width: 44px;
@@ -412,7 +413,7 @@ export default function LandingPage() {
         .lp-cmd-hint {
           font-family: 'DM Mono', monospace;
           font-size: 10px;
-          color: var(--text-dim);
+          color: rgba(143,163,184,0.65);
           letter-spacing: 0.08em;
           padding-left: 4px;
           margin-top: 8px;
@@ -458,7 +459,7 @@ export default function LandingPage() {
           font-family: 'DM Mono', monospace;
           font-size: 9px;
           font-weight: 500;
-          color: var(--text-dim);
+          color: rgba(143,163,184,0.7);
           letter-spacing: 0.16em;
           text-transform: uppercase;
           margin-bottom: 10px;
@@ -477,7 +478,7 @@ export default function LandingPage() {
           border-color: rgba(61,139,255,0.4);
           box-shadow: 0 0 0 4px rgba(61,139,255,0.12);
         }
-        .lp-prop-icon { color: var(--text-dim); flex-shrink: 0; display: flex; align-items: center; }
+        .lp-prop-icon { color: rgba(143,163,184,0.5); flex-shrink: 0; display: flex; align-items: center; }
         .lp-prop-input {
           flex: 1;
           background: none;
@@ -488,7 +489,7 @@ export default function LandingPage() {
           color: var(--text);
           padding: 13px 0;
         }
-        .lp-prop-input::placeholder { color: var(--text-dim); }
+        .lp-prop-input::placeholder { color: rgba(143,163,184,0.45); }
         .lp-prop-btn {
           flex-shrink: 0;
           font-family: 'DM Sans', sans-serif;
@@ -508,7 +509,7 @@ export default function LandingPage() {
         .lp-prop-hint {
           font-family: 'DM Mono', monospace;
           font-size: 10px;
-          color: var(--text-dim);
+          color: rgba(143,163,184,0.6);
           letter-spacing: 0.06em;
           margin-top: 8px;
           padding-left: 4px;
@@ -543,7 +544,7 @@ export default function LandingPage() {
           font-family: 'DM Mono', monospace;
           font-size: 10px;
           font-weight: 500;
-          color: var(--text-dim);
+          color: rgba(143,163,184,0.65);
           letter-spacing: 0.16em;
           text-transform: uppercase;
           margin-bottom: 20px;
@@ -701,16 +702,131 @@ export default function LandingPage() {
           display: flex; align-items: center; justify-content: space-between;
           border-top: 1px solid var(--border);
         }
-        .lp-footer-left { font-size: 12px; color: var(--text-dim); line-height: 1.6; max-width: 480px; }
+        .lp-footer-left { font-size: 12px; color: var(--text-muted); line-height: 1.6; max-width: 480px; }
         .lp-footer-links { display: flex; gap: 24px; }
-        .lp-footer-links a { font-size: 12px; color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
-        .lp-footer-links a:hover { color: var(--text-muted); }
+        .lp-footer-links a { font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        .lp-footer-links a:hover { color: var(--text); }
+
+        /* MOBILE HAMBURGER BUTTON */
+        .lp-mobile-ham {
+          display: none;
+          background: none;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px;
+          cursor: pointer;
+          padding: 8px 10px;
+          color: var(--text-muted);
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          font-size: 18px;
+          line-height: 1;
+        }
+
+        /* MOBILE FULL-SCREEN MENU */
+        .lp-mobile-menu {
+          display: none;
+          position: fixed;
+          inset: 0;
+          z-index: 500;
+          background: #080c12;
+          flex-direction: column;
+          overflow: hidden;
+        }
+        .lp-mobile-menu.lp-menu-open { display: flex; }
+        .lp-mobile-menu-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 20px;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          flex-shrink: 0;
+        }
+        .lp-mobile-menu-close {
+          background: none;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px;
+          cursor: pointer;
+          color: var(--text-muted);
+          font-size: 20px;
+          padding: 6px 12px;
+          line-height: 1;
+        }
+        .lp-mobile-menu-body {
+          flex: 1;
+          overflow-y: auto;
+          padding-bottom: 24px;
+        }
+        .lp-mobile-menu-section-label {
+          font-family: 'DM Mono', monospace;
+          font-size: 9px;
+          letter-spacing: 0.18em;
+          color: rgba(143,163,184,0.5);
+          text-transform: uppercase;
+          padding: 20px 24px 8px;
+        }
+        .lp-mobile-menu-link {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 15px 24px;
+          font-size: 15px;
+          font-weight: 500;
+          color: var(--text);
+          text-decoration: none;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          transition: background 0.15s;
+        }
+        .lp-mobile-menu-link:active,
+        .lp-mobile-menu-link:hover { background: rgba(255,255,255,0.04); }
+        .lp-mobile-menu-link-icon { font-size: 17px; width: 24px; text-align: center; flex-shrink: 0; }
+        .lp-mobile-menu-link-sub { font-size: 12px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+        .lp-mobile-menu-link-inner { display: flex; flex-direction: column; }
+        .lp-mobile-menu-ctas {
+          padding: 20px 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          border-top: 1px solid rgba(255,255,255,0.07);
+          flex-shrink: 0;
+        }
+        .lp-mobile-menu-cta-primary {
+          display: block;
+          width: 100%;
+          padding: 14px;
+          background: var(--green);
+          color: #000;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 15px;
+          font-weight: 700;
+          text-align: center;
+          border: none;
+          border-radius: 10px;
+          cursor: pointer;
+          text-decoration: none;
+        }
+        .lp-mobile-menu-cta-ghost {
+          display: block;
+          width: 100%;
+          padding: 13px;
+          background: none;
+          color: var(--text-muted);
+          font-family: 'DM Sans', sans-serif;
+          font-size: 15px;
+          font-weight: 500;
+          text-align: center;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 10px;
+          cursor: pointer;
+          text-decoration: none;
+        }
 
         /* MOBILE */
         @media (max-width: 768px) {
           .lp-nav { padding: 14px 20px; }
           .lp-nav-links { display: none; }
           .lp-btn-ghost { display: none; }
+          .lp-mobile-ham { display: flex; }
           .lp-hero { padding: 40px 20px; }
           .lp-headline { font-size: 38px; }
           .lp-sub { font-size: 15px; margin-bottom: 32px; }
@@ -727,8 +843,10 @@ export default function LandingPage() {
           .lp-chat-window { display: none; }
           .lp-stats { padding: 48px 20px; }
           .lp-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 28px; }
-          .lp-footer { flex-direction: column; gap: 24px; padding: 32px 20px; text-align: center; }
-          .lp-footer-links { justify-content: center; }
+          .lp-footer { flex-direction: column; gap: 20px; padding: 32px 20px; text-align: center; }
+          .lp-footer-left { font-size: 11px; }
+          .lp-footer-links { justify-content: center; flex-wrap: wrap; gap: 16px; }
+          .lp-footer-links a { font-size: 12px; }
         }
       `}</style>
 
@@ -784,8 +902,88 @@ export default function LandingPage() {
               <Link href="/chat" className="lp-btn-primary">Open chat</Link>
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
+            {/* Hamburger — mobile only */}
+            <button className="lp-mobile-ham" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
+              ☰
+            </button>
           </div>
         </nav>
+
+        {/* MOBILE FULL-SCREEN MENU */}
+        <div className={`lp-mobile-menu${mobileMenuOpen ? ' lp-menu-open' : ''}`}>
+          <div className="lp-mobile-menu-head">
+            <Link href="/" className="lp-nav-logo" onClick={() => setMobileMenuOpen(false)}>
+              <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            </Link>
+            <button className="lp-mobile-menu-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">✕</button>
+          </div>
+          <div className="lp-mobile-menu-body">
+            <div className="lp-mobile-menu-section-label">Platform</div>
+            <Link href="/chat" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">💬</span>
+              <div className="lp-mobile-menu-link-inner">
+                <span>AI Chat</span>
+                <span className="lp-mobile-menu-link-sub">Ask any mortgage question</span>
+              </div>
+            </Link>
+            <Link href="/chat" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">⚡</span>
+              <div className="lp-mobile-menu-link-inner">
+                <span>Scenario Engine</span>
+                <span className="lp-mobile-menu-link-sub">Payment breakdowns & comparisons</span>
+              </div>
+            </Link>
+            <Link href="/chat" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">🧠</span>
+              <div className="lp-mobile-menu-link-inner">
+                <span>HomeRates Lab</span>
+                <span className="lp-mobile-menu-link-sub">Policy & guideline answers</span>
+              </div>
+            </Link>
+            <Link href="/homeowner" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">🏡</span>
+              <div className="lp-mobile-menu-link-inner">
+                <span>Home Value</span>
+                <span className="lp-mobile-menu-link-sub">Estimate & refi readiness</span>
+              </div>
+            </Link>
+            <div className="lp-mobile-menu-section-label">Resources</div>
+            <Link href="/market-news" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">📰</span>
+              <div className="lp-mobile-menu-link-inner"><span>Market News</span></div>
+            </Link>
+            <Link href="/knowledge-hub" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">📚</span>
+              <div className="lp-mobile-menu-link-inner"><span>Knowledge Hub</span></div>
+            </Link>
+            <Link href="/loan-limits" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">🏠</span>
+              <div className="lp-mobile-menu-link-inner"><span>Loan Limits 2026</span></div>
+            </Link>
+            <Link href="/calculators" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">🧮</span>
+              <div className="lp-mobile-menu-link-inner"><span>Calculators</span></div>
+            </Link>
+            <Link href="/compare" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">⚖️</span>
+              <div className="lp-mobile-menu-link-inner"><span>Compare Scenarios</span></div>
+            </Link>
+            <Link href="/platform" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">🔬</span>
+              <div className="lp-mobile-menu-link-inner"><span>Platform Intelligence</span></div>
+            </Link>
+          </div>
+          <div className="lp-mobile-menu-ctas">
+            <Link href="/chat" className="lp-mobile-menu-cta-primary" onClick={() => setMobileMenuOpen(false)}>
+              Try free — no sign up required
+            </Link>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="lp-mobile-menu-cta-ghost" onClick={() => setMobileMenuOpen(false)}>Sign in</button>
+              </SignInButton>
+            </SignedOut>
+          </div>
+        </div>
 
         {/* HERO */}
         <section className="lp-hero">
