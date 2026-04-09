@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import AppNav from "../../components/AppNav";
 
@@ -71,10 +72,39 @@ export default function ProProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params?.id;
+  const { user, isLoaded: userLoaded } = useUser();
 
   const [pro, setPro]       = useState<Pro | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  // Invite state
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function sendInvite() {
+    if (!pro || !inviteEmail.trim()) return;
+    setInviting(true);
+    setInviteResult(null);
+    try {
+      const res = await fetch("/api/pro-directory/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pro_dir_id: pro.id, email: inviteEmail.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setInviteResult({ ok: true, message: "Invite sent! They'll receive an email with a link to claim their profile." });
+      } else {
+        setInviteResult({ ok: false, message: data.message ?? data.error ?? "Failed to send invite." });
+      }
+    } catch {
+      setInviteResult({ ok: false, message: "Network error. Please try again." });
+    } finally {
+      setInviting(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -320,6 +350,59 @@ export default function ProProfilePage() {
                   }}>
                     Start →
                   </Link>
+                </div>
+              )}
+
+              {/* Know this pro? Invite them — visible to signed-in users on unclaimed listings */}
+              {!isClaimed && userLoaded && user && (
+                <div style={{
+                  background: "#141414", border: "1px solid #222", borderRadius: 16,
+                  padding: "24px 28px", marginBottom: 20,
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#555", letterSpacing: "0.08em", marginBottom: 12, textTransform: "uppercase" }}>
+                    Know this professional?
+                  </div>
+                  <p style={{ margin: "0 0 16px", color: "#888", fontSize: 14, lineHeight: 1.6 }}>
+                    If you have their email, send them an invite to claim this profile.
+                  </p>
+                  {inviteResult ? (
+                    <div style={{
+                      padding: "12px 16px", borderRadius: 10, fontSize: 14,
+                      background: inviteResult.ok ? "rgba(0,232,122,0.08)" : "rgba(255,68,68,0.08)",
+                      color: inviteResult.ok ? "#00e87a" : "#ff4444",
+                      border: `1px solid ${inviteResult.ok ? "rgba(0,232,122,0.2)" : "rgba(255,68,68,0.2)"}`,
+                    }}>
+                      {inviteResult.message}
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <input
+                        type="email"
+                        placeholder="their@email.com"
+                        value={inviteEmail}
+                        onChange={e => setInviteEmail(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") sendInvite(); }}
+                        style={{
+                          flex: "1 1 200px", padding: "10px 14px",
+                          background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 10,
+                          color: "#f0f0f0", fontSize: 14, outline: "none", fontFamily: "inherit",
+                        }}
+                      />
+                      <button
+                        onClick={sendInvite}
+                        disabled={inviting || !inviteEmail.trim()}
+                        style={{
+                          padding: "10px 20px", background: "#3d8bff", color: "#fff",
+                          border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14,
+                          cursor: inviting || !inviteEmail.trim() ? "not-allowed" : "pointer",
+                          opacity: inviting || !inviteEmail.trim() ? 0.5 : 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {inviting ? "Sending…" : "Send invite"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

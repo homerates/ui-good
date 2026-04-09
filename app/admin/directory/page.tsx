@@ -34,6 +34,7 @@ type Listing = {
   phone: string | null;
   website: string | null;
   bio: string | null;
+  invited_at: string | null;
 };
 
 export default function AdminDirectory() {
@@ -55,6 +56,12 @@ export default function AdminDirectory() {
   const [actionTarget, setActionTarget] = useState<Listing | null>(null);
   const [actionNote, setActionNote] = useState("");
   const [acting, setActing] = useState(false);
+
+  // Invite state
+  const [inviteTarget, setInviteTarget] = useState<Listing | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ ok: boolean; message?: string } | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -127,6 +134,31 @@ export default function AdminDirectory() {
     }
   }
 
+  async function handleInvite() {
+    if (!inviteTarget || !inviteEmail.trim()) return;
+    setInviting(true);
+    setInviteResult(null);
+    try {
+      const res = await fetch("/api/pro-directory/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pro_dir_id: inviteTarget.id, email: inviteEmail.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setInviteResult({ ok: true, message: "Invite sent!" });
+        // Update the listing row locally so the badge appears without a reload
+        setListings(prev => prev.map(l =>
+          l.id === inviteTarget.id ? { ...l, invited_at: new Date().toISOString() } : l
+        ));
+      } else {
+        setInviteResult({ ok: false, message: data.message ?? data.error ?? "Failed to send." });
+      }
+    } finally {
+      setInviting(false);
+    }
+  }
+
   const isFlagged = (l: Listing) => l.license_status === "Flagged";
   const isClaimed = (l: Listing) => !!l.claimed_by;
 
@@ -190,6 +222,15 @@ export default function AdminDirectory() {
         .addir-modal-btn.confirm-flag{background:rgba(255,95,95,0.15);color:#ff5f5f}
         .addir-modal-btn.confirm-restore{background:rgba(0,232,122,0.15);color:#00e87a}
         .addir-modal-textarea{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.6rem;color:#f0f4ff;font-size:0.82rem;resize:vertical;min-height:60px;font-family:inherit;outline:none;margin-top:0.75rem}
+        .addir-invite-btn{background:rgba(61,139,255,0.12);color:#3d8bff}
+        .addir-badge-invited{background:rgba(61,139,255,0.08);color:#3d8bff;border-color:rgba(61,139,255,0.2)}
+        .addir-modal-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.6rem 0.8rem;color:#f0f4ff;font-size:0.9rem;font-family:inherit;outline:none;margin-top:0.75rem}
+        .addir-modal-input:focus{border-color:rgba(61,139,255,0.4)}
+        .addir-modal-input::placeholder{color:rgba(255,255,255,0.2)}
+        .addir-invite-result{font-size:0.8rem;margin-top:0.5rem;padding:0.4rem 0.6rem;border-radius:6px}
+        .addir-invite-result.ok{background:rgba(0,232,122,0.08);color:#00e87a}
+        .addir-invite-result.err{background:rgba(255,95,95,0.08);color:#ff5f5f}
+        .confirm-invite{background:rgba(61,139,255,0.15);color:#3d8bff}
 
         @media(max-width:700px){.addir-shell{padding:1.5rem 1rem 4rem}.addir-filters{flex-direction:column}}
       `}</style>
@@ -262,7 +303,7 @@ export default function AdminDirectory() {
                     <th>Source</th>
                     <th>License #</th>
                     <th>Status</th>
-                    <th>Claimed</th>
+                    <th>Claimed / Invited</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -297,11 +338,23 @@ export default function AdminDirectory() {
                       <td>
                         {isClaimed(l) ? (
                           <span className="addir-badge-sm addir-badge-claimed">✓ Claimed</span>
+                        ) : l.invited_at ? (
+                          <span className="addir-badge-sm addir-badge-invited" title={`Invited ${new Date(l.invited_at).toLocaleDateString()}`}>
+                            ✉ Invited
+                          </span>
                         ) : (
                           <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>—</span>
                         )}
                       </td>
-                      <td style={{ whiteSpace: "nowrap" }}>
+                      <td style={{ whiteSpace: "nowrap", display: "flex", gap: 4, alignItems: "center" }}>
+                        {!isClaimed(l) && (
+                          <button
+                            className="addir-action-btn addir-invite-btn"
+                            onClick={() => { setInviteTarget(l); setInviteEmail(""); setInviteResult(null); }}
+                          >
+                            Invite
+                          </button>
+                        )}
                         {isFlagged(l) ? (
                           <button
                             className="addir-action-btn addir-restore-btn"
@@ -335,6 +388,50 @@ export default function AdminDirectory() {
           )}
         </div>
       </div>
+
+      {/* Invite modal */}
+      {inviteTarget && (
+        <div className="addir-modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setInviteTarget(null); setInviteResult(null); } }}>
+          <div className="addir-modal">
+            <h3>Invite to claim listing</h3>
+            <p>
+              <strong style={{ color: "#f0f4ff" }}>{inviteTarget.name}</strong><br />
+              {PRO_TYPE_LABEL[inviteTarget.pro_type] ?? inviteTarget.pro_type}
+              {inviteTarget.city ? ` · ${inviteTarget.city}, ${inviteTarget.state}` : ""}
+            </p>
+            <input
+              className="addir-modal-input"
+              type="email"
+              placeholder="Pro's email address"
+              value={inviteEmail}
+              onChange={e => { setInviteEmail(e.target.value); setInviteResult(null); }}
+              onKeyDown={e => { if (e.key === "Enter") handleInvite(); }}
+            />
+            {inviteResult && (
+              <div className={`addir-invite-result ${inviteResult.ok ? "ok" : "err"}`}>
+                {inviteResult.message}
+              </div>
+            )}
+            <div className="addir-modal-actions">
+              <button
+                className="addir-modal-btn cancel"
+                onClick={() => { setInviteTarget(null); setInviteResult(null); setInviteEmail(""); }}
+              >
+                {inviteResult?.ok ? "Close" : "Cancel"}
+              </button>
+              {!inviteResult?.ok && (
+                <button
+                  className="addir-modal-btn confirm-invite"
+                  disabled={inviting || !inviteEmail.trim()}
+                  onClick={handleInvite}
+                >
+                  {inviting ? "Sending…" : "Send invite"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Action modal */}
       {actionTarget && (

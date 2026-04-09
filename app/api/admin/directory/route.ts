@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   let query = sb
     .from("pro_directory")
     .select(
-      "id, source, source_id, pro_type, name, company_name, city, state, zip, license_type, license_status, claimed_by, claimed_at, phone, website, bio, photo_url",
+      "id, source, source_id, pro_type, name, company_name, city, state, zip, license_type, license_status, claimed_by, claimed_at, phone, website, bio, photo_url, invited_at",
       { count: "exact" }
     )
     .order("name", { ascending: true })
