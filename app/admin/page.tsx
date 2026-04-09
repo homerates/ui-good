@@ -51,8 +51,7 @@ export default function AdminDashboard() {
         html:has(.adm-root){height:auto!important;overflow:visible!important;background:#080c12!important}
         .adm-root{min-height:100vh;background:#080c12;color:#f0f4ff;font-family:'DM Sans',system-ui,sans-serif}
         .adm-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;background:rgba(8,12,18,0.96);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(8px)}
-        .adm-logo{font-size:1.1rem;font-weight:700;color:#fff;text-decoration:none;letter-spacing:-0.02em}
-        .adm-logo span{color:#00e87a}
+        .adm-logo img{height:26px;display:block}
         .adm-nav-links{display:flex;gap:1.5rem;align-items:center}
         .adm-nav-link{font-size:0.84rem;color:rgba(255,255,255,0.5);text-decoration:none;transition:color 0.2s}
         .adm-nav-link:hover,.adm-nav-link.active{color:#f0f4ff}
@@ -119,7 +118,10 @@ export default function AdminDashboard() {
 
       <div className="adm-root">
         <nav className="adm-nav">
-          <Link href="/" className="adm-logo">HomeRates<span>.ai</span></Link>
+          <Link href="/" className="adm-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+          </Link>
           <div className="adm-nav-links">
             <Link href="/admin" className="adm-nav-link active">Dashboard</Link>
             <Link href="/admin/directory" className="adm-nav-link">Directory</Link>

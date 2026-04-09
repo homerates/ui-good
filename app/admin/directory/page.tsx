@@ -169,8 +169,7 @@ export default function AdminDirectory() {
         html:has(.addir-root){height:auto!important;overflow:visible!important;background:#080c12!important}
         .addir-root{min-height:100vh;background:#080c12;color:#f0f4ff;font-family:'DM Sans',system-ui,sans-serif}
         .addir-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;background:rgba(8,12,18,0.96);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(8px)}
-        .addir-logo{font-size:1.1rem;font-weight:700;color:#fff;text-decoration:none;letter-spacing:-0.02em}
-        .addir-logo span{color:#00e87a}
+        .addir-logo img{height:26px;display:block}
         .addir-nav-links{display:flex;gap:1.5rem;align-items:center}
         .addir-nav-link{font-size:0.84rem;color:rgba(255,255,255,0.5);text-decoration:none;transition:color 0.2s}
         .addir-nav-link:hover,.addir-nav-link.active{color:#f0f4ff}
@@ -237,7 +236,10 @@ export default function AdminDirectory() {
 
       <div className="addir-root">
         <nav className="addir-nav">
-          <Link href="/" className="addir-logo">HomeRates<span>.ai</span></Link>
+          <Link href="/" className="addir-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+          </Link>
           <div className="addir-nav-links">
             <Link href="/admin" className="addir-nav-link">Dashboard</Link>
             <Link href="/admin/directory" className="addir-nav-link active">Directory</Link>
