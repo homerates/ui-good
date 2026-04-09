@@ -6513,7 +6513,10 @@ Return valid JSON only:
         topSources,
         grok: grokFinal || null,
         debug,
-        data_freshness: grokFinal ? `Live (${XAI_MODEL})` : "Legacy stack",
+        data_freshness: affordabilityAnswer ? 'Live (calcEngine-deterministic)'
+            : fhaAnswer ? 'Live (calcEngine-deterministic)'
+            : grokFinal ? `Live (${XAI_MODEL})`
+            : "Legacy stack",
         message,
         answerMarkdown: finalMarkdown,
         ...(hoPropertyCard && { propertyCard: hoPropertyCard }),
