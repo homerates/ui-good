@@ -9,6 +9,9 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+
+const ADMIN_IDS = new Set(["user_35xDE51bR0NTaKEpwZMbHtn752O"]);
 
 export interface AppNavProps {
   mode?: "standard" | "thread";
@@ -195,6 +198,8 @@ export default function AppNav({
   activePage,
   drawerOnly = false,
 }: AppNavProps) {
+  const { user } = useUser();
+  const isAdmin = !!user && ADMIN_IDS.has(user.id);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -249,6 +254,16 @@ export default function AppNav({
           <Link href="/support" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
             <span className="an-drawer-icon">❓</span>Support
           </Link>
+          {isAdmin && (
+            <>
+              <div className="an-drawer-divider" />
+              <div className="an-drawer-label">Admin</div>
+              <Link href="/admin" className="an-drawer-link" onClick={() => setDrawerOpen(false)}
+                style={{ color: "#ff5f5f" }}>
+                <span className="an-drawer-icon">🔴</span>Admin Panel
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </div>

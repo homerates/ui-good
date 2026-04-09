@@ -108,198 +108,178 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
         'Conventional loan';
 
     return (
-        <div style={{
-            marginTop: 12,
-            background: '#0e1420',
-            border: '1px solid rgba(148,163,184,0.12)',
-            borderRadius: 12,
-            overflow: 'hidden',
-            fontFamily: 'inherit',
-        }}>
-            {/* Header — always visible */}
-            <button
-                onClick={() => setOpen(o => !o)}
-                style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '14px 18px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    gap: 12,
-                }}
-            >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>🏦</span>
-                    <div>
-                        <div style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 14, lineHeight: 1.3 }}>
-                            Ready to talk to a lender?
-                        </div>
-                        <div style={{ color: 'rgba(185,208,192,0.7)', fontSize: 12, marginTop: 2 }}>
-                            5 questions to ask about your {loanLabel} — {fmt$(data.loanAmount)} at {fmtPct(data.marketRate)}
-                        </div>
-                    </div>
-                </div>
-                <span style={{ color: 'rgba(185,208,192,0.5)', fontSize: 12, flexShrink: 0 }}>
-                    {open ? '▲ Hide' : '▼ Show checklist'}
-                </span>
-            </button>
+        {(() => {
+        const dp = data.downPaymentPct ?? Math.round((1 - data.ltv) * 100);
+        const purpose = data.pdfType === 'refi' ? 'Refinance' : 'Purchase';
+        const lt = data.loanType.charAt(0).toUpperCase() + data.loanType.slice(1);
+        const matchParams = new URLSearchParams({
+            from: 'scenario', lt,
+            price: String(Math.round(data.price)),
+            dp: String(dp),
+            rate: data.marketRate.toFixed(2),
+            monthly: String(Math.round(data.monthlyPITI)),
+            term: String(data.termYears),
+            purpose,
+            invest: data.isInvestment ? '1' : '0',
+        });
 
-            {/* Expandable checklist */}
-            {open && (
-                <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', padding: '4px 0 12px' }}>
-                    {ITEMS.map((item, i) => (
-                        <div key={i} style={{
-                            display: 'flex',
-                            gap: 14,
-                            padding: '12px 18px',
-                            borderBottom: i < ITEMS.length - 1 ? '1px solid rgba(148,163,184,0.07)' : 'none',
-                        }}>
-                            {/* Number badge */}
-                            <div style={{
-                                flexShrink: 0,
-                                width: 26,
-                                height: 26,
-                                borderRadius: '50%',
-                                background: 'rgba(0,232,122,0.12)',
-                                border: '1px solid rgba(0,232,122,0.25)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                color: '#00e87a',
-                                marginTop: 1,
-                            }}>
-                                {item.num}
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                    <span style={{ fontSize: 14 }}>{item.icon}</span>
-                                    <span style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 13 }}>
-                                        {item.title}
-                                    </span>
-                                </div>
-                                <p style={{
-                                    margin: 0,
-                                    color: 'rgba(185,208,192,0.85)',
-                                    fontSize: 12.5,
-                                    lineHeight: 1.6,
-                                }}>
-                                    {item.body(data)}
-                                </p>
-                            </div>
-                        </div>
-                    ))}
+        const pdfButton = data.loanType === 'dscr' && data.rent ? (
+            <PdfDownloadButton
+                type="dscr"
+                getParams={() => ({
+                    price: data.price,
+                    rent: data.rent,
+                    downPct: dp,
+                    rate: data.marketRate,
+                    vacancyRate: data.vacancyRate ?? 0.05,
+                    taxRate: data.taxRate ?? 0.011,
+                    insRate: data.insRate ?? 0.005,
+                })}
+            />
+        ) : data.loanType !== 'dscr' ? (
+            <PdfDownloadButton
+                type={data.pdfType ?? data.loanType}
+                getParams={() => ({
+                    price: data.price,
+                    downPct: dp,
+                    rate: data.marketRate,
+                    term: data.termYears,
+                    taxRate: data.taxRate ?? 0.011,
+                    insRate: data.insRate ?? 0.003,
+                    loanType: data.loanType,
+                    ...(data.pdfType === 'affordability' && {
+                        annualIncome: Math.round(data.monthlyPITI / 0.43 * 12),
+                        savings: 0,
+                        monthlyDebts: 0,
+                    }),
+                })}
+            />
+        ) : null;
 
-                    {/* Get Matched CTA */}
-                    {(() => {
-                        // Use explicit downPaymentPct when available — avoids UFMIP distortion
-                        // (FHA financed UFMIP inflates loanAmount, making ltv-derived dp wrong)
-                        const dp = data.downPaymentPct ?? Math.round((1 - data.ltv) * 100);
-                        const purpose = data.pdfType === 'refi' ? 'Refinance' : 'Purchase';
-                        const lt = data.loanType.charAt(0).toUpperCase() + data.loanType.slice(1);
-                        const params = new URLSearchParams({
-                            from: 'scenario',
-                            lt,
-                            price: String(Math.round(data.price)),
-                            dp: String(dp),
-                            rate: data.marketRate.toFixed(2),
-                            monthly: String(Math.round(data.monthlyPITI)),
-                            term: String(data.termYears),
-                            purpose,
-                            invest: data.isInvestment ? '1' : '0',
-                        });
-                        return (
-                            <div style={{
-                                margin: '12px 18px 0',
-                                padding: '12px 16px',
-                                background: 'rgba(0,232,122,0.06)',
-                                border: '1px solid rgba(0,232,122,0.18)',
-                                borderRadius: 10,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: 12,
-                            }}>
-                                <div>
-                                    <div style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 12.5, marginBottom: 2 }}>
-                                        Ready to find a lender or agent?
-                                    </div>
-                                    <div style={{ color: 'rgba(185,208,192,0.6)', fontSize: 11.5, lineHeight: 1.4 }}>
-                                        Your scenario carries over — no re-entering numbers. You choose who earns an intro.
-                                    </div>
-                                </div>
-                                <a
-                                    href={`/connect/post?${params.toString()}`}
-                                    style={{
-                                        flexShrink: 0,
-                                        padding: '7px 16px',
-                                        background: '#00e87a', color: '#080c12',
-                                        borderRadius: 999, fontWeight: 700,
-                                        fontSize: 12, textDecoration: 'none',
-                                        whiteSpace: 'nowrap',
-                                    }}
-                                >
-                                    Get matched →
-                                </a>
-                            </div>
-                        );
-                    })()}
-
-                    {/* Footer note */}
-                    <div style={{
-                        margin: '8px 18px 0',
-                        padding: '10px 14px',
-                        background: 'rgba(148,163,184,0.06)',
-                        borderRadius: 8,
+        return (
+            <div style={{
+                marginTop: 12,
+                background: '#0e1420',
+                border: '1px solid rgba(148,163,184,0.12)',
+                borderRadius: 12,
+                overflow: 'hidden',
+                fontFamily: 'inherit',
+            }}>
+                {/* Header — always visible, toggle checklist */}
+                <button
+                    onClick={() => setOpen(o => !o)}
+                    style={{
+                        width: '100%',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        padding: '14px 18px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textAlign: 'left',
                         gap: 12,
-                    }}>
-                        <span style={{ color: 'rgba(185,208,192,0.55)', fontSize: 11.5, lineHeight: 1.5 }}>
-                            💡 Save this analysis as a PDF and share it with your lender.
-                        </span>
-                        {data.loanType === 'dscr' && data.rent ? (
-                            <PdfDownloadButton
-                                type="dscr"
-                                getParams={() => ({
-                                    price: data.price,
-                                    rent: data.rent,
-                                    downPct: Math.round((1 - data.ltv) * 100),
-                                    rate: data.marketRate,
-                                    vacancyRate: data.vacancyRate ?? 0.05,
-                                    taxRate: data.taxRate ?? 0.011,
-                                    insRate: data.insRate ?? 0.005,
-                                })}
-                            />
-                        ) : data.loanType !== 'dscr' ? (
-                            <PdfDownloadButton
-                                type={data.pdfType ?? data.loanType}
-                                getParams={() => ({
-                                    price: data.price,
-                                    downPct: Math.round((1 - data.ltv) * 100),
-                                    rate: data.marketRate,
-                                    term: data.termYears,
-                                    taxRate: data.taxRate ?? 0.011,
-                                    insRate: data.insRate ?? 0.003,
-                                    loanType: data.loanType,
-                                    // affordability-specific
-                                    ...(data.pdfType === 'affordability' && {
-                                        annualIncome: Math.round(data.monthlyPITI / 0.43 * 12),
-                                        savings: 0,
-                                        monthlyDebts: 0,
-                                    }),
-                                })}
-                            />
-                        ) : null}
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 18 }}>🏦</span>
+                        <div>
+                            <div style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 14, lineHeight: 1.3 }}>
+                                Ready to talk to a lender?
+                            </div>
+                            <div style={{ color: 'rgba(185,208,192,0.7)', fontSize: 12, marginTop: 2 }}>
+                                5 questions to ask about your {loanLabel} — {fmt$(data.loanAmount)} at {fmtPct(data.marketRate)}
+                            </div>
+                        </div>
                     </div>
+                    <span style={{ color: 'rgba(185,208,192,0.5)', fontSize: 12, flexShrink: 0 }}>
+                        {open ? '▲ Hide' : '▼ Show checklist'}
+                    </span>
+                </button>
+
+                {/* Expandable checklist — 5 questions only */}
+                {open && (
+                    <div style={{ borderTop: '1px solid rgba(148,163,184,0.1)', padding: '4px 0 12px' }}>
+                        {ITEMS.map((item, i) => (
+                            <div key={i} style={{
+                                display: 'flex',
+                                gap: 14,
+                                padding: '12px 18px',
+                                borderBottom: i < ITEMS.length - 1 ? '1px solid rgba(148,163,184,0.07)' : 'none',
+                            }}>
+                                <div style={{
+                                    flexShrink: 0, width: 26, height: 26, borderRadius: '50%',
+                                    background: 'rgba(0,232,122,0.12)', border: '1px solid rgba(0,232,122,0.25)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 11, fontWeight: 700, color: '#00e87a', marginTop: 1,
+                                }}>
+                                    {item.num}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                        <span style={{ fontSize: 14 }}>{item.icon}</span>
+                                        <span style={{ color: '#f0f4ff', fontWeight: 600, fontSize: 13 }}>
+                                            {item.title}
+                                        </span>
+                                    </div>
+                                    <p style={{ margin: 0, color: 'rgba(185,208,192,0.85)', fontSize: 12.5, lineHeight: 1.6 }}>
+                                        {item.body(data)}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* ── Permanent action bar — always visible ── */}
+                <div style={{
+                    borderTop: '1px solid rgba(148,163,184,0.1)',
+                    padding: '12px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    background: 'rgba(0,0,0,0.15)',
+                }}>
+                    {/* Save to Vault */}
+                    <a
+                        href="/library"
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '7px 13px',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: 8, color: '#8fa3b8', fontWeight: 600,
+                            fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap',
+                            transition: 'border-color 0.15s, color 0.15s',
+                        }}
+                    >
+                        🗂 My Vault
+                    </a>
+
+                    {/* Save as PDF */}
+                    {pdfButton}
+
+                    {/* Spacer */}
+                    <div style={{ flex: 1 }} />
+
+                    {/* Get Matched — primary CTA */}
+                    <a
+                        href={`/connect/post?${matchParams.toString()}`}
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '8px 18px',
+                            background: '#00e87a', color: '#080c12',
+                            borderRadius: 8, fontWeight: 700,
+                            fontSize: 12.5, textDecoration: 'none',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        Get matched →
+                    </a>
                 </div>
-            )}
-        </div>
+            </div>
+        );
+    })()}
     );
 }
