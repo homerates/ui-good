@@ -123,7 +123,9 @@ export default function ProProfilePage() {
   return (
     <>
       <style>{`
-        body { margin: 0; background: #0a0a0a; color: #f0f0f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        body:has(.pro-page-root) { display:block!important; height:auto!important; overflow-y:auto!important; background:#0a0a0a!important; }
+        html:has(.pro-page-root) { height:auto!important; overflow:visible!important; }
+        .pro-page-root { min-height:100vh; background:#0a0a0a; color:#f0f0f0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
         * { box-sizing: border-box; }
         a { color: inherit; text-decoration: none; }
         .pro-card { background: #141414; border: 1px solid #222; border-radius: 16px; padding: 24px 28px; margin-bottom: 20px; }
@@ -134,7 +136,7 @@ export default function ProProfilePage() {
 
       <AppNav />
 
-      <div style={{ minHeight: "100vh", background: "#0a0a0a", paddingTop: 64 }}>
+      <div className="pro-page-root" style={{ paddingTop: 56 }}>
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 0" }}>
           <Link href="/professionals" style={{ color: "#555", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 4 }}>
             ← Directory

@@ -36,7 +36,8 @@ function ensureStyles() {
   el.textContent = `
     .an-nav {
       position: sticky; top: 0; z-index: 200;
-      display: flex; align-items: center; justify-content: space-between;
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      align-items: center;
       padding: 0 20px; height: 56px;
       background: rgba(8,12,18,0.97); backdrop-filter: blur(8px);
       border-bottom: 1px solid rgba(255,255,255,0.07);
@@ -45,12 +46,13 @@ function ensureStyles() {
     }
 
     /* Logo zone */
+    .an-logo { justify-self: start; }
     .an-logo img { height: 26px; display: block; }
 
-    /* Desktop links */
+    /* Desktop links — true center column */
     .an-links {
       display: flex; align-items: center; gap: 4px;
-      position: absolute; left: 50%; transform: translateX(-50%);
+      justify-self: center;
     }
     .an-link {
       padding: 6px 12px; border-radius: 8px;
@@ -77,19 +79,19 @@ function ensureStyles() {
     .an-back:hover { text-decoration: underline; }
 
     .an-title-wrap {
-      position: absolute; left: 50%; transform: translateX(-50%);
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
       font-size: 0.95rem; font-weight: 700; color: #f0f4ff;
-      white-space: nowrap;
+      white-space: nowrap; justify-self: center;
     }
 
-    /* Hamburger button */
+    /* Hamburger button — always right-aligned */
     .an-hamburger {
       display: flex; flex-direction: column; gap: 4.5px;
       align-items: center; justify-content: center;
       width: 36px; height: 36px; border-radius: 8px;
       background: transparent; border: 1px solid rgba(255,255,255,0.08);
       cursor: pointer; flex-shrink: 0;
+      justify-self: end;
       transition: background 0.15s, border-color 0.15s;
     }
     .an-hamburger:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
