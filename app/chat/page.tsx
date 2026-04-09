@@ -1148,16 +1148,7 @@ export default function Page() {
     // Set to true when typewriter finishes — suppresses autoscroll so we can
     // scroll back to the TOP of the new message instead of leaving at bottom
     const suppressAutoScrollRef = React.useRef(false);
-    useEffect(() => {
-        if (suppressAutoScrollRef.current) return;
-        const el = scrollRef.current;
-        if (!el) return;
-
-        // run after DOM updates so scrollHeight is correct
-        requestAnimationFrame(() => {
-            el.scrollTop = el.scrollHeight;
-        });
-    }, [messages, loading]);
+    // (autoscroll is handled by the effect below — single source of truth)
 
     // If the user came from a shared answer card, pre-fill the composer with that question
     // If sq param present without fromShare=1, auto-fire (SEO landing page seeds)
@@ -1722,19 +1713,19 @@ export default function Page() {
                         )
                     );
                     // Suppress autoscroll-to-bottom so we can scroll to top of this message.
-                    // Keep suppressed for 800ms — slider/lenderChecklist meta arrives shortly
-                    // after typewriter ends and would re-trigger scroll-to-bottom without this.
+                    // Keep suppressed for 2000ms — slider card + lenderChecklist render after
+                    // typingId clears, and browser scroll-anchoring can fight us without this.
                     suppressAutoScrollRef.current = true;
                     setTypingId(null);
-                    // Scroll to top of message immediately
-                    requestAnimationFrame(() => {
+                    // Scroll to top of message — use 120ms delay so slider card has fully rendered
+                    setTimeout(() => {
                         const el = document.querySelector(`[data-message-id="${id}"]`);
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    });
-                    // Release suppression after meta updates have landed
+                    }, 120);
+                    // Release suppression after slider card settles
                     setTimeout(() => {
                         suppressAutoScrollRef.current = false;
-                    }, 800);
+                    }, 2000);
                     return;
                 }
 
@@ -2669,6 +2660,7 @@ export default function Page() {
                         flex: '1 1 auto',
                         minHeight: 0,
                         overflowY: 'auto',
+                        overflowAnchor: 'none',
                     }}
                 >
                     <div className="center">

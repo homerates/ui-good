@@ -21,7 +21,12 @@ function calcPI(principal: number, annualRate: number, termYears: number): numbe
 function f$(n: number): string {
     const abs = Math.abs(n);
     const sign = n < 0 ? '-' : '';
-    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (abs >= 1_000_000) {
+        const m = abs / 1_000_000;
+        // Use 2 decimal places unless it rounds cleanly to 1 or 0
+        const str = m % 1 === 0 ? m.toFixed(0) : m.toFixed(2).replace(/\.?0+$/, '');
+        return `${sign}$${str}M`;
+    }
     if (abs >= 10_000) return `${sign}$${Math.round(abs / 1000)}k`;
     return `${sign}$${Math.round(abs).toLocaleString()}`;
 }
@@ -100,9 +105,10 @@ const ZONE_CONFIG: Record<Zone, {
 
 // ─── component ──────────────────────────────────────────────────
 export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySliderParams) {
-    // Dynamic price slider bounds — scale with the actual property value
-    const priceMax  = Math.max(5_000_000, Math.ceil(props.price * 1.3 / 5_000_000) * 5_000_000);
-    const priceStep = priceMax > 20_000_000 ? 500_000 : priceMax > 5_000_000 ? 100_000 : 25_000;
+    // Dynamic price slider bounds — scale sensibly with starting price
+    // e.g. $1.5M start → max $10M; $5M start → max $12.5M; $8M start → max $20M
+    const priceMax  = Math.max(10_000_000, Math.ceil(props.price * 2.5 / 500_000) * 500_000);
+    const priceStep = priceMax > 20_000_000 ? 500_000 : priceMax > 10_000_000 ? 250_000 : 100_000;
 
     const [price, setPrice] = useState(Math.max(500_000, Math.min(priceMax, Math.round(props.price / priceStep) * priceStep)));
     const [downPct, setDownPct] = useState(Math.max(10, Math.min(50, props.downPct)));
@@ -465,11 +471,11 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                     <div style={S.heroLabel}>Monthly PITI{calc.monthlyPMI > 0 ? '+PMI' : ''}</div>
                 </div>
                 <div style={S.heroBox}>
-                    <div style={S.heroVal}>{f$(Math.round(calc.incomeNeeded43 / 1000) * 1000)}</div>
+                    <div style={S.heroVal}>{f$(calc.incomeNeeded43)}</div>
                     <div style={S.heroLabel}>Income Needed (43% DTI)</div>
                 </div>
                 <div style={S.heroBox}>
-                    <div style={S.heroVal}>{f$(Math.round(calc.totalCashNeeded / 1000) * 1000)}</div>
+                    <div style={S.heroVal}>{f$(calc.totalCashNeeded)}</div>
                     <div style={S.heroLabel}>Cash at Close</div>
                 </div>
             </div>
