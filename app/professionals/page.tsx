@@ -120,8 +120,7 @@ export default function ProfessionalsPage() {
         .pd-root{min-height:100vh;background:#080c12;color:#f0f4ff;font-family:'DM Sans',system-ui,sans-serif}
 
         .pd-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;background:rgba(8,12,18,0.96);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(8px)}
-        .pd-logo{font-size:1.1rem;font-weight:700;color:#fff;text-decoration:none;letter-spacing:-0.02em}
-        .pd-logo span{color:#00e87a}
+        .pd-logo img{height:26px;display:block}
 
         .pd-shell{max-width:1100px;margin:0 auto;padding:3rem 1.5rem 5rem}
 
@@ -190,7 +189,10 @@ export default function ProfessionalsPage() {
 
       <div className="pd-root">
         <nav className="pd-nav">
-          <Link href="/" className="pd-logo">HomeRates<span>.ai</span></Link>
+          <Link href="/" className="pd-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+          </Link>
           <AppNav drawerOnly />
         </nav>
 

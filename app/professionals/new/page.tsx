@@ -87,13 +87,13 @@ export default function ProfessionalsNewPage() {
           html:has(.pn-root){height:auto!important;overflow:visible!important}
           .pn-root{min-height:100vh;background:#080c12;color:#f0f4ff;font-family:'DM Sans',system-ui,sans-serif}
           .pn-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;background:rgba(8,12,18,0.96);border-bottom:1px solid rgba(255,255,255,0.07)}
-          .pn-logo{font-size:1.1rem;font-weight:700;color:#fff;text-decoration:none;letter-spacing:-0.02em}
-          .pn-logo span{color:#00e87a}
+          .pn-logo img{height:26px;display:block}
           .pn-shell{max-width:480px;margin:0 auto;padding:5rem 1.5rem;text-align:center}
         `}</style>
         <div className="pn-root">
           <nav className="pn-nav">
-            <Link href="/" className="pn-logo">HomeRates<span>.ai</span></Link>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <Link href="/" className="pn-logo"><img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" /></Link>
             <AppNav drawerOnly />
           </nav>
           <div className="pn-shell">
