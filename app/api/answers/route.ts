@@ -580,7 +580,14 @@ async function generateAffordabilityScenarios(params: {
         };
     }
 
+    // Determine if this borrower's income qualifies them for jumbo territory.
+    // If at 20% down + 43% DTI the max loan exceeds confLimit, they're in jumbo land.
+    const probeMaxPI = (monthlyIncome * 0.43 - monthlyDebt) * 0.82;
+    const probeMaxLoan = probeMaxPI * annuityFactor;
+    const isJumboBorrower = probeMaxLoan > confLimit;
+
     // 3 scenarios: FHA 3.5%, Conventional 3%, Conventional 20%
+    // High-income borrowers: swap conventional for jumbo tiers (20% + 25% down, no FHA)
     // If downPctOverride given (follow-up like "what if 10% down"), show that pct + 20% + FHA comparison
     let results;
     if (downPctOverride !== undefined) {
@@ -590,6 +597,71 @@ async function generateAffordabilityScenarios(params: {
             calcScenario(0.43, downPctOverride * 100, `${isFHAPct ? 'FHA' : 'Conventional'} (${pctLabel}% down)`, isFHAPct ? '🏠' : '🎯', isFHAPct ? 'FHA' : 'Conventional'),
             calcScenario(0.43, 20.0, 'Conventional (20% down)', '🛡️', 'Conventional'),
             calcScenario(0.43, 3.5, 'FHA (3.5% down) — for comparison', '🏠', 'FHA'),
+        ];
+    } else if (isJumboBorrower) {
+        // High-income: replace FHA/conventional tiers with jumbo-appropriate scenarios
+        // Uncap home price for jumbo — use a very high limit so solver isn't constrained
+        const savedConfLimit = confLimit;
+        // Temporarily override calcScenario caps by passing a jumbo flag via a wrapper
+        function calcJumboScenario(dtiTarget: number, downPct: number, label: string, icon: string) {
+            // Run the solver uncapped, then return
+            const maxTotalHousing = (monthlyIncome * dtiTarget) - monthlyDebt;
+            let maxPI = maxTotalHousing * 0.85;
+            let homePrice = 0;
+            for (let i = 0; i < 6; i++) {
+                const loan = maxPI * annuityFactor;
+                homePrice = loan / (1 - downPct / 100);
+                const monthlyTaxIns = (homePrice * (0.011 + 0.0035)) / 12;
+                const monthlyPMIest = 0; // Jumbo — no PMI at 20%+ down
+                maxPI = maxTotalHousing - monthlyTaxIns - monthlyPMIest;
+                if (maxPI <= 0) { maxPI = maxTotalHousing * 0.5; break; }
+            }
+            // No loan limit cap for jumbo
+            const baseLoanAmount = homePrice * (1 - downPct / 100);
+            const downPaymentAmount = homePrice * (downPct / 100);
+            const loanAmount = baseLoanAmount;
+            const closingCosts = homePrice * 0.025;
+            const totalCashNeeded = downPaymentAmount + closingCosts;
+            const savingsGap = Math.max(0, totalCashNeeded - savings);
+            const rMonthly = (currentRate / 100) / 12;
+            const nPayments = 30 * 12;
+            const monthlyPI = loanAmount * (rMonthly * Math.pow(1 + rMonthly, nPayments)) / (Math.pow(1 + rMonthly, nPayments) - 1);
+            const monthlyTax = (homePrice * 0.011) / 12;
+            const monthlyInsurance = homePrice * 0.005 / 12; // Jumbo: 0.5% ins
+            const monthlyMI = 0;
+            const totalMonthly = monthlyPI + monthlyTax + monthlyInsurance;
+            const actualDTI = ((totalMonthly + monthlyDebt) / monthlyIncome) * 100;
+            const totalInterest = (monthlyPI * nPayments) - loanAmount;
+            return {
+                label, icon, program: 'Jumbo', dtiTarget,
+                homePrice: Math.round(homePrice),
+                downPaymentPct: downPct,
+                downPaymentAmount: Math.round(downPaymentAmount),
+                baseLoanAmount: Math.round(baseLoanAmount),
+                ufmip: 0,
+                loanAmount: Math.round(loanAmount),
+                closingCosts: Math.round(closingCosts),
+                totalCashNeeded: Math.round(totalCashNeeded),
+                savingsGap: Math.round(savingsGap),
+                savingsAfterClose: Math.max(0, savings - Math.round(totalCashNeeded)),
+                monthlyPI: Math.round(monthlyPI),
+                monthlyTax: Math.round(monthlyTax),
+                monthlyInsurance: Math.round(monthlyInsurance),
+                monthlyMI: 0,
+                totalMonthly: Math.round(totalMonthly),
+                totalInterest: Math.round(totalInterest),
+                dtiRatio: Math.round(actualDTI * 10) / 10,
+                rate: currentRate,
+                isFHA: false,
+                wasLimitCapped: false,
+                loanLimitForProgram: 99_000_000,
+                locationLabel,
+            };
+        }
+        results = [
+            calcJumboScenario(0.43, 20.0, 'Jumbo (20% down) — standard', '🏛️'),
+            calcJumboScenario(0.43, 25.0, 'Jumbo (25% down) — better pricing', '🛡️'),
+            calcScenario(0.43, 20.0, `Conventional (20% down) — up to $${(savedConfLimit / 1000).toFixed(0)}k loan`, '🎯', 'Conventional'),
         ];
     } else {
         results = [
@@ -1680,8 +1752,12 @@ function generateFallbackChips(
     const hist = (conversationHistory || '').toLowerCase();
     const combined = hist + ' ' + q;
 
-    // Extract financial context from history + question
-    const incMatch = combined.match(/(?:make|earn|income|salary)[^\d]*\$?\s*([\d,]+)\s*k?\b/i);
+    // Extract financial context from history + question.
+    // IMPORTANT: only match first-person income disclosures ("I make", "I earn", "my salary",
+    // "we earn", "earning $X"). Never match interrogative uses like "what income do I need".
+    const incMatch =
+        combined.match(/(?:i\s+make|we\s+make|i\s+earn|we\s+earn|my\s+salary|our\s+salary|earning|makes?\s+\$)[^\d]*\$?\s*([\d,]+)\s*k?\b/i) ||
+        combined.match(/\$\s*([\d,]+)\s*k?\s*(?:a\s+year|\/year|per\s+year|annually|income|salary)\b/i);
     let income = incMatch ? parseFloat(incMatch[1].replace(/,/g, '')) : 0;
     if (income && income < 1000) income *= 1000;
 

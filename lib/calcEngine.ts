@@ -293,7 +293,7 @@ export interface AffordabilityInput {
 export interface AffordabilityScenario {
     label: string;
     icon: string;
-    program: 'FHA' | 'Conventional';
+    program: 'FHA' | 'Conventional' | 'Jumbo';
     downPaymentPct: number;
     homePrice: number;
     downPaymentAmount: number;
