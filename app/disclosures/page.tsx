@@ -130,12 +130,26 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>16. Changes to These Terms</h2>
+        <h2>16. AI Model Accuracy — You're Part of What Makes This Better</h2>
+        <p>HomeRates.ai uses some of the most advanced AI reasoning models available today. The scenario analysis engine, card routing logic, and memory system that personalizes your experience represent genuinely new technology — the kind that is still maturing, still learning, and still improving with every conversation.</p>
+        <p>What that means in practice: the system is exceptionally good at the vast majority of mortgage calculations, rate analysis, and scenario comparisons it handles every day. But like any frontier AI, it can occasionally drift — selecting the wrong card type, misrouting a scenario, or carrying stale context from an earlier part of a conversation that leads it down the wrong path.</p>
+        <p><strong>When that happens, here is what to do:</strong></p>
+        <ul>
+          <li><strong>Start a new chat.</strong> This flushes the memory context and gives the model a clean slate. Most drift issues resolve immediately with a fresh session.</li>
+          <li><strong>Share the card with our team.</strong> If you see a scenario card that is clearly wrong — wrong loan type, wrong numbers, wrong product — take a screenshot and send it to <a href="mailto:support@homerates.ai">support@homerates.ai</a> with a brief note on what you asked and what you expected. Every report directly improves the routing logic for every user who comes after you.</li>
+        </ul>
+        <p>We are transparent about this because we believe users deserve to understand the tools they rely on. The mortgage decisions that flow from these conversations are significant — and accuracy matters deeply to us. Our team reviews every reported drift case, traces it back to the routing decision that caused it, and uses it to improve the model.</p>
+        <p>HomeRates.ai users are not just using a product — they are active participants in building the most accurate AI mortgage intelligence platform in the industry. We are grateful for that partnership, and we take every piece of feedback seriously.</p>
+        <p><em>Note: AI-generated scenario cards and analysis are for educational and illustrative purposes only. Always verify outputs with a licensed mortgage professional before making financial decisions. See Section 2 (Educational Content Only) and Section 4 (No Credit Decisions) above.</em></p>
+      </section>
+
+      <section>
+        <h2>17. Changes to These Terms</h2>
         <p>HomeRates.ai may update these Terms from time to time. The most current version will always be available on this page. Continued use constitutes acceptance of the updated terms.</p>
       </section>
 
       <section>
-        <h2>17. Contact</h2>
+        <h2>18. Contact</h2>
         <p><strong>HomeRatesAi LLC</strong><br />
         1401 Pennsylvania Ave Suite 105A PMB 70722<br />
         Wilmington, DE 19806<br />
