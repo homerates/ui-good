@@ -140,20 +140,37 @@ async function sendScenarioAlerts(scenario: {
   let targets: LoRow[] = [];
 
   if (scenario.visibility === "private" && scenario.referred_pro_id) {
-    const { data } = await sb
-      .from("loan_officers")
-      .select("user_id, email, lender")
-      .eq("user_id", scenario.referred_pro_id)
-      .maybeSingle();
-    if (data) targets = [data];
+    // Single LO — get lender name from loan_officers, email from users
+    const [{ data: loRow }, { data: userRow }] = await Promise.all([
+      sb.from("loan_officers").select("user_id, lender").eq("user_id", scenario.referred_pro_id).maybeSingle(),
+      sb.from("users").select("email").eq("id", scenario.referred_pro_id).maybeSingle(),
+    ]);
+    if (loRow && userRow?.email) {
+      targets = [{ user_id: loRow.user_id, email: userRow.email, lender: loRow.lender }];
+    }
   } else {
-    const { data } = await sb
+    // Public: get LOs in matching state, then batch-fetch emails from users table
+    const { data: loRows } = await sb
       .from("loan_officers")
-      .select("user_id, email, lender")
+      .select("user_id, lender")
       .eq("license_state", scenario.state)
-      .not("email", "is", null)
       .limit(20);
-    targets = data ?? [];
+
+    if (loRows && loRows.length > 0) {
+      const ids = loRows.map(r => r.user_id);
+      const { data: userRows } = await sb
+        .from("users")
+        .select("id, email")
+        .in("id", ids);
+
+      const emailMap: Record<string, string> = {};
+      for (const u of userRows ?? []) {
+        if (u.email) emailMap[u.id] = u.email;
+      }
+      targets = loRows
+        .filter(lo => emailMap[lo.user_id])
+        .map(lo => ({ user_id: lo.user_id, email: emailMap[lo.user_id], lender: lo.lender }));
+    }
   }
 
   // Fire emails concurrently (no await on individual — fire-and-forget)
