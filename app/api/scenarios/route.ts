@@ -315,8 +315,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create scenario" }, { status: 500 });
   }
 
-  // Fire-and-forget: notify matching LOs
-  sendScenarioAlerts({
+  // Await before returning — Vercel kills the function the moment response is sent
+  await sendScenarioAlerts({
     id: data.id,
     loan_type: data.loan_type,
     state: data.state,
@@ -325,7 +325,7 @@ export async function POST(req: NextRequest) {
     timeline: data.timeline,
     visibility: data.visibility,
     referred_pro_id: data.referred_pro_id ?? null,
-  }).catch(e => console.error("[scenario-alert] send failed:", e));
+  });
 
   return NextResponse.json({ scenario: data });
 }
