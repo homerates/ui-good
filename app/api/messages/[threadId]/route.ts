@@ -262,7 +262,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       const recipientName  = [recipientClerk.firstName, recipientClerk.lastName].filter(Boolean).join(" ") || "there";
       const senderName     = [senderClerk.firstName, senderClerk.lastName].filter(Boolean).join(" ") || "Someone";
       if (recipientEmail) {
-        emailNewReply({ toEmail: recipientEmail, toName: recipientName, fromName: senderName, threadId, preview: finalContent });
+        await emailNewReply({ toEmail: recipientEmail, toName: recipientName, fromName: senderName, threadId, preview: finalContent });
       }
     } catch (e) {
       console.error("[messages/threadId] emailNewReply lookup failed:", e);

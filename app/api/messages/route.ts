@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
         ? await sb.from("scenario_briefs").select("loan_type").eq("id", scenario_id).maybeSingle()
         : { data: null };
       if (proEmail) {
-        emailNewThread({ toEmail: proEmail, toName: proName, fromName: borrowerName, threadId: thread.id, loanType: scenario?.loan_type });
+        await emailNewThread({ toEmail: proEmail, toName: proName, fromName: borrowerName, threadId: thread.id, loanType: scenario?.loan_type });
       }
     } catch (e) {
       console.error("[messages] emailNewThread lookup failed:", e);

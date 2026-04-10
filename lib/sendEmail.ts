@@ -39,12 +39,26 @@ export async function emailNewThread({
       from: `HomeRates.ai <${FROM}>`,
       to: toEmail,
       subject: `${fromName} wants to connect on HomeRates.ai`,
-      html: `
-        <p>Hi ${toName},</p>
-        <p><strong>${fromName}</strong> has initiated a conversation with you${loanNote}.</p>
-        <p><a href="${link}" style="background:#00c896;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600;">View Message →</a></p>
-        <p style="color:#888;font-size:12px;">HomeRates.ai · Confidential borrower connection</p>
-      `,
+      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
+      <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
+        <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
+      </td></tr>
+      <tr><td style="background:#0d1a12;padding:32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">New Message</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">You have a new connection request</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#7a9e8a;line-height:1.6;"><strong style="color:#e8f5ee;">${fromName}</strong> has started a conversation with you${loanNote}.</p>
+        <a href="${link}" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">View Message →</a>
+      </td></tr>
+      <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#3a4560;">HomeRates.ai · Confidential borrower connection</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`,
     });
   } catch (err) {
     console.error("[sendEmail] emailNewThread failed:", err);
@@ -79,13 +93,27 @@ export async function emailNewReply({
       from: `HomeRates.ai <${FROM}>`,
       to: toEmail,
       subject: `New message from ${fromName} on HomeRates.ai`,
-      html: `
-        <p>Hi ${toName},</p>
-        <p><strong>${fromName}</strong> sent you a message.</p>
-        ${previewSnippet}
-        <p><a href="${link}" style="background:#00c896;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600;">Reply →</a></p>
-        <p style="color:#888;font-size:12px;">HomeRates.ai · Confidential borrower connection</p>
-      `,
+      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
+      <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
+        <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
+      </td></tr>
+      <tr><td style="background:#0d1a12;padding:32px;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">New Message</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">You have a reply</p>
+        <p style="margin:0 0 16px;font-size:15px;color:#7a9e8a;"><strong style="color:#e8f5ee;">${fromName}</strong> sent you a message:</p>
+        ${preview ? `<div style="background:#141b28;border-left:3px solid #00e87a;border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 24px;font-size:14px;color:#b0c4b8;line-height:1.6;">${preview.slice(0, 200)}${preview.length > 200 ? "…" : ""}</div>` : `<div style="margin-bottom:24px;"></div>`}
+        <a href="${link}" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">Reply →</a>
+      </td></tr>
+      <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#3a4560;">HomeRates.ai · Confidential borrower connection</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`,
     });
   } catch (err) {
     console.error("[sendEmail] emailNewReply failed:", err);
