@@ -5,6 +5,7 @@
 // Contact share: borrower-triggered, shows both emails + phones
 
 import { useEffect, useRef, useState, use } from "react";
+import { useAuth } from "@clerk/nextjs";
 import AppNav from "../../components/AppNav";
 
 interface Message {
@@ -52,6 +53,7 @@ interface ProCard {
 
 export default function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
+  const { isLoaded, isSignedIn } = useAuth();
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -66,10 +68,15 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initial load
+  // Wait for Clerk to initialise before fetching — avoids 401 on cold load
   useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
+      return;
+    }
     load();
-  }, [threadId]);
+  }, [isLoaded, isSignedIn, threadId]);
 
   // Poll for new messages every 5s — stop when tab hidden or component unmounts
   useEffect(() => {
@@ -96,14 +103,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   async function load() {
     setLoading(true);
     const res = await fetch(`/api/messages/${threadId}`);
-    if (!res.ok) {
-      if (res.status === 401) {
-        window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
-        return;
-      }
-      setLoading(false);
-      return;
-    }
+    if (!res.ok) { setLoading(false); return; }
     const data = await res.json();
     setThread(data.thread);
     setMessages(data.messages ?? []);
@@ -169,7 +169,13 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   };
 
   const isBorrower = thread?.is_borrower ?? true;
-  const proLabel = thread?.professional_type === "agent" ? "Agent" : "Loan Officer";
+  const proType = thread?.professional_type === "agent" ? "Agent" : "Loan Officer";
+  // Nav title: always shows who you're talking TO
+  // Borrower → "Loan Officer" or "Agent" (+ name once contact shared)
+  // LO/Agent → borrower's real name (resolved server-side) or "Borrower"
+  const navTitle = isBorrower
+    ? (proCard?.name ? `${proType} · ${proCard.name}` : proType)
+    : (thread?.borrower_name ? `Borrower · ${thread.borrower_name}` : "Borrower");
   const isClosed = thread?.status === "closed";
   const contactShared = thread?.status === "contact_shared" || !!contactShare;
 
@@ -181,7 +187,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           mode="thread"
           backHref="/messages"
           backLabel="← Inbox"
-          title={isBorrower ? proLabel : (thread?.borrower_name ?? "Borrower")}
+          title={navTitle}
           titleBadge={contactShared ? <span className="ch-contact-badge">Contact shared</span> : undefined}
         />
 
@@ -205,14 +211,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                   <div className="ch-pro-card">
                     {proCard.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={proCard.imageUrl} alt={proCard.name ?? proLabel} className="ch-pro-card-avatar-img" />
+                      <img src={proCard.imageUrl} alt={proCard.name ?? proType} className="ch-pro-card-avatar-img" />
                     ) : (
                       <div className="ch-pro-card-avatar">
-                        {(proCard.name ?? proLabel).charAt(0).toUpperCase()}
+                        {(proCard.name ?? proType).charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div className="ch-pro-card-body">
-                      <div className="ch-pro-card-name">{proCard.name ?? proLabel}</div>
+                      <div className="ch-pro-card-name">{proCard.name ?? proType}</div>
                       {proCard.title && <div className="ch-pro-card-title">{proCard.title}</div>}
                       {proCard.company && <div className="ch-pro-card-company">{proCard.company}</div>}
                       <div className="ch-pro-card-contacts">
@@ -287,7 +293,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                   <div key={m.id} className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
                     {!mine && (
                       <div className="ch-avatar">
-                        {(isBorrower ? proLabel : "B").charAt(0).toUpperCase()}
+                        {(isBorrower ? proType : "B").charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div className={`ch-bubble ${mine ? "ch-bubble-mine" : "ch-bubble-theirs"}`}>
@@ -359,7 +365,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
             <div className="ch-share-confirm-box">
               <div className="ch-share-confirm-title">Share contact information?</div>
               <p className="ch-share-confirm-body">
-                This will share your email and phone number with the {proLabel.toLowerCase()},
+                This will share your email and phone number with the {proType.toLowerCase()},
                 and give you theirs. This is irreversible for this conversation.
               </p>
               <div className="ch-share-confirm-actions">

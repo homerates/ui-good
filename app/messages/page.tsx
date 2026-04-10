@@ -3,6 +3,7 @@
 // Unified inbox for borrowers and professionals — thread list
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import AppNav from "../components/AppNav";
 
@@ -17,25 +18,25 @@ interface Thread {
 }
 
 export default function MessagesPage() {
+  const { isLoaded, isSignedIn } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      window.location.href = `/sign-in?redirect_url=/messages`;
+      return;
+    }
     fetch("/api/messages")
-      .then(r => {
-        if (r.status === 401) {
-          window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
-          return null;
-        }
-        return r.json();
-      })
+      .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return;
         setThreads(d.threads ?? []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [isLoaded, isSignedIn]);
 
   const timeAgo = (iso: string | null) => {
     if (!iso) return "";
