@@ -22,48 +22,95 @@ function scenarioAlertHtml(opts: {
   boardUrl: string;
   isPrivate: boolean;
 }): string {
-  const tag = opts.isPrivate
-    ? `<span style="background:#1a2a3a;color:#3d8bff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.06em">YOUR REFERRAL</span>`
-    : `<span style="background:#1a2a1a;color:#00e87a;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.06em">NEW ON BOARD</span>`;
+  // All solid hex — no rgba() so Gmail/Outlook render correctly
+  const tagBg    = opts.isPrivate ? "#0d1e30" : "#0d2218";
+  const tagColor = opts.isPrivate ? "#3d8bff" : "#00e87a";
+  const tagText  = opts.isPrivate ? "YOUR REFERRAL" : "NEW ON BOARD";
 
   const greeting = opts.isPrivate
     ? `A borrower you referred just posted a scenario and is waiting for your response.`
     : `A new borrower scenario matching your state just posted to the board.`;
 
+  const row = (label: string, value: string) =>
+    `<tr>
+      <td style="padding:10px 0;border-bottom:1px solid #1a2e20">
+        <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px">${label}</span>
+        <span style="font-size:15px;font-weight:600;color:#e8f5ee">${value}</span>
+      </td>
+    </tr>`;
+
   return `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>New Scenario Alert — HomeRates.ai</title>
+</head>
 <body style="margin:0;padding:0;background:#07100f;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#07100f;padding:32px 16px">
+
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#07100f" style="background:#07100f;padding:32px 16px">
 <tr><td align="center">
 <table width="100%" style="max-width:520px" cellpadding="0" cellspacing="0">
-  <tr><td style="padding:0 0 24px">
-    <img src="https://chat.homerates.ai/assets/HomeRates-Logo%20Green.png" alt="HomeRates.ai" height="26" style="display:block"/>
-  </td></tr>
-  <tr><td style="padding:0 0 20px">
-    ${tag}
-    <div style="font-size:22px;font-weight:700;color:#e8f5ee;margin-top:12px">Hi ${opts.loName},</div>
-    <div style="font-size:14px;color:rgba(160,192,168,.7);margin-top:6px">${greeting}</div>
-  </td></tr>
-  <tr><td style="padding:0 0 24px">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px">
-      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">Loan type</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.loanType}</span></td></tr>
-      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">Price range</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.priceRange}</span></td></tr>
-      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">Credit</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.creditTier}</span></td></tr>
-      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">State</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.state}</span></td></tr>
-      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">Timeline</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.timeline}</span></td></tr>
-    </table>
-  </td></tr>
-  <tr><td style="padding:0 0 28px">
-    <a href="${opts.boardUrl}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:14px;font-weight:700;padding:14px 20px;border-radius:10px;text-decoration:none">
-      View &amp; Respond on Board →
-    </a>
-  </td></tr>
-  <tr><td style="border-top:1px solid rgba(255,255,255,.06);padding:20px 0 0">
-    <div style="font-size:12px;color:rgba(160,192,168,.4);line-height:1.6">
-      HomeRates.ai — Borrower identities are kept anonymous until contact is shared.
-    </div>
-  </td></tr>
+
+  <!-- Logo -->
+  <tr>
+    <td style="padding:0 0 28px">
+      <img src="https://chat.homerates.ai/assets/HomeRates-Logo%20Green.png"
+           alt="HomeRates.ai" height="28" style="display:block"/>
+    </td>
+  </tr>
+
+  <!-- Tag + greeting -->
+  <tr>
+    <td style="padding:0 0 24px">
+      <span style="display:inline-block;background:${tagBg};color:${tagColor};font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em">${tagText}</span>
+      <div style="font-size:22px;font-weight:700;color:#e8f5ee;margin-top:14px">Hi ${opts.loName},</div>
+      <div style="font-size:14px;color:#7a9e8a;margin-top:6px;line-height:1.5">${greeting}</div>
+    </td>
+  </tr>
+
+  <!-- Scenario details card -->
+  <tr>
+    <td style="padding:0 0 24px">
+      <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#0d1a12" style="background:#0d1a12;border:1px solid #1a2e20;border-radius:12px">
+        <tr><td style="padding:4px 20px 0">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${row("Loan type",   opts.loanType)}
+            ${row("Price range", opts.priceRange)}
+            ${row("Credit",      opts.creditTier)}
+            ${row("State",       opts.state)}
+            <tr>
+              <td style="padding:10px 0">
+                <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px">Timeline</span>
+                <span style="font-size:15px;font-weight:600;color:#e8f5ee">${opts.timeline}</span>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- CTA button -->
+  <tr>
+    <td style="padding:0 0 28px">
+      <a href="${opts.boardUrl}"
+         style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:15px 20px;border-radius:10px;text-decoration:none">
+        View &amp; Respond on Board →
+      </a>
+    </td>
+  </tr>
+
+  <!-- Footer -->
+  <tr>
+    <td style="border-top:1px solid #1a2e20;padding:20px 0 0">
+      <div style="font-size:12px;color:#3a5a48;line-height:1.7">
+        Sent by <strong style="color:#4a6e58">HomeRates.ai</strong> — Borrower identities are kept
+        anonymous until contact is shared in a conversation thread.
+      </div>
+    </td>
+  </tr>
+
 </table>
 </td></tr>
 </table>
