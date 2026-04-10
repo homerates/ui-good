@@ -1,14 +1,13 @@
 "use client";
 // app/admin/page.tsx
-// Admin dashboard — stats overview, recent claims, activity log
+// Admin dashboard — stats overview, recent claims, activity log, manage admins
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppNav from "../components/AppNav";
-
-const ADMIN_IDS = new Set(["user_35xDE51bR0NTaKEpwZMbHtn752O"]);
+import { useAdminStatus } from "../hooks/useAdminStatus";
 
 const PRO_TYPE_LABEL: Record<string, string> = {
   lo:            "Loan Officer",
@@ -23,22 +22,72 @@ function f$(n: number) {
   return String(n);
 }
 
+type AdminUser = { clerk_user_id: string; email?: string; display_name?: string; added_at?: string };
+
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { isAdmin, loading: adminLoading } = useAdminStatus();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Admin users state
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [adminsLoading, setAdminsLoading] = useState(false);
+  const [newAdminId, setNewAdminId] = useState("");
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [newAdminName, setNewAdminName] = useState("");
+  const [addError, setAddError] = useState("");
+  const [addSuccess, setAddSuccess] = useState(false);
+
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!user || !ADMIN_IDS.has(user.id)) { router.replace("/"); return; }
+    if (!isLoaded || adminLoading) return;
+    if (!isAdmin) { router.replace("/"); return; }
     fetch("/api/admin/stats")
       .then(r => r.json())
       .then(d => setStats(d))
       .finally(() => setLoading(false));
-  }, [isLoaded, user]);
+    fetchAdmins();
+  }, [isLoaded, adminLoading, isAdmin]);
 
-  if (!isLoaded || (isLoaded && user && !ADMIN_IDS.has(user.id))) return null;
+  function fetchAdmins() {
+    setAdminsLoading(true);
+    fetch("/api/admin/users")
+      .then(r => r.json())
+      .then(d => setAdmins(d.admins ?? []))
+      .finally(() => setAdminsLoading(false));
+  }
+
+  async function handleAddAdmin(e: React.FormEvent) {
+    e.preventDefault();
+    setAddError(""); setAddSuccess(false);
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clerk_user_id: newAdminId.trim(), email: newAdminEmail.trim() || undefined, display_name: newAdminName.trim() || undefined }),
+    });
+    const d = await res.json();
+    if (!res.ok) { setAddError(d.error ?? "Failed"); return; }
+    setAddSuccess(true);
+    setNewAdminId(""); setNewAdminEmail(""); setNewAdminName("");
+    fetchAdmins();
+    setTimeout(() => setAddSuccess(false), 3000);
+  }
+
+  async function handleRemoveAdmin(clerkId: string) {
+    if (!confirm(`Remove ${clerkId} from admins?`)) return;
+    const res = await fetch("/api/admin/users", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clerk_user_id: clerkId }),
+    });
+    const d = await res.json();
+    if (!res.ok) { alert(d.error ?? "Failed to remove"); return; }
+    fetchAdmins();
+  }
+
+  if (!isLoaded || adminLoading) return null;
+  if (isLoaded && !adminLoading && !isAdmin) return null;
 
   const claimRate = stats?.totals?.all
     ? ((stats.totals.claimed / stats.totals.all) * 100).toFixed(1)
@@ -109,10 +158,25 @@ export default function AdminDashboard() {
         .adm-log-edit{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)}
         .adm-log-name{color:rgba(255,255,255,0.65)}
 
+        .adm-input{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#f0f4ff;font-size:0.85rem;outline:none;width:100%;box-sizing:border-box;transition:border-color 0.2s}
+        .adm-input:focus{border-color:rgba(0,232,122,0.4)}
+        .adm-input-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;align-items:end;margin-bottom:0.75rem}
+        .adm-input-label{font-size:0.7rem;color:rgba(255,255,255,0.3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em}
+        .adm-admins-row{display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem}
+        .adm-admins-row:last-child{border-bottom:none}
+        .adm-admins-id{font-family:monospace;font-size:0.75rem;color:rgba(255,255,255,0.35)}
+        .adm-admins-name{color:#f0f4ff;font-weight:600}
+        .adm-admins-email{color:rgba(255,255,255,0.4);font-size:0.78rem}
+        .adm-remove-btn{background:rgba(255,95,95,0.1);border:1px solid rgba(255,95,95,0.2);color:#ff5f5f;border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:700;cursor:pointer;transition:opacity 0.2s}
+        .adm-remove-btn:hover{opacity:0.75}
+        .adm-success{color:#00e87a;font-size:0.8rem;margin-top:6px}
+        .adm-err{color:#ff5f5f;font-size:0.8rem;margin-top:6px}
+
         @media(max-width:768px){
           .adm-two-col{grid-template-columns:1fr}
           .adm-stat-grid{grid-template-columns:repeat(2,1fr)}
           .adm-shell{padding:1.5rem 1rem 4rem}
+          .adm-input-row{grid-template-columns:1fr}
         }
       `}</style>
 
@@ -273,6 +337,66 @@ export default function AdminDashboard() {
                   <Link href="/admin/directory?status=flagged" className="adm-btn secondary">Review Flagged</Link>
                   <Link href="/professionals" className="adm-btn secondary">View Public Directory</Link>
                 </div>
+              </div>
+
+              {/* ── Manage Admins ── */}
+              <div className="adm-section">
+                <div className="adm-section-title">Manage Admins</div>
+                <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.35)", marginBottom: "1.25rem" }}>
+                  Admins have full access to this panel and the debug overlay in Chat. Get a user&apos;s Clerk ID from{" "}
+                  <a href="https://dashboard.clerk.com" target="_blank" rel="noreferrer" style={{ color: "#3d8bff" }}>dashboard.clerk.com</a> → Users.
+                </p>
+
+                {/* Existing admins */}
+                {adminsLoading ? (
+                  <p style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.82rem" }}>Loading…</p>
+                ) : (
+                  <div style={{ marginBottom: "1.5rem", background: "rgba(255,255,255,0.02)", borderRadius: 10, padding: "0 1rem", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    {admins.length === 0 ? (
+                      <p style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.82rem", padding: "0.75rem 0" }}>No admins in database yet — bootstrap admin (hardcoded) always has access.</p>
+                    ) : admins.map(a => (
+                      <div key={a.clerk_user_id} className="adm-admins-row">
+                        <div>
+                          <div className="adm-admins-name">{a.display_name || "—"}</div>
+                          <div className="adm-admins-email">{a.email || ""}</div>
+                          <div className="adm-admins-id">{a.clerk_user_id}</div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                          <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "0.72rem" }}>
+                            {a.added_at ? new Date(a.added_at).toLocaleDateString() : ""}
+                          </span>
+                          {a.clerk_user_id !== user?.id && (
+                            <button className="adm-remove-btn" onClick={() => handleRemoveAdmin(a.clerk_user_id)}>Remove</button>
+                          )}
+                          {a.clerk_user_id === user?.id && (
+                            <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.2)" }}>you</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add admin form */}
+                <form onSubmit={handleAddAdmin}>
+                  <div className="adm-input-row">
+                    <div>
+                      <div className="adm-input-label">Clerk User ID *</div>
+                      <input className="adm-input" placeholder="user_xxxxxxxxxx" value={newAdminId} onChange={e => setNewAdminId(e.target.value)} required />
+                    </div>
+                    <div>
+                      <div className="adm-input-label">Name</div>
+                      <input className="adm-input" placeholder="Jane Smith" value={newAdminName} onChange={e => setNewAdminName(e.target.value)} />
+                    </div>
+                    <div>
+                      <div className="adm-input-label">Email</div>
+                      <input className="adm-input" placeholder="jane@example.com" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} />
+                    </div>
+                    <button type="submit" className="adm-btn primary" style={{ height: 38, whiteSpace: "nowrap" }}>Add Admin</button>
+                  </div>
+                  {addError && <div className="adm-err">{addError}</div>}
+                  {addSuccess && <div className="adm-success">Admin added ✓</div>}
+                </form>
               </div>
             </>
           )}

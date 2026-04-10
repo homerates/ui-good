@@ -7,8 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppNav from "../../components/AppNav";
-
-const ADMIN_IDS = new Set(["user_35xDE51bR0NTaKEpwZMbHtn752O"]);
+import { useAdminStatus } from "../../hooks/useAdminStatus";
 
 const PRO_TYPE_LABEL: Record<string, string> = {
   lo:           "Loan Officer",
@@ -39,6 +38,7 @@ type Listing = {
 
 export default function AdminDirectory() {
   const { user, isLoaded } = useUser();
+  const { isAdmin, loading: adminLoading } = useAdminStatus();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -66,9 +66,9 @@ export default function AdminDirectory() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!user || !ADMIN_IDS.has(user.id)) { router.replace("/"); return; }
-  }, [isLoaded, user]);
+    if (!isLoaded || adminLoading) return;
+    if (!isAdmin) { router.replace("/"); return; }
+  }, [isLoaded, adminLoading, isAdmin]);
 
   function buildParams(overrides: Record<string, string | number> = {}) {
     const p = new URLSearchParams();
@@ -95,7 +95,7 @@ export default function AdminDirectory() {
   }
 
   useEffect(() => {
-    if (!isLoaded || !user || !ADMIN_IDS.has(user.id)) return;
+    if (!isLoaded || adminLoading || !isAdmin) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(0);
@@ -105,7 +105,7 @@ export default function AdminDirectory() {
   }, [q, status, source, type, isLoaded, user]);
 
   useEffect(() => {
-    if (!isLoaded || !user || !ADMIN_IDS.has(user.id)) return;
+    if (!isLoaded || adminLoading || !isAdmin) return;
     load(buildParams());
   }, [page]);
 

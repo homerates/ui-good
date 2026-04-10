@@ -11,6 +11,7 @@ import Sidebar from '../components/Sidebar';
 import MortgageCalcPanel from '../components/MortgageCalcPanel';
 import MenuButton from '../components/MenuButton';
 import { useMobileComposerPin } from '../hooks/useMobileComposerPin';
+import { useAdminStatus } from '../hooks/useAdminStatus';
 import { logAnswerToLibrary } from '../../lib/logAnswerToLibrary';
 import './styles.css';
 import GrokCard from "@/components/GrokCard";
@@ -185,10 +186,7 @@ const ANON_DAILY_LIMIT = 10;
 const SIGNED_METER_KEY = 'hr.signed.q.v1';
 const SIGNED_DAILY_LIMIT = 100; // signed-in, triggers Upgrade modal
 
-// Admin users — unlimited, bypasses all rate limiting and upgrade modals
-const ADMIN_USER_IDS = new Set([
-    'user_35xDE51bR0NTaKEpwZMbHtn752O',
-]);
+// Admin status is managed via Supabase — see /admin → Manage Admins
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtISOshort = (iso?: string) =>
@@ -254,8 +252,7 @@ function bumpAnonCounterOrBlock(): boolean {
  */
 function bumpSignedCounterOrBlock(userId: string | null | undefined): boolean {
     try {
-        // Admin users are never rate-limited
-        if (userId && ADMIN_USER_IDS.has(userId)) return true;
+        // Admin check is handled by the caller — no ADMIN_USER_IDS needed here
 
         if (typeof window === 'undefined') return true;
 
@@ -1136,6 +1133,7 @@ export default function Page() {
     // borrower-only mode fixed
     const mode: 'borrower' = 'borrower';
 
+    const { isAdmin } = useAdminStatus();
     const [loading, setLoading] = useState(false);
     const [typingId, setTypingId] = useState<string | null>(null);
     const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
@@ -1756,7 +1754,6 @@ export default function Page() {
                 return;
             }
         } else {
-            const isAdmin = !!user?.id && ADMIN_USER_IDS.has(user.id);
             if (!isAdmin) {
                 const allowed = bumpSignedCounterOrBlock(user?.id);
                 if (!allowed) {
@@ -2724,7 +2721,7 @@ export default function Page() {
                                                             onSaveToVault={saveToVault}
                                                         />
                                                         {/* Admin debug panel — shows raw JSON + math fields */}
-                                                        {ADMIN_USER_IDS.has(user?.id ?? '') && (
+                                                        {isAdmin && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
                                                         {/* Property preview card — inside Bubble, above slider cards */}

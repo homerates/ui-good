@@ -9,9 +9,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
-
-const ADMIN_IDS = new Set(["user_35xDE51bR0NTaKEpwZMbHtn752O"]);
+import { useAdminStatus } from "../hooks/useAdminStatus";
 
 export interface AppNavProps {
   mode?: "standard" | "thread";
@@ -198,8 +196,7 @@ export default function AppNav({
   activePage,
   drawerOnly = false,
 }: AppNavProps) {
-  const { user } = useUser();
-  const isAdmin = !!user && ADMIN_IDS.has(user.id);
+  const { isAdmin } = useAdminStatus();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
