@@ -10,6 +10,141 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
 import { canPostScenario } from "../../../lib/subscription";
 
+// ─── Scenario alert emails ────────────────────────────────────────────────────
+
+function scenarioAlertHtml(opts: {
+  loName: string;
+  loanType: string;
+  state: string;
+  priceRange: string;
+  creditTier: string;
+  timeline: string;
+  boardUrl: string;
+  isPrivate: boolean;
+}): string {
+  const tag = opts.isPrivate
+    ? `<span style="background:#1a2a3a;color:#3d8bff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.06em">YOUR REFERRAL</span>`
+    : `<span style="background:#1a2a1a;color:#00e87a;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.06em">NEW ON BOARD</span>`;
+
+  const greeting = opts.isPrivate
+    ? `A borrower you referred just posted a scenario and is waiting for your response.`
+    : `A new borrower scenario matching your state just posted to the board.`;
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#07100f;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#07100f;padding:32px 16px">
+<tr><td align="center">
+<table width="100%" style="max-width:520px" cellpadding="0" cellspacing="0">
+  <tr><td style="padding:0 0 24px">
+    <img src="https://chat.homerates.ai/assets/HomeRates-Logo%20Green.png" alt="HomeRates.ai" height="26" style="display:block"/>
+  </td></tr>
+  <tr><td style="padding:0 0 20px">
+    ${tag}
+    <div style="font-size:22px;font-weight:700;color:#e8f5ee;margin-top:12px">Hi ${opts.loName},</div>
+    <div style="font-size:14px;color:rgba(160,192,168,.7);margin-top:6px">${greeting}</div>
+  </td></tr>
+  <tr><td style="padding:0 0 24px">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px">
+      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">Loan type</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.loanType}</span></td></tr>
+      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">Price range</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.priceRange}</span></td></tr>
+      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">Credit</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.creditTier}</span></td></tr>
+      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">State</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.state}</span></td></tr>
+      <tr><td style="padding:6px 0"><span style="color:rgba(160,192,168,.5);font-size:12px">Timeline</span><br/><span style="color:#e8f5ee;font-size:15px;font-weight:600">${opts.timeline}</span></td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="padding:0 0 28px">
+    <a href="${opts.boardUrl}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:14px;font-weight:700;padding:14px 20px;border-radius:10px;text-decoration:none">
+      View &amp; Respond on Board →
+    </a>
+  </td></tr>
+  <tr><td style="border-top:1px solid rgba(255,255,255,.06);padding:20px 0 0">
+    <div style="font-size:12px;color:rgba(160,192,168,.4);line-height:1.6">
+      HomeRates.ai — Borrower identities are kept anonymous until contact is shared.
+    </div>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+async function sendScenarioAlerts(scenario: {
+  id: string;
+  loan_type: string;
+  state: string;
+  price_range: string;
+  credit_tier: string;
+  timeline: string;
+  visibility: string;
+  referred_pro_id: string | null;
+}): Promise<void> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) return;
+
+  const sb = getSupabase();
+  if (!sb) return;
+
+  const boardUrl = `https://chat.homerates.ai/lo/scenarios`;
+
+  interface LoRow { user_id: string; email: string | null; lender: string | null; }
+  let targets: LoRow[] = [];
+
+  if (scenario.visibility === "private" && scenario.referred_pro_id) {
+    const { data } = await sb
+      .from("loan_officers")
+      .select("user_id, email, lender")
+      .eq("user_id", scenario.referred_pro_id)
+      .maybeSingle();
+    if (data) targets = [data];
+  } else {
+    const { data } = await sb
+      .from("loan_officers")
+      .select("user_id, email, lender")
+      .eq("license_state", scenario.state)
+      .not("email", "is", null)
+      .limit(20);
+    targets = data ?? [];
+  }
+
+  // Fire emails concurrently (no await on individual — fire-and-forget)
+  const sends = targets
+    .filter(lo => lo.email)
+    .map(lo => {
+      const loName = lo.lender ?? "there";
+      const html = scenarioAlertHtml({
+        loName,
+        loanType: scenario.loan_type,
+        state: scenario.state,
+        priceRange: scenario.price_range,
+        creditTier: scenario.credit_tier,
+        timeline: scenario.timeline,
+        boardUrl,
+        isPrivate: scenario.visibility === "private",
+      });
+
+      return fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "HomeRates.ai <digest@homerates.ai>",
+          to: [lo.email!],
+          subject: scenario.visibility === "private"
+            ? `Your referral posted a scenario — respond now`
+            : `New ${scenario.loan_type} scenario in ${scenario.state}`,
+          html,
+        }),
+      }).catch(e => console.error("[scenario-alert] email failed:", e));
+    });
+
+  await Promise.allSettled(sends);
+}
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -102,6 +237,18 @@ export async function POST(req: NextRequest) {
     console.error("[scenarios] insert error:", error);
     return NextResponse.json({ error: "Failed to create scenario" }, { status: 500 });
   }
+
+  // Fire-and-forget: notify matching LOs
+  sendScenarioAlerts({
+    id: data.id,
+    loan_type: data.loan_type,
+    state: data.state,
+    price_range: data.price_range,
+    credit_tier: data.credit_tier,
+    timeline: data.timeline,
+    visibility: data.visibility,
+    referred_pro_id: data.referred_pro_id ?? null,
+  }).catch(e => console.error("[scenario-alert] send failed:", e));
 
   return NextResponse.json({ scenario: data });
 }

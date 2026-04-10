@@ -152,10 +152,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
     }
   }
 
+  // If the viewer is the professional, resolve borrower's display name
+  let borrowerName: string | null = null;
+  if (!isBorrower) {
+    try {
+      const clerk = await clerkClient();
+      const borrowerClerk = await clerk.users.getUser(thread.borrower_id);
+      borrowerName = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ")
+        || borrowerClerk.emailAddresses[0]?.emailAddress?.split("@")[0]
+        || null;
+    } catch { /* non-fatal */ }
+  }
+
   return NextResponse.json({
     thread: {
       ...thread,
       is_borrower: isBorrower,
+      borrower_name: borrowerName,
     },
     messages: messages ?? [],
     contact_share: contactShare ?? null,

@@ -23,6 +23,7 @@ interface Thread {
   professional_type: string;
   status: string;
   is_borrower: boolean;
+  borrower_name: string | null;
   scenario_id: string | null;
   last_message_at: string | null;
   created_at: string;
@@ -155,7 +156,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           mode="thread"
           backHref="/messages"
           backLabel="← Inbox"
-          title={isBorrower ? proLabel : "Borrower"}
+          title={isBorrower ? proLabel : (thread?.borrower_name ?? "Borrower")}
           titleBadge={contactShared ? <span className="ch-contact-badge">Contact shared</span> : undefined}
         />
 
