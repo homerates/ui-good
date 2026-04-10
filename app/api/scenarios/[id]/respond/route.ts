@@ -82,10 +82,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Failed to submit response" }, { status: 500 });
   }
 
-  // Increment response count on the scenario
+  // Increment response count — auto-close if cap reached
+  const newCount = (scenarioFull.response_count ?? 0) + 1;
+  const maxReached = newCount >= (scenarioFull.max_responses ?? 5);
   await sb
     .from("scenario_briefs")
-    .update({ response_count: (scenarioFull.response_count ?? 0) + 1 })
+    .update({
+      response_count: newCount,
+      ...(maxReached ? { status: "matched" } : {}),
+    })
     .eq("id", id);
 
   return NextResponse.json({ response });
