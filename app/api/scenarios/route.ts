@@ -129,10 +129,12 @@ async function sendScenarioAlerts(scenario: {
   referred_pro_id: string | null;
 }): Promise<void> {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (!RESEND_API_KEY) return;
+  if (!RESEND_API_KEY) { console.error("[scenario-alert] RESEND_API_KEY not set"); return; }
 
   const sb = getSupabase();
-  if (!sb) return;
+  if (!sb) { console.error("[scenario-alert] DB unavailable"); return; }
+
+  console.log("[scenario-alert] starting for scenario", scenario.id, "visibility:", scenario.visibility, "state:", scenario.state, "referred_pro_id:", scenario.referred_pro_id);
 
   const boardUrl = `https://chat.homerates.ai/lo/scenarios`;
 
@@ -141,27 +143,31 @@ async function sendScenarioAlerts(scenario: {
 
   if (scenario.visibility === "private" && scenario.referred_pro_id) {
     // Single LO — get lender name from loan_officers, email from users
-    const [{ data: loRow }, { data: userRow }] = await Promise.all([
+    const [{ data: loRow, error: loErr }, { data: userRow, error: userErr }] = await Promise.all([
       sb.from("loan_officers").select("user_id, lender").eq("user_id", scenario.referred_pro_id).maybeSingle(),
       sb.from("users").select("email").eq("id", scenario.referred_pro_id).maybeSingle(),
     ]);
+    console.log("[scenario-alert] private — loRow:", loRow, "loErr:", loErr, "userRow:", userRow, "userErr:", userErr);
     if (loRow && userRow?.email) {
       targets = [{ user_id: loRow.user_id, email: userRow.email, lender: loRow.lender }];
     }
   } else {
-    // Public: get LOs in matching state, then batch-fetch emails from users table
-    const { data: loRows } = await sb
+    // Public: get all LOs (no license_state filter — many LOs haven't set this field)
+    const { data: loRows, error: loErr } = await sb
       .from("loan_officers")
-      .select("user_id, lender")
-      .eq("license_state", scenario.state)
-      .limit(20);
+      .select("user_id, lender, license_state")
+      .limit(50);
+
+    console.log("[scenario-alert] public — loRows count:", loRows?.length, "loErr:", loErr);
 
     if (loRows && loRows.length > 0) {
       const ids = loRows.map(r => r.user_id);
-      const { data: userRows } = await sb
+      const { data: userRows, error: userErr } = await sb
         .from("users")
         .select("id, email")
         .in("id", ids);
+
+      console.log("[scenario-alert] userRows count:", userRows?.length, "userErr:", userErr);
 
       const emailMap: Record<string, string> = {};
       for (const u of userRows ?? []) {
@@ -170,6 +176,8 @@ async function sendScenarioAlerts(scenario: {
       targets = loRows
         .filter(lo => emailMap[lo.user_id])
         .map(lo => ({ user_id: lo.user_id, email: emailMap[lo.user_id], lender: lo.lender }));
+
+      console.log("[scenario-alert] final targets:", targets.map(t => t.email));
     }
   }
 
@@ -203,7 +211,10 @@ async function sendScenarioAlerts(scenario: {
             : `New ${scenario.loan_type} scenario in ${scenario.state}`,
           html,
         }),
-      }).catch(e => console.error("[scenario-alert] email failed:", e));
+      }).then(async r => {
+        const body = await r.json().catch(() => ({}));
+        console.log("[scenario-alert] Resend response", r.status, JSON.stringify(body), "to:", lo.email);
+      }).catch(e => console.error("[scenario-alert] email fetch failed:", e));
     });
 
   await Promise.allSettled(sends);
