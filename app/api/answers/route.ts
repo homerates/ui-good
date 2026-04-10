@@ -46,6 +46,7 @@ import {
 } from "../../../lib/memory";
 import { resolveGeoFeatures, extractZip, extractIncome } from "../../../lib/geoFeatures";
 import { tavily as createTavilyClient } from '@tavily/core';
+import { spendCredits } from "../../../lib/credits";
 // Verify calc engine on cold start — logs failures, never throws
 try {
     const testResult = runCalcTests();
@@ -2099,6 +2100,19 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
     const intent = (intentParam || body.intent || "web").trim() || "web";
+
+    // ── Credit spend ─────────────────────────────────────────────────────────
+    // Deduct at request time (non-blocking) — same pattern as Claude/ChatGPT.
+    // Costs: deep analysis = 25, standard AI query = 15, local calc = 5.
+    // Balance floors at 0 (never goes negative). Non-enforced for now.
+    if (userId) {
+      const _isDeep = /^\[deep-analysis\]/i.test(question);
+      const _isCalcOnly = /^\$([\d,.]+[kKmM]?)|\b(what.*(payment|piti|rate)|how much|afford|calculate|refi|dscr|fha|va loan|jumbo)\b/i.test(question) && question.length < 120;
+      const _creditCost = _isDeep ? 25 : _isCalcOnly ? 5 : 15;
+      const _creditType = _isDeep ? "analysis_spend" : "query_spend";
+      const _creditDesc = _isDeep ? "Deep analysis" : _isCalcOnly ? "Calc query" : "AI query";
+      spendCredits(userId, _creditCost, _creditType, _creditDesc).catch(() => {});
+    }
 
     // Always present for UI contract
     let usedFRED = false;

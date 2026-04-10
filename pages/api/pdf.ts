@@ -9,6 +9,7 @@
 // Pages Router API routes do NOT apply this condition and work correctly.
 
 import { getAuth } from '@clerk/nextjs/server';
+import { spendCredits } from '../../lib/credits';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { createClient } from '@supabase/supabase-js';
 import React from 'react';
@@ -54,6 +55,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!type || !params) {
         return res.status(400).json({ error: 'Missing type or params' });
     }
+
+    // Deduct PDF export credits — non-blocking
+    spendCredits(userId, 10, "analysis_spend", `PDF export — ${type}`).catch(() => {});
 
     try {
         let doc: React.ReactElement;
