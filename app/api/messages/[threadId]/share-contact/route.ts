@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../../lib/supabaseServer";
 import { emailContactShare, type ProCard } from "../../../../../lib/sendEmail";
+import { awardCredits } from "../../../../../lib/credits";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
   const { userId } = await auth();
@@ -136,13 +137,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
     console.error("[share-contact] pro profile fetch failed:", e);
   }
 
-  emailContactShare({
+  await emailContactShare({
     borrowerEmail,
     borrowerName,
     borrowerPhone: borrowerRow?.phone ?? null,
     pro: proCard,
     threadId,
   });
+
+  // Award borrower 50 credits for sharing contact — reward engagement
+  await awardCredits(userId, 50, "referral_bonus", "Contact shared with professional", `contact_share_${threadId}`);
 
   return NextResponse.json({
     ok: true,

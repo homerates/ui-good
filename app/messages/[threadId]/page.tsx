@@ -368,6 +368,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 This will share your email and phone number with the {proType.toLowerCase()},
                 and give you theirs. This is irreversible for this conversation.
               </p>
+              <div style={{
+                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: 8, padding: "10px 12px", margin: "0 0 16px",
+                fontSize: "0.75rem", color: "#4a6e58", lineHeight: 1.6,
+              }}>
+                <strong style={{ color: "#6b8f7a" }}>Platform notice:</strong> HomeRates.ai is an introduction service only. We do not verify contact accuracy, guarantee responsiveness, or mediate any dispute between parties after contact is shared. By continuing, you acknowledge our{" "}
+                <a href="/disclosures" target="_blank" rel="noopener noreferrer" style={{ color: "#00e87a" }}>Terms &amp; Disclosures</a>.
+              </div>
               <div className="ch-share-confirm-actions">
                 <button className="ch-share-confirm-cancel" onClick={() => setShowShareConfirm(false)}>Cancel</button>
                 <button className="ch-share-confirm-ok" onClick={shareContact} disabled={sharing}>

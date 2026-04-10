@@ -94,12 +94,48 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>13. Changes to These Terms</h2>
+        <h2>13. Professional Matching — Introduction Service Only</h2>
+        <p>HomeRates.ai operates as a <strong>technology platform and introduction service only</strong>. When borrowers and mortgage professionals (loan officers, agents) connect through the platform, HomeRates.ai's role ends at the point of introduction. Specifically:</p>
+        <ul>
+          <li>HomeRates.ai does <strong>not</strong> verify, validate, or guarantee the accuracy of any contact information provided by borrowers or professionals, including email addresses, phone numbers, or business details.</li>
+          <li>HomeRates.ai does <strong>not</strong> guarantee that any borrower will respond to, engage with, or proceed with a mortgage application after contact information has been exchanged.</li>
+          <li>HomeRates.ai does <strong>not</strong> guarantee that any professional's rate indication, approach, or service offering will result in a completed transaction.</li>
+          <li>HomeRates.ai does <strong>not</strong> mediate, arbitrate, or intervene in any dispute between a borrower and a professional arising from or related to any introduction made through the platform.</li>
+          <li>HomeRates.ai does <strong>not</strong> issue refunds, credits, or compensation to any party based on the outcome of a professional-borrower introduction, including cases where a borrower is unresponsive, contact information is inaccurate, or a transaction does not close.</li>
+        </ul>
+        <p>By using the matching and messaging features of HomeRates.ai, all parties expressly acknowledge and agree that HomeRates.ai bears no liability for the outcome of any introduction, the quality of any service rendered, or any failure to communicate, transact, or perform.</p>
+      </section>
+
+      <section>
+        <h2>14. Professional Conduct — No Liability for Third-Party Actions</h2>
+        <p>Mortgage professionals (loan officers and real estate agents) who use HomeRates.ai are independent licensed professionals operating under their own applicable state and federal licensing requirements. HomeRates.ai:</p>
+        <ul>
+          <li>does <strong>not</strong> employ, supervise, direct, or control any loan officer, real estate agent, or other professional using the platform;</li>
+          <li>does <strong>not</strong> endorse, recommend, or vouch for the quality, competence, or conduct of any individual professional;</li>
+          <li>does <strong>not</strong> accept responsibility for any advice, quote, representation, or service provided by any professional through or outside of the platform;</li>
+          <li>does <strong>not</strong> mediate, resolve, or take sides in any dispute between a borrower and a professional, including complaints of misconduct, misrepresentation, non-performance, or regulatory violations.</li>
+        </ul>
+        <p>Users who believe a professional has engaged in unlawful conduct should contact the relevant state licensing authority (e.g., NMLS Consumer Access at <a href="https://nmlsconsumeraccess.org" target="_blank" rel="noopener noreferrer">nmlsconsumeraccess.org</a> for mortgage professionals, or the applicable state real estate commission for agents).</p>
+      </section>
+
+      <section>
+        <h2>15. Scenario Posting — Anti-Abuse Policy</h2>
+        <p>Borrowers may post mortgage scenarios to the HomeRates.ai platform to receive rate indications and approaches from licensed professionals. By posting a scenario, you agree that:</p>
+        <ul>
+          <li>all information provided is accurate and truthful to the best of your knowledge;</li>
+          <li>you will not post duplicate, fabricated, or test scenarios intended to mislead or waste the time of professionals;</li>
+          <li>posting a scenario does not obligate you to proceed with any professional, but you agree to act in good faith toward professionals who respond;</li>
+          <li>HomeRates.ai reserves the right to suspend or terminate access for users who engage in abusive, repetitive, or bad-faith scenario posting.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>16. Changes to These Terms</h2>
         <p>HomeRates.ai may update these Terms from time to time. The most current version will always be available on this page. Continued use constitutes acceptance of the updated terms.</p>
       </section>
 
       <section>
-        <h2>14. Contact</h2>
+        <h2>17. Contact</h2>
         <p><strong>HomeRatesAi LLC</strong><br />
         1401 Pennsylvania Ave Suite 105A PMB 70722<br />
         Wilmington, DE 19806<br />

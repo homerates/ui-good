@@ -26,7 +26,7 @@ export const PLANS = {
     priceIdAnnual: null,
     borrowerSlots: 0,
     chatMessages: 20,       // per month
-    scenarioPosts: 2,       // per month
+    scenarioPosts: Infinity, // unlimited — scenarios are the marketplace supply side
     pdfExports: 0,
     alerts: false,
     description: "Get started with HomeRates.ai",
