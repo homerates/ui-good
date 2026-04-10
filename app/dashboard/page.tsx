@@ -10,6 +10,7 @@ import { getSupabase } from "../../lib/supabaseServer";
 import { getUserPlan, canPostScenario } from "../../lib/subscription";
 import { PLANS } from "../../lib/stripe";
 import BillingPortalButton from "../components/BillingPortalButton";
+import { getBalance, getHistory } from "../../lib/credits";
 
 export const dynamic = "force-dynamic";
 
@@ -169,6 +170,23 @@ export default async function DashboardPage() {
       .eq("responder_type", "agent");
     agentConnectionCount = cc ?? 0;
   }
+
+  // ── Credits ─────────────────────────────────────────────────────────────
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+  const [creditsBalance, creditHistory, creditEarnedRows] = await Promise.all([
+    getBalance(userId),
+    getHistory(userId, 5),
+    sb ? sb
+      .from("credit_transactions")
+      .select("amount")
+      .eq("user_id", userId)
+      .gte("created_at", startOfMonth.toISOString())
+      .gt("amount", 0)
+      .then(r => r.data ?? [])
+    : Promise.resolve([]),
+  ]);
+  const creditsEarnedThisMonth = (creditEarnedRows as { amount: number }[]).reduce((s, r) => s + r.amount, 0);
 
   // ── Unread messages (all user types) ────────────────────────────────────
   let unreadMessages = 0;
@@ -431,6 +449,43 @@ export default async function DashboardPage() {
                   {periodEnd && <CardBody>Renews {periodEnd}</CardBody>}
                   <BillingPortalButton />
                 </>
+              )}
+            </SectionCard>
+
+            {/* Credits card */}
+            <SectionCard accent="green">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <CardTitle>⚡ Credits</CardTitle>
+                <span style={{
+                  fontSize: "1.4rem", fontWeight: 800, color: "#00e87a", lineHeight: 1,
+                }}>
+                  {creditsBalance.toLocaleString()}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "rgba(185,208,192,0.5)" }}>
+                <span>Earned this month</span>
+                <span style={{ color: "#4ade80" }}>+{creditsEarnedThisMonth.toLocaleString()}</span>
+              </div>
+              {creditHistory.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+                  {creditHistory.slice(0, 3).map(tx => (
+                    <div key={tx.id} style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      fontSize: "0.78rem", padding: "5px 0",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    }}>
+                      <span style={{ color: "rgba(185,208,192,0.55)", flex: 1, marginRight: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {tx.description ?? tx.type}
+                      </span>
+                      <span style={{ fontWeight: 700, color: tx.amount > 0 ? "#4ade80" : "#f87171", flexShrink: 0 }}>
+                        {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {creditHistory.length === 0 && (
+                <CardBody>Credits will appear here as you use and earn them.</CardBody>
               )}
             </SectionCard>
 

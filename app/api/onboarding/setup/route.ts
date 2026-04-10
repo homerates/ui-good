@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { awardCredits } from "../../../../lib/credits";
 
 export async function GET() {
   const { userId } = await auth();
@@ -108,6 +109,18 @@ export async function POST(req: NextRequest) {
   if (refSlug && refSlug !== userId) {
     await sb.from("users").update({ referred_by: refSlug }).eq("id", userId).is("referred_by", null);
     jar.delete("hr_ref");
+  }
+
+  // ── Credits ──────────────────────────────────────────────────────────────
+  // Founding bonus — 1,000 credits, once per user
+  await awardCredits(userId, 1000, "founding_bonus", "Welcome! Founding member bonus", `founding_${userId}`);
+
+  // Free plan starter credits — 100, once per user
+  await awardCredits(userId, 100, "plan_free_monthly", "Free plan starter credits", `free_start_${userId}`);
+
+  // Referral bonus to the referrer — 500 credits per person they bring in
+  if (refSlug && refSlug !== userId) {
+    await awardCredits(refSlug, 500, "referral_bonus", "Referral bonus — new member joined", `referral_${userId}`);
   }
 
   return NextResponse.json({ ok: true, role });

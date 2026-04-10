@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useAdminStatus } from "../hooks/useAdminStatus";
+import { useCreditBalance } from "../hooks/useCreditBalance";
 
 export interface AppNavProps {
   mode?: "standard" | "thread";
@@ -197,6 +198,7 @@ export default function AppNav({
   drawerOnly = false,
 }: AppNavProps) {
   const { isAdmin } = useAdminStatus();
+  const credits = useCreditBalance();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -251,6 +253,20 @@ export default function AppNav({
           <Link href="/support" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
             <span className="an-drawer-icon">❓</span>Support
           </Link>
+          <div className="an-drawer-divider" />
+          {credits !== null && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "8px 12px", margin: "0 0 4px",
+              background: "rgba(0,232,122,0.06)", borderRadius: 10,
+              border: "1px solid rgba(0,232,122,0.12)",
+            }}>
+              <span style={{ fontSize: "0.82rem", color: "#4a6e58", fontWeight: 600 }}>⚡ Credits</span>
+              <span style={{ fontSize: "0.88rem", fontWeight: 700, color: "#00e87a" }}>
+                {credits.balance.toLocaleString()}
+              </span>
+            </div>
+          )}
           {isAdmin && (
             <>
               <div className="an-drawer-divider" />

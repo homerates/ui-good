@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe, getPlanFromPriceId, getBorrowerSlots, type PlanKey } from "../../../../lib/stripe";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { awardCredits, type CreditType } from "../../../../lib/credits";
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 
@@ -85,6 +86,24 @@ async function upsertSubscription(
 }
 
 // ---------------------------------------------------------------------------
+// Map plan + price interval to credit award
+// ---------------------------------------------------------------------------
+function getPlanCreditAward(plan: PlanKey, priceId: string): { type: CreditType; amount: number } | null {
+  const isAnnual =
+    priceId === process.env.STRIPE_PLUS_ANNUAL_PRICE_ID ||
+    priceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID;
+
+  const map: Record<string, { type: CreditType; amount: number }> = {
+    "plus:monthly": { type: "plan_plus_monthly", amount: 500 },
+    "plus:annual":  { type: "plan_plus_annual",  amount: 6000 },
+    "pro:monthly":  { type: "plan_pro_monthly",  amount: 1000 },
+    "pro:annual":   { type: "plan_pro_annual",   amount: 12000 },
+  };
+  if (plan === "free") return null;
+  return map[`${plan}:${isAnnual ? "annual" : "monthly"}`] ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Resolve Stripe customer → Clerk userId via our users table
 // ---------------------------------------------------------------------------
 async function getUserIdFromCustomer(customerId: string): Promise<string | null> {
@@ -149,6 +168,14 @@ export async function POST(req: NextRequest) {
         _periodEnd ? new Date(_periodEnd * 1000) : null
       );
       console.log(`[stripe/webhook] provisioned plan=${plan} for user=${userId}`);
+
+      // Award plan credits on new subscription
+      const priceId = sub.items.data[0]?.price?.id ?? "";
+      const award = getPlanCreditAward(plan ?? "free", priceId);
+      if (award) {
+        await awardCredits(userId, award.amount, award.type,
+          `${plan} plan subscription — welcome credits`, sub.id);
+      }
     }
   }
 
@@ -195,6 +222,35 @@ export async function POST(req: NextRequest) {
       await upsertSubscription(sub.id, userId, sub);
       await updateUserPlan(userId, "free", customerId, null);
       console.log(`[stripe/webhook] subscription deleted → downgraded user=${userId}`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // invoice.payment_succeeded — subscription renewals only
+  // Award monthly/annual credits on each billing cycle.
+  // Add this event in Stripe Dashboard → Webhooks → Edit endpoint.
+  // -------------------------------------------------------------------------
+  if (event.type === "invoice.payment_succeeded") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const billingReason = (invoice as any).billing_reason as string | undefined;
+
+    // Only fire on recurring renewals, not the initial checkout payment
+    const invoiceAny = invoice as any;
+    if (billingReason === "subscription_cycle" && invoiceAny.subscription) {
+      const customerId = invoice.customer as string;
+      const userId = await getUserIdFromCustomer(customerId);
+      if (userId) {
+        const sub = await getStripe().subscriptions.retrieve(invoiceAny.subscription as string);
+        const priceId = sub.items.data[0]?.price?.id ?? "";
+        const plan = getPlanFromPriceId(priceId);
+        const award = getPlanCreditAward(plan, priceId);
+        if (award) {
+          // Use invoice.id as reference_id to prevent double-awarding
+          await awardCredits(userId, award.amount, award.type,
+            `${plan} plan renewal credits`, invoice.id);
+          console.log(`[stripe/webhook] renewal credits ${award.amount} → user=${userId}`);
+        }
+      }
     }
   }
 
