@@ -242,6 +242,8 @@ export async function POST(req: NextRequest) {
   // Validate matching controls
   const maxResp = Math.min(Math.max(parseInt(max_responses ?? "3") || 3, 1), 5);
   const windowHours = [24, 48, 72].includes(parseInt(response_window_hours ?? "48")) ? parseInt(response_window_hours) : 48;
+  // down_payment_pct may arrive as a decimal string ("3.5") — column is integer, so round it
+  const dpPct = Math.round(parseFloat(String(down_payment_pct)) || 0);
   const closesAt = new Date(Date.now() + windowHours * 3600 * 1000).toISOString();
 
   // Check monthly scenario post limit
@@ -285,7 +287,7 @@ export async function POST(req: NextRequest) {
       loan_type,
       loan_purpose: (loan_purpose ?? "purchase").toLowerCase(),
       price_range,
-      down_payment_pct,
+      down_payment_pct: dpPct,
       income_range,
       credit_tier,
       timeline,
