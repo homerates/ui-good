@@ -22,8 +22,15 @@ export default function MessagesPage() {
 
   useEffect(() => {
     fetch("/api/messages")
-      .then(r => r.json())
+      .then(r => {
+        if (r.status === 401) {
+          window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
+          return null;
+        }
+        return r.json();
+      })
       .then(d => {
+        if (!d) return;
         setThreads(d.threads ?? []);
         setLoading(false);
       })

@@ -96,7 +96,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   async function load() {
     setLoading(true);
     const res = await fetch(`/api/messages/${threadId}`);
-    if (!res.ok) { setLoading(false); return; }
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+      setLoading(false);
+      return;
+    }
     const data = await res.json();
     setThread(data.thread);
     setMessages(data.messages ?? []);
