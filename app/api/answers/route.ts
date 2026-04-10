@@ -5226,9 +5226,13 @@ Output JSON:
                 `\n\n## 📈 Rate Sensitivity`,
                 `| Rate | Monthly PITI | Income Needed |`,
                 `|------|-------------|---------------|`,
-                ...rateScenarios.map(s =>
-                    `| **${s.rate.toFixed(3)}%${s.rate === liveRate ? ' ◀' : ''}** | $${s.piti.toLocaleString()}/mo | $${Math.round(s.incomeNeeded / 1000)}k/yr |`
-                ),
+                ...rateScenarios.map(s => {
+                    const inc = s.incomeNeeded;
+                    const incFmt = inc >= 1_000_000
+                        ? `$${(inc / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M/yr`
+                        : `$${Math.round(inc / 1000)}k/yr`;
+                    return `| **${s.rate.toFixed(3)}%${s.rate === liveRate ? ' ◀' : ''}** | $${s.piti.toLocaleString()}/mo | ${incFmt} |`;
+                }),
                 `\n*20% down · 30yr fixed · 43% DTI · Calc engine verified*`,
             ].join('\n');
             cmaFinal.answer = cmaFinal.answer + rateTable;
