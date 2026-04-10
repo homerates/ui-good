@@ -116,6 +116,7 @@ export default async function DashboardPage() {
   let newScenarioCount = 0;
   let myConnectionCount = 0;
   let slots = 0;
+  let referralCount = 0;
 
   if ((userType === "lo") && sb && loRecord) {
     slots = loRecord.allowed_borrower_slots ?? 0;
@@ -138,6 +139,12 @@ export default async function DashboardPage() {
       .select("id", { count: "exact", head: true })
       .eq("lo_id", userId);
     myConnectionCount = cc ?? 0;
+
+    const { count: rc } = await sb
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("referred_by", userId);
+    referralCount = rc ?? 0;
   }
 
   // ── Agent-specific data ──────────────────────────────────────────────────
@@ -338,13 +345,22 @@ export default async function DashboardPage() {
                   <ActionLink href="/lo/borrowers" variant="green">Manage borrowers →</ActionLink>
                 </SectionCard>
 
-                <SectionCard>
-                  <CardTitle>Coming soon</CardTitle>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.875rem", color: "rgba(185,208,192,0.55)", display: "flex", flexDirection: "column", gap: 5, lineHeight: 1.6 }}>
-                    <li>Borrower activity feed — see which borrowers are most engaged</li>
-                    <li>Conversation analytics — track scenario types coming in</li>
-                    <li>Team seats — add colleagues to your account</li>
-                  </ul>
+                <SectionCard accent="none">
+                  <CardTitle>Your Referral Link</CardTitle>
+                  <CardBody>
+                    Share this link with borrowers or colleagues. Anyone who signs up through it will be automatically linked to you.
+                  </CardBody>
+                  <div style={{
+                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 8, padding: "10px 14px",
+                    fontFamily: "monospace", fontSize: "0.8rem", color: "#7a9e8a",
+                    wordBreak: "break-all",
+                  }}>
+                    {`${process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai"}/r/${userId}`}
+                  </div>
+                  <span style={{ fontSize: "0.82rem", color: "rgba(185,208,192,0.5)" }}>
+                    {referralCount === 0 ? "No referrals yet" : `${referralCount} user${referralCount !== 1 ? "s" : ""} joined via your link`}
+                  </span>
                 </SectionCard>
               </>
             ) : (

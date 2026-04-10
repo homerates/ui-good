@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
 export async function GET() {
@@ -99,6 +100,14 @@ export async function POST(req: NextRequest) {
       console.error("[onboarding/setup] agents upsert error:", agentError);
       // Non-fatal — role is already saved
     }
+  }
+
+  // If visitor arrived via a referral link, record it (only if not already set)
+  const jar = await cookies();
+  const refSlug = jar.get("hr_ref")?.value ?? null;
+  if (refSlug && refSlug !== userId) {
+    await sb.from("users").update({ referred_by: refSlug }).eq("id", userId).is("referred_by", null);
+    jar.delete("hr_ref");
   }
 
   return NextResponse.json({ ok: true, role });

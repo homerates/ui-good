@@ -5,7 +5,6 @@
 // Contact share: borrower-triggered, shows both emails + phones
 
 import { useEffect, useRef, useState, use } from "react";
-import Link from "next/link";
 import AppNav from "../../components/AppNav";
 
 interface Message {
@@ -67,8 +66,27 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Initial load
   useEffect(() => {
     load();
+  }, [threadId]);
+
+  // Poll for new messages every 5s — stop when tab hidden or component unmounts
+  useEffect(() => {
+    if (!threadId) return;
+    const interval = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const res = await fetch(`/api/messages/${threadId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const incoming: Message[] = data.messages ?? [];
+        setMessages(prev => incoming.length > prev.length ? incoming : prev);
+        if (data.contact_share) setContactShare(data.contact_share);
+        if (data.thread) setThread(t => t ? { ...t, status: data.thread.status } : t);
+      } catch { /* ignore network blips */ }
+    }, 5000);
+    return () => clearInterval(interval);
   }, [threadId]);
 
   useEffect(() => {
