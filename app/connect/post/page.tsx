@@ -155,7 +155,7 @@ function PostScenarioContent() {
       const data = await res.json();
       if (!res.ok) {
         if (data.existing_id) {
-          setError("You already have an active scenario open. View it or close it before posting a new one.");
+          setError("You already have an active scenario open. Close it there to post a new one.");
           setSubmitting(false);
           return;
         }
@@ -543,7 +543,7 @@ function PostScenarioContent() {
                   <div className="post-error">
                     {error}
                     {error.includes("active scenario") && (
-                      <span> <a href="/connect/my-scenario" style={{ color: "#00e87a", textDecoration: "underline" }}>View my scenario →</a></span>
+                      <span> <a href="/connect/my-scenario?from=blocked" style={{ color: "#00e87a", textDecoration: "underline" }}>View & close it →</a></span>
                     )}
                   </div>
                 )}

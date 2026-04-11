@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import AppNav from "../../components/AppNav";
 
 interface Response {
@@ -54,6 +54,8 @@ const BADGE_COLOR: Record<string, string> = {
 
 export default function MyScenarioPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromBlocked = searchParams?.get("from") === "blocked";
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,6 +133,10 @@ export default function MyScenarioPage() {
     if (!scenario) return;
     setClosingScenario(true);
     await fetch(`/api/scenarios/${scenario.id}`, { method: "DELETE" });
+    if (fromBlocked) {
+      router.push("/connect/post");
+      return;
+    }
     setScenario(prev => prev ? { ...prev, status: "closed" } : prev);
     setClosingScenario(false);
   }
@@ -189,11 +195,21 @@ export default function MyScenarioPage() {
                     <span className="ms-state">{scenario.state}</span>
                     <span className="ms-time">Posted {timeAgo(scenario.created_at)}</span>
                   </div>
+                  {fromBlocked && scenario.status === "active" && (
+                    <div style={{ background: "rgba(255,180,0,0.08)", border: "1px solid rgba(255,180,0,0.25)", borderRadius: 10, padding: "12px 16px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <span style={{ fontSize: 13, color: "#ffd166", lineHeight: 1.4 }}>
+                        Close this scenario to post a new one.
+                      </span>
+                      <button className="ms-close-btn" onClick={closeScenario} disabled={closingScenario} style={{ flexShrink: 0 }}>
+                        {closingScenario ? "Closing..." : "Close & post new →"}
+                      </button>
+                    </div>
+                  )}
                   <div className="ms-scenario-status-row">
                     {scenario.status === "active" && <span className="ms-status-active">● Active</span>}
                     {scenario.status === "matched" && <span className="ms-status-matched">✓ Matched</span>}
                     {scenario.status === "closed" && <span className="ms-status-closed">Closed</span>}
-                    {scenario.status === "active" && (
+                    {scenario.status === "active" && !fromBlocked && (
                       <button className="ms-close-btn" onClick={closeScenario} disabled={closingScenario}>
                         {closingScenario ? "Closing..." : "Close scenario"}
                       </button>
