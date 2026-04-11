@@ -5,8 +5,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../../lib/supabaseServer";
+import { emailScenarioResponse } from "../../../../../lib/sendEmail";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
@@ -92,6 +93,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ...(maxReached ? { status: "matched" } : {}),
     })
     .eq("id", id);
+
+  // Email the borrower — notify them a response arrived
+  try {
+    const clerk = await clerkClient();
+    const borrowerClerk = await clerk.users.getUser(scenarioFull.borrower_id);
+    const borrowerEmail = borrowerClerk.emailAddresses[0]?.emailAddress ?? null;
+    const borrowerName  = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ") || "there";
+    if (borrowerEmail) {
+      await emailScenarioResponse({
+        toEmail: borrowerEmail,
+        toName: borrowerName,
+        loName: lo_name.trim(),
+        rateEstimate: rate_estimate.trim(),
+        scenarioId: id,
+      });
+    }
+  } catch (e) {
+    console.error("[scenarios/respond] emailScenarioResponse failed:", e);
+  }
 
   return NextResponse.json({ response });
 }

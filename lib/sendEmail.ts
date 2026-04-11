@@ -120,6 +120,75 @@ export async function emailNewReply({
   }
 }
 
+// ─── Scenario response: notify the borrower ─────────────────────────────────
+
+export async function emailScenarioResponse({
+  toEmail,
+  toName,
+  loName,
+  rateEstimate,
+  scenarioId,
+}: {
+  toEmail: string;
+  toName: string;
+  loName: string;
+  rateEstimate: string;
+  scenarioId: string;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const link = `${BASE}/connect/my-scenario`;
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to: toEmail,
+      subject: `${loName} responded to your scenario on HomeRates.ai`,
+      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#07100f;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#07100f;padding:32px 16px;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
+      <tr><td style="padding:0 0 28px;">
+        <img src="${BASE}/assets/HomeRates-Logo%20Green.png" alt="HomeRates.ai" height="24" style="display:block;" onerror="this.style.display='none'">
+      </td></tr>
+      <tr><td style="padding:0 0 24px;">
+        <span style="display:inline-block;background:#0d2218;color:#00e87a;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em;">SCENARIO RESPONSE</span>
+        <div style="font-size:22px;font-weight:700;color:#e8f5ee;margin-top:14px;">Hi ${toName},</div>
+        <div style="font-size:14px;color:#7a9e8a;margin-top:6px;line-height:1.5;">A loan officer responded to your scenario.</div>
+      </td></tr>
+      <tr><td style="background:#0d1a12;border:1px solid #1a2e20;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:10px 0;border-bottom:1px solid #1a2e20;">
+            <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px;">Loan Officer</span>
+            <span style="font-size:15px;font-weight:600;color:#e8f5ee;">${loName}</span>
+          </td></tr>
+          <tr><td style="padding:10px 0;">
+            <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px;">Rate Indication</span>
+            <span style="font-size:15px;font-weight:600;color:#00e87a;">${rateEstimate}</span>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding:24px 0 0;">
+        <a href="${link}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:15px 20px;border-radius:10px;text-decoration:none;">
+          View Response &amp; Connect →
+        </a>
+      </td></tr>
+      <tr><td style="padding:24px 0 0;border-top:1px solid #1a2e20;margin-top:24px;">
+        <div style="font-size:12px;color:#3a5a48;line-height:1.7;">
+          Sent by <strong style="color:#4a6e58;">HomeRates.ai</strong> — Rate indications are not a Loan Estimate or commitment to lend.
+        </div>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`,
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailScenarioResponse failed:", err);
+  }
+}
+
 // ─── Contact share: email both parties ──────────────────────────────────────
 
 export interface ProCard {

@@ -114,7 +114,8 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (existing) {
-    thread = existing;
+    // Thread already exists — return it without re-sending the opening message
+    return NextResponse.json({ thread_id: existing.id });
   } else {
     const { data: created, error: createErr } = await sb
       .from("conversation_threads")
