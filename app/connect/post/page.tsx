@@ -64,6 +64,8 @@ function PostScenarioContent() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [hitLimit, setHitLimit] = useState(false);
+  const [existingScenarioId, setExistingScenarioId] = useState<string | null>(null);
+  const [closingOld, setClosingOld] = useState(false);
 
   // Quota state — checked on mount so user sees gate before filling the form
   const [quota, setQuota] = useState<{ used: number; limit: number | null; allowed: boolean; plan: string } | null>(null);
@@ -155,7 +157,8 @@ function PostScenarioContent() {
       const data = await res.json();
       if (!res.ok) {
         if (data.existing_id) {
-          setError("You already have an active scenario open. Close it there to post a new one.");
+          setExistingScenarioId(data.existing_id);
+          setError("active_scenario_blocked");
           setSubmitting(false);
           return;
         }
@@ -173,6 +176,13 @@ function PostScenarioContent() {
       setError("Network error — please try again");
       setSubmitting(false);
     }
+  }
+
+  async function closeOldAndReturn() {
+    if (!existingScenarioId) return;
+    setClosingOld(true);
+    await fetch(`/api/scenarios/${existingScenarioId}`, { method: "DELETE" });
+    router.push("/chat");
   }
 
   return (
@@ -539,13 +549,21 @@ function PostScenarioContent() {
                   </div>
                 )}
 
-                {!hitLimit && error && (
-                  <div className="post-error">
-                    {error}
-                    {error.includes("active scenario") && (
-                      <span> <a href="/connect/my-scenario?from=blocked" style={{ color: "#00e87a", textDecoration: "underline" }}>View & close it →</a></span>
-                    )}
+                {!hitLimit && error === "active_scenario_blocked" && (
+                  <div style={{ background: "rgba(255,60,60,0.08)", border: "1px solid rgba(255,60,60,0.3)", borderRadius: 12, padding: "20px 24px", textAlign: "center" }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#ff6b6b", marginBottom: 6 }}>You already have an open scenario</div>
+                    <div style={{ fontSize: 13, color: "#8fa3b8", marginBottom: 18, lineHeight: 1.5 }}>Close your previous scenario first, then you can post a new one.</div>
+                    <button
+                      onClick={closeOldAndReturn}
+                      disabled={closingOld}
+                      style={{ width: "100%", background: "#e03e3e", color: "#fff", fontWeight: 700, fontSize: 15, padding: "14px 20px", borderRadius: 10, border: "none", cursor: closingOld ? "not-allowed" : "pointer", opacity: closingOld ? 0.7 : 1 }}
+                    >
+                      {closingOld ? "Closing..." : "Close Previous Scenario"}
+                    </button>
                   </div>
+                )}
+                {!hitLimit && error && error !== "active_scenario_blocked" && (
+                  <div className="post-error">{error}</div>
                 )}
 
                 <div className="post-row">
