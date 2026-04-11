@@ -286,16 +286,24 @@ export async function POST(req: NextRequest) {
   const referredProId = visibility === "private" ? referredBy : null;
 
   // One active scenario per borrower at a time
+  // Auto-close any expired active scenarios (closes_at passed but status never updated)
   const { data: existing, error: existingErr } = await sb
     .from("scenario_briefs")
-    .select("id")
+    .select("id, closes_at")
     .eq("borrower_id", userId)
     .eq("status", "active")
     .maybeSingle();
 
   if (existingErr) console.error("[scenarios] existing check error:", existingErr);
   if (existing) {
-    return NextResponse.json({ error: "You already have an active scenario. Close it before posting a new one.", existing_id: existing.id }, { status: 400 });
+    const isExpired = existing.closes_at && new Date(existing.closes_at) < new Date();
+    if (isExpired) {
+      // Auto-close expired scenario — allows borrower to post fresh
+      await sb.from("scenario_briefs").update({ status: "closed" }).eq("id", existing.id);
+      console.log("[scenarios] auto-closed expired scenario:", existing.id);
+    } else {
+      return NextResponse.json({ error: "You already have an active scenario. Close it before posting a new one.", existing_id: existing.id }, { status: 400 });
+    }
   }
 
   const { data, error } = await sb
@@ -442,8 +450,17 @@ export async function GET(req: NextRequest) {
   }
 
   const now = Date.now();
-  // Filter expired scenarios in JS (avoids Supabase .or() timestamp syntax issues)
+  // Partition: still-open vs expired (filter expired out of board display)
   const active = (data ?? []).filter(s => !s.closes_at || new Date(s.closes_at).getTime() > now);
+  const expiredIds = (data ?? [])
+    .filter(s => s.closes_at && new Date(s.closes_at).getTime() <= now)
+    .map(s => s.id);
+  // Background: auto-close expired scenarios so borrowers can re-post
+  if (expiredIds.length > 0) {
+    sb.from("scenario_briefs").update({ status: "closed" }).in("id", expiredIds)
+      .then(() => console.log("[scenarios] auto-closed expired:", expiredIds))
+      .catch(() => {});
+  }
 
   const scenarios = active.map(s => {
     const base = {
