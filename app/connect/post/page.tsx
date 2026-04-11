@@ -155,7 +155,8 @@ function PostScenarioContent() {
       const data = await res.json();
       if (!res.ok) {
         if (data.existing_id) {
-          router.push("/connect/my-scenario");
+          setError("You already have an active scenario open. View it or close it before posting a new one.");
+          setSubmitting(false);
           return;
         }
         if (data.upgrade) {
@@ -538,7 +539,14 @@ function PostScenarioContent() {
                   </div>
                 )}
 
-                {!hitLimit && error && <div className="post-error">{error}</div>}
+                {!hitLimit && error && (
+                  <div className="post-error">
+                    {error}
+                    {error.includes("active scenario") && (
+                      <span> <a href="/connect/my-scenario" style={{ color: "#00e87a", textDecoration: "underline" }}>View my scenario →</a></span>
+                    )}
+                  </div>
+                )}
 
                 <div className="post-row">
                   <button className="post-btn-ghost" onClick={() => setStep(2)}>← Back</button>
