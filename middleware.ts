@@ -63,6 +63,10 @@ const isPublicRoute = createRouteMatcher([
   // Knowledge hub + market news (public SEO pages)
   "/knowledge-hub(.*)",
   "/market-news(.*)",
+  // Messages — client-side auth via useAuth; API routes remain server-protected
+  // Making public here prevents Clerk edge middleware from redirecting email link clicks
+  // when the cookie isn't immediately visible at the edge (new tab, email client, etc.)
+  "/messages(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {
