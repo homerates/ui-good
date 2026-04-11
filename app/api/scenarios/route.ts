@@ -457,9 +457,8 @@ export async function GET(req: NextRequest) {
     .map(s => s.id);
   // Background: auto-close expired scenarios so borrowers can re-post
   if (expiredIds.length > 0) {
-    sb.from("scenario_briefs").update({ status: "closed" }).in("id", expiredIds)
-      .then(() => console.log("[scenarios] auto-closed expired:", expiredIds))
-      .catch(() => {});
+    void sb.from("scenario_briefs").update({ status: "closed" }).in("id", expiredIds)
+      .then(() => console.log("[scenarios] auto-closed expired:", expiredIds));
   }
 
   const scenarios = active.map(s => {
