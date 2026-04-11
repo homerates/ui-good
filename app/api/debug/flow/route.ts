@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { isAdminId } from "../../../../lib/adminAuth";
 
 export async function GET() {
   const { userId } = await auth();
@@ -17,9 +18,7 @@ export async function GET() {
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
   // ── 1. Admin check ────────────────────────────────────────────────────────
-  const { data: adminRow } = await sb
-    .from("admin_users").select("user_id").eq("user_id", userId).maybeSingle();
-  if (!adminRow) return NextResponse.json({ error: "Admin only" }, { status: 403 });
+  if (!(await isAdminId(userId))) return NextResponse.json({ error: "Admin only" }, { status: 403 });
 
   const report: Record<string, unknown> = {};
 
