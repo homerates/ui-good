@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
 import { canPostScenario } from "../../../lib/subscription";
 
@@ -141,38 +141,56 @@ async function sendScenarioAlerts(scenario: {
   interface LoRow { user_id: string; email: string | null; lender: string | null; }
   let targets: LoRow[] = [];
 
+  // Helper: resolve email for a user_id — DB first, Clerk fallback
+  async function resolveEmail(userId: string): Promise<string | null> {
+    const { data } = await sb!.from("users").select("email").eq("id", userId).maybeSingle();
+    if (data?.email) return data.email;
+    try {
+      const clerk = await clerkClient();
+      const u = await clerk.users.getUser(userId);
+      return u.emailAddresses[0]?.emailAddress ?? null;
+    } catch { return null; }
+  }
+
   if (scenario.visibility === "private" && scenario.referred_pro_id) {
-    // Single LO — get lender name from loan_officers, email from users
-    const [{ data: loRow, error: loErr }, { data: userRow, error: userErr }] = await Promise.all([
+    const [{ data: loRow }, email] = await Promise.all([
       sb.from("loan_officers").select("user_id, lender").eq("user_id", scenario.referred_pro_id).maybeSingle(),
-      sb.from("users").select("email").eq("id", scenario.referred_pro_id).maybeSingle(),
+      resolveEmail(scenario.referred_pro_id),
     ]);
-    console.log("[scenario-alert] private — loRow:", loRow, "loErr:", loErr, "userRow:", userRow, "userErr:", userErr);
-    if (loRow && userRow?.email) {
-      targets = [{ user_id: loRow.user_id, email: userRow.email, lender: loRow.lender }];
+    console.log("[scenario-alert] private — loRow:", loRow, "email:", email);
+    if (loRow && email) {
+      targets = [{ user_id: loRow.user_id, email, lender: loRow.lender }];
     }
   } else {
-    // Public: get all LOs (no license_state filter — many LOs haven't set this field)
+    // Public: alert all registered LOs
     const { data: loRows, error: loErr } = await sb
       .from("loan_officers")
-      .select("user_id, lender, license_state")
+      .select("user_id, lender")
       .limit(50);
 
     console.log("[scenario-alert] public — loRows count:", loRows?.length, "loErr:", loErr);
 
     if (loRows && loRows.length > 0) {
       const ids = loRows.map(r => r.user_id);
-      const { data: userRows, error: userErr } = await sb
-        .from("users")
-        .select("id, email")
-        .in("id", ids);
 
-      console.log("[scenario-alert] userRows count:", userRows?.length, "userErr:", userErr);
-
+      // DB emails first
+      const { data: userRows } = await sb.from("users").select("id, email").in("id", ids);
       const emailMap: Record<string, string> = {};
-      for (const u of userRows ?? []) {
-        if (u.email) emailMap[u.id] = u.email;
+      for (const u of userRows ?? []) { if (u.email) emailMap[u.id] = u.email; }
+
+      // Clerk fallback for any IDs still missing
+      const missing = ids.filter(id => !emailMap[id]);
+      if (missing.length > 0) {
+        try {
+          const clerk = await clerkClient();
+          const clerkUsers = await clerk.users.getUserList({ userId: missing, limit: 100 });
+          for (const u of clerkUsers.data) {
+            const e = u.emailAddresses[0]?.emailAddress;
+            if (e) emailMap[u.id] = e;
+          }
+        } catch (e) { console.error("[scenario-alert] Clerk fallback failed:", e); }
       }
+
       targets = loRows
         .filter(lo => emailMap[lo.user_id])
         .map(lo => ({ user_id: lo.user_id, email: emailMap[lo.user_id], lender: lo.lender }));

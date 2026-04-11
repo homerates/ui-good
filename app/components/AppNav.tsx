@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useAdminStatus } from "../hooks/useAdminStatus";
 import { useCreditBalance } from "../hooks/useCreditBalance";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 
 export interface AppNavProps {
   mode?: "standard" | "thread";
@@ -171,6 +172,28 @@ function ensureStyles() {
       margin: 12px 12px;
     }
 
+    /* Bell / unread badge on hamburger */
+    .an-hamburger-wrap {
+      position: relative; justify-self: end;
+    }
+    .an-hamburger-wrap .an-hamburger {
+      justify-self: unset;
+    }
+    .an-unread-dot {
+      position: absolute; top: -4px; right: -4px;
+      min-width: 17px; height: 17px; border-radius: 99px;
+      background: #ff5f5f; color: #fff;
+      font-size: 0.6rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid #080c12;
+      animation: an-bell-pulse 1.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes an-bell-pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,95,95,0.6); }
+      50% { transform: scale(1.15); box-shadow: 0 0 0 5px rgba(255,95,95,0); }
+    }
+
     /* Hide desktop links on mobile, always show hamburger */
     @media (max-width: 640px) {
       .an-links { display: none; }
@@ -199,6 +222,9 @@ export default function AppNav({
 }: AppNavProps) {
   const { isAdmin } = useAdminStatus();
   const credits = useCreditBalance();
+  const polledUnread = useUnreadMessages();
+  // Use prop if explicitly passed (thread page), otherwise use live poll
+  const totalUnread = unreadCount ?? polledUnread;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -237,7 +263,7 @@ export default function AppNav({
             >
               <span className="an-drawer-icon">{l.icon}</span>
               {l.label}
-              {l.key === "messages" && (unreadCount ?? 0) > 0 && (
+              {l.key === "messages" && totalUnread > 0 && (
                 <span className="an-badge">{unreadCount}</span>
               )}
             </Link>
@@ -254,7 +280,7 @@ export default function AppNav({
             <span className="an-drawer-icon">❓</span>Support
           </Link>
           <div className="an-drawer-divider" />
-          {credits !== null && (
+          {(credits !== null || isAdmin) && (
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "8px 12px", margin: "0 0 4px",
@@ -263,7 +289,7 @@ export default function AppNav({
             }}>
               <span style={{ fontSize: "0.82rem", color: "#4a6e58", fontWeight: 600 }}>⚡ Credits</span>
               <span style={{ fontSize: "0.88rem", fontWeight: 700, color: "#00e87a" }}>
-                {credits.balance.toLocaleString()}
+                {isAdmin ? "∞" : credits!.balance.toLocaleString()}
               </span>
             </div>
           )}
@@ -291,13 +317,18 @@ export default function AppNav({
   if (drawerOnly) {
     return (
       <>
-        <button
-          className="an-hamburger"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Open menu"
-        >
-          <span /><span /><span />
-        </button>
+        <div className="an-hamburger-wrap" style={{ position: "relative", display: "inline-block" }}>
+          <button
+            className="an-hamburger"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+          >
+            <span /><span /><span />
+          </button>
+          {totalUnread > 0 && (
+            <span className="an-unread-dot">{totalUnread > 9 ? "9+" : totalUnread}</span>
+          )}
+        </div>
         {drawer}
       </>
     );
@@ -331,7 +362,7 @@ export default function AppNav({
                 className={`an-link ${activePage === l.key ? "an-active" : ""}`}
               >
                 {l.label}
-                {l.key === "messages" && (unreadCount ?? 0) > 0 && (
+                {l.key === "messages" && totalUnread > 0 && (
                   <span className="an-badge">{unreadCount}</span>
                 )}
               </Link>
@@ -339,14 +370,19 @@ export default function AppNav({
           </div>
         )}
 
-        {/* Right zone: always hamburger */}
-        <button
-          className="an-hamburger"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Open menu"
-        >
-          <span /><span /><span />
-        </button>
+        {/* Right zone: hamburger with unread badge */}
+        <div className="an-hamburger-wrap">
+          <button
+            className="an-hamburger"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+          >
+            <span /><span /><span />
+          </button>
+          {totalUnread > 0 && (
+            <span className="an-unread-dot">{totalUnread > 9 ? "9+" : totalUnread}</span>
+          )}
+        </div>
       </nav>
 
       {drawer}
