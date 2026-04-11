@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
 import { canPostScenario } from "../../../lib/subscription";
+import { Resend } from "resend";
 
 // ─── Scenario alert emails ────────────────────────────────────────────────────
 
@@ -199,10 +200,13 @@ async function sendScenarioAlerts(scenario: {
     }
   }
 
-  // Fire emails concurrently (no await on individual — fire-and-forget)
+  // Fire emails via Resend SDK (same path as all other transactional emails)
+  const resend = new Resend(RESEND_API_KEY);
+  const FROM = process.env.RESEND_FROM_EMAIL ?? "digest@homerates.ai";
+
   const sends = targets
     .filter(lo => lo.email)
-    .map(lo => {
+    .map(async lo => {
       const loName = lo.lender ?? "there";
       const html = scenarioAlertHtml({
         loName,
@@ -214,25 +218,21 @@ async function sendScenarioAlerts(scenario: {
         boardUrl,
         isPrivate: scenario.visibility === "private",
       });
+      const subject = scenario.visibility === "private"
+        ? `Your referral posted a scenario — respond now`
+        : `New ${scenario.loan_type} scenario in ${scenario.state}`;
 
-      return fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "HomeRates.ai <digest@homerates.ai>",
-          to: [lo.email!],
-          subject: scenario.visibility === "private"
-            ? `Your referral posted a scenario — respond now`
-            : `New ${scenario.loan_type} scenario in ${scenario.state}`,
+      try {
+        const result = await resend.emails.send({
+          from: `HomeRates.ai <${FROM}>`,
+          to: lo.email!,
+          subject,
           html,
-        }),
-      }).then(async r => {
-        const body = await r.json().catch(() => ({}));
-        console.log("[scenario-alert] Resend response", r.status, JSON.stringify(body), "to:", lo.email);
-      }).catch(e => console.error("[scenario-alert] email fetch failed:", e));
+        });
+        console.log("[scenario-alert] sent to:", lo.email, "id:", result.data?.id, "error:", result.error);
+      } catch (e) {
+        console.error("[scenario-alert] SDK send failed to:", lo.email, e);
+      }
     });
 
   await Promise.allSettled(sends);
