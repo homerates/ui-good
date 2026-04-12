@@ -6495,7 +6495,7 @@ Return valid JSON only:
         url:              '',
         parsedBy:         'rentcast-api-v1',
         parseWarnings:    [],
-        price:            null,
+        price:            homeownerSnapshot.estimatedValue ?? null,
         address:          homeownerSnapshot.address,
         city:             homeownerSnapshot.address?.split(',')[1]?.trim() ?? null,
         state:            homeownerSnapshot.address?.match(/,\s*([A-Z]{2})\s/)?.[1] ?? null,
@@ -6533,7 +6533,7 @@ Return valid JSON only:
             { label: `Rates drop to 6% — new payment?`, seed: `Refi from ${cur}% to 6% on $${Math.round(bal/1000)}k balance`, paramOverrides: { currentBalance: bal, currentRatePct: cur, newRatePct: 6 } },
             { label: `15-year refi — payoff timeline?`, seed: `15-year refi at ${live}% on $${Math.round(bal/1000)}k balance`, paramOverrides: { currentBalance: bal, currentRatePct: cur, newRatePct: live } },
             { label: `Cash-out equity — what changes?`, seed: `Cash-out refi from ${short}` },
-            { label: `Full Property Intelligence Report`, seed: `Property intelligence report: ${addr}`, paramOverrides: { cmaAddress: addr, cmaCity: homeownerSnapshot.address?.split(',')[1]?.trim() ?? '', cmaState: homeownerSnapshot.address?.match(/,\s*([A-Z]{2})\s/)?.[1] ?? '', cmaPrice: homeownerSnapshot.lastSalePrice, cmaBeds: homeownerSnapshot.beds, cmaBaths: homeownerSnapshot.baths, cmaSqft: homeownerSnapshot.sqft, cmaTaxAnnual: 0, cmaTaxRate: 0.011, cmaLiveRate: live, cmaPhotoUrl: '' } },
+            { label: `Full Property Intelligence Report`, seed: `Property intelligence report: ${addr}`, paramOverrides: { cmaAddress: addr, cmaCity: homeownerSnapshot.address?.split(',')[1]?.trim() ?? '', cmaState: homeownerSnapshot.address?.match(/,\s*([A-Z]{2})\s/)?.[1] ?? '', cmaPrice: homeownerSnapshot.estimatedValue ?? homeownerSnapshot.lastSalePrice, cmaBeds: homeownerSnapshot.beds, cmaBaths: homeownerSnapshot.baths, cmaSqft: homeownerSnapshot.sqft, cmaTaxAnnual: 0, cmaTaxRate: 0.011, cmaLiveRate: live, cmaPhotoUrl: '' } },
         ];
     })() : null;
 
