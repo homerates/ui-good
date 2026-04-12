@@ -25,6 +25,7 @@ interface Scenario {
   closes_at?: string;
   created_at: string;
   already_responded: boolean;
+  is_mine?: boolean;           // true when current LO posted this scenario as a borrower
   visibility?: string;         // 'public' | 'private'
   referred_pro_id?: string;
   // Card data — present when borrower posted from an AI analysis card
@@ -365,7 +366,7 @@ export default function LOScenariosPage() {
           ) : (
             <div className="los-grid">
               {filtered.map(scenario => (
-                <div key={scenario.id} className={`los-card ${scenario.already_responded ? "los-card-done" : ""}`}>
+                <div key={scenario.id} className={`los-card ${scenario.already_responded ? "los-card-done" : ""} ${scenario.is_mine ? "los-card-mine" : ""}`}>
                   <div className="los-card-header">
                     <span
                       className="los-loan-badge"
@@ -377,6 +378,9 @@ export default function LOScenariosPage() {
                     >
                       {LABEL_MAP[scenario.loan_type] ?? scenario.loan_type}
                     </span>
+                    {scenario.is_mine && (
+                      <span className="los-mine-badge">My Scenario</span>
+                    )}
                     <span className="los-card-state">{scenario.state}</span>
                     <span className="los-card-purpose">{scenario.loan_purpose}</span>
                     <span className="los-card-time">{timeAgo(scenario.created_at)}</span>
@@ -436,7 +440,9 @@ export default function LOScenariosPage() {
                         <span className="los-card-timeleft">{timeLeft(scenario.closes_at)}</span>
                       )}
                     </div>
-                    {scenario.already_responded ? (
+                    {scenario.is_mine ? (
+                      <span className="los-mine-label">Posted by you — open to others</span>
+                    ) : scenario.already_responded ? (
                       <span className="los-responded-badge">✓ Responded</span>
                     ) : scenario.max_responses && scenario.response_count >= scenario.max_responses ? (
                       <span className="los-full-badge">Response limit reached</span>
@@ -751,6 +757,13 @@ export default function LOScenariosPage() {
         }
         .los-card:hover { border-color: rgba(255,255,255,0.15); }
         .los-card-done { opacity: 0.6; }
+        .los-card-mine { border-color: rgba(255,180,0,0.2) !important; background: rgba(255,180,0,0.03) !important; }
+        .los-mine-badge {
+          font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+          color: #ffd166; background: rgba(255,180,0,0.12); border: 1px solid rgba(255,180,0,0.25);
+          border-radius: 4px; padding: 2px 8px;
+        }
+        .los-mine-label { font-size: 0.75rem; color: #ffd166; font-weight: 500; }
 
         .los-card-header {
           display: flex; align-items: center; gap: 8px;

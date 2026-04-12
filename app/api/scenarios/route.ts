@@ -410,7 +410,8 @@ export async function GET(req: NextRequest) {
   // Filter scenarios to ones relevant for this professional type
   const profFilter = responder_type === "agent" ? ["agent", "both"] : ["lender", "both"];
 
-  const BOARD_SELECT = "id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term, visibility, referred_pro_id";
+  // borrower_id included only to compute is_mine — stripped before returning
+  const BOARD_SELECT = "id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term, visibility, referred_pro_id, borrower_id";
 
   // Two queries merged in JS — avoids .or() parser issues:
   // 1) Public scenarios on the board
@@ -462,8 +463,11 @@ export async function GET(req: NextRequest) {
   }
 
   const scenarios = active.map(s => {
+    // Compute is_mine then strip borrower_id — never expose it to the client
+    const { borrower_id, ...rest } = s;
     const base = {
-      ...s,
+      ...rest,
+      is_mine: borrower_id === userId,
       already_responded: respondedIds.includes(s.id),
     };
 
