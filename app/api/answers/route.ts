@@ -5142,7 +5142,6 @@ ${dtiSection}
         const addr:     string = String(cmaParams.cmaAddress ?? '');
         const city:     string = String(cmaParams.cmaCity    ?? '');
         const state:    string = String(cmaParams.cmaState   ?? '');
-        const price:    number = Number(cmaParams.cmaPrice   ?? 0);
         const beds:     number = Number(cmaParams.cmaBeds    ?? 0);
         const baths:    number = Number(cmaParams.cmaBaths   ?? 0);
         const sqft:     number = Number(cmaParams.cmaSqft    ?? 0);
@@ -5150,6 +5149,32 @@ ${dtiSection}
         const taxRate:  number = Number(cmaParams.cmaTaxRate ?? 0.011);
         const liveRate: number = Number(cmaParams.cmaLiveRate ?? fred?.mort30Avg ?? 6.5);
         const photoUrl: string = String(cmaParams.cmaPhotoUrl ?? '');
+
+        // Always fetch fresh Rentcast AVM for the CMA path — authoritative price source
+        // Falls back to cmaPrice from chip paramOverrides if Rentcast unavailable
+        let rentcastAvmPrice: number | null = null;
+        let rentcastAvmLow: number | null = null;
+        let rentcastAvmHigh: number | null = null;
+        const rentcastKey = process.env.RENTCAST_API_KEY;
+        if (rentcastKey && addr) {
+            try {
+                const avmRes = await fetch(
+                    `https://api.rentcast.io/v1/avm/value?address=${encodeURIComponent(addr)}`,
+                    { headers: { 'X-Api-Key': rentcastKey, 'Accept': 'application/json' } }
+                );
+                if (avmRes.ok) {
+                    const avmData = await avmRes.json();
+                    rentcastAvmPrice = avmData?.price ?? null;
+                    rentcastAvmLow   = avmData?.priceRangeLow  ?? null;
+                    rentcastAvmHigh  = avmData?.priceRangeHigh ?? null;
+                    console.log(`[CMA Rentcast AVM] ${addr} → $${rentcastAvmPrice}`);
+                }
+            } catch (e) {
+                console.warn('[CMA Rentcast AVM] fetch failed:', e);
+            }
+        }
+        // Authoritative price: Rentcast AVM > chip cmaPrice > 0
+        const price: number = rentcastAvmPrice ?? Number(cmaParams.cmaPrice ?? 0);
 
         const annualIns = Math.max(1200, Math.round(price * 0.005));
 
@@ -5197,6 +5222,7 @@ HARD RULES — violations destroy consumer trust:
 
 PROPERTY (these are the ONLY facts about this property — treat as ground truth):
 Address: ${addr}
+AVM Value (Rentcast live): ${rentcastAvmPrice ? `$${rentcastAvmPrice.toLocaleString()} (range $${rentcastAvmLow?.toLocaleString() ?? '?'} – $${rentcastAvmHigh?.toLocaleString() ?? '?'})` : `$${price.toLocaleString()} (from chip)`}
 Listed: ${priceFmtCMA} | ${beds}bd / ${baths}ba / ${sqft.toLocaleString()} sqft | ${psfStr}
 Taxes: $${taxAnnual.toLocaleString()}/yr (${(taxRate * 100).toFixed(2)}% effective)
 
@@ -5309,6 +5335,9 @@ Output JSON:
                 cmaCard: {
                     address: addr,
                     price,
+                    priceSource: rentcastAvmPrice ? 'rentcast-avm' : 'param',
+                    estimatedValueLow:  rentcastAvmLow,
+                    estimatedValueHigh: rentcastAvmHigh,
                     photoUrl: photoUrl || null,
                     piti: cmaPiti,
                     downAmt: cmaDown,
