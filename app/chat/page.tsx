@@ -424,7 +424,12 @@ type ApiResponse = {
         piti: number; downAmt: number; loanAmt: number;
         incomeNeeded: number; pricePerSqft: number; rate: number;
         beds: number; baths: number; sqft: number;
-        answerMarkdown: string;
+        answerMarkdown: string; liveMarketData?: boolean;
+        priceSource?: string; estimatedValueLow?: number | null; estimatedValueHigh?: number | null;
+        rentEstimate?: number | null; rentRangeLow?: number | null; rentRangeHigh?: number | null;
+        grossYield?: number | null; capRate?: number | null; dscrRatio?: number | null;
+        dscrRate?: number | null; dscrPiti?: number | null; dscrDown?: number | null;
+        monthlyCashFlow?: number | null; cashOnCash?: number | null;
     } | null;
 };
 

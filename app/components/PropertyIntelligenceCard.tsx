@@ -27,6 +27,21 @@ export interface CMACardData {
     answerMarkdown:  string;
     rateSensitivity?: RateScenario[];
     liveMarketData?:  boolean;
+    // ── Investment intelligence (Rentcast Rent AVM) ────────────────────────
+    rentEstimate?:    number | null;
+    rentRangeLow?:    number | null;
+    rentRangeHigh?:   number | null;
+    grossYield?:      number | null;   // % — annual rent / price
+    capRate?:         number | null;   // % — NOI (65% of gross) / price
+    dscrRatio?:       number | null;   // rent / PI (lender convention)
+    dscrRate?:        number | null;   // investor rate used (live + 1.25%)
+    dscrPiti?:        number | null;   // PITI at 25% down investor rate
+    dscrDown?:        number | null;   // 25% down amount
+    monthlyCashFlow?: number | null;   // rent − dscrPiti
+    cashOnCash?:      number | null;   // % — annualized cash flow / cash deployed
+    priceSource?:     string;
+    estimatedValueLow?:  number | null;
+    estimatedValueHigh?: number | null;
 }
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -182,6 +197,126 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
     );
 }
 
+// ── Investment Intelligence Panel ───────────────────────────────────────────
+// Shows only when Rentcast Rent AVM data is present (rentEstimate != null)
+function InvestmentPanel({ data }: { data: CMACardData }) {
+    if (!data.rentEstimate) return null;
+
+    const rent      = data.rentEstimate ?? null;
+    const rentLow   = data.rentRangeLow ?? null;
+    const rentHigh  = data.rentRangeHigh ?? null;
+    const dscr      = data.dscrRatio ?? null;
+    const flow      = data.monthlyCashFlow ?? null;
+    const coc       = data.cashOnCash ?? null;
+    const dscrRate  = data.dscrRate ?? null;
+    const dscrDown  = data.dscrDown ?? null;
+    const grossYield = data.grossYield ?? null;
+    const capRate    = data.capRate ?? null;
+
+    // DSCR colour tiers: green = strong, amber = threshold, red = below
+    const dscrColor  = dscr === null ? '#9ca3af'
+        : dscr >= 1.25 ? '#16a34a'
+        : dscr >= 1.00 ? '#d97706'
+        : '#dc2626';
+    const dscrBg     = dscr === null ? 'rgba(0,0,0,0.04)'
+        : dscr >= 1.25 ? 'rgba(22,163,74,0.1)'
+        : dscr >= 1.00 ? 'rgba(217,119,6,0.1)'
+        : 'rgba(220,38,38,0.1)';
+    const dscrLabel  = dscr === null ? 'No data'
+        : dscr >= 1.25 ? 'Lender-eligible'
+        : dscr >= 1.00 ? 'At threshold'
+        : 'Below threshold';
+
+    // Cash flow colour
+    const flowColor  = flow === null ? '#9ca3af' : flow >= 0 ? '#16a34a' : '#dc2626';
+    const flowSign   = flow !== null && flow > 0 ? '+' : '';
+
+    const fmtRent = (n: number) => `$${n.toLocaleString()}/mo`;
+    const fmtPct  = (n: number | null) => n !== null ? `${n}%` : 'N/A';
+
+    return (
+        <div style={{ borderTop: '2px solid rgba(22,163,74,0.2)', background: 'linear-gradient(180deg, rgba(22,163,74,0.04) 0%, rgba(22,163,74,0.01) 100%)' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px 4px' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16a34a', display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Investment Intelligence
+                </span>
+                <span style={{ fontSize: 10, color: '#9ca3af', marginLeft: 'auto' }}>Rentcast Rent AVM · live</span>
+            </div>
+
+            {/* Metric row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid rgba(22,163,74,0.1)' }}>
+                {/* Rent */}
+                <div style={{ textAlign: 'center', padding: '10px 8px' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Est. Monthly Rent</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#1e3a5f', lineHeight: 1 }}>{fmtRent(rent)}</div>
+                    {rentLow && rentHigh && (
+                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
+                            ${Math.round(rentLow / 1000)}k – ${Math.round(rentHigh / 1000)}k range
+                        </div>
+                    )}
+                </div>
+
+                <div style={{ width: 1, background: 'rgba(22,163,74,0.15)', margin: '8px 0' }} />
+
+                {/* Gross Yield */}
+                <div style={{ textAlign: 'center', padding: '10px 8px' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Gross Yield</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#1e3a5f', lineHeight: 1 }}>{fmtPct(grossYield)}</div>
+                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>annual</div>
+                </div>
+
+                <div style={{ width: 1, background: 'rgba(22,163,74,0.15)', margin: '8px 0' }} />
+
+                {/* Cap Rate */}
+                <div style={{ textAlign: 'center', padding: '10px 8px' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Cap Rate</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#1e3a5f', lineHeight: 1 }}>{fmtPct(capRate)}</div>
+                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>35% exp. ratio</div>
+                </div>
+
+                <div style={{ width: 1, background: 'rgba(22,163,74,0.15)', margin: '8px 0' }} />
+
+                {/* DSCR */}
+                <div style={{ textAlign: 'center', padding: '10px 8px' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>DSCR Ratio</div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 18, fontWeight: 800, color: dscrColor, lineHeight: 1 }}>{dscr?.toFixed(2) ?? 'N/A'}</span>
+                    </div>
+                    <div style={{ marginTop: 3, display: 'flex', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: dscrColor, background: dscrBg, borderRadius: 4, padding: '1px 6px' }}>
+                            {dscrLabel}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Cash flow bar */}
+            <div style={{ borderTop: '1px solid rgba(22,163,74,0.1)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                    <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Monthly Cash Flow </span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: flowColor }}>
+                        {flow !== null ? `${flowSign}$${Math.abs(flow).toLocaleString()}/mo` : 'N/A'}
+                    </span>
+                </div>
+                <div style={{ width: 1, height: 16, background: 'rgba(0,0,0,0.1)', flexShrink: 0 }} />
+                <div>
+                    <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cash-on-Cash </span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: coc !== null && coc !== undefined ? (coc >= 0 ? '#16a34a' : '#dc2626') : '#9ca3af' }}>
+                        {coc !== null && coc !== undefined ? `${coc >= 0 ? '+' : ''}${coc}%/yr` : 'N/A'}
+                    </span>
+                </div>
+                {dscrDown && dscrRate && (
+                    <div style={{ marginLeft: 'auto', fontSize: 10, color: '#9ca3af', textAlign: 'right' }}>
+                        25% down · {dscrRate}% DSCR rate · after full PITI
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data: CMACardData; onSaveToVault?: () => Promise<void> }) {
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -240,6 +375,9 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
                     <Stat label="Income Needed" value={fmtYr(data.incomeNeeded)} sub="@ 43% DTI" />
                 </div>
             </div>
+
+            {/* ── Investment Intelligence Panel ── */}
+            <InvestmentPanel data={data} />
 
             {/* ── Report sections ── */}
             <div style={{ padding: '4px 0 8px' }}>
