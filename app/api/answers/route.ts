@@ -5154,27 +5154,47 @@ ${dtiSection}
         const liveRate: number = Number(cmaParams.cmaLiveRate ?? fred?.mort30Avg ?? 6.5);
         const photoUrl: string = String(cmaParams.cmaPhotoUrl ?? '');
 
-        // Always fetch fresh Rentcast AVM for the CMA path — authoritative price source
-        // Falls back to cmaPrice from chip paramOverrides if Rentcast unavailable
+        // Parallel Rentcast fetch: sale AVM + rent AVM simultaneously
+        // Both use the same API key — no extra cost tier needed
         let rentcastAvmPrice: number | null = null;
         let rentcastAvmLow: number | null = null;
         let rentcastAvmHigh: number | null = null;
+        let rentcastRentEstimate: number | null = null;
+        let rentcastRentLow: number | null = null;
+        let rentcastRentHigh: number | null = null;
         const rentcastKey = process.env.RENTCAST_API_KEY;
         if (rentcastKey && addr) {
             try {
-                const avmRes = await fetch(
-                    `https://api.rentcast.io/v1/avm/value?address=${encodeURIComponent(addr)}`,
-                    { headers: { 'X-Api-Key': rentcastKey, 'Accept': 'application/json' } }
-                );
+                const enc = encodeURIComponent(addr);
+                const hdrs = { 'X-Api-Key': rentcastKey, 'Accept': 'application/json' };
+                // Build rent AVM URL — include property details for higher accuracy when available
+                const rentQs = [
+                    `address=${enc}`,
+                    beds  > 0 ? `bedrooms=${beds}`          : '',
+                    baths > 0 ? `bathrooms=${baths}`         : '',
+                    sqft  > 0 ? `squareFootage=${sqft}`      : '',
+                    'propertyType=Single Family',
+                ].filter(Boolean).join('&');
+                const [avmRes, rentRes] = await Promise.all([
+                    fetch(`https://api.rentcast.io/v1/avm/value?address=${enc}`,       { headers: hdrs }),
+                    fetch(`https://api.rentcast.io/v1/avm/rent?${rentQs}`,             { headers: hdrs }),
+                ]);
                 if (avmRes.ok) {
                     const avmData = await avmRes.json();
-                    rentcastAvmPrice = avmData?.price ?? null;
+                    rentcastAvmPrice = avmData?.price          ?? null;
                     rentcastAvmLow   = avmData?.priceRangeLow  ?? null;
                     rentcastAvmHigh  = avmData?.priceRangeHigh ?? null;
                     console.log(`[CMA Rentcast AVM] ${addr} → $${rentcastAvmPrice}`);
                 }
+                if (rentRes.ok) {
+                    const rentData = await rentRes.json();
+                    rentcastRentEstimate = rentData?.rent          ?? rentData?.price          ?? null;
+                    rentcastRentLow      = rentData?.rentRangeLow  ?? rentData?.priceRangeLow  ?? null;
+                    rentcastRentHigh     = rentData?.rentRangeHigh ?? rentData?.priceRangeHigh ?? null;
+                    console.log(`[CMA Rentcast Rent] ${addr} → $${rentcastRentEstimate}/mo`);
+                }
             } catch (e) {
-                console.warn('[CMA Rentcast AVM] fetch failed:', e);
+                console.warn('[CMA Rentcast] fetch failed:', e);
             }
         }
         // Authoritative price: Rentcast AVM > chip cmaPrice > 0
@@ -5197,6 +5217,47 @@ ${dtiSection}
             const piti = Math.round(c.monthlyPI + c.monthlyTax + c.monthlyInsurance);
             return { rate: r, piti, incomeNeeded: Math.round((piti / 0.43) * 12) };
         });
+
+        // ── INVESTMENT INTELLIGENCE LAYER ─────────────────────────────────────────
+        // Investor scenario: 25% down, DSCR rate (live + 1.25% premium — industry standard
+        // for non-owner-occupied DSCR loans vs primary residence rates)
+        const dscrRatePct    = parseFloat((liveRate + 1.25).toFixed(3));
+        const dscrConv       = calcConventional({ purchasePrice: price, downPaymentPct: 25, annualRatePct: dscrRatePct, termYears: 30, propertyTaxRate: taxRate * 100, annualInsurance: annualIns });
+        const dscrPI         = Math.round(dscrConv.monthlyPI);   // Principal + Interest only
+        const dscrPITI       = Math.round(dscrConv.monthlyPI + dscrConv.monthlyTax + dscrConv.monthlyInsurance);
+        const dscrDown       = Math.round(price * 0.25);
+        const closingCostEst = Math.round(price * 0.02);         // ~2% standard investor closing cost estimate
+
+        // Metrics — only computed when Rentcast rent data is available
+        const rentMo = rentcastRentEstimate;
+        // Gross yield: raw rent income vs property value (pre-expense benchmark)
+        const grossYield: number | null = rentMo && price > 0
+            ? parseFloat(((rentMo * 12 / price) * 100).toFixed(2))
+            : null;
+        // Cap rate: NOI / value — using 35% expense ratio (industry standard for SFR:
+        // property mgmt ~10%, vacancy ~5%, maintenance ~10%, insurance/misc ~10%)
+        const capRate: number | null = rentMo && price > 0
+            ? parseFloat(((rentMo * 12 * 0.65 / price) * 100).toFixed(2))
+            : null;
+        // DSCR ratio: gross rent / PI payment (lender convention — gross rent, not NOI)
+        // Most DSCR lenders require ≥1.25; some accept ≥1.0 with stronger down
+        const dscrRatio: number | null = rentMo && dscrPI > 0
+            ? parseFloat((rentMo / dscrPI).toFixed(2))
+            : null;
+        // Monthly cash flow after full PITI (25% down investor scenario)
+        const monthlyCashFlow: number | null = rentMo !== null
+            ? Math.round(rentMo - dscrPITI)
+            : null;
+        // Cash-on-cash return: annualized cash flow / total cash deployed (down + closing costs)
+        const cashOnCash: number | null = monthlyCashFlow !== null && dscrDown > 0
+            ? parseFloat(((monthlyCashFlow * 12 / (dscrDown + closingCostEst)) * 100).toFixed(2))
+            : null;
+        // DSCR qualifier label for prompt context
+        const dscrLabel = dscrRatio === null ? 'unavailable — rent data not available'
+            : dscrRatio >= 1.25 ? `${dscrRatio} — strong (lender-eligible)`
+            : dscrRatio >= 1.00 ? `${dscrRatio} — at threshold (some lenders accept)`
+            : `${dscrRatio} — below threshold (higher rent or larger down needed)`;
+        // ── END INVESTMENT INTELLIGENCE LAYER ─────────────────────────────────────
 
         // Tavily: city market + property listing details
         const [tavCity, tavAddress] = await Promise.all([
@@ -5236,6 +5297,14 @@ DETERMINISTIC FINANCIALS (do not recalculate):
 - Monthly PITI: $${cmaPiti.toLocaleString()}/mo at ${liveRate}% 30yr fixed
 - Income required @ 43% DTI: $${Math.round((cmaPiti / 0.43) * 12).toLocaleString()}/yr
 
+INVESTMENT METRICS (Rentcast Rent AVM — do not recalculate, use verbatim):
+- Estimated monthly rent: ${rentMo ? `$${rentMo.toLocaleString()}/mo (range $${rentcastRentLow?.toLocaleString() ?? '?'} – $${rentcastRentHigh?.toLocaleString() ?? '?'})` : 'unavailable'}
+- Gross yield: ${grossYield !== null ? `${grossYield}%` : 'N/A'}
+- Cap rate (35% expense ratio): ${capRate !== null ? `${capRate}%` : 'N/A'}
+- DSCR @ 25% down / ${dscrRatePct}% (investor rate): ${dscrLabel}
+- Monthly cash flow after PITI: ${monthlyCashFlow !== null ? `$${monthlyCashFlow.toLocaleString()}/mo` : 'N/A'}
+- Cash-on-cash return: ${cashOnCash !== null ? `${cashOnCash}%/yr` : 'N/A'}
+
 LIVE DATA (Tavily — extract verbatim facts only; do not fabricate MLS numbers, sale prices, or amenities):
 ${tavilyCtx || 'No live data available — use general market knowledge for city/neighborhood context only; label any estimates as approximate.'}
 
@@ -5243,7 +5312,7 @@ Generate a markdown report with these exact ## sections in order:
 1. ## Property Highlights — list ONLY features explicitly stated in LIVE DATA above (year built, lot size, garage, home type, and any amenities mentioned by name). If LIVE DATA is silent on a feature, omit that bullet. Do not mention views, ADU, or any amenity not found word-for-word in the data above.
 2. ## Market Snapshot — observed price data, days on market, inventory trends from LIVE DATA. Observed facts only; no forecasts.
 3. ## Value Insight — price/sqft context vs comps from LIVE DATA. Factual only.
-4. ## Decision Considerations — two sub-sections: **Primary Residence** and **Investment**. Pure trade-offs, no recommendations.
+4. ## Decision Considerations — two sub-sections: **Primary Residence** and **Investment**. For Investment: reference the INVESTMENT METRICS above verbatim (rent estimate, DSCR, cap rate, cash flow). Frame as trade-offs only — DSCR below 1.0 means coverage gap, above 1.25 means lender-eligible. Never recommend, just state the math. If rent data is unavailable, note that and skip investment metrics.
 5. ## Key Trade-offs — 3-5 bullet points covering carrying cost, financing risk, liquidity, and property-specific factors found in LIVE DATA.
 
 No Rate Sensitivity section (computed separately). 300-400 words total. Bullet points throughout.
@@ -5287,12 +5356,26 @@ Output JSON:
             const _cmaLoanType = isJumboCMA ? 'jumbo' : undefined;
             const _cmaDown = isJumboCMA ? 25 : 20;
 
+            // DSCR chip: pre-fill actual Rentcast rent so downstream calc uses real data
+            // Label dynamically shows coverage % when rent data is available
+            const dscrCoverage = rentMo && dscrPITI > 0 ? Math.round((rentMo / dscrPITI) * 100) : null;
+            const dscrChipLabel = rentMo && dscrCoverage !== null
+                ? `DSCR — $${rentMo.toLocaleString()}/mo rent covers ${dscrCoverage}% of payment`
+                : `DSCR — what rent covers this at ${priceFmtCMA}?`;
+            const dscrChipSeed = rentMo
+                ? `DSCR analysis — ${priceFmtCMA} at ${dscrRatePct}% with 25% down. Rentcast rent estimate: $${rentMo.toLocaleString()}/mo. DSCR ratio: ${dscrRatio ?? 'N/A'}. Run full DSCR breakdown.`
+                : `DSCR rental analysis — what monthly rent covers ${priceFmtCMA} with 25% down at ${dscrRatePct}%?`;
+
             const cmaChips = [
                 {
-                    label: `DSCR — what rent covers this at ${priceFmtCMA}?`,
-                    seed: `DSCR rental analysis — what monthly rent covers ${priceFmtCMA} with 25% down at ${liveRate}%?`,
+                    label: dscrChipLabel,
+                    seed: dscrChipSeed,
                     paramOverrides: {
-                        purchasePrice: price, downPaymentPct: 25, annualRatePct: liveRate, isDSCR: true,
+                        purchasePrice: price,
+                        downPaymentPct: 25,
+                        annualRatePct: dscrRatePct,
+                        isDSCR: true,
+                        ...(rentMo ? { grossMonthlyRent: rentMo } : {}),
                         ..._cmaBase,
                     },
                 },
@@ -5337,23 +5420,39 @@ Output JSON:
                 followUp: cmaFinal.follow_up,
                 follow_up_chips: cmaChips,
                 cmaCard: {
+                    // ── Property identity ─────────────────────────────────────
                     address: addr,
+                    beds,
+                    baths,
+                    sqft,
+                    photoUrl: photoUrl || null,
+                    // ── Valuation (Rentcast Sale AVM) ─────────────────────────
                     price,
                     priceSource: rentcastAvmPrice ? 'rentcast-avm' : 'param',
                     estimatedValueLow:  rentcastAvmLow,
                     estimatedValueHigh: rentcastAvmHigh,
-                    photoUrl: photoUrl || null,
+                    pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
+                    // ── Purchase financing (20% down, primary) ────────────────
+                    rate: liveRate,
                     piti: cmaPiti,
                     downAmt: cmaDown,
                     loanAmt: cmaLoan,
                     incomeNeeded: Math.round((cmaPiti / 0.43) * 12),
-                    pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
-                    rate: liveRate,
-                    beds,
-                    baths,
-                    sqft,
-                    answerMarkdown: cmaFinal.answer,
                     rateSensitivity: rateScenarios,
+                    // ── Investment intelligence (Rentcast Rent AVM) ───────────
+                    rentEstimate:    rentcastRentEstimate,
+                    rentRangeLow:    rentcastRentLow,
+                    rentRangeHigh:   rentcastRentHigh,
+                    grossYield,       // % — annual rent / price
+                    capRate,          // % — NOI (65% of gross rent) / price
+                    dscrRatio,        // gross rent / PI payment (DSCR lender convention)
+                    dscrRate:         rentcastRentEstimate ? dscrRatePct : null,
+                    dscrPiti:         rentcastRentEstimate ? dscrPITI    : null,
+                    dscrDown:         rentcastRentEstimate ? dscrDown    : null,
+                    monthlyCashFlow,  // rent − full PITI (25% down investor scenario)
+                    cashOnCash,       // % — annualized cash flow / (down + closing costs)
+                    // ── Meta ──────────────────────────────────────────────────
+                    answerMarkdown: cmaFinal.answer,
                     liveMarketData: tavCity.ok || tavAddress.ok,
                 },
             });
