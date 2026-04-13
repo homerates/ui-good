@@ -3961,7 +3961,9 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
-        } else if (paramOverrides.annualIncome != null) {
+        } else if (paramOverrides.annualIncome != null && !(paramOverrides as any).loanType && paramOverrides.purchasePrice == null) {
+            // Affordability branch: only when income is present AND no specific loan type is targeted
+            // AND no purchase price — prevents conversation-context income from hijacking VA/FHA/jumbo chips
             (calcDispatch as any).type = 'affordability';
             (calcDispatch as any).params = {
                 annualIncome: paramOverrides.annualIncome,
@@ -4260,7 +4262,9 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
-        } else if (paramOverrides.annualIncome != null) {
+        } else if (paramOverrides.annualIncome != null && !(paramOverrides as any).loanType && paramOverrides.purchasePrice == null) {
+            // Affordability branch: only when income is present AND no specific loan type is targeted
+            // AND no purchase price — prevents conversation-context income from hijacking VA/FHA/jumbo chips
             (calcDispatch as any).type = 'affordability';
             (calcDispatch as any).params = {
                 annualIncome: paramOverrides.annualIncome,
