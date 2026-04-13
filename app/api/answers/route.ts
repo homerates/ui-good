@@ -48,6 +48,7 @@ import { resolveGeoFeatures, extractZip, extractIncome } from "../../../lib/geoF
 import { tavily as createTavilyClient } from '@tavily/core';
 import { spendCredits } from "../../../lib/credits";
 import { getUserPlan } from "../../../lib/subscription";
+import { isAdminId } from "../../../lib/adminAuth";
 // Verify calc engine on cold start — logs failures, never throws
 try {
     const testResult = runCalcTests();
@@ -5145,9 +5146,12 @@ ${dtiSection}
 
     // ── Pro gate: Full CMA / Property Intelligence is a Pro-only feature ────────
     if (isCMARequest) {
-        const userPlanResult = userId ? await getUserPlan(userId) : null;
+        const [userPlanResult, adminBypass] = await Promise.all([
+            userId ? getUserPlan(userId) : Promise.resolve(null),
+            isAdminId(userId),                    // admins always bypass gate
+        ]);
         const userPlan = userPlanResult?.plan ?? 'free';
-        if (userPlan === 'free' || userPlan === 'plus') {
+        if (!adminBypass && (userPlan === 'free' || userPlan === 'plus')) {
             return noStore({
                 ok: true,
                 memory_thread_id: memoryThreadId,

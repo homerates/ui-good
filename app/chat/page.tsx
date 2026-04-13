@@ -2765,8 +2765,8 @@ export default function Page() {
                                                                 />
                                                             </>
                                                         )}
-                                                        {/* Pro upgrade gate card */}
-                                                        {m.meta.proGate && !loading && typingId === null && (
+                                                        {/* Pro upgrade gate card — render immediately (no typewriter wait) */}
+                                                        {m.meta.proGate && !loading && (
                                                             <ProUpgradeCard {...(m.meta.proGate as ProGatePayload)} />
                                                         )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
