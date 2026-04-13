@@ -383,7 +383,7 @@ export default function Sidebar(props: SidebarProps) {
               HomeRates Lab
             </button>
 
-            {/* Property Lookup — paste a listing URL */}
+            {/* Property Lookup — paste a listing URL (leads to Pro Intelligence Report) */}
             {onPriceCheck && (
               <button
                 className="btn sidebar-tool-btn"
@@ -392,10 +392,22 @@ export default function Sidebar(props: SidebarProps) {
               >
                 <span className="sidebar-tool-icon">🔎</span>
                 Property Lookup
+                <span style={{
+                  marginLeft: 'auto',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+                  color: '#1a0a00',
+                  padding: '2px 6px',
+                  borderRadius: 999,
+                  flexShrink: 0,
+                }}>⭐ Pro</span>
               </button>
             )}
 
-            {/* Home Value — homeowner analysis via address */}
+            {/* Home Value — homeowner analysis → leads to Pro Intelligence Report */}
             <a
               href="/homeowner"
               className="btn sidebar-tool-btn"
@@ -403,6 +415,18 @@ export default function Sidebar(props: SidebarProps) {
             >
               <span className="sidebar-tool-icon">🏠</span>
               Home Value
+              <span style={{
+                marginLeft: 'auto',
+                fontSize: 9,
+                fontWeight: 800,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+                color: '#1a0a00',
+                padding: '2px 6px',
+                borderRadius: 999,
+                flexShrink: 0,
+              }}>⭐ Pro</span>
             </a>
 
             {/* Get Matched — borrower scenario board */}

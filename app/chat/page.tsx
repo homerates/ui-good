@@ -32,6 +32,8 @@ import PropertyPreviewCard from '@/components/PropertyPreviewCard';
 import type { PropertyCardData } from '@/components/PropertyPreviewCard';
 import PropertyIntelligenceCard from '@/components/PropertyIntelligenceCard';
 import type { CMACardData } from '@/components/PropertyIntelligenceCard';
+import ProUpgradeCard from '@/components/ProUpgradeCard';
+import type { ProGatePayload } from '@/components/ProUpgradeCard';
 import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
 import JumboAffordabilitySliderCard from '@/components/JumboAffordabilitySliderCard';
 import LenderChecklistCard from '@/components/LenderChecklistCard';
@@ -431,6 +433,7 @@ type ApiResponse = {
         dscrRate?: number | null; dscrPiti?: number | null; dscrDown?: number | null;
         monthlyCashFlow?: number | null; cashOnCash?: number | null;
     } | null;
+    proGate?: ProGatePayload | null;
 };
 
 
@@ -2761,6 +2764,10 @@ export default function Page() {
                                                                     }}
                                                                 />
                                                             </>
+                                                        )}
+                                                        {/* Pro upgrade gate card */}
+                                                        {m.meta.proGate && !loading && typingId === null && (
+                                                            <ProUpgradeCard {...(m.meta.proGate as ProGatePayload)} />
                                                         )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
                                                         {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !loading && typingId === null && (

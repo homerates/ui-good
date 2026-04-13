@@ -38,7 +38,7 @@ const PLANS = [
     priceMonthly: 7,
     priceAnnual: 59,
     annualMonthly: 4.92,
-    description: "For homebuyers and investors who want the full toolkit.",
+    description: "For homebuyers who want unlimited AI tools and alerts.",
     cta: "Start Plus",
     ctaVariant: "primary" as const,
     highlight: true,
@@ -61,13 +61,16 @@ const PLANS = [
     priceMonthly: 19,
     priceAnnual: 159,
     annualMonthly: 13.25,
-    description: "For loan officers managing clients and borrowers.",
+    description: "For investors, buyers, and loan officers who need the full stack.",
     cta: "Start Pro",
     ctaVariant: "ghost" as const,
+    badge2: "Investor + LO",
     features: [
       "Everything in Plus",
+      "⭐ Property Intelligence Reports",
+      "⭐ Rentcast Rent AVM + cap rate",
+      "⭐ DSCR & investment cash flow",
       "Up to 10 borrowers",
-      "Borrower invite codes",
       "LO dashboard",
       "Shared project threads",
     ],
@@ -202,6 +205,9 @@ export default function PricingPage() {
             >
               {plan.highlight && (
                 <div className="pricing-badge">{plan.badge}</div>
+              )}
+              {(plan as any).badge2 && (
+                <div className="pricing-badge pricing-badge--amber">{(plan as any).badge2}</div>
               )}
 
               <div className="pricing-card-header">
@@ -398,6 +404,10 @@ export default function PricingPage() {
           padding: 3px 12px;
           border-radius: 999px;
           white-space: nowrap;
+        }
+        .pricing-badge--amber {
+          background: linear-gradient(135deg, #f59e0b, #fbbf24);
+          color: #1a0a00;
         }
         .pricing-plan-name {
           font-family: var(--font-dm-sans, sans-serif);

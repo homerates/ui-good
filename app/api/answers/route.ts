@@ -47,6 +47,7 @@ import {
 import { resolveGeoFeatures, extractZip, extractIncome } from "../../../lib/geoFeatures";
 import { tavily as createTavilyClient } from '@tavily/core';
 import { spendCredits } from "../../../lib/credits";
+import { getUserPlan } from "../../../lib/subscription";
 // Verify calc engine on cold start — logs failures, never throws
 try {
     const testResult = runCalcTests();
@@ -5141,6 +5142,36 @@ ${dtiSection}
     // ========== PROPERTY INTELLIGENCE REPORT (CMA CARD) ==========
     const cmaParams = (body as any)?.paramOverrides;
     const isCMARequest = !!cmaParams?.cmaAddress && /intelligence report|property report|cma|market analysis/i.test(question);
+
+    // ── Pro gate: Full CMA / Property Intelligence is a Pro-only feature ────────
+    if (isCMARequest) {
+        const userPlanResult = userId ? await getUserPlan(userId) : null;
+        const userPlan = userPlanResult?.plan ?? 'free';
+        if (userPlan === 'free' || userPlan === 'plus') {
+            return noStore({
+                ok: true,
+                memory_thread_id: memoryThreadId,
+                chat_id: chatId,
+                project_id: projectId,
+                chat_thread_id: chatThreadId,
+                route: 'answers',
+                intent,
+                path: 'pro_gate',
+                tag: null,
+                generatedAt: new Date().toISOString(),
+                usedFRED: false,
+                usedTavily: false,
+                fred,
+                topSources: [],
+                message: 'Property Intelligence Reports are a Pro feature.',
+                proGate: {
+                    feature: 'Property Intelligence Report',
+                    featureKey: 'cma',
+                    description: 'Instant rent estimates, cap rate, DSCR analysis, and investment cash flow — everything buyers and investors need in one report.',
+                },
+            } as any);
+        }
+    }
 
     if (isCMARequest && XAI_API_KEY) {
         const addr:     string = String(cmaParams.cmaAddress ?? '');

@@ -29,6 +29,7 @@ export const PLANS = {
     scenarioPosts: Infinity, // unlimited — scenarios are the marketplace supply side
     pdfExports: 0,
     alerts: false,
+    investorTools: false,   // CMA intelligence, rent AVM, cap rate, DSCR analysis
     description: "Get started with HomeRates.ai",
   },
   plus: {
@@ -42,6 +43,7 @@ export const PLANS = {
     scenarioPosts: Infinity,
     pdfExports: Infinity,
     alerts: true,
+    investorTools: false,
     description: "Unlimited questions, PDF exports, alerts",
   },
   pro: {
@@ -55,7 +57,8 @@ export const PLANS = {
     scenarioPosts: Infinity,
     pdfExports: Infinity,
     alerts: true,
-    description: "Everything in Plus — plus borrower tools and LO dashboard",
+    investorTools: true,    // full CMA + rent AVM + Investment Intelligence Panel
+    description: "Everything in Plus — investor tools, borrower management, and LO dashboard",
   },
 } as const;
 
