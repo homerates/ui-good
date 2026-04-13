@@ -5312,7 +5312,7 @@ Generate a markdown report with these exact ## sections in order:
 1. ## Property Highlights — list ONLY features explicitly stated in LIVE DATA above (year built, lot size, garage, home type, and any amenities mentioned by name). If LIVE DATA is silent on a feature, omit that bullet. Do not mention views, ADU, or any amenity not found word-for-word in the data above.
 2. ## Market Snapshot — observed price data, days on market, inventory trends from LIVE DATA. Observed facts only; no forecasts.
 3. ## Value Insight — price/sqft context vs comps from LIVE DATA. CRITICAL: use ONLY the AVM value from the PROPERTY section as the authoritative price. Never include monthly/rental figures, or any per-sqft value below $100, as they are rental data contaminants from LIVE DATA.
-4. ## Decision Considerations — two sub-sections: **Primary Residence** and **Investment**. For Investment: if rent data IS available in INVESTMENT METRICS above, reference it verbatim (rent, DSCR, cap rate, cash flow) as trade-offs only. If rent data shows "unavailable", omit the Investment sub-section entirely — do NOT list N/A values.
+4. ## Decision Considerations — one or two sub-sections. Always include **Primary Residence**. Only include **Investment** if rent data IS available in INVESTMENT METRICS above — if so, reference rent, DSCR, cap rate, and cash flow verbatim as trade-offs only. If rent data shows "unavailable", do NOT write an Investment sub-section header or any Investment content at all.
 5. ## Key Trade-offs — 3-5 bullet points covering carrying cost, financing risk, liquidity, and property-specific factors found in LIVE DATA.
 
 No Rate Sensitivity section (computed separately). 300-400 words total. Bullet points throughout.
@@ -5505,9 +5505,11 @@ Output JSON:
                             2019:3.94,2018:4.54,2017:3.99,2016:3.65,2015:3.85,2014:4.17,
                             2013:3.98,2012:3.66,2011:4.45,2010:4.69,2009:5.04,2008:6.03,
                         };
+                        let remainingMonths: number | null = null;
                         if (lastSalePrice && prop?.lastSaleDate) {
                             const sd = new Date(prop.lastSaleDate);
                             const elapsed = Math.max(0, (new Date().getFullYear() - sd.getFullYear()) * 12 + (new Date().getMonth() - sd.getMonth()));
+                            remainingMonths = Math.max(0, 360 - elapsed);
                             purchaseRate = HIST_RATES_HO[sd.getFullYear()] ?? 5.5;
                             const r = purchaseRate / 100 / 12, n = 360, p = lastSalePrice * 0.80;
                             const pmt = r > 0 ? (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1) : p / n;
@@ -5536,6 +5538,7 @@ CRITICAL: Use Rentcast AVM value (${fmt(estimatedValue)}) as the property value.
                             estimatedBalance,
                             estimatedEquity,
                             purchaseRate,
+                            remainingMonths,
                             lastSalePrice,
                             lastSaleDate,
                             liveRate,
@@ -6649,7 +6652,7 @@ Return valid JSON only:
         estimatedBalance: homeownerSnapshot.estimatedBalance,
         estimatedEquity:  homeownerSnapshot.estimatedEquity,
         purchaseRate:     homeownerSnapshot.purchaseRate,
-        remainingMonths:  305,
+        remainingMonths:  homeownerSnapshot.remainingMonths ?? null,
         hoaMonthly:       null,
         pricePerSqft:     null,
     } : null;
@@ -6665,7 +6668,7 @@ Return valid JSON only:
             { label: `Rates drop to 6% — new payment?`, seed: `Refi from ${cur}% to 6% on $${Math.round(bal/1000)}k balance`, paramOverrides: { currentBalance: bal, currentRatePct: cur, newRatePct: 6 } },
             { label: `15-year refi — payoff timeline?`, seed: `15-year refi at ${live}% on $${Math.round(bal/1000)}k balance`, paramOverrides: { currentBalance: bal, currentRatePct: cur, newRatePct: live } },
             { label: `Cash-out equity — what changes?`, seed: `Cash-out refi from ${short}` },
-            { label: `Full Property Intelligence Report`, seed: `Property intelligence report: ${addr}`, paramOverrides: { cmaAddress: addr, cmaCity: homeownerSnapshot.address?.split(',')[1]?.trim() ?? '', cmaState: homeownerSnapshot.address?.match(/,\s*([A-Z]{2})\s/)?.[1] ?? '', cmaPrice: homeownerSnapshot.estimatedValue ?? homeownerSnapshot.lastSalePrice, cmaBeds: homeownerSnapshot.beds, cmaBaths: homeownerSnapshot.baths, cmaSqft: homeownerSnapshot.sqft, cmaTaxAnnual: 0, cmaTaxRate: 0.011, cmaLiveRate: live, cmaPhotoUrl: '' } },
+            { label: `Full Property Intelligence Report`, seed: `Property intelligence report: ${addr}`, paramOverrides: { cmaAddress: addr, cmaCity: homeownerSnapshot.address?.split(',')[1]?.trim() ?? '', cmaState: homeownerSnapshot.address?.match(/,\s*([A-Z]{2})\s/)?.[1] ?? '', cmaPrice: homeownerSnapshot.estimatedValue ?? homeownerSnapshot.lastSalePrice, cmaBeds: homeownerSnapshot.beds, cmaBaths: homeownerSnapshot.baths, cmaSqft: homeownerSnapshot.sqft, cmaTaxAnnual: Math.round((homeownerSnapshot.estimatedValue ?? 0) * 0.011), cmaTaxRate: 0.011, cmaLiveRate: live, cmaPhotoUrl: '' } },
         ];
     })() : null;
 
