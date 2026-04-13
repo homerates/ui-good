@@ -5311,8 +5311,8 @@ ${tavilyCtx || 'No live data available — use general market knowledge for city
 Generate a markdown report with these exact ## sections in order:
 1. ## Property Highlights — list ONLY features explicitly stated in LIVE DATA above (year built, lot size, garage, home type, and any amenities mentioned by name). If LIVE DATA is silent on a feature, omit that bullet. Do not mention views, ADU, or any amenity not found word-for-word in the data above.
 2. ## Market Snapshot — observed price data, days on market, inventory trends from LIVE DATA. Observed facts only; no forecasts.
-3. ## Value Insight — price/sqft context vs comps from LIVE DATA. Factual only.
-4. ## Decision Considerations — two sub-sections: **Primary Residence** and **Investment**. For Investment: reference the INVESTMENT METRICS above verbatim (rent estimate, DSCR, cap rate, cash flow). Frame as trade-offs only — DSCR below 1.0 means coverage gap, above 1.25 means lender-eligible. Never recommend, just state the math. If rent data is unavailable, note that and skip investment metrics.
+3. ## Value Insight — price/sqft context vs comps from LIVE DATA. CRITICAL: use ONLY the AVM value from the PROPERTY section as the authoritative price. Never include monthly/rental figures, or any per-sqft value below $100, as they are rental data contaminants from LIVE DATA.
+4. ## Decision Considerations — two sub-sections: **Primary Residence** and **Investment**. For Investment: if rent data IS available in INVESTMENT METRICS above, reference it verbatim (rent, DSCR, cap rate, cash flow) as trade-offs only. If rent data shows "unavailable", omit the Investment sub-section entirely — do NOT list N/A values.
 5. ## Key Trade-offs — 3-5 bullet points covering carrying cost, financing risk, liquidity, and property-specific factors found in LIVE DATA.
 
 No Rate Sensitivity section (computed separately). 300-400 words total. Bullet points throughout.
