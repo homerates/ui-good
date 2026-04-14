@@ -41,6 +41,10 @@ export default function AdminDashboard() {
   const [updatingUser, setUpdatingUser] = useState<string | null>(null);
   const [userMsg, setUserMsg] = useState<{ id: string; msg: string; ok: boolean } | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [grantOpen, setGrantOpen] = useState<string | null>(null);
+  const [grantAmount, setGrantAmount] = useState<Record<string, string>>({});
+  const [grantNote, setGrantNote] = useState<Record<string, string>>({});
+  const [granting, setGranting] = useState<string | null>(null);
 
   // Admin users state
   const [admins, setAdmins] = useState<AdminUser[]>([]);
@@ -68,6 +72,29 @@ export default function AdminDashboard() {
       .then(r => r.json())
       .then(d => { setUsers(d.users ?? []); setUsersTotal(d.total ?? 0); setUsersPage(page); })
       .finally(() => setUsersLoading(false));
+  }
+
+  async function grantCredits(userId: string) {
+    const amount = parseInt(grantAmount[userId] ?? "0", 10);
+    if (!amount || amount < 1) return;
+    setGranting(userId);
+    setUserMsg(null);
+    const res = await fetch("/api/admin/grant-credits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, amount, note: grantNote[userId] ?? "" }),
+    });
+    const d = await res.json();
+    setGranting(null);
+    if (!res.ok) {
+      setUserMsg({ id: userId, msg: d.error ?? "Failed", ok: false });
+    } else {
+      setUserMsg({ id: userId, msg: `Granted ${amount} credits ✓ (balance: ${d.newBalance})`, ok: true });
+      setGrantAmount(prev => ({ ...prev, [userId]: "" }));
+      setGrantNote(prev => ({ ...prev, [userId]: "" }));
+      setGrantOpen(null);
+      setTimeout(() => setUserMsg(null), 5000);
+    }
   }
 
   async function updateUser(userId: string, payload: { role?: string; action?: string }) {
@@ -420,8 +447,11 @@ export default function AdminDashboard() {
                       <tbody>
                         {users.map(u => {
                           const isUpdating = updatingUser === u.id;
+                          const isGranting = granting === u.id;
+                          const isGrantOpen = grantOpen === u.id;
                           const msg = userMsg?.id === u.id ? userMsg : null;
                           return (
+                            <>
                             <tr key={u.id}>
                               <td>
                                 <div style={{ fontWeight: 600, color: "#f0f4ff", fontSize: "0.83rem" }}>{u.full_name || "—"}</div>
@@ -466,14 +496,61 @@ export default function AdminDashboard() {
                               <td style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.72rem" }}>
                                 {new Date(u.created_at).toLocaleDateString()}
                               </td>
-                              <td>
+                              <td style={{ whiteSpace: "nowrap" }}>
+                                <button
+                                  className="adm-gen-btn"
+                                  style={{ color: isGrantOpen ? "#00e87a" : undefined, borderColor: isGrantOpen ? "rgba(0,232,122,0.3)" : undefined }}
+                                  onClick={() => { setGrantOpen(isGrantOpen ? null : u.id); setUserMsg(null); }}
+                                >
+                                  Grant Credits
+                                </button>
                                 {msg && (
-                                  <span style={{ fontSize: "0.72rem", color: msg.ok ? "#00e87a" : "#ff5f5f" }}>
+                                  <span style={{ fontSize: "0.72rem", color: msg.ok ? "#00e87a" : "#ff5f5f", marginLeft: 8 }}>
                                     {msg.msg}
                                   </span>
                                 )}
                               </td>
                             </tr>
+                            {isGrantOpen && (
+                              <tr key={`${u.id}-grant`}>
+                                <td colSpan={5} style={{ padding: "0 10px 12px", background: "rgba(0,232,122,0.03)" }}>
+                                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", paddingTop: 8 }}>
+                                    {[100, 250, 500, 1000].map(p => (
+                                      <button key={p} className="adm-gen-btn"
+                                        style={{
+                                          borderColor: grantAmount[u.id] === String(p) ? "rgba(0,232,122,0.5)" : undefined,
+                                          color: grantAmount[u.id] === String(p) ? "#00e87a" : undefined,
+                                        }}
+                                        onClick={() => setGrantAmount(prev => ({ ...prev, [u.id]: String(p) }))}
+                                      >{p}</button>
+                                    ))}
+                                    <input
+                                      type="number" min={1} max={100000}
+                                      placeholder="Custom"
+                                      value={grantAmount[u.id] ?? ""}
+                                      onChange={e => setGrantAmount(prev => ({ ...prev, [u.id]: e.target.value }))}
+                                      className="adm-input"
+                                      style={{ width: 90, padding: "4px 8px" }}
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Note (optional)"
+                                      value={grantNote[u.id] ?? ""}
+                                      onChange={e => setGrantNote(prev => ({ ...prev, [u.id]: e.target.value }))}
+                                      className="adm-input"
+                                      style={{ width: 180, padding: "4px 8px" }}
+                                    />
+                                    <button
+                                      className="adm-btn primary"
+                                      style={{ padding: "5px 16px", fontSize: "0.8rem" }}
+                                      disabled={isGranting || !grantAmount[u.id] || parseInt(grantAmount[u.id] ?? "0") < 1}
+                                      onClick={() => grantCredits(u.id)}
+                                    >{isGranting ? "Granting…" : "Grant"}</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            </>
                           );
                         })}
                       </tbody>
