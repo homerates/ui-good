@@ -18,24 +18,21 @@ function getResend(): Resend | null {
 // #080c12 dark with the logo image — never plain text "HomeRates.ai".
 
 export function emailShell(bodyHtml: string, footerText = "HomeRates.ai · homerates.ai"): string {
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>@media only screen and (max-width:600px){.hr-body{padding:24px 20px!important;}}</style>
-</head>
-<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
-  <tr><td align="center">
-    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
-      <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
-        <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
-      </td></tr>
-      <tr><td class="hr-body" style="background:#0d1a12;padding:32px;">
-        ${bodyHtml}
-      </td></tr>
-      <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#3a4560;line-height:1.6;">${footerText}</p>
-      </td></tr>
-    </table>
-  </td></tr>
+<tr><td align="center">
+<table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
+<tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
+<img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
+</td></tr>
+<tr><td style="background:#0d1a12;padding:32px;">
+${bodyHtml}
+</td></tr>
+<tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
+<p style="margin:0;font-size:11px;color:#3a4560;">${footerText}</p>
+</td></tr>
+</table>
+</td></tr>
 </table>
 </body></html>`;
 }
@@ -229,8 +226,7 @@ function buildProCardHtml(pro: ProCard, link: string): string {
   ].filter(Boolean).join("");
 
   return `
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
