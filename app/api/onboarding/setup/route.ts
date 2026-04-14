@@ -103,12 +103,42 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // If visitor arrived via a referral link, record it (only if not already set)
+  // ── Referral attribution ─────────────────────────────────────────────────
+  // hr_ref cookie holds the referrer's Clerk user_id
   const jar = await cookies();
   const refSlug = jar.get("hr_ref")?.value ?? null;
+  let referrerId: string | null = null;
+
   if (refSlug && refSlug !== userId) {
-    await sb.from("users").update({ referred_by: refSlug }).eq("id", userId).is("referred_by", null);
+    // The cookie value is always the referrer's Clerk user_id (set by /r/[slug])
+    const { data: refUser } = await sb
+      .from("users")
+      .select("id")
+      .eq("id", refSlug)
+      .maybeSingle();
+    if (refUser) referrerId = refUser.id;
+  }
+
+  if (referrerId) {
+    await sb.from("users").update({ referred_by: referrerId }).eq("id", userId).is("referred_by", null);
     jar.delete("hr_ref");
+  }
+
+  // ── Founding member badge ─────────────────────────────────────────────────
+  // Award if total pros (LOs + agents) <= 500 at the time of this registration
+  if (role === "lo" || role === "agent") {
+    const [{ count: loCount }, { count: agentCount }] = await Promise.all([
+      sb.from("loan_officers").select("user_id", { count: "exact", head: true }),
+      sb.from("agents").select("user_id", { count: "exact", head: true }),
+    ]);
+    const totalPros = (loCount ?? 0) + (agentCount ?? 0);
+    if (totalPros <= 500) {
+      if (role === "lo") {
+        await sb.from("loan_officers").update({ is_founding_member: true }).eq("user_id", userId);
+      } else {
+        await sb.from("agents").update({ is_founding_member: true }).eq("user_id", userId);
+      }
+    }
   }
 
   // ── Credits ──────────────────────────────────────────────────────────────
@@ -119,8 +149,8 @@ export async function POST(req: NextRequest) {
   await awardCredits(userId, 100, "plan_free_monthly", "Free plan starter credits", `free_start_${userId}`);
 
   // Referral bonus to the referrer — 500 credits per person they bring in
-  if (refSlug && refSlug !== userId) {
-    await awardCredits(refSlug, 500, "referral_bonus", "Referral bonus — new member joined", `referral_${userId}`);
+  if (referrerId) {
+    await awardCredits(referrerId, 500, "referral_bonus", "Referral bonus — new member joined", `referral_${userId}`);
   }
 
   return NextResponse.json({ ok: true, role });

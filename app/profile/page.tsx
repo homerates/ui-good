@@ -56,6 +56,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [referralLink, setReferralLink] = useState<string | null>(null);
+  const [referralCount, setReferralCount] = useState<number>(0);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // Form fields
   const [fullName, setFullName] = useState("");
@@ -80,9 +83,13 @@ export default function ProfilePage() {
   useEffect(() => {
     fetch("/api/profile")
       .then(r => r.ok ? r.json() : null)
-      .then((d: ProfileData | null) => {
+      .then((d: (ProfileData & { referral_code?: string | null; referral_count?: number }) | null) => {
         if (!d) return;
         setData(d);
+        setReferralCount(d.referral_count ?? 0);
+        if (d.referral_code) {
+          setReferralLink(`${window.location.origin}/r/${d.referral_code}`);
+        }
         setFullName(d.full_name || d.clerkName || "");
         setRole(d.role || "borrower");
         const pro = d.lo ?? d.agent;
@@ -439,6 +446,60 @@ export default function ProfilePage() {
                   </div>
                 </div>
               )}
+
+              {/* Referral link section */}
+              <div className="pr-section">
+                <div className="pr-section-title">Referral link</div>
+                {referralLink ? (
+                  <>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <div className="pr-readonly" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.82rem", color: "#8fa3b8" }}>
+                        {referralLink}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(referralLink).then(() => {
+                            setCopySuccess(true);
+                            setTimeout(() => setCopySuccess(false), 2000);
+                          });
+                        }}
+                        style={{
+                          flexShrink: 0, padding: "11px 18px",
+                          background: copySuccess ? "rgba(0,232,122,0.15)" : "#141b28",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: 10, color: copySuccess ? "#00e87a" : "#8fa3b8",
+                          fontSize: "0.82rem", fontWeight: 600, cursor: "pointer",
+                          fontFamily: "inherit", transition: "all 0.15s",
+                        }}
+                      >
+                        {copySuccess ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                    {referralCount > 0 && (
+                      <div style={{ fontSize: "0.82rem", color: "#00e87a" }}>
+                        {referralCount} {referralCount === 1 ? "person" : "people"} joined via your link
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="pr-save-btn"
+                    style={{ alignSelf: "flex-start", padding: "10px 22px" }}
+                    onClick={() => {
+                      fetch("/api/referral/code")
+                        .then(r => r.ok ? r.json() : null)
+                        .then((d: { code?: string } | null) => {
+                          if (d?.code) setReferralLink(`${window.location.origin}/r/${d.code}`);
+                        })
+                        .catch(() => {});
+                    }}
+                  >
+                    Generate my referral link
+                  </button>
+                )}
+              </div>
 
               {/* Save / status */}
               {error && <div className="pr-error">{error}</div>}
