@@ -24,7 +24,7 @@ export function emailShell(bodyHtml: string, footerText = "HomeRates.ai · homer
 <tr><td align="center">
 <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
 <tr><td style="background:#ffffff;padding:28px 32px 20px;border-bottom:3px solid #00e87a;">
-<img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:22px;display:block;" onerror="this.style.display='none'">
+<img src="${BASE}/assets/homerates-email-logo.png" alt="HomeRates.ai" style="height:22px;display:block;" onerror="this.style.display='none'">
 </td></tr>
 <tr><td style="background:#ffffff;padding:32px;">
 ${bodyHtml}
