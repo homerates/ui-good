@@ -338,3 +338,71 @@ export async function emailWelcome({
     console.error("[sendEmail] emailWelcome failed:", err);
   }
 }
+
+// ─── Credit notification: admin grant or LO gift ────────────────────────────
+
+export async function emailCreditGrant({
+  toEmail,
+  firstName,
+  amount,
+  newBalance,
+  fromName,   // "HomeRates.ai" for admin grants, LO name for gifts
+  note,
+}: {
+  toEmail:    string;
+  firstName?: string | null;
+  amount:     number;
+  newBalance: number;
+  fromName:   string;
+  note?:      string | null;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to: toEmail,
+      subject: `You've received ${amount.toLocaleString()} credits on HomeRates.ai`,
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Credits received</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">${greeting}</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#6b7a8d;line-height:1.7;">
+          <strong style="color:#1a2530">${fromName}</strong> has added
+          <strong style="color:#008a48">${amount.toLocaleString()} credits</strong> to your HomeRates.ai account.
+        </p>
+
+        ${note ? `
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+          <tr>
+            <td style="background:#f4f6f9;border-left:3px solid #00e87a;border-radius:0 8px 8px 0;padding:12px 16px;">
+              <p style="margin:0;font-size:14px;color:#6b7a8d;font-style:italic;">"${note}"</p>
+            </td>
+          </tr>
+        </table>` : ""}
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:10px;">
+          <tr>
+            <td style="padding:16px 20px;border-right:1px solid #e2e8f0;" width="50%">
+              <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Credits added</p>
+              <p style="margin:0;font-size:22px;font-weight:800;color:#008a48;">+${amount.toLocaleString()}</p>
+            </td>
+            <td style="padding:16px 20px;" width="50%">
+              <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">New balance</p>
+              <p style="margin:0;font-size:22px;font-weight:800;color:#080c12;">${newBalance.toLocaleString()}</p>
+            </td>
+          </tr>
+        </table>
+
+        <a href="${BASE}/chat"
+           style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:14px 20px;border-radius:10px;text-decoration:none;">
+          Start a conversation →
+        </a>
+      `, "HomeRates.ai · Your credits never expire"),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailCreditGrant failed:", err);
+  }
+}

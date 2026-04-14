@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "../../../../lib/adminAuth";
 import { awardCredits, getBalance } from "../../../../lib/credits";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { emailCreditGrant } from "../../../../lib/sendEmail";
 
 export async function POST(req: NextRequest) {
   const { error } = await requireAdmin();
@@ -39,5 +40,16 @@ export async function POST(req: NextRequest) {
   if (!ok) return NextResponse.json({ error: "Failed to grant credits" }, { status: 500 });
 
   const newBalance = await getBalance(userId);
+
+  // Non-blocking email notification
+  emailCreditGrant({
+    toEmail:    user.email,
+    firstName:  user.full_name?.split(" ")[0] ?? null,
+    amount,
+    newBalance,
+    fromName:   "HomeRates.ai",
+    note:       note?.trim() || null,
+  });
+
   return NextResponse.json({ ok: true, newBalance, user: { email: user.email, name: user.full_name } });
 }

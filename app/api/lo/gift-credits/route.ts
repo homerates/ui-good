@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { awardCredits, spendCredits, getBalance } from "../../../../lib/credits";
+import { emailCreditGrant } from "../../../../lib/sendEmail";
+import { clerkClient } from "@clerk/nextjs/server";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -63,5 +65,31 @@ export async function POST(req: NextRequest) {
   }
 
   const newLoBalance = await getBalance(userId);
+
+  // Email the borrower — non-blocking
+  try {
+    const clerk = await clerkClient();
+    const [borrowerClerk, loClerk] = await Promise.all([
+      clerk.users.getUser(borrowerUserId),
+      clerk.users.getUser(userId),
+    ]);
+    const borrowerEmail = borrowerClerk.emailAddresses[0]?.emailAddress;
+    const borrowerName  = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ") || null;
+    const loName        = [loClerk.firstName, loClerk.lastName].filter(Boolean).join(" ") || "Your loan officer";
+    const borrowerBal   = await getBalance(borrowerUserId);
+
+    if (borrowerEmail) {
+      emailCreditGrant({
+        toEmail:   borrowerEmail,
+        firstName: borrowerName?.split(" ")[0] ?? null,
+        amount,
+        newBalance: borrowerBal,
+        fromName:   loName,
+      });
+    }
+  } catch {
+    // non-fatal
+  }
+
   return NextResponse.json({ ok: true, newLoBalance });
 }
