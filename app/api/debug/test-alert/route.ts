@@ -12,13 +12,7 @@ import { isAdminId } from "../../../../lib/adminAuth";
 import { Resend } from "resend";
 import { emailShell } from "../../../../lib/sendEmail";
 
-export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!(await isAdminId(userId))) return NextResponse.json({ error: "Admin only" }, { status: 403 });
-
-  const body = await req.json().catch(() => ({}));
-  const to: string = body.to ?? "rayaanarif57@gmail.com";
+async function runTestAlert(to: string) {
 
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL ?? "digest@homerates.ai";
@@ -72,4 +66,23 @@ export async function POST(req: NextRequest) {
     timestamp: new Date().toISOString(),
     note: "If delivered_id is set and has_error is false, Resend accepted the email. Check Resend dashboard logs for delivery status.",
   });
+}
+
+export async function GET(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAdminId(userId))) return NextResponse.json({ error: "Admin only" }, { status: 403 });
+
+  const to = req.nextUrl.searchParams.get("to") ?? "rayaanarif57@gmail.com";
+  return runTestAlert(to);
+}
+
+export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAdminId(userId))) return NextResponse.json({ error: "Admin only" }, { status: 403 });
+
+  const body = await req.json().catch(() => ({}));
+  const to: string = body.to ?? "rayaanarif57@gmail.com";
+  return runTestAlert(to);
 }
