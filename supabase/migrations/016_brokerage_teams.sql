@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS public.brokerages (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name           TEXT NOT NULL,
-  owner_user_id  TEXT NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+  owner_user_id  TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   invite_token   TEXT NOT NULL DEFAULT encode(gen_random_bytes(16), 'hex'),
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -20,7 +20,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_brokerages_owner
 CREATE TABLE IF NOT EXISTS public.brokerage_members (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   brokerage_id  UUID NOT NULL REFERENCES public.brokerages(id) ON DELETE CASCADE,
-  user_id       TEXT NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+  user_id       TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   role          TEXT NOT NULL DEFAULT 'member',   -- 'owner' | 'member'
   joined_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (brokerage_id, user_id)
