@@ -42,10 +42,10 @@ async function sendAlertEmail(to: string, subject: string, body: string): Promis
 function emailHtml(title: string, message: string, cta?: string): string {
   return emailShell(`
     <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Rate Alert</p>
-    <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">${title}</p>
-    <p style="margin:0 0 24px;font-size:15px;color:#7a9e8a;line-height:1.6;">${message}</p>
+    <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">${title}</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#6b7a8d;line-height:1.6;">${message}</p>
     ${cta ? `<a href="https://chat.homerates.ai/chat" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">${cta}</a>` : ""}
-  `, `You received this because you set up an alert on HomeRates.ai. <a href="https://chat.homerates.ai/chat" style="color:#3a4560;">Manage alerts</a>`);
+  `, `You received this because you set up an alert on HomeRates.ai. <a href="https://chat.homerates.ai/chat" style="color:#9aa3af;">Manage alerts</a>`);
 }
 
 // ---------------------------------------------------------------------------

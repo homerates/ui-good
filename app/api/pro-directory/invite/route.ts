@@ -122,14 +122,14 @@ export async function POST(req: NextRequest) {
       subject: `Your profile is listed on HomeRates.ai — claim it free`,
       html: emailShell(`
         <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Professional Directory</p>
-        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">Hi ${pro.name},</p>
-        <p style="margin:0 0 20px;font-size:15px;color:#7a9e8a;line-height:1.6;">Your ${proTypeLabel.toLowerCase()} profile from ${sourceLabel} is listed on HomeRates.ai — a platform where borrowers find and connect with licensed mortgage and real estate professionals.</p>
-        <div style="background:#141b28;border:1px solid #1a2e20;border-radius:12px;padding:20px;margin:0 0 24px;">
-          <div style="font-size:16px;font-weight:700;color:#e8f5ee;margin-bottom:4px;">${pro.name}</div>
-          <div style="font-size:13px;color:#7a9e8a;margin-bottom:8px;">${proTypeLabel}${location ? ` · ${location}` : ""}</div>
-          ${licenseNum ? `<div style="font-family:monospace;font-size:12px;color:#4a6e58;">${licenseLabel} # ${licenseNum}</div>` : ""}
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">Hi ${pro.name},</p>
+        <p style="margin:0 0 20px;font-size:15px;color:#6b7a8d;line-height:1.6;">Your ${proTypeLabel.toLowerCase()} profile from ${sourceLabel} is listed on HomeRates.ai — a platform where borrowers find and connect with licensed mortgage and real estate professionals.</p>
+        <div style="background:#f4f6f9;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:0 0 24px;">
+          <div style="font-size:16px;font-weight:700;color:#080c12;margin-bottom:4px;">${pro.name}</div>
+          <div style="font-size:13px;color:#6b7a8d;margin-bottom:8px;">${proTypeLabel}${location ? ` · ${location}` : ""}</div>
+          ${licenseNum ? `<div style="font-family:monospace;font-size:12px;color:#9ca3af;">${licenseLabel} # ${licenseNum}</div>` : ""}
         </div>
-        <p style="margin:0 0 24px;font-size:15px;color:#7a9e8a;line-height:1.6;">Claim your free profile to add your bio, photo, phone number, and website. It takes 2 minutes, and your information stays in your control.</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#6b7a8d;line-height:1.6;">Claim your free profile to add your bio, photo, phone number, and website. It takes 2 minutes, and your information stays in your control.</p>
         <a href="${claimUrl}" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">Claim your profile →</a>
       `, `This invitation was sent by ${senderName} via HomeRates.ai. If you believe this was sent in error, you can ignore it — no account will be created without your action.`),
     });

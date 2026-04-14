@@ -25,8 +25,8 @@ function scenarioAlertHtml(opts: {
   isPrivate: boolean;
 }): string {
   // All solid hex — no rgba() so Gmail/Outlook render correctly
-  const tagBg    = opts.isPrivate ? "#0d1e30" : "#0d2218";
-  const tagColor = opts.isPrivate ? "#3d8bff" : "#00e87a";
+  const tagBg    = opts.isPrivate ? "#dbeafe" : "#dcfce7";
+  const tagColor = opts.isPrivate ? "#1d4ed8" : "#166534";
   const tagText  = opts.isPrivate ? "YOUR REFERRAL" : "NEW ON BOARD";
 
   const greeting = opts.isPrivate
@@ -35,18 +35,18 @@ function scenarioAlertHtml(opts: {
 
   const row = (label: string, value: string) =>
     `<tr>
-      <td style="padding:10px 0;border-bottom:1px solid #1a2e20">
-        <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px">${label}</span>
-        <span style="font-size:15px;font-weight:600;color:#e8f5ee">${value}</span>
+      <td style="padding:10px 0;border-bottom:1px solid #e8ecf0">
+        <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:3px">${label}</span>
+        <span style="font-size:15px;font-weight:600;color:#1a2530">${value}</span>
       </td>
     </tr>`;
 
   return emailShell(`
     <span style="display:inline-block;background:${tagBg};color:${tagColor};font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em">${tagText}</span>
-    <div style="font-size:22px;font-weight:700;color:#e8f5ee;margin-top:14px">Hi ${opts.loName},</div>
-    <div style="font-size:14px;color:#7a9e8a;margin-top:6px;margin-bottom:24px;line-height:1.5">${greeting}</div>
+    <div style="font-size:22px;font-weight:700;color:#080c12;margin-top:14px">Hi ${opts.loName},</div>
+    <div style="font-size:14px;color:#6b7a8d;margin-top:6px;margin-bottom:24px;line-height:1.5">${greeting}</div>
 
-    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#141b28" style="background:#141b28;border:1px solid #1a2e20;border-radius:12px;margin-bottom:24px">
+    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f6f9" style="background:#f4f6f9;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:24px">
       <tr><td style="padding:4px 20px 0">
         <table width="100%" cellpadding="0" cellspacing="0">
           ${row("Loan type",   opts.loanType)}
@@ -55,8 +55,8 @@ function scenarioAlertHtml(opts: {
           ${row("State",       opts.state)}
           <tr>
             <td style="padding:10px 0">
-              <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px">Timeline</span>
-              <span style="font-size:15px;font-weight:600;color:#e8f5ee">${opts.timeline}</span>
+              <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:3px">Timeline</span>
+              <span style="font-size:15px;font-weight:600;color:#1a2530">${opts.timeline}</span>
             </td>
           </tr>
         </table>

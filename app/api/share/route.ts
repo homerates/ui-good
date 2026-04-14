@@ -44,8 +44,8 @@ async function sendLoNotification(loEmail: string, borrowerName: string, preview
             subject: `${borrowerName} just shared a mortgage analysis`,
             html: emailShell(`
                 <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Shared Analysis</p>
-                <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">${borrowerName} shared a conversation</p>
-                ${preview ? `<div style="background:#141b28;border-left:3px solid #00e87a;border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 24px;font-size:14px;color:#b0c4b8;line-height:1.6;font-style:italic;">"${preview}"</div>` : '<div style="margin-bottom:24px;"></div>'}
+                <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">${borrowerName} shared a conversation</p>
+                ${preview ? `<div style="background:#f4f6f9;border-left:3px solid #00e87a;border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 24px;font-size:14px;color:#374151;line-height:1.6;font-style:italic;">"${preview}"</div>` : '<div style="margin-bottom:24px;"></div>'}
                 <a href="${shareUrl}" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">View Conversation →</a>
             `, "HomeRates.ai · Your borrower shared this thread."),
         }),
@@ -72,10 +72,10 @@ async function sendShareEmail(toEmail: string, shareUrl: string, senderName?: st
                 subject: `${senderName || 'Someone'} shared a conversation with you`,
                 html: emailShell(`
                     <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Shared Conversation</p>
-                    <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">You've been invited to view a conversation</p>
-                    <p style="margin:0 0 24px;font-size:15px;color:#7a9e8a;"><strong style="color:#e8f5ee;">${senderName || 'A colleague'}</strong> thought you'd find this helpful.</p>
+                    <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">You've been invited to view a conversation</p>
+                    <p style="margin:0 0 24px;font-size:15px;color:#6b7a8d;"><strong style="color:#1a2530;">${senderName || 'A colleague'}</strong> thought you'd find this helpful.</p>
                     <a href="${shareUrl}" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">View Conversation →</a>
-                    <p style="margin:24px 0 0;font-size:13px;color:#7a9e8a;">This link allows you to view and continue the conversation. You can ask follow-up questions even without an account.</p>
+                    <p style="margin:24px 0 0;font-size:13px;color:#6b7a8d;">This link allows you to view and continue the conversation. You can ask follow-up questions even without an account.</p>
                 `, "HomeRates.ai · homerates.ai"),
             }),
         });
