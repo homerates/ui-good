@@ -69,7 +69,67 @@ export async function POST(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
-  const { action, count: waveCount, entryId } = await req.json();
+  const body = await req.json();
+  const { action, count: waveCount, entryId, email, fullName, proType, state, nmls, licenseNumber, brokerage } = body;
+
+  // ── Direct invite — admin adds someone directly, skips waiting ──────────
+  if (action === "direct_invite") {
+    const cleanEmail = (email ?? "").trim().toLowerCase();
+    const cleanName  = (fullName ?? "").trim();
+
+    if (!cleanEmail || !cleanName || !proType || !state) {
+      return NextResponse.json({ error: "email, fullName, proType and state are required" }, { status: 400 });
+    }
+
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+    // Check if already on waitlist
+    const { data: existing } = await sb
+      .from("pro_waitlist")
+      .select("id, position, status, full_name")
+      .eq("email", cleanEmail)
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.status === "joined") {
+        return NextResponse.json({ ok: false, message: `${existing.full_name} is already a founding member.` });
+      }
+      // Re-invite regardless of current status
+      await sb.from("pro_waitlist")
+        .update({ status: "invited", invited_at: new Date().toISOString(), invite_expires_at: expiresAt.toISOString() })
+        .eq("id", existing.id);
+      emailWaitlistInvite({ toEmail: cleanEmail, firstName: existing.full_name.split(" ")[0], position: existing.position, expiresAt });
+      return NextResponse.json({ ok: true, position: existing.position, wasExisting: true });
+    }
+
+    // Assign next position
+    const { count: currentCount } = await sb
+      .from("pro_waitlist")
+      .select("id", { count: "exact", head: true });
+    const position = (currentCount ?? 0) + 1;
+
+    const { error: insertErr } = await sb.from("pro_waitlist").insert({
+      email:          cleanEmail,
+      full_name:      cleanName,
+      pro_type:       proType,
+      state,
+      nmls:           nmls || null,
+      license_number: licenseNumber || null,
+      brokerage:      brokerage || null,
+      position,
+      status:         "invited",
+      invited_at:     new Date().toISOString(),
+      invite_expires_at: expiresAt.toISOString(),
+    });
+
+    if (insertErr) {
+      console.error("[admin/waitlist] direct_invite insert error:", insertErr);
+      return NextResponse.json({ error: "Failed to create waitlist entry" }, { status: 500 });
+    }
+
+    emailWaitlistInvite({ toEmail: cleanEmail, firstName: cleanName.split(" ")[0], position, expiresAt });
+    return NextResponse.json({ ok: true, position });
+  }
 
   // ── Expire stale invites ─────────────────────────────────────────────────
   if (action === "expire") {

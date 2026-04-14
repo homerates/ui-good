@@ -52,6 +52,17 @@ export default function AdminWaitlistPage() {
   const [waveResult, setWaveResult] = useState<string | null>(null);
   const [expiring, setExpiring]     = useState(false);
 
+  // Direct invite form
+  const [showAddForm, setShowAddForm]   = useState(false);
+  const [addName, setAddName]           = useState("");
+  const [addEmail, setAddEmail]         = useState("");
+  const [addProType, setAddProType]     = useState<"lo"|"agent">("lo");
+  const [addState, setAddState]         = useState("");
+  const [addNmls, setAddNmls]           = useState("");
+  const [addBrokerage, setAddBrokerage] = useState("");
+  const [adding, setAdding]             = useState(false);
+  const [addResult, setAddResult]       = useState<{ok:boolean;msg:string}|null>(null);
+
   useEffect(() => {
     if (adminLoading) return;
     if (!isAdmin) { router.replace("/"); return; }
@@ -117,6 +128,35 @@ export default function AdminWaitlistPage() {
     load(page, statusFilter);
   }
 
+  async function handleDirectInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!addName.trim() || !addEmail.trim() || !addState) return;
+    setAdding(true);
+    setAddResult(null);
+    const res = await fetch("/api/admin/waitlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "direct_invite",
+        email: addEmail.trim().toLowerCase(),
+        fullName: addName.trim(),
+        proType: addProType,
+        state: addState,
+        nmls: addNmls.trim() || null,
+        brokerage: addBrokerage.trim() || null,
+      }),
+    });
+    const d = await res.json();
+    setAdding(false);
+    if (!res.ok || !d.ok) {
+      setAddResult({ ok: false, msg: d.error ?? d.message ?? "Failed" });
+    } else {
+      setAddResult({ ok: true, msg: d.wasExisting ? `Re-invited — already position #${d.position}` : `Invited as #${d.position} — email sent ✓` });
+      setAddName(""); setAddEmail(""); setAddNmls(""); setAddBrokerage(""); setAddState("");
+      load(0, statusFilter);
+    }
+  }
+
   if (adminLoading) return null;
   if (!isAdmin) return null;
 
@@ -178,6 +218,18 @@ export default function AdminWaitlistPage() {
         .wl-result.ok{background:rgba(0,232,122,0.08);color:#00e87a;border:1px solid rgba(0,232,122,0.2);}
         .wl-result.err{background:rgba(255,95,95,0.08);color:#ff5f5f;border:1px solid rgba(255,95,95,0.2);}
 
+        .wl-add-panel{background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.2);border-radius:12px;padding:20px 24px;margin-bottom:1.5rem;}
+        .wl-add-title{font-size:0.78rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#d97706;margin-bottom:14px;}
+        .wl-add-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+        .wl-add-field{display:flex;flex-direction:column;gap:4px;}
+        .wl-add-label{font-size:0.68rem;font-weight:600;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.06em;}
+        .wl-add-input{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:7px 10px;color:#f0f4ff;font-size:0.85rem;outline:none;}
+        .wl-add-input:focus{border-color:rgba(217,119,6,0.4);}
+        .wl-type-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+        .wl-type-opt{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:6px;font-size:0.82rem;font-weight:600;color:rgba(255,255,255,0.4);cursor:pointer;text-align:center;}
+        .wl-type-opt.active{background:rgba(217,119,6,0.12);border-color:rgba(217,119,6,0.35);color:#d97706;}
+        .wl-add-row{display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-top:6px;}
+
         @media(max-width:768px){
           .wl-summary{grid-template-columns:repeat(2,1fr);}
           .wl-shell{padding:1.5rem 1rem 4rem;}
@@ -224,6 +276,67 @@ export default function AdminWaitlistPage() {
               </div>
             </div>
           )}
+
+          {/* Add & Invite — direct outbound invite */}
+          <div style={{ marginBottom: "1.5rem" }}>
+            <button
+              className="wl-btn wave"
+              onClick={() => { setShowAddForm(v => !v); setAddResult(null); }}
+              style={{ marginBottom: showAddForm ? "1rem" : 0 }}
+            >
+              {showAddForm ? "✕ Cancel" : "+ Add & invite someone directly →"}
+            </button>
+
+            {showAddForm && (
+              <form className="wl-add-panel" onSubmit={handleDirectInvite}>
+                <div className="wl-add-title">Direct Founding Invite</div>
+
+                <div className="wl-add-grid">
+                  <div className="wl-add-field">
+                    <label className="wl-add-label">Full name *</label>
+                    <input className="wl-add-input" placeholder="Jane Smith" value={addName} onChange={e => setAddName(e.target.value)} required />
+                  </div>
+                  <div className="wl-add-field">
+                    <label className="wl-add-label">Email *</label>
+                    <input className="wl-add-input" type="email" placeholder="jane@example.com" value={addEmail} onChange={e => setAddEmail(e.target.value)} required />
+                  </div>
+                  <div className="wl-add-field">
+                    <label className="wl-add-label">State *</label>
+                    <input className="wl-add-input" placeholder="CA" maxLength={2} value={addState} onChange={e => setAddState(e.target.value.toUpperCase())} required />
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 1fr", gap: 10, marginBottom: 12 }}>
+                  <div className="wl-add-field">
+                    <label className="wl-add-label">Type *</label>
+                    <div className="wl-type-row">
+                      <button type="button" className={`wl-type-opt ${addProType === "lo" ? "active" : ""}`} onClick={() => setAddProType("lo")}>LO</button>
+                      <button type="button" className={`wl-type-opt ${addProType === "agent" ? "active" : ""}`} onClick={() => setAddProType("agent")}>Agent</button>
+                    </div>
+                  </div>
+                  <div className="wl-add-field">
+                    <label className="wl-add-label">{addProType === "lo" ? "NMLS #" : "License #"}</label>
+                    <input className="wl-add-input" placeholder="optional" value={addNmls} onChange={e => setAddNmls(e.target.value)} />
+                  </div>
+                  <div className="wl-add-field">
+                    <label className="wl-add-label">Brokerage</label>
+                    <input className="wl-add-input" placeholder="optional" value={addBrokerage} onChange={e => setAddBrokerage(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="wl-add-row">
+                  <button type="submit" className="wl-btn wave" disabled={adding}>
+                    {adding ? "Sending invite…" : "Send founding invite →"}
+                  </button>
+                  {addResult && (
+                    <span className={`wl-result ${addResult.ok ? "ok" : "err"}`} style={{ margin: 0 }}>
+                      {addResult.msg}
+                    </span>
+                  )}
+                </div>
+              </form>
+            )}
+          </div>
 
           {/* Invite wave controls */}
           <div className="wl-actions">

@@ -57,11 +57,17 @@ export default function AdminDirectory() {
   const [actionNote, setActionNote] = useState("");
   const [acting, setActing] = useState(false);
 
-  // Invite state
+  // Invite state (claim invite)
   const [inviteTarget, setInviteTarget] = useState<Listing | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ ok: boolean; message?: string } | null>(null);
+
+  // Founding 500 invite state
+  const [f500Target, setF500Target] = useState<Listing | null>(null);
+  const [f500Email, setF500Email]   = useState("");
+  const [f500Sending, setF500Sending] = useState(false);
+  const [f500Result, setF500Result]   = useState<{ ok: boolean; message: string } | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -159,6 +165,34 @@ export default function AdminDirectory() {
     }
   }
 
+  async function handleF500Invite() {
+    if (!f500Target || !f500Email.trim()) return;
+    setF500Sending(true);
+    setF500Result(null);
+    // Derive pro_type: lo_company → lo, agent_broker → agent
+    const rawType = f500Target.pro_type;
+    const proType = rawType === "agent" || rawType === "agent_broker" ? "agent" : "lo";
+    const res = await fetch("/api/admin/waitlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action:    "direct_invite",
+        email:     f500Email.trim().toLowerCase(),
+        fullName:  f500Target.name,
+        proType,
+        state:     f500Target.state,
+        brokerage: f500Target.company_name ?? undefined,
+      }),
+    });
+    const d = await res.json();
+    setF500Sending(false);
+    if (!res.ok || !d.ok) {
+      setF500Result({ ok: false, message: d.error ?? d.message ?? "Failed to send invite" });
+    } else {
+      setF500Result({ ok: true, message: d.wasExisting ? `Already on list — re-invited as #${d.position}` : `Founding invite sent — position #${d.position} ✓` });
+    }
+  }
+
   const isFlagged = (l: Listing) => l.license_status === "Flagged";
   const isClaimed = (l: Listing) => !!l.claimed_by;
 
@@ -222,6 +256,7 @@ export default function AdminDirectory() {
         .addir-modal-btn.confirm-restore{background:rgba(0,232,122,0.15);color:#00e87a}
         .addir-modal-textarea{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.6rem;color:#f0f4ff;font-size:0.82rem;resize:vertical;min-height:60px;font-family:inherit;outline:none;margin-top:0.75rem}
         .addir-invite-btn{background:rgba(61,139,255,0.12);color:#3d8bff}
+        .addir-f500-btn{background:rgba(217,119,6,0.12);color:#d97706}
         .addir-badge-invited{background:rgba(61,139,255,0.08);color:#3d8bff;border-color:rgba(61,139,255,0.2)}
         .addir-modal-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.6rem 0.8rem;color:#f0f4ff;font-size:0.9rem;font-family:inherit;outline:none;margin-top:0.75rem}
         .addir-modal-input:focus{border-color:rgba(61,139,255,0.4)}
@@ -243,6 +278,7 @@ export default function AdminDirectory() {
           <div className="addir-nav-links">
             <Link href="/admin" className="addir-nav-link">Dashboard</Link>
             <Link href="/admin/directory" className="addir-nav-link active">Directory</Link>
+            <Link href="/admin/waitlist" className="addir-nav-link">Waitlist</Link>
             <span className="addir-badge">ADMIN</span>
             <AppNav drawerOnly />
           </div>
@@ -357,6 +393,13 @@ export default function AdminDirectory() {
                             Invite
                           </button>
                         )}
+                        <button
+                          className="addir-action-btn addir-f500-btn"
+                          title="Invite to Founding 500 waitlist"
+                          onClick={() => { setF500Target(l); setF500Email(""); setF500Result(null); }}
+                        >
+                          F500
+                        </button>
                         {isFlagged(l) ? (
                           <button
                             className="addir-action-btn addir-restore-btn"
@@ -392,6 +435,53 @@ export default function AdminDirectory() {
       </div>
 
       {/* Invite modal */}
+      {/* Founding 500 invite modal */}
+      {f500Target && (
+        <div className="addir-modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setF500Target(null); setF500Result(null); } }}>
+          <div className="addir-modal">
+            <h3 style={{ color: "#d97706" }}>🏅 Invite to Founding 500</h3>
+            <p>
+              <strong style={{ color: "#f0f4ff" }}>{f500Target.name}</strong><br />
+              {PRO_TYPE_LABEL[f500Target.pro_type] ?? f500Target.pro_type}
+              {f500Target.city ? ` · ${f500Target.city}, ${f500Target.state}` : ` · ${f500Target.state}`}
+              {f500Target.company_name ? <><br /><span style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.8rem" }}>{f500Target.company_name}</span></> : null}
+            </p>
+            <input
+              className="addir-modal-input"
+              type="email"
+              placeholder="Their email address"
+              value={f500Email}
+              onChange={e => { setF500Email(e.target.value); setF500Result(null); }}
+              onKeyDown={e => { if (e.key === "Enter") handleF500Invite(); }}
+              style={{ borderColor: f500Result ? (f500Result.ok ? "rgba(0,232,122,0.3)" : "rgba(255,95,95,0.3)") : undefined }}
+            />
+            {f500Result && (
+              <div className={`addir-invite-result ${f500Result.ok ? "ok" : "err"}`}>
+                {f500Result.message}
+              </div>
+            )}
+            <div className="addir-modal-actions">
+              <button
+                className="addir-modal-btn cancel"
+                onClick={() => { setF500Target(null); setF500Result(null); setF500Email(""); }}
+              >
+                {f500Result?.ok ? "Done" : "Cancel"}
+              </button>
+              {!f500Result?.ok && (
+                <button
+                  className="addir-modal-btn"
+                  style={{ background: "rgba(217,119,6,0.15)", color: "#d97706" }}
+                  disabled={f500Sending || !f500Email.trim()}
+                  onClick={handleF500Invite}
+                >
+                  {f500Sending ? "Sending…" : "Send founding invite →"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {inviteTarget && (
         <div className="addir-modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setInviteTarget(null); setInviteResult(null); } }}>
           <div className="addir-modal">
