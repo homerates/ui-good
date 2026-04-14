@@ -2765,10 +2765,6 @@ export default function Page() {
                                                                 />
                                                             </>
                                                         )}
-                                                        {/* Pro upgrade gate card — render immediately (no typewriter wait) */}
-                                                        {m.meta.proGate && !loading && (
-                                                            <ProUpgradeCard {...(m.meta.proGate as ProGatePayload)} />
-                                                        )}
                                                         {/* Interactive slider card — conventional + FHA calc answers */}
                                                         {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
@@ -2926,6 +2922,12 @@ export default function Page() {
 
 
                                         </Bubble>
+
+                                        {/* Pro upgrade gate card — outside Bubble so it renders
+                                            regardless of which content branch (grok vs legacy) was taken */}
+                                        {m.role === 'assistant' && m.meta?.proGate && !loading && (
+                                            <ProUpgradeCard {...(m.meta.proGate as ProGatePayload)} />
+                                        )}
                                     </div>
                                     );
                                 })}
