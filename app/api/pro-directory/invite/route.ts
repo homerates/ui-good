@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { Resend } from "resend";
+import { emailShell } from "../../../../lib/sendEmail";
 
 const SOURCE_LABEL: Record<string, string> = {
   nmls:   "NMLS",
@@ -119,37 +120,18 @@ export async function POST(req: NextRequest) {
       from: "HomeRates.ai <digest@homerates.ai>",
       to: emailTrimmed,
       subject: `Your profile is listed on HomeRates.ai — claim it free`,
-      html: `
-        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 560px; margin: 0 auto; background: #080c12; color: #f0f4ff; padding: 36px; border-radius: 16px;">
-          <img src="https://chat.homerates.ai/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height: 28px; margin-bottom: 28px;" />
-
-          <h2 style="color: #f0f4ff; font-size: 1.35rem; margin: 0 0 8px; font-weight: 700;">
-            Hi ${pro.name},
-          </h2>
-          <p style="color: rgba(255,255,255,0.55); margin: 0 0 24px; line-height: 1.6; font-size: 0.95rem;">
-            Your ${proTypeLabel.toLowerCase()} profile from ${sourceLabel} is listed on HomeRates.ai — a platform where borrowers find and connect with licensed mortgage and real estate professionals.
-          </p>
-
-          <div style="background: #0e1420; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-            <div style="font-weight: 700; font-size: 1.05rem; color: #f0f4ff; margin-bottom: 4px;">${pro.name}</div>
-            <div style="color: rgba(255,255,255,0.4); font-size: 0.85rem; margin-bottom: 10px;">${proTypeLabel}${location ? ` · ${location}` : ""}</div>
-            ${licenseNum ? `<div style="font-family: monospace; font-size: 0.8rem; color: rgba(255,255,255,0.3);">${licenseLabel} # ${licenseNum}</div>` : ""}
-          </div>
-
-          <p style="color: rgba(255,255,255,0.55); margin: 0 0 20px; line-height: 1.6; font-size: 0.9rem;">
-            Claim your free profile to add your bio, photo, phone number, and website. It takes 2 minutes, and your information stays in your control.
-          </p>
-
-          <a href="${claimUrl}" style="display: inline-block; background: #00e87a; color: #080c12; font-weight: 700; font-size: 0.95rem; padding: 12px 28px; border-radius: 10px; text-decoration: none; margin-bottom: 28px;">
-            Claim your profile →
-          </a>
-
-          <p style="color: rgba(255,255,255,0.25); font-size: 0.78rem; line-height: 1.5; margin: 0; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 20px;">
-            This invitation was sent by ${senderName} via HomeRates.ai. If you believe this message was sent in error, you can ignore it — no account will be created without your action.<br /><br />
-            HomeRates.ai · California Professional Directory
-          </p>
+      html: emailShell(`
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Professional Directory</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">Hi ${pro.name},</p>
+        <p style="margin:0 0 20px;font-size:15px;color:#7a9e8a;line-height:1.6;">Your ${proTypeLabel.toLowerCase()} profile from ${sourceLabel} is listed on HomeRates.ai — a platform where borrowers find and connect with licensed mortgage and real estate professionals.</p>
+        <div style="background:#141b28;border:1px solid #1a2e20;border-radius:12px;padding:20px;margin:0 0 24px;">
+          <div style="font-size:16px;font-weight:700;color:#e8f5ee;margin-bottom:4px;">${pro.name}</div>
+          <div style="font-size:13px;color:#7a9e8a;margin-bottom:8px;">${proTypeLabel}${location ? ` · ${location}` : ""}</div>
+          ${licenseNum ? `<div style="font-family:monospace;font-size:12px;color:#4a6e58;">${licenseLabel} # ${licenseNum}</div>` : ""}
         </div>
-      `,
+        <p style="margin:0 0 24px;font-size:15px;color:#7a9e8a;line-height:1.6;">Claim your free profile to add your bio, photo, phone number, and website. It takes 2 minutes, and your information stays in your control.</p>
+        <a href="${claimUrl}" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">Claim your profile →</a>
+      `, `This invitation was sent by ${senderName} via HomeRates.ai. If you believe this was sent in error, you can ignore it — no account will be created without your action.`),
     });
   } catch (emailErr) {
     console.error("[pro-invite] email send error:", emailErr);

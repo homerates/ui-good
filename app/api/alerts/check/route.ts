@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { getFredSnapshot } from "@/lib/fred";
+import { emailShell } from "../../../../lib/sendEmail";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
@@ -39,15 +40,12 @@ async function sendAlertEmail(to: string, subject: string, body: string): Promis
 }
 
 function emailHtml(title: string, message: string, cta?: string): string {
-  return `
-    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#080c12;color:#e0f0e8;padding:32px;border-radius:12px;border:1px solid rgba(0,232,122,0.15)">
-      <div style="color:#00e87a;font-size:12px;letter-spacing:2px;margin-bottom:16px">HOMERATES.AI ALERT</div>
-      <h2 style="margin:0 0 12px;font-size:22px;color:#ffffff">${title}</h2>
-      <p style="color:#a0c0a8;line-height:1.6">${message}</p>
-      ${cta ? `<a href="https://chat.homerates.ai/chat" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#00e87a;color:#080c12;font-weight:600;border-radius:8px;text-decoration:none">${cta}</a>` : ""}
-      <p style="margin-top:32px;font-size:11px;color:#4a6a52">You received this because you set up an alert on HomeRates.ai. <a href="https://chat.homerates.ai/chat" style="color:#00e87a">Manage alerts</a></p>
-    </div>
-  `;
+  return emailShell(`
+    <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Rate Alert</p>
+    <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">${title}</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#7a9e8a;line-height:1.6;">${message}</p>
+    ${cta ? `<a href="https://chat.homerates.ai/chat" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">${cta}</a>` : ""}
+  `, `You received this because you set up an alert on HomeRates.ai. <a href="https://chat.homerates.ai/chat" style="color:#3a4560;">Manage alerts</a>`);
 }
 
 // ---------------------------------------------------------------------------

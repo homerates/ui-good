@@ -10,6 +10,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
 import { canPostScenario } from "../../../lib/subscription";
 import { Resend } from "resend";
+import { emailShell } from "../../../lib/sendEmail";
 
 // ─── Scenario alert emails ────────────────────────────────────────────────────
 
@@ -40,83 +41,32 @@ function scenarioAlertHtml(opts: {
       </td>
     </tr>`;
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>New Scenario Alert — HomeRates.ai</title>
-</head>
-<body style="margin:0;padding:0;background:#07100f;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+  return emailShell(`
+    <span style="display:inline-block;background:${tagBg};color:${tagColor};font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em">${tagText}</span>
+    <div style="font-size:22px;font-weight:700;color:#e8f5ee;margin-top:14px">Hi ${opts.loName},</div>
+    <div style="font-size:14px;color:#7a9e8a;margin-top:6px;margin-bottom:24px;line-height:1.5">${greeting}</div>
 
-<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#07100f" style="background:#07100f;padding:32px 16px">
-<tr><td align="center">
-<table width="100%" style="max-width:520px" cellpadding="0" cellspacing="0">
+    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#141b28" style="background:#141b28;border:1px solid #1a2e20;border-radius:12px;margin-bottom:24px">
+      <tr><td style="padding:4px 20px 0">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row("Loan type",   opts.loanType)}
+          ${row("Price range", opts.priceRange)}
+          ${row("Credit",      opts.creditTier)}
+          ${row("State",       opts.state)}
+          <tr>
+            <td style="padding:10px 0">
+              <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px">Timeline</span>
+              <span style="font-size:15px;font-weight:600;color:#e8f5ee">${opts.timeline}</span>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
 
-  <!-- Logo -->
-  <tr>
-    <td style="padding:0 0 28px">
-      <img src="https://chat.homerates.ai/assets/HomeRates-Logo%20Green.png"
-           alt="HomeRates.ai" height="28" style="display:block"/>
-    </td>
-  </tr>
-
-  <!-- Tag + greeting -->
-  <tr>
-    <td style="padding:0 0 24px">
-      <span style="display:inline-block;background:${tagBg};color:${tagColor};font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em">${tagText}</span>
-      <div style="font-size:22px;font-weight:700;color:#e8f5ee;margin-top:14px">Hi ${opts.loName},</div>
-      <div style="font-size:14px;color:#7a9e8a;margin-top:6px;line-height:1.5">${greeting}</div>
-    </td>
-  </tr>
-
-  <!-- Scenario details card -->
-  <tr>
-    <td style="padding:0 0 24px">
-      <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#0d1a12" style="background:#0d1a12;border:1px solid #1a2e20;border-radius:12px">
-        <tr><td style="padding:4px 20px 0">
-          <table width="100%" cellpadding="0" cellspacing="0">
-            ${row("Loan type",   opts.loanType)}
-            ${row("Price range", opts.priceRange)}
-            ${row("Credit",      opts.creditTier)}
-            ${row("State",       opts.state)}
-            <tr>
-              <td style="padding:10px 0">
-                <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px">Timeline</span>
-                <span style="font-size:15px;font-weight:600;color:#e8f5ee">${opts.timeline}</span>
-              </td>
-            </tr>
-          </table>
-        </td></tr>
-      </table>
-    </td>
-  </tr>
-
-  <!-- CTA button -->
-  <tr>
-    <td style="padding:0 0 28px">
-      <a href="${opts.boardUrl}"
-         style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:15px 20px;border-radius:10px;text-decoration:none">
-        View &amp; Respond on Board →
-      </a>
-    </td>
-  </tr>
-
-  <!-- Footer -->
-  <tr>
-    <td style="border-top:1px solid #1a2e20;padding:20px 0 0">
-      <div style="font-size:12px;color:#3a5a48;line-height:1.7">
-        Sent by <strong style="color:#4a6e58">HomeRates.ai</strong> — Borrower identities are kept
-        anonymous until contact is shared in a conversation thread.
-      </div>
-    </td>
-  </tr>
-
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+    <a href="${opts.boardUrl}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:15px 20px;border-radius:999px;text-decoration:none">
+      View &amp; Respond on Board →
+    </a>
+  `, "HomeRates.ai · Borrower identities are kept anonymous until contact is shared.");
 }
 
 async function sendScenarioAlerts(scenario: {

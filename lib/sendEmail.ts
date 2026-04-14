@@ -13,6 +13,31 @@ function getResend(): Resend | null {
   return new Resend(key);
 }
 
+// ─── Shared email shell ──────────────────────────────────────────────────────
+// All transactional emails must use this shell so header/footer are always
+// #080c12 dark with the logo image — never plain text "HomeRates.ai".
+
+export function emailShell(bodyHtml: string, footerText = "HomeRates.ai · homerates.ai"): string {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
+      <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
+        <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
+      </td></tr>
+      <tr><td style="background:#0d1a12;padding:32px;">
+        ${bodyHtml}
+      </td></tr>
+      <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#3a4560;">${footerText}</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
 // ─── New thread: notify the professional ────────────────────────────────────
 
 export async function emailNewThread({
@@ -145,44 +170,22 @@ export async function emailScenarioResponse({
       from: `HomeRates.ai <${FROM}>`,
       to: toEmail,
       subject: `${loName} responded to your scenario on HomeRates.ai`,
-      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#07100f;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#07100f;padding:32px 16px;">
-  <tr><td align="center">
-    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
-      <tr><td style="padding:0 0 28px;">
-        <img src="${BASE}/assets/HomeRates-Logo%20Green.png" alt="HomeRates.ai" height="24" style="display:block;" onerror="this.style.display='none'">
-      </td></tr>
-      <tr><td style="padding:0 0 24px;">
-        <span style="display:inline-block;background:#0d2218;color:#00e87a;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em;">SCENARIO RESPONSE</span>
-        <div style="font-size:22px;font-weight:700;color:#e8f5ee;margin-top:14px;">Hi ${toName},</div>
-        <div style="font-size:14px;color:#7a9e8a;margin-top:6px;line-height:1.5;">A loan officer responded to your scenario.</div>
-      </td></tr>
-      <tr><td style="background:#0d1a12;border:1px solid #1a2e20;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr><td style="padding:10px 0;border-bottom:1px solid #1a2e20;">
+      html: emailShell(`
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Scenario Response</p>
+        <p style="margin:0 0 4px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">Hi ${toName},</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#7a9e8a;">A loan officer responded to your scenario.</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#141b28;border:1px solid #1a2e20;border-radius:12px;margin-bottom:24px;">
+          <tr><td style="padding:14px 20px;border-bottom:1px solid #1a2e20;">
             <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px;">Loan Officer</span>
             <span style="font-size:15px;font-weight:600;color:#e8f5ee;">${loName}</span>
           </td></tr>
-          <tr><td style="padding:10px 0;">
+          <tr><td style="padding:14px 20px;">
             <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a6e58;margin-bottom:3px;">Rate Indication</span>
             <span style="font-size:15px;font-weight:600;color:#00e87a;">${rateEstimate}</span>
           </td></tr>
         </table>
-      </td></tr>
-      <tr><td style="padding:24px 0 0;">
-        <a href="${link}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:15px 20px;border-radius:10px;text-decoration:none;">
-          View Response &amp; Connect →
-        </a>
-      </td></tr>
-      <tr><td style="padding:24px 0 0;border-top:1px solid #1a2e20;margin-top:24px;">
-        <div style="font-size:12px;color:#3a5a48;line-height:1.7;">
-          Sent by <strong style="color:#4a6e58;">HomeRates.ai</strong> — Rate indications are not a Loan Estimate or commitment to lend.
-        </div>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`,
+        <a href="${link}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:14px 20px;border-radius:999px;text-decoration:none;">View Response &amp; Connect →</a>
+      `, "HomeRates.ai · Rate indications are not a Loan Estimate or commitment to lend."),
     });
   } catch (err) {
     console.error("[sendEmail] emailScenarioResponse failed:", err);
@@ -312,15 +315,13 @@ export async function emailContactShare({
         from: `HomeRates.ai <${FROM}>`,
         to: pro.email,
         subject: `${borrowerName} shared their contact info`,
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 16px;">
-            <p style="color:#333;">Hi ${pro.name},</p>
-            <p style="color:#333;"><strong>${borrowerName}</strong> is ready to move forward and shared their contact details with you:</p>
-            <p style="font-size:18px;font-weight:700;color:#000;background:#f4f6f9;padding:14px 18px;border-radius:8px;border-left:4px solid #00c896;">${borrowerContact}</p>
-            <p><a href="${link}" style="background:#00c896;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:700;">View Conversation →</a></p>
-            <p style="color:#888;font-size:12px;">HomeRates.ai · This contact was shared with your consent.</p>
-          </div>
-        `,
+        html: emailShell(`
+          <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">New Connection</p>
+          <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">Hi ${pro.name},</p>
+          <p style="margin:0 0 20px;font-size:15px;color:#7a9e8a;"><strong style="color:#e8f5ee;">${borrowerName}</strong> is ready to move forward and shared their contact details with you:</p>
+          <div style="background:#141b28;border:1px solid #1a2e20;border-left:4px solid #00e87a;border-radius:8px;padding:16px 20px;margin:0 0 24px;font-size:17px;font-weight:700;color:#e8f5ee;">${borrowerContact}</div>
+          <a href="${link}" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">View Conversation →</a>
+        `, "HomeRates.ai · This contact was shared with your consent."),
       });
     } catch (err) {
       console.error("[sendEmail] emailContactShare (pro) failed:", err);
