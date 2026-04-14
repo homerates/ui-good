@@ -23,6 +23,7 @@ function f$(n: number) {
 }
 
 type AdminUser = { clerk_user_id: string; email?: string; display_name?: string; added_at?: string };
+type PlatformUser = { id: string; email: string; full_name: string | null; role: string; referral_code: string | null; created_at: string };
 
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
@@ -30,6 +31,16 @@ export default function AdminDashboard() {
   const { isAdmin, loading: adminLoading } = useAdminStatus();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Platform users management
+  const [users, setUsers] = useState<PlatformUser[]>([]);
+  const [usersTotal, setUsersTotal] = useState(0);
+  const [usersPage, setUsersPage] = useState(0);
+  const [usersSearch, setUsersSearch] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [updatingUser, setUpdatingUser] = useState<string | null>(null);
+  const [userMsg, setUserMsg] = useState<{ id: string; msg: string; ok: boolean } | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Admin users state
   const [admins, setAdmins] = useState<AdminUser[]>([]);
@@ -48,7 +59,35 @@ export default function AdminDashboard() {
       .then(d => setStats(d))
       .finally(() => setLoading(false));
     fetchAdmins();
+    fetchUsers(0, "");
   }, [isLoaded, adminLoading, isAdmin]);
+
+  function fetchUsers(page: number, q: string) {
+    setUsersLoading(true);
+    fetch(`/api/admin/users-list?page=${page}&q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(d => { setUsers(d.users ?? []); setUsersTotal(d.total ?? 0); setUsersPage(page); })
+      .finally(() => setUsersLoading(false));
+  }
+
+  async function updateUser(userId: string, payload: { role?: string; action?: string }) {
+    setUpdatingUser(userId);
+    setUserMsg(null);
+    const res = await fetch("/api/admin/users-list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, ...payload }),
+    });
+    const d = await res.json();
+    setUpdatingUser(null);
+    if (!res.ok) {
+      setUserMsg({ id: userId, msg: d.error ?? "Failed", ok: false });
+    } else {
+      setUserMsg({ id: userId, msg: payload.action === "generate_code" ? `Code: ${d.user.referral_code}` : "Saved ✓", ok: true });
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...d.user } : u));
+      setTimeout(() => setUserMsg(null), 4000);
+    }
+  }
 
   function fetchAdmins() {
     setAdminsLoading(true);
@@ -171,6 +210,15 @@ export default function AdminDashboard() {
         .adm-remove-btn:hover{opacity:0.75}
         .adm-success{color:#00e87a;font-size:0.8rem;margin-top:6px}
         .adm-err{color:#ff5f5f;font-size:0.8rem;margin-top:6px}
+
+        .adm-users-search{display:flex;gap:0.5rem;margin-bottom:1rem}
+        .adm-role-select{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 8px;color:#f0f4ff;font-size:0.78rem;outline:none;cursor:pointer}
+        .adm-code-pill{font-family:monospace;font-size:0.75rem;background:rgba(0,232,122,0.08);color:#00e87a;border:1px solid rgba(0,232,122,0.2);border-radius:5px;padding:2px 8px;cursor:pointer;user-select:all}
+        .adm-code-pill:hover{background:rgba(0,232,122,0.15)}
+        .adm-gen-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap}
+        .adm-gen-btn:hover{background:rgba(255,255,255,0.1)}
+        .adm-gen-btn:disabled{opacity:0.35;cursor:not-allowed}
+        .adm-pagination{display:flex;gap:0.5rem;align-items:center;margin-top:1rem;font-size:0.8rem;color:rgba(255,255,255,0.35)}
 
         @media(max-width:768px){
           .adm-two-col{grid-template-columns:1fr}
@@ -337,6 +385,113 @@ export default function AdminDashboard() {
                   <Link href="/admin/directory?status=flagged" className="adm-btn secondary">Review Flagged</Link>
                   <Link href="/professionals" className="adm-btn secondary">View Public Directory</Link>
                 </div>
+              </div>
+
+              {/* ── Manage Users ── */}
+              <div className="adm-section">
+                <div className="adm-section-title">Manage Users</div>
+                <div className="adm-users-search">
+                  <input
+                    className="adm-input"
+                    placeholder="Search by email or name…"
+                    value={usersSearch}
+                    onChange={e => setUsersSearch(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") fetchUsers(0, usersSearch); }}
+                    style={{ maxWidth: 320 }}
+                  />
+                  <button className="adm-btn secondary" onClick={() => fetchUsers(0, usersSearch)}>Search</button>
+                  {usersSearch && <button className="adm-btn secondary" onClick={() => { setUsersSearch(""); fetchUsers(0, ""); }}>Clear</button>}
+                </div>
+
+                {usersLoading ? (
+                  <p style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.82rem" }}>Loading…</p>
+                ) : (
+                  <>
+                    <table className="adm-table">
+                      <thead>
+                        <tr>
+                          <th>Email / Name</th>
+                          <th>Role</th>
+                          <th>Referral Code</th>
+                          <th>Joined</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map(u => {
+                          const isUpdating = updatingUser === u.id;
+                          const msg = userMsg?.id === u.id ? userMsg : null;
+                          return (
+                            <tr key={u.id}>
+                              <td>
+                                <div style={{ fontWeight: 600, color: "#f0f4ff", fontSize: "0.83rem" }}>{u.full_name || "—"}</div>
+                                <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.72rem" }}>{u.email}</div>
+                              </td>
+                              <td>
+                                <select
+                                  className="adm-role-select"
+                                  value={u.role}
+                                  disabled={isUpdating}
+                                  onChange={e => updateUser(u.id, { role: e.target.value })}
+                                >
+                                  <option value="borrower">Borrower</option>
+                                  <option value="lo">Loan Officer</option>
+                                  <option value="agent">Agent</option>
+                                </select>
+                              </td>
+                              <td>
+                                {u.referral_code ? (
+                                  <span
+                                    className="adm-code-pill"
+                                    title="Click to copy referral link"
+                                    onClick={() => {
+                                      const link = `${window.location.origin}/r/${u.referral_code}`;
+                                      navigator.clipboard.writeText(link);
+                                      setCopiedCode(u.id);
+                                      setTimeout(() => setCopiedCode(null), 2000);
+                                    }}
+                                  >
+                                    {copiedCode === u.id ? "Copied!" : u.referral_code}
+                                  </span>
+                                ) : (
+                                  <button
+                                    className="adm-gen-btn"
+                                    disabled={isUpdating}
+                                    onClick={() => updateUser(u.id, { action: "generate_code" })}
+                                  >
+                                    {isUpdating ? "…" : "Generate"}
+                                  </button>
+                                )}
+                              </td>
+                              <td style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.72rem" }}>
+                                {new Date(u.created_at).toLocaleDateString()}
+                              </td>
+                              <td>
+                                {msg && (
+                                  <span style={{ fontSize: "0.72rem", color: msg.ok ? "#00e87a" : "#ff5f5f" }}>
+                                    {msg.msg}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {/* Pagination */}
+                    <div className="adm-pagination">
+                      <button className="adm-btn secondary" style={{ padding: "3px 10px" }}
+                        disabled={usersPage === 0}
+                        onClick={() => fetchUsers(usersPage - 1, usersSearch)}>← Prev</button>
+                      <span>Page {usersPage + 1} of {Math.max(1, Math.ceil(usersTotal / 50))}</span>
+                      <button className="adm-btn secondary" style={{ padding: "3px 10px" }}
+                        disabled={(usersPage + 1) * 50 >= usersTotal}
+                        onClick={() => fetchUsers(usersPage + 1, usersSearch)}>Next →</button>
+                      <span style={{ marginLeft: "auto" }}>{usersTotal} total users</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* ── Manage Admins ── */}
