@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { emailWelcome } from "../../../../lib/sendEmail";
 
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET ?? "";
 
@@ -83,6 +84,13 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[clerk/webhook] ${type} — synced user ${userId}`);
+
+    // Send welcome email on first sign-up only
+    if (type === "user.created" && primaryEmail) {
+      emailWelcome({ toEmail: primaryEmail, firstName: firstName || null }).catch(
+        (e) => console.error("[clerk/webhook] welcome email failed:", e)
+      );
+    }
   }
 
   if (type === "user.deleted") {

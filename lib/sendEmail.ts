@@ -342,3 +342,63 @@ export async function emailContactShare({
     }
   }
 }
+
+// ─── Welcome email: new sign-up ─────────────────────────────────────────────
+
+export async function emailWelcome({
+  toEmail,
+  firstName,
+}: {
+  toEmail: string;
+  firstName?: string | null;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const greeting = firstName ? `Hi ${firstName},` : "Welcome to HomeRates.ai,";
+  const chatLink = `${BASE}/chat`;
+  const pricingLink = `${BASE}/pricing`;
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to: toEmail,
+      subject: "Your HomeRates.ai account is ready",
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Welcome</p>
+        <p style="margin:0 0 24px;font-size:24px;font-weight:800;color:#f0f4ff;line-height:1.2;">${greeting}</p>
+        <p style="margin:0 0 28px;font-size:15px;color:#7a9e8a;line-height:1.7;">HomeRates.ai gives you instant mortgage intelligence — real rates, real analysis, no loan officer gating. Ask anything about buying, refinancing, or investing in real estate.</p>
+
+        <!-- Feature list -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+          <tr><td style="padding:10px 0;border-bottom:1px solid #1a2e20;">
+            <span style="font-size:15px;color:#00e87a;font-weight:700;margin-right:10px;">→</span>
+            <span style="font-size:14px;color:#e8f5ee;font-weight:600;">Mortgage AI Chat</span>
+            <span style="font-size:13px;color:#7a9e8a;"> — rates, affordability, DSCR, refi analysis</span>
+          </td></tr>
+          <tr><td style="padding:10px 0;border-bottom:1px solid #1a2e20;">
+            <span style="font-size:15px;color:#00e87a;font-weight:700;margin-right:10px;">→</span>
+            <span style="font-size:14px;color:#e8f5ee;font-weight:600;">Loan Limit Explorer</span>
+            <span style="font-size:13px;color:#7a9e8a;"> — 2026 conforming limits by county and ZIP</span>
+          </td></tr>
+          <tr><td style="padding:10px 0;border-bottom:1px solid #1a2e20;">
+            <span style="font-size:15px;color:#00e87a;font-weight:700;margin-right:10px;">→</span>
+            <span style="font-size:14px;color:#e8f5ee;font-weight:600;">Rate Alerts</span>
+            <span style="font-size:13px;color:#7a9e8a;"> — get notified when rates hit your target</span>
+          </td></tr>
+          <tr><td style="padding:10px 0;">
+            <span style="font-size:15px;color:#00e87a;font-weight:700;margin-right:10px;">→</span>
+            <span style="font-size:14px;color:#e8f5ee;font-weight:600;">Connect with LOs</span>
+            <span style="font-size:13px;color:#7a9e8a;"> — post a scenario, get competing responses</span>
+          </td></tr>
+        </table>
+
+        <a href="${chatLink}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-weight:700;font-size:16px;padding:16px 20px;border-radius:999px;text-decoration:none;margin-bottom:16px;">Start your first conversation →</a>
+
+        <p style="margin:0;text-align:center;font-size:13px;color:#4a6e58;">Want rent AVM, cap rate, and investment cash flow? <a href="${pricingLink}" style="color:#00e87a;text-decoration:none;">Upgrade to Pro →</a></p>
+      `, "HomeRates.ai · You can reply to this email with any questions."),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailWelcome failed:", err);
+  }
+}
