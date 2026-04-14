@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { Resend } from "resend";
+import { emailShell } from "../../../../lib/sendEmail";
 
 const FROM  = process.env.RESEND_FROM_EMAIL ?? "digest@homerates.ai";
 const BASE  = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
@@ -21,58 +22,30 @@ function getResend(): Resend | null {
 }
 
 function inactivityHtml(name: string): string {
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
-  <tr><td align="center">
-    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
-      <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
-        <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
-      </td></tr>
-      <tr><td style="background:#0d1a12;padding:32px;">
-        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Still thinking it over?</p>
-        <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">Hi ${name}, your mortgage questions are waiting</p>
-        <p style="margin:0 0 16px;font-size:15px;color:#7a9e8a;line-height:1.6;">You joined HomeRates.ai but haven't had a chance to explore yet. The AI chat gives you real rate estimates, PITI breakdowns, and lender questions — in seconds, no sign-up required for a lender call.</p>
-        <table cellpadding="0" cellspacing="0" style="background:#141b28;border-radius:12px;padding:20px;margin:0 0 24px;width:100%;">
-          <tr><td style="font-size:14px;color:#b0c4b8;line-height:1.8;">
-            ✅ &nbsp;Real rate benchmarks for your scenario<br>
-            ✅ &nbsp;PITI breakdown (principal, interest, taxes, insurance)<br>
-            ✅ &nbsp;5 questions to ask any lender before you commit<br>
-            ✅ &nbsp;PDF export to keep or share
-          </td></tr>
-        </table>
-        <a href="${BASE}/chat" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">Try the AI Chat →</a>
-      </td></tr>
-      <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#3a4560;">HomeRates.ai · You're receiving this because you signed up. <a href="${BASE}/profile" style="color:#3a4560;">Manage preferences</a></p>
+  return emailShell(`
+    <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Still thinking it over?</p>
+    <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">Hi ${name}, your mortgage questions are waiting</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#6b7a8d;line-height:1.6;">You joined HomeRates.ai but haven't had a chance to explore yet. The AI chat gives you real rate estimates, PITI breakdowns, and lender questions — in seconds, no sign-up required for a lender call.</p>
+    <table cellpadding="0" cellspacing="0" style="background:#f4f6f9;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:0 0 24px;width:100%;">
+      <tr><td style="font-size:14px;color:#374151;line-height:1.8;">
+        ✅ &nbsp;Real rate benchmarks for your scenario<br>
+        ✅ &nbsp;PITI breakdown (principal, interest, taxes, insurance)<br>
+        ✅ &nbsp;5 questions to ask any lender before you commit<br>
+        ✅ &nbsp;PDF export to keep or share
       </td></tr>
     </table>
-  </td></tr>
-</table>
-</body></html>`;
+    <a href="${BASE}/chat" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">Try the AI Chat →</a>
+  `, `HomeRates.ai · You're receiving this because you signed up. <a href="${BASE}/profile" style="color:#9aa3af;">Manage preferences</a>`);
 }
 
 function reEngagementHtml(name: string, responseCount: number, loanType: string): string {
   const plural = responseCount === 1 ? "response" : "responses";
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
-  <tr><td align="center">
-    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
-      <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
-        <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
-      </td></tr>
-      <tr><td style="background:#0d1a12;padding:32px;">
-        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Lenders are waiting</p>
-        <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#f0f4ff;line-height:1.2;">${responseCount} loan officer${responseCount > 1 ? "s have" : " has"} responded to your scenario</p>
-        <p style="margin:0 0 24px;font-size:15px;color:#7a9e8a;line-height:1.6;">Your ${loanType.toUpperCase()} scenario has <strong style="color:#e8f5ee;">${responseCount} ${plural}</strong> from verified loan officers. Review their rates and approach — no obligation, no credit check.</p>
-        <a href="${BASE}/connect/my-scenario" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">Review Responses →</a>
-      </td></tr>
-      <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#3a4560;">HomeRates.ai · Responses expire when your scenario closes.</p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`;
+  return emailShell(`
+    <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Lenders are waiting</p>
+    <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">${responseCount} loan officer${responseCount > 1 ? "s have" : " has"} responded to your scenario</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#6b7a8d;line-height:1.6;">Your ${loanType.toUpperCase()} scenario has <strong style="color:#1a2530;">${responseCount} ${plural}</strong> from verified loan officers. Review their rates and approach — no obligation, no credit check.</p>
+    <a href="${BASE}/connect/my-scenario" style="display:inline-block;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">Review Responses →</a>
+  `, "HomeRates.ai · Responses expire when your scenario closes.");
 }
 
 export async function GET(req: NextRequest) {

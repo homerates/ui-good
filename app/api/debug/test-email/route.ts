@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { isAdminId } from "../../../../lib/adminAuth";
 import { Resend } from "resend";
+import { emailShell } from "../../../../lib/sendEmail";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -29,12 +30,12 @@ export async function POST(req: NextRequest) {
     from: `HomeRates.ai <${from}>`,
     to,
     subject: "HomeRates.ai — Email delivery test",
-    html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:40px auto;padding:32px;background:#f9f9f9;border-radius:12px;">
-      <h2 style="color:#00c896;margin:0 0 12px;">✅ Email delivery confirmed</h2>
-      <p style="color:#333;">This is a diagnostic test email from HomeRates.ai.</p>
-      <p style="color:#333;">If you received this, Resend is correctly delivering email from <strong>${from}</strong> to <strong>${to}</strong>.</p>
-      <p style="font-size:12px;color:#888;margin-top:24px;">Sent: ${new Date().toISOString()}</p>
-    </div>`,
+    html: emailShell(`
+      <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Delivery Test</p>
+      <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">Email delivery confirmed</p>
+      <p style="margin:0 0 12px;font-size:15px;color:#6b7a8d;">Resend is correctly delivering email from <strong style="color:#1a2530;">${from}</strong> to <strong style="color:#1a2530;">${to}</strong>.</p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">Sent: ${new Date().toISOString()}</p>
+    `, "HomeRates.ai · Diagnostic only"),
   });
 
   return NextResponse.json({

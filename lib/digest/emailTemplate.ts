@@ -95,7 +95,7 @@ export function digestEmailHtml(data: DigestEmailData): string {
   <tr>
     <td style="padding:0 0 28px">
       <img src="https://chat.homerates.ai/assets/HomeRates-Logo%20Green.png"
-           alt="HomeRates.ai" height="28" style="display:block"/>
+           alt="HomeRates.ai" height="22" style="display:block"/>
     </td>
   </tr>
 
