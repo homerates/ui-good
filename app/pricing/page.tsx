@@ -101,12 +101,8 @@ export default function PricingPage() {
     }).catch(() => {});
   }, [isSignedIn]);
 
-  // Which plans to show:
-  // - Not signed in: all 3 (unknown role, let them see everything)
-  // - Signed in LO: all 3
-  // - Signed in borrower (not LO): Free + Plus only
-  const showPro = !isSignedIn || isLO === null || isLO === true;
-  const visiblePlans = showPro ? PLANS : PLANS.filter(p => p.key !== "pro");
+  // Pro is now for investors + LOs — show all 3 plans to everyone
+  const visiblePlans = PLANS;
 
   async function handlePortal() {
     setLoading("portal");
@@ -282,11 +278,11 @@ export default function PricingPage() {
         })}
       </div>
 
-      {/* LO callout — shown to signed-in borrowers in place of the Pro card */}
+      {/* LO callout — shown to signed-in borrowers to surface the LO dashboard features */}
       {isSignedIn && isLO === false && (
         <div className="pricing-lo-callout">
-          <span className="pricing-lo-callout-label">Are you a Loan Officer or Agent?</span>
-          <Link href="/for-pros" className="pricing-lo-callout-link">See Pro plan for professionals →</Link>
+          <span className="pricing-lo-callout-label">Are you a Loan Officer or Agent? Pro also includes borrower management and an LO dashboard.</span>
+          <Link href="/for-pros" className="pricing-lo-callout-link">Learn more →</Link>
         </div>
       )}
 
