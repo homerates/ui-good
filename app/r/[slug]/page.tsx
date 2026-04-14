@@ -64,13 +64,20 @@ export default async function ReferralPage({
   const company = referrer.lender  ? ` at ${referrer.lender}` : "";
 
   // CTA routes through the track handler which sets the cookie then redirects
-  const ctaHref     = `/api/referral/track?code=${slug}&redirect=/sign-up`;
-  const signInHref  = `/api/referral/track?code=${slug}&redirect=/sign-in`;
+  // New users go to sign-up then /welcome (onboarding) so referral gets attributed
+  const ctaHref    = `/api/referral/track?code=${slug}&redirect=${encodeURIComponent("/sign-up?redirect_url=/welcome")}`;
+  const signInHref = `/api/referral/track?code=${slug}&redirect=/sign-in`;
 
   return (
     <>
       <style>{`
-        body { margin: 0; padding: 0; background: #080c12; font-family: 'Helvetica Neue', Arial, sans-serif; }
+        body:has(.ref-wrap) {
+          display: block !important; height: auto !important;
+          overflow-y: auto !important; background: #080c12 !important;
+          margin: 0 !important; padding: 0 !important;
+        }
+        html:has(.ref-wrap) { background: #080c12 !important; height: auto !important; }
+        body:has(.ref-wrap) .app-footer { display: none; }
         * { box-sizing: border-box; }
         .ref-wrap {
           min-height: 100vh; display: flex; align-items: center; justify-content: center;
