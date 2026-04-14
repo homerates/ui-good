@@ -24,6 +24,7 @@ function f$(n: number) {
 
 type AdminUser = { clerk_user_id: string; email?: string; display_name?: string; added_at?: string };
 type PlatformUser = { id: string; email: string; full_name: string | null; role: string; referral_code: string | null; created_at: string };
+type FoundingStats = { claimed: number; remaining: number; sent?: number; failed?: number };
 
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
@@ -46,6 +47,11 @@ export default function AdminDashboard() {
   const [grantNote, setGrantNote] = useState<Record<string, string>>({});
   const [granting, setGranting] = useState<string | null>(null);
 
+  // Founding 500 state
+  const [foundingStats, setFoundingStats] = useState<FoundingStats | null>(null);
+  const [blasting, setBlasting] = useState(false);
+  const [blastResult, setBlastResult] = useState<string | null>(null);
+
   // Admin users state
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [adminsLoading, setAdminsLoading] = useState(false);
@@ -62,6 +68,9 @@ export default function AdminDashboard() {
       .then(r => r.json())
       .then(d => setStats(d))
       .finally(() => setLoading(false));
+    fetch("/api/admin/founding-stats")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setFoundingStats(d));
     fetchAdmins();
     fetchUsers(0, "");
   }, [isLoaded, adminLoading, isAdmin]);
@@ -150,6 +159,20 @@ export default function AdminDashboard() {
     const d = await res.json();
     if (!res.ok) { alert(d.error ?? "Failed to remove"); return; }
     fetchAdmins();
+  }
+
+  async function handleFoundingBlast() {
+    if (!confirm(`Send urgency email to ALL founding members? This cannot be undone.`)) return;
+    setBlasting(true);
+    setBlastResult(null);
+    const res = await fetch("/api/admin/founding-blast", { method: "POST" });
+    const d = await res.json();
+    setBlasting(false);
+    if (!res.ok) {
+      setBlastResult(`Error: ${d.error ?? "Failed"}`);
+    } else {
+      setBlastResult(`Sent to ${d.sent} founding members (${d.failed} failed). ${d.remaining} spots remaining.`);
+    }
   }
 
   if (!isLoaded || adminLoading) return null;
@@ -412,6 +435,52 @@ export default function AdminDashboard() {
                   <Link href="/admin/directory?status=flagged" className="adm-btn secondary">Review Flagged</Link>
                   <Link href="/professionals" className="adm-btn secondary">View Public Directory</Link>
                 </div>
+              </div>
+
+              {/* ── Founding 500 ── */}
+              <div className="adm-section">
+                <div className="adm-section-title">Founding 500</div>
+                {foundingStats ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", flexWrap: "wrap" }}>
+                    {/* Mini counter */}
+                    <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${foundingStats.remaining <= 50 ? "rgba(217,119,6,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 12, padding: "14px 20px", minWidth: 160 }}>
+                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: foundingStats.remaining <= 50 ? "#d97706" : "#f0f4ff", lineHeight: 1 }}>
+                        {foundingStats.claimed} <span style={{ fontSize: "1rem", color: "rgba(255,255,255,0.3)" }}>/ 500</span>
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 6 }}>
+                        {foundingStats.remaining} spots left
+                      </div>
+                      {/* progress bar */}
+                      <div style={{ height: 4, background: "rgba(255,255,255,0.07)", borderRadius: 999, marginTop: 10, overflow: "hidden" }}>
+                        <div style={{ height: "100%", borderRadius: 999, width: `${Math.min((foundingStats.claimed / 500) * 100, 100)}%`, background: foundingStats.remaining <= 50 ? "#d97706" : "#00e87a" }} />
+                      </div>
+                    </div>
+
+                    {/* Blast button + result */}
+                    <div>
+                      {foundingStats.remaining <= 100 && (
+                        <div style={{ fontSize: "0.8rem", color: "#d97706", marginBottom: 8, fontWeight: 600 }}>
+                          ⚠️ {foundingStats.remaining <= 50 ? "Critical —" : "Approaching limit —"} consider sending urgency blast
+                        </div>
+                      )}
+                      <button
+                        className="adm-btn"
+                        style={{ background: "rgba(217,119,6,0.15)", color: "#d97706", border: "1px solid rgba(217,119,6,0.3)" }}
+                        onClick={handleFoundingBlast}
+                        disabled={blasting}
+                      >
+                        {blasting ? "Sending…" : "Send urgency blast to all founding members →"}
+                      </button>
+                      {blastResult && (
+                        <div style={{ fontSize: "0.8rem", color: blastResult.startsWith("Error") ? "#ff5f5f" : "#00e87a", marginTop: 6 }}>
+                          {blastResult}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.82rem" }}>Loading…</p>
+                )}
               </div>
 
               {/* ── Manage Users ── */}

@@ -22,6 +22,7 @@ interface ProCardData {
   licenseState: string | null;
   role: string;
   imageUrl: string | null;
+  isFoundingMember: boolean;
 }
 
 // PII patterns to block from being sent
@@ -115,12 +116,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
         licenseState: null,
         role: thread.professional_type ?? "lo",
         imageUrl: proClerk.imageUrl ?? null,
+        isFoundingMember: false,
       };
 
       if (thread.professional_type === "agent") {
         const { data: agentRow } = await sb
           .from("agents")
-          .select("brokerage, license, title, phone, website, office_address")
+          .select("brokerage, license, title, phone, website, office_address, is_founding_member")
           .eq("user_id", thread.professional_id)
           .maybeSingle();
         if (agentRow) {
@@ -130,11 +132,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
           proCard.nmls = agentRow.license ?? null;
           proCard.website = agentRow.website ?? null;
           proCard.officeAddress = agentRow.office_address ?? null;
+          proCard.isFoundingMember = agentRow.is_founding_member ?? false;
         }
       } else {
         const { data: loRow } = await sb
           .from("loan_officers")
-          .select("lender, nmls, license_state, title, phone, website, office_address")
+          .select("lender, nmls, license_state, title, phone, website, office_address, is_founding_member")
           .eq("user_id", thread.professional_id)
           .maybeSingle();
         if (loRow) {
@@ -145,6 +148,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
           proCard.licenseState = loRow.license_state ?? null;
           proCard.website = loRow.website ?? null;
           proCard.officeAddress = loRow.office_address ?? null;
+          proCard.isFoundingMember = loRow.is_founding_member ?? false;
         }
       }
     } catch (e) {

@@ -19,6 +19,7 @@ interface LO {
   phone: string | null;
   website: string | null;
   office_address: string | null;
+  is_founding_member: boolean;
 }
 
 async function getLO(slug: string): Promise<LO | null> {
@@ -26,7 +27,7 @@ async function getLO(slug: string): Promise<LO | null> {
   if (!sb) return null;
   const { data } = await sb
     .from("loan_officers")
-    .select("user_id, nmls, email, lender, license_state, title, bio, phone, website, office_address")
+    .select("user_id, nmls, email, lender, license_state, title, bio, phone, website, office_address, is_founding_member")
     .eq("nmls", slug)
     .maybeSingle();
   return data ?? null;
@@ -160,9 +161,16 @@ export default async function LoProfilePage({ params }: { params: Promise<{ slug
                   {[lo.title, lo.lender].filter(Boolean).join(" · ") || "Loan Officer"}
                 </div>
                 <div className="lo-nmls">NMLS #{lo.nmls}</div>
-                {lo.license_state && (
-                  <div className="lo-badge">Licensed in {lo.license_state}</div>
-                )}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                  {lo.license_state && (
+                    <span className="lo-badge">Licensed in {lo.license_state}</span>
+                  )}
+                  {lo.is_founding_member && (
+                    <span style={{ display: "inline-block", background: "rgba(0,232,122,0.12)", color: "#00e87a", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4, letterSpacing: ".06em", border: "1px solid rgba(0,232,122,0.25)" }}>
+                      🏅 Founding Member
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

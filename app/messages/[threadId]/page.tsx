@@ -49,6 +49,7 @@ interface ProCard {
   licenseState: string | null;
   role: string;
   imageUrl: string | null;
+  isFoundingMember?: boolean;
 }
 
 export default function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
@@ -218,7 +219,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                       </div>
                     )}
                     <div className="ch-pro-card-body">
-                      <div className="ch-pro-card-name">{proCard.name ?? proType}</div>
+                      <div className="ch-pro-card-name">
+                        {proCard.name ?? proType}
+                        {proCard.isFoundingMember && (
+                          <span style={{ display: "inline-block", marginLeft: 8, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", background: "rgba(0,232,122,0.12)", color: "#00e87a", border: "1px solid rgba(0,232,122,0.25)", borderRadius: 6, padding: "2px 7px", verticalAlign: "middle" }}>
+                            Founding Member
+                          </span>
+                        )}
+                      </div>
                       {proCard.title && <div className="ch-pro-card-title">{proCard.title}</div>}
                       {proCard.company && <div className="ch-pro-card-company">{proCard.company}</div>}
                       <div className="ch-pro-card-contacts">

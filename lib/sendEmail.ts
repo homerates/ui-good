@@ -406,3 +406,73 @@ export async function emailCreditGrant({
     console.error("[sendEmail] emailCreditGrant failed:", err);
   }
 }
+
+// ─── Founding 500 urgency blast ──────────────────────────────────────────────
+// Sent once when total pros hit ~450 — warns founding members only 50 spots remain.
+
+export async function emailFoundingUrgency({
+  toEmail,
+  firstName,
+  claimed,
+  remaining,
+}: {
+  toEmail:   string;
+  firstName: string | null;
+  claimed:   number;
+  remaining: number;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const foundingLink = `${BASE}/founding`;
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to:   toEmail,
+      subject: `Only ${remaining} Founding Member spots left — share before they're gone`,
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Founding 500 · Urgent</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">${greeting}</p>
+
+        <p style="margin:0 0 20px;font-size:15px;color:#6b7a8d;line-height:1.7;">
+          You're one of the <strong style="color:#1a2530">${claimed} Founding Members</strong> on HomeRates.ai.
+          There are only <strong style="color:#d97706">${remaining} spots remaining</strong> before Founding Member pricing closes forever.
+        </p>
+
+        <!-- Progress bar table -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;">
+          <tr>
+            <td>
+              <p style="margin:0 0 10px;font-size:13px;color:#6b7a8d;">${claimed} of 500 spots claimed</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:999px;overflow:hidden;background:#e2e8f0;height:10px;">
+                <tr>
+                  <td width="${Math.round((claimed / 500) * 100)}%" style="background:#d97706;height:10px;border-radius:999px;"></td>
+                  <td></td>
+                </tr>
+              </table>
+              <p style="margin:8px 0 0;font-size:13px;font-weight:700;color:#d97706;">${remaining} spots left</p>
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin:0 0 24px;font-size:15px;color:#6b7a8d;line-height:1.7;">
+          Know another mortgage professional who should be a Founding Member?
+          Share your referral link now — once all 500 spots are gone, new members join at standard pricing.
+        </p>
+
+        <a href="${foundingLink}"
+           style="display:block;text-align:center;background:#d97706;color:#fff;font-size:15px;font-weight:700;padding:14px 20px;border-radius:10px;text-decoration:none;margin-bottom:12px;">
+          Share the Founding 500 page →
+        </a>
+        <a href="${BASE}/profile"
+           style="display:block;text-align:center;background:#f4f6f9;border:1px solid #e2e8f0;color:#6b7a8d;font-size:14px;font-weight:600;padding:12px 20px;border-radius:10px;text-decoration:none;">
+          Get your referral link →
+        </a>
+      `, "HomeRates.ai · You received this because you're a Founding Member. · homerates.ai"),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailFoundingUrgency failed:", err);
+  }
+}
