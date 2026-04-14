@@ -30,6 +30,13 @@ export default function LoBorrowersPage() {
     const [saving, setSaving] = React.useState<string | null>(null);
     const [sending, setSending] = React.useState<string | null>(null);
     const [sentOk, setSentOk] = React.useState<string | null>(null);
+    // Gift credits state
+    const [loBalance, setLoBalance] = React.useState<number | null>(null);
+    const [giftOpen, setGiftOpen] = React.useState<string | null>(null);    // borrower id with open gift panel
+    const [giftAmount, setGiftAmount] = React.useState<Record<string, string>>({});
+    const [gifting, setGifting] = React.useState<string | null>(null);
+    const [giftOk, setGiftOk] = React.useState<string | null>(null);
+    const [giftErr, setGiftErr] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         if (isLoaded && !isSignedIn) {
@@ -42,6 +49,10 @@ export default function LoBorrowersPage() {
             .then(r => r.json())
             .then(d => { setBorrowers(d.borrowers ?? []); setLoading(false); })
             .catch(() => setLoading(false));
+        fetch("/api/credits")
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.balance !== undefined) setLoBalance(d.balance); })
+            .catch(() => {});
     }, []);
 
     async function handleCreateInvite() {
@@ -80,6 +91,30 @@ export default function LoBorrowersPage() {
         setSaving(null);
     }
 
+    async function giftCredits(borrower: Borrower) {
+        const raw = giftAmount[borrower.id] ?? "";
+        const amount = parseInt(raw, 10);
+        if (!amount || amount < 10) return;
+        setGifting(borrower.id);
+        setGiftErr(null);
+        setGiftOk(null);
+        const res = await fetch("/api/lo/gift-credits", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ borrowerUserId: borrower.id, amount }),
+        });
+        const d = await res.json();
+        setGifting(null);
+        if (!res.ok) {
+            setGiftErr(d.error ?? "Failed to gift credits");
+        } else {
+            setGiftOk(borrower.id);
+            if (d.newLoBalance !== undefined) setLoBalance(d.newLoBalance);
+            setGiftAmount(prev => ({ ...prev, [borrower.id]: "" }));
+            setTimeout(() => { setGiftOk(null); setGiftOpen(null); }, 2500);
+        }
+    }
+
     async function sendDigest(borrower: Borrower) {
         if (!borrower.property_address) return;
         setSending(borrower.id);
@@ -104,6 +139,11 @@ export default function LoBorrowersPage() {
                     <p style={{ margin: 0, fontSize: "0.88rem", color: "rgba(185,208,192,0.7)" }}>
                         Manage borrowers, set their property address, and send monthly home digests.
                     </p>
+                    {loBalance !== null && (
+                        <p style={{ margin: "6px 0 0", fontSize: "0.78rem", color: "rgba(0,232,122,0.7)" }}>
+                            Your credit balance: <strong style={{ color: "#00e87a" }}>{loBalance.toLocaleString()}</strong>
+                        </p>
+                    )}
                 </div>
                 <button type="button" onClick={handleCreateInvite} disabled={creating} style={{
                     padding: "9px 18px", borderRadius: 999, border: "none",
@@ -158,6 +198,10 @@ export default function LoBorrowersPage() {
                         const editVal   = editing[b.id] ?? b.property_address ?? '';
                         const isDirty   = b.id in editing && editing[b.id] !== (b.property_address ?? '');
 
+                        const isGifting  = gifting  === b.id;
+                        const didGift    = giftOk   === b.id;
+                        const isGiftOpen = giftOpen === b.id;
+
                         return (
                             <div key={b.id} style={{ padding: "16px 18px", borderRadius: 12, border: "1px solid rgba(148,163,184,0.1)", background: "rgba(255,255,255,0.025)", display: "flex", flexDirection: "column", gap: 12 }}>
                                 {/* Top row — name + email */}
@@ -166,24 +210,89 @@ export default function LoBorrowersPage() {
                                         <div style={{ fontWeight: 600, fontSize: "0.95rem", color: "#e0f0e8" }}>{b.name}</div>
                                         {b.email && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", marginTop: 2 }}>{b.email}</div>}
                                     </div>
-                                    {/* Send digest button */}
-                                    <button
-                                        type="button"
-                                        onClick={() => sendDigest(b)}
-                                        disabled={isSending || !b.property_address || didSend}
-                                        title={!b.property_address ? "Add a property address first" : "Send monthly digest"}
-                                        style={{
-                                            padding: "6px 14px", borderRadius: 999, border: "1px solid",
-                                            borderColor: didSend ? "rgba(0,232,122,0.5)" : b.property_address ? "rgba(0,232,122,0.3)" : "rgba(148,163,184,0.2)",
-                                            background: didSend ? "rgba(0,232,122,0.1)" : "transparent",
-                                            color: didSend ? "#00e87a" : b.property_address ? "rgba(0,232,122,0.8)" : "rgba(185,208,192,0.3)",
-                                            fontSize: "0.78rem", fontWeight: 600, cursor: b.property_address && !isSending ? "pointer" : "default",
-                                            whiteSpace: "nowrap",
-                                        }}
-                                    >
-                                        {isSending ? "Sending…" : didSend ? "Sent ✓" : "Send Digest"}
-                                    </button>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        {/* Gift credits button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => { setGiftOpen(isGiftOpen ? null : b.id); setGiftErr(null); setGiftOk(null); }}
+                                            style={{
+                                                padding: "6px 14px", borderRadius: 999,
+                                                border: "1px solid rgba(148,163,184,0.2)",
+                                                background: isGiftOpen ? "rgba(255,255,255,0.06)" : "transparent",
+                                                color: "rgba(185,208,192,0.6)",
+                                                fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            {didGift ? "Gifted ✓" : "Gift Credits"}
+                                        </button>
+                                        {/* Send digest button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => sendDigest(b)}
+                                            disabled={isSending || !b.property_address || didSend}
+                                            title={!b.property_address ? "Add a property address first" : "Send monthly digest"}
+                                            style={{
+                                                padding: "6px 14px", borderRadius: 999, border: "1px solid",
+                                                borderColor: didSend ? "rgba(0,232,122,0.5)" : b.property_address ? "rgba(0,232,122,0.3)" : "rgba(148,163,184,0.2)",
+                                                background: didSend ? "rgba(0,232,122,0.1)" : "transparent",
+                                                color: didSend ? "#00e87a" : b.property_address ? "rgba(0,232,122,0.8)" : "rgba(185,208,192,0.3)",
+                                                fontSize: "0.78rem", fontWeight: 600, cursor: b.property_address && !isSending ? "pointer" : "default",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            {isSending ? "Sending…" : didSend ? "Sent ✓" : "Send Digest"}
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {/* Gift credits panel */}
+                                {isGiftOpen && (
+                                    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                                        <div style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(0,232,122,0.5)" }}>
+                                            Gift credits to {b.name.split(" ")[0]}
+                                        </div>
+                                        <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.5)" }}>
+                                            Deducted from your balance. They can use credits for AI queries.
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                            {[50, 100, 250, 500].map(preset => (
+                                                <button key={preset} type="button"
+                                                    onClick={() => setGiftAmount(prev => ({ ...prev, [b.id]: String(preset) }))}
+                                                    style={{
+                                                        padding: "5px 12px", borderRadius: 999, fontSize: "0.78rem", fontWeight: 600, cursor: "pointer",
+                                                        border: giftAmount[b.id] === String(preset) ? "1px solid rgba(0,232,122,0.5)" : "1px solid rgba(148,163,184,0.15)",
+                                                        background: giftAmount[b.id] === String(preset) ? "rgba(0,232,122,0.1)" : "transparent",
+                                                        color: giftAmount[b.id] === String(preset) ? "#00e87a" : "rgba(185,208,192,0.6)",
+                                                    }}
+                                                >{preset}</button>
+                                            ))}
+                                            <input
+                                                type="number" min={10} max={5000}
+                                                placeholder="Custom"
+                                                value={giftAmount[b.id] ?? ""}
+                                                onChange={e => setGiftAmount(prev => ({ ...prev, [b.id]: e.target.value }))}
+                                                style={{
+                                                    width: 80, padding: "5px 10px", borderRadius: 8,
+                                                    border: "1px solid rgba(148,163,184,0.15)",
+                                                    background: "rgba(255,255,255,0.04)",
+                                                    color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit",
+                                                }}
+                                            />
+                                            <button type="button"
+                                                onClick={() => giftCredits(b)}
+                                                disabled={isGifting || !giftAmount[b.id] || parseInt(giftAmount[b.id] ?? "0") < 10}
+                                                style={{
+                                                    padding: "6px 16px", borderRadius: 999, border: "none",
+                                                    background: "#00e87a", color: "#080c12",
+                                                    fontSize: "0.82rem", fontWeight: 700, cursor: "pointer",
+                                                    opacity: isGifting ? 0.5 : 1,
+                                                }}
+                                            >{isGifting ? "Sending…" : "Send"}</button>
+                                        </div>
+                                        {giftErr && <div style={{ fontSize: "0.78rem", color: "#ff6b6b" }}>{giftErr}</div>}
+                                        {didGift && <div style={{ fontSize: "0.78rem", color: "#00e87a" }}>Credits sent successfully!</div>}
+                                    </div>
+                                )}
 
                                 {/* Property address row */}
                                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

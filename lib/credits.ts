@@ -12,6 +12,7 @@ export type CreditType =
   | "referral_bonus"
   | "founding_bonus"
   | "admin_grant"
+  | "lo_gift"
   | "query_spend"
   | "analysis_spend";
 
