@@ -69,7 +69,7 @@ export default function BrokerageManagePage() {
   return (
     <>
       <div className="bk-root">
-        <AppNav activePage="brokerage" />
+        <AppNav />
         <div className="bk-container">
 
           {loading && <div className="bk-loading">Loading…</div>}
