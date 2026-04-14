@@ -18,19 +18,29 @@ function getResend(): Resend | null {
 // #080c12 dark with the logo image — never plain text "HomeRates.ai".
 
 export function emailShell(bodyHtml: string, footerText = "HomeRates.ai · homerates.ai"): string {
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  @media only screen and (max-width:600px){
+    .hr-wrap{padding:16px 0!important;}
+    .hr-card{width:100%!important;border-radius:12px!important;}
+    .hr-header{padding:20px 20px!important;border-radius:12px 12px 0 0!important;}
+    .hr-body{padding:24px 20px!important;}
+    .hr-footer{padding:14px 20px!important;border-radius:0 0 12px 12px!important;}
+  }
+</style>
+</head>
 <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" class="hr-wrap" style="background:#f4f6f9;padding:32px 16px;">
   <tr><td align="center">
-    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
-      <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
-        <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
+    <table width="100%" cellpadding="0" cellspacing="0" class="hr-card" style="max-width:520px;width:100%;">
+      <tr><td class="hr-header" style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
+        <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;display:inline-block;" onerror="this.style.display='none'">
       </td></tr>
-      <tr><td style="background:#0d1a12;padding:32px;">
+      <tr><td class="hr-body" style="background:#0d1a12;padding:32px;">
         ${bodyHtml}
       </td></tr>
-      <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#3a4560;">${footerText}</p>
+      <tr><td class="hr-footer" style="background:#080c12;border-radius:0 0 16px 16px;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#3a4560;line-height:1.6;">${footerText}</p>
       </td></tr>
     </table>
   </td></tr>
@@ -227,19 +237,29 @@ function buildProCardHtml(pro: ProCard, link: string): string {
   ].filter(Boolean).join("");
 
   return `
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  @media only screen and (max-width:600px){
+    .hr-wrap{padding:16px 0!important;}
+    .hr-card{width:100%!important;border-radius:12px!important;}
+    .hr-header{padding:20px 20px!important;border-radius:12px 12px 0 0!important;}
+    .hr-body{padding:24px 20px!important;}
+    .hr-footer{padding:14px 20px!important;border-radius:0 0 12px 12px!important;}
+  }
+</style>
+</head>
 <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Helvetica Neue',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+  <table width="100%" cellpadding="0" cellspacing="0" class="hr-wrap" style="background:#f4f6f9;padding:32px 16px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+      <table width="100%" cellpadding="0" cellspacing="0" class="hr-card" style="max-width:560px;width:100%;">
 
         <!-- Header -->
-        <tr><td style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
-          <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;" onerror="this.style.display='none'">
+        <tr><td class="hr-header" style="background:#080c12;border-radius:16px 16px 0 0;padding:24px 32px;text-align:center;">
+          <img src="${BASE}/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:24px;display:inline-block;" onerror="this.style.display='none'">
         </td></tr>
 
         <!-- Pro card -->
-        <tr><td style="background:#0e1420;padding:32px;">
+        <tr><td class="hr-body" style="background:#0e1420;padding:32px;">
           <p style="margin:0 0 24px;font-size:14px;color:#8fa3b8;">You're connected — here are their full contact details:</p>
 
           <!-- Card -->
@@ -276,7 +296,7 @@ function buildProCardHtml(pro: ProCard, link: string): string {
         </td></tr>
 
         <!-- Footer -->
-        <tr><td style="background:#080c12;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
+        <tr><td class="hr-footer" style="background:#080c12;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
           <p style="margin:0;font-size:11px;color:#3a4560;line-height:1.6;">
             HomeRates.ai · Contact shared with your consent.<br>
             ${pro.nmls ? `This professional is NMLS licensed. Always verify credentials at <a href="https://nmlsconsumeraccess.org" style="color:#3a4560;">nmlsconsumeraccess.org</a>` : ""}
