@@ -287,6 +287,7 @@ export default function AdminDashboard() {
           <div className="adm-nav-links">
             <Link href="/admin" className="adm-nav-link active">Dashboard</Link>
             <Link href="/admin/directory" className="adm-nav-link">Directory</Link>
+            <Link href="/admin/waitlist" className="adm-nav-link">Waitlist</Link>
             <span className="adm-nav-badge">ADMIN</span>
             <AppNav drawerOnly />
           </div>

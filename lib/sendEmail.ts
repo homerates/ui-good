@@ -407,6 +407,148 @@ export async function emailCreditGrant({
   }
 }
 
+// ─── Waitlist: position confirmation ────────────────────────────────────────
+
+export async function emailWaitlistConfirm({
+  toEmail,
+  firstName,
+  position,
+  proType,
+  state,
+}: {
+  toEmail:   string;
+  firstName: string;
+  position:  number;
+  proType:   "lo" | "agent";
+  state:     string;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const roleLabel = proType === "lo" ? "Loan Officer" : "Real Estate Agent";
+  const foundingLink = `${BASE}/founding`;
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to:   toEmail,
+      subject: `You're #${position} on the Founding 500 waitlist`,
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Founding 500 · Waitlist</p>
+        <p style="margin:0 0 24px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">You&apos;re on the list, ${firstName}.</p>
+
+        <!-- Position number -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:12px;">
+          <tr>
+            <td style="padding:24px;text-align:center;">
+              <p style="margin:0 0 4px;font-size:48px;font-weight:800;color:#080c12;line-height:1;">#${position}</p>
+              <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Your waitlist position</p>
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin:0 0 20px;font-size:15px;color:#6b7a8d;line-height:1.7;">
+          We received your application as a <strong style="color:#1a2530">${roleLabel}</strong> in <strong style="color:#1a2530">${state}</strong>.
+          We open founding spots in waves as borrower demand grows in your market — we&apos;ll email you the moment your invite is ready.
+        </p>
+
+        <!-- What you get -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+          <tr><td style="padding:10px 0;border-bottom:1px solid #e8ecf0;">
+            <span style="font-size:15px;color:#00e87a;font-weight:700;margin-right:10px;">🏅</span>
+            <span style="font-size:14px;color:#1a2530;font-weight:600;">Founding Member badge</span>
+            <span style="font-size:13px;color:#6b7a8d;"> — permanently on your profile</span>
+          </td></tr>
+          <tr><td style="padding:10px 0;border-bottom:1px solid #e8ecf0;">
+            <span style="font-size:15px;color:#00e87a;font-weight:700;margin-right:10px;">🔒</span>
+            <span style="font-size:14px;color:#1a2530;font-weight:600;">Price locked forever</span>
+            <span style="font-size:13px;color:#6b7a8d;"> — never pay more as we grow</span>
+          </td></tr>
+          <tr><td style="padding:10px 0;border-bottom:1px solid #e8ecf0;">
+            <span style="font-size:15px;color:#00e87a;font-weight:700;margin-right:10px;">⚡</span>
+            <span style="font-size:14px;color:#1a2530;font-weight:600;">Priority scenario access</span>
+            <span style="font-size:13px;color:#6b7a8d;"> — first-come-first-served notifications</span>
+          </td></tr>
+          <tr><td style="padding:10px 0;">
+            <span style="font-size:15px;color:#00e87a;font-weight:700;margin-right:10px;">🗳️</span>
+            <span style="font-size:14px;color:#1a2530;font-weight:600;">Shape the product</span>
+            <span style="font-size:13px;color:#6b7a8d;"> — vote on features, join beta tests</span>
+          </td></tr>
+        </table>
+
+        <a href="${foundingLink}"
+           style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:14px 20px;border-radius:10px;text-decoration:none;margin-bottom:12px;">
+          Try the platform while you wait →
+        </a>
+      `, "HomeRates.ai · You&apos;ll hear from us when your spot is ready. · homerates.ai"),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailWaitlistConfirm failed:", err);
+  }
+}
+
+// ─── Waitlist: invite — spot is ready, 72h to claim ─────────────────────────
+
+export async function emailWaitlistInvite({
+  toEmail,
+  firstName,
+  position,
+  expiresAt,
+}: {
+  toEmail:   string;
+  firstName: string;
+  position:  number;
+  expiresAt: Date;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const expiryStr = expiresAt.toLocaleString("en-US", {
+    weekday: "long", month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit", timeZoneName: "short",
+    timeZone: "America/Los_Angeles",
+  });
+  const welcomeLink = `${BASE}/welcome`;
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to:   toEmail,
+      subject: `Your Founding 500 spot is ready — claim it before it expires`,
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#d97706;">Founding 500 · Your Invite</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">Your spot is ready, ${firstName}.</p>
+
+        <p style="margin:0 0 24px;font-size:15px;color:#6b7a8d;line-height:1.7;">
+          You&apos;re waitlist position <strong style="color:#1a2530">#${position}</strong> and a founding spot has opened in your market.
+          Complete your profile to lock in your <strong style="color:#1a2530">Founding Member badge and pricing</strong> — this invite expires in 72 hours.
+        </p>
+
+        <!-- Expiry warning -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;">
+          <tr>
+            <td style="padding:14px 18px;">
+              <p style="margin:0 0 3px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#92400e;">⏰ Expires</p>
+              <p style="margin:0;font-size:15px;font-weight:700;color:#1a2530;">${expiryStr}</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#92400e;">After this, the spot moves to the next person on the waitlist.</p>
+            </td>
+          </tr>
+        </table>
+
+        <a href="${welcomeLink}"
+           style="display:block;text-align:center;background:#d97706;color:#fff;font-size:15px;font-weight:700;padding:16px 20px;border-radius:10px;text-decoration:none;margin-bottom:12px;">
+          Claim my Founding Member spot →
+        </a>
+        <p style="margin:0;text-align:center;font-size:13px;color:#9ca3af;">
+          Questions? Reply to this email — we read every one.
+        </p>
+      `, "HomeRates.ai · Founding 500 · homerates.ai"),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailWaitlistInvite failed:", err);
+  }
+}
+
 // ─── Founding 500 urgency blast ──────────────────────────────────────────────
 // Sent once when total pros hit ~450 — warns founding members only 50 spots remain.
 

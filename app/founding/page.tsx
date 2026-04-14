@@ -1,54 +1,85 @@
+"use client";
 // app/founding/page.tsx
-// Founding 500 — urgency landing page for early LO/agent adopters
-// Server component: live counter from DB, no client JS needed for core render
+// Founding 500 waitlist — application form, no public counter
+// Shows position inline after submission.
 
-export const dynamic = "force-dynamic";
-
-import type { Metadata } from "next";
+import { useState } from "react";
 import Link from "next/link";
-import { getSupabase } from "../../lib/supabaseServer";
-
-export const metadata: Metadata = {
-  title: "Founding 500 — HomeRates.ai",
-  description: "Join the first 500 mortgage professionals on HomeRates.ai and lock in Founding Member pricing and badge forever.",
-  openGraph: {
-    title: "Founding 500 — HomeRates.ai",
-    description: "Only 500 spots. Lock in your Founding Member badge and pricing before they're gone.",
-    url: "https://chat.homerates.ai/founding",
-    siteName: "HomeRates.ai",
-    images: [{ url: "https://chat.homerates.ai/assets/og-default.png", width: 1200, height: 630 }],
-  },
-};
-
-const FOUNDING_CAP = 500;
 
 const BENEFITS = [
-  { icon: "🏅", title: "Founding Member badge", body: "Permanently displayed on your profile and contact card — visible to every borrower you work with." },
-  { icon: "🔒", title: "Price locked forever", body: "Your rate never increases as long as your subscription stays active, even as we raise prices for new members." },
-  { icon: "⚡", title: "First on the board", body: "Scenarios are first-come-first-served. Founding members get priority scenario notifications before general release." },
-  { icon: "🗳️", title: "Shape the product", body: "Direct line to the founders. Vote on features, join beta tests, and influence the roadmap before it's set." },
+  {
+    icon: "🏅",
+    title: "Founding Member badge",
+    body: "Permanently on your profile and contact card — every borrower you work with sees it.",
+  },
+  {
+    icon: "🔒",
+    title: "Price locked forever",
+    body: "Your rate never increases as long as your subscription stays active, no matter what new members pay.",
+  },
+  {
+    icon: "⚡",
+    title: "First on the board",
+    body: "Scenarios are first-come-first-served. Founding members get priority notifications before general release.",
+  },
+  {
+    icon: "🗳️",
+    title: "Shape the product",
+    body: "Direct line to the founders. Vote on features, join beta tests, and influence the roadmap.",
+  },
 ];
 
-export default async function FoundingPage() {
-  const sb = getSupabase();
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
+];
 
-  // Count registered LOs + agents
-  let claimed = 0;
-  if (sb) {
-    const [{ count: loCount }, { count: agentCount }] = await Promise.all([
-      sb.from("loan_officers").select("id", { count: "exact", head: true }),
-      sb.from("agents").select("id", { count: "exact", head: true }),
-    ]);
-    claimed = (loCount ?? 0) + (agentCount ?? 0);
+type ConfirmedState = { position: number; firstName: string };
+
+export default function FoundingPage() {
+  const [proType, setProType]     = useState<"lo" | "agent">("lo");
+  const [fullName, setFullName]   = useState("");
+  const [email, setEmail]         = useState("");
+  const [state, setState]         = useState("");
+  const [nmls, setNmls]           = useState("");
+  const [license, setLicense]     = useState("");
+  const [brokerage, setBrokerage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError]         = useState("");
+  const [confirmed, setConfirmed] = useState<ConfirmedState | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!fullName.trim() || !email.trim() || !state) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+    setSubmitting(true);
+    const res = await fetch("/api/waitlist/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName:      fullName.trim(),
+        email:         email.trim().toLowerCase(),
+        proType,
+        state,
+        nmls:          nmls.trim() || null,
+        licenseNumber: license.trim() || null,
+        brokerage:     brokerage.trim() || null,
+      }),
+    });
+    const d = await res.json();
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(d.error ?? "Something went wrong — please try again.");
+      return;
+    }
+    setConfirmed({ position: d.position, firstName: fullName.trim().split(" ")[0] });
   }
-
-  const remaining = Math.max(FOUNDING_CAP - claimed, 0);
-  const pct = Math.min(Math.round((claimed / FOUNDING_CAP) * 100), 100);
-  const isFull = remaining === 0;
-
-  // Urgency tier
-  const urgency = remaining <= 10 ? "critical" : remaining <= 50 ? "high" : remaining <= 100 ? "medium" : "low";
-  const urgencyColor = urgency === "critical" ? "#ff5f5f" : urgency === "high" ? "#ff8c42" : "#00e87a";
 
   return (
     <>
@@ -60,43 +91,62 @@ export default async function FoundingPage() {
 
         .f-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:rgba(8,12,18,0.97);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(8px);}
         .f-logo img{height:26px;display:block;}
-        .f-nav-cta{font-size:0.82rem;font-weight:700;color:#07100f;background:#00e87a;text-decoration:none;padding:7px 16px;border-radius:8px;}
+        .f-nav-link{font-size:0.82rem;color:rgba(255,255,255,0.45);text-decoration:none;}
+        .f-nav-link:hover{color:#f0f4ff;}
 
-        .f-shell{max-width:680px;margin:0 auto;padding:56px 20px 80px;}
+        .f-shell{max-width:640px;margin:0 auto;padding:56px 20px 80px;}
 
         .f-badge{display:inline-block;background:#1a2e20;color:#00e87a;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border-radius:20px;border:1px solid rgba(0,232,122,0.3);margin-bottom:20px;}
 
-        .f-hero-title{font-size:clamp(2rem,6vw,3.2rem);font-weight:800;color:#f0f4ff;line-height:1.1;margin:0 0 16px;}
+        .f-hero-title{font-size:clamp(1.9rem,5.5vw,3rem);font-weight:800;color:#f0f4ff;line-height:1.1;margin:0 0 14px;}
         .f-hero-title span{color:#00e87a;}
-        .f-hero-sub{font-size:1.05rem;color:#7a9e8a;line-height:1.7;margin:0 0 36px;max-width:540px;}
+        .f-hero-sub{font-size:1rem;color:#6b8f7a;line-height:1.7;margin:0 0 10px;max-width:520px;}
+        .f-hero-note{font-size:0.82rem;color:#3a5040;margin:0 0 36px;}
 
-        .f-counter-card{background:#0d1a12;border:1px solid #1a2e20;border-radius:16px;padding:28px;margin-bottom:32px;}
-        .f-counter-nums{display:flex;align-items:baseline;gap:10px;margin-bottom:16px;}
-        .f-claimed{font-size:3rem;font-weight:800;color:#f0f4ff;line-height:1;}
-        .f-cap{font-size:1.2rem;color:#4a6e58;font-weight:600;}
-        .f-remaining{font-size:0.9rem;font-weight:700;padding:4px 10px;border-radius:6px;background:#1a2e20;}
-        .f-bar-track{height:10px;background:#0f2018;border-radius:999px;overflow:hidden;margin-bottom:10px;}
-        .f-bar-fill{height:100%;border-radius:999px;transition:width .4s ease;}
-        .f-bar-label{font-size:0.8rem;color:#4a6e58;}
+        .f-benefits{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:36px;}
+        .f-benefit{background:#0d1a12;border:1px solid #1a2e20;border-radius:12px;padding:16px;}
+        .f-benefit-icon{font-size:1.3rem;margin-bottom:8px;}
+        .f-benefit-title{font-size:0.88rem;font-weight:700;color:#e8f5ee;margin-bottom:4px;}
+        .f-benefit-body{font-size:0.8rem;color:#4a6e58;line-height:1.6;}
 
-        .f-benefits{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:36px;}
-        .f-benefit{background:#0d1a12;border:1px solid #1a2e20;border-radius:12px;padding:18px;}
-        .f-benefit-icon{font-size:1.4rem;margin-bottom:8px;}
-        .f-benefit-title{font-size:0.9rem;font-weight:700;color:#e8f5ee;margin-bottom:4px;}
-        .f-benefit-body{font-size:0.82rem;color:#4a6e58;line-height:1.6;}
+        .f-divider{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:0 0 32px;}
 
-        .f-cta{display:block;text-align:center;background:#00e87a;color:#07100f;font-size:1rem;font-weight:700;padding:16px 24px;border-radius:12px;text-decoration:none;margin-bottom:12px;}
-        .f-cta:hover{opacity:.9;}
-        .f-cta-ghost{display:block;text-align:center;background:transparent;border:1px solid rgba(255,255,255,0.1);color:#7a9e8a;font-size:0.88rem;font-weight:500;padding:12px 24px;border-radius:12px;text-decoration:none;}
+        /* Form */
+        .f-form{display:flex;flex-direction:column;gap:16px;}
+        .f-field{display:flex;flex-direction:column;gap:6px;}
+        .f-label{font-size:0.78rem;font-weight:600;color:rgba(255,255,255,0.45);letter-spacing:0.06em;text-transform:uppercase;}
+        .f-label span{color:#ff5f5f;margin-left:2px;}
+        .f-input{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:11px 14px;color:#f0f4ff;font-size:0.92rem;outline:none;transition:border-color .2s;}
+        .f-input:focus{border-color:rgba(0,232,122,0.45);}
+        .f-input::placeholder{color:rgba(255,255,255,0.2);}
+        .f-select{appearance:none;background:rgba(255,255,255,0.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234a6e58' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center;}
 
-        .f-full{background:#1a1410;border:1px solid #3a2010;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;}
-        .f-full-title{font-size:1.1rem;font-weight:700;color:#ff8c42;margin-bottom:6px;}
-        .f-full-body{font-size:0.88rem;color:#7a6050;line-height:1.6;}
+        .f-type-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        .f-type-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:10px;font-size:0.88rem;font-weight:600;color:rgba(255,255,255,0.45);cursor:pointer;text-align:center;transition:all .2s;}
+        .f-type-btn.active{background:#0d2e1a;border-color:rgba(0,232,122,0.4);color:#00e87a;}
+
+        .f-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+        .f-submit{background:#00e87a;color:#07100f;font-size:1rem;font-weight:700;padding:15px 20px;border-radius:12px;border:none;cursor:pointer;width:100%;transition:opacity .2s;margin-top:4px;}
+        .f-submit:hover{opacity:.9;}
+        .f-submit:disabled{opacity:.45;cursor:not-allowed;}
+
+        .f-error{font-size:0.82rem;color:#ff5f5f;background:rgba(255,95,95,0.08);border:1px solid rgba(255,95,95,0.2);border-radius:8px;padding:10px 14px;}
+
+        /* Confirmation */
+        .f-confirmed{text-align:center;padding:48px 0;}
+        .f-confirmed-number{font-size:5rem;font-weight:800;color:#00e87a;line-height:1;margin-bottom:6px;}
+        .f-confirmed-label{font-size:0.78rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3a5040;margin-bottom:28px;}
+        .f-confirmed-title{font-size:1.5rem;font-weight:700;color:#f0f4ff;margin-bottom:12px;}
+        .f-confirmed-body{font-size:0.95rem;color:#6b8f7a;line-height:1.7;max-width:420px;margin:0 auto 32px;}
+        .f-confirmed-cta{display:inline-block;background:#00e87a;color:#07100f;font-size:0.92rem;font-weight:700;padding:13px 28px;border-radius:10px;text-decoration:none;}
+        .f-confirmed-note{font-size:0.8rem;color:#3a5040;margin-top:16px;}
 
         @media(max-width:560px){
           .f-benefits{grid-template-columns:1fr;}
           .f-shell{padding:36px 16px 60px;}
-          .f-hero-title{font-size:1.8rem;}
+          .f-hero-title{font-size:1.75rem;}
+          .f-row{grid-template-columns:1fr;}
         }
       `}</style>
 
@@ -106,7 +156,7 @@ export default async function FoundingPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
           </Link>
-          {!isFull && <Link href="/welcome" className="f-nav-cta">Claim your spot →</Link>}
+          <Link href="/chat" className="f-nav-link">Try the platform →</Link>
         </nav>
 
         <div className="f-shell">
@@ -118,31 +168,14 @@ export default async function FoundingPage() {
             on HomeRates.ai
           </h1>
           <p className="f-hero-sub">
-            Lock in Founding Member pricing and your badge before the spots are gone.
-            Early members shape the product — and never pay more as we grow.
+            Founding membership is invitation-only and limited to 500 professionals.
+            Apply below to join the waitlist — we&apos;re opening spots in waves as borrower demand grows in your market.
+          </p>
+          <p className="f-hero-note">
+            No subscription required to join the waitlist. You only pay if and when you&apos;re invited in.
           </p>
 
-          {/* Live counter */}
-          <div className="f-counter-card">
-            <div className="f-counter-nums">
-              <span className="f-claimed">{claimed}</span>
-              <span className="f-cap">/ {FOUNDING_CAP} claimed</span>
-              {!isFull && (
-                <span className="f-remaining" style={{ color: urgencyColor }}>
-                  {remaining} left
-                </span>
-              )}
-            </div>
-            <div className="f-bar-track">
-              <div
-                className="f-bar-fill"
-                style={{ width: `${pct}%`, background: isFull ? "#ff8c42" : urgencyColor }}
-              />
-            </div>
-            <div className="f-bar-label">{pct}% of founding spots claimed</div>
-          </div>
-
-          {/* Benefits grid */}
+          {/* Benefits */}
           <div className="f-benefits">
             {BENEFITS.map(b => (
               <div key={b.title} className="f-benefit">
@@ -153,25 +186,130 @@ export default async function FoundingPage() {
             ))}
           </div>
 
-          {isFull ? (
-            <div className="f-full">
-              <div className="f-full-title">Founding spots are full</div>
-              <div className="f-full-body">
-                All 500 founding spots have been claimed. You can still join HomeRates.ai at standard pricing.
-              </div>
-              <Link href="/welcome" style={{ display: "inline-block", marginTop: 14, background: "#ff8c42", color: "#07100f", fontWeight: 700, padding: "10px 24px", borderRadius: 8, textDecoration: "none" }}>
-                Join at standard pricing →
+          <hr className="f-divider" />
+
+          {confirmed ? (
+            /* ── Confirmation ── */
+            <div className="f-confirmed">
+              <div className="f-confirmed-number">#{confirmed.position}</div>
+              <div className="f-confirmed-label">Your waitlist position</div>
+              <div className="f-confirmed-title">You&apos;re on the list, {confirmed.firstName}.</div>
+              <p className="f-confirmed-body">
+                We&apos;ll email you the moment a founding spot opens in your market.
+                In the meantime — explore the platform and post a scenario to see how it works.
+              </p>
+              <Link href="/chat" className="f-confirmed-cta">
+                Explore HomeRates.ai →
               </Link>
+              <p className="f-confirmed-note">Check your inbox — we&apos;ve sent a confirmation with your position.</p>
             </div>
           ) : (
-            <>
-              <Link href="/welcome" className="f-cta">
-                Claim founding spot — {remaining} remaining →
-              </Link>
-              <Link href="/chat" className="f-cta-ghost">
-                Try the platform first →
-              </Link>
-            </>
+            /* ── Application form ── */
+            <form className="f-form" onSubmit={handleSubmit}>
+              <div className="f-field">
+                <label className="f-label">I am a <span>*</span></label>
+                <div className="f-type-toggle">
+                  <button type="button" className={`f-type-btn ${proType === "lo" ? "active" : ""}`} onClick={() => setProType("lo")}>
+                    Loan Officer
+                  </button>
+                  <button type="button" className={`f-type-btn ${proType === "agent" ? "active" : ""}`} onClick={() => setProType("agent")}>
+                    Real Estate Agent
+                  </button>
+                </div>
+              </div>
+
+              <div className="f-row">
+                <div className="f-field">
+                  <label className="f-label" htmlFor="fullName">Full name <span>*</span></label>
+                  <input
+                    id="fullName"
+                    className="f-input"
+                    type="text"
+                    placeholder="Jane Smith"
+                    value={fullName}
+                    onChange={e => setFullName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="f-field">
+                  <label className="f-label" htmlFor="email">Work email <span>*</span></label>
+                  <input
+                    id="email"
+                    className="f-input"
+                    type="email"
+                    placeholder="jane@example.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="f-row">
+                <div className="f-field">
+                  <label className="f-label" htmlFor="state">State <span>*</span></label>
+                  <select
+                    id="state"
+                    className="f-input f-select"
+                    value={state}
+                    onChange={e => setState(e.target.value)}
+                    required
+                  >
+                    <option value="">Select state…</option>
+                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="f-field">
+                  <label className="f-label" htmlFor="nmls">
+                    {proType === "lo" ? "NMLS #" : "License #"}
+                  </label>
+                  {proType === "lo" ? (
+                    <input
+                      id="nmls"
+                      className="f-input"
+                      type="text"
+                      placeholder="e.g. 1234567"
+                      value={nmls}
+                      onChange={e => setNmls(e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      id="license"
+                      className="f-input"
+                      type="text"
+                      placeholder="e.g. DRE 01234567"
+                      value={license}
+                      onChange={e => setLicense(e.target.value)}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="f-field">
+                <label className="f-label" htmlFor="brokerage">
+                  {proType === "lo" ? "Lender / company" : "Brokerage"}
+                  <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: 400, marginLeft: 6, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                </label>
+                <input
+                  id="brokerage"
+                  className="f-input"
+                  type="text"
+                  placeholder={proType === "lo" ? "e.g. United Wholesale Mortgage" : "e.g. Compass"}
+                  value={brokerage}
+                  onChange={e => setBrokerage(e.target.value)}
+                />
+              </div>
+
+              {error && <div className="f-error">{error}</div>}
+
+              <button type="submit" className="f-submit" disabled={submitting}>
+                {submitting ? "Joining waitlist…" : "Apply for founding spot →"}
+              </button>
+
+              <p style={{ fontSize: "0.78rem", color: "#3a5040", textAlign: "center", margin: 0 }}>
+                Founding membership closes permanently at 500 professionals.
+              </p>
+            </form>
           )}
         </div>
       </div>
