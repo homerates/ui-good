@@ -164,8 +164,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
             {
                 borrower: newBorrower,
-                message: `Borrower created successfully. You are now using ${currentCount + 1
-                    } of ${allowedSlots} slots.`
+                message: `Borrower created successfully. You now have ${currentCount + 1} borrowers.`
             },
             { status: 201 }
         );
