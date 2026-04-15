@@ -125,18 +125,50 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Founding member badge ─────────────────────────────────────────────────
-  // Award if total pros (LOs + agents) <= 500 at the time of this registration
+  // Primary path: check pro_waitlist for an active invite matching this email.
+  // Fallback: award if total pros (LOs + agents) <= 500 at time of registration.
+  let foundingNumber: number | null = null;
   if (role === "lo" || role === "agent") {
-    const [{ count: loCount }, { count: agentCount }] = await Promise.all([
-      sb.from("loan_officers").select("user_id", { count: "exact", head: true }),
-      sb.from("agents").select("user_id", { count: "exact", head: true }),
-    ]);
-    const totalPros = (loCount ?? 0) + (agentCount ?? 0);
-    if (totalPros <= 500) {
+    const { data: invite } = await sb
+      .from("pro_waitlist")
+      .select("id, founding_number, status")
+      .eq("email", email.toLowerCase())
+      .in("status", ["invited", "joined"])
+      .maybeSingle();
+
+    if (invite) {
+      // Claim the waitlist invite
+      if (invite.status === "joined" && invite.founding_number) {
+        foundingNumber = invite.founding_number;
+      } else {
+        const { count: joinedCount } = await sb
+          .from("pro_waitlist")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "joined");
+        foundingNumber = (joinedCount ?? 0) + 1;
+        await sb.from("pro_waitlist").update({
+          status:          "joined",
+          joined_at:       new Date().toISOString(),
+          founding_number: foundingNumber,
+        }).eq("id", invite.id);
+      }
       if (role === "lo") {
         await sb.from("loan_officers").update({ is_founding_member: true }).eq("user_id", userId);
       } else {
         await sb.from("agents").update({ is_founding_member: true }).eq("user_id", userId);
+      }
+    } else {
+      // Fallback: first 500 pros to organically register also get the badge
+      const [{ count: loCount }, { count: agentCount }] = await Promise.all([
+        sb.from("loan_officers").select("user_id", { count: "exact", head: true }),
+        sb.from("agents").select("user_id", { count: "exact", head: true }),
+      ]);
+      if ((loCount ?? 0) + (agentCount ?? 0) <= 500) {
+        if (role === "lo") {
+          await sb.from("loan_officers").update({ is_founding_member: true }).eq("user_id", userId);
+        } else {
+          await sb.from("agents").update({ is_founding_member: true }).eq("user_id", userId);
+        }
       }
     }
   }
@@ -153,5 +185,5 @@ export async function POST(req: NextRequest) {
     await awardCredits(referrerId, 500, "referral_bonus", "Referral bonus — new member joined", `referral_${userId}`);
   }
 
-  return NextResponse.json({ ok: true, role });
+  return NextResponse.json({ ok: true, role, foundingNumber });
 }

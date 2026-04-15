@@ -29,14 +29,6 @@ const TYPES = [
 type UserType = "borrower" | "lo" | "agent";
 
 export default function WelcomePage() {
-  // Redirect returning users who already have a role set
-  useEffect(() => {
-    fetch("/api/onboarding/setup")
-      .then(r => r.json())
-      .then(d => { if (d.role) window.location.replace("/dashboard"); })
-      .catch(() => {});
-  }, []);
-
   const [type, setType] = useState<UserType | "">("");
   const [nmls, setNmls] = useState("");
   const [lender, setLender] = useState("");
@@ -44,6 +36,31 @@ export default function WelcomePage() {
   const [brokerage, setBrokerage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // foundingNumber > 0 means this user just claimed a founding spot — show confirmation screen
+  const [foundingNumber, setFoundingNumber] = useState<number | null>(null);
+
+  // For existing (already-registered) users: claim any pending waitlist invite then redirect
+  useEffect(() => {
+    fetch("/api/onboarding/setup")
+      .then(r => r.json())
+      .then(async d => {
+        if (!d.role) return; // new user — stay on page to complete onboarding
+        // Existing user — try to claim a founding invite before redirecting
+        try {
+          const cr = await fetch("/api/waitlist/claim", { method: "POST" });
+          const cd = await cr.json();
+          if (cd.ok && cd.foundingNumber) {
+            setFoundingNumber(cd.foundingNumber); // show confirmation, user clicks through
+          } else {
+            window.location.replace("/dashboard");
+          }
+        } catch {
+          window.location.replace("/dashboard");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const canSubmit = Boolean(
     type && (
@@ -69,11 +86,65 @@ export default function WelcomePage() {
         setSubmitting(false);
         return;
       }
-      window.location.href = "/dashboard";
+      if (data.foundingNumber) {
+        setFoundingNumber(data.foundingNumber); // show founding confirmation before dashboard
+      } else {
+        window.location.href = "/dashboard";
+      }
     } catch {
       setError("Network error — please try again");
       setSubmitting(false);
     }
+  }
+
+  // Founding member confirmation screen
+  if (foundingNumber) {
+    return (
+      <>
+        <div className="wl-root">
+          <nav className="wl-nav">
+            <Link href="/" className="wl-nav-logo">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            </Link>
+          </nav>
+          <div className="wl-container">
+            <div className="wl-card" style={{ textAlign: "center", gap: "1.5rem" }}>
+              <div style={{ fontSize: "3rem" }}>🏅</div>
+              <div>
+                <div className="wl-eyebrow" style={{ marginBottom: 8 }}>Founding 500</div>
+                <h1 className="wl-title" style={{ fontSize: "1.5rem" }}>
+                  You&apos;re Founding Member #{foundingNumber}
+                </h1>
+                <p className="wl-sub" style={{ marginTop: 8 }}>
+                  Your badge is live on your HomeRates profile. You&apos;re locked in at founding pricing — forever.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="wl-submit"
+                onClick={() => { window.location.href = "/dashboard"; }}
+              >
+                Go to my dashboard →
+              </button>
+            </div>
+          </div>
+        </div>
+        <style>{`
+          body:has(.wl-root) .app-footer { display: none !important; }
+          .wl-root { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; background: #080c12; z-index: 9000; }
+          .wl-nav { padding: 18px 32px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+          .wl-nav-logo img { height: 28px; }
+          .wl-container { max-width: 560px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+          .wl-card { background: #0e1420; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 2.5rem; display: flex; flex-direction: column; }
+          .wl-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #d97706; }
+          .wl-title { font-family: 'DM Sans', sans-serif; font-size: 1.75rem; font-weight: 800; margin: 0; line-height: 1.2; letter-spacing: -0.02em; color: #f0f4ff; }
+          .wl-sub { font-size: 0.9rem; color: #8fa3b8; margin: 0; line-height: 1.6; }
+          .wl-submit { padding: 14px; background: #d97706; color: #fff; border: none; border-radius: 999px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s; width: 100%; font-family: inherit; margin-top: 0.5rem; }
+          .wl-submit:hover { opacity: 0.88; }
+        `}</style>
+      </>
+    );
   }
 
   return (
