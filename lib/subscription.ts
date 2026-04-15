@@ -116,14 +116,21 @@ export async function canPostScenario(
   if (!sb) return { allowed: true, used: 0, limit };
 
   const monthStart = `${currentMonth()}-01`;
-  const { count } = await sb
-    .from("scenario_briefs")
-    .select("id", { count: "exact", head: true })
-    .eq("borrower_id", userId)
-    .gte("created_at", monthStart);
+  const [{ count }, { count: bonusCount }] = await Promise.all([
+    sb.from("scenario_briefs")
+      .select("id", { count: "exact", head: true })
+      .eq("borrower_id", userId)
+      .gte("created_at", monthStart),
+    sb.from("credit_transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("type", "scenario_slot_purchase")
+      .gte("created_at", monthStart),
+  ]);
 
   const used = count ?? 0;
-  return { allowed: used < limit, used, limit };
+  const effectiveLimit = limit + (bonusCount ?? 0);
+  return { allowed: used < effectiveLimit, used, limit: effectiveLimit };
 }
 
 /**

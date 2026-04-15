@@ -14,7 +14,8 @@ export type CreditType =
   | "admin_grant"
   | "lo_gift"
   | "query_spend"
-  | "analysis_spend";
+  | "analysis_spend"
+  | "scenario_slot_purchase";
 
 /**
  * Award credits to a user. Idempotent when referenceId is provided.

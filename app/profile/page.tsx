@@ -61,6 +61,9 @@ export default function ProfilePage() {
   const [referralLink, setReferralLink] = useState<string | null>(null);
   const [referralCount, setReferralCount] = useState<number>(0);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemMsg, setRedeemMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Form fields
   const [fullName, setFullName] = useState("");
@@ -83,6 +86,11 @@ export default function ProfilePage() {
   const showPro = role === "lo" || role === "agent";
 
   useEffect(() => {
+    fetch("/api/credits")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { balance?: number } | null) => { if (d) setCreditBalance(d.balance ?? 0); })
+      .catch(() => {});
+
     fetch("/api/profile")
       .then(r => r.ok ? r.json() : null)
       .then((d: (ProfileData & { referral_code?: string | null; referral_count?: number }) | null) => {
@@ -460,6 +468,61 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {/* Credit Bank */}
+              <div className="pr-section">
+                <div className="pr-section-title">Credit bank</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: "2rem", fontWeight: 800, color: "#00e87a", lineHeight: 1 }}>
+                      {creditBalance ?? "—"}
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "#8fa3b8", marginTop: 4 }}>credits available</div>
+                  </div>
+                  <div style={{ fontSize: "0.82rem", color: "#6b7a99", lineHeight: 1.5, maxWidth: 280 }}>
+                    50 credits = 1 extra scenario post beyond your plan limit (max 3/mo)
+                  </div>
+                </div>
+                {(creditBalance ?? 0) >= 50 && (
+                  <div>
+                    <button
+                      type="button"
+                      disabled={redeeming}
+                      onClick={async () => {
+                        setRedeeming(true);
+                        setRedeemMsg(null);
+                        const res = await fetch("/api/credits/redeem", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ type: "scenario_slot" }),
+                        });
+                        const d = await res.json();
+                        if (res.ok) {
+                          setCreditBalance(d.balance);
+                          setRedeemMsg({ ok: true, text: `Done! You have 1 extra scenario post this month. Balance: ${d.balance} credits.` });
+                        } else {
+                          setRedeemMsg({ ok: false, text: d.error ?? "Something went wrong" });
+                        }
+                        setRedeeming(false);
+                      }}
+                      style={{
+                        padding: "10px 22px", background: "rgba(0,232,122,0.12)",
+                        border: "1px solid rgba(0,232,122,0.3)", borderRadius: 999,
+                        color: "#00e87a", fontSize: "0.85rem", fontWeight: 700,
+                        cursor: redeeming ? "not-allowed" : "pointer", fontFamily: "inherit",
+                        opacity: redeeming ? 0.5 : 1, transition: "opacity 0.15s",
+                      }}
+                    >
+                      {redeeming ? "Redeeming…" : "Use 50 credits → 1 extra scenario post"}
+                    </button>
+                    {redeemMsg && (
+                      <div style={{ marginTop: 8, fontSize: "0.82rem", color: redeemMsg.ok ? "#00e87a" : "#ff5f5f" }}>
+                        {redeemMsg.text}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Referral link section */}
               <div className="pr-section">
                 <div className="pr-section-title">Referral link</div>
@@ -491,7 +554,7 @@ export default function ProfilePage() {
                     </div>
                     {referralCount > 0 && (
                       <div style={{ fontSize: "0.82rem", color: "#00e87a" }}>
-                        {referralCount} {referralCount === 1 ? "person" : "people"} joined via your link
+                        {referralCount} {referralCount === 1 ? "person" : "people"} joined via your link · {referralCount * 500} credits earned
                       </div>
                     )}
                   </>
