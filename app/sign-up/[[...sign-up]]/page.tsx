@@ -22,12 +22,13 @@ export default function Page() {
       </div>
 
       <style>{`
+        body:has(.auth-shell) .app-footer { display: none !important; }
         .auth-shell {
-          min-height: 100vh;
+          position: fixed; inset: 0; overflow-y: auto; z-index: 9000;
           display: flex;
           flex-direction: column;
           align-items: center;
-          background: var(--bg, #080c12);
+          background: #080c12;
           font-family: var(--font-dm-sans, sans-serif);
         }
         .auth-shell-header {

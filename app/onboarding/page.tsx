@@ -47,19 +47,6 @@ const labelStyle: React.CSSProperties = {
     textTransform: "uppercase",
 };
 
-const logoMark = (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-        <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: "rgba(0,232,122,0.12)",
-            border: "1px solid rgba(0,232,122,0.25)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "1rem", fontWeight: 800, color: "#00e87a",
-            fontFamily: "Georgia, serif",
-        }}>H</div>
-        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "rgba(185,208,192,0.6)", letterSpacing: "0.06em", textTransform: "uppercase" }}>HomeRates.ai</span>
-    </div>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -202,7 +189,6 @@ export default function OnboardingPage() {
                         {/* ── Not signed in ── */}
                         <SignedOut>
                             <div style={cardStyle}>
-                                {logoMark}
                                 <div>
                                     <h1 style={{ margin: "0 0 8px", fontSize: "1.3rem", fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25 }}>You've been invited</h1>
                                     <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
@@ -230,7 +216,6 @@ export default function OnboardingPage() {
                         {/* ── Signed in — fill details ── */}
                         <SignedIn>
                             <div style={cardStyle}>
-                                {logoMark}
                                 <div>
                                     <h1 style={{ margin: "0 0 8px", fontSize: "1.3rem", fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25 }}>Activate your access</h1>
                                     <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
