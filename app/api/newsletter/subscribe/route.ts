@@ -32,9 +32,13 @@ export async function POST(req: NextRequest) {
 
   const { error } = await sb
     .from("newsletter_subscribers")
-    .upsert({ email, source }, { onConflict: "email", ignoreDuplicates: true });
+    .insert({ email, source });
 
   if (error) {
+    // 23505 = unique_violation — email already subscribed, treat as success
+    if (error.code === "23505") {
+      return NextResponse.json({ ok: true, already: true });
+    }
     console.error("[newsletter/subscribe]", error);
     return NextResponse.json({ error: "Failed to subscribe" }, { status: 500 });
   }
