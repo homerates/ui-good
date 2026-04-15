@@ -2973,14 +2973,7 @@ export default function Page() {
                     <div
                         className="hr-composer-inner"
                         style={{
-                            position: 'relative',
-                            display: 'flex',
-                            alignItems: 'center',
-                            // let the inner input flex control width, avoid pill growth on type
-                            maxWidth: 640, // line up with main column
-                            margin: '0 auto',
-                            padding: '8px 12px',
-                            boxSizing: 'border-box',
+                            maxWidth: 640,
                         }}
                     >
                         <textarea
@@ -3012,22 +3005,9 @@ export default function Page() {
                                 }
                             }}
                             style={{
-                                flex: '1 1 auto',
-                                minWidth: 0,
-                                minHeight: 36,
+                                minHeight: 24,
                                 maxHeight: 160,
-                                borderRadius: 18,
-                                border: '1px solid rgba(255,255,255,0.13)',
-                                padding: '8px 40px 8px 16px',
-                                background: '#141b28',
-                                color: '#f0f4ff',
-                                fontSize: 16,
-                                lineHeight: 1.5,
-                                boxSizing: 'border-box',
-                                resize: 'none',
-                                overflowY: 'auto',
-                                display: 'block',
-                                verticalAlign: 'top',
+                                padding: '4px 0',
                             }}
                         />
 
@@ -3039,25 +3019,7 @@ export default function Page() {
                             onClick={send}
                             disabled={loading || !input.trim()}
                             style={{
-                                position: 'absolute',
-                                right: 16,
-                                bottom: 16,
-                                width: 32,
-                                height: 32,
-                                borderRadius: 9999,
-                                padding: 0,
-                                border: 'none',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: '#00e87a',
-                                color: '#080c12',
-                                cursor:
-                                    loading || !input.trim()
-                                        ? 'default'
-                                        : 'pointer',
-                                opacity: loading || !input.trim() ? 0.5 : 1,
-                                zIndex: 2,
+                                opacity: loading || !input.trim() ? 0.4 : 1,
                             }}
                         >
                             <svg
