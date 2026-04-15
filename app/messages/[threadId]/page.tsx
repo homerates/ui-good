@@ -223,7 +223,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                         {proCard.name ?? proType}
                         {proCard.isFoundingMember && (
                           <span style={{ display: "inline-block", marginLeft: 8, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", background: "rgba(0,232,122,0.12)", color: "#00e87a", border: "1px solid rgba(0,232,122,0.25)", borderRadius: 6, padding: "2px 7px", verticalAlign: "middle" }}>
-                            Founding Member
+                            🏅 Founding Member
                           </span>
                         )}
                       </div>
