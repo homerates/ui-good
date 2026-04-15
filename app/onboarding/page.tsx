@@ -160,20 +160,20 @@ export default function OnboardingPage() {
     return (
         <>
             <style>{`
-                body { background: #080c12 !important; }
-                body.app { background: #080c12 !important; }
+                body:has(.ob-root) .app-footer { display: none !important; }
+                .ob-root { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; background: #080c12; z-index: 9000; font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; display: flex; flex-direction: column; }
+                .ob-nav { padding: 18px 32px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+                .ob-nav img { height: 28px; }
+                .ob-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 16px 60px; }
                 input::placeholder { color: rgba(185,208,192,0.3); }
                 input:focus { border-color: rgba(0,232,122,0.4) !important; box-shadow: 0 0 0 3px rgba(0,232,122,0.12); }
             `}</style>
-            <main style={{
-                minHeight: "100dvh",
-                background: "#080c12",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "24px 16px",
-            }}>
+            <div className="ob-root">
+              <nav className="ob-nav">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+              </nav>
+            <main className="ob-body">
                 {successBorrowerId ? (
                     /* ── Success ── */
                     <div style={cardStyle}>
@@ -299,10 +299,8 @@ export default function OnboardingPage() {
                     </>
                 )}
 
-                <p style={{ marginTop: 24, fontSize: "0.72rem", color: "rgba(185,208,192,0.25)", textAlign: "center" }}>
-                    HomeRates.ai — AI-powered mortgage intelligence
-                </p>
             </main>
+            </div>
         </>
     );
 }
