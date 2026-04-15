@@ -39,27 +39,24 @@ export default function WelcomePage() {
 
   // foundingNumber > 0 means this user just claimed a founding spot — show confirmation screen
   const [foundingNumber, setFoundingNumber] = useState<number | null>(null);
+  // checking = true while we verify existing session — prevents flash of role selection form
+  const [checking, setChecking] = useState(true);
 
   // For existing (already-registered) users: claim any pending waitlist invite then redirect
   useEffect(() => {
-    fetch("/api/onboarding/setup")
-      .then(r => r.json())
-      .then(async d => {
-        if (!d.role) return; // new user — stay on page to complete onboarding
-        // Existing user — try to claim a founding invite before redirecting
-        try {
-          const cr = await fetch("/api/waitlist/claim", { method: "POST" });
-          const cd = await cr.json();
-          if (cd.ok && cd.foundingNumber) {
-            setFoundingNumber(cd.foundingNumber); // show confirmation, user clicks through
-          } else {
-            window.location.replace("/dashboard");
-          }
-        } catch {
-          window.location.replace("/dashboard");
-        }
-      })
-      .catch(() => {});
+    Promise.all([
+      fetch("/api/onboarding/setup").then(r => r.json()).catch(() => ({ role: null })),
+      fetch("/api/waitlist/claim", { method: "POST" }).then(r => r.json()).catch(() => ({ ok: false })),
+    ]).then(([setupData, claimData]) => {
+      if (claimData.ok && claimData.foundingNumber) {
+        setFoundingNumber(claimData.foundingNumber);
+        setChecking(false);
+      } else if (setupData.role) {
+        window.location.replace("/dashboard");
+      } else {
+        setChecking(false); // new user with no invite — show role selection
+      }
+    }).catch(() => setChecking(false));
   }, []);
 
   const canSubmit = Boolean(
@@ -87,7 +84,7 @@ export default function WelcomePage() {
         return;
       }
       if (data.foundingNumber) {
-        setFoundingNumber(data.foundingNumber); // show founding confirmation before dashboard
+        setFoundingNumber(data.foundingNumber); // show founding confirmation → then /profile
       } else {
         window.location.href = "/dashboard";
       }
@@ -123,9 +120,9 @@ export default function WelcomePage() {
               <button
                 type="button"
                 className="wl-submit"
-                onClick={() => { window.location.href = "/dashboard"; }}
+                onClick={() => { window.location.href = "/profile"; }}
               >
-                Go to my dashboard →
+                View my profile →
               </button>
             </div>
           </div>
@@ -142,6 +139,21 @@ export default function WelcomePage() {
           .wl-sub { font-size: 0.9rem; color: #8fa3b8; margin: 0; line-height: 1.6; }
           .wl-submit { padding: 14px; background: #d97706; color: #fff; border: none; border-radius: 999px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s; width: 100%; font-family: inherit; margin-top: 0.5rem; }
           .wl-submit:hover { opacity: 0.88; }
+        `}</style>
+      </>
+    );
+  }
+
+  // Loading state — prevents flash of role form while checking session/invite
+  if (checking) {
+    return (
+      <>
+        <div className="wl-root" style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ color:"rgba(255,255,255,0.25)", fontSize:"0.9rem" }}>Loading…</div>
+        </div>
+        <style>{`
+          body:has(.wl-root) .app-footer { display: none !important; }
+          .wl-root { position: fixed; inset: 0; font-family: 'DM Sans', system-ui, sans-serif; background: #080c12; z-index: 9000; }
         `}</style>
       </>
     );

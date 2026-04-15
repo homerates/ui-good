@@ -9,8 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../lib/supabaseServer";
 
-const LO_SELECT = "id, email, lender, nmls, license_state, company_nmls, title, bio, phone, website, office_address";
-const AGENT_SELECT = "id, brokerage, license, title, bio, phone, website, office_address";
+const LO_SELECT = "id, email, lender, nmls, license_state, company_nmls, title, bio, phone, website, office_address, is_founding_member";
+const AGENT_SELECT = "id, brokerage, license, title, bio, phone, website, office_address, is_founding_member";
 
 export async function GET() {
   const { userId } = await auth();

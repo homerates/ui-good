@@ -24,6 +24,7 @@ interface ProfileData {
     phone?: string | null;
     website?: string | null;
     office_address?: string | null;
+    is_founding_member?: boolean;
   } | null;
   agent: {
     brokerage?: string | null;
@@ -33,6 +34,7 @@ interface ProfileData {
     phone?: string | null;
     website?: string | null;
     office_address?: string | null;
+    is_founding_member?: boolean;
   } | null;
 }
 
@@ -187,6 +189,17 @@ export default function ProfilePage() {
             <div className="pr-loading">Loading profile...</div>
           ) : (
             <form className="pr-form" onSubmit={save}>
+
+              {/* Founding Member badge */}
+              {(data?.lo?.is_founding_member || data?.agent?.is_founding_member) && (
+                <div style={{ display:"flex", alignItems:"center", gap:"12px", background:"rgba(217,119,6,0.08)", border:"1px solid rgba(217,119,6,0.25)", borderRadius:12, padding:"14px 18px", marginBottom:"1.5rem" }}>
+                  <span style={{ fontSize:"1.5rem" }}>🏅</span>
+                  <div>
+                    <div style={{ fontSize:"0.78rem", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:"#d97706", marginBottom:2 }}>Founding 500 Member</div>
+                    <div style={{ fontSize:"0.82rem", color:"rgba(255,255,255,0.5)", lineHeight:1.4 }}>Your Founding Member badge is live on your public profile. You&apos;re locked in at founding pricing.</div>
+                  </div>
+                </div>
+              )}
 
               {/* Account info */}
               <div className="pr-section">
