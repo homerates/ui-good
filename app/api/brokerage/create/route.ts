@@ -15,8 +15,11 @@ export async function POST(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
-  const { name } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: "Brokerage name is required" }, { status: 400 });
+  const { name, org_type, website } = await req.json();
+  if (!name?.trim()) return NextResponse.json({ error: "Organization name is required" }, { status: 400 });
+
+  const VALID_ORG_TYPES = ["brokerage", "lender", "credit_union", "re_brokerage"];
+  const orgType = VALID_ORG_TYPES.includes(org_type) ? org_type : "brokerage";
 
   // Must be an LO
   const { data: lo } = await sb
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
   // Create brokerage
   const { data: brokerage, error: createErr } = await sb
     .from("brokerages")
-    .insert({ name: name.trim(), owner_user_id: userId })
+    .insert({ name: name.trim(), owner_user_id: userId, org_type: orgType, website: website?.trim() || null })
     .select("id, invite_token")
     .single();
 
