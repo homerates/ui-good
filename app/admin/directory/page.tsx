@@ -112,7 +112,7 @@ export default function AdminDirectory() {
       load(buildParams({ page: 0 }));
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [q, status, source, type, isLoaded, user]);
+  }, [q, status, source, type, isLoaded, user, isAdmin, adminLoading]);
 
   useEffect(() => {
     if (!isLoaded || adminLoading || !isAdmin) return;
