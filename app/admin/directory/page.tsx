@@ -3,6 +3,7 @@
 // Admin directory — search, filter, flag/restore listings
 
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -68,6 +69,9 @@ export default function AdminDirectory() {
   const [f500Email, setF500Email]   = useState("");
   const [f500Sending, setF500Sending] = useState(false);
   const [f500Result, setF500Result]   = useState<{ ok: boolean; message: string } | null>(null);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -435,135 +439,146 @@ export default function AdminDirectory() {
         </div>
       </div>
 
-      {/* Invite modal */}
-      {/* Founding 500 invite modal */}
-      {f500Target && (
-        <div className="addir-modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setF500Target(null); setF500Result(null); } }}>
-          <div className="addir-modal">
-            <h3 style={{ color: "#d97706" }}>🏅 Invite to Founding 500</h3>
-            <p>
-              <strong style={{ color: "#f0f4ff" }}>{f500Target.name}</strong><br />
+      {/* Portals — rendered directly into document.body to escape overflow/stacking constraints */}
+      {mounted && f500Target && createPortal(
+        <div
+          onClick={e => { if (e.target === e.currentTarget) { setF500Target(null); setF500Result(null); } }}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}
+        >
+          <div style={{ background:"#0e1420", border:"1px solid rgba(255,255,255,0.12)", borderRadius:16, padding:"1.5rem", maxWidth:440, width:"100%", fontFamily:"'DM Sans',system-ui,sans-serif" }}>
+            <h3 style={{ margin:"0 0 0.5rem", fontSize:"1rem", fontWeight:700, color:"#d97706" }}>🏅 Invite to Founding 500</h3>
+            <p style={{ fontSize:"0.85rem", color:"rgba(255,255,255,0.5)", margin:"0 0 0.5rem", lineHeight:1.5 }}>
+              <strong style={{ color:"#f0f4ff" }}>{f500Target.name}</strong><br />
               {PRO_TYPE_LABEL[f500Target.pro_type] ?? f500Target.pro_type}
               {f500Target.city ? ` · ${f500Target.city}, ${f500Target.state}` : ` · ${f500Target.state}`}
             </p>
             {f500Target.company_name && (
-              <p style={{ margin: "-8px 0 12px", fontSize: "0.82rem", color: "rgba(255,255,255,0.35)" }}>
+              <p style={{ margin:"0 0 1rem", fontSize:"0.82rem", color:"rgba(255,255,255,0.35)" }}>
                 {f500Target.company_name}
               </p>
             )}
             <input
-              className="addir-modal-input"
               type="email"
               placeholder="Their email address"
               value={f500Email}
               onChange={e => { setF500Email(e.target.value); setF500Result(null); }}
               onKeyDown={e => { if (e.key === "Enter") handleF500Invite(); }}
-              style={{ borderColor: f500Result ? (f500Result.ok ? "rgba(0,232,122,0.3)" : "rgba(255,95,95,0.3)") : undefined }}
+              style={{ width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.05)", border:`1px solid ${f500Result ? (f500Result.ok ? "rgba(0,232,122,0.3)" : "rgba(255,95,95,0.3)") : "rgba(255,255,255,0.1)"}`, borderRadius:8, padding:"0.6rem 0.8rem", color:"#f0f4ff", fontSize:"0.9rem", fontFamily:"inherit", outline:"none", marginTop:"0.25rem" }}
             />
             {f500Result && (
-              <div className={`addir-invite-result ${f500Result.ok ? "ok" : "err"}`}>
+              <div style={{ fontSize:"0.8rem", marginTop:"0.5rem", padding:"0.4rem 0.6rem", borderRadius:6, background: f500Result.ok ? "rgba(0,232,122,0.08)" : "rgba(255,95,95,0.08)", color: f500Result.ok ? "#00e87a" : "#ff5f5f" }}>
                 {f500Result.message}
               </div>
             )}
-            <div className="addir-modal-actions">
+            <div style={{ display:"flex", gap:"0.5rem", justifyContent:"flex-end", marginTop:"1rem" }}>
               <button
-                className="addir-modal-btn cancel"
                 onClick={() => { setF500Target(null); setF500Result(null); setF500Email(""); }}
+                style={{ padding:"0.5rem 1rem", borderRadius:8, fontSize:"0.82rem", fontWeight:700, cursor:"pointer", border:"none", background:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.6)" }}
               >
                 {f500Result?.ok ? "Done" : "Cancel"}
               </button>
               {!f500Result?.ok && (
                 <button
-                  className="addir-modal-btn"
-                  style={{ background: "rgba(217,119,6,0.15)", color: "#d97706" }}
                   disabled={f500Sending || !f500Email.trim()}
                   onClick={handleF500Invite}
+                  style={{ padding:"0.5rem 1rem", borderRadius:8, fontSize:"0.82rem", fontWeight:700, cursor:"pointer", border:"none", background:"rgba(217,119,6,0.18)", color:"#d97706", opacity: (f500Sending || !f500Email.trim()) ? 0.5 : 1 }}
                 >
                   {f500Sending ? "Sending…" : "Send founding invite →"}
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {inviteTarget && (
-        <div className="addir-modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setInviteTarget(null); setInviteResult(null); } }}>
-          <div className="addir-modal">
-            <h3>Invite to claim listing</h3>
-            <p>
-              <strong style={{ color: "#f0f4ff" }}>{inviteTarget.name}</strong><br />
+      {mounted && inviteTarget && createPortal(
+        <div
+          onClick={e => { if (e.target === e.currentTarget) { setInviteTarget(null); setInviteResult(null); } }}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}
+        >
+          <div style={{ background:"#0e1420", border:"1px solid rgba(255,255,255,0.12)", borderRadius:16, padding:"1.5rem", maxWidth:440, width:"100%", fontFamily:"'DM Sans',system-ui,sans-serif" }}>
+            <h3 style={{ margin:"0 0 0.5rem", fontSize:"1rem", fontWeight:700, color:"#f0f4ff" }}>Invite to claim listing</h3>
+            <p style={{ fontSize:"0.85rem", color:"rgba(255,255,255,0.5)", margin:"0 0 1rem", lineHeight:1.5 }}>
+              <strong style={{ color:"#f0f4ff" }}>{inviteTarget.name}</strong><br />
               {PRO_TYPE_LABEL[inviteTarget.pro_type] ?? inviteTarget.pro_type}
               {inviteTarget.city ? ` · ${inviteTarget.city}, ${inviteTarget.state}` : ""}
             </p>
             <input
-              className="addir-modal-input"
               type="email"
               placeholder="Pro's email address"
               value={inviteEmail}
               onChange={e => { setInviteEmail(e.target.value); setInviteResult(null); }}
               onKeyDown={e => { if (e.key === "Enter") handleInvite(); }}
+              style={{ width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"0.6rem 0.8rem", color:"#f0f4ff", fontSize:"0.9rem", fontFamily:"inherit", outline:"none" }}
             />
             {inviteResult && (
-              <div className={`addir-invite-result ${inviteResult.ok ? "ok" : "err"}`}>
+              <div style={{ fontSize:"0.8rem", marginTop:"0.5rem", padding:"0.4rem 0.6rem", borderRadius:6, background: inviteResult.ok ? "rgba(0,232,122,0.08)" : "rgba(255,95,95,0.08)", color: inviteResult.ok ? "#00e87a" : "#ff5f5f" }}>
                 {inviteResult.message}
               </div>
             )}
-            <div className="addir-modal-actions">
+            <div style={{ display:"flex", gap:"0.5rem", justifyContent:"flex-end", marginTop:"1rem" }}>
               <button
-                className="addir-modal-btn cancel"
                 onClick={() => { setInviteTarget(null); setInviteResult(null); setInviteEmail(""); }}
+                style={{ padding:"0.5rem 1rem", borderRadius:8, fontSize:"0.82rem", fontWeight:700, cursor:"pointer", border:"none", background:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.6)" }}
               >
                 {inviteResult?.ok ? "Close" : "Cancel"}
               </button>
               {!inviteResult?.ok && (
                 <button
-                  className="addir-modal-btn confirm-invite"
                   disabled={inviting || !inviteEmail.trim()}
                   onClick={handleInvite}
+                  style={{ padding:"0.5rem 1rem", borderRadius:8, fontSize:"0.82rem", fontWeight:700, cursor:"pointer", border:"none", background:"rgba(61,139,255,0.15)", color:"#3d8bff", opacity: (inviting || !inviteEmail.trim()) ? 0.5 : 1 }}
                 >
                   {inviting ? "Sending…" : "Send invite"}
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Action modal */}
-      {actionTarget && (
-        <div className="addir-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setActionTarget(null); }}>
-          <div className="addir-modal">
-            <h3>
+      {mounted && actionTarget && createPortal(
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setActionTarget(null); }}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}
+        >
+          <div style={{ background:"#0e1420", border:"1px solid rgba(255,255,255,0.12)", borderRadius:16, padding:"1.5rem", maxWidth:440, width:"100%", fontFamily:"'DM Sans',system-ui,sans-serif" }}>
+            <h3 style={{ margin:"0 0 0.5rem", fontSize:"1rem", fontWeight:700, color:"#f0f4ff" }}>
               {(actionTarget as any)._action === "flag" ? "Flag this listing" : "Restore this listing"}
             </h3>
-            <p>
-              <strong style={{ color: "#f0f4ff" }}>{actionTarget.name}</strong><br />
+            <p style={{ fontSize:"0.85rem", color:"rgba(255,255,255,0.5)", margin:"0 0 1rem", lineHeight:1.5 }}>
+              <strong style={{ color:"#f0f4ff" }}>{actionTarget.name}</strong><br />
               {actionTarget.city}, {actionTarget.state} · {actionTarget.license_type ?? actionTarget.pro_type}
               {(actionTarget as any)._action === "flag"
                 ? " — This listing will be hidden from the public directory."
                 : " — This listing will be restored to Active status."}
             </p>
             <textarea
-              className="addir-modal-textarea"
               placeholder="Reason / notes (optional)"
               value={actionNote}
               onChange={e => setActionNote(e.target.value)}
+              style={{ width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"0.6rem", color:"#f0f4ff", fontSize:"0.82rem", resize:"vertical", minHeight:60, fontFamily:"inherit", outline:"none", marginTop:"0.25rem" }}
             />
-            <div className="addir-modal-actions">
-              <button className="addir-modal-btn cancel" onClick={() => { setActionTarget(null); setActionNote(""); }}>
+            <div style={{ display:"flex", gap:"0.5rem", justifyContent:"flex-end", marginTop:"1rem" }}>
+              <button
+                onClick={() => { setActionTarget(null); setActionNote(""); }}
+                style={{ padding:"0.5rem 1rem", borderRadius:8, fontSize:"0.82rem", fontWeight:700, cursor:"pointer", border:"none", background:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.6)" }}
+              >
                 Cancel
               </button>
               <button
-                className={`addir-modal-btn ${(actionTarget as any)._action === "flag" ? "confirm-flag" : "confirm-restore"}`}
                 disabled={acting}
                 onClick={() => handleAction(actionTarget, (actionTarget as any)._action)}
+                style={{ padding:"0.5rem 1rem", borderRadius:8, fontSize:"0.82rem", fontWeight:700, cursor:"pointer", border:"none", background: (actionTarget as any)._action === "flag" ? "rgba(255,95,95,0.15)" : "rgba(0,232,122,0.15)", color: (actionTarget as any)._action === "flag" ? "#ff5f5f" : "#00e87a", opacity: acting ? 0.5 : 1 }}
               >
                 {acting ? "Saving…" : (actionTarget as any)._action === "flag" ? "Flag listing" : "Restore listing"}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
