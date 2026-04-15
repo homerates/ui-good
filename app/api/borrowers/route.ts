@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
+import { emailBorrowerWelcome } from "../../../lib/sendEmail";
+import { clerkClient } from "@clerk/nextjs/server";
 
 export async function GET() {
     const { userId } = await auth();
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
         // 2️⃣ Find LO profile for this user
         const { data: lo, error: loError } = await supabase
             .from("loan_officers")
-            .select("id, allowed_borrower_slots")
+            .select("id, allowed_borrower_slots, email, lender")
             .eq("user_id", userId)
             .single();
 
@@ -141,6 +143,8 @@ export async function POST(req: NextRequest) {
 
         const name: string = body.name;
         const email: string | null = body.email ?? null;
+        const propertyAddress: string | null = body.property_address ?? null;
+        const sendWelcome: boolean = body.send_welcome === true && !!email;
 
         // 5️⃣ Create the borrower
         const { data: newBorrower, error: insertError } = await supabase
@@ -148,7 +152,9 @@ export async function POST(req: NextRequest) {
             .insert({
                 loan_officer_id: lo.id,
                 name,
-                email
+                email,
+                property_address: propertyAddress,
+                source: "lo_quick_add",
             })
             .select()
             .single();
@@ -159,6 +165,36 @@ export async function POST(req: NextRequest) {
                 { error: "Failed to create borrower" },
                 { status: 500 }
             );
+        }
+
+        // 6️⃣ Send welcome email if requested (fire-and-forget)
+        if (sendWelcome && email) {
+            try {
+                const clerk = await clerkClient();
+                const loClerk = await clerk.users.getUser(userId);
+                const loName = [loClerk.firstName, loClerk.lastName].filter(Boolean).join(" ") || lo.email || "Your loan officer";
+                const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
+                const inviteUrl = `${baseUrl}/sign-up`;
+
+                // Fetch today's rate for teaser — best-effort
+                let liveRate = 6.85;
+                try {
+                    const fred = await fetch(`${baseUrl}/api/fred`);
+                    if (fred.ok) { const d = await fred.json(); liveRate = d.rate ?? liveRate; }
+                } catch { /* non-fatal */ }
+
+                emailBorrowerWelcome({
+                    toEmail: email,
+                    firstName: name.split(" ")[0] || null,
+                    loName,
+                    loLender: lo.lender ?? null,
+                    inviteUrl,
+                    liveRate,
+                    propertyAddress,
+                });
+            } catch (e) {
+                console.error("Welcome email error (non-fatal):", e);
+            }
         }
 
         return NextResponse.json(

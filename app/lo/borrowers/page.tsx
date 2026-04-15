@@ -39,6 +39,11 @@ export default function LoBorrowersPage() {
     const [giftOk, setGiftOk] = React.useState<string | null>(null);
     const [giftErr, setGiftErr] = React.useState<string | null>(null);
     const [deleting, setDeleting] = React.useState<string | null>(null);
+    // Quick-add state
+    const [quickAddOpen, setQuickAddOpen] = React.useState(false);
+    const [quickAdding, setQuickAdding] = React.useState(false);
+    const [quickAddOk, setQuickAddOk] = React.useState(false);
+    const [quickForm, setQuickForm] = React.useState({ name: "", email: "", address: "", sendWelcome: true });
 
     React.useEffect(() => {
         if (isLoaded && !isSignedIn) {
@@ -72,6 +77,34 @@ export default function LoBorrowersPage() {
             else { setInviteUrl(data.inviteUrl || null); setInviteCode(data.code || null); }
         } catch { setError("Unexpected error. Please try again."); }
         setCreating(false);
+    }
+
+    async function handleQuickAdd(e: React.FormEvent) {
+        e.preventDefault();
+        if (!quickForm.name || !quickForm.email) return;
+        setQuickAdding(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/borrowers", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: quickForm.name.trim(),
+                    email: quickForm.email.trim(),
+                    property_address: quickForm.address.trim() || null,
+                    send_welcome: quickForm.sendWelcome,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) { setError(data.error ?? "Failed to add borrower."); }
+            else {
+                setBorrowers(prev => [data.borrower, ...prev]);
+                setQuickAddOk(true);
+                setQuickForm({ name: "", email: "", address: "", sendWelcome: true });
+                setTimeout(() => { setQuickAddOk(false); setQuickAddOpen(false); }, 3000);
+            }
+        } catch { setError("Unexpected error. Please try again."); }
+        setQuickAdding(false);
     }
 
     async function handleCopy() {
@@ -164,15 +197,92 @@ export default function LoBorrowersPage() {
                         </p>
                     )}
                 </div>
-                <button type="button" onClick={handleCreateInvite} disabled={creating} style={{
-                    padding: "9px 18px", borderRadius: 999, border: "none",
-                    background: creating ? "rgba(0,232,122,0.3)" : "#00e87a",
-                    color: creating ? "rgba(8,12,18,0.5)" : "#080c12",
-                    fontSize: "0.88rem", fontWeight: 600, cursor: creating ? "default" : "pointer", whiteSpace: "nowrap",
-                }}>
-                    {creating ? "Creating…" : "+ Invite Borrower"}
-                </button>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => { setQuickAddOpen(o => !o); setError(null); }} style={{
+                        padding: "9px 18px", borderRadius: 999, border: "1px solid rgba(0,232,122,0.4)",
+                        background: quickAddOpen ? "rgba(0,232,122,0.1)" : "transparent",
+                        color: "#00e87a", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                    }}>
+                        + Add by Email
+                    </button>
+                    <button type="button" onClick={handleCreateInvite} disabled={creating} style={{
+                        padding: "9px 18px", borderRadius: 999, border: "none",
+                        background: creating ? "rgba(0,232,122,0.3)" : "#00e87a",
+                        color: creating ? "rgba(8,12,18,0.5)" : "#080c12",
+                        fontSize: "0.88rem", fontWeight: 600, cursor: creating ? "default" : "pointer", whiteSpace: "nowrap",
+                    }}>
+                        {creating ? "Creating…" : "+ Invite Link"}
+                    </button>
+                </div>
             </div>
+
+            {/* Quick-add panel */}
+            {quickAddOpen && (
+                <section style={{
+                    padding: "18px 20px", borderRadius: 12, marginBottom: 20,
+                    border: "1px solid rgba(0,232,122,0.2)", background: "rgba(0,232,122,0.03)",
+                }}>
+                    <p style={{ margin: "0 0 14px", fontSize: "0.88rem", fontWeight: 600, color: "#e0f0e8" }}>
+                        Add a borrower by email
+                    </p>
+                    <p style={{ margin: "0 0 16px", fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", lineHeight: 1.6 }}>
+                        They'll receive a welcome email from you with today's rate and a link to activate their free account.
+                        A one-click unsubscribe is included in every email.
+                    </p>
+                    {quickAddOk ? (
+                        <p style={{ color: "#00e87a", fontSize: "0.88rem", fontWeight: 600 }}>
+                            ✓ Borrower added{quickForm.sendWelcome ? " and welcome email sent" : ""}
+                        </p>
+                    ) : (
+                        <form onSubmit={handleQuickAdd} style={{ display: "grid", gap: 10 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                <input
+                                    type="text" required placeholder="Full name"
+                                    value={quickForm.name}
+                                    onChange={e => setQuickForm(p => ({ ...p, name: e.target.value }))}
+                                    style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                />
+                                <input
+                                    type="email" required placeholder="Email address"
+                                    value={quickForm.email}
+                                    onChange={e => setQuickForm(p => ({ ...p, email: e.target.value }))}
+                                    style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                />
+                            </div>
+                            <input
+                                type="text" placeholder="Property address (optional — enhances welcome email)"
+                                value={quickForm.address}
+                                onChange={e => setQuickForm(p => ({ ...p, address: e.target.value }))}
+                                style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                            />
+                            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.82rem", color: "rgba(185,208,192,0.7)", cursor: "pointer" }}>
+                                <input
+                                    type="checkbox" checked={quickForm.sendWelcome}
+                                    onChange={e => setQuickForm(p => ({ ...p, sendWelcome: e.target.checked }))}
+                                    style={{ accentColor: "#00e87a", width: 14, height: 14 }}
+                                />
+                                Send welcome email with today's rate &amp; account activation link
+                            </label>
+                            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                                <button type="submit" disabled={quickAdding} style={{
+                                    padding: "9px 20px", borderRadius: 999, border: "none",
+                                    background: quickAdding ? "rgba(0,232,122,0.3)" : "#00e87a",
+                                    color: "#080c12", fontSize: "0.85rem", fontWeight: 700, cursor: quickAdding ? "default" : "pointer",
+                                }}>
+                                    {quickAdding ? "Adding…" : "Add Borrower"}
+                                </button>
+                                <button type="button" onClick={() => setQuickAddOpen(false)} style={{
+                                    padding: "9px 16px", borderRadius: 999,
+                                    border: "1px solid rgba(148,163,184,0.2)", background: "transparent",
+                                    color: "rgba(185,208,192,0.5)", fontSize: "0.85rem", cursor: "pointer",
+                                }}>
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                </section>
+            )}
 
             {/* Invite result */}
             {(inviteUrl || error) && (

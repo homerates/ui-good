@@ -3,6 +3,7 @@
 // All functions are fire-and-forget safe — they log errors but never throw.
 
 import { Resend } from "resend";
+import { unsubscribeUrl, isEmailSuppressed } from "./unsubscribe";
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? "digest@homerates.ai";
 const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
@@ -17,7 +18,18 @@ function getResend(): Resend | null {
 // Light design — white card, green accent bar, logo on white.
 // Light emails are never inverted by Gmail Android dark mode.
 
-export function emailShell(bodyHtml: string, footerText = "HomeRates.ai · homerates.ai"): string {
+// Physical address required by CAN-SPAM §7(a)(5)
+const PHYSICAL_ADDRESS = process.env.BUSINESS_MAILING_ADDRESS ?? "548 Market St PMB 12345, San Francisco, CA 94104";
+
+export function emailShell(
+  bodyHtml: string,
+  footerText = "HomeRates.ai · homerates.ai",
+  unsubscribeUrl?: string,
+): string {
+  const unsubLine = unsubscribeUrl
+    ? `<br><a href="${unsubscribeUrl}" style="color:#9aa3af;">Unsubscribe</a> · ${PHYSICAL_ADDRESS}`
+    : `<br>${PHYSICAL_ADDRESS}`;
+
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f0f2f5;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:32px 16px;">
@@ -30,7 +42,7 @@ export function emailShell(bodyHtml: string, footerText = "HomeRates.ai · homer
 ${bodyHtml}
 </td></tr>
 <tr><td style="background:#f8f9fb;padding:20px 32px;border-top:1px solid #e8ecf0;border-radius:0 0 16px 16px;">
-<p style="margin:0;font-size:11px;color:#9aa3af;line-height:1.6;">${footerText}</p>
+<p style="margin:0;font-size:11px;color:#9aa3af;line-height:1.6;">${footerText}${unsubLine}</p>
 </td></tr>
 </table>
 </td></tr>
@@ -616,5 +628,102 @@ export async function emailFoundingUrgency({
     });
   } catch (err) {
     console.error("[sendEmail] emailFoundingUrgency failed:", err);
+  }
+}
+
+// ─── LO → Borrower welcome / teaser ─────────────────────────────────────────
+// Sent when an LO adds a borrower by email (quick-add, no invite code needed).
+// CAN-SPAM compliant: clear sender, unsubscribe link, physical address in footer.
+
+export async function emailBorrowerWelcome({
+  toEmail,
+  firstName,
+  loName,
+  loLender,
+  inviteUrl,
+  liveRate,
+  propertyAddress,
+}: {
+  toEmail:         string;
+  firstName:       string | null;
+  loName:          string;
+  loLender:        string | null;
+  inviteUrl:       string;
+  liveRate:        number;
+  propertyAddress: string | null;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  // Respect suppression list
+  if (await isEmailSuppressed(toEmail)) return;
+
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const lenderLine = loLender ? ` at ${loLender}` : "";
+  const unsub = unsubscribeUrl(toEmail);
+
+  const propertySection = propertyAddress ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:10px;">
+      <tr><td style="padding:14px 20px;">
+        <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Property on file</p>
+        <p style="margin:0;font-size:14px;font-weight:600;color:#1a2530;">${propertyAddress}</p>
+      </td></tr>
+    </table>` : "";
+
+  try {
+    await resend.emails.send({
+      from: `${loName} via HomeRates.ai <${FROM}>`,
+      to: toEmail,
+      subject: `${loName} added you to HomeRates.ai`,
+      headers: {
+        "List-Unsubscribe": `<${unsub}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Your loan officer added you</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">${greeting}</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#6b7a8d;line-height:1.7;">
+          <strong style="color:#1a2530;">${loName}</strong>${lenderLine} has added you to HomeRates.ai —
+          a free AI mortgage assistant that keeps you current on rates, home values, and your financing options.
+        </p>
+
+        ${propertySection}
+
+        <!-- Live rate teaser -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:10px;">
+          <tr>
+            <td style="padding:16px 20px;border-right:1px solid #e2e8f0;" width="50%">
+              <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Today's 30Y Rate</p>
+              <p style="margin:0;font-size:24px;font-weight:800;color:#008a48;">${liveRate.toFixed(2)}%</p>
+            </td>
+            <td style="padding:16px 20px;" width="50%">
+              <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">What you get</p>
+              <p style="margin:0;font-size:13px;color:#1a2530;line-height:1.5;">Monthly home value report · Rate alerts · AI Q&amp;A</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Value bullets -->
+        <div style="background:#f4f6f9;border-left:3px solid #00e87a;border-radius:0 8px 8px 0;padding:14px 18px;margin:0 0 28px;">
+          <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#080c12;">Your free account includes:</p>
+          <p style="margin:0;font-size:13px;color:#374151;line-height:1.8;">
+            ✓ Monthly home equity &amp; value snapshot<br>
+            ✓ Instant rate &amp; payment AI calculator<br>
+            ✓ Private messaging with your loan officer<br>
+            ✓ Refi opportunity alerts when rates drop
+          </p>
+        </div>
+
+        <a href="${inviteUrl}"
+           style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:14px 20px;border-radius:999px;text-decoration:none;">
+          Activate your free account →
+        </a>
+      `,
+      `Sent by ${loName}${lenderLine} via HomeRates.ai. You received this because your loan officer added your email. This is not a solicitation to lend.`,
+      unsub,
+    ),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailBorrowerWelcome failed:", err);
   }
 }
