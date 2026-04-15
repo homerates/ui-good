@@ -727,3 +727,61 @@ export async function emailBorrowerWelcome({
     console.error("[sendEmail] emailBorrowerWelcome failed:", err);
   }
 }
+
+// ─── Corporate invite: admin → org contact ───────────────────────────────────
+
+export async function emailCorporateInvite({
+  toEmail,
+  contactName,
+  orgName,
+  orgTypeLabel,
+  claimUrl,
+  invitedByName,
+  notes,
+}: {
+  toEmail: string;
+  contactName: string | null;
+  orgName: string;
+  orgTypeLabel: string;
+  claimUrl: string;
+  invitedByName: string;
+  notes?: string | null;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const greeting = contactName ? `Hi ${contactName},` : "Hello,";
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to: toEmail,
+      subject: `${orgName} has been invited to HomeRates.ai`,
+      html: emailShell(`
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">${orgTypeLabel} Invitation</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#080c12;line-height:1.2;">${orgName} is invited to HomeRates.ai</p>
+        <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">${greeting}</p>
+        <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+          ${invitedByName} from HomeRates.ai has personally invited your organization to join the platform.
+          HomeRates.ai gives your licensed professionals AI-powered mortgage tools, live FRED rate data, borrower management, and a searchable professional directory — all on individual plans.
+        </p>
+        ${notes ? `<div style="background:#f8f9fb;border-left:3px solid #00e87a;padding:12px 16px;margin:0 0 20px;border-radius:4px;"><p style="margin:0;font-size:14px;color:#374151;line-height:1.6;font-style:italic;">${notes}</p></div>` : ""}
+        <p style="margin:0 0 8px;font-size:14px;color:#6b7280;">What you get with a corporate account:</p>
+        <ul style="margin:0 0 24px;padding-left:20px;font-size:14px;color:#374151;line-height:2;">
+          <li>One organization dashboard to track your team's activity</li>
+          <li>Compliance approval — authorize your professionals to use the platform</li>
+          <li>Priority enterprise support and onboarding</li>
+          <li>Individual subscription pricing (each professional manages their own plan)</li>
+        </ul>
+        <a href="${claimUrl}" style="display:inline-block;background:#00e87a;color:#080c12;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:999px;">
+          Set up your organization →
+        </a>
+        <p style="margin:20px 0 0;font-size:12px;color:#9aa3af;">
+          This invitation link is unique to your organization. Questions? Reply to this email or contact ${invitedByName} at HomeRates.ai.
+        </p>
+      `),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailCorporateInvite failed:", err);
+  }
+}

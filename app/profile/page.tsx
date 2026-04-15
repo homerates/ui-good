@@ -66,6 +66,16 @@ export default function ProfilePage() {
   const [redeeming, setRedeeming] = useState(false);
   const [redeemMsg, setRedeemMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // Org nomination
+  const [nomOrgName, setNomOrgName]     = useState("");
+  const [nomOrgType, setNomOrgType]     = useState("brokerage");
+  const [nomEmail, setNomEmail]         = useState("");
+  const [nomWebsite, setNomWebsite]     = useState("");
+  const [nomNotes, setNomNotes]         = useState("");
+  const [nomSubmitting, setNomSubmitting] = useState(false);
+  const [nomDone, setNomDone]           = useState(false);
+  const [nomErr, setNomErr]             = useState("");
+
   // Form fields
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("borrower");
@@ -592,6 +602,92 @@ export default function ProfilePage() {
                 )}
               </div>
 
+              {/* Nominate your organization */}
+              <div className="pr-section">
+                <div className="pr-section-title">Nominate your organization</div>
+                {nomDone ? (
+                  <div style={{ fontSize: "0.875rem", color: "#00e87a" }}>
+                    ✓ Nomination submitted — our team will reach out to your organization.
+                  </div>
+                ) : (
+                  <>
+                    <p style={{ fontSize: "0.82rem", color: "#8fa3b8", margin: "0 0 14px", lineHeight: 1.6 }}>
+                      Is your company not yet on HomeRates.ai? Let us know and we&apos;ll reach out to set up a corporate account with priority onboarding.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <select
+                          value={nomOrgType}
+                          onChange={e => setNomOrgType(e.target.value)}
+                          className="pr-input"
+                          style={{ flex: "1 1 140px", appearance: "none" }}
+                        >
+                          <option value="brokerage">Mortgage Brokerage</option>
+                          <option value="lender">Lender / Bank</option>
+                          <option value="credit_union">Credit Union</option>
+                          <option value="re_brokerage">RE Brokerage</option>
+                        </select>
+                        <input
+                          className="pr-input"
+                          style={{ flex: "2 1 180px" }}
+                          placeholder="Organization name *"
+                          value={nomOrgName}
+                          onChange={e => setNomOrgName(e.target.value)}
+                        />
+                      </div>
+                      <input
+                        className="pr-input"
+                        type="email"
+                        placeholder="Corporate contact email (optional)"
+                        value={nomEmail}
+                        onChange={e => setNomEmail(e.target.value)}
+                      />
+                      <input
+                        className="pr-input"
+                        type="url"
+                        placeholder="Website (optional)"
+                        value={nomWebsite}
+                        onChange={e => setNomWebsite(e.target.value)}
+                      />
+                      <textarea
+                        className="pr-input"
+                        style={{ resize: "vertical", minHeight: 60, fontFamily: "inherit" }}
+                        placeholder="Any notes for our team (optional)"
+                        value={nomNotes}
+                        onChange={e => setNomNotes(e.target.value)}
+                        rows={2}
+                      />
+                      {nomErr && <div className="pr-error">{nomErr}</div>}
+                      <button
+                        type="button"
+                        disabled={nomSubmitting || !nomOrgName.trim()}
+                        onClick={async () => {
+                          setNomSubmitting(true); setNomErr("");
+                          const res = await fetch("/api/org/nominate", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ org_name: nomOrgName, org_type: nomOrgType, contact_email: nomEmail || undefined, website: nomWebsite || undefined, notes: nomNotes || undefined }),
+                          });
+                          const d = await res.json();
+                          if (!res.ok) { setNomErr(d.error ?? "Failed to submit"); } else { setNomDone(true); }
+                          setNomSubmitting(false);
+                        }}
+                        style={{
+                          alignSelf: "flex-start", padding: "9px 20px",
+                          background: "rgba(0,232,122,0.1)", color: "#00e87a",
+                          border: "1px solid rgba(0,232,122,0.3)", borderRadius: 999,
+                          fontSize: "0.82rem", fontWeight: 700, cursor: nomSubmitting ? "not-allowed" : "pointer",
+                          opacity: (nomSubmitting || !nomOrgName.trim()) ? 0.5 : 1,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {nomSubmitting ? "Submitting…" : "Nominate organization →"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
               {/* Save / status */}
               {error && <div className="pr-error">{error}</div>}
               {saved && <div className="pr-success">✓ Profile saved</div>}
@@ -687,6 +783,13 @@ export default function ProfilePage() {
           background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px;
         }
 
+        .pr-input {
+          padding: 10px 13px; background: #141b28;
+          border: 1px solid rgba(255,255,255,0.08); border-radius: 9px;
+          color: #f0f4ff; font-size: 0.875rem; outline: none; font-family: inherit;
+          width: 100%; box-sizing: border-box; transition: border-color 0.15s;
+        }
+        .pr-input:focus { border-color: rgba(0,232,122,0.4); }
         .pr-readonly {
           padding: 11px 14px;
           background: rgba(255,255,255,0.02);
