@@ -39,6 +39,8 @@ export default function OrgClaimPage({ params }: { params: Promise<{ token: stri
   const [submitting, setSubmitting]   = useState(false);
   const [submitErr, setSubmitErr]     = useState("");
   const [done, setDone]               = useState(false);
+  const [userRole, setUserRole]       = useState<string | null>(null);
+  const [roleLoading, setRoleLoading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/org/claim?token=${token}`)
@@ -51,6 +53,17 @@ export default function OrgClaimPage({ params }: { params: Promise<{ token: stri
       })
       .catch(() => { setLoadErr("Could not load invitation"); setLoading(false); });
   }, [token]);
+
+  // Once signed in, check if user has a professional profile
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    setRoleLoading(true);
+    fetch("/api/identity")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { role?: string } | null) => { setUserRole(d?.role ?? "borrower"); })
+      .catch(() => setUserRole("borrower"))
+      .finally(() => setRoleLoading(false));
+  }, [isLoaded, isSignedIn]);
 
   async function handleClaim(e: React.FormEvent) {
     e.preventDefault();
@@ -158,6 +171,25 @@ export default function OrgClaimPage({ params }: { params: Promise<{ token: stri
                     >
                       Create account
                     </a>
+                  </div>
+                ) : roleLoading ? (
+                  <div style={{ fontSize: "0.875rem", color: "#8fa3b8" }}>Checking your account…</div>
+                ) : userRole !== "lo" && userRole !== "agent" ? (
+                  <div className="oc-role-gate">
+                    <div className="oc-role-gate-icon">⚠</div>
+                    <div className="oc-role-gate-title">Professional profile required</div>
+                    <p className="oc-role-gate-body">
+                      This invitation is for a licensed professional — Loan Officer, Mortgage Broker, or Real Estate Agent.
+                      You&apos;re currently signed in as a borrower account.
+                    </p>
+                    <p className="oc-role-gate-body">
+                      To claim <strong>{invite.org_name}</strong>, please sign in with your professional account or
+                      complete your professional profile first.
+                    </p>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <a href="/profile" className="oc-btn">Set up professional profile →</a>
+                      <a href={`/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`} className="oc-btn-ghost">Sign in with different account</a>
+                    </div>
                   </div>
                 ) : (
                   <form onSubmit={handleClaim} className="oc-form">
@@ -337,6 +369,24 @@ export default function OrgClaimPage({ params }: { params: Promise<{ token: stri
           border: 1px solid rgba(255,95,95,0.2); border-radius: 10px;
           font-size: 0.875rem; color: #ff5f5f;
         }
+
+        /* Role gate */
+        .oc-role-gate {
+          display: flex; flex-direction: column; gap: 12px;
+          padding: 24px; border-radius: 14px;
+          background: rgba(245,158,11,0.05);
+          border: 1px solid rgba(245,158,11,0.2);
+        }
+        .oc-role-gate-icon {
+          font-size: 1.5rem; line-height: 1;
+        }
+        .oc-role-gate-title {
+          font-size: 1rem; font-weight: 700; color: #f5d87a;
+        }
+        .oc-role-gate-body {
+          font-size: 0.875rem; color: #8fa3b8; line-height: 1.6; margin: 0;
+        }
+        .oc-role-gate-body strong { color: #f0f4ff; }
 
         @media (max-width: 520px) {
           .oc-card { padding: 28px 20px; }
