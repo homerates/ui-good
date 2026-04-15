@@ -245,7 +245,7 @@ export default function AdminDirectory() {
         .addir-page-btn:disabled{opacity:0.3;cursor:default}
         .addir-page-info{font-size:0.8rem;color:rgba(255,255,255,0.25);padding:0 0.5rem}
 
-        .addir-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem}
+        .addir-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem}
         .addir-modal{background:#0e1420;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:1.5rem;max-width:440px;width:100%}
         .addir-modal h3{margin:0 0 0.5rem;font-size:1rem;font-weight:700}
         .addir-modal p{font-size:0.85rem;color:rgba(255,255,255,0.5);margin:0 0 1rem;line-height:1.5}
@@ -256,7 +256,8 @@ export default function AdminDirectory() {
         .addir-modal-btn.confirm-restore{background:rgba(0,232,122,0.15);color:#00e87a}
         .addir-modal-textarea{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.6rem;color:#f0f4ff;font-size:0.82rem;resize:vertical;min-height:60px;font-family:inherit;outline:none;margin-top:0.75rem}
         .addir-invite-btn{background:rgba(61,139,255,0.12);color:#3d8bff}
-        .addir-f500-btn{background:rgba(217,119,6,0.12);color:#d97706}
+        .addir-f500-btn{background:rgba(217,119,6,0.18);color:#d97706;border:1px solid rgba(217,119,6,0.35)!important;}
+        .addir-f500-btn:hover{background:rgba(217,119,6,0.3)!important;}
         .addir-badge-invited{background:rgba(61,139,255,0.08);color:#3d8bff;border-color:rgba(61,139,255,0.2)}
         .addir-modal-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.6rem 0.8rem;color:#f0f4ff;font-size:0.9rem;font-family:inherit;outline:none;margin-top:0.75rem}
         .addir-modal-input:focus{border-color:rgba(61,139,255,0.4)}
@@ -444,8 +445,12 @@ export default function AdminDirectory() {
               <strong style={{ color: "#f0f4ff" }}>{f500Target.name}</strong><br />
               {PRO_TYPE_LABEL[f500Target.pro_type] ?? f500Target.pro_type}
               {f500Target.city ? ` · ${f500Target.city}, ${f500Target.state}` : ` · ${f500Target.state}`}
-              {f500Target.company_name ? <><br /><span style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.8rem" }}>{f500Target.company_name}</span></> : null}
             </p>
+            {f500Target.company_name && (
+              <p style={{ margin: "-8px 0 12px", fontSize: "0.82rem", color: "rgba(255,255,255,0.35)" }}>
+                {f500Target.company_name}
+              </p>
+            )}
             <input
               className="addir-modal-input"
               type="email"
