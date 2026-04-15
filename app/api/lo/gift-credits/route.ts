@@ -18,9 +18,9 @@ export async function POST(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
-  const { borrowerUserId, amount } = await req.json();
+  const { borrowerId, amount } = await req.json();
 
-  if (!borrowerUserId || typeof amount !== "number" || amount < 10 || amount > 5000) {
+  if (!borrowerId || typeof amount !== "number" || amount < 10 || amount > 5000) {
     return NextResponse.json({ error: "Amount must be between 10 and 5,000 credits" }, { status: 400 });
   }
 
@@ -32,14 +32,23 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (!lo) return NextResponse.json({ error: "Only loan officers can gift credits" }, { status: 403 });
 
-  // Borrower must be linked to this LO
-  const { data: link } = await sb
+  // Borrower must be linked to this LO (look up by borrowers table UUID)
+  const { data: borrowerRow } = await sb
     .from("borrowers")
-    .select("id")
-    .eq("lo_user_id", userId)
-    .eq("user_id", borrowerUserId)
+    .select("id, user_id, name, email")
+    .eq("id", borrowerId)
+    .eq("loan_officer_id", lo.id)
     .maybeSingle();
-  if (!link) return NextResponse.json({ error: "Borrower not found in your list" }, { status: 404 });
+  if (!borrowerRow) return NextResponse.json({ error: "Borrower not found in your list" }, { status: 404 });
+
+  // Borrower must have signed up to receive credits
+  const borrowerUserId = borrowerRow.user_id;
+  if (!borrowerUserId) {
+    return NextResponse.json(
+      { error: "Borrower hasn't created their HomeRates account yet — share your invite link so they can sign up first" },
+      { status: 409 }
+    );
+  }
 
   // Check LO has enough credits
   const loBalance = await getBalance(userId);
@@ -73,8 +82,8 @@ export async function POST(req: NextRequest) {
       clerk.users.getUser(borrowerUserId),
       clerk.users.getUser(userId),
     ]);
-    const borrowerEmail = borrowerClerk.emailAddresses[0]?.emailAddress;
-    const borrowerName  = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ") || null;
+    const borrowerEmail = borrowerClerk.emailAddresses[0]?.emailAddress ?? borrowerRow.email;
+    const borrowerName  = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ") || borrowerRow.name || null;
     const loName        = [loClerk.firstName, loClerk.lastName].filter(Boolean).join(" ") || "Your loan officer";
     const borrowerBal   = await getBalance(borrowerUserId);
 

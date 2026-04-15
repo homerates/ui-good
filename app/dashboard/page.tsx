@@ -271,7 +271,7 @@ export default async function DashboardPage() {
             <>
               <StatCard label="New Scenarios" value={newScenarioCount} sub="awaiting your response" accent="#3d8bff" />
               <StatCard label="Connections Earned" value={myConnectionCount} sub="borrowers who chose you" accent="#00e87a" />
-              <StatCard label="Active Borrowers" value={borrowerCount} sub={`of ${slots} slots`} />
+              <StatCard label="Active Borrowers" value={borrowerCount} sub="in your client list" />
               <StatCard label="Plan" value={planLabel} sub={periodEnd ? `Renews ${periodEnd}` : "Current plan"} />
             </>
           ) : userType === "agent" ? (
@@ -493,29 +493,10 @@ export default async function DashboardPage() {
             {userType === "lo" && (
               <SectionCard>
                 <CardTitle>Borrower Capacity</CardTitle>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {[
-                    ["Active borrowers", borrowerCount],
-                    ["Plan limit", slots],
-                    ["Slots remaining", remaining],
-                  ].map(([label, val]) => (
-                    <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem" }}>
-                      <span style={{ color: "rgba(185,208,192,0.6)" }}>{label}</span>
-                      <strong style={{ color: label === "Slots remaining" ? (remaining > 0 ? "#4ade80" : "#f87171") : "#e2e8f0" }}>{val}</strong>
-                    </div>
-                  ))}
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", alignItems: "center" }}>
+                  <span style={{ color: "rgba(185,208,192,0.6)" }}>Active borrowers</span>
+                  <strong style={{ color: "#e2e8f0" }}>{borrowerCount}</strong>
                 </div>
-                {/* Usage bar */}
-                {slots > 0 && (
-                  <div style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,0.07)", overflow: "hidden", marginTop: 4 }}>
-                    <div style={{
-                      height: "100%", borderRadius: 999,
-                      width: `${Math.min((borrowerCount / slots) * 100, 100)}%`,
-                      background: remaining > 0 ? "#00e87a" : "#f87171",
-                      transition: "width 0.3s",
-                    }} />
-                  </div>
-                )}
               </SectionCard>
             )}
 

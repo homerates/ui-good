@@ -10,6 +10,7 @@ type Borrower = {
     id: string;
     name: string;
     email: string | null;
+    user_id: string | null;
     property_address: string | null;
     digest_enabled: boolean;
     created_at: string;
@@ -37,6 +38,7 @@ export default function LoBorrowersPage() {
     const [gifting, setGifting] = React.useState<string | null>(null);
     const [giftOk, setGiftOk] = React.useState<string | null>(null);
     const [giftErr, setGiftErr] = React.useState<string | null>(null);
+    const [deleting, setDeleting] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         if (isLoaded && !isSignedIn) {
@@ -101,7 +103,7 @@ export default function LoBorrowersPage() {
         const res = await fetch("/api/lo/gift-credits", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ borrowerUserId: borrower.id, amount }),
+            body: JSON.stringify({ borrowerId: borrower.id, amount }),
         });
         const d = await res.json();
         setGifting(null);
@@ -113,6 +115,19 @@ export default function LoBorrowersPage() {
             setGiftAmount(prev => ({ ...prev, [borrower.id]: "" }));
             setTimeout(() => { setGiftOk(null); setGiftOpen(null); }, 2500);
         }
+    }
+
+    async function deleteBorrower(borrower: Borrower) {
+        if (!confirm(`Remove ${borrower.name} from your list? This cannot be undone.`)) return;
+        setDeleting(borrower.id);
+        const res = await fetch(`/api/borrowers?id=${borrower.id}`, { method: "DELETE" });
+        if (res.ok) {
+            setBorrowers(prev => prev.filter(b => b.id !== borrower.id));
+        } else {
+            const d = await res.json().catch(() => ({}));
+            setError(d.error ?? "Failed to remove borrower");
+        }
+        setDeleting(null);
     }
 
     async function sendDigest(borrower: Borrower) {
@@ -211,19 +226,38 @@ export default function LoBorrowersPage() {
                                         {b.email && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", marginTop: 2 }}>{b.email}</div>}
                                     </div>
                                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                        {/* Gift credits button */}
+                                        {/* Gift credits button — only if borrower has signed up */}
                                         <button
                                             type="button"
                                             onClick={() => { setGiftOpen(isGiftOpen ? null : b.id); setGiftErr(null); setGiftOk(null); }}
+                                            title={!b.user_id ? "Borrower hasn't signed up yet" : undefined}
                                             style={{
                                                 padding: "6px 14px", borderRadius: 999,
                                                 border: "1px solid rgba(148,163,184,0.2)",
                                                 background: isGiftOpen ? "rgba(255,255,255,0.06)" : "transparent",
-                                                color: "rgba(185,208,192,0.6)",
+                                                color: b.user_id ? "rgba(185,208,192,0.6)" : "rgba(185,208,192,0.25)",
                                                 fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
                                             }}
                                         >
                                             {didGift ? "Gifted ✓" : "Gift Credits"}
+                                        </button>
+                                        {/* Delete borrower */}
+                                        <button
+                                            type="button"
+                                            onClick={() => deleteBorrower(b)}
+                                            disabled={deleting === b.id}
+                                            title="Remove from your list"
+                                            style={{
+                                                padding: "6px 14px", borderRadius: 999,
+                                                border: "1px solid rgba(248,113,113,0.2)",
+                                                background: "transparent",
+                                                color: "rgba(248,113,113,0.5)",
+                                                fontSize: "0.78rem", fontWeight: 600,
+                                                cursor: deleting === b.id ? "default" : "pointer",
+                                                whiteSpace: "nowrap", opacity: deleting === b.id ? 0.4 : 1,
+                                            }}
+                                        >
+                                            {deleting === b.id ? "Removing…" : "Remove"}
                                         </button>
                                         {/* Send digest button */}
                                         <button
