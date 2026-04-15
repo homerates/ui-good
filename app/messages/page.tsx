@@ -2,7 +2,7 @@
 // app/messages/page.tsx
 // Unified inbox for borrowers and professionals — thread list
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import AppNav from "../components/AppNav";
@@ -21,22 +21,40 @@ export default function MessagesPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadedOnce = useRef(false);
 
+  async function fetchThreads(initial = false) {
+    try {
+      const res = await fetch("/api/messages");
+      if (!res.ok) return;
+      const d = await res.json();
+      setThreads(d.threads ?? []);
+      if (initial) setLoading(false);
+    } catch {
+      if (initial) setLoading(false);
+    }
+  }
+
+  // Initial load
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
       window.location.href = `/sign-in?redirect_url=/messages`;
       return;
     }
-    fetch("/api/messages")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (!d) return;
-        setThreads(d.threads ?? []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    if (!loadedOnce.current) {
+      loadedOnce.current = true;
+      fetchThreads(true);
+    }
   }, [isLoaded, isSignedIn]);
+
+  // Poll every 10s — pause when tab hidden
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!document.hidden && loadedOnce.current) fetchThreads(false);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const timeAgo = (iso: string | null) => {
     if (!iso) return "";
