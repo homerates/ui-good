@@ -130,6 +130,64 @@ export default function PageShell({
           transition: color 0.15s;
         }
         .ps-footer-link:hover { color: #00e87a; }
+
+        /* ── Content typography ── */
+        .ps-content h1 {
+          font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+          font-size: clamp(1.5rem, 3vw, 2rem);
+          font-weight: 700;
+          color: #e0f0e8;
+          margin: 0 0 6px;
+          line-height: 1.2;
+        }
+        .ps-content h2 {
+          font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+          font-size: 1.05rem;
+          font-weight: 600;
+          color: rgba(224,240,232,0.95);
+          margin: 28px 0 10px;
+        }
+        .ps-content h2:first-of-type { margin-top: 20px; }
+        .ps-content h3 {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: rgba(224,240,232,0.9);
+          margin: 20px 0 8px;
+        }
+        .ps-content p {
+          color: rgba(185,208,192,0.85);
+          line-height: 1.7;
+          margin: 0 0 12px;
+          font-size: 0.9rem;
+        }
+        .ps-content ul,
+        .ps-content ol {
+          padding-left: 1.4rem;
+          margin: 0 0 12px;
+          color: rgba(185,208,192,0.8);
+          font-size: 0.9rem;
+          line-height: 1.7;
+        }
+        .ps-content li { margin-bottom: 4px; }
+        .ps-content strong { color: rgba(224,240,232,0.95); }
+        .ps-content a {
+          color: #00e87a;
+          text-decoration: none;
+          transition: opacity 0.15s;
+        }
+        .ps-content a:hover { opacity: 0.75; }
+        .ps-content hr {
+          border: none;
+          border-top: 1px solid rgba(255,255,255,0.06);
+          margin: 24px 0;
+        }
+        .ps-content section { margin-bottom: 8px; }
+        .ps-content .page-updated {
+          font-size: 0.75rem;
+          color: rgba(185,208,192,0.4);
+          margin-bottom: 24px;
+          display: block;
+        }
       `}</style>
 
       <div className="ps-root">
