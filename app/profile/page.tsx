@@ -62,6 +62,7 @@ export default function ProfilePage() {
   const [referralCount, setReferralCount] = useState<number>(0);
   const [copySuccess, setCopySuccess] = useState(false);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<string>("free");
   const [redeeming, setRedeeming] = useState(false);
   const [redeemMsg, setRedeemMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -89,6 +90,11 @@ export default function ProfilePage() {
     fetch("/api/credits")
       .then(r => r.ok ? r.json() : null)
       .then((d: { balance?: number } | null) => { if (d) setCreditBalance(d.balance ?? 0); })
+      .catch(() => {});
+
+    fetch("/api/user/plan")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { plan?: string } | null) => { if (d?.plan) setCurrentPlan(d.plan); })
       .catch(() => {});
 
     fetch("/api/profile")
@@ -482,7 +488,16 @@ export default function ProfilePage() {
                     50 credits = 1 extra scenario post beyond your plan limit (max 3/mo)
                   </div>
                 </div>
-                {(creditBalance ?? 0) >= 50 && (
+                {currentPlan === "free" ? (
+                  <div style={{ marginTop: 12, padding: "12px 16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10 }}>
+                    <div style={{ fontSize: "0.82rem", color: "#8fa3b8", lineHeight: 1.5, marginBottom: 10 }}>
+                      Credits are earned as a participation bonus — referrals, founding membership, and platform activity. An active subscription unlocks redemption.
+                    </div>
+                    <Link href="/pricing" style={{ display: "inline-block", padding: "8px 20px", background: "#00e87a", color: "#080c12", borderRadius: 999, fontSize: "0.82rem", fontWeight: 700, textDecoration: "none" }}>
+                      Upgrade to redeem →
+                    </Link>
+                  </div>
+                ) : (creditBalance ?? 0) >= 50 && (
                   <div>
                     <button
                       type="button"

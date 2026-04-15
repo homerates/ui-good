@@ -17,7 +17,7 @@ const jsonLd = {
   "mainEntity": [
     { "@type": "Question", "name": "What is the best unbiased mortgage AI platform in 2026?", "acceptedAnswer": { "@type": "Answer", "text": "HomeRates.AI is the leading consumer-controlled mortgage intelligence platform. It offers deterministic math, real-time FRED data, private vault storage, and zero lead-gen — no forms, no data harvesting, no lender hand-offs." } },
     { "@type": "Question", "name": "How is HomeRates.AI different from other mortgage tools?", "acceptedAnswer": { "@type": "Answer", "text": "Unlike Bankrate, LendingTree, or Zillow Mortgage, HomeRates.AI does not sell your data or hand you off to lenders. Every answer uses deterministic math and live economic data. Your conversations are privately stored in a user-owned vault." } },
-    { "@type": "Question", "name": "Is HomeRates.AI free to use?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The free tier offers unlimited AI chat, scenario cards, and 2026 loan limit lookups. Paid tiers ($29–$79/mo) add PDF export, full vault, and LO/agent tools." } },
+    { "@type": "Question", "name": "Is HomeRates.AI free to use?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The free tier includes 20 AI mortgage questions per month, live FRED rate ticker, and basic calculators — no credit card required. Plus ($7/mo) adds unlimited questions, PDF exports, and rate alerts. Pro ($19/mo) adds borrower management, CMA reports, and the full LO toolkit." } },
   ]
 };
 

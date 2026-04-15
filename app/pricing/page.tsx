@@ -278,6 +278,39 @@ export default function PricingPage() {
         })}
       </div>
 
+      {/* Enterprise band */}
+      <div className="pricing-enterprise">
+        <div className="pricing-enterprise-inner">
+          <div className="pricing-enterprise-left">
+            <div className="pricing-enterprise-label">Enterprise</div>
+            <h3 className="pricing-enterprise-title">For lenders, broker firms &amp; banks</h3>
+            <p className="pricing-enterprise-desc">
+              White-label AI mortgage intelligence for your team, branch, or institution.
+              Volume licensing, NMLS import, API access, dedicated support, and SLA.
+              Pricing by negotiation — every deployment is different.
+            </p>
+            <ul className="pricing-enterprise-features">
+              <li>✓ Team &amp; branch management</li>
+              <li>✓ NMLS / DRE bulk import</li>
+              <li>✓ API access &amp; white-label options</li>
+              <li>✓ Dedicated onboarding &amp; support</li>
+              <li>✓ Custom SLA &amp; data agreements</li>
+              <li>✓ Brokerage billing consolidation</li>
+            </ul>
+          </div>
+          <div className="pricing-enterprise-right">
+            <div className="pricing-enterprise-price">Custom pricing</div>
+            <div className="pricing-enterprise-note">Negotiated based on team size,<br />integration scope, and term.</div>
+            <a href="mailto:enterprise@homerates.ai?subject=Enterprise%20Pricing%20Inquiry" className="pricing-btn pricing-btn--primary pricing-enterprise-cta">
+              Contact us →
+            </a>
+            <div className="pricing-enterprise-fine">
+              Typical range: $4,800–$120,000+/yr depending on seats and scope.
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* LO callout — shown to signed-in borrowers to surface the LO dashboard features */}
       {isSignedIn && isLO === false && (
         <div className="pricing-lo-callout">
@@ -456,6 +489,57 @@ export default function PricingPage() {
         }
         .pricing-footer-link { color: rgba(0,232,122,0.7); text-decoration: none; }
         .pricing-footer-link:hover { color: #00e87a; }
+
+        /* Enterprise band */
+        .pricing-enterprise {
+          max-width: 960px; width: 100%; margin: 0 auto 36px;
+          background: linear-gradient(135deg, rgba(245,158,11,0.06), rgba(251,191,36,0.03));
+          border: 1px solid rgba(245,158,11,0.2);
+          border-radius: 16px; overflow: hidden;
+        }
+        .pricing-enterprise-inner {
+          display: flex; align-items: flex-start; gap: 40px;
+          padding: 32px 36px; flex-wrap: wrap;
+        }
+        .pricing-enterprise-left { flex: 1; min-width: 260px; }
+        .pricing-enterprise-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 200px; }
+        .pricing-enterprise-label {
+          font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+          color: #f59e0b; margin-bottom: 6px;
+        }
+        .pricing-enterprise-title {
+          font-family: var(--font-dm-sans, sans-serif);
+          font-size: 1.2rem; font-weight: 700; color: #fff; margin: 0 0 8px;
+        }
+        .pricing-enterprise-desc {
+          font-size: 0.85rem; color: rgba(185,208,192,0.75); line-height: 1.6; margin: 0 0 14px;
+        }
+        .pricing-enterprise-features {
+          list-style: none; padding: 0; margin: 0;
+          display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px;
+        }
+        .pricing-enterprise-features li {
+          font-size: 0.82rem; color: rgba(224,240,232,0.8);
+        }
+        .pricing-enterprise-price {
+          font-size: 1.6rem; font-weight: 700; color: #f59e0b; line-height: 1;
+        }
+        .pricing-enterprise-note {
+          font-size: 0.78rem; color: rgba(185,208,192,0.6); line-height: 1.5;
+        }
+        .pricing-enterprise-cta {
+          margin-top: 4px; padding: 12px 28px; width: auto; display: inline-block;
+          background: #f59e0b; color: #1a0a00;
+        }
+        .pricing-enterprise-cta:hover { background: #fbbf24; }
+        .pricing-enterprise-fine {
+          font-size: 0.72rem; color: rgba(185,208,192,0.4); line-height: 1.5;
+        }
+        @media (max-width: 640px) {
+          .pricing-enterprise-inner { padding: 24px 20px; gap: 24px; }
+          .pricing-enterprise-features { grid-template-columns: 1fr; }
+          .pricing-enterprise-right { width: 100%; }
+        }
 
         .pricing-lo-callout {
           display: flex; align-items: center; justify-content: center;

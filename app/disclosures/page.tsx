@@ -68,33 +68,44 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>8. Cancellation Policy</h2>
+        <h2>8. Platform Credits</h2>
+        <p>HomeRates.ai may award platform credits ("Credits") as a participation bonus for activities such as account creation, referrals, and founding membership. Credits are not currency, have no cash value, and are non-transferable except where explicitly supported by the platform (e.g., LO-to-borrower gifting).</p>
+        <ul>
+          <li><strong>Earning credits</strong> is available to all users, including those on the free plan.</li>
+          <li><strong>Redeeming credits</strong> requires an active paid subscription (Plus or Pro). Free-tier users accumulate credits but may not apply them until a paid plan is active.</li>
+          <li>HomeRates.ai reserves the right to modify, expire, or discontinue the Credits program at any time with reasonable notice.</li>
+          <li>Credits have no monetary value and cannot be exchanged for cash, transferred to third parties outside platform features, or carried forward indefinitely at HomeRates.ai's discretion.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>10. Cancellation Policy</h2>
         <p>You may cancel your subscription at any time through the billing portal in your account settings. Cancellation takes effect at the end of your current billing period. You will retain full access to paid features until that date. HomeRates.ai does not charge cancellation fees.</p>
       </section>
 
       <section>
-        <h2>9. Refund Policy</h2>
+        <h2>11. Refund Policy</h2>
         <p>HomeRates.ai offers a <strong>7-day money-back guarantee</strong> on all new paid subscriptions. Contact <a href="mailto:support@homerates.ai">support@homerates.ai</a> within 7 days of your initial subscription for a full refund, no questions asked.</p>
         <p>After the 7-day period: monthly plans are non-refundable for the current billing period; annual plan refund requests are evaluated on a case-by-case basis. Refunds may take 5–10 business days to appear.</p>
       </section>
 
       <section>
-        <h2>10. Independence from Any Mortgage Lender</h2>
+        <h2>12. Independence from Any Mortgage Lender</h2>
         <p>HomeRates.ai is an independent educational tool. It is not owned, operated, endorsed, or sponsored by any mortgage lender or mortgage company.</p>
       </section>
 
       <section>
-        <h2>11. User Responsibility</h2>
+        <h2>13. User Responsibility</h2>
         <p>By using HomeRates.ai, you agree that you are solely responsible for how you interpret and use the information provided, and for verifying all mortgage-related information with a licensed mortgage lender before making decisions.</p>
       </section>
 
       <section>
-        <h2>12. Limitation of Liability</h2>
+        <h2>14. Limitation of Liability</h2>
         <p>To the fullest extent permitted by law, HomeRates.ai and its operators shall not be liable for any direct, indirect, incidental, consequential, or special damages arising out of or in connection with the use of the app.</p>
       </section>
 
       <section>
-        <h2>13. Professional Matching — Introduction Service Only</h2>
+        <h2>15. Professional Matching — Introduction Service Only</h2>
         <p>HomeRates.ai operates as a <strong>technology platform and introduction service only</strong>. When borrowers and mortgage professionals (loan officers, agents) connect through the platform, HomeRates.ai's role ends at the point of introduction. Specifically:</p>
         <ul>
           <li>HomeRates.ai does <strong>not</strong> verify, validate, or guarantee the accuracy of any contact information provided by borrowers or professionals, including email addresses, phone numbers, or business details.</li>
@@ -107,7 +118,7 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>14. Professional Conduct — No Liability for Third-Party Actions</h2>
+        <h2>16. Professional Conduct — No Liability for Third-Party Actions</h2>
         <p>Mortgage professionals (loan officers and real estate agents) who use HomeRates.ai are independent licensed professionals operating under their own applicable state and federal licensing requirements. HomeRates.ai:</p>
         <ul>
           <li>does <strong>not</strong> employ, supervise, direct, or control any loan officer, real estate agent, or other professional using the platform;</li>
@@ -119,7 +130,7 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>15. Scenario Posting — Anti-Abuse Policy</h2>
+        <h2>17. Scenario Posting — Anti-Abuse Policy</h2>
         <p>Borrowers may post mortgage scenarios to the HomeRates.ai platform to receive rate indications and approaches from licensed professionals. By posting a scenario, you agree that:</p>
         <ul>
           <li>all information provided is accurate and truthful to the best of your knowledge;</li>
@@ -130,7 +141,7 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>16. AI Model Accuracy — You're Part of What Makes This Better</h2>
+        <h2>18. AI Model Accuracy — You're Part of What Makes This Better</h2>
         <p>HomeRates.ai uses some of the most advanced AI reasoning models available today. The scenario analysis engine, card routing logic, and memory system that personalizes your experience represent genuinely new technology — the kind that is still maturing, still learning, and still improving with every conversation.</p>
         <p>What that means in practice: the system is exceptionally good at the vast majority of mortgage calculations, rate analysis, and scenario comparisons it handles every day. But like any frontier AI, it can occasionally drift — selecting the wrong card type, misrouting a scenario, or carrying stale context from an earlier part of a conversation that leads it down the wrong path.</p>
         <p><strong>When that happens, here is what to do:</strong></p>
@@ -144,12 +155,12 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>17. Changes to These Terms</h2>
+        <h2>19. Changes to These Terms</h2>
         <p>HomeRates.ai may update these Terms from time to time. The most current version will always be available on this page. Continued use constitutes acceptance of the updated terms.</p>
       </section>
 
       <section>
-        <h2>18. Contact</h2>
+        <h2>20. Contact</h2>
         <p><strong>HomeRatesAi LLC</strong><br />
         1401 Pennsylvania Ave Suite 105A PMB 70722<br />
         Wilmington, DE 19806<br />

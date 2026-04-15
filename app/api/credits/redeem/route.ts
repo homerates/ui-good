@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getBalance, spendCredits } from "../../../../lib/credits";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { getUserPlan } from "../../../../lib/subscription";
 
 const SLOT_COST = 50;
 const MAX_BONUS_SLOTS_PER_MONTH = 3; // cap to prevent abuse
@@ -26,6 +27,15 @@ export async function POST(req: NextRequest) {
 
   if (type !== "scenario_slot") {
     return NextResponse.json({ error: "Invalid redemption type" }, { status: 400 });
+  }
+
+  // Credits redemption requires an active paid subscription
+  const userPlan = await getUserPlan(userId);
+  if (userPlan.plan === "free") {
+    return NextResponse.json(
+      { error: "An active subscription is required to redeem credits. Credits are earned as a participation bonus and unlocked with any paid plan." },
+      { status: 402 }
+    );
   }
 
   const sb = getSupabase();

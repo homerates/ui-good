@@ -190,15 +190,16 @@ export default function ForProsPage() {
           <div className="fp-cta-inner">
             <h2 className="fp-cta-title">Ready to respond to your first scenario?</h2>
             <p className="fp-cta-sub">
-              Create a free account — takes 60 seconds. No credit card, no monthly fee to browse and respond.
+              Create a free account in 60 seconds and start browsing live borrower scenarios.
+              Pro subscription unlocks the LO dashboard, borrower management, and CMA tools.
             </p>
             <div className="fp-cta-btns">
               <Link href="/sign-up" className="fp-btn-primary">Create free account →</Link>
               <Link href="/lo/scenarios" className="fp-btn-ghost">Browse scenarios first</Link>
             </div>
             <p className="fp-cta-fine">
-              HomeRates.ai is free for professionals to browse and respond.
-              The borrower pays nothing too. The only currency is a good answer.
+              Free to sign up and browse. Pro plan ($19/mo) unlocks the full LO toolkit.
+              The borrower pays nothing. The only currency is a great answer.
             </p>
           </div>
         </section>
