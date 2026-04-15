@@ -49,8 +49,12 @@ export default function LoBorrowersPage() {
     React.useEffect(() => {
         fetch("/api/borrowers")
             .then(r => r.json())
-            .then(d => { setBorrowers(d.borrowers ?? []); setLoading(false); })
-            .catch(() => setLoading(false));
+            .then(d => {
+                if (d.error) setError(d.error);
+                setBorrowers(d.borrowers ?? []);
+                setLoading(false);
+            })
+            .catch(() => { setError("Failed to load borrowers. Please refresh."); setLoading(false); });
         fetch("/api/credits")
             .then(r => r.ok ? r.json() : null)
             .then(d => { if (d?.balance !== undefined) setLoBalance(d.balance); })

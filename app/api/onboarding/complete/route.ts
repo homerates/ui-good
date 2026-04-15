@@ -135,9 +135,7 @@ export async function POST(req: NextRequest) {
                 state: state ?? null,
                 postal_code: postalCode ?? null,
                 source: "invite-link",
-                // status defaults to 'lead'
-                // created_at / updated_at handled by defaults + trigger
-                external_ref: userId, // store Clerk user id here if you like
+                user_id: userId,      // link to Clerk account so LO can gift credits
             })
             .select("id")
             .single();

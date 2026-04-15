@@ -63,12 +63,10 @@ export default function OnboardingPage() {
         if (inviteCode) {
             url.searchParams.set("invite", inviteCode);
         }
-        // Clerk expects a relative path starting with "/"
         return url.pathname + url.search;
     }, [pathname, inviteCode]);
 
     function handleGoToSignIn() {
-        // Hard navigation so Clerk owns the whole sign-in page
         const base =
             typeof window !== "undefined"
                 ? window.location.origin
@@ -100,9 +98,7 @@ export default function OnboardingPage() {
         try {
             const res = await fetch("/api/onboarding/complete", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     inviteCode,
                     firstName: form.firstName.trim(),
@@ -114,7 +110,6 @@ export default function OnboardingPage() {
             const data = await res.json().catch(() => null);
 
             if (res.status === 401) {
-                // Session expired or not signed in – send them to sign-in again
                 handleGoToSignIn();
                 return;
             }
@@ -122,14 +117,14 @@ export default function OnboardingPage() {
             if (!res.ok) {
                 setError(
                     data?.error ||
-                    "We could not complete your onboarding. Please try again."
+                    "We could not complete your setup. Please try again."
                 );
                 setSubmitting(false);
                 return;
             }
 
             if (!data?.borrowerId) {
-                setError("Onboarding completed but no borrower id was returned.");
+                setError("Setup completed but no profile id was returned.");
                 setSubmitting(false);
                 return;
             }
@@ -151,227 +146,165 @@ export default function OnboardingPage() {
         }
     }
 
-    // ---------- UI blocks ----------
+    // ── shared input style ───────────────────────────────────────────────────
+    const inputStyle: React.CSSProperties = {
+        marginTop: 4,
+        width: "100%",
+        padding: "10px 12px",
+        borderRadius: 8,
+        border: "1px solid rgba(148,163,184,0.2)",
+        background: "rgba(255,255,255,0.05)",
+        color: "#e0f0e8",
+        fontSize: "0.9rem",
+        outline: "none",
+        fontFamily: "inherit",
+        boxSizing: "border-box",
+    };
+
+    const labelStyle: React.CSSProperties = {
+        display: "block",
+        fontSize: "0.78rem",
+        fontWeight: 600,
+        letterSpacing: "0.04em",
+        color: "rgba(185,208,192,0.6)",
+        textTransform: "uppercase",
+    };
+
+    const cardStyle: React.CSSProperties = {
+        width: "100%",
+        maxWidth: 440,
+        padding: "32px 28px 36px",
+        borderRadius: 18,
+        border: "1px solid rgba(0,232,122,0.15)",
+        background: "rgba(255,255,255,0.04)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
+    };
+
+    // ── views ────────────────────────────────────────────────────────────────
 
     const SignedOutView = () => (
-        <div
-            style={{
-                width: "100%",
-                maxWidth: "480px",
-                padding: "18px 18px 20px",
-                borderRadius: "16px",
-                border: "1px solid rgba(148, 163, 184, 0.6)",
-                background: "#ffffff",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-            }}
-        >
+        <div style={cardStyle}>
+            {/* Logo mark */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    background: "rgba(0,232,122,0.12)",
+                    border: "1px solid rgba(0,232,122,0.25)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1rem", fontWeight: 800, color: "#00e87a",
+                    fontFamily: "Georgia, serif",
+                }}>H</div>
+                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "rgba(185,208,192,0.6)", letterSpacing: "0.06em", textTransform: "uppercase" }}>HomeRates.ai</span>
+            </div>
+
             <div>
-                <h1
-                    style={{
-                        margin: 0,
-                        fontSize: "1.2rem",
-                        fontWeight: 600,
-                        color: "#0f172a",
-                    }}
-                >
-                    Join your loan officer in HomeRates.ai
+                <h1 style={{ margin: "0 0 8px", fontSize: "1.3rem", fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25 }}>
+                    You've been invited
                 </h1>
-                <p
-                    style={{
-                        margin: "6px 0 0 0",
-                        fontSize: "0.9rem",
-                        color: "#64748b",
-                    }}
-                >
-                    To accept this invite, please sign in or create your free account.
-                    After that we’ll validate your code and link you behind the scenes.
+                <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
+                    Your loan officer has added you to HomeRates. Sign in or create a free account to activate your access.
                 </p>
             </div>
 
             {inviteCode && (
-                <p
-                    style={{
-                        margin: 0,
-                        fontSize: "0.8rem",
-                        color: "#64748b",
-                    }}
-                >
-                    Invite code:{" "}
-                    <span
-                        style={{
-                            fontFamily:
-                                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                        }}
-                    >
-                        {inviteCode}
-                    </span>
-                </p>
+                <div style={{
+                    padding: "8px 12px", borderRadius: 8,
+                    background: "rgba(0,232,122,0.06)",
+                    border: "1px solid rgba(0,232,122,0.15)",
+                    fontSize: "0.78rem", color: "rgba(185,208,192,0.5)",
+                }}>
+                    Invite code: <span style={{ fontFamily: "monospace", color: "#00e87a", marginLeft: 4 }}>{inviteCode}</span>
+                </div>
             )}
 
             <button
                 type="button"
                 onClick={handleGoToSignIn}
                 style={{
-                    marginTop: "4px",
-                    padding: "9px 16px",
-                    borderRadius: "999px",
-                    border: "1px solid #0f172a",
-                    background: "#0f172a",
-                    color: "#f9fafb",
+                    padding: "12px 20px",
+                    borderRadius: 999,
+                    border: "none",
+                    background: "#00e87a",
+                    color: "#080c12",
                     fontSize: "0.95rem",
-                    fontWeight: 500,
+                    fontWeight: 700,
                     cursor: "pointer",
+                    letterSpacing: "0.01em",
                 }}
             >
-                Continue to sign in
+                Continue to sign in →
             </button>
         </div>
     );
 
     const SignedInFormView = () => (
-        <div
-            style={{
-                width: "100%",
-                maxWidth: "480px",
-                padding: "18px 18px 20px",
-                borderRadius: "16px",
-                border: "1px solid rgba(148, 163, 184, 0.6)",
-                background: "#ffffff",
-                display: "flex",
-                flexDirection: "column",
-                gap: "14px",
-                maxHeight: "80vh",
-                overflowY: "auto",
-            }}
-        >
+        <div style={cardStyle}>
+            {/* Logo mark */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    background: "rgba(0,232,122,0.12)",
+                    border: "1px solid rgba(0,232,122,0.25)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1rem", fontWeight: 800, color: "#00e87a",
+                    fontFamily: "Georgia, serif",
+                }}>H</div>
+                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "rgba(185,208,192,0.6)", letterSpacing: "0.06em", textTransform: "uppercase" }}>HomeRates.ai</span>
+            </div>
+
             <div>
-                <h1
-                    style={{
-                        margin: 0,
-                        fontSize: "1.2rem",
-                        fontWeight: 600,
-                        color: "#0f172a",
-                    }}
-                >
-                    Activate your HomeRates.ai access
+                <h1 style={{ margin: "0 0 8px", fontSize: "1.3rem", fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25 }}>
+                    Activate your access
                 </h1>
-                <p
-                    style={{
-                        margin: "6px 0 0 0",
-                        fontSize: "0.9rem",
-                        color: "#64748b",
-                    }}
-                >
-                    A few quick details so we can link your questions to your loan
-                    officer.
+                <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
+                    Confirm your details below. Your questions will be linked to your loan officer's file.
                 </p>
             </div>
 
+            {!inviteCode && (
+                <p style={{ margin: 0, padding: "10px 12px", borderRadius: 8, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", fontSize: "0.85rem", color: "#f87171" }}>
+                    This invite link is missing a valid code. Ask your loan officer for a new link.
+                </p>
+            )}
+
             {error && (
-                <p
-                    style={{
-                        margin: 0,
-                        fontSize: "0.85rem",
-                        color: "#b91c1c",
-                    }}
-                >
+                <p style={{ margin: 0, padding: "10px 12px", borderRadius: 8, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", fontSize: "0.85rem", color: "#f87171" }}>
                     {error}
                 </p>
             )}
 
-            {!inviteCode && (
-                <p
-                    style={{
-                        margin: 0,
-                        fontSize: "0.85rem",
-                        color: "#b91c1c",
-                    }}
-                >
-                    This invite link is missing a valid invite code. Please ask your loan
-                    officer for a new link.
-                </p>
-            )}
-
-            <form
-                onSubmit={handleSubmit}
-                style={{
-                    display: "grid",
-                    gap: "10px",
-                }}
-            >
-                <label
-                    style={{
-                        fontSize: "0.8rem",
-                        color: "#475569",
-                    }}
-                >
+            <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
+                <label style={labelStyle}>
                     First name
                     <input
                         type="text"
                         value={form.firstName}
-                        onChange={(e) =>
-                            setForm((prev) => ({ ...prev, firstName: e.target.value }))
-                        }
-                        style={{
-                            marginTop: "4px",
-                            width: "100%",
-                            padding: "7px 9px",
-                            borderRadius: "8px",
-                            border: "1px solid rgba(148, 163, 184, 0.8)",
-                            fontSize: "0.9rem",
-                        }}
+                        onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                        style={inputStyle}
                         required
                     />
                 </label>
 
-                <label
-                    style={{
-                        fontSize: "0.8rem",
-                        color: "#475569",
-                    }}
-                >
+                <label style={labelStyle}>
                     Last name
                     <input
                         type="text"
                         value={form.lastName}
-                        onChange={(e) =>
-                            setForm((prev) => ({ ...prev, lastName: e.target.value }))
-                        }
-                        style={{
-                            marginTop: "4px",
-                            width: "100%",
-                            padding: "7px 9px",
-                            borderRadius: "8px",
-                            border: "1px solid rgba(148, 163, 184, 0.8)",
-                            fontSize: "0.9rem",
-                        }}
+                        onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                        style={inputStyle}
                         required
                     />
                 </label>
 
-                <label
-                    style={{
-                        fontSize: "0.8rem",
-                        color: "#475569",
-                    }}
-                >
+                <label style={labelStyle}>
                     Email
                     <input
                         type="email"
                         value={form.email}
-                        onChange={(e) =>
-                            setForm((prev) => ({ ...prev, email: e.target.value }))
-                        }
-                        style={{
-                            marginTop: "4px",
-                            width: "100%",
-                            padding: "7px 9px",
-                            borderRadius: "8px",
-                            border: "1px solid rgba(148, 163, 184, 0.8)",
-                            fontSize: "0.9rem",
-                        }}
+                        onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                        style={inputStyle}
                         required
                     />
                 </label>
@@ -380,57 +313,40 @@ export default function OnboardingPage() {
                     type="submit"
                     disabled={submitting || !inviteCode}
                     style={{
-                        marginTop: "8px",
-                        padding: "9px 16px",
-                        borderRadius: "999px",
-                        border: "1px solid #0f172a",
-                        background: submitting ? "#e2e8f0" : "#0f172a",
-                        color: submitting ? "#64748b" : "#f9fafb",
+                        marginTop: 4,
+                        padding: "12px 20px",
+                        borderRadius: 999,
+                        border: "none",
+                        background: submitting || !inviteCode ? "rgba(0,232,122,0.3)" : "#00e87a",
+                        color: submitting || !inviteCode ? "rgba(8,12,18,0.5)" : "#080c12",
                         fontSize: "0.95rem",
-                        fontWeight: 500,
+                        fontWeight: 700,
                         cursor: submitting || !inviteCode ? "default" : "pointer",
                     }}
                 >
-                    {submitting ? "Finishing setup..." : "Finish setup"}
+                    {submitting ? "Setting up your account…" : "Finish setup →"}
                 </button>
             </form>
         </div>
     );
 
     const SuccessView = () => (
-        <div
-            style={{
-                width: "100%",
-                maxWidth: "480px",
-                padding: "18px 18px 20px",
-                borderRadius: "16px",
-                border: "1px solid rgba(148, 163, 184, 0.6)",
-                background: "#f8fafc",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-            }}
-        >
+        <div style={cardStyle}>
+            {/* Check icon */}
+            <div style={{
+                width: 48, height: 48, borderRadius: 999,
+                background: "rgba(0,232,122,0.12)",
+                border: "1px solid rgba(0,232,122,0.3)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "1.4rem",
+            }}>✓</div>
+
             <div>
-                <h1
-                    style={{
-                        margin: 0,
-                        fontSize: "1.25rem",
-                        fontWeight: 600,
-                        color: "#0f172a",
-                    }}
-                >
-                    Your HomeRates.ai access is active
+                <h1 style={{ margin: "0 0 8px", fontSize: "1.3rem", fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25 }}>
+                    You're all set!
                 </h1>
-                <p
-                    style={{
-                        margin: "6px 0 0 0",
-                        fontSize: "0.9rem",
-                        color: "#475569",
-                    }}
-                >
-                    You are all set. Your profile is linked to your loan officer, and your
-                    questions will now stay attached to your file.
+                <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
+                    Your profile is linked to your loan officer. Ask mortgage questions, get rate alerts, and stay on top of your home purchase — all in one place.
                 </p>
             </div>
 
@@ -438,44 +354,62 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={handleEnterApp}
                 style={{
-                    marginTop: "4px",
-                    padding: "10px 16px",
-                    borderRadius: "999px",
-                    border: "1px solid #0f172a",
-                    background: "#0f172a",
-                    color: "#f9fafb",
+                    padding: "12px 20px",
+                    borderRadius: 999,
+                    border: "none",
+                    background: "#00e87a",
+                    color: "#080c12",
                     fontSize: "0.95rem",
-                    fontWeight: 500,
+                    fontWeight: 700,
                     cursor: "pointer",
                 }}
             >
-                Enter HomeRates.ai
+                Enter HomeRates.ai →
             </button>
         </div>
     );
 
     return (
-        <main
-            style={{
-                minHeight: "calc(100vh - 40px)",
-                padding: "24px 16px",
+        <>
+            <style>{`
+                body { background: #080c12 !important; }
+                body.app { background: #080c12 !important; }
+                * { box-sizing: border-box; }
+                input::placeholder { color: rgba(185,208,192,0.3); }
+                input:focus { border-color: rgba(0,232,122,0.4) !important; box-shadow: 0 0 0 3px rgba(0,232,122,0.12); }
+            `}</style>
+            <main style={{
+                minHeight: "100dvh",
+                background: "#080c12",
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-            }}
-        >
-            {successBorrowerId ? (
-                <SuccessView />
-            ) : (
-                <>
-                    <SignedOut>
-                        <SignedOutView />
-                    </SignedOut>
-                    <SignedIn>
-                        <SignedInFormView />
-                    </SignedIn>
-                </>
-            )}
-        </main>
+                padding: "24px 16px",
+            }}>
+                {successBorrowerId ? (
+                    <SuccessView />
+                ) : (
+                    <>
+                        <SignedOut>
+                            <SignedOutView />
+                        </SignedOut>
+                        <SignedIn>
+                            <SignedInFormView />
+                        </SignedIn>
+                    </>
+                )}
+
+                {/* Footer */}
+                <p style={{
+                    marginTop: 24,
+                    fontSize: "0.72rem",
+                    color: "rgba(185,208,192,0.25)",
+                    textAlign: "center",
+                }}>
+                    HomeRates.ai — AI-powered mortgage intelligence
+                </p>
+            </main>
+        </>
     );
 }
