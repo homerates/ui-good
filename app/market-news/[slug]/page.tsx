@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AppNav from '../../components/AppNav';
 import { marketNewsArticles } from '../articles';
 import ShareBar from '../../components/ShareBar';
+import NewsletterCapture from '../../components/NewsletterCapture';
 
 export const dynamicParams = true;
 export const revalidate = 3600;
@@ -390,6 +391,8 @@ export default async function MarketNewsArticle({
             url={`https://chat.homerates.ai/market-news/${article.slug}`}
             title={article.title}
           />
+
+          <NewsletterCapture source="market-news" />
 
           <div className="mna-cta">
             <p>See how today&apos;s rates affect your real numbers — run a live mortgage scenario instantly.</p>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { knowledgeHubArticles } from '../articles';
 import ShareBar from '../../components/ShareBar';
 import AppNav from '../../components/AppNav';
+import NewsletterCapture from '../../components/NewsletterCapture';
 
 export const dynamicParams = true;
 export const revalidate = 3600; // ISR: re-check DB every hour
@@ -407,6 +408,8 @@ export default async function KnowledgeHubArticle({
             url={`https://chat.homerates.ai/knowledge-hub/${article.slug}`}
             title={article.title}
           />
+
+          <NewsletterCapture source="knowledge-hub" />
 
           <div className="kha-cta">
             <p>Run a live mortgage scenario with real rates and real math — no forms, no callbacks.</p>
