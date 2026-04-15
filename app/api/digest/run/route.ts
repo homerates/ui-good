@@ -10,6 +10,7 @@ import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { digestEmailHtml } from '@/digest/emailTemplate';
+import { getFredSnapshot } from '@/lib/fred';
 
 const sb = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,14 +46,12 @@ function monthsAgo(d: Date) {
 
 async function getLiveRate(): Promise<number> {
     try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://chat.homerates.ai'}/api/ticker`, { cache: 'no-store' });
-        const json = await res.json();
-        const item = json?.items?.find((i: any) => i.label === '30Y FIXED');
-        if (item?.value) {
-            const p = parseFloat(String(item.value).replace('%', ''));
-            if (Number.isFinite(p) && p > 3 && p < 12) return p;
+        const snap = await getFredSnapshot({ timeoutMs: 6000 });
+        if (snap?.mort30Avg && Number.isFinite(snap.mort30Avg) && snap.mort30Avg > 3 && snap.mort30Avg < 12) {
+            return snap.mort30Avg;
         }
     } catch { /* fall through */ }
+    // Only used for display in digest — fall back to recent historical average
     return 7.0;
 }
 

@@ -649,7 +649,7 @@ export async function emailBorrowerWelcome({
   loName:          string;
   loLender:        string | null;
   inviteUrl:       string;
-  liveRate:        number;
+  liveRate:        number | null;
   propertyAddress: string | null;
 }) {
   const resend = getResend();
@@ -694,7 +694,7 @@ export async function emailBorrowerWelcome({
           <tr>
             <td style="padding:16px 20px;border-right:1px solid #e2e8f0;" width="50%">
               <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Today's 30Y Rate</p>
-              <p style="margin:0;font-size:24px;font-weight:800;color:#008a48;">${liveRate.toFixed(2)}%</p>
+              <p style="margin:0;font-size:24px;font-weight:800;color:#008a48;">${liveRate != null ? liveRate.toFixed(2) + "%" : "—"}</p>
             </td>
             <td style="padding:16px 20px;" width="50%">
               <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">What you get</p>

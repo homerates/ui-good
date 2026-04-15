@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
 import { emailBorrowerWelcome } from "../../../lib/sendEmail";
 import { clerkClient } from "@clerk/nextjs/server";
+import { getFredSnapshot } from "@/lib/fred";
 
 export async function GET() {
     const { userId } = await auth();
@@ -176,11 +177,13 @@ export async function POST(req: NextRequest) {
                 const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
                 const inviteUrl = `${baseUrl}/sign-up`;
 
-                // Fetch today's rate for teaser — best-effort
-                let liveRate = 6.85;
+                // Fetch today's live rate directly from FRED (no HTTP self-call)
+                let liveRate: number | null = null;
                 try {
-                    const fred = await fetch(`${baseUrl}/api/fred`);
-                    if (fred.ok) { const d = await fred.json(); liveRate = d.rate ?? liveRate; }
+                    const snap = await getFredSnapshot({ timeoutMs: 5000 });
+                    if (snap?.mort30Avg && Number.isFinite(snap.mort30Avg)) {
+                        liveRate = snap.mort30Avg;
+                    }
                 } catch { /* non-fatal */ }
 
                 emailBorrowerWelcome({
