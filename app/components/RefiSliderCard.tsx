@@ -305,7 +305,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             </div>
 
             {/* Dual rate sliders */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 28px 1fr', gap: '0 8px', marginBottom: 14, alignItems: 'end' }}>
+            <div className="refi-rate-row" style={{ display: 'grid', gridTemplateColumns: '1fr 28px 1fr', gap: '0 8px', marginBottom: 14, alignItems: 'end' }}>
                 <SliderField
                     label="Current Rate" value={currentRate}
                     min={3} max={12} step={0.125}

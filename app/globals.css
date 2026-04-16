@@ -2204,3 +2204,18 @@ body:has(.page-shell) {
 .pac-matched { color: #00e87a; }
 .pac-icon { display: none; }
 .pac-logo::after { display: none; }
+
+/* ── RefiSliderCard — stack rate sliders on narrow mobile ──────────────────── */
+@media (max-width: 480px) {
+  .refi-rate-row {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto;
+  }
+  .refi-rate-row > div:nth-child(2) {
+    /* arrow — rotate to point down and center */
+    transform: rotate(90deg);
+    padding-bottom: 0;
+    padding-top: 2px;
+    text-align: center;
+  }
+}
