@@ -218,12 +218,25 @@ export async function POST(req: Request) {
     }
 
     // ── BORROWER PATH (LO-gated) ──────────────────────────────────────────────
-    // Load borrower + LO
-    const { data: borrower } = await db
-        .from('borrowers')
-        .select('*, loan_officers(user_id, email)')
-        .eq('id', borrower_id)
-        .single();
+    // Load borrower + LO (include override columns — graceful if migration not run)
+    let borrower: Record<string, any> | null = null;
+    {
+        const res = await db
+            .from('borrowers')
+            .select('*, loan_officers(user_id, email), actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
+            .eq('id', borrower_id)
+            .single();
+        if (res.error?.code === '42703') {
+            const fallback = await db
+                .from('borrowers')
+                .select('*, loan_officers(user_id, email)')
+                .eq('id', borrower_id)
+                .single();
+            borrower = fallback.data;
+        } else {
+            borrower = res.data;
+        }
+    }
 
     if (!borrower) return NextResponse.json({ error: 'Borrower not found' }, { status: 404 });
 
@@ -285,15 +298,27 @@ export async function POST(req: Request) {
     const loName  = 'HomeRates.ai';
     const loEmail = (borrower.loan_officers as any)?.email ?? null;
 
+    // Prefer LO-supplied overrides over Rentcast/historical estimates
+    const overrideBalance = borrower.actual_balance        ? Number(borrower.actual_balance)        : null;
+    const overrideRate    = borrower.actual_rate           ? Number(borrower.actual_rate)           : null;
+    const overrideValue   = rentcast.estimatedValue; // AVM always from Rentcast
+    const effectiveBalance = overrideBalance ?? rentcast.estimatedBalance;
+    const effectiveRate    = overrideRate    ?? rentcast.purchaseRate;
+    const effectiveEquity  = (overrideValue && effectiveBalance) ? Math.round(overrideValue - effectiveBalance) : rentcast.estimatedEquity;
+
     const emailData = {
         borrowerName:    borrower.name,
         address:         borrower.property_address,
         liveRate,
         ...rentcast,
+        // Override-aware fields (actual wins over estimate)
+        estimatedBalance: effectiveBalance,
+        estimatedEquity:  effectiveEquity,
+        purchaseRate:     effectiveRate,
         valueDelta: (rentcast.estimatedValue && prevSnapshot?.estimated_value)
             ? rentcast.estimatedValue - prevSnapshot.estimated_value : null,
-        equityDelta: (rentcast.estimatedEquity && prevSnapshot?.estimated_equity)
-            ? rentcast.estimatedEquity - prevSnapshot.estimated_equity : null,
+        equityDelta: (effectiveEquity && prevSnapshot?.estimated_equity)
+            ? effectiveEquity - prevSnapshot.estimated_equity : null,
         loName,
         loEmail,
         valueHistory: valueHistory.length >= 2 ? valueHistory : undefined,

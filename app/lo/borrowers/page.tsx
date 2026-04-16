@@ -14,6 +14,10 @@ type Borrower = {
     property_address: string | null;
     digest_enabled: boolean;
     created_at: string;
+    actual_balance:        number | null;
+    actual_rate:           number | null;
+    actual_purchase_price: number | null;
+    actual_purchase_date:  string | null;
 };
 
 export default function LoBorrowersPage() {
@@ -39,6 +43,11 @@ export default function LoBorrowersPage() {
     const [giftOk, setGiftOk] = React.useState<string | null>(null);
     const [giftErr, setGiftErr] = React.useState<string | null>(null);
     const [deleting, setDeleting] = React.useState<string | null>(null);
+    // Loan detail overrides per borrower
+    const [loanOpen, setLoanOpen]   = React.useState<string | null>(null);   // borrower id with open panel
+    const [loanForm, setLoanForm]   = React.useState<Record<string, { balance: string; rate: string; purchasePrice: string; purchaseDate: string }>>({});
+    const [loanSaving, setLoanSaving] = React.useState<string | null>(null);
+    const [loanSaved,  setLoanSaved]  = React.useState<string | null>(null);
     // Quick-add state
     const [quickAddOpen, setQuickAddOpen] = React.useState(false);
     const [quickAdding, setQuickAdding] = React.useState(false);
@@ -165,6 +174,46 @@ export default function LoBorrowersPage() {
             setError(d.error ?? "Failed to remove borrower");
         }
         setDeleting(null);
+    }
+
+    function openLoanEditor(b: Borrower) {
+        setLoanForm(prev => ({
+            ...prev,
+            [b.id]: {
+                balance:       b.actual_balance        ? String(b.actual_balance)        : '',
+                rate:          b.actual_rate           ? String(b.actual_rate)           : '',
+                purchasePrice: b.actual_purchase_price ? String(b.actual_purchase_price) : '',
+                purchaseDate:  b.actual_purchase_date  ?? '',
+            },
+        }));
+        setLoanOpen(prev => prev === b.id ? null : b.id);
+        setLoanSaved(null);
+    }
+
+    async function saveLoanDetails(b: Borrower) {
+        const f = loanForm[b.id];
+        if (!f) return;
+        setLoanSaving(b.id);
+        const res = await fetch('/api/borrowers', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: b.id,
+                actual_balance:        f.balance       ? Number(f.balance)       : null,
+                actual_rate:           f.rate          ? Number(f.rate)          : null,
+                actual_purchase_price: f.purchasePrice ? Number(f.purchasePrice) : null,
+                actual_purchase_date:  f.purchaseDate  || null,
+            }),
+        });
+        const data = await res.json().catch(() => ({}));
+        setLoanSaving(null);
+        if (data.borrower) {
+            setBorrowers(prev => prev.map(x => x.id === b.id ? { ...x, ...data.borrower } : x));
+            setLoanSaved(b.id);
+            setTimeout(() => { setLoanSaved(null); setLoanOpen(null); }, 2500);
+        } else {
+            setError(data.error ?? 'Failed to save loan details');
+        }
     }
 
     async function sendDigest(borrower: Borrower) {
@@ -331,6 +380,12 @@ export default function LoBorrowersPage() {
                         const didGift    = giftOk   === b.id;
                         const isGiftOpen = giftOpen === b.id;
 
+                        const isLoanOpen  = loanOpen  === b.id;
+                        const isLoanSaving = loanSaving === b.id;
+                        const didLoanSave  = loanSaved  === b.id;
+                        const lf = loanForm[b.id] ?? { balance: '', rate: '', purchasePrice: '', purchaseDate: '' };
+                        const hasOverrides = !!(b.actual_balance || b.actual_rate || b.actual_purchase_price || b.actual_purchase_date);
+
                         return (
                             <div key={b.id} style={{ padding: "16px 18px", borderRadius: 12, border: "1px solid rgba(148,163,184,0.1)", background: "rgba(255,255,255,0.025)", display: "flex", flexDirection: "column", gap: 12 }}>
                                 {/* Top row — name + email */}
@@ -340,6 +395,20 @@ export default function LoBorrowersPage() {
                                         {b.email && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", marginTop: 2 }}>{b.email}</div>}
                                     </div>
                                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        {/* Loan details override button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => openLoanEditor(b)}
+                                            style={{
+                                                padding: "6px 14px", borderRadius: 999,
+                                                border: `1px solid ${hasOverrides ? "rgba(0,232,122,0.4)" : "rgba(148,163,184,0.2)"}`,
+                                                background: isLoanOpen ? "rgba(0,232,122,0.08)" : "transparent",
+                                                color: hasOverrides ? "rgba(0,232,122,0.8)" : "rgba(185,208,192,0.6)",
+                                                fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            {hasOverrides ? "Loan Details ✓" : "Loan Details"}
+                                        </button>
                                         {/* Gift credits button — only if borrower has signed up */}
                                         <button
                                             type="button"
@@ -439,6 +508,76 @@ export default function LoBorrowersPage() {
                                         </div>
                                         {giftErr && <div style={{ fontSize: "0.78rem", color: "#ff6b6b" }}>{giftErr}</div>}
                                         {didGift && <div style={{ fontSize: "0.78rem", color: "#00e87a" }}>Credits sent successfully!</div>}
+                                    </div>
+                                )}
+
+                                {/* Loan details override panel */}
+                                {isLoanOpen && (
+                                    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,232,122,0.15)", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                                        <div style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(0,232,122,0.5)" }}>
+                                            Loan Details — {b.name.split(" ")[0]}
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: "0.78rem", color: "rgba(185,208,192,0.5)", lineHeight: 1.5 }}>
+                                            Override Rentcast estimates with actual loan data. Leave blank to keep using estimates.
+                                        </p>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Current Balance ($)</label>
+                                                <input
+                                                    type="number" min={0} placeholder="e.g. 412000"
+                                                    value={lf.balance}
+                                                    onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, balance: e.target.value } }))}
+                                                    style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                                />
+                                            </div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Interest Rate (%)</label>
+                                                <input
+                                                    type="number" min={0} max={20} step={0.01} placeholder="e.g. 3.25"
+                                                    value={lf.rate}
+                                                    onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, rate: e.target.value } }))}
+                                                    style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                                />
+                                            </div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Purchase Price ($)</label>
+                                                <input
+                                                    type="number" min={0} placeholder="e.g. 550000"
+                                                    value={lf.purchasePrice}
+                                                    onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, purchasePrice: e.target.value } }))}
+                                                    style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                                />
+                                            </div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Close Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={lf.purchaseDate}
+                                                    onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, purchaseDate: e.target.value } }))}
+                                                    style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                            <button type="button" onClick={() => saveLoanDetails(b)} disabled={isLoanSaving} style={{
+                                                padding: "7px 18px", borderRadius: 999, border: "none",
+                                                background: "#00e87a", color: "#080c12",
+                                                fontSize: "0.82rem", fontWeight: 700, cursor: isLoanSaving ? "default" : "pointer",
+                                                opacity: isLoanSaving ? 0.5 : 1,
+                                            }}>
+                                                {isLoanSaving ? "Saving…" : didLoanSave ? "Saved ✓" : "Save Loan Details"}
+                                            </button>
+                                            <button type="button" onClick={() => setLoanOpen(null)} style={{
+                                                padding: "7px 14px", borderRadius: 999,
+                                                border: "1px solid rgba(148,163,184,0.15)", background: "transparent",
+                                                color: "rgba(185,208,192,0.45)", fontSize: "0.82rem", cursor: "pointer",
+                                            }}>Cancel</button>
+                                        </div>
+                                        {hasOverrides && (
+                                            <p style={{ margin: 0, fontSize: "0.72rem", color: "rgba(0,232,122,0.5)" }}>
+                                                Active overrides: {[b.actual_balance && `balance $${Number(b.actual_balance).toLocaleString()}`, b.actual_rate && `rate ${b.actual_rate}%`, b.actual_purchase_price && `purchase $${Number(b.actual_purchase_price).toLocaleString()}`, b.actual_purchase_date && `closed ${b.actual_purchase_date}`].filter(Boolean).join(" · ")}
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 

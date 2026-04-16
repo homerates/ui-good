@@ -17,7 +17,7 @@ export async function GET() {
 
     const { data, error } = await supabase
         .from("borrowers")
-        .select("id, name, email, user_id, property_address, digest_enabled, created_at")
+        .select("id, name, email, user_id, property_address, digest_enabled, created_at, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date")
         .eq("loan_officer_id", lo.id)
         .order("created_at", { ascending: false });
 
@@ -40,6 +40,11 @@ export async function PATCH(req: NextRequest) {
     if (body.property_address !== undefined) updates.property_address = body.property_address;
     if (body.digest_enabled   !== undefined) updates.digest_enabled   = body.digest_enabled;
     if (body.email            !== undefined) updates.email            = body.email;
+    // Loan detail overrides — null clears a field, undefined = don't touch
+    if ('actual_balance'        in body) updates.actual_balance        = body.actual_balance        ? Number(body.actual_balance)        : null;
+    if ('actual_rate'           in body) updates.actual_rate           = body.actual_rate           ? Number(body.actual_rate)           : null;
+    if ('actual_purchase_price' in body) updates.actual_purchase_price = body.actual_purchase_price ? Number(body.actual_purchase_price) : null;
+    if ('actual_purchase_date'  in body) updates.actual_purchase_date  = body.actual_purchase_date  ?? null;
 
     const { data, error } = await supabase
         .from("borrowers")
