@@ -3,6 +3,7 @@
 // Post sign-up role selection — protected route, runs once per new user
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const TYPES = [
@@ -29,7 +30,9 @@ const TYPES = [
 type UserType = "borrower" | "lo" | "agent";
 
 export default function WelcomePage() {
-  const [type, setType] = useState<UserType | "">("");
+  const searchParams = useSearchParams();
+  const roleFromUrl = searchParams?.get("role") as UserType | null;
+  const [type, setType] = useState<UserType | "">(roleFromUrl ?? "");
   const [nmls, setNmls] = useState("");
   const [lender, setLender] = useState("");
   const [license, setLicense] = useState("");
@@ -41,6 +44,14 @@ export default function WelcomePage() {
   const [foundingNumber, setFoundingNumber] = useState<number | null>(null);
   // checking = true while we verify existing session — prevents flash of role selection form
   const [checking, setChecking] = useState(true);
+
+  // Auto-submit if role is pre-determined from URL and needs no extra fields (borrower)
+  useEffect(() => {
+    if (roleFromUrl === "borrower" && !checking) {
+      handleSubmit();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checking]);
 
   // For existing (already-registered) users: claim any pending waitlist invite then redirect
   useEffect(() => {

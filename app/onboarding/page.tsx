@@ -56,28 +56,29 @@ export default function OnboardingPage() {
     const pathname = usePathname();
     const { user } = useUser();
 
-    const inviteCode = searchParams?.get("invite") || "";
+    const inviteCode   = searchParams?.get("invite") || "";
+    const emailFromUrl = searchParams?.get("email")  || "";
+    const nameFromUrl  = searchParams?.get("name")   || "";
 
     const [form, setForm] = React.useState<FormState>({
-        firstName: "",
+        firstName: nameFromUrl || "",
         lastName: "",
-        email: "",
+        email: emailFromUrl || "",
     });
 
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
     const [successBorrowerId, setSuccessBorrowerId] = React.useState<string | null>(null);
 
-    // Prefill from Clerk user when signed in — only once
+    // Prefill from Clerk user when signed in — only fills empty fields
     React.useEffect(() => {
         if (!user) return;
         setForm((prev) => {
-            if (prev.firstName || prev.lastName || prev.email) return prev;
             const parts = (user.fullName || "").split(" ");
             return {
-                firstName: parts[0] || "",
-                lastName: parts.slice(1).join(" ") || "",
-                email: user.primaryEmailAddress?.emailAddress || "",
+                firstName: prev.firstName || parts[0] || "",
+                lastName:  prev.lastName  || parts.slice(1).join(" ") || "",
+                email:     prev.email     || user.primaryEmailAddress?.emailAddress || "",
             };
         });
     }, [user]);
@@ -93,6 +94,8 @@ export default function OnboardingPage() {
         const base = typeof window !== "undefined" ? window.location.origin : "https://chat.homerates.ai";
         const signInUrl = new URL("/sign-in", base);
         signInUrl.searchParams.set("redirect_url", redirectUrl);
+        // Pre-fill email so the user doesn't have to type it
+        if (emailFromUrl) signInUrl.searchParams.set("email", emailFromUrl);
         if (typeof window !== "undefined") window.location.href = signInUrl.toString();
     }
 
@@ -129,6 +132,13 @@ export default function OnboardingPage() {
                 setSubmitting(false);
                 return;
             }
+
+            // Silently set role = borrower so /welcome is skipped on next visit
+            fetch("/api/onboarding/setup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role: "borrower" }),
+            }).catch(() => { /* non-fatal */ });
 
             setSuccessBorrowerId(data.borrowerId as string);
             setSubmitting(false);
@@ -190,25 +200,30 @@ export default function OnboardingPage() {
                         <SignedOut>
                             <div style={cardStyle}>
                                 <div>
-                                    <h1 style={{ margin: "0 0 8px", fontSize: "1.3rem", fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25 }}>You've been invited</h1>
+                                    <h1 style={{ margin: "0 0 8px", fontSize: "1.3rem", fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25 }}>
+                                        {nameFromUrl ? `Welcome, ${nameFromUrl}` : "You've been invited"}
+                                    </h1>
                                     <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(185,208,192,0.7)", lineHeight: 1.6 }}>
-                                        Your loan officer has added you to HomeRates. Sign in or create a free account to activate your access.
+                                        Your loan officer has added you to HomeRates.{" "}
+                                        {emailFromUrl
+                                            ? `We'll sign you in as ${emailFromUrl}.`
+                                            : "Sign in or create a free account to activate your access."}
                                     </p>
                                 </div>
-                                {inviteCode && (
+                                {emailFromUrl && (
                                     <div style={{
-                                        padding: "8px 12px", borderRadius: 8,
+                                        padding: "10px 14px", borderRadius: 8,
                                         background: "rgba(0,232,122,0.06)", border: "1px solid rgba(0,232,122,0.15)",
-                                        fontSize: "0.78rem", color: "rgba(185,208,192,0.5)",
+                                        fontSize: "0.88rem", color: "#00e87a", fontWeight: 600,
                                     }}>
-                                        Invite code: <span style={{ fontFamily: "monospace", color: "#00e87a", marginLeft: 4 }}>{inviteCode}</span>
+                                        {emailFromUrl}
                                     </div>
                                 )}
                                 <button type="button" onClick={handleGoToSignIn} style={{
                                     padding: "12px 20px", borderRadius: 999, border: "none",
                                     background: "#00e87a", color: "#080c12", fontSize: "0.95rem", fontWeight: 700, cursor: "pointer",
                                 }}>
-                                    Continue to sign in →
+                                    {emailFromUrl ? `Continue as ${emailFromUrl} →` : "Continue to sign in →"}
                                 </button>
                             </div>
                         </SignedOut>

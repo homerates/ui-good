@@ -6,6 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { emailBorrowerWelcome } from "../../../lib/sendEmail";
 import { clerkClient } from "@clerk/nextjs/server";
 import { getFredSnapshot } from "@/lib/fred";
+import { randomUUID } from "crypto";
 
 export async function GET() {
     const { userId } = await auth();
@@ -180,7 +181,34 @@ export async function POST(req: NextRequest) {
                 const loClerk = await clerk.users.getUser(userId);
                 const loName = [loClerk.firstName, loClerk.lastName].filter(Boolean).join(" ") || lo.email || "Your loan officer";
                 const baseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
-                const inviteUrl = `${baseUrl}/sign-up`;
+
+                // ── Smart invite URL: magic link for existing users, personalised invite for new ──
+                let inviteUrl: string;
+                try {
+                    const firstName = name.split(" ")[0] || "";
+                    const clerkUsers = await clerk.users.getUserList({ emailAddress: [email], limit: 1 });
+                    if (clerkUsers.totalCount > 0 && clerkUsers.data[0]) {
+                        // Existing Clerk user → one-click sign-in token (magic link)
+                        const token = await clerk.signInTokens.createSignInToken({
+                            userId: clerkUsers.data[0].id,
+                            expiresInSeconds: 7 * 24 * 60 * 60,
+                        });
+                        inviteUrl = `${baseUrl}/sign-in#/?sign_in_token=${token.token}`;
+                    } else {
+                        // New user → personalised onboarding page with email + name pre-filled
+                        const code = randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
+                        await supabase.from("invite_codes").insert({
+                            code,
+                            created_by_loan_officer: lo.id,
+                            target_plan: "borrower-onboarding",
+                            max_uses: 1,
+                        });
+                        inviteUrl = `${baseUrl}/onboarding?invite=${encodeURIComponent(code)}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(firstName)}`;
+                    }
+                } catch {
+                    // Fallback — never block the email send
+                    inviteUrl = `${baseUrl}/sign-up?email=${encodeURIComponent(email)}`;
+                }
 
                 // Fetch today's live rate directly from FRED (no HTTP self-call)
                 let liveRate: number | null = null;

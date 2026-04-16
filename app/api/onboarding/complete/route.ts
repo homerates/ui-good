@@ -182,7 +182,17 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 7) Done – client can redirect to success/dashboard
+        // 7) Auto-set role = borrower so /welcome is skipped entirely
+        // Only sets if row has no role yet — never overwrites an existing role
+        await supabase
+            .from("users")
+            .upsert({ id: userId, role: "borrower", plan: "free" }, { onConflict: "id", ignoreDuplicates: true });
+        await supabase
+            .from("users")
+            .update({ role: "borrower" })
+            .eq("id", userId)
+            .is("role", null);
+
         return NextResponse.json(
             {
                 ok: true,
