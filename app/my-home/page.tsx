@@ -577,7 +577,7 @@ function MyHomePageInner() {
   }
 
   async function removeProperty(propertyId: string) {
-    if (!window.confirm('Remove this property from My Home?')) return;
+    if (!window.confirm('Remove this property from My Properties?')) return;
     const res = await fetch(`/api/homeowner/save?property_id=${encodeURIComponent(propertyId)}`, { method: 'DELETE' });
     if (!res.ok) return;
     setProperties(prev => {
@@ -646,7 +646,7 @@ function MyHomePageInner() {
               <h2>Your Home, Analyzed for Free</h2>
               <p>Sign in to monitor equity, HELOC capacity, refi timing, and more — no agent or lender required.</p>
               <SignInButton mode="modal">
-                <button className="mh-signin-cta">Sign In — See My Home Value</button>
+                <button className="mh-signin-cta">Sign In — See My Properties</button>
               </SignInButton>
             </div>
           </SignedOut>
@@ -679,7 +679,7 @@ function MyHomePageInner() {
                 <div className="mh-header">
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                     <div>
-                      <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : 'My Home'}</h1>
+                      <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : 'My Properties'}</h1>
                       <p style={{ marginTop: 4 }}>{borrowerId
                         ? `Viewing property intelligence for ${analysis?.address ?? '…'}`
                         : hasAddress

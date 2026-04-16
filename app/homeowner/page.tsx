@@ -367,10 +367,10 @@ export default function HomeownerPage() {
               <SignInButton mode="modal">
                 <button className="ho-btn-ghost">Sign in</button>
               </SignInButton>
-              <Link href="/my-home" className="ho-btn-primary">My Home Value</Link>
+              <Link href="/my-home" className="ho-btn-primary">My Properties</Link>
             </SignedOut>
             <SignedIn>
-              <Link href="/my-home" className="ho-btn-primary">My Home</Link>
+              <Link href="/my-home" className="ho-btn-primary">My Properties</Link>
               <UserButton afterSignOutUrl="/homeowner" />
             </SignedIn>
           </div>
@@ -532,7 +532,7 @@ export default function HomeownerPage() {
           <h2>Start with your address</h2>
           <p>Free, instant, no sign-up required to try it. Create an account to get monthly updates.</p>
           <div className="ho-cta-btns">
-            <Link href="/my-home" className="ho-cta-addr">My Home Value — Free</Link>
+            <Link href="/my-home" className="ho-cta-addr">My Properties — Free</Link>
             <Link href="/chat" className="ho-cta-chat">Ask a mortgage question</Link>
           </div>
         </div>
