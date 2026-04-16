@@ -678,86 +678,139 @@ function MyHomePageInner() {
                   )}
                 </div>}
 
-                {/* INTELLIGENCE SECTION */}
-                {hasAddress && (
-                  <div className="mh-card" style={{ padding: 0, overflow: 'hidden' }}>
-                    {/* Chip nav */}
-                    <div className="mh-chip-bar">
-                      {CHIPS.map(c => (
-                        <button
-                          key={c.id}
-                          className={`mh-chip${activeChip === c.id ? ' mh-chip-active' : ''}`}
-                          onClick={() => setActiveChip(c.id)}
-                        >
-                          <span className="mh-chip-icon">{c.icon}</span>
-                          {c.label}
-                        </button>
-                      ))}
-                    </div>
+                {/* INTELLIGENCE SECTION — always visible; locked preview when no address */}
+                <div className="mh-card" style={{ padding: 0, overflow: 'hidden' }}>
+                  {/* Chip nav */}
+                  <div className="mh-chip-bar">
+                    {CHIPS.map(c => (
+                      <button
+                        key={c.id}
+                        className={`mh-chip${activeChip === c.id ? ' mh-chip-active' : ''}${!hasAddress ? ' mh-chip-dim' : ''}`}
+                        onClick={() => { if (hasAddress) setActiveChip(c.id); }}
+                        style={!hasAddress ? { cursor: 'default' } : undefined}
+                      >
+                        <span className="mh-chip-icon">{c.icon}</span>
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
 
-                    {/* Card content */}
-                    <div className="mh-chip-body">
-                      {analysisLoading && (
-                        <div className="mh-analysis-loading">
-                          <div className="mh-spinner" />
-                          <span>Fetching property data…</span>
+                  {/* Card content */}
+                  <div className="mh-chip-body">
+                    {/* ── Locked preview — no address yet ── */}
+                    {!hasAddress && (
+                      <div className="mh-preview-wrap">
+                        {/* Ghost stat row */}
+                        <div className="mh-stat-row mh-preview-ghost">
+                          {[
+                            { label: 'Est. Value',  value: '$———' },
+                            { label: 'Est. Equity', value: '$———' },
+                            { label: 'LTV Ratio',   value: '——%'  },
+                          ].map(s => (
+                            <div key={s.label} className="mh-stat">
+                              <div className="mh-stat-label">{s.label}</div>
+                              <div className="mh-stat-value" style={{ color: 'rgba(255,255,255,0.12)', letterSpacing: 2 }}>{s.value}</div>
+                            </div>
+                          ))}
                         </div>
-                      )}
-
-                      {!analysisLoading && analysisErr && (
-                        <div className="mh-analysis-err">
-                          {analysisErr}
-                          <button className="mh-retry-btn" onClick={loadAnalysis}>Retry</button>
+                        {/* Ghost bar */}
+                        <div style={{ margin: '20px 0 8px' }}>
+                          <div className="mh-bar-label-row" style={{ opacity: 0.2 }}>
+                            <span>Equity</span><span>Balance</span>
+                          </div>
+                          <div className="mh-bar-track">
+                            <div className="mh-bar-fill" style={{ width: '40%', background: 'rgba(34,197,94,0.15)' }} />
+                            <div className="mh-bar-fill" style={{ width: '60%', background: 'rgba(255,255,255,0.05)' }} />
+                          </div>
                         </div>
-                      )}
-
-                      {!analysisLoading && !analysisErr && analysis && (
-                        <>
-                          {activeChip === 'equity'     && <CardEquity     d={analysis} />}
-                          {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
-                          {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
-                          {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
-                          {activeChip === 'milestones' && <CardMilestones d={analysis} />}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Refresh + chat CTA footer */}
-                    {analysis && !analysisLoading && (
-                      <div className="mh-chip-footer">
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="mh-refresh-btn" onClick={loadAnalysis}>↻ Refresh</button>
-                          {!borrowerId && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
-                          {borrowerId && <Link href="/lo/borrowers" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Borrowers</Link>}
+                        {/* Unlock CTA overlay */}
+                        <div className="mh-preview-cta">
+                          <div style={{ fontSize: '1.4rem', marginBottom: 8 }}>🔓</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 6 }}>
+                            Enter your address to unlock
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: 16, lineHeight: 1.5 }}>
+                            Equity tracking, HELOC capacity, refi timing, milestones — all personalized to your home.
+                          </div>
+                          <button
+                            className="mh-save-btn"
+                            style={{ width: 'auto', padding: '10px 28px' }}
+                            onClick={() => {
+                              document.querySelector<HTMLInputElement>('.mh-input')?.focus();
+                              document.querySelector('.mh-no-address')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }}
+                          >
+                            Add my property →
+                          </button>
                         </div>
-                        <Link
-                          href={(() => {
-                            const addr = analysis?.address ?? record?.property_address ?? '';
-                            const bal  = analysis?.estimatedBalance;
-                            const live = analysis?.liveRate ?? 6.99;
-                            const rate = analysis?.purchaseRate ?? live;
-                            if (activeChip === 'refi') {
-                              const refibal = bal ?? (analysis?.estimatedValue ? Math.round(analysis.estimatedValue * 0.65) : null);
-                              const balNote = bal ? '' : ' (approximate — based on estimated home value, adjust as needed)';
-                              const rateNote = analysis?.purchaseRate ? '' : ' (using today\'s market rate as reference — update if you know your actual rate)';
-                              if (refibal) return `/chat?sq=${encodeURIComponent(`I have a $${Math.round(refibal).toLocaleString('en-US')} balance${balNote} at ${rate.toFixed(2)}%${rateNote}, market rate is ${live.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`)}`;
-                            }
-                            if (activeChip === 'heloc' && analysis?.helocMax) {
-                              return `/chat?sq=${encodeURIComponent(`HELOC analysis for ${addr}: I have ${analysis.helocMax ? '$' + Math.round(analysis.helocMax).toLocaleString() : 'equity'} available at ~${analysis.helocRate?.toFixed(2) ?? '7.75'}%. What are my best options for accessing home equity?`)}`;
-                            }
-                            if (activeChip === 'equity' && bal) {
-                              return `/chat?sq=${encodeURIComponent(`Equity analysis for ${addr}: estimated value ${analysis?.estimatedValue ? '$' + Math.round(analysis.estimatedValue).toLocaleString() : 'unknown'}, balance $${Math.round(bal).toLocaleString()}, equity ${analysis?.estimatedEquity ? '$' + Math.round(analysis.estimatedEquity).toLocaleString() : 'unknown'}. What are my options?`)}`;
-                            }
-                            return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
-                          })()}
-                          className="mh-cta-link"
-                        >
-                          Ask a mortgage question →
-                        </Link>
                       </div>
                     )}
+
+                    {/* ── Active state ── */}
+                    {hasAddress && (
+                      <>
+                        {analysisLoading && (
+                          <div className="mh-analysis-loading">
+                            <div className="mh-spinner" />
+                            <span>Fetching property data…</span>
+                          </div>
+                        )}
+
+                        {!analysisLoading && analysisErr && (
+                          <div className="mh-analysis-err">
+                            {analysisErr}
+                            <button className="mh-retry-btn" onClick={loadAnalysis}>Retry</button>
+                          </div>
+                        )}
+
+                        {!analysisLoading && !analysisErr && analysis && (
+                          <>
+                            {activeChip === 'equity'     && <CardEquity     d={analysis} />}
+                            {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
+                            {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
+                            {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
+                            {activeChip === 'milestones' && <CardMilestones d={analysis} />}
+                          </>
+                        )}
+                      </>
+                    )}
                   </div>
-                )}
+
+                  {/* Refresh + chat CTA footer — only when analysis is loaded */}
+                  {analysis && !analysisLoading && (
+                    <div className="mh-chip-footer">
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="mh-refresh-btn" onClick={loadAnalysis}>↻ Refresh</button>
+                        {!borrowerId && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
+                        {borrowerId && <Link href="/lo/borrowers" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Borrowers</Link>}
+                      </div>
+                      <Link
+                        href={(() => {
+                          const addr = analysis?.address ?? record?.property_address ?? '';
+                          const bal  = analysis?.estimatedBalance;
+                          const live = analysis?.liveRate ?? 6.99;
+                          const rate = analysis?.purchaseRate ?? live;
+                          if (activeChip === 'refi') {
+                            const refibal = bal ?? (analysis?.estimatedValue ? Math.round(analysis.estimatedValue * 0.65) : null);
+                            const balNote = bal ? '' : ' (approximate — based on estimated home value, adjust as needed)';
+                            const rateNote = analysis?.purchaseRate ? '' : ' (using today\'s market rate as reference — update if you know your actual rate)';
+                            if (refibal) return `/chat?sq=${encodeURIComponent(`I have a $${Math.round(refibal).toLocaleString('en-US')} balance${balNote} at ${rate.toFixed(2)}%${rateNote}, market rate is ${live.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`)}`;
+                          }
+                          if (activeChip === 'heloc' && analysis?.helocMax) {
+                            return `/chat?sq=${encodeURIComponent(`HELOC analysis for ${addr}: I have ${analysis.helocMax ? '$' + Math.round(analysis.helocMax).toLocaleString() : 'equity'} available at ~${analysis.helocRate?.toFixed(2) ?? '7.75'}%. What are my best options for accessing home equity?`)}`;
+                          }
+                          if (activeChip === 'equity' && bal) {
+                            return `/chat?sq=${encodeURIComponent(`Equity analysis for ${addr}: estimated value ${analysis?.estimatedValue ? '$' + Math.round(analysis.estimatedValue).toLocaleString() : 'unknown'}, balance $${Math.round(bal).toLocaleString()}, equity ${analysis?.estimatedEquity ? '$' + Math.round(analysis.estimatedEquity).toLocaleString() : 'unknown'}. What are my options?`)}`;
+                          }
+                          return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
+                        })()}
+                        className="mh-cta-link"
+                      >
+                        Ask a mortgage question →
+                      </Link>
+                    </div>
+                  )}
+                </div>
 
                 {/* LOAN DETAIL EDITOR — consumer only */}
                 {!borrowerId && editingLoan && (
@@ -893,7 +946,13 @@ const CSS = `
   .mh-chip{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.55);transition:all .15s}
   .mh-chip:hover{background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.2)}
   .mh-chip-active{background:rgba(34,197,94,0.12);color:#22c55e;border-color:rgba(34,197,94,0.35)}
+  .mh-chip-dim{opacity:0.3;pointer-events:none}
   .mh-chip-icon{font-size:.85rem}
+
+  /* LOCKED PREVIEW */
+  .mh-preview-wrap{position:relative;padding-bottom:24px}
+  .mh-preview-ghost{opacity:0.18;pointer-events:none;user-select:none;filter:blur(2px)}
+  .mh-preview-cta{text-align:center;padding:28px 24px 8px;color:#f0f0f0}
 
   /* CHIP BODY */
   .mh-chip-body{padding:24px}
