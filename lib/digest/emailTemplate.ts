@@ -445,7 +445,7 @@ function sectionHELOC(data: DigestEmailData): string {
 
     <div style="margin-top:10px;font-size:10px;color:${TXT2};line-height:1.5;">
       Rate shown is estimated Prime + 0.50% variable. Actual rates vary by lender, credit, and CLTV.
-      <a href="${BASE}/chat?sq=${encodeURIComponent('What HELOC options do I have?')}" style="color:${GREEN};text-decoration:none;">Talk to an LO →</a>
+      <a href="${BASE}/messages" style="color:${GREEN};text-decoration:none;">Message my LO →</a>
     </div>
   `);
 }

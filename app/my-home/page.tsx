@@ -216,8 +216,8 @@ function CardHELOC({ d }: { d: AnalysisData }) {
       </table>
       <div className="mh-footnote">
         Rate is estimated Prime + 0.50% variable. Actual rates vary by lender, credit, and LTV.{' '}
-        <Link href={`/chat?sq=${encodeURIComponent('What HELOC options do I have on my home?')}`} className="mh-inline-link">
-          Talk to an LO →
+        <Link href="/messages" className="mh-inline-link">
+          Message my LO →
         </Link>
       </div>
     </div>
