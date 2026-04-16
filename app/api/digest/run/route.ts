@@ -92,7 +92,17 @@ async function rentcastLookup(address: string) {
         estimatedEquity  = Math.round(curVal - estimatedBalance);
     }
 
-    return { estimatedValue, estimatedValueLow, estimatedValueHigh, estimatedBalance, estimatedEquity, purchaseRate, lastSaleDate, lastSalePrice };
+    // Rent estimate (best-effort — gracefully skip if unavailable)
+    let rentEstimate: number | null = null;
+    try {
+        const rentRes = await fetch(`${base}/avm/rent/long-term?address=${enc}`, { headers: hdrs });
+        if (rentRes.ok) {
+            const rentData = await rentRes.json();
+            rentEstimate = rentData?.rent ?? rentData?.rentRangeHigh ?? null;
+        }
+    } catch { /* skip */ }
+
+    return { estimatedValue, estimatedValueLow, estimatedValueHigh, estimatedBalance, estimatedEquity, purchaseRate, lastSaleDate, lastSalePrice, rentEstimate };
 }
 
 export async function POST(req: Request) {
@@ -144,14 +154,23 @@ export async function POST(req: Request) {
             .select()
             .single();
 
-        const { data: prevSnapshot } = await db
-            .from('consumer_snapshots')
-            .select('estimated_value, estimated_equity')
-            .eq('consumer_id', consumer_id)
-            .lt('snapshot_date', today)
-            .order('snapshot_date', { ascending: false })
-            .limit(1)
-            .single();
+        const [prevSnapshotRes, historyRes] = await Promise.all([
+            db.from('consumer_snapshots')
+                .select('estimated_value, estimated_equity')
+                .eq('consumer_id', consumer_id)
+                .lt('snapshot_date', today)
+                .order('snapshot_date', { ascending: false })
+                .limit(1)
+                .single(),
+            db.from('consumer_snapshots')
+                .select('snapshot_date, estimated_value')
+                .eq('consumer_id', consumer_id)
+                .not('estimated_value', 'is', null)
+                .order('snapshot_date', { ascending: true })
+                .limit(12),
+        ]);
+        const prevSnapshot = prevSnapshotRes.data;
+        const valueHistory = (historyRes.data ?? []).map(r => ({ date: r.snapshot_date as string, value: r.estimated_value as number }));
 
         const emailData = {
             borrowerName: consumer.name ?? 'Homeowner',
@@ -164,6 +183,7 @@ export async function POST(req: Request) {
                 ? rentcast.estimatedEquity - prevSnapshot.estimated_equity : null,
             loName:  'HomeRates.ai',
             loEmail: null,
+            valueHistory: valueHistory.length >= 2 ? valueHistory : undefined,
         };
 
         if (preview) return NextResponse.json({ ok: true, preview: true, emailData, snapshot });
@@ -241,15 +261,24 @@ export async function POST(req: Request) {
         .select()
         .single();
 
-    // Fetch previous snapshot for month-over-month delta
-    const { data: prevSnapshot } = await db
-        .from('homeowner_snapshots')
-        .select('estimated_value, estimated_equity')
-        .eq('borrower_id', borrower_id)
-        .lt('snapshot_date', today)
-        .order('snapshot_date', { ascending: false })
-        .limit(1)
-        .single();
+    // Fetch previous snapshot + 12-month history in parallel
+    const [prevSnapshotRes, historyRes] = await Promise.all([
+        db.from('homeowner_snapshots')
+            .select('estimated_value, estimated_equity')
+            .eq('borrower_id', borrower_id)
+            .lt('snapshot_date', today)
+            .order('snapshot_date', { ascending: false })
+            .limit(1)
+            .single(),
+        db.from('homeowner_snapshots')
+            .select('snapshot_date, estimated_value')
+            .eq('borrower_id', borrower_id)
+            .not('estimated_value', 'is', null)
+            .order('snapshot_date', { ascending: true })
+            .limit(12),
+    ]);
+    const prevSnapshot = prevSnapshotRes.data;
+    const valueHistory = (historyRes.data ?? []).map(r => ({ date: r.snapshot_date, value: r.estimated_value as number }));
 
     const loName  = 'HomeRates.ai';
     const loEmail = (borrower.loan_officers as any)?.email ?? null;
@@ -265,6 +294,7 @@ export async function POST(req: Request) {
             ? rentcast.estimatedEquity - prevSnapshot.estimated_equity : null,
         loName,
         loEmail,
+        valueHistory: valueHistory.length >= 2 ? valueHistory : undefined,
     };
 
     // Preview mode — return data without sending
