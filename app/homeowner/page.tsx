@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
@@ -397,13 +398,13 @@ export default function HomeownerPage() {
                     <polyline points="9 22 9 12 15 12 15 22" />
                   </svg>
                 </span>
-                <input
+                <AddressAutocomplete
                   ref={inputRef}
                   className="ho-addr-input"
                   value={address}
-                  onChange={e => setAddress(e.target.value)}
+                  onChange={setAddress}
+                  onSelect={setAddress}
                   placeholder="Enter your home address..."
-                  autoComplete="off"
                 />
                 <button type="submit" className="ho-addr-btn">
                   Analyze →

@@ -5,7 +5,7 @@
 // Requires NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in env.
 // Loads the Maps JS SDK once per page; subsequent instances reuse the same script.
 
-import { useEffect, useRef, useCallback, CSSProperties, KeyboardEvent } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, CSSProperties, KeyboardEvent } from 'react';
 
 declare global {
   interface Window {
@@ -49,19 +49,16 @@ interface Props {
   disabled?: boolean;
 }
 
-export default function AddressAutocomplete({
-  value,
-  onChange,
-  onSelect,
-  placeholder = '123 Main St, City, CA 90001',
-  className,
-  style,
-  onKeyDown,
-  disabled,
-}: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function AddressAutocomplete(
+  { value, onChange, onSelect, placeholder = '123 Main St, City, CA 90001', className, style, onKeyDown, disabled },
+  forwardedRef,
+) {
+  const internalRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const acRef    = useRef<any>(null);
+  const acRef = useRef<any>(null);
+
+  // Use forwarded ref if provided, otherwise fall back to internal ref
+  const inputRef = (forwardedRef as React.RefObject<HTMLInputElement>) ?? internalRef;
 
   const initAutocomplete = useCallback(() => {
     const input = inputRef.current;
@@ -79,7 +76,7 @@ export default function AddressAutocomplete({
       onChange(addr);
       onSelect?.(addr);
     });
-  }, [onChange, onSelect]);
+  }, [onChange, onSelect, inputRef]);
 
   useEffect(() => {
     loadMapsScript()
@@ -101,4 +98,6 @@ export default function AddressAutocomplete({
       disabled={disabled}
     />
   );
-}
+});
+
+export default AddressAutocomplete;
