@@ -95,7 +95,7 @@ function PostScenarioContent() {
   }, []);
 
   const [form, setForm] = useState({
-    needs_professional: "both",
+    needs_professional: "lender",
     loan_type: "",
     loan_purpose: "Purchase",
     price_range: "",
@@ -113,19 +113,31 @@ function PostScenarioContent() {
   // Pre-fill form from scenario params on first render
   useEffect(() => {
     if (!fromScenario) return;
+    const isVA = scLoanType === "VA";
     setForm(prev => ({
       ...prev,
-      loan_type: LOAN_TYPES.includes(scLoanType) ? scLoanType : prev.loan_type,
-      loan_purpose: PURPOSES.includes(scPurpose) ? scPurpose : prev.loan_purpose,
-      price_range: scPrice > 0 ? priceToRange(scPrice) : prev.price_range,
-      down_payment_pct: scDp > 0 ? String(scDp) : prev.down_payment_pct,
+      loan_type:        LOAN_TYPES.includes(scLoanType) ? scLoanType : prev.loan_type,
+      loan_purpose:     PURPOSES.includes(scPurpose) ? scPurpose : prev.loan_purpose,
+      price_range:      scPrice > 0 ? priceToRange(scPrice) : prev.price_range,
+      // VA loans: always 0% down; otherwise use card dp if present
+      down_payment_pct: isVA ? "0" : (scDp > 0 ? String(scDp) : prev.down_payment_pct),
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // When loan type is manually switched to VA, auto-set 0% down
+  useEffect(() => {
+    if (form.loan_type === "VA") set("down_payment_pct", "0");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.loan_type]);
+
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
-  const step1Valid = form.loan_type && form.loan_purpose && form.price_range && form.down_payment_pct;
+  const isVA = form.loan_type === "VA" || (fromScenario && scLoanType === "VA");
+  const dpOptions = isVA ? [0, ...DOWN_PAYMENTS] : DOWN_PAYMENTS;
+
+  // Loan type is optional when arriving cold; required fields are purpose, price, dp
+  const step1Valid = form.loan_purpose && form.price_range && form.down_payment_pct;
   const step2Valid = form.income_range && form.credit_tier && form.timeline && form.state;
 
   async function submit() {
@@ -321,14 +333,17 @@ function PostScenarioContent() {
                   </div>
                 </div>
 
-                <div className="post-field">
-                  <label>Loan type</label>
-                  <div className="post-chips">
-                    {LOAN_TYPES.map(t => (
-                      <button key={t} className={`post-chip ${form.loan_type === t ? "selected" : ""}`} onClick={() => set("loan_type", t)}>{t}</button>
-                    ))}
+                {/* Loan type — hidden when from scenario (already shown in banner) */}
+                {!fromScenario && (
+                  <div className="post-field">
+                    <label>Loan type <span className="post-optional">(optional)</span></label>
+                    <div className="post-chips">
+                      {LOAN_TYPES.map(t => (
+                        <button key={t} className={`post-chip ${form.loan_type === t ? "selected" : ""}`} onClick={() => set("loan_type", t)}>{t}</button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="post-field">
                   <label>Purpose</label>
@@ -349,9 +364,9 @@ function PostScenarioContent() {
                 </div>
 
                 <div className="post-field">
-                  <label>Down payment</label>
+                  <label>Down payment {isVA && <span className="post-optional">(VA — 0% eligible)</span>}</label>
                   <div className="post-chips">
-                    {DOWN_PAYMENTS.map(d => (
+                    {dpOptions.map(d => (
                       <button key={d} className={`post-chip ${form.down_payment_pct === String(d) ? "selected" : ""}`} onClick={() => set("down_payment_pct", String(d))}>{d}%</button>
                     ))}
                   </div>
