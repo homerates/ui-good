@@ -4,6 +4,7 @@
 import * as React from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import PageShell from "../../components/PageShell";
 
 type Borrower = {
@@ -415,6 +416,23 @@ export default function LoBorrowersPage() {
                                         {b.email && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", marginTop: 2 }}>{b.email}</div>}
                                     </div>
                                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        {/* View home intelligence */}
+                                        <Link
+                                            href={`/my-home?borrower_id=${b.id}`}
+                                            title={!b.property_address ? "Add a property address first" : `View ${b.name.split(' ')[0]}'s home intelligence`}
+                                            style={{
+                                                padding: "6px 14px", borderRadius: 999,
+                                                border: `1px solid ${b.property_address ? "rgba(0,232,122,0.3)" : "rgba(148,163,184,0.15)"}`,
+                                                background: "transparent",
+                                                color: b.property_address ? "rgba(0,232,122,0.8)" : "rgba(185,208,192,0.3)",
+                                                fontSize: "0.78rem", fontWeight: 600,
+                                                pointerEvents: b.property_address ? "auto" : "none",
+                                                textDecoration: "none", whiteSpace: "nowrap",
+                                                display: "inline-block",
+                                            }}
+                                        >
+                                            View Home →
+                                        </Link>
                                         {/* Loan details override button */}
                                         <button
                                             type="button"

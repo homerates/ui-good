@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
 
@@ -57,6 +58,8 @@ interface AnalysisData {
   savedOverrides: SavedOverrides;
   balanceIsEstimated: boolean;
   rateIsEstimated: boolean;
+  borrowerName?: string;
+  isLoView?: boolean;
 }
 
 type ChipId = 'equity' | 'heloc' | 'refi' | 'economy' | 'milestones';
@@ -438,8 +441,10 @@ function Sparkline({ history }: { history: { date: string; value: number }[] }) 
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-export default function MyHomePage() {
+function MyHomePageInner() {
   const { user, isLoaded } = useUser();
+  const searchParams = useSearchParams()!;
+  const borrowerId   = searchParams?.get('borrower_id') ?? null; // set when LO is viewing a borrower
 
   const [record, setRecord]         = useState<HomeownerRecord | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -454,7 +459,7 @@ export default function MyHomePage() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisErr, setAnalysisErr]         = useState('');
 
-  // Loan detail editor
+  // Loan detail editor (consumer only — LO edits from /lo/borrowers)
   const [editingLoan, setEditingLoan]     = useState(false);
   const [loanBalance, setLoanBalance]     = useState('');
   const [loanRate, setLoanRate]           = useState('');
@@ -465,6 +470,11 @@ export default function MyHomePage() {
 
   useEffect(() => {
     if (!isLoaded || !user) return;
+    if (borrowerId) {
+      // LO path — skip homeowner record fetch, go straight to analysis
+      setLoading(false);
+      return;
+    }
     fetch('/api/homeowner/save')
       .then(r => r.json())
       .then(({ homeowner }) => {
@@ -475,20 +485,27 @@ export default function MyHomePage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [isLoaded, user]);
+  }, [isLoaded, user, borrowerId]);
 
-  // Auto-load analysis when address is known
+  // Auto-load analysis when address is known (or when LO is viewing a borrower)
   useEffect(() => {
+    if (borrowerId) {
+      if (!analysis && !analysisLoading) loadAnalysis();
+      return;
+    }
     if (!record?.property_address || analysis || analysisLoading) return;
     loadAnalysis();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record]);
+  }, [record, borrowerId]);
 
   async function loadAnalysis() {
     setAnalysisLoading(true);
     setAnalysisErr('');
     try {
-      const res = await fetch('/api/homeowner/analysis');
+      const url = borrowerId
+        ? `/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}`
+        : '/api/homeowner/analysis';
+      const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
       setAnalysis(data);
@@ -553,7 +570,7 @@ export default function MyHomePage() {
     setTimeout(() => setLoanSaved(false), 2500);
   }
 
-  const hasAddress = record?.property_address;
+  const hasAddress = borrowerId ? true : record?.property_address;
 
   return (
     <>
@@ -581,20 +598,40 @@ export default function MyHomePage() {
               <div className="mh-loading">Loading your home profile…</div>
             ) : (
               <>
+                {/* LO context banner */}
+                {borrowerId && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 12, padding: '10px 16px', borderRadius: 10, marginBottom: 16,
+                    background: 'rgba(99,179,237,0.07)', border: '1px solid rgba(99,179,237,0.2)',
+                  }}>
+                    <div>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(99,179,237,0.7)' }}>LO View</span>
+                      <span style={{ fontSize: '0.88rem', color: '#e0f0e8', marginLeft: 10 }}>
+                        {analysis?.borrowerName ? `${analysis.borrowerName}'s home intelligence` : 'Loading borrower data…'}
+                      </span>
+                    </div>
+                    <Link href="/lo/borrowers" style={{ fontSize: '0.78rem', color: 'rgba(99,179,237,0.7)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      ← Back to Borrowers
+                    </Link>
+                  </div>
+                )}
+
                 <div className="mh-header">
-                  <h1>My Home</h1>
-                  <p>{user?.firstName ? `Welcome back, ${user.firstName}.` : 'Welcome back.'}{' '}
-                    {hasAddress ? 'Your property intelligence is below.' : 'Add your address to get started.'}
-                  </p>
+                  <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : 'My Home'}</h1>
+                  <p>{borrowerId
+                    ? `Viewing property intelligence for ${analysis?.address ?? '…'}`
+                    : `${user?.firstName ? `Welcome back, ${user.firstName}.` : 'Welcome back.'} ${hasAddress ? 'Your property intelligence is below.' : 'Add your address to get started.'}`
+                  }</p>
                 </div>
 
-                {/* ADDRESS CARD */}
-                <div className="mh-card">
+                {/* ADDRESS CARD — hidden in LO view (address shown in banner) */}
+                {!borrowerId && <div className="mh-card">
                   <div className="mh-card-label">Property Address</div>
                   {hasAddress && !editing ? (
                     <>
                       <div className="mh-address-display">
-                        <span className="mh-address-text">{record.property_address}</span>
+                        <span className="mh-address-text">{record?.property_address}</span>
                         <button className="mh-edit-btn" onClick={() => setEditing(true)}>Edit</button>
                       </div>
                     </>
@@ -628,7 +665,7 @@ export default function MyHomePage() {
                       </div>
                     </div>
                   )}
-                </div>
+                </div>}
 
                 {/* INTELLIGENCE SECTION */}
                 {hasAddress && (
@@ -679,7 +716,8 @@ export default function MyHomePage() {
                       <div className="mh-chip-footer">
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button className="mh-refresh-btn" onClick={loadAnalysis}>↻ Refresh</button>
-                          <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>
+                          {!borrowerId && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
+                          {borrowerId && <Link href="/lo/borrowers" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Borrowers</Link>}
                         </div>
                         <Link
                           href={`/chat?sq=${encodeURIComponent(`Property analysis for ${record?.property_address}`)}`}
@@ -692,8 +730,8 @@ export default function MyHomePage() {
                   </div>
                 )}
 
-                {/* LOAN DETAIL EDITOR */}
-                {editingLoan && (
+                {/* LOAN DETAIL EDITOR — consumer only */}
+                {!borrowerId && editingLoan && (
                   <div className="mh-card" style={{ border: '1px solid rgba(34,197,94,0.2)' }}>
                     <div className="mh-card-label">Correct Your Loan Details</div>
                     <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
@@ -748,8 +786,8 @@ export default function MyHomePage() {
                   </div>
                 )}
 
-                {/* DIGEST TOGGLE */}
-                <div className="mh-card">
+                {/* DIGEST TOGGLE — consumer only */}
+                {!borrowerId && <div className="mh-card">
                   <div className="mh-card-label">Weekly Digest</div>
                   <div className="mh-digest-row">
                     <div className="mh-digest-info">
@@ -761,13 +799,21 @@ export default function MyHomePage() {
                       <span className="mh-toggle-track" />
                     </label>
                   </div>
-                </div>
+                </div>}
               </>
             )}
           </SignedIn>
         </div>
       </div>
     </>
+  );
+}
+
+export default function MyHomePage() {
+  return (
+    <Suspense fallback={null}>
+      <MyHomePageInner />
+    </Suspense>
   );
 }
 

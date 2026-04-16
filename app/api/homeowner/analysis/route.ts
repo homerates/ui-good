@@ -5,7 +5,7 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
@@ -98,10 +98,162 @@ async function rentcastLookup(address: string) {
   };
 }
 
-export async function GET() {
+// ── Shared computation — same logic for consumer and LO/borrower paths ────────
+function buildAnalysis(
+  rentcast: NonNullable<Awaited<ReturnType<typeof rentcastLookup>>>,
+  fred: Awaited<ReturnType<typeof getFredSnapshot>>,
+  record: Record<string, any>,
+  historyRows: Record<string, any>[],
+) {
+  const liveRate  = fred?.mort30Avg ?? 7.0;
+  const prime     = 4.25 + 3;
+  const helocRate = prime + 0.5;
+
+  const { estimatedValue, lastSalePrice, lastSaleDate } = rentcast;
+
+  const balance        = record.actual_balance ? Number(record.actual_balance) : rentcast.estimatedBalance;
+  const purchaseRate   = record.actual_rate    ? Number(record.actual_rate)    : rentcast.purchaseRate;
+  const estimatedEquity  = (estimatedValue && balance) ? Math.round(estimatedValue - balance) : rentcast.estimatedEquity;
+  const estimatedBalance = balance;
+
+  const balanceIsEstimated    = !record.actual_balance;
+  const rateIsEstimated       = !record.actual_rate;
+  const purchasePriceOverride = record.actual_purchase_price ? Number(record.actual_purchase_price) : null;
+
+  const ltv       = (estimatedValue && estimatedBalance) ? Math.round((estimatedBalance / estimatedValue) * 100) : null;
+  const equityPct = (estimatedValue && estimatedEquity)  ? Math.round((estimatedEquity  / estimatedValue) * 100) : null;
+
+  const helocMax   = (estimatedValue && estimatedBalance) ? Math.max(0, Math.round(estimatedValue * 0.85 - estimatedBalance)) : null;
+  const cashOutMax = (estimatedValue && estimatedBalance) ? Math.max(0, Math.round(estimatedValue * 0.80 - estimatedBalance)) : null;
+  const helocDraws = helocMax ? [
+    { label: '25% draw', amount: Math.round(helocMax * 0.25) },
+    { label: '50% draw', amount: Math.round(helocMax * 0.50) },
+    { label: 'Full draw', amount: helocMax },
+  ].map(d => ({
+    ...d,
+    interestOnly: Math.round((d.amount * (helocRate / 100)) / 12),
+    amortizing:   monthlyPayment(d.amount, helocRate, 240),
+  })) : [];
+
+  const origPurchasePrice   = purchasePriceOverride ?? lastSalePrice;
+  const origBalance         = origPurchasePrice ? origPurchasePrice * 0.8 : (estimatedBalance ?? 0) * 1.5;
+  const refiMonthlySaving   = (purchaseRate && estimatedBalance && purchaseRate > liveRate)
+    ? Math.max(0, monthlyPayment(estimatedBalance, purchaseRate) - monthlyPayment(estimatedBalance, liveRate)) : 0;
+  const refiClosingCost     = estimatedBalance ? Math.round(estimatedBalance * 0.02) : 0;
+  const refiBreakEven       = refiMonthlySaving > 0 ? Math.round(refiClosingCost / refiMonthlySaving) : null;
+
+  const paidOff    = origBalance > 0 && estimatedBalance ? origBalance - estimatedBalance : 0;
+  const paidOffPct = origBalance > 0 ? Math.round((paidOff / origBalance) * 100) : 0;
+
+  const purchaseDateStr = record.actual_purchase_date ?? lastSaleDate;
+  const purchaseYear    = purchaseDateStr ? new Date(purchaseDateStr).getFullYear() : null;
+  const yearsElapsed    = purchaseYear ? new Date().getFullYear() - purchaseYear : null;
+  const origPmt         = purchaseRate ? monthlyPayment(origBalance, purchaseRate) : null;
+  const totalPaid       = (origPmt && yearsElapsed) ? origPmt * yearsElapsed * 12 : null;
+  const interestPaid    = (totalPaid && paidOff) ? Math.max(0, Math.round(totalPaid - paidOff)) : null;
+
+  const payoffYear = (estimatedBalance && purchaseRate) ? (() => {
+    const pmt = monthlyPayment(origBalance, purchaseRate);
+    const r   = purchaseRate / 100 / 12;
+    const arg = 1 - (r * estimatedBalance) / pmt;
+    if (arg <= 0) return new Date().getFullYear() + 30;
+    const rem = Math.ceil(-Math.log(arg) / Math.log(1 + r));
+    return new Date().getFullYear() + Math.ceil(rem / 12);
+  })() : null;
+
+  const nextValueTarget     = estimatedValue ? Math.ceil(estimatedValue / 250_000) * 250_000 : null;
+  const yearsToTarget       = (nextValueTarget && estimatedValue) ? Math.ceil(Math.log(nextValueTarget / estimatedValue) / Math.log(1.042)) : null;
+  const nextValueTargetYear = (yearsToTarget && yearsToTarget > 0 && yearsToTarget <= 15) ? new Date().getFullYear() + yearsToTarget : null;
+
+  const piti        = (estimatedBalance && purchaseRate) ? monthlyPayment(estimatedBalance, purchaseRate) + Math.round((estimatedValue ?? 0) * 0.015 / 12) : null;
+  const rentMonthly = rentcast.rentEstimate ?? (estimatedValue ? Math.round(estimatedValue * 0.0055) : null);
+  const rentVsOwn   = (piti && rentMonthly) ? rentMonthly - piti : null;
+
+  const appreciationPct = (lastSalePrice && estimatedValue) ? +((estimatedValue - lastSalePrice) / lastSalePrice * 100).toFixed(1) : null;
+
+  const valueHistory = historyRows.map(r => ({ date: r.snapshot_date as string, value: r.estimated_value as number }));
+
+  return {
+    ...rentcast,
+    estimatedBalance, estimatedEquity, purchaseRate,
+    liveRate, fedFundsRate: null,
+    valueHistory: valueHistory.length >= 2 ? valueHistory : [],
+    savedOverrides: {
+      actual_balance:        record.actual_balance        ?? null,
+      actual_rate:           record.actual_rate           ?? null,
+      actual_purchase_price: record.actual_purchase_price ?? null,
+      actual_purchase_date:  record.actual_purchase_date  ?? null,
+    },
+    balanceIsEstimated, rateIsEstimated,
+    ltv, equityPct, appreciationPct,
+    helocMax, helocRate, cashOutMax, helocDraws,
+    refiMonthlySaving, refiBreakEven, refiClosingCost,
+    paidOffPct, interestPaid, yearsElapsed,
+    payoffYear, nextValueTarget, nextValueTargetYear,
+    piti, rentMonthly, rentVsOwn, prime, helocRateLabel: `${prime.toFixed(2)}% + 0.50%`,
+  };
+}
+
+export async function GET(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+  const borrowerId = request.nextUrl.searchParams.get('borrower_id');
+
+  // ── LO PATH: viewing a specific borrower's home ───────────────────────────
+  if (borrowerId) {
+    // Verify caller is an LO who owns this borrower
+    const loRes = await db().from('loan_officers').select('id').eq('user_id', userId).maybeSingle();
+    if (!loRes.data) return NextResponse.json({ error: 'Not an LO account' }, { status: 403 });
+
+    let borrower: Record<string, any> | null = null;
+    {
+      const res = await db()
+        .from('borrowers')
+        .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
+        .eq('id', borrowerId)
+        .eq('loan_officer_id', loRes.data.id)
+        .maybeSingle();
+      if (res.error?.code === '42703') {
+        const fallback = await db()
+          .from('borrowers')
+          .select('id, name, property_address')
+          .eq('id', borrowerId)
+          .eq('loan_officer_id', loRes.data.id)
+          .maybeSingle();
+        borrower = fallback.data;
+      } else {
+        borrower = res.data;
+      }
+    }
+
+    if (!borrower?.property_address) {
+      return NextResponse.json({ error: 'No address on file for this borrower' }, { status: 404 });
+    }
+
+    const [rentcast, fred, historyRes] = await Promise.all([
+      rentcastLookup(borrower.property_address),
+      getFredSnapshot({ timeoutMs: 8000 }),
+      db()
+        .from('homeowner_snapshots')
+        .select('snapshot_date, estimated_value')
+        .eq('borrower_id', borrowerId)
+        .not('estimated_value', 'is', null)
+        .order('snapshot_date', { ascending: true })
+        .limit(12),
+    ]);
+
+    if (!rentcast) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
+
+    return NextResponse.json({
+      ...buildAnalysis(rentcast, fred, borrower, historyRes.data ?? []),
+      borrowerName: borrower.name,
+      address: borrower.property_address,
+      isLoView: true,
+    });
+  }
+
+  // ── CONSUMER PATH: viewing own home ───────────────────────────────────────
   // Load address + any user-supplied overrides
   // Defensively fall back if migration 024 columns don't exist yet (42703 = undefined column)
   let homeowner: Record<string, any> | null = null;
@@ -145,125 +297,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
   }
 
-  const liveRate  = fred?.mort30Avg ?? 7.0;
-  const fedFunds  = null;
-  const prime     = 4.25 + 3;
-  const helocRate = prime + 0.5;
-
-  const { estimatedValue, lastSalePrice, lastSaleDate } = rentcast;
-
-  // ── Prefer user-supplied overrides over Rentcast estimates ─────────────────
-  // balance: user actual > Rentcast estimate
-  const balance        = homeowner.actual_balance   ? Number(homeowner.actual_balance)   : rentcast.estimatedBalance;
-  // rate: user actual > Rentcast historical-rate guess
-  const purchaseRate   = homeowner.actual_rate      ? Number(homeowner.actual_rate)       : rentcast.purchaseRate;
-  // for equity calc: use overridden balance if available
-  const estimatedEquity= (estimatedValue && balance) ? Math.round(estimatedValue - balance) : rentcast.estimatedEquity;
-  const estimatedBalance = balance;
-
-  // Track whether we're using estimates so the UI can show a badge
-  const balanceIsEstimated    = !homeowner.actual_balance;
-  const rateIsEstimated       = !homeowner.actual_rate;
-  const purchasePriceOverride = homeowner.actual_purchase_price ? Number(homeowner.actual_purchase_price) : null;
-
-  // ── Derived computations ────────────────────────────────────────────────────
-  const ltv = (estimatedValue && estimatedBalance) ? Math.round((estimatedBalance / estimatedValue) * 100) : null;
-  const equityPct = (estimatedValue && estimatedEquity) ? Math.round((estimatedEquity / estimatedValue) * 100) : null;
-
-  // HELOC
-  const helocMax = (estimatedValue && estimatedBalance)
-    ? Math.max(0, Math.round(estimatedValue * 0.85 - estimatedBalance)) : null;
-  const cashOutMax = (estimatedValue && estimatedBalance)
-    ? Math.max(0, Math.round(estimatedValue * 0.80 - estimatedBalance)) : null;
-  const helocDraws = helocMax ? [
-    { label: '25% draw', amount: Math.round(helocMax * 0.25) },
-    { label: '50% draw', amount: Math.round(helocMax * 0.50) },
-    { label: 'Full draw', amount: helocMax },
-  ].map(d => ({
-    ...d,
-    interestOnly: Math.round((d.amount * (helocRate / 100)) / 12),
-    amortizing:   monthlyPayment(d.amount, helocRate, 240),
-  })) : [];
-
-  // Refi — origBalance: use purchase price override > Rentcast lastSalePrice > fallback
-  const origPurchasePrice = purchasePriceOverride ?? lastSalePrice;
-  const origBalance = origPurchasePrice ? origPurchasePrice * 0.8 : (estimatedBalance ?? 0) * 1.5;
-  const refiMonthlySaving = (purchaseRate && estimatedBalance && purchaseRate > liveRate)
-    ? Math.max(0, monthlyPayment(estimatedBalance, purchaseRate) - monthlyPayment(estimatedBalance, liveRate)) : 0;
-  const refiClosingCost = estimatedBalance ? Math.round(estimatedBalance * 0.02) : 0;
-  const refiBreakEven   = refiMonthlySaving > 0 ? Math.round(refiClosingCost / refiMonthlySaving) : null;
-
-  // Loan progress
-  const paidOff    = origBalance > 0 && estimatedBalance ? origBalance - estimatedBalance : 0;
-  const paidOffPct = origBalance > 0 ? Math.round((paidOff / origBalance) * 100) : 0;
-
-  // Interest paid estimate — use override date if available
-  const purchaseDateStr = homeowner.actual_purchase_date ?? lastSaleDate;
-  const purchaseYear  = purchaseDateStr ? new Date(purchaseDateStr).getFullYear() : null;
-  const yearsElapsed  = purchaseYear ? new Date().getFullYear() - purchaseYear : null;
-  const origPmt       = purchaseRate ? monthlyPayment(origBalance, purchaseRate) : null;
-  const totalPaid     = (origPmt && yearsElapsed) ? origPmt * yearsElapsed * 12 : null;
-  const interestPaid  = (totalPaid && paidOff) ? Math.max(0, Math.round(totalPaid - paidOff)) : null;
-
-  // Milestones
-  const payoffYear = (estimatedBalance && purchaseRate) ? (() => {
-    const pmt = monthlyPayment(origBalance, purchaseRate);
-    const r   = purchaseRate / 100 / 12;
-    const arg = 1 - (r * estimatedBalance) / pmt;
-    if (arg <= 0) return new Date().getFullYear() + 30;
-    const rem = Math.ceil(-Math.log(arg) / Math.log(1 + r));
-    return new Date().getFullYear() + Math.ceil(rem / 12);
-  })() : null;
-
-  const nextValueTarget = estimatedValue ? Math.ceil(estimatedValue / 250_000) * 250_000 : null;
-  const yearsToTarget   = (nextValueTarget && estimatedValue)
-    ? Math.ceil(Math.log(nextValueTarget / estimatedValue) / Math.log(1.042)) : null;
-  const nextValueTargetYear = (yearsToTarget && yearsToTarget > 0 && yearsToTarget <= 15)
-    ? new Date().getFullYear() + yearsToTarget : null;
-
-  // Rent vs own
-  const piti = (estimatedBalance && purchaseRate)
-    ? monthlyPayment(estimatedBalance, purchaseRate) + Math.round((estimatedValue ?? 0) * 0.015 / 12)
-    : null;
-  const rentMonthly   = rentcast.rentEstimate ?? (estimatedValue ? Math.round(estimatedValue * 0.0055) : null);
-  const rentVsOwn     = (piti && rentMonthly) ? rentMonthly - piti : null;
-
-  // Appreciation
-  const appreciationPct = (lastSalePrice && estimatedValue)
-    ? +((estimatedValue - lastSalePrice) / lastSalePrice * 100).toFixed(1) : null;
-
-  const valueHistory = (historyRes.data ?? []).map(r => ({
-    date: r.snapshot_date as string,
-    value: r.estimated_value as number,
-  }));
-
   return NextResponse.json({
     address: homeowner.property_address,
-    // Raw Rentcast (value, range, lastSale*)
-    ...rentcast,
-    // Override-aware fields (actual wins over estimate)
-    estimatedBalance,
-    estimatedEquity,
-    purchaseRate,
-    liveRate,
-    fedFundsRate: fedFunds,
-    valueHistory: valueHistory.length >= 2 ? valueHistory : [],
-    // What the user has saved (so the edit form can pre-fill)
-    savedOverrides: {
-      actual_balance:        homeowner.actual_balance        ?? null,
-      actual_rate:           homeowner.actual_rate           ?? null,
-      actual_purchase_price: homeowner.actual_purchase_price ?? null,
-      actual_purchase_date:  homeowner.actual_purchase_date  ?? null,
-    },
-    // Estimate badges — true = number is a Rentcast/historical guess
-    balanceIsEstimated,
-    rateIsEstimated,
-    // Derived
-    ltv, equityPct, appreciationPct,
-    helocMax, helocRate, cashOutMax, helocDraws,
-    refiMonthlySaving, refiBreakEven, refiClosingCost,
-    paidOffPct, interestPaid, yearsElapsed,
-    payoffYear, nextValueTarget, nextValueTargetYear,
-    piti, rentMonthly, rentVsOwn, prime, helocRateLabel: `${prime.toFixed(2)}% + 0.50%`,
+    ...buildAnalysis(rentcast, fred, homeowner, historyRes.data ?? []),
   });
 }
