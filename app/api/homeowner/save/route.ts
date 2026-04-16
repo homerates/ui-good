@@ -1,10 +1,14 @@
 // app/api/homeowner/save/route.ts
-// GET  — load current consumer_homeowner record for signed-in user
-// POST — upsert address + digest preference
+// GET    — list all tracked properties for the signed-in user
+//          (auto-seeds from borrowers table if none on file)
+// POST   — add a new property or update an existing one
+// DELETE — remove a property (blocked if it's the user's only one)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+
+const SEL = 'id, user_id, property_address, is_primary, digest_enabled, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, email, name, updated_at, created_at';
 
 function db() {
   return createClient(
@@ -13,67 +17,78 @@ function db() {
   );
 }
 
+// ── GET ───────────────────────────────────────────────────────────────────────
+
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const supabase = db();
-  const { data } = await supabase
-    .from('consumer_homeowners')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
 
-  // If no address on file, check borrowers table (LO may have stored it when adding the user)
-  if (!data?.property_address) {
-    const { data: borrowerRow } = await supabase
+  const { data: existing } = await supabase
+    .from('consumer_homeowner_properties')
+    .select(SEL)
+    .eq('user_id', userId)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true });
+
+  const list = existing ?? [];
+
+  // If no properties yet, check the borrowers table — the LO may already have
+  // the user's address(es) on file.  Seed all of them automatically.
+  if (list.length === 0) {
+    const { data: borrowerRows } = await supabase
       .from('borrowers')
       .select('property_address, name, email')
       .eq('user_id', userId)
       .not('property_address', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order('created_at', { ascending: true });
 
-    if (borrowerRow?.property_address) {
-      // Auto-seed the homeowner profile from the borrower record — silent, no user action needed
+    if (borrowerRows?.length) {
+      const clerkUser = await currentUser();
+      const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? null;
+      const name  = [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ') || null;
+
+      for (let i = 0; i < borrowerRows.length; i++) {
+        await supabase
+          .from('consumer_homeowner_properties')
+          .upsert({
+            user_id:         userId,
+            property_address: borrowerRows[i].property_address,
+            is_primary:      i === 0,
+            digest_enabled:  true,
+            email:           email ?? borrowerRows[i].email ?? null,
+            name:            name  ?? borrowerRows[i].name  ?? null,
+            updated_at:      new Date().toISOString(),
+          }, { onConflict: 'user_id,property_address', ignoreDuplicates: true });
+      }
+
       const { data: seeded } = await supabase
-        .from('consumer_homeowners')
-        .upsert({
-          user_id: userId,
-          property_address: borrowerRow.property_address,
-          email: data?.email ?? borrowerRow.email ?? null,
-          name:  data?.name  ?? borrowerRow.name  ?? null,
-          digest_enabled: data?.digest_enabled ?? true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' })
-        .select()
-        .single();
+        .from('consumer_homeowner_properties')
+        .select(SEL)
+        .eq('user_id', userId)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: true });
 
-      return NextResponse.json({ homeowner: seeded ?? data ?? null });
+      return NextResponse.json({ properties: seeded ?? [] });
     }
   }
 
-  return NextResponse.json({ homeowner: data ?? null });
+  return NextResponse.json({ properties: list });
 }
+
+// ── POST ──────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const user = await currentUser();
-  const email = user?.emailAddresses?.[0]?.emailAddress ?? null;
-  const name  = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null;
+  const clerkUser = await currentUser();
+  const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? null;
+  const name  = [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ') || null;
 
   const body = await req.json().catch(() => ({}));
-  const address        = typeof body.address        === 'string' ? body.address.trim() || null : undefined;
-  const digestEnabled  = typeof body.digest_enabled === 'boolean' ? body.digest_enabled : undefined;
-
-  // Loan detail overrides — null clears a field, undefined = don't touch
-  const actualBalance       = 'actual_balance'        in body ? (body.actual_balance       ?? null) : undefined;
-  const actualRate          = 'actual_rate'           in body ? (body.actual_rate          ?? null) : undefined;
-  const actualPurchasePrice = 'actual_purchase_price' in body ? (body.actual_purchase_price ?? null) : undefined;
-  const actualPurchaseDate  = 'actual_purchase_date'  in body ? (body.actual_purchase_date  ?? null) : undefined;
+  const supabase = db();
 
   const payload: Record<string, any> = {
     user_id:    userId,
@@ -81,25 +96,118 @@ export async function POST(req: NextRequest) {
     name,
     updated_at: new Date().toISOString(),
   };
-  if (address               !== undefined) payload.property_address    = address;
-  if (digestEnabled         !== undefined) payload.digest_enabled       = digestEnabled;
-  if (actualBalance         !== undefined) payload.actual_balance       = actualBalance       ? Number(actualBalance)       : null;
-  if (actualRate            !== undefined) payload.actual_rate          = actualRate          ? Number(actualRate)          : null;
-  if (actualPurchasePrice   !== undefined) payload.actual_purchase_price= actualPurchasePrice ? Number(actualPurchasePrice) : null;
-  if (actualPurchaseDate    !== undefined) payload.actual_purchase_date = actualPurchaseDate;
-  // Default digest to true on first save
-  if (!('digest_enabled' in payload)) payload.digest_enabled = true;
 
-  const { data, error } = await db()
-    .from('consumer_homeowners')
-    .upsert(payload, { onConflict: 'user_id' })
-    .select()
-    .single();
+  if (typeof body.address        === 'string') payload.property_address    = body.address.trim() || null;
+  if (typeof body.digest_enabled === 'boolean') payload.digest_enabled      = body.digest_enabled;
+  if (typeof body.is_primary     === 'boolean') payload.is_primary          = body.is_primary;
+  if ('actual_balance'        in body) payload.actual_balance        = body.actual_balance        ? Number(body.actual_balance)        : null;
+  if ('actual_rate'           in body) payload.actual_rate           = body.actual_rate           ? Number(body.actual_rate)           : null;
+  if ('actual_purchase_price' in body) payload.actual_purchase_price = body.actual_purchase_price ? Number(body.actual_purchase_price) : null;
+  if ('actual_purchase_date'  in body) payload.actual_purchase_date  = body.actual_purchase_date  ?? null;
+
+  // When setting as primary, unset all others for this user first
+  if (body.is_primary === true) {
+    await supabase
+      .from('consumer_homeowner_properties')
+      .update({ is_primary: false })
+      .eq('user_id', userId);
+  }
+
+  let data: any;
+  let error: any;
+
+  if (body.property_id) {
+    // Update an existing property (ownership enforced via user_id)
+    const res = await supabase
+      .from('consumer_homeowner_properties')
+      .update(payload)
+      .eq('id', body.property_id)
+      .eq('user_id', userId)
+      .select(SEL)
+      .single();
+    data = res.data;
+    error = res.error;
+  } else {
+    // New property — if first one, flag as primary automatically
+    const { count } = await supabase
+      .from('consumer_homeowner_properties')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+    if ((count ?? 0) === 0) payload.is_primary = true;
+
+    const res = await supabase
+      .from('consumer_homeowner_properties')
+      .upsert(payload, { onConflict: 'user_id,property_address' })
+      .select(SEL)
+      .single();
+    data = res.data;
+    error = res.error;
+  }
 
   if (error) {
-    console.error('[homeowner/save]', error);
+    console.error('[homeowner/save POST]', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, homeowner: data });
+  return NextResponse.json({ ok: true, property: data });
+}
+
+// ── DELETE ────────────────────────────────────────────────────────────────────
+
+export async function DELETE(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+  const propertyId = new URL(req.url).searchParams.get('property_id');
+  if (!propertyId) return NextResponse.json({ error: 'property_id required' }, { status: 400 });
+
+  const supabase = db();
+
+  // Block deletion of the last property
+  const { count } = await supabase
+    .from('consumer_homeowner_properties')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if ((count ?? 0) <= 1) {
+    return NextResponse.json(
+      { error: 'Cannot remove your only property — edit the address instead.' },
+      { status: 409 },
+    );
+  }
+
+  // Check if it was primary before deleting
+  const { data: target } = await supabase
+    .from('consumer_homeowner_properties')
+    .select('is_primary')
+    .eq('id', propertyId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from('consumer_homeowner_properties')
+    .delete()
+    .eq('id', propertyId)
+    .eq('user_id', userId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // If deleted property was primary, promote the oldest remaining one
+  if (target?.is_primary) {
+    const { data: next } = await supabase
+      .from('consumer_homeowner_properties')
+      .select('id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (next) {
+      await supabase
+        .from('consumer_homeowner_properties')
+        .update({ is_primary: true })
+        .eq('id', next.id);
+    }
+  }
+
+  return NextResponse.json({ ok: true });
 }

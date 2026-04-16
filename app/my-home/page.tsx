@@ -7,12 +7,18 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 
-interface HomeownerRecord {
-  property_address: string | null;
+interface HomeownerProperty {
+  id: string;
+  property_address: string;
+  is_primary: boolean;
   digest_enabled: boolean;
   updated_at: string;
   name: string | null;
   email: string | null;
+  actual_balance: number | null;
+  actual_rate: number | null;
+  actual_purchase_price: number | null;
+  actual_purchase_date: string | null;
 }
 
 interface SavedOverrides {
@@ -454,67 +460,74 @@ function Sparkline({ history }: { history: { date: string; value: number }[] }) 
 function MyHomePageInner() {
   const { user, isLoaded } = useUser();
   const searchParams = useSearchParams()!;
-  const borrowerId   = searchParams?.get('borrower_id') ?? null; // set when LO is viewing a borrower
+  const borrowerId   = searchParams?.get('borrower_id') ?? null;
 
-  const [record, setRecord]         = useState<HomeownerRecord | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [address, setAddress]       = useState('');
-  const [saving, setSaving]         = useState(false);
-  const [editing, setEditing]       = useState(false);
-  const [digestOn, setDigestOn]     = useState(true);
-  const [saved, setSaved]           = useState(false);
+  // Multi-home state
+  const [properties, setProperties]           = useState<HomeownerProperty[]>([]);
+  const [activePropertyId, setActivePropertyId] = useState<string | null>(null);
+  const [loading, setLoading]                 = useState(true);
+  const [newAddress, setNewAddress]           = useState('');
+  const [addingNew, setAddingNew]             = useState(false);
+  const [saving, setSaving]                   = useState(false);
+  const [saved, setSaved]                     = useState(false);
 
   const [activeChip, setActiveChip] = useState<ChipId>('equity');
   const [analysis, setAnalysis]     = useState<AnalysisData | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisErr, setAnalysisErr]         = useState('');
 
-  // Loan detail editor (consumer only — LO edits from /lo/borrowers)
-  const [editingLoan, setEditingLoan]     = useState(false);
-  const [loanBalance, setLoanBalance]     = useState('');
-  const [loanRate, setLoanRate]           = useState('');
-  const [loanPurchasePrice, setLoanPurchasePrice] = useState('');
-  const [loanPurchaseDate, setLoanPurchaseDate]   = useState('');
-  const [loanSaving, setLoanSaving]       = useState(false);
-  const [loanSaved, setLoanSaved]         = useState(false);
+  // Loan detail editor (consumer only)
+  const [editingLoan, setEditingLoan]               = useState(false);
+  const [loanBalance, setLoanBalance]               = useState('');
+  const [loanRate, setLoanRate]                     = useState('');
+  const [loanPurchasePrice, setLoanPurchasePrice]   = useState('');
+  const [loanPurchaseDate, setLoanPurchaseDate]     = useState('');
+  const [loanSaving, setLoanSaving]                 = useState(false);
+  const [loanSaved, setLoanSaved]                   = useState(false);
 
+  // Derived
+  const activeProperty = properties.find(p => p.id === activePropertyId)
+    ?? properties.find(p => p.is_primary)
+    ?? properties[0]
+    ?? null;
+  const hasAddress = borrowerId ? true : properties.length > 0;
+
+  // Load property list on mount
   useEffect(() => {
     if (!isLoaded || !user) return;
-    if (borrowerId) {
-      // LO path — skip homeowner record fetch, go straight to analysis
-      setLoading(false);
-      return;
-    }
+    if (borrowerId) { setLoading(false); return; }
     fetch('/api/homeowner/save')
       .then(r => r.json())
-      .then(({ homeowner }) => {
-        setRecord(homeowner);
-        if (homeowner) {
-          setAddress(homeowner.property_address ?? '');
-          setDigestOn(homeowner.digest_enabled ?? true);
-        }
+      .then(({ properties: props }: { properties: HomeownerProperty[] }) => {
+        const list = props ?? [];
+        setProperties(list);
+        const primary = list.find(p => p.is_primary) ?? list[0];
+        if (primary) setActivePropertyId(primary.id);
       })
       .finally(() => setLoading(false));
   }, [isLoaded, user, borrowerId]);
 
-  // Auto-load analysis when address is known (or when LO is viewing a borrower)
+  // Load analysis whenever active property changes
   useEffect(() => {
     if (borrowerId) {
-      if (!analysis && !analysisLoading) loadAnalysis();
+      if (!analysisLoading) loadAnalysis();
       return;
     }
-    if (!record?.property_address || analysis || analysisLoading) return;
-    loadAnalysis();
+    if (!activeProperty?.id) return;
+    loadAnalysis(activeProperty.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record, borrowerId]);
+  }, [activeProperty?.id, borrowerId]);
 
-  async function loadAnalysis() {
+  async function loadAnalysis(propertyId?: string) {
+    const pid = propertyId ?? activeProperty?.id;
+    if (!borrowerId && !pid) return;
     setAnalysisLoading(true);
     setAnalysisErr('');
+    setAnalysis(null);
     try {
       const url = borrowerId
         ? `/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}`
-        : '/api/homeowner/analysis';
+        : `/api/homeowner/analysis?property_id=${encodeURIComponent(pid!)}`;
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
@@ -526,47 +539,84 @@ function MyHomePageInner() {
     }
   }
 
-  async function saveAddress() {
-    if (!address.trim()) return;
+  async function addProperty() {
+    if (!newAddress.trim()) return;
     setSaving(true);
-    const res = await fetch('/api/homeowner/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address: address.trim(), digest_enabled: digestOn }),
-    });
-    const { homeowner } = await res.json();
-    setRecord(homeowner);
-    setAnalysis(null); // clear old analysis so it reloads
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-    setSaving(false);
+    try {
+      const res = await fetch('/api/homeowner/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: newAddress.trim() }),
+      });
+      const { property } = await res.json();
+      if (property) {
+        setProperties(prev => {
+          const updated = property.is_primary
+            ? prev.map(p => ({ ...p, is_primary: false }))
+            : prev;
+          return [...updated, property];
+        });
+        setActivePropertyId(property.id);
+        setNewAddress('');
+        setAddingNew(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
-  async function toggleDigest(val: boolean) {
-    setDigestOn(val);
+  async function setPrimary(propertyId: string) {
+    setProperties(prev => prev.map(p => ({ ...p, is_primary: p.id === propertyId })));
     await fetch('/api/homeowner/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ digest_enabled: val }),
+      body: JSON.stringify({ property_id: propertyId, is_primary: true }),
+    });
+  }
+
+  async function removeProperty(propertyId: string) {
+    if (!window.confirm('Remove this property from My Home?')) return;
+    const res = await fetch(`/api/homeowner/save?property_id=${encodeURIComponent(propertyId)}`, { method: 'DELETE' });
+    if (!res.ok) return;
+    setProperties(prev => {
+      const remaining = prev.filter(p => p.id !== propertyId);
+      if (activePropertyId === propertyId) {
+        const next = remaining.find(p => p.is_primary) ?? remaining[0];
+        setActivePropertyId(next?.id ?? null);
+        setAnalysis(null);
+      }
+      return remaining;
+    });
+  }
+
+  async function toggleDigest(propertyId: string, val: boolean) {
+    setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, digest_enabled: val } : p));
+    await fetch('/api/homeowner/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ property_id: propertyId, digest_enabled: val }),
     });
   }
 
   function openLoanEditor() {
     const ov = analysis?.savedOverrides;
-    setLoanBalance(ov?.actual_balance     ? String(ov.actual_balance)       : '');
-    setLoanRate(ov?.actual_rate           ? String(ov.actual_rate)           : '');
+    setLoanBalance(ov?.actual_balance        ? String(ov.actual_balance)        : '');
+    setLoanRate(ov?.actual_rate              ? String(ov.actual_rate)            : '');
     setLoanPurchasePrice(ov?.actual_purchase_price ? String(ov.actual_purchase_price) : '');
     setLoanPurchaseDate(ov?.actual_purchase_date   ?? '');
     setEditingLoan(true);
   }
 
   async function saveLoanDetails() {
+    if (!activeProperty?.id) return;
     setLoanSaving(true);
     await fetch('/api/homeowner/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        property_id:           activeProperty.id,
         actual_balance:        loanBalance       ? parseFloat(loanBalance.replace(/[,$]/g, ''))       : null,
         actual_rate:           loanRate          ? parseFloat(loanRate.replace('%', ''))               : null,
         actual_purchase_price: loanPurchasePrice ? parseFloat(loanPurchasePrice.replace(/[,$]/g, '')) : null,
@@ -576,11 +626,9 @@ function MyHomePageInner() {
     setLoanSaving(false);
     setLoanSaved(true);
     setEditingLoan(false);
-    setAnalysis(null); // triggers re-fetch with new overrides
+    setAnalysis(null);
     setTimeout(() => setLoanSaved(false), 2500);
   }
-
-  const hasAddress = borrowerId ? true : record?.property_address;
 
   return (
     <>
@@ -627,56 +675,98 @@ function MyHomePageInner() {
                   </div>
                 )}
 
+                {/* HEADER + PROPERTY SELECTOR */}
                 <div className="mh-header">
-                  <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : 'My Home'}</h1>
-                  <p>{borrowerId
-                    ? `Viewing property intelligence for ${analysis?.address ?? '…'}`
-                    : `${user?.firstName ? `Welcome back, ${user.firstName}.` : 'Welcome back.'} ${hasAddress ? 'Your property intelligence is below.' : 'Add your address to get started.'}`
-                  }</p>
-                </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : 'My Home'}</h1>
+                      <p style={{ marginTop: 4 }}>{borrowerId
+                        ? `Viewing property intelligence for ${analysis?.address ?? '…'}`
+                        : hasAddress
+                          ? `${user?.firstName ? `Hi ${user.firstName}.` : ''} Your property intelligence is below.`
+                          : 'Add your address to unlock equity tracking, HELOC capacity, and rate alerts.'
+                      }</p>
+                    </div>
+                    {!borrowerId && (
+                      <button
+                        className="mh-add-prop-btn"
+                        onClick={() => { setAddingNew(v => !v); setTimeout(() => document.querySelector<HTMLInputElement>('.mh-add-form input')?.focus(), 60); }}
+                      >
+                        {addingNew ? '✕ Cancel' : '+ Add property'}
+                      </button>
+                    )}
+                  </div>
 
-                {/* ADDRESS CARD — hidden in LO view (address shown in banner) */}
-                {!borrowerId && <div className="mh-card">
-                  <div className="mh-card-label">Property Address</div>
-                  {hasAddress && !editing ? (
-                    <>
-                      <div className="mh-address-display">
-                        <span className="mh-address-text">{record?.property_address}</span>
-                        <button className="mh-edit-btn" onClick={() => setEditing(true)}>Edit</button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className={hasAddress ? '' : 'mh-no-address'}>
-                      {!hasAddress && (
-                        <>
-                          <h2>Add Your Property</h2>
-                          <p>Enter your home address to unlock equity tracking, HELOC capacity, rate alerts, and a weekly homeowner digest.</p>
-                        </>
-                      )}
+                  {/* Property pills — shown when ≥1 property */}
+                  {!borrowerId && properties.length > 0 && (
+                    <div className="mh-prop-selector">
+                      {properties.map(p => {
+                        const short = p.property_address.split(',')[0];
+                        const isActive = p.id === activeProperty?.id;
+                        return (
+                          <div key={p.id} className={`mh-prop-pill${isActive ? ' mh-prop-pill-active' : ''}`}>
+                            <button
+                              className="mh-prop-pill-inner"
+                              onClick={() => {
+                                if (!isActive) {
+                                  setActivePropertyId(p.id);
+                                  setAnalysis(null);
+                                }
+                              }}
+                            >
+                              <span>🏠</span>
+                              <span className="mh-prop-pill-addr">{short}</span>
+                              {p.is_primary && <span className="mh-prop-pill-star" title="Primary home">★</span>}
+                            </button>
+                            {/* Context menu: set primary / remove */}
+                            {isActive && properties.length > 1 && (
+                              <div className="mh-prop-pill-actions">
+                                {!p.is_primary && (
+                                  <button
+                                    className="mh-prop-action-btn"
+                                    title="Set as primary"
+                                    onClick={() => setPrimary(p.id)}
+                                  >★</button>
+                                )}
+                                <button
+                                  className="mh-prop-action-btn mh-prop-action-remove"
+                                  title="Remove property"
+                                  onClick={() => removeProperty(p.id)}
+                                >×</button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Add new property form */}
+                  {!borrowerId && addingNew && (
+                    <div className="mh-add-form mh-card" style={{ marginTop: 12, marginBottom: 0 }}>
+                      <div className="mh-card-label">Add a property</div>
                       <div className="mh-form">
                         <AddressAutocomplete
                           className="mh-input"
                           placeholder="e.g. 1234 Oak Street, Los Angeles, CA 90001"
-                          value={address}
-                          onChange={setAddress}
-                          onSelect={setAddress}
-                          onKeyDown={e => e.key === 'Enter' && saveAddress()}
+                          value={newAddress}
+                          onChange={setNewAddress}
+                          onSelect={setNewAddress}
+                          onKeyDown={e => e.key === 'Enter' && addProperty()}
                         />
                         <div className="mh-form-row">
-                          <button className="mh-save-btn" onClick={saveAddress} disabled={saving || !address.trim()}>
-                            {saving ? 'Saving…' : 'Save Address'}
+                          <button className="mh-save-btn" onClick={addProperty} disabled={saving || !newAddress.trim()}>
+                            {saving ? 'Saving…' : 'Add →'}
                           </button>
-                          {editing && (
-                            <button className="mh-cancel-btn" onClick={() => { setEditing(false); setAddress(record?.property_address ?? ''); }}>
-                              Cancel
-                            </button>
-                          )}
+                          <button className="mh-cancel-btn" onClick={() => { setAddingNew(false); setNewAddress(''); }}>
+                            Cancel
+                          </button>
                         </div>
-                        {saved && <div className="mh-saved-msg">Address saved!</div>}
+                        {saved && <div className="mh-saved-msg">Property added!</div>}
                       </div>
                     </div>
                   )}
-                </div>}
+                </div>
 
                 {/* INTELLIGENCE SECTION — always visible; locked preview when no address */}
                 <div className="mh-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -736,8 +826,12 @@ function MyHomePageInner() {
                             className="mh-save-btn"
                             style={{ width: 'auto', padding: '10px 28px' }}
                             onClick={() => {
-                              document.querySelector<HTMLInputElement>('.mh-input')?.focus();
-                              document.querySelector('.mh-no-address')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              setAddingNew(true);
+                              setTimeout(() => {
+                                const el = document.querySelector<HTMLInputElement>('.mh-add-form input');
+                                el?.focus();
+                                el?.closest('.mh-add-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 60);
                             }}
                           >
                             Add my property →
@@ -759,7 +853,7 @@ function MyHomePageInner() {
                         {!analysisLoading && analysisErr && (
                           <div className="mh-analysis-err">
                             {analysisErr}
-                            <button className="mh-retry-btn" onClick={loadAnalysis}>Retry</button>
+                            <button className="mh-retry-btn" onClick={() => loadAnalysis()}>Retry</button>
                           </div>
                         )}
 
@@ -780,13 +874,13 @@ function MyHomePageInner() {
                   {analysis && !analysisLoading && (
                     <div className="mh-chip-footer">
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="mh-refresh-btn" onClick={loadAnalysis}>↻ Refresh</button>
+                        <button className="mh-refresh-btn" onClick={() => loadAnalysis()}>↻ Refresh</button>
                         {!borrowerId && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
                         {borrowerId && <Link href="/lo/borrowers" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Borrowers</Link>}
                       </div>
                       <Link
                         href={(() => {
-                          const addr = analysis?.address ?? record?.property_address ?? '';
+                          const addr = analysis?.address ?? activeProperty?.property_address ?? '';
                           const bal  = analysis?.estimatedBalance;
                           const live = analysis?.liveRate ?? 6.99;
                           const rate = analysis?.purchaseRate ?? live;
@@ -877,7 +971,7 @@ function MyHomePageInner() {
                       <p>Receive a weekly snapshot: equity, HELOC capacity, rate movement, and refi timing — sent to {user?.emailAddresses?.[0]?.emailAddress ?? 'your email'}.</p>
                     </div>
                     <label className="mh-toggle">
-                      <input type="checkbox" checked={digestOn} onChange={e => toggleDigest(e.target.checked)} />
+                      <input type="checkbox" checked={activeProperty?.digest_enabled ?? true} onChange={e => activeProperty && toggleDigest(activeProperty.id, e.target.checked)} />
                       <span className="mh-toggle-track" />
                     </label>
                   </div>
@@ -953,6 +1047,22 @@ const CSS = `
   .mh-preview-wrap{position:relative;padding-bottom:24px}
   .mh-preview-ghost{opacity:0.18;pointer-events:none;user-select:none;filter:blur(2px)}
   .mh-preview-cta{text-align:center;padding:28px 24px 8px;color:#f0f0f0}
+
+  /* PROPERTY SELECTOR */
+  .mh-add-prop-btn{flex-shrink:0;padding:7px 14px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:999px;color:#22c55e;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .mh-add-prop-btn:hover{background:rgba(34,197,94,0.18)}
+  .mh-prop-selector{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .mh-prop-pill{display:flex;align-items:center;border-radius:999px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);overflow:hidden;transition:border-color .15s}
+  .mh-prop-pill-active{border-color:rgba(34,197,94,0.4);background:rgba(34,197,94,0.07)}
+  .mh-prop-pill-inner{display:flex;align-items:center;gap:6px;padding:7px 14px;background:none;border:none;color:rgba(255,255,255,0.6);font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .mh-prop-pill-active .mh-prop-pill-inner{color:#22c55e}
+  .mh-prop-pill-addr{max-width:160px;overflow:hidden;text-overflow:ellipsis}
+  .mh-prop-pill-star{font-size:.7rem;color:#eab308;margin-left:2px}
+  .mh-prop-pill-actions{display:flex;gap:0;border-left:1px solid rgba(255,255,255,0.08)}
+  .mh-prop-action-btn{padding:7px 10px;background:none;border:none;color:rgba(255,255,255,0.3);font-size:.85rem;cursor:pointer;transition:color .15s;font-family:inherit}
+  .mh-prop-action-btn:hover{color:rgba(255,255,255,0.7)}
+  .mh-prop-action-remove:hover{color:#f97066}
+  .mh-add-form{margin-top:0}
 
   /* CHIP BODY */
   .mh-chip-body{padding:24px}

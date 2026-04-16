@@ -261,26 +261,54 @@ export async function GET(request: NextRequest) {
   }
 
   // ── CONSUMER PATH: viewing own home ───────────────────────────────────────
-  // Load address + any user-supplied overrides
-  // Defensively fall back if migration 024 columns don't exist yet (42703 = undefined column)
+  // Accepts ?property_id=<uuid> for multi-home; falls back to primary or first.
+  const propertyId = request.nextUrl.searchParams.get('property_id');
+  const SEL = 'id, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date';
+
   let homeowner: Record<string, any> | null = null;
-  {
+
+  if (propertyId) {
+    // Specific property requested — enforce ownership via user_id
     const res = await db()
+      .from('consumer_homeowner_properties')
+      .select(SEL)
+      .eq('id', propertyId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    homeowner = res.data ?? null;
+  }
+
+  if (!homeowner) {
+    // Fall back: primary property
+    const primary = await db()
+      .from('consumer_homeowner_properties')
+      .select(SEL)
+      .eq('user_id', userId)
+      .eq('is_primary', true)
+      .maybeSingle();
+    homeowner = primary.data ?? null;
+  }
+
+  if (!homeowner) {
+    // Fall back: first property by created_at
+    const first = await db()
+      .from('consumer_homeowner_properties')
+      .select(SEL)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    homeowner = first.data ?? null;
+  }
+
+  if (!homeowner) {
+    // Legacy fallback: old consumer_homeowners table (pre-migration)
+    const legacy = await db()
       .from('consumer_homeowners')
       .select('property_address, id, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
       .eq('user_id', userId)
       .maybeSingle();
-    if (res.error?.code === '42703') {
-      // Columns not yet added — fall back to base fields only
-      const fallback = await db()
-        .from('consumer_homeowners')
-        .select('property_address, id')
-        .eq('user_id', userId)
-        .maybeSingle();
-      homeowner = fallback.data;
-    } else {
-      homeowner = res.data;
-    }
+    homeowner = legacy.data ?? null;
   }
 
   if (!homeowner?.property_address) {

@@ -59,9 +59,9 @@ export async function GET(req: Request) {
         }
     }
 
-    // Loop direct consumers (no LO required)
+    // Loop direct consumers — one email per tracked property
     const { data: consumers, error: consumerError } = await db
-        .from('consumer_homeowners')
+        .from('consumer_homeowner_properties')
         .select('id, name, email, property_address')
         .eq('digest_enabled', true)
         .not('property_address', 'is', null)

@@ -132,7 +132,7 @@ export async function POST(req: Request) {
         if (!isCron) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const { data: consumer } = await db
-            .from('consumer_homeowners')
+            .from('consumer_homeowner_properties')
             .select('*')
             .eq('id', consumer_id)
             .single();
