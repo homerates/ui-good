@@ -720,7 +720,22 @@ function MyHomePageInner() {
                           {borrowerId && <Link href="/lo/borrowers" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Borrowers</Link>}
                         </div>
                         <Link
-                          href={`/chat?sq=${encodeURIComponent(`Property analysis for ${record?.property_address}`)}`}
+                          href={(() => {
+                            const addr = analysis?.address ?? record?.property_address ?? '';
+                            const bal  = analysis?.estimatedBalance;
+                            const rate = analysis?.purchaseRate;
+                            const live = analysis?.liveRate;
+                            if (activeChip === 'refi' && bal && rate) {
+                              return `/chat?sq=${encodeURIComponent(`Refi analysis for ${addr}: current balance $${Math.round(bal).toLocaleString()} at ${rate.toFixed(2)}% rate, today's market rate is ${live?.toFixed(2) ?? '6.37'}%. Should I refinance? Show break-even and monthly savings.`)}`;
+                            }
+                            if (activeChip === 'heloc' && analysis?.helocMax) {
+                              return `/chat?sq=${encodeURIComponent(`HELOC analysis for ${addr}: I have ${analysis.helocMax ? '$' + Math.round(analysis.helocMax).toLocaleString() : 'equity'} available at ~${analysis.helocRate?.toFixed(2) ?? '7.75'}%. What are my best options for accessing home equity?`)}`;
+                            }
+                            if (activeChip === 'equity' && bal) {
+                              return `/chat?sq=${encodeURIComponent(`Equity analysis for ${addr}: estimated value ${analysis?.estimatedValue ? '$' + Math.round(analysis.estimatedValue).toLocaleString() : 'unknown'}, balance $${Math.round(bal).toLocaleString()}, equity ${analysis?.estimatedEquity ? '$' + Math.round(analysis.estimatedEquity).toLocaleString() : 'unknown'}. What are my options?`)}`;
+                            }
+                            return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
+                          })()}
                           className="mh-cta-link"
                         >
                           Ask a mortgage question →
