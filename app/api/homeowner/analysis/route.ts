@@ -103,11 +103,23 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   // Load address + any user-supplied overrides
+  // Select override columns defensively — they may not exist before migration 024 runs
   const { data: homeowner } = await db()
     .from('consumer_homeowners')
     .select('property_address, id, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
     .eq('user_id', userId)
-    .maybeSingle();
+    .maybeSingle()
+    .then(res => {
+      // If Supabase returns a column-not-found error (42703), fall back to base select
+      if (res.error?.code === '42703') {
+        return db()
+          .from('consumer_homeowners')
+          .select('property_address, id')
+          .eq('user_id', userId)
+          .maybeSingle();
+      }
+      return res;
+    });
 
   if (!homeowner?.property_address) {
     return NextResponse.json({ error: 'No address on file' }, { status: 404 });
