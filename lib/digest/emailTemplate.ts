@@ -588,15 +588,131 @@ export function digestEmailHtml(data: DigestEmailData): string {
     sectionMilestones(data),
   ].filter(Boolean).join('');
 
-  const cta = `
+  // ── 5-card personalized CTAs ──────────────────────────────────────────────────
+  const ctaCards: string[] = [];
+
+  // 1. Equity & Value
+  if (data.estimatedEquity && data.estimatedEquity > 0) {
+    ctaCards.push(`
+      <tr><td style="padding-bottom:10px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:${CARD};border:1px solid ${BORDER};border-radius:12px;">
+          <tr><td style="padding:16px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="vertical-align:middle;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${GREEN};margin-bottom:3px;">Equity & Value</div>
+                <div style="font-size:13px;color:#e6edf3;">Your home is worth <strong>${fmtDollar(data.estimatedValue ?? data.estimatedEquity + (data.estimatedBalance ?? 0))}</strong> with <strong>${fmtDollar(data.estimatedEquity)}</strong> in equity</div>
+              </td>
+              <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
+                <a href="${BASE}/my-home#equity" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                  See equity →
+                </a>
+              </td>
+            </tr></table>
+          </td></tr>
+        </table>
+      </td></tr>`);
+  }
+
+  // 2. HELOC Power
+  if (data.estimatedValue && data.estimatedBalance) {
+    const ctaHelocMax = helocMax(data.estimatedValue, data.estimatedBalance);
+    if (ctaHelocMax >= 10_000) {
+      ctaCards.push(`
+        <tr><td style="padding-bottom:10px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:${CARD};border:1px solid ${BORDER};border-radius:12px;">
+            <tr><td style="padding:16px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td style="vertical-align:middle;">
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${GREEN};margin-bottom:3px;">HELOC Power</div>
+                  <div style="font-size:13px;color:#e6edf3;">You could access up to <strong>${fmtDollar(ctaHelocMax)}</strong> via a HELOC today</div>
+                </td>
+                <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
+                  <a href="${BASE}/my-home#heloc" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                    Explore HELOC →
+                  </a>
+                </td>
+              </tr></table>
+            </td></tr>
+          </table>
+        </td></tr>`);
+    }
+  }
+
+  // 3. Refi Math (only if rate gap ≥ 0.25%)
+  if (data.purchaseRate && data.estimatedBalance && data.purchaseRate - data.liveRate >= 0.25) {
+    const ctaNewPmt  = monthlyPayment(data.estimatedBalance, data.liveRate);
+    const ctaOldPmt  = monthlyPayment(data.estimatedBalance, data.purchaseRate);
+    const ctaSaving  = Math.abs(ctaOldPmt - ctaNewPmt);
+    if (ctaSaving > 0) {
+      ctaCards.push(`
+        <tr><td style="padding-bottom:10px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:${CARD};border:1px solid ${BORDER};border-radius:12px;">
+            <tr><td style="padding:16px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td style="vertical-align:middle;">
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${GREEN};margin-bottom:3px;">Refi Math</div>
+                  <div style="font-size:13px;color:#e6edf3;">Refinancing could save you <strong>${fmtDollar(ctaSaving)}/mo</strong> at today's ${data.liveRate.toFixed(2)}% rate</div>
+                </td>
+                <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
+                  <a href="${BASE}/my-home#refi" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                    Run numbers →
+                  </a>
+                </td>
+              </tr></table>
+            </td></tr>
+          </table>
+        </td></tr>`);
+    }
+  }
+
+  // 4. Economy
+  ctaCards.push(`
+    <tr><td style="padding-bottom:10px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:${CARD};border:1px solid ${BORDER};border-radius:12px;">
+        <tr><td style="padding:16px 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:middle;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${GREEN};margin-bottom:3px;">Economy Snapshot</div>
+              <div style="font-size:13px;color:#e6edf3;">30yr fixed at <strong>${data.liveRate.toFixed(2)}%</strong>${data.fedFundsRate ? ` · Fed funds at <strong>${data.fedFundsRate.toFixed(2)}%</strong>` : ''} — see what it means for you</div>
+            </td>
+            <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
+              <a href="${BASE}/my-home#economy" style="display:inline-block;padding:9px 18px;background:rgba(0,232,122,0.12);color:${GREEN};border:1px solid rgba(0,232,122,0.3);font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                View economy →
+              </a>
+            </td>
+          </tr></table>
+        </td></tr>
+      </table>
+    </td></tr>`);
+
+  // 5. Milestones
+  if (data.estimatedBalance && data.purchaseRate) {
+    const origBal = data.lastSalePrice ? data.lastSalePrice * 0.8 : data.estimatedBalance;
+    const ctaPayoffYr = payoffYear(data.estimatedBalance, data.purchaseRate, origBal);
+    ctaCards.push(`
+      <tr><td style="padding-bottom:0;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:${CARD};border:1px solid ${BORDER};border-radius:12px;">
+          <tr><td style="padding:16px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="vertical-align:middle;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${GREEN};margin-bottom:3px;">Milestones</div>
+                <div style="font-size:13px;color:#e6edf3;">You're on track to pay off your home in <strong>${ctaPayoffYr}</strong> — track your progress</div>
+              </td>
+              <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
+                <a href="${BASE}/my-home#milestones" style="display:inline-block;padding:9px 18px;background:rgba(0,232,122,0.12);color:${GREEN};border:1px solid rgba(0,232,122,0.3);font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                  See milestones →
+                </a>
+              </td>
+            </tr></table>
+          </td></tr>
+        </table>
+      </td></tr>`);
+  }
+
+  const cta = ctaCards.length > 0 ? `
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
-      <tr><td style="text-align:center;padding:20px;background:${CARD};border:1px solid ${BORDER};border-radius:14px;">
-        <a href="${BASE}/chat?sq=${encodeURIComponent(`Property analysis for ${data.address}`)}"
-           style="display:inline-block;padding:14px 32px;background:${GREEN};color:#07100f;font-size:14px;font-weight:700;border-radius:999px;text-decoration:none;">
-          Ask a mortgage question about your home →
-        </a>
-      </td></tr>
-    </table>`;
+      ${ctaCards.join('')}
+    </table>` : '';
 
   const footer = `
     <p style="margin:20px 0 4px;font-size:11px;color:${TXT2};line-height:1.6;text-align:center;">

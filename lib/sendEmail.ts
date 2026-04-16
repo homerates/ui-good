@@ -5,7 +5,7 @@
 import { Resend } from "resend";
 import { unsubscribeUrl, isEmailSuppressed } from "./unsubscribe";
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? "digest@homerates.ai";
+const FROM = process.env.RESEND_FROM_EMAIL ?? "digest@mail.homerates.ai";
 const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
 
 function getResend(): Resend | null {
