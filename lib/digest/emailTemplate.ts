@@ -176,7 +176,7 @@ function sectionAlerts(data: DigestEmailData): string {
     const mo = Math.abs(oldPmt - newPmt);
     const closingCosts = Math.round(estimatedBalance * 0.02);
     const breakEven = mo > 0 ? Math.round(closingCosts / mo) : null;
-    const link = `${BASE}/chat?sq=${encodeURIComponent(`Refi from ${purchaseRate.toFixed(2)}% to ${liveRate.toFixed(2)}% on ${fmtDollar(estimatedBalance)} balance`)}`;
+    const link = `${BASE}/chat?sq=${encodeURIComponent(`I have a $${Math.round(estimatedBalance).toLocaleString('en-US')} balance at ${purchaseRate.toFixed(2)}%, market rate is ${liveRate.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`)}`;
     alerts.push(`
       <tr><td style="padding:0 0 10px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(0,232,122,0.06);border:1px solid rgba(0,232,122,0.2);border-radius:10px;">
@@ -375,7 +375,7 @@ function sectionMortgage(data: DigestEmailData): string {
         <div style="font-size:16px;font-weight:700;color:${GREEN};">${fmtDollar(monthlySaving)}/mo · ${fmtDollar(monthlySaving * 12)}/yr</div>
       </td>
       <td style="text-align:right;vertical-align:middle;">
-        <a href="${BASE}/chat?sq=${encodeURIComponent(`Refi from ${purchaseRate.toFixed(2)}% to ${liveRate.toFixed(2)}%`)}"
+        <a href="${BASE}/chat?sq=${encodeURIComponent(`I have a $${Math.round(estimatedBalance).toLocaleString('en-US')} balance at ${purchaseRate.toFixed(2)}%, market rate is ${liveRate.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`)}"
            style="display:inline-block;padding:8px 16px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
           Run numbers →
         </a>
