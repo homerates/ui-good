@@ -268,7 +268,13 @@ function CardRefi({ d, onEdit }: { d: AnalysisData; onEdit: () => void }) {
             )}
           </div>
           <Link
-            href={`/chat?sq=${encodeURIComponent(`Refi from ${d.purchaseRate?.toFixed(2)}% to ${d.liveRate.toFixed(2)}% on ${d.estimatedBalance ? fmt(d.estimatedBalance) : 'my'} balance`)}`}
+            href={(() => {
+              const bal  = d.estimatedBalance ? `$${Math.round(d.estimatedBalance).toLocaleString('en-US')}` : null;
+              const q = bal
+                ? `I have a $${Math.round(d.estimatedBalance!).toLocaleString('en-US')} balance at ${d.purchaseRate?.toFixed(2)}%, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`
+                : `I have a mortgage at ${d.purchaseRate?.toFixed(2)}%, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? What is the break-even point?`;
+              return `/chat?sq=${encodeURIComponent(q)}`;
+            })()}
             className="mh-cta-link"
             style={{ display: 'inline-block', marginTop: 14 }}
           >
@@ -726,7 +732,7 @@ function MyHomePageInner() {
                             const rate = analysis?.purchaseRate;
                             const live = analysis?.liveRate;
                             if (activeChip === 'refi' && bal && rate) {
-                              return `/chat?sq=${encodeURIComponent(`Refi analysis for ${addr}: current balance $${Math.round(bal).toLocaleString()} at ${rate.toFixed(2)}% rate, today's market rate is ${live?.toFixed(2) ?? '6.37'}%. Should I refinance? Show break-even and monthly savings.`)}`;
+                              return `/chat?sq=${encodeURIComponent(`I have a $${Math.round(bal).toLocaleString('en-US')} balance at ${rate.toFixed(2)}%, market rate is ${(live ?? 6.37).toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`)}`;
                             }
                             if (activeChip === 'heloc' && analysis?.helocMax) {
                               return `/chat?sq=${encodeURIComponent(`HELOC analysis for ${addr}: I have ${analysis.helocMax ? '$' + Math.round(analysis.helocMax).toLocaleString() : 'equity'} available at ~${analysis.helocRate?.toFixed(2) ?? '7.75'}%. What are my best options for accessing home equity?`)}`;
