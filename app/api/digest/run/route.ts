@@ -8,6 +8,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '../../../../lib/adminAuth';
 import { Resend } from 'resend';
 import { digestEmailHtml } from '@/digest/emailTemplate';
 import { getFredSnapshot } from '@/lib/fred';
@@ -116,8 +117,12 @@ export async function POST(req: Request) {
     const { userId } = isCron ? { userId: null } : await auth();
     if (!isCron && !userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { borrower_id, consumer_id, preview = false, send_to_lo = false } = await req.json();
+    const body = await req.json();
+    const { borrower_id, consumer_id, preview = false, send_to_lo = false, admin_override = false } = body;
     if (!borrower_id && !consumer_id) return NextResponse.json({ error: 'borrower_id or consumer_id required' }, { status: 400 });
+
+    // Admin bypass — validate admin status when flag is set
+    const isAdmin = admin_override ? !(await requireAdmin()).error : false;
 
     const db = sb();
     const today = new Date().toISOString().split('T')[0];
@@ -240,8 +245,8 @@ export async function POST(req: Request) {
 
     if (!borrower) return NextResponse.json({ error: 'Borrower not found' }, { status: 404 });
 
-    // LO auth check (skip for cron)
-    if (!isCron && userId) {
+    // LO auth check (skip for cron or verified admin)
+    if (!isCron && !isAdmin && userId) {
         const loUserId = (borrower.loan_officers as any)?.user_id;
         if (loUserId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

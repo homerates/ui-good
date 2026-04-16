@@ -52,6 +52,17 @@ export default function AdminDashboard() {
   const [blasting, setBlasting] = useState(false);
   const [blastResult, setBlastResult] = useState<string | null>(null);
 
+  // LO Networks state
+  type LORow = { id: string; user_id: string; name: string; email: string; lender: string; borrower_count: number };
+  type BorrowerRow = { id: string; name: string; email: string | null; property_address: string | null; digest_enabled: boolean; actual_balance: number | null; actual_rate: number | null };
+  const [los, setLos] = useState<LORow[]>([]);
+  const [losLoading, setLosLoading] = useState(false);
+  const [expandedLo, setExpandedLo] = useState<string | null>(null);
+  const [loBorrowers, setLoBorrowers] = useState<Record<string, BorrowerRow[]>>({});
+  const [borrowersLoading, setBorrowersLoading] = useState<string | null>(null);
+  const [digestSending, setDigestSending] = useState<string | null>(null);
+  const [digestMsg, setDigestMsg] = useState<Record<string, string>>({});
+
   // Admin users state
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [adminsLoading, setAdminsLoading] = useState(false);
@@ -61,9 +72,46 @@ export default function AdminDashboard() {
   const [addError, setAddError] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
 
+  function fetchLos() {
+    setLosLoading(true);
+    fetch("/api/admin/lo-borrowers")
+      .then(r => r.json())
+      .then(d => setLos(d.los ?? []))
+      .finally(() => setLosLoading(false));
+  }
+
+  async function fetchLoBorrowers(loId: string) {
+    setBorrowersLoading(loId);
+    const r = await fetch(`/api/admin/lo-borrowers?lo_id=${loId}`);
+    const d = await r.json();
+    setLoBorrowers(prev => ({ ...prev, [loId]: d.borrowers ?? [] }));
+    setBorrowersLoading(null);
+  }
+
+  function toggleLo(loId: string) {
+    if (expandedLo === loId) { setExpandedLo(null); return; }
+    setExpandedLo(loId);
+    if (!loBorrowers[loId]) fetchLoBorrowers(loId);
+  }
+
+  async function adminSendDigest(borrowerId: string, loId: string, preview: boolean) {
+    const key = borrowerId + (preview ? "_preview" : "_digest");
+    setDigestSending(key);
+    const r = await fetch("/api/digest/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ borrower_id: borrowerId, send_to_lo: preview, admin_override: true }),
+    });
+    const d = await r.json();
+    setDigestSending(null);
+    setDigestMsg(prev => ({ ...prev, [key]: r.ok ? "Sent ✓" : (d.error ?? "Failed") }));
+    setTimeout(() => setDigestMsg(prev => { const n = { ...prev }; delete n[key]; return n; }), 4000);
+  }
+
   useEffect(() => {
     if (!isLoaded || adminLoading) return;
     if (!isAdmin) { router.replace("/"); return; }
+    fetchLos();
     fetch("/api/admin/stats")
       .then(r => r.json())
       .then(d => setStats(d))
@@ -700,6 +748,116 @@ export default function AdminDashboard() {
                   {addError && <div className="adm-err">{addError}</div>}
                   {addSuccess && <div className="adm-success">Admin added ✓</div>}
                 </form>
+              </div>
+            </>
+          )}
+
+          {/* ── LO Networks ──────────────────────────────────────────────── */}
+          {isAdmin && (
+            <>
+              <div className="adm-section-title" style={{ marginTop: 40 }}>LO Networks</div>
+              <div className="adm-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <span style={{ fontSize: "0.85rem", color: "rgba(185,208,192,0.6)" }}>
+                    {los.length} loan officers · click to expand borrower list
+                  </span>
+                  <button className="adm-btn" onClick={fetchLos} disabled={losLoading} style={{ fontSize: "0.78rem" }}>
+                    {losLoading ? "Loading…" : "↻ Refresh"}
+                  </button>
+                </div>
+
+                {los.length === 0 && !losLoading && (
+                  <div style={{ color: "rgba(185,208,192,0.4)", fontSize: "0.85rem" }}>No LOs found.</div>
+                )}
+
+                {los.map(lo => {
+                  const isExpanded = expandedLo === lo.id;
+                  const borrowers  = loBorrowers[lo.id] ?? [];
+                  const isLoading  = borrowersLoading === lo.id;
+                  return (
+                    <div key={lo.id} style={{ marginBottom: 10, border: "1px solid rgba(148,163,184,0.12)", borderRadius: 10, overflow: "hidden" }}>
+                      {/* LO header row */}
+                      <div
+                        onClick={() => toggleLo(lo.id)}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", background: isExpanded ? "rgba(0,232,122,0.04)" : "transparent" }}
+                      >
+                        <div>
+                          <span style={{ fontWeight: 600, color: "#e0f0e8", fontSize: "0.9rem" }}>{lo.name}</span>
+                          {lo.lender && <span style={{ marginLeft: 10, fontSize: "0.78rem", color: "rgba(185,208,192,0.5)" }}>{lo.lender}</span>}
+                          <span style={{ marginLeft: 10, fontSize: "0.78rem", color: "rgba(185,208,192,0.4)" }}>{lo.email}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: "0.8rem", color: lo.borrower_count > 0 ? "rgba(0,232,122,0.7)" : "rgba(148,163,184,0.4)" }}>
+                            {lo.borrower_count} borrower{lo.borrower_count !== 1 ? "s" : ""}
+                          </span>
+                          <span style={{ color: "rgba(185,208,192,0.5)", fontSize: 12 }}>{isExpanded ? "▲" : "▼"}</span>
+                        </div>
+                      </div>
+
+                      {/* Borrower list */}
+                      {isExpanded && (
+                        <div style={{ borderTop: "1px solid rgba(148,163,184,0.1)", padding: "0 16px 12px" }}>
+                          {isLoading && <div style={{ padding: "12px 0", fontSize: "0.82rem", color: "rgba(185,208,192,0.4)" }}>Loading borrowers…</div>}
+                          {!isLoading && borrowers.length === 0 && (
+                            <div style={{ padding: "12px 0", fontSize: "0.82rem", color: "rgba(185,208,192,0.4)" }}>No borrowers yet.</div>
+                          )}
+                          {!isLoading && borrowers.map(b => {
+                            const dKey = b.id + "_digest";
+                            const pKey = b.id + "_preview";
+                            return (
+                              <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(148,163,184,0.07)", flexWrap: "wrap", gap: 8 }}>
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontWeight: 600, color: "#e0f0e8", fontSize: "0.85rem" }}>{b.name}</div>
+                                  <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.45)" }}>{b.email ?? "no email"}</div>
+                                  {b.property_address && (
+                                    <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", marginTop: 2 }}>{b.property_address}</div>
+                                  )}
+                                  {(b.actual_balance || b.actual_rate) && (
+                                    <div style={{ fontSize: "0.72rem", color: "rgba(0,232,122,0.6)", marginTop: 2 }}>
+                                      {b.actual_balance ? `$${Math.round(b.actual_balance).toLocaleString()} balance` : ""}
+                                      {b.actual_balance && b.actual_rate ? " · " : ""}
+                                      {b.actual_rate ? `${b.actual_rate}% rate` : ""}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
+                                  {b.property_address && (
+                                    <a
+                                      href={`/my-home?borrower_id=${b.id}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid rgba(0,232,122,0.3)", color: "rgba(0,232,122,0.8)", fontSize: "0.75rem", fontWeight: 600, textDecoration: "none" }}
+                                    >
+                                      View Home →
+                                    </a>
+                                  )}
+                                  {b.property_address && b.email && (
+                                    <button
+                                      onClick={() => adminSendDigest(b.id, lo.id, false)}
+                                      disabled={digestSending === dKey}
+                                      style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid rgba(148,163,184,0.2)", color: "rgba(185,208,192,0.7)", fontSize: "0.75rem", fontWeight: 600, background: "transparent", cursor: "pointer" }}
+                                    >
+                                      {digestSending === dKey ? "Sending…" : digestMsg[dKey] ?? "Send Digest"}
+                                    </button>
+                                  )}
+                                  {b.property_address && (
+                                    <button
+                                      onClick={() => adminSendDigest(b.id, lo.id, true)}
+                                      disabled={digestSending === pKey}
+                                      style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid rgba(99,179,237,0.3)", color: "rgba(99,179,237,0.8)", fontSize: "0.75rem", fontWeight: 600, background: "transparent", cursor: "pointer" }}
+                                    >
+                                      {digestSending === pKey ? "Sending…" : digestMsg[pKey] ?? "Preview →Me"}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}

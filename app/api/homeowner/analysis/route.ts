@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
+import { requireAdmin } from '../../../../lib/adminAuth';
 
 function db() {
   return createClient(
@@ -202,25 +203,31 @@ export async function GET(request: NextRequest) {
 
   // ── LO PATH: viewing a specific borrower's home ───────────────────────────
   if (borrowerId) {
-    // Verify caller is an LO who owns this borrower
-    const loRes = await db().from('loan_officers').select('id').eq('user_id', userId).maybeSingle();
-    if (!loRes.data) return NextResponse.json({ error: 'Not an LO account' }, { status: 403 });
+    // Admin bypass — admins can view any borrower without being the LO
+    const adminCheck = await requireAdmin();
+    const isAdmin = !adminCheck.error;
+
+    // Verify caller is an LO who owns this borrower (skip for admins)
+    const loRes = isAdmin
+      ? { data: null }
+      : await db().from('loan_officers').select('id').eq('user_id', userId).maybeSingle();
+    if (!isAdmin && !loRes.data) return NextResponse.json({ error: 'Not an LO account' }, { status: 403 });
 
     let borrower: Record<string, any> | null = null;
     {
-      const res = await db()
+      let q = db()
         .from('borrowers')
         .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
-        .eq('id', borrowerId)
-        .eq('loan_officer_id', loRes.data.id)
-        .maybeSingle();
+        .eq('id', borrowerId);
+      if (!isAdmin && loRes.data) q = q.eq('loan_officer_id', loRes.data.id);
+      const res = await q.maybeSingle();
       if (res.error?.code === '42703') {
-        const fallback = await db()
+        let qf = db()
           .from('borrowers')
           .select('id, name, property_address')
-          .eq('id', borrowerId)
-          .eq('loan_officer_id', loRes.data.id)
-          .maybeSingle();
+          .eq('id', borrowerId);
+        if (!isAdmin && loRes.data) qf = qf.eq('loan_officer_id', loRes.data.id);
+        const fallback = await qf.maybeSingle();
         borrower = fallback.data;
       } else {
         borrower = res.data;
