@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
 
@@ -12,6 +11,13 @@ interface HomeownerRecord {
   updated_at: string;
   name: string | null;
   email: string | null;
+}
+
+interface SavedOverrides {
+  actual_balance:        number | null;
+  actual_rate:           number | null;
+  actual_purchase_price: number | null;
+  actual_purchase_date:  string | null;
 }
 
 interface AnalysisData {
@@ -48,6 +54,9 @@ interface AnalysisData {
   rentMonthly: number | null;
   rentVsOwn: number | null;
   prime: number;
+  savedOverrides: SavedOverrides;
+  balanceIsEstimated: boolean;
+  rateIsEstimated: boolean;
 }
 
 type ChipId = 'equity' | 'heloc' | 'refi' | 'economy' | 'milestones';
@@ -59,6 +68,19 @@ const CHIPS: { id: ChipId; label: string; icon: string }[] = [
   { id: 'economy',    label: 'Economy',          icon: '📈' },
   { id: 'milestones', label: 'Milestones',       icon: '🏁' },
 ];
+
+// ── Estimated badge ────────────────────────────────────────────────────────────
+function EstBadge() {
+  return (
+    <span style={{
+      fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em',
+      textTransform: 'uppercase', padding: '1px 5px', borderRadius: 4,
+      background: 'rgba(234,179,8,0.12)', color: '#eab308',
+      border: '1px solid rgba(234,179,8,0.25)', marginLeft: 5,
+      verticalAlign: 'middle',
+    }}>est</span>
+  );
+}
 
 // ── Format helpers ─────────────────────────────────────────────────────────────
 function fmt(n: number): string {
@@ -192,15 +214,15 @@ function CardHELOC({ d }: { d: AnalysisData }) {
   );
 }
 
-function CardRefi({ d }: { d: AnalysisData }) {
+function CardRefi({ d, onEdit }: { d: AnalysisData; onEdit: () => void }) {
   const hasOpportunity = d.refiMonthlySaving > 50 && d.purchaseRate && d.purchaseRate > d.liveRate;
   return (
     <div>
       <div className="mh-stat-row" style={{ marginBottom: 20 }}>
         <div className="mh-stat">
-          <div className="mh-stat-label">Your Rate</div>
+          <div className="mh-stat-label">Your Rate {d.rateIsEstimated && <EstBadge />}</div>
           <div className="mh-stat-value">{rate(d.purchaseRate)}</div>
-          <div className="mh-stat-sub">At purchase</div>
+          <div className="mh-stat-sub">{d.rateIsEstimated ? 'Historical avg estimate' : 'Your actual rate'}</div>
         </div>
         <div className="mh-stat">
           <div className="mh-stat-label">Market Today</div>
@@ -210,13 +232,17 @@ function CardRefi({ d }: { d: AnalysisData }) {
           <div className="mh-stat-sub">30yr fixed avg</div>
         </div>
         <div className="mh-stat">
-          <div className="mh-stat-label">Rate Gap</div>
-          <div className="mh-stat-value">
-            {d.purchaseRate ? Math.abs(d.purchaseRate - d.liveRate).toFixed(2) + '%' : '—'}
-          </div>
-          <div className="mh-stat-sub">{(d.purchaseRate ?? 0) > d.liveRate ? 'Market is lower' : 'Market is higher'}</div>
+          <div className="mh-stat-label">Balance {d.balanceIsEstimated && <EstBadge />}</div>
+          <div className="mh-stat-value">{d.estimatedBalance ? fmt(d.estimatedBalance) : '—'}</div>
+          <div className="mh-stat-sub">{d.balanceIsEstimated ? 'Estimate' : 'Your actual balance'}</div>
         </div>
       </div>
+      {(d.rateIsEstimated || d.balanceIsEstimated) && (
+        <div className="mh-est-notice">
+          Numbers marked <span style={{ color: '#eab308' }}>est</span> are estimated from public records.{' '}
+          <button className="mh-inline-btn" onClick={onEdit}>Enter your actual numbers →</button>
+        </div>
+      )}
 
       {hasOpportunity ? (
         <div className="mh-highlight-box" style={{ borderColor: 'rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.05)' }}>
@@ -414,7 +440,6 @@ function Sparkline({ history }: { history: { date: string; value: number }[] }) 
 
 export default function MyHomePage() {
   const { user, isLoaded } = useUser();
-  const router = useRouter();
 
   const [record, setRecord]         = useState<HomeownerRecord | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -428,6 +453,15 @@ export default function MyHomePage() {
   const [analysis, setAnalysis]     = useState<AnalysisData | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisErr, setAnalysisErr]         = useState('');
+
+  // Loan detail editor
+  const [editingLoan, setEditingLoan]     = useState(false);
+  const [loanBalance, setLoanBalance]     = useState('');
+  const [loanRate, setLoanRate]           = useState('');
+  const [loanPurchasePrice, setLoanPurchasePrice] = useState('');
+  const [loanPurchaseDate, setLoanPurchaseDate]   = useState('');
+  const [loanSaving, setLoanSaving]       = useState(false);
+  const [loanSaved, setLoanSaved]         = useState(false);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -489,6 +523,34 @@ export default function MyHomePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ digest_enabled: val }),
     });
+  }
+
+  function openLoanEditor() {
+    const ov = analysis?.savedOverrides;
+    setLoanBalance(ov?.actual_balance     ? String(ov.actual_balance)       : '');
+    setLoanRate(ov?.actual_rate           ? String(ov.actual_rate)           : '');
+    setLoanPurchasePrice(ov?.actual_purchase_price ? String(ov.actual_purchase_price) : '');
+    setLoanPurchaseDate(ov?.actual_purchase_date   ?? '');
+    setEditingLoan(true);
+  }
+
+  async function saveLoanDetails() {
+    setLoanSaving(true);
+    await fetch('/api/homeowner/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actual_balance:        loanBalance       ? parseFloat(loanBalance.replace(/[,$]/g, ''))       : null,
+        actual_rate:           loanRate          ? parseFloat(loanRate.replace('%', ''))               : null,
+        actual_purchase_price: loanPurchasePrice ? parseFloat(loanPurchasePrice.replace(/[,$]/g, '')) : null,
+        actual_purchase_date:  loanPurchaseDate  || null,
+      }),
+    });
+    setLoanSaving(false);
+    setLoanSaved(true);
+    setEditingLoan(false);
+    setAnalysis(null); // triggers re-fetch with new overrides
+    setTimeout(() => setLoanSaved(false), 2500);
   }
 
   const hasAddress = record?.property_address;
@@ -605,7 +667,7 @@ export default function MyHomePage() {
                         <>
                           {activeChip === 'equity'     && <CardEquity     d={analysis} />}
                           {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
-                          {activeChip === 'refi'       && <CardRefi       d={analysis} />}
+                          {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
                           {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
                           {activeChip === 'milestones' && <CardMilestones d={analysis} />}
                         </>
@@ -615,7 +677,10 @@ export default function MyHomePage() {
                     {/* Refresh + chat CTA footer */}
                     {analysis && !analysisLoading && (
                       <div className="mh-chip-footer">
-                        <button className="mh-refresh-btn" onClick={loadAnalysis}>↻ Refresh</button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="mh-refresh-btn" onClick={loadAnalysis}>↻ Refresh</button>
+                          <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>
+                        </div>
                         <Link
                           href={`/chat?sq=${encodeURIComponent(`Property analysis for ${record?.property_address}`)}`}
                           className="mh-cta-link"
@@ -624,6 +689,62 @@ export default function MyHomePage() {
                         </Link>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* LOAN DETAIL EDITOR */}
+                {editingLoan && (
+                  <div className="mh-card" style={{ border: '1px solid rgba(34,197,94,0.2)' }}>
+                    <div className="mh-card-label">Correct Your Loan Details</div>
+                    <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                      We estimate your balance and rate from public records. Enter your actual numbers for more accurate analysis.
+                      Leave a field blank to keep using the estimate.
+                    </p>
+                    <div className="mh-loan-grid">
+                      <div className="mh-loan-field">
+                        <label className="mh-loan-label">Current loan balance</label>
+                        <input
+                          className="mh-input"
+                          placeholder="e.g. 209000"
+                          value={loanBalance}
+                          onChange={e => setLoanBalance(e.target.value)}
+                        />
+                      </div>
+                      <div className="mh-loan-field">
+                        <label className="mh-loan-label">Your interest rate (%)</label>
+                        <input
+                          className="mh-input"
+                          placeholder="e.g. 6.54"
+                          value={loanRate}
+                          onChange={e => setLoanRate(e.target.value)}
+                        />
+                      </div>
+                      <div className="mh-loan-field">
+                        <label className="mh-loan-label">Purchase price</label>
+                        <input
+                          className="mh-input"
+                          placeholder="e.g. 670000"
+                          value={loanPurchasePrice}
+                          onChange={e => setLoanPurchasePrice(e.target.value)}
+                        />
+                      </div>
+                      <div className="mh-loan-field">
+                        <label className="mh-loan-label">Close date</label>
+                        <input
+                          className="mh-input"
+                          type="date"
+                          value={loanPurchaseDate}
+                          onChange={e => setLoanPurchaseDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="mh-form-row" style={{ marginTop: '1rem' }}>
+                      <button className="mh-save-btn" onClick={saveLoanDetails} disabled={loanSaving}>
+                        {loanSaving ? 'Saving…' : 'Save my numbers'}
+                      </button>
+                      <button className="mh-cancel-btn" onClick={() => setEditingLoan(false)}>Cancel</button>
+                    </div>
+                    {loanSaved && <div className="mh-saved-msg" style={{ marginTop: 8 }}>Saved — refreshing analysis…</div>}
                   </div>
                 )}
 
@@ -704,6 +825,14 @@ const CSS = `
   .mh-chip-footer{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-top:1px solid rgba(255,255,255,0.07)}
   .mh-refresh-btn{font-size:.8rem;color:rgba(255,255,255,0.4);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px}
   .mh-refresh-btn:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06)}
+
+  /* LOAN EDITOR */
+  .mh-loan-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  .mh-loan-field{display:flex;flex-direction:column;gap:.3rem}
+  .mh-loan-label{font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,0.4)}
+  .mh-est-notice{font-size:.78rem;color:rgba(255,255,255,0.4);background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5}
+  .mh-inline-btn{background:none;border:none;cursor:pointer;color:#eab308;font-size:.78rem;text-decoration:underline;padding:0}
+  @media(max-width:600px){.mh-loan-grid{grid-template-columns:1fr}}
 
   /* LOADING / ERROR */
   .mh-analysis-loading{display:flex;align-items:center;gap:12px;color:rgba(255,255,255,0.45);font-size:.9rem;padding:2rem 0}

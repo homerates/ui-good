@@ -102,10 +102,10 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  // Load address from consumer_homeowners
+  // Load address + any user-supplied overrides
   const { data: homeowner } = await db()
     .from('consumer_homeowners')
-    .select('property_address, id')
+    .select('property_address, id, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -131,11 +131,25 @@ export async function GET() {
   }
 
   const liveRate  = fred?.mort30Avg ?? 7.0;
-  const fedFunds  = null; // FEDFUNDS not yet in FRED snapshot — use known range
-  const prime     = 4.25 + 3; // Prime = Fed Funds + 3%
+  const fedFunds  = null;
+  const prime     = 4.25 + 3;
   const helocRate = prime + 0.5;
 
-  const { estimatedValue, estimatedBalance, estimatedEquity, purchaseRate, lastSalePrice, lastSaleDate } = rentcast;
+  const { estimatedValue, lastSalePrice, lastSaleDate } = rentcast;
+
+  // ── Prefer user-supplied overrides over Rentcast estimates ─────────────────
+  // balance: user actual > Rentcast estimate
+  const balance        = homeowner.actual_balance   ? Number(homeowner.actual_balance)   : rentcast.estimatedBalance;
+  // rate: user actual > Rentcast historical-rate guess
+  const purchaseRate   = homeowner.actual_rate      ? Number(homeowner.actual_rate)       : rentcast.purchaseRate;
+  // for equity calc: use overridden balance if available
+  const estimatedEquity= (estimatedValue && balance) ? Math.round(estimatedValue - balance) : rentcast.estimatedEquity;
+  const estimatedBalance = balance;
+
+  // Track whether we're using estimates so the UI can show a badge
+  const balanceIsEstimated    = !homeowner.actual_balance;
+  const rateIsEstimated       = !homeowner.actual_rate;
+  const purchasePriceOverride = homeowner.actual_purchase_price ? Number(homeowner.actual_purchase_price) : null;
 
   // ── Derived computations ────────────────────────────────────────────────────
   const ltv = (estimatedValue && estimatedBalance) ? Math.round((estimatedBalance / estimatedValue) * 100) : null;
@@ -156,8 +170,9 @@ export async function GET() {
     amortizing:   monthlyPayment(d.amount, helocRate, 240),
   })) : [];
 
-  // Refi
-  const origBalance = lastSalePrice ? lastSalePrice * 0.8 : (estimatedBalance ?? 0) * 1.5;
+  // Refi — origBalance: use purchase price override > Rentcast lastSalePrice > fallback
+  const origPurchasePrice = purchasePriceOverride ?? lastSalePrice;
+  const origBalance = origPurchasePrice ? origPurchasePrice * 0.8 : (estimatedBalance ?? 0) * 1.5;
   const refiMonthlySaving = (purchaseRate && estimatedBalance && purchaseRate > liveRate)
     ? Math.max(0, monthlyPayment(estimatedBalance, purchaseRate) - monthlyPayment(estimatedBalance, liveRate)) : 0;
   const refiClosingCost = estimatedBalance ? Math.round(estimatedBalance * 0.02) : 0;
@@ -167,8 +182,9 @@ export async function GET() {
   const paidOff    = origBalance > 0 && estimatedBalance ? origBalance - estimatedBalance : 0;
   const paidOffPct = origBalance > 0 ? Math.round((paidOff / origBalance) * 100) : 0;
 
-  // Interest paid estimate
-  const purchaseYear  = lastSaleDate ? new Date(lastSaleDate).getFullYear() : null;
+  // Interest paid estimate — use override date if available
+  const purchaseDateStr = homeowner.actual_purchase_date ?? lastSaleDate;
+  const purchaseYear  = purchaseDateStr ? new Date(purchaseDateStr).getFullYear() : null;
   const yearsElapsed  = purchaseYear ? new Date().getFullYear() - purchaseYear : null;
   const origPmt       = purchaseRate ? monthlyPayment(origBalance, purchaseRate) : null;
   const totalPaid     = (origPmt && yearsElapsed) ? origPmt * yearsElapsed * 12 : null;
@@ -208,11 +224,25 @@ export async function GET() {
 
   return NextResponse.json({
     address: homeowner.property_address,
-    // Raw
+    // Raw Rentcast (value, range, lastSale*)
     ...rentcast,
+    // Override-aware fields (actual wins over estimate)
+    estimatedBalance,
+    estimatedEquity,
+    purchaseRate,
     liveRate,
     fedFundsRate: fedFunds,
     valueHistory: valueHistory.length >= 2 ? valueHistory : [],
+    // What the user has saved (so the edit form can pre-fill)
+    savedOverrides: {
+      actual_balance:        homeowner.actual_balance        ?? null,
+      actual_rate:           homeowner.actual_rate           ?? null,
+      actual_purchase_price: homeowner.actual_purchase_price ?? null,
+      actual_purchase_date:  homeowner.actual_purchase_date  ?? null,
+    },
+    // Estimate badges — true = number is a Rentcast/historical guess
+    balanceIsEstimated,
+    rateIsEstimated,
     // Derived
     ltv, equityPct, appreciationPct,
     helocMax, helocRate, cashOutMax, helocDraws,

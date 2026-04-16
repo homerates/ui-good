@@ -38,14 +38,24 @@ export async function POST(req: NextRequest) {
   const address        = typeof body.address        === 'string' ? body.address.trim() || null : undefined;
   const digestEnabled  = typeof body.digest_enabled === 'boolean' ? body.digest_enabled : undefined;
 
+  // Loan detail overrides — null clears a field, undefined = don't touch
+  const actualBalance       = 'actual_balance'        in body ? (body.actual_balance       ?? null) : undefined;
+  const actualRate          = 'actual_rate'           in body ? (body.actual_rate          ?? null) : undefined;
+  const actualPurchasePrice = 'actual_purchase_price' in body ? (body.actual_purchase_price ?? null) : undefined;
+  const actualPurchaseDate  = 'actual_purchase_date'  in body ? (body.actual_purchase_date  ?? null) : undefined;
+
   const payload: Record<string, any> = {
     user_id:    userId,
     email,
     name,
     updated_at: new Date().toISOString(),
   };
-  if (address       !== undefined) payload.property_address = address;
-  if (digestEnabled !== undefined) payload.digest_enabled   = digestEnabled;
+  if (address               !== undefined) payload.property_address    = address;
+  if (digestEnabled         !== undefined) payload.digest_enabled       = digestEnabled;
+  if (actualBalance         !== undefined) payload.actual_balance       = actualBalance       ? Number(actualBalance)       : null;
+  if (actualRate            !== undefined) payload.actual_rate          = actualRate          ? Number(actualRate)          : null;
+  if (actualPurchasePrice   !== undefined) payload.actual_purchase_price= actualPurchasePrice ? Number(actualPurchasePrice) : null;
+  if (actualPurchaseDate    !== undefined) payload.actual_purchase_date = actualPurchaseDate;
   // Default digest to true on first save
   if (!('digest_enabled' in payload)) payload.digest_enabled = true;
 
