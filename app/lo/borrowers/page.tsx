@@ -35,6 +35,8 @@ export default function LoBorrowersPage() {
     const [saving, setSaving] = React.useState<string | null>(null);
     const [sending, setSending] = React.useState<string | null>(null);
     const [sentOk, setSentOk] = React.useState<string | null>(null);
+    const [sendingPreview, setSendingPreview] = React.useState<string | null>(null);
+    const [sentPreviewOk, setSentPreviewOk]   = React.useState<string | null>(null);
     // Gift credits state
     const [loBalance, setLoBalance] = React.useState<number | null>(null);
     const [giftOpen, setGiftOpen] = React.useState<string | null>(null);    // borrower id with open gift panel
@@ -216,6 +218,21 @@ export default function LoBorrowersPage() {
         }
     }
 
+    async function sendPreviewToSelf(borrower: Borrower) {
+        if (!borrower.property_address) return;
+        setSendingPreview(borrower.id);
+        setSentPreviewOk(null);
+        const res = await fetch('/api/digest/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ borrower_id: borrower.id, send_to_lo: true }),
+        });
+        const data = await res.json();
+        setSendingPreview(null);
+        if (data.ok) { setSentPreviewOk(borrower.id); setTimeout(() => setSentPreviewOk(null), 4000); }
+        else { setError(data.error ?? 'Failed to send preview.'); }
+    }
+
     async function sendDigest(borrower: Borrower) {
         if (!borrower.property_address) return;
         setSending(borrower.id);
@@ -380,11 +397,14 @@ export default function LoBorrowersPage() {
                         const didGift    = giftOk   === b.id;
                         const isGiftOpen = giftOpen === b.id;
 
-                        const isLoanOpen  = loanOpen  === b.id;
+                        const isLoanOpen   = loanOpen   === b.id;
                         const isLoanSaving = loanSaving === b.id;
                         const didLoanSave  = loanSaved  === b.id;
                         const lf = loanForm[b.id] ?? { balance: '', rate: '', purchasePrice: '', purchaseDate: '' };
                         const hasOverrides = !!(b.actual_balance || b.actual_rate || b.actual_purchase_price || b.actual_purchase_date);
+
+                        const isSendingPreview = sendingPreview === b.id;
+                        const didSendPreview   = sentPreviewOk  === b.id;
 
                         return (
                             <div key={b.id} style={{ padding: "16px 18px", borderRadius: 12, border: "1px solid rgba(148,163,184,0.1)", background: "rgba(255,255,255,0.025)", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -441,6 +461,23 @@ export default function LoBorrowersPage() {
                                             }}
                                         >
                                             {deleting === b.id ? "Removing…" : "Remove"}
+                                        </button>
+                                        {/* Send to LO preview button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => sendPreviewToSelf(b)}
+                                            disabled={isSendingPreview || !b.property_address || didSendPreview}
+                                            title={!b.property_address ? "Add a property address first" : "Send this borrower's digest to your own inbox"}
+                                            style={{
+                                                padding: "6px 14px", borderRadius: 999, border: "1px solid",
+                                                borderColor: didSendPreview ? "rgba(99,179,237,0.6)" : b.property_address ? "rgba(99,179,237,0.3)" : "rgba(148,163,184,0.2)",
+                                                background: didSendPreview ? "rgba(99,179,237,0.1)" : "transparent",
+                                                color: didSendPreview ? "#63b3ed" : b.property_address ? "rgba(99,179,237,0.8)" : "rgba(185,208,192,0.3)",
+                                                fontSize: "0.78rem", fontWeight: 600, cursor: b.property_address && !isSendingPreview ? "pointer" : "default",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            {isSendingPreview ? "Sending…" : didSendPreview ? "Sent to You ✓" : "Send to Me"}
                                         </button>
                                         {/* Send digest button */}
                                         <button

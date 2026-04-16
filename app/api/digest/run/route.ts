@@ -116,7 +116,7 @@ export async function POST(req: Request) {
     const { userId } = isCron ? { userId: null } : await auth();
     if (!isCron && !userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { borrower_id, consumer_id, preview = false } = await req.json();
+    const { borrower_id, consumer_id, preview = false, send_to_lo = false } = await req.json();
     if (!borrower_id && !consumer_id) return NextResponse.json({ error: 'borrower_id or consumer_id required' }, { status: 400 });
 
     const db = sb();
@@ -333,6 +333,25 @@ export async function POST(req: Request) {
     const resendKey = process.env.RESEND_API_KEY;
     if (!resendKey) {
         return NextResponse.json({ ok: false, error: 'RESEND_API_KEY not configured' }, { status: 503 });
+    }
+
+    // send_to_lo mode — send digest to the LO's own inbox, not the borrower
+    if (send_to_lo) {
+        if (!loEmail) return NextResponse.json({ ok: false, error: 'No LO email on file' }, { status: 400 });
+        const resend  = new Resend(resendKey);
+        const fromAddr = process.env.RESEND_FROM_EMAIL ?? 'digest@homerates.ai';
+        const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const { data: sent, error: sendErr } = await resend.emails.send({
+            from:    `HomeRates.ai <${fromAddr}>`,
+            to:      loEmail,
+            subject: `[Preview] ${borrower.name}'s Home Update — ${monthLabel}`,
+            html:    digestEmailHtml(emailData),
+        });
+        if (sendErr) {
+            console.error('[digest/lo-preview] Resend error:', sendErr);
+            return NextResponse.json({ ok: false, error: sendErr.message }, { status: 500 });
+        }
+        return NextResponse.json({ ok: true, lo_preview: true, resend_id: sent?.id });
     }
 
     if (!borrower.email) {
