@@ -2177,3 +2177,30 @@ body:has(.page-shell) {
     font-size: 18px;
   }
 }
+/* ── Google Places autocomplete dropdown (dark theme) ─────────────────────── */
+.pac-container {
+  background: #0f1c14;
+  border: 1px solid rgba(0, 232, 122, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  font-family: inherit;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.pac-item {
+  padding: 9px 14px;
+  color: rgba(224, 240, 232, 0.85);
+  font-size: 0.84rem;
+  cursor: pointer;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pac-item:first-child { border-top: none; }
+.pac-item:hover,
+.pac-item-selected { background: rgba(0, 232, 122, 0.08); }
+.pac-item-query { color: #e0f0e8; font-weight: 600; }
+.pac-matched { color: #00e87a; }
+.pac-icon { display: none; }
+.pac-logo::after { display: none; }

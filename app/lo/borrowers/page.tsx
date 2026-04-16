@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageShell from "../../components/PageShell";
+import AddressAutocomplete from "../../components/AddressAutocomplete";
 
 type Borrower = {
     id: string;
@@ -316,10 +317,11 @@ export default function LoBorrowersPage() {
                                     style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
                                 />
                             </div>
-                            <input
-                                type="text" placeholder="Property address (optional — enhances welcome email)"
+                            <AddressAutocomplete
+                                placeholder="Property address (optional — enhances welcome email)"
                                 value={quickForm.address}
-                                onChange={e => setQuickForm(p => ({ ...p, address: e.target.value }))}
+                                onChange={v => setQuickForm(p => ({ ...p, address: v }))}
+                                onSelect={v => setQuickForm(p => ({ ...p, address: v }))}
                                 style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
                             />
                             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.82rem", color: "rgba(185,208,192,0.7)", cursor: "pointer" }}>
@@ -641,11 +643,11 @@ export default function LoBorrowersPage() {
                                     <div style={{ fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(0,232,122,0.5)", flexShrink: 0, width: 110 }}>
                                         Property Address
                                     </div>
-                                    <input
-                                        type="text"
+                                    <AddressAutocomplete
                                         placeholder="123 Main St, City, CA 90001"
                                         value={editVal}
-                                        onChange={e => setEditing(prev => ({ ...prev, [b.id]: e.target.value }))}
+                                        onChange={v => setEditing(prev => ({ ...prev, [b.id]: v }))}
+                                        onSelect={v => setEditing(prev => ({ ...prev, [b.id]: v }))}
                                         style={{
                                             flex: "1 1 200px", minWidth: 0,
                                             padding: "7px 10px", borderRadius: 8,

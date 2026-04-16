@@ -5,6 +5,7 @@ import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 
 interface HomeownerRecord {
   property_address: string | null;
@@ -651,11 +652,12 @@ function MyHomePageInner() {
                         </>
                       )}
                       <div className="mh-form">
-                        <input
+                        <AddressAutocomplete
                           className="mh-input"
                           placeholder="e.g. 1234 Oak Street, Los Angeles, CA 90001"
                           value={address}
-                          onChange={e => setAddress(e.target.value)}
+                          onChange={setAddress}
+                          onSelect={setAddress}
                           onKeyDown={e => e.key === 'Enter' && saveAddress()}
                         />
                         <div className="mh-form-row">
