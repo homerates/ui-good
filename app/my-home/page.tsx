@@ -271,10 +271,12 @@ function CardRefi({ d, onEdit }: { d: AnalysisData; onEdit: () => void }) {
           <Link
             href={(() => {
               const rawBal = d.estimatedBalance ?? (d.estimatedValue ? Math.round(d.estimatedValue * 0.65) : null);
-              const balNote = d.estimatedBalance ? '' : ' (approximate — based on estimated home value, adjust as needed)';
+              const effectiveRate = d.purchaseRate ?? d.liveRate;
+              const balNote  = d.estimatedBalance ? '' : ' (approximate — based on estimated home value, adjust as needed)';
+              const rateNote = d.purchaseRate     ? '' : ' (using today\'s market rate as reference — update if you know your actual rate)';
               const q = rawBal
-                ? `I have a $${Math.round(rawBal).toLocaleString('en-US')} balance${balNote} at ${d.purchaseRate?.toFixed(2)}%, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`
-                : `I have a mortgage at ${d.purchaseRate?.toFixed(2)}%, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? What is the break-even point?`;
+                ? `I have a $${Math.round(rawBal).toLocaleString('en-US')} balance${balNote} at ${effectiveRate.toFixed(2)}%${rateNote}, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`
+                : `I have a mortgage at ${effectiveRate.toFixed(2)}%${rateNote}, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? What is the break-even point?`;
               return `/chat?sq=${encodeURIComponent(q)}`;
             })()}
             className="mh-cta-link"
@@ -732,12 +734,13 @@ function MyHomePageInner() {
                           href={(() => {
                             const addr = analysis?.address ?? record?.property_address ?? '';
                             const bal  = analysis?.estimatedBalance;
-                            const rate = analysis?.purchaseRate;
-                            const live = analysis?.liveRate;
-                            if (activeChip === 'refi' && rate) {
+                            const live = analysis?.liveRate ?? 6.99;
+                            const rate = analysis?.purchaseRate ?? live;
+                            if (activeChip === 'refi') {
                               const refibal = bal ?? (analysis?.estimatedValue ? Math.round(analysis.estimatedValue * 0.65) : null);
                               const balNote = bal ? '' : ' (approximate — based on estimated home value, adjust as needed)';
-                              if (refibal) return `/chat?sq=${encodeURIComponent(`I have a $${Math.round(refibal).toLocaleString('en-US')} balance${balNote} at ${rate.toFixed(2)}%, market rate is ${(live ?? 6.37).toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`)}`;
+                              const rateNote = analysis?.purchaseRate ? '' : ' (using today\'s market rate as reference — update if you know your actual rate)';
+                              if (refibal) return `/chat?sq=${encodeURIComponent(`I have a $${Math.round(refibal).toLocaleString('en-US')} balance${balNote} at ${rate.toFixed(2)}%${rateNote}, market rate is ${live.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`)}`;
                             }
                             if (activeChip === 'heloc' && analysis?.helocMax) {
                               return `/chat?sq=${encodeURIComponent(`HELOC analysis for ${addr}: I have ${analysis.helocMax ? '$' + Math.round(analysis.helocMax).toLocaleString() : 'equity'} available at ~${analysis.helocRate?.toFixed(2) ?? '7.75'}%. What are my best options for accessing home equity?`)}`;
