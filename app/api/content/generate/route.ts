@@ -11,10 +11,29 @@ import { createClient } from '@supabase/supabase-js';
 import { resolveTopicVariables, titleToSlug, currentYear } from '@/content/topics';
 import type { TopicSeed } from '@/content/topics';
 
-const XAI_API_KEY  = process.env.XAI_API_KEY;
-const XAI_MODEL    = 'grok-4-1-fast-non-reasoning';
-const TAVILY_KEY   = process.env.TAVILY_API_KEY;
-const FRED_URL     = process.env.NEXT_PUBLIC_APP_URL ?? 'https://chat.homerates.ai';
+const XAI_API_KEY    = process.env.XAI_API_KEY;
+const XAI_MODEL      = 'grok-4-1-fast-non-reasoning';
+const TAVILY_KEY     = process.env.TAVILY_API_KEY;
+const FRED_URL       = process.env.NEXT_PUBLIC_APP_URL ?? 'https://chat.homerates.ai';
+const SITE_HOST      = 'chat.homerates.ai';
+const INDEXNOW_KEY   = 'f8cac9edfd124ce0b8e5d7d03d23a0f3';
+
+// ── IndexNow ping — notifies Bing, Yandex + 8 other engines instantly ────────
+async function pingIndexNow(url: string): Promise<void> {
+  try {
+    await fetch('https://api.indexnow.org/indexnow', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        host:        SITE_HOST,
+        key:         INDEXNOW_KEY,
+        keyLocation: `https://${SITE_HOST}/${INDEXNOW_KEY}.txt`,
+        urlList:     [url],
+      }),
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch { /* non-fatal */ }
+}
 
 function db() {
   return createClient(
@@ -212,5 +231,9 @@ export async function POST(req: NextRequest) {
   }
 
   console.log('[Content] Published:', slug);
+
+  // Ping IndexNow — notifies Bing, Yandex, and participating engines immediately
+  pingIndexNow(`https://${SITE_HOST}/${seed.category}/${slug}`);
+
   return NextResponse.json({ ok: true, slug, id: data?.id, title, category: seed.category });
 }

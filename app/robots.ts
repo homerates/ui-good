@@ -41,6 +41,9 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "cohere-ai",       allow: "/" },
       { userAgent: "Meta-ExternalAgent", allow: "/" },
       { userAgent: "YouBot",          allow: "/" },
+      { userAgent: "Amazonbot",       allow: "/" },
+      { userAgent: "Applebot",        allow: "/" },
+      { userAgent: "Baiduspider",     allow: "/" },
     ],
     sitemap: "https://chat.homerates.ai/sitemap.xml",
   };
