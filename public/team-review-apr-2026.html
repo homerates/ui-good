@@ -919,7 +919,7 @@
   function checkPw() {
     const val = document.getElementById('pw').value;
     const hash = Array.from(val).reduce((h,c) => Math.imul(31,h)+c.charCodeAt(0)|0, 0);
-    if (hash === -808397825) {
+    if (hash === -1070843511) {
       sessionStorage.setItem('hr_unlocked', '1');
       document.getElementById('gate').style.display = 'none';
     } else {
