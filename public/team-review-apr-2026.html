@@ -25,11 +25,16 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    background: var(--bg);
+    background: #040608;
     color: var(--text);
     font-family: 'DM Sans', system-ui, sans-serif;
     font-size: 13px;
     line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 0 60px;
+    gap: 24px;
   }
 
   /* ── Page / slide container ─────────────────────────────────── */
@@ -42,6 +47,90 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  }
+
+  /* ── Password gate ───────────────────────────────────────────── */
+  #gate {
+    position: fixed; inset: 0;
+    background: #040608;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+  #gate .g-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  #gate .g-logo span { color: var(--green); }
+  #gate .g-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 40px;
+    letter-spacing: 0.04em;
+  }
+  #gate .g-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 36px;
+    width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #gate .g-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  #gate input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    letter-spacing: 0.08em;
+  }
+  #gate input:focus { border-color: rgba(0,232,122,0.4); }
+  #gate button {
+    width: 100%;
+    padding: 12px;
+    background: var(--green);
+    color: #07100f;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+  }
+  #gate button:hover { opacity: 0.88; }
+  #gate .g-error {
+    font-size: 12px;
+    color: var(--red);
+    text-align: center;
+    min-height: 16px;
+  }
+
+  @media print {
+    #gate { display: none !important; }
+    body { background: var(--bg); display: block; padding: 0; gap: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .slide { box-shadow: none; border-radius: 0; page-break-after: always; }
   }
 
   /* ── Cover ───────────────────────────────────────────────────── */
@@ -297,14 +386,7 @@
   .highlight-bar strong { color: var(--green); font-style: normal; }
 
   /* ── Print ───────────────────────────────────────────────────── */
-  @page {
-    size: A4 landscape;
-    margin: 0;
-  }
-  @media print {
-    body { background: var(--bg); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .slide { page-break-after: always; }
-  }
+  @page { size: A4 landscape; margin: 0; }
 </style>
 </head>
 <body>
@@ -818,5 +900,40 @@
   </div>
 </div>
 
+<!-- ── Password gate ─────────────────────────────────────────── -->
+<div id="gate">
+  <div class="g-logo">HomeRates<span>.</span>ai</div>
+  <div class="g-sub">Team Review · April 2026 · Confidential</div>
+  <div class="g-box">
+    <div class="g-label">Enter access password</div>
+    <input type="password" id="pw" placeholder="••••••••••" autocomplete="off" />
+    <div class="g-error" id="g-err"></div>
+    <button onclick="checkPw()">View Presentation →</button>
+  </div>
+</div>
+
+<script>
+  // Auto-dismiss if already unlocked this session
+  if (sessionStorage.getItem('hr_unlocked') === '1') {
+    document.getElementById('gate').style.display = 'none';
+  }
+
+  document.getElementById('pw').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') checkPw();
+  });
+
+  function checkPw() {
+    const val = document.getElementById('pw').value;
+    const hash = Array.from(val).reduce((h,c) => Math.imul(31,h)+c.charCodeAt(0)|0, 0);
+    if (hash === -808397825) {
+      sessionStorage.setItem('hr_unlocked', '1');
+      document.getElementById('gate').style.display = 'none';
+    } else {
+      document.getElementById('g-err').textContent = 'Incorrect password — try again.';
+      document.getElementById('pw').value = '';
+      document.getElementById('pw').focus();
+    }
+  }
+</script>
 </body>
 </html>
