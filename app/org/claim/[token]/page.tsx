@@ -238,7 +238,7 @@ export default function OrgClaimPage({ params }: { params: Promise<{ token: stri
           display: block !important; height: auto !important;
           overflow-y: auto !important; background: #080c12 !important;
         }
-        html:has(.oc-root) { background: #080c12 !important; }
+        html:has(.oc-root) { background: #080c12 !important; height: auto !important; overflow-y: auto !important; }
         body:has(.oc-root) .app-footer { display: none; }
 
         .oc-root { min-height: 100vh; background: #080c12; font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; }
