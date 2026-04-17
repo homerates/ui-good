@@ -211,7 +211,7 @@ export default function AdminCorporatePage() {
                         <button className="ac-ghost-btn" onClick={() => updateStatus(inv.id, "invitation", "declined")}>Decline</button>
                       )}
                       {inv.status === "accepted" && inv.brokerage_id && (
-                        <Link href="/brokerage/manage" className="ac-link-btn">View org →</Link>
+                        <Link href={`/admin/brokerage/${inv.brokerage_id}`} className="ac-link-btn">View org →</Link>
                       )}
                     </div>
                   </div>
