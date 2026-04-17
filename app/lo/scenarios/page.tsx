@@ -92,9 +92,24 @@ export default function LOScenariosPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  // LO profile cache — fetched once on mount for pre-fill
+  const [loProfile, setLoProfile] = useState<{ full_name: string; nmls: string } | null>(null);
+
   useEffect(() => {
     load();
   }, [filterType, filterState]);
+
+  // Fetch LO profile once for form pre-fill
+  useEffect(() => {
+    fetch("/api/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.full_name || d?.nmls) {
+          setLoProfile({ full_name: d.full_name ?? "", nmls: d.nmls ?? "" });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Redirect signed-out users to sign-in
   useEffect(() => {
@@ -134,8 +149,13 @@ export default function LOScenariosPage() {
 
   function openModal(scenario: Scenario) {
     setModal({ scenario });
-    setRateEstimate(""); setApproach(""); setLoName(""); setLoNmls("");
+    setApproach("");
     setSubmitError(""); setSubmitSuccess(false);
+    // Pre-fill from LO profile if available
+    setLoName(loProfile?.full_name ?? "");
+    setLoNmls(loProfile?.nmls ?? "");
+    // Pre-fill rate from the scenario's AI card if present
+    setRateEstimate(scenario.card_rate ? `${scenario.card_rate.toFixed(2)}%` : "");
   }
 
   async function submitResponse() {
