@@ -116,7 +116,7 @@ function PostScenarioContent() {
     const isVA = scLoanType === "VA";
     setForm(prev => ({
       ...prev,
-      loan_type:        LOAN_TYPES.includes(scLoanType) ? scLoanType : prev.loan_type,
+      loan_type:        LOAN_TYPES.includes(scLoanType) ? scLoanType : "Conventional",
       loan_purpose:     PURPOSES.includes(scPurpose) ? scPurpose : prev.loan_purpose,
       price_range:      scPrice > 0 ? priceToRange(scPrice) : prev.price_range,
       // VA loans: always 0% down; otherwise use card dp if present
@@ -136,8 +136,8 @@ function PostScenarioContent() {
   const isVA = form.loan_type === "VA" || (fromScenario && scLoanType === "VA");
   const dpOptions = isVA ? [0, ...DOWN_PAYMENTS] : DOWN_PAYMENTS;
 
-  // Loan type is optional when arriving cold; required fields are purpose, price, dp
-  const step1Valid = form.loan_purpose && form.price_range && form.down_payment_pct;
+  // Loan type required; when arriving from scenario it's set automatically (defaults to Conventional)
+  const step1Valid = form.loan_purpose && form.price_range && form.down_payment_pct && form.loan_type;
   const step2Valid = form.income_range && form.credit_tier && form.timeline && form.state;
 
   async function submit() {
