@@ -16,7 +16,7 @@ const XAI_MODEL      = 'grok-4-1-fast-non-reasoning';
 const TAVILY_KEY     = process.env.TAVILY_API_KEY;
 const FRED_URL       = process.env.NEXT_PUBLIC_APP_URL ?? 'https://chat.homerates.ai';
 const SITE_HOST      = 'chat.homerates.ai';
-const INDEXNOW_KEY   = 'f8cac9edfd124ce0b8e5d7d03d23a0f3';
+const INDEXNOW_KEY   = '7941f10e766c4dfeb2d1db3869cf5c41';
 
 // ── IndexNow ping — notifies Bing, Yandex + 8 other engines instantly ────────
 async function pingIndexNow(url: string): Promise<void> {
