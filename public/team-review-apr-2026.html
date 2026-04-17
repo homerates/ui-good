@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates.ai — Team Review April 2026</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg:       #080c12;
+    --surface:  #0e1420;
+    --surface2: #141b28;
+    --border:   rgba(255,255,255,0.08);
+    --text:     #f0f4ff;
+    --muted:    #6b7a99;
+    --dim:      #3a4560;
+    --green:    #00e87a;
+    --blue:     #3d8bff;
+    --purple:   #a78bfa;
+    --orange:   #ff8c42;
+    --red:      #ff5f5f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ── Page / slide container ─────────────────────────────────── */
+  .slide {
+    width: 297mm;
+    min-height: 210mm;
+    padding: 14mm 16mm;
+    position: relative;
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Cover ───────────────────────────────────────────────────── */
+  .slide-cover {
+    background: var(--bg);
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .cover-eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 18px;
+  }
+  .cover-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 52px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .cover-logo span { color: var(--green); }
+  .cover-tagline {
+    font-size: 17px;
+    color: var(--muted);
+    font-weight: 400;
+    margin-bottom: 36px;
+  }
+  .cover-divider {
+    width: 60px;
+    height: 3px;
+    background: var(--green);
+    border-radius: 2px;
+    margin-bottom: 36px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 40px;
+  }
+  .cover-meta-item label {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+  .cover-meta-item span {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .cover-bg-accent {
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 340px;
+    height: 340px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,232,122,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover-bg-accent2 {
+    position: absolute;
+    right: 80px;
+    bottom: -80px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(61,139,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ── Slide header ────────────────────────────────────────────── */
+  .slide-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .slide-number {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .slide-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    flex: 1;
+  }
+  .slide-title span { color: var(--green); }
+  .slide-logo-small {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--dim);
+  }
+  .slide-logo-small span { color: var(--green); }
+
+  /* ── Content helpers ─────────────────────────────────────────── */
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; }
+  .cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; flex: 1; }
+  .cols-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; flex: 1; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .card-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-title .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green); flex-shrink: 0;
+  }
+  .card-title .dot-blue { background: var(--blue); }
+  .card-title .dot-purple { background: var(--purple); }
+  .card-title .dot-orange { background: var(--orange); }
+
+  ul.feature-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  ul.feature-list li {
+    font-size: 11.5px;
+    color: var(--muted);
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.4;
+  }
+  ul.feature-list li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--green);
+    font-size: 10px;
+    top: 1px;
+  }
+  ul.feature-list li strong { color: var(--text); font-weight: 600; }
+
+  .badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .badge-green { background: rgba(0,232,122,0.12); color: var(--green); border: 1px solid rgba(0,232,122,0.25); }
+  .badge-blue  { background: rgba(61,139,255,0.12); color: var(--blue);  border: 1px solid rgba(61,139,255,0.25); }
+  .badge-orange{ background: rgba(255,140,66,0.12); color: var(--orange);border: 1px solid rgba(255,140,66,0.25); }
+  .badge-purple{ background: rgba(167,139,250,0.12);color: var(--purple);border: 1px solid rgba(167,139,250,0.25); }
+
+  .stat-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .stat-box {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  /* table */
+  table.review-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+  }
+  table.review-table th {
+    text-align: left;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 0 10px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.review-table td {
+    padding: 7px 10px;
+    color: var(--muted);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+    line-height: 1.4;
+  }
+  table.review-table td:first-child { color: var(--text); font-weight: 600; }
+  table.review-table tr:last-child td { border-bottom: none; }
+
+  .section-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 8px;
+  }
+
+  .highlight-bar {
+    background: linear-gradient(135deg, rgba(0,232,122,0.08), rgba(61,139,255,0.06));
+    border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    color: var(--text);
+    font-style: italic;
+    line-height: 1.6;
+  }
+  .highlight-bar strong { color: var(--green); font-style: normal; }
+
+  /* ── Print ───────────────────────────────────────────────────── */
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  @media print {
+    body { background: var(--bg); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .slide { page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 1 — COVER
+══════════════════════════════════════════════════════════════ -->
+<div class="slide slide-cover">
+  <div class="cover-bg-accent"></div>
+  <div class="cover-bg-accent2"></div>
+  <div class="cover-eyebrow">Confidential · Internal Team Review</div>
+  <div class="cover-logo">HomeRates<span>.</span>ai</div>
+  <div class="cover-tagline">AI Mortgage Intelligence Platform</div>
+  <div class="cover-divider"></div>
+  <div class="cover-meta">
+    <div class="cover-meta-item"><label>Date</label><span>April 17, 2026</span></div>
+    <div class="cover-meta-item"><label>Review Type</label><span>Product &amp; Strategy</span></div>
+    <div class="cover-meta-item"><label>Focus</label><span>Acquisition · Usage · Growth</span></div>
+    <div class="cover-meta-item"><label>Status</label><span>Launch Ready ✓</span></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 2 — PLATFORM OVERVIEW
+══════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">02</span>
+    <h1 class="slide-title">Platform <span>Overview</span></h1>
+    <span class="slide-logo-small">HomeRates<span>.</span>ai</span>
+  </div>
+
+  <div class="highlight-bar">
+    <strong>"Run your mortgage scenario in 30 seconds — no LO required.</strong> If you want one, match with a local pro who sees your actual numbers."
+  </div>
+
+  <div class="cols-3">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Core AI Engine</div>
+      <ul class="feature-list">
+        <li><strong>Local calc engine first</strong> — zero drift to AI for math</li>
+        <li><strong>6 interactive scenario cards</strong> — Conventional, FHA, Refi, DSCR, Jumbo, Affordability</li>
+        <li><strong>PDF export</strong> on every scenario card</li>
+        <li><strong>Lender checklist</strong> — personalized per loan type</li>
+        <li><strong>Grok AI</strong> for open-ended mortgage questions</li>
+        <li><strong>Deep analysis</strong> — 5% vs 20%, 15yr vs 30yr, rent vs buy</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-blue"></span>Property Intelligence</div>
+      <ul class="feature-list">
+        <li><strong>Address lookup</strong> via Rentcast AVM + Tavily</li>
+        <li><strong>CMA report</strong> — live AVM, equity, comparable analysis</li>
+        <li><strong>My Properties</strong> — multi-home tracker per user</li>
+        <li><strong>Monthly digest email</strong> — 5 personalized cards (equity, HELOC, refi, economy, milestones)</li>
+        <li><strong>LO can view</strong> any borrower's full home intelligence</li>
+        <li><strong>Google Places autocomplete</strong> throughout</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-purple"></span>Marketplace &amp; Messaging</div>
+      <ul class="feature-list">
+        <li><strong>Scenario marketplace</strong> — borrowers post, LOs/agents respond</li>
+        <li><strong>Private messaging</strong> — anonymous until contact shared</li>
+        <li><strong>PII guard</strong> + rate disclosure auto-append</li>
+        <li><strong>LO scenario board</strong> — full borrower data, AI card preview</li>
+        <li><strong>Agent board</strong> — financial fields stripped for compliance</li>
+        <li><strong>Real-time polling</strong> — 5s thread, 10s inbox</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 3 — THREE USER TYPES
+══════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">03</span>
+    <h1 class="slide-title">Three User <span>Types — All Served</span></h1>
+    <span class="slide-logo-small">HomeRates<span>.</span>ai</span>
+  </div>
+
+  <div class="cols-3" style="flex:1;">
+    <div class="card" style="border-color: rgba(0,232,122,0.2);">
+      <div style="text-align:center; margin-bottom:14px;">
+        <div style="font-size:28px; margin-bottom:6px;">🏠</div>
+        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:var(--text);">Borrower</div>
+        <div style="font-size:10px; color:var(--muted);">Consumer / Homeowner</div>
+      </div>
+      <ul class="feature-list">
+        <li>AI mortgage chat — instant scenarios</li>
+        <li>Property intelligence + AVM</li>
+        <li>My Properties — multi-home</li>
+        <li>Monthly digest email</li>
+        <li>Post scenario to marketplace</li>
+        <li>Private messaging with matched pros</li>
+        <li><strong>Billing:</strong> Free (100 credits) / Plus $7/mo</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color: rgba(61,139,255,0.2);">
+      <div style="text-align:center; margin-bottom:14px;">
+        <div style="font-size:28px; margin-bottom:6px;">💼</div>
+        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:var(--text);">Loan Officer</div>
+        <div style="font-size:10px; color:var(--muted);">Mortgage Professional</div>
+      </div>
+      <ul class="feature-list">
+        <li>Full AI tools + scenario board</li>
+        <li>Borrower management dashboard</li>
+        <li>Loan detail overrides per borrower</li>
+        <li>"Send to Me" — preview borrower digest</li>
+        <li>View borrower home intelligence</li>
+        <li>Team / brokerage management</li>
+        <li><strong>Billing:</strong> Pro $29/mo</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color: rgba(167,139,250,0.2);">
+      <div style="text-align:center; margin-bottom:14px;">
+        <div style="font-size:28px; margin-bottom:6px;">🏡</div>
+        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:var(--text);">Real Estate Agent</div>
+        <div style="font-size:10px; color:var(--muted);">Buyer's / Listing Agent</div>
+      </div>
+      <ul class="feature-list">
+        <li>Scenario board — purpose, price, state filters</li>
+        <li>Financial fields stripped (compliance)</li>
+        <li>Match with buyer scenarios</li>
+        <li>Private messaging</li>
+        <li>Public pro profile + founding badge</li>
+        <li>105K CA DRE directory seeded</li>
+        <li><strong>Billing:</strong> Pro $29/mo</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 4 — REVENUE & GROWTH INFRASTRUCTURE
+══════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">04</span>
+    <h1 class="slide-title">Revenue &amp; Growth <span>Infrastructure</span></h1>
+    <span class="slide-logo-small">HomeRates<span>.</span>ai</span>
+  </div>
+
+  <div class="cols-2">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Billing — Live on Stripe</div>
+        <table class="review-table">
+          <tr><td>Free</td><td>100 starter credits + 3 grace queries → hard gate → upgrade</td></tr>
+          <tr><td>Plus — $7/mo</td><td>500 credits/month, 2 scenario posts/month, full AI</td></tr>
+          <tr><td>Pro — $29/mo</td><td>1,000 credits/month, unlimited scenarios, LO/agent portal</td></tr>
+          <tr><td>Credits</td><td>Earned via referral (500), founding (1,000). Redeem: 50cr = 1 extra scenario post</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span>Revenue Roadmap</div>
+        <table class="review-table">
+          <tr><td>Stream 1 ✅</td><td>Borrower Plus — $7/mo (live)</td></tr>
+          <tr><td>Stream 2 ✅</td><td>Pro LO/Agent — $29/mo (live)</td></tr>
+          <tr><td>Stream 3 — Q3</td><td>Agent Teams — $15/agent/mo</td></tr>
+          <tr><td>Stream 4 — Q4</td><td>Broker Firm Licensing — $4,800–$36k/yr</td></tr>
+          <tr><td>Stream 5 — H1 '27</td><td>Lender/Bank Enterprise — $24k–$120k+/yr</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="card">
+        <div class="card-title"><span class="dot dot-orange"></span>Founding 500 System</div>
+        <ul class="feature-list">
+          <li><strong>Price locked forever</strong> — founding member badge on all public profiles</li>
+          <li>Waitlist → invite wave → claim flow fully built</li>
+          <li><strong>Auto-urgency journey</strong> — blast fires automatically at 450 and 490 members joined</li>
+          <li>Email: "Only X spots left — share before they're gone"</li>
+          <li>Admin can invite in waves via corporate panel</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-purple"></span>Viral Growth Loops</div>
+        <ul class="feature-list">
+          <li><strong>Referral system</strong> — unique `/r/slug` links, 500 credits per successful referral</li>
+          <li><strong>Professional directory</strong> — 105K CA DRE brokers seeded, self-register, claim flow</li>
+          <li><strong>Brokerage teams</strong> — org invite flow, admin dashboard, team management</li>
+          <li><strong>Corporate invitations</strong> — admin invites entire brokerages via email</li>
+          <li>Referral stats on profile page — visible to all members</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 5 — CONTENT ENGINE & SEO
+══════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">05</span>
+    <h1 class="slide-title">Content Engine &amp; <span>SEO — Fully Automated</span></h1>
+    <span class="slide-logo-small">HomeRates<span>.</span>ai</span>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="stat-value" style="color:var(--green);">3</div>
+      <div class="stat-label">Articles / Day</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:var(--blue);">~90</div>
+      <div class="stat-label">Articles / Month</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:var(--purple);">20</div>
+      <div class="stat-label">Topic Pool (news)</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:var(--orange);">15</div>
+      <div class="stat-label">Evergreen Topics</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:var(--green);">15</div>
+      <div class="stat-label">AI Bots Welcomed</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:var(--blue);">∞</div>
+      <div class="stat-label">Manual Work Needed</div>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Daily Content Pipeline</div>
+        <ul class="feature-list">
+          <li><strong>8am PT every day</strong> — Vercel cron fires automatically</li>
+          <li>2 Market News articles + 1 Knowledge Hub article</li>
+          <li>Each article: <strong>Tavily live web search</strong> + <strong>FRED live rate data</strong> + <strong>Grok AI writing</strong></li>
+          <li>Unique daily slugs guaranteed via <code style="font-size:10px; color:var(--green);">{date}</code> in all templates</li>
+          <li>Auto-inserted to Supabase, appears on site within minutes</li>
+          <li><strong>Alert email</strong> to admin if 0 articles published — no silent failures</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span>Search Engine Coverage</div>
+        <ul class="feature-list">
+          <li><strong>Google Search Console</strong> — verified ✅, sitemap submitted, green ✅</li>
+          <li><strong>Bing Webmaster Tools</strong> — verified ✅, IndexNow key deployed ✅</li>
+          <li><strong>IndexNow</strong> — pings Bing + 8 engines <em>instantly</em> after every publish</li>
+          <li><strong>Dynamic sitemap</strong> — all articles auto-included, hourly revalidation</li>
+          <li><strong>robots.txt</strong> — ChatGPT, Claude, Perplexity, Grok, Gemini + 10 more explicitly welcomed</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-purple"></span>SEO Content Categories</div>
+      <table class="review-table" style="margin-top:4px;">
+        <tr><th>Category</th><th>Topics Include</th><th>Cadence</th></tr>
+        <tr><td>Market News</td><td>Rates today, Fed policy, housing inventory, ARM vs fixed, Treasury spread</td><td>Daily</td></tr>
+        <tr><td>Knowledge Hub</td><td>City affordability guides (20 cities), state guides (14 states), loan strategy, DSCR, down payment</td><td>Daily</td></tr>
+        <tr><td>Calculators</td><td>Affordability, FHA, DSCR, Refi, Conventional, Jumbo — all indexed</td><td>Static</td></tr>
+        <tr><td>Income Cluster</td><td>"How much house on $80k/$100k/$120k/$150k salary"</td><td>Static</td></tr>
+        <tr><td>Loan Limits</td><td>2026 FHFA/FHA limits, CA county explorer, ZIP lookup</td><td>Monthly</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 6 — EMAIL & COMMUNICATIONS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">06</span>
+    <h1 class="slide-title">Email &amp; <span>Communications System</span></h1>
+    <span class="slide-logo-small">HomeRates<span>.</span>ai</span>
+  </div>
+
+  <div class="cols-2">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Infrastructure</div>
+        <ul class="feature-list">
+          <li><strong>Resend Pro</strong> — transactional email platform</li>
+          <li><strong>Custom subdomain</strong> — <code style="font-size:10px;color:var(--green);">digest@mail.homerates.ai</code> (DNS verified ✅)</li>
+          <li><strong>CAN-SPAM compliant</strong> — physical address, unsubscribe, suppression list</li>
+          <li>Unsubscribe link + suppression table on every email</li>
+          <li>Dark-safe design — all 12 email types use branded shell</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-blue"></span>Automated Triggers</div>
+        <ul class="feature-list">
+          <li><strong>Monthly digest</strong> — 1st of each month, per property</li>
+          <li><strong>Scenario match alert</strong> — LO notified when borrower posts</li>
+          <li><strong>New message notification</strong> — fires when recipient has 0 unread</li>
+          <li><strong>Founding urgency blasts</strong> — auto at 450 and 490 members</li>
+          <li><strong>Waitlist confirm</strong> — instant on application</li>
+          <li><strong>Credit grant notification</strong> — admin or LO gift</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-orange"></span>All 12 Email Types</div>
+      <table class="review-table">
+        <tr><th>Email</th><th>Trigger</th></tr>
+        <tr><td>Monthly Digest</td><td>Cron — 1st of month, per property</td></tr>
+        <tr><td>Scenario Match</td><td>Borrower posts a new scenario</td></tr>
+        <tr><td>New Message</td><td>Message received, recipient unread=0</td></tr>
+        <tr><td>Contact Share</td><td>Borrower shares contact in thread</td></tr>
+        <tr><td>Founding Urgency</td><td>Auto at 450 + 490 members joined</td></tr>
+        <tr><td>Founding Invite</td><td>Admin invites from waitlist</td></tr>
+        <tr><td>Waitlist Confirm</td><td>Application submitted</td></tr>
+        <tr><td>Credit Grant</td><td>Admin grants platform credits</td></tr>
+        <tr><td>Credit Gift</td><td>LO gifts credits to borrower</td></tr>
+        <tr><td>Welcome / Onboarding</td><td>New user completes setup</td></tr>
+        <tr><td>LO Share Notify</td><td>Borrower shares analysis with LO</td></tr>
+        <tr><td>Pro Invitation</td><td>Admin invites unclaimed directory pro</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 7 — GAPS & NEXT STEPS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">07</span>
+    <h1 class="slide-title">Remaining <span>Gaps &amp; Next Steps</span></h1>
+    <span class="slide-logo-small">HomeRates<span>.</span>ai</span>
+  </div>
+
+  <div class="cols-2">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="card" style="border-color: rgba(0,232,122,0.2);">
+        <div class="card-title"><span class="dot"></span>Ready to Build Now</div>
+        <table class="review-table">
+          <tr><th>Item</th><th>Effort</th><th>Impact</th></tr>
+          <tr>
+            <td>Weekly newsletter send</td>
+            <td><span class="badge badge-green">Small</span></td>
+            <td>Re-engage subscribers, drive return traffic</td>
+          </tr>
+          <tr>
+            <td>NMLS import → batch invite pros</td>
+            <td><span class="badge badge-blue">Medium</span></td>
+            <td>Activates thousands of unclaimed LO profiles</td>
+          </tr>
+          <tr>
+            <td>My Vault filtering / tabs</td>
+            <td><span class="badge badge-green">Small</span></td>
+            <td>Loans / properties / scenarios — LO usability</td>
+          </tr>
+          <tr>
+            <td>Apply migration 028</td>
+            <td><span class="badge badge-green">1 min</span></td>
+            <td>Enables founding milestone blast dedup</td>
+          </tr>
+        </table>
+      </div>
+      <div class="card" style="border-color: rgba(255,140,66,0.2);">
+        <div class="card-title"><span class="dot dot-orange"></span>Deferred (Decision Needed)</div>
+        <table class="review-table">
+          <tr><th>Item</th><th>Status</th><th>Notes</th></tr>
+          <tr>
+            <td>Brokerage team billing</td>
+            <td><span class="badge badge-orange">Deferred</span></td>
+            <td>Individual billing stays; volume discount added to pricing page when ready</td>
+          </tr>
+          <tr>
+            <td>Credit history page</td>
+            <td><span class="badge badge-orange">Backlog</span></td>
+            <td>Balance visible on profile; full transaction log not yet built</td>
+          </tr>
+          <tr>
+            <td>Referral leaderboard</td>
+            <td><span class="badge badge-orange">Backlog</span></td>
+            <td>Stats on profile page; no public leaderboard yet</td>
+          </tr>
+          <tr>
+            <td>Enterprise / firm licensing</td>
+            <td><span class="badge badge-purple">Q4 2026</span></td>
+            <td>Stream 4 — broker firm licensing $4.8k–$36k/yr</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-blue"></span>Platform Health — All Systems Green</div>
+      <table class="review-table" style="margin-top:4px;">
+        <tr><th>System</th><th>Status</th></tr>
+        <tr><td>Content engine (3 articles/day)</td><td><span class="badge badge-green">Live ✓</span> — alert on failure wired</td></tr>
+        <tr><td>Monthly digest emails</td><td><span class="badge badge-green">Live ✓</span> — confirmed multiple sends</td></tr>
+        <tr><td>Stripe billing + webhooks</td><td><span class="badge badge-green">Live ✓</span> — credit refresh on renewal</td></tr>
+        <tr><td>Credit gate (free users)</td><td><span class="badge badge-green">Live ✓</span> — 100 credits + 3 grace</td></tr>
+        <tr><td>IndexNow + sitemap</td><td><span class="badge badge-green">Live ✓</span> — Google ✓, Bing ✓</td></tr>
+        <tr><td>Founding 500 urgency journey</td><td><span class="badge badge-green">Live ✓</span> — auto at 450 + 490</td></tr>
+        <tr><td>Referral attribution</td><td><span class="badge badge-green">Live ✓</span> — cookie → credit award</td></tr>
+        <tr><td>FRED live rate data</td><td><span class="badge badge-green">Live ✓</span> — no hardcoded fallbacks</td></tr>
+        <tr><td>Supabase migrations</td><td><span class="badge badge-green">001–027 ✓</span> — 028 pending 1-min apply</td></tr>
+        <tr><td>Email deliverability</td><td><span class="badge badge-green">Live ✓</span> — Resend Pro, custom subdomain</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 8 — ACQUISITION & MARKETING STRATEGY
+══════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">08</span>
+    <h1 class="slide-title">Acquisition &amp; <span>Marketing Strategy</span></h1>
+    <span class="slide-logo-small">HomeRates<span>.</span>ai</span>
+  </div>
+
+  <div class="cols-2">
+    <div style="display:flex; flex-direction:column; gap:10px;">
+
+      <div class="card" style="border-color: rgba(0,232,122,0.2);">
+        <div class="card-title"><span class="dot"></span>Owned Channels — Activate Now</div>
+        <table class="review-table">
+          <tr><th>#</th><th>Channel</th><th>Action</th></tr>
+          <tr><td>1</td><td><strong>Founding 500 referral push</strong></td><td>Email blast to all members: share your link before 450 hits. Urgency is built-in and automated.</td></tr>
+          <tr><td>2</td><td><strong>Weekly newsletter</strong></td><td>Weekly market rate update to newsletter_subscribers. Drives return visits + brand recall.</td></tr>
+          <tr><td>3</td><td><strong>Content SEO compound</strong></td><td>90 articles/month building. Long-tail mortgage keywords ranking in 60–90 days.</td></tr>
+        </table>
+      </div>
+
+      <div class="card" style="border-color: rgba(61,139,255,0.2);">
+        <div class="card-title"><span class="dot dot-blue"></span>Paid &amp; Partnership Channels — Test</div>
+        <table class="review-table">
+          <tr><th>#</th><th>Channel</th><th>Hook</th></tr>
+          <tr><td>4</td><td><strong>LinkedIn (LOs + brokers)</strong></td><td>"Price locked forever" — Founding 500 as paid campaign hook</td></tr>
+          <tr><td>5</td><td><strong>Mortgage Facebook groups</strong></td><td>Organic seeding — scenario marketplace + founding offer in active LO communities</td></tr>
+          <tr><td>6</td><td><strong>Realtor partnerships</strong></td><td>Agents bring buyers. Agent scenario board is built and ready to demo.</td></tr>
+          <tr><td>7</td><td><strong>YouTube / short-form video</strong></td><td>"AI explains your mortgage" — targets first-time buyers, drives to /homeowner + /chat</td></tr>
+        </table>
+      </div>
+
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div class="card" style="border-color: rgba(167,139,250,0.2);">
+        <div class="card-title"><span class="dot dot-purple"></span>The Core Value Proposition</div>
+        <div style="padding: 14px; background: rgba(167,139,250,0.06); border-radius: 8px; border: 1px solid rgba(167,139,250,0.15); margin-bottom: 10px;">
+          <div style="font-size: 13px; color: var(--text); font-style: italic; line-height: 1.7;">
+            "Run your mortgage scenario in 30 seconds — no LO required.<br>
+            If you want one, match with a local pro who sees your actual numbers."
+          </div>
+        </div>
+        <ul class="feature-list">
+          <li><strong>For borrowers</strong> — instant AI answers, no sales pressure, match when ready</li>
+          <li><strong>For LOs</strong> — warm leads with real financial data attached, no cold prospecting</li>
+          <li><strong>For agents</strong> — buyer scenarios in your market, filter by purpose + price range</li>
+          <li><strong>Differentiation</strong> — every competitor either locks data behind an LO or strips features for consumers. We give both.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot dot-orange"></span>30-Day Priority Focus</div>
+        <ul class="feature-list" style="gap:8px;">
+          <li><strong>Activate founding member referral engine</strong> — they are the lowest-cost acquisition channel available right now</li>
+          <li><strong>Decide paid channel test</strong> — LinkedIn vs Facebook groups vs YouTube; pick one and run a 2-week test</li>
+          <li><strong>Ship weekly newsletter</strong> — the subscriber list is captured, the content engine produces the source material daily</li>
+          <li><strong>NMLS batch invite</strong> — activates thousands of pre-seeded LO profiles; each claimed profile = a potential Pro subscriber</li>
+          <li><strong>Identify 3 realtor team partners</strong> for pilot — agent board is built, needs human activation</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 9 — CLOSING
+══════════════════════════════════════════════════════════════ -->
+<div class="slide slide-cover" style="justify-content:center;">
+  <div class="cover-bg-accent"></div>
+  <div class="cover-bg-accent2"></div>
+  <div style="max-width: 600px;">
+    <div class="cover-eyebrow">The Bottom Line</div>
+    <div style="font-family:'Syne',sans-serif; font-size:32px; font-weight:800; color:var(--text); line-height:1.2; margin-bottom:20px;">
+      The product is built.<br>
+      The infrastructure is automated.<br>
+      <span style="color:var(--green);">It's time to grow.</span>
+    </div>
+    <div style="font-size:14px; color:var(--muted); line-height:1.8; margin-bottom:32px;">
+      Content compounds daily. Founding urgency fires automatically. Referral loops are wired.<br>
+      The next 30 days are about <strong style="color:var(--text);">activating the founding member base</strong> as a referral engine and <strong style="color:var(--text);">picking one paid acquisition channel</strong> to test.
+    </div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <span class="badge badge-green" style="font-size:11px; padding:5px 14px;">3 Articles / Day</span>
+      <span class="badge badge-blue" style="font-size:11px; padding:5px 14px;">12 Email Types Live</span>
+      <span class="badge badge-purple" style="font-size:11px; padding:5px 14px;">105K Directory Seeded</span>
+      <span class="badge badge-orange" style="font-size:11px; padding:5px 14px;">Founding 500 In Market</span>
+      <span class="badge badge-green" style="font-size:11px; padding:5px 14px;">Google + Bing Indexed</span>
+    </div>
+  </div>
+  <div style="position:absolute; bottom:20mm; left:16mm; right:16mm; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:12px;">
+    <span style="font-family:'Syne',sans-serif; font-size:16px; font-weight:800; color:var(--muted);">HomeRates<span style="color:var(--green);">.</span>ai</span>
+    <span style="font-size:10px; color:var(--dim);">Confidential · April 17, 2026</span>
+    <span style="font-size:10px; color:var(--dim);">chat.homerates.ai</span>
+  </div>
+</div>
+
+</body>
+</html>
