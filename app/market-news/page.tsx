@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { marketNewsArticles } from './articles';
+import { getFredSnapshot } from '@/lib/fred';
 
 export const revalidate = 3600;
 
@@ -56,8 +57,34 @@ async function getDbArticles(): Promise<ArticleCard[]> {
   } catch { return []; }
 }
 
+async function fetchEffrRate(): Promise<number | null> {
+  try {
+    const apiKey = process.env.FRED_API_KEY;
+    if (!apiKey) return null;
+    const url = new URL('https://api.stlouisfed.org/fred/series/observations');
+    url.searchParams.set('series_id', 'EFFR');
+    url.searchParams.set('api_key', apiKey);
+    url.searchParams.set('file_type', 'json');
+    url.searchParams.set('sort_order', 'desc');
+    url.searchParams.set('limit', '5');
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(5000), next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const json = await res.json() as { observations?: { value: string }[] };
+    const obs = (json.observations ?? []).find((o) => o.value && o.value !== '.');
+    return obs ? parseFloat(obs.value) : null;
+  } catch { return null; }
+}
+
+function fmtRate(n: number | null): string {
+  return n != null ? `${n.toFixed(2)}%` : '—';
+}
+
 export default async function MarketNewsPage() {
-  const dbArticles = await getDbArticles();
+  const [dbArticles, snap, effr] = await Promise.all([
+    getDbArticles(),
+    getFredSnapshot({ timeoutMs: 6000 }),
+    fetchEffrRate(),
+  ]);
   const staticCards: ArticleCard[] = marketNewsArticles.map((a) => ({
     slug: a.slug,
     title: a.title,
@@ -67,12 +94,16 @@ export default async function MarketNewsPage() {
     readTime: a.readTime,
   }));
   const allArticles = [...dbArticles, ...staticCards];
+
+  // Live FRED rates — static items for metrics FRED doesn't provide
   const headlines = [
-    '30Y Fixed: 6.47%', '10Y Treasury: 4.21%', 'CPI: 3.1% YoY', 'Fed Funds: 5.25%',
-    'Jobless Claims: 218k', 'Median Home Price: $420,800', 'Housing Starts: 1.42M',
+    `30Y Fixed: ${fmtRate(snap?.mort30Avg ?? null)}`,
+    `10Y Treasury: ${fmtRate(snap?.tenYearYield ?? null)}`,
+    `Spread (Mtg-T10): ${fmtRate(snap?.spread ?? null)}`,
+    `Fed Funds: ${fmtRate(effr)}`,
+    'Jobless Claims: live.bls.gov', 'Median Home Price: $420,800', 'Housing Starts: 1.42M',
     'Existing Home Sales: 4.08M', 'Inventory: +22% YoY', 'Builder Confidence: 44',
-    '5/1 ARM: 6.01%', 'Mortgage Apps: +18% WoW', '15Y Fixed: 5.87%',
-    'Unemployment: 4.1%', 'Core PCE: 2.8%', 'HPI: +3.9% YoY',
+    'Mortgage Apps: MBA Weekly', 'Unemployment: 4.1%', 'Core PCE: 2.8%', 'HPI: +3.9% YoY',
   ];
   const marqueeItems = [...headlines, ...headlines];
 
