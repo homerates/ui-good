@@ -357,6 +357,8 @@ type ApiResponse = {
     // optional flags the backend might return for metering
     upgradeRequired?: boolean;
     limitHit?: boolean;
+    credits_exhausted?: boolean;
+    grace_remaining?: number;
 
     // ===== New fields for Grok + AnswerCard =====
     answerMarkdown?: string; // rich markdown answer we render in the card

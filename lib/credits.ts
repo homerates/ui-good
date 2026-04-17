@@ -155,11 +155,7 @@ export async function checkCreditGate(userId: string): Promise<{
     const graceCount = typeof newGrace === 'number' ? newGrace : Number(newGrace);
 
     if (graceCount > GRACE_MAX) {
-      // Roll back the increment we just made — over limit
-      await sb.rpc('increment_grace', { p_user_id: userId, p_month: month })
-        .then(() => {}) // intentionally not awaited for response speed
-        .catch(() => {});
-      // Just return blocked — the DB value may be > 3 but that's fine
+      // Over limit — DB value may slightly exceed GRACE_MAX due to race, but that's fine
       return { state: 'blocked', grace_remaining: 0, balance: 0 };
     }
 
