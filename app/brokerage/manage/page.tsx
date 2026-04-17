@@ -35,6 +35,7 @@ interface Member {
   plan: string;
   borrowers: number;
   chat_messages_mo: number;
+  scenarios_mo: number;
 }
 
 interface OrgData {
@@ -57,6 +58,11 @@ export default function BrokerageManagePage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [removing, setRemoving]   = useState<string | null>(null);
+
+  // Email invite
+  const [inviteEmail, setInviteEmail]     = useState("");
+  const [inviting, setInviting]           = useState(false);
+  const [inviteResult, setInviteResult]   = useState<{ ok: boolean; msg: string } | null>(null);
 
   // Create form
   const [newName, setNewName]       = useState("");
@@ -108,9 +114,32 @@ export default function BrokerageManagePage() {
     setRemoving(null);
   }
 
+  async function sendInvite(e: React.FormEvent) {
+    e.preventDefault();
+    const email = inviteEmail.trim();
+    if (!email) return;
+    setInviting(true);
+    setInviteResult(null);
+    const res = await fetch("/api/brokerage/invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (res.ok) {
+      setInviteResult({ ok: true, msg: `Invite sent to ${email}` });
+      setInviteEmail("");
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setInviteResult({ ok: false, msg: d.error ?? "Failed to send invite" });
+    }
+    setInviting(false);
+    setTimeout(() => setInviteResult(null), 5000);
+  }
+
   // Derived stats
-  const activeCount  = org?.members.filter(m => m.plan !== "free").length ?? 0;
-  const totalBorrowers = org?.members.reduce((s, m) => s + m.borrowers, 0) ?? 0;
+  const activeCount     = org?.members.filter(m => m.plan !== "free").length ?? 0;
+  const totalBorrowers  = org?.members.reduce((s, m) => s + m.borrowers, 0) ?? 0;
+  const totalScenarios  = org?.members.reduce((s, m) => s + m.scenarios_mo, 0) ?? 0;
 
   return (
     <>
@@ -203,6 +232,10 @@ export default function BrokerageManagePage() {
                   <div className="bk-stat-value">{totalBorrowers}</div>
                   <div className="bk-stat-label">Borrowers managed</div>
                 </div>
+                <div className="bk-stat-card">
+                  <div className="bk-stat-value" style={{ color: "#3d8bff" }}>{totalScenarios}</div>
+                  <div className="bk-stat-label">Scenarios this month</div>
+                </div>
               </div>
 
               {/* Members table */}
@@ -220,6 +253,15 @@ export default function BrokerageManagePage() {
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span
+                                title={m.chat_messages_mo > 0 ? "Active this month" : "No activity this month"}
+                                style={{
+                                  width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                                  background: m.chat_messages_mo > 0 ? "#00e87a" : "#3a4560",
+                                  boxShadow: m.chat_messages_mo > 0 ? "0 0 5px rgba(0,232,122,0.5)" : "none",
+                                  display: "inline-block",
+                                }}
+                              />
                               <span style={{ fontWeight: 600, color: "#f0f4ff", fontSize: "0.9rem" }}>{m.name}</span>
                               {m.role === "owner" && <span className="bk-badge-owner">Owner</span>}
                             </div>
@@ -236,6 +278,10 @@ export default function BrokerageManagePage() {
                           <div className="bk-member-stat">
                             <span className="bk-member-stat-value">{m.borrowers}</span>
                             <span className="bk-member-stat-label">borrowers</span>
+                          </div>
+                          <div className="bk-member-stat">
+                            <span className="bk-member-stat-value">{m.scenarios_mo}</span>
+                            <span className="bk-member-stat-label">scenarios</span>
                           </div>
                           <div className="bk-member-stat">
                             <span className="bk-member-stat-value">{m.chat_messages_mo}</span>
@@ -273,6 +319,44 @@ export default function BrokerageManagePage() {
                 <p style={{ fontSize: "0.75rem", color: "#3a4560", margin: "12px 0 0" }}>
                   Each member is responsible for their own subscription. Plans shown are individual and billed directly to each user.
                 </p>
+              </div>
+
+              {/* Email invite */}
+              <div className="bk-section">
+                <div className="bk-section-title">Invite by email</div>
+                <p style={{ fontSize: "0.85rem", color: "#8fa3b8", margin: "0 0 14px" }}>
+                  Send a direct invitation email with the join link. Enter one email address at a time.
+                </p>
+                <form onSubmit={sendInvite} style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="email"
+                    className="bk-input"
+                    style={{ flex: 1 }}
+                    placeholder="colleague@theircompany.com"
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    disabled={inviting}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="bk-btn"
+                    style={{ alignSelf: "auto", whiteSpace: "nowrap" }}
+                    disabled={inviting || !inviteEmail.trim()}
+                  >
+                    {inviting ? "Sending…" : "Send invite"}
+                  </button>
+                </form>
+                {inviteResult && (
+                  <div style={{
+                    marginTop: 10, padding: "9px 14px", borderRadius: 8, fontSize: "0.82rem",
+                    background: inviteResult.ok ? "rgba(0,232,122,0.08)" : "rgba(255,95,95,0.08)",
+                    border: `1px solid ${inviteResult.ok ? "rgba(0,232,122,0.2)" : "rgba(255,95,95,0.2)"}`,
+                    color: inviteResult.ok ? "#00e87a" : "#ff5f5f",
+                  }}>
+                    {inviteResult.ok ? "✓ " : "✕ "}{inviteResult.msg}
+                  </div>
+                )}
               </div>
 
               {/* Invite link */}
@@ -350,7 +434,7 @@ export default function BrokerageManagePage() {
 
         /* Stats row */
         .bk-stats-row {
-          display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+          display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
           margin-bottom: 1.5rem;
         }
         .bk-stat-card {
@@ -475,7 +559,7 @@ export default function BrokerageManagePage() {
         }
 
         /* Responsive */
-        @media (max-width: 600px) {
+        @media (max-width: 700px) {
           .bk-stats-row { grid-template-columns: repeat(2, 1fr); }
           .bk-member-stats { display: none; }
           .bk-container { padding: 2rem 1rem 4rem; }

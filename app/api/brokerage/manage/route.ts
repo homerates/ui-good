@@ -39,7 +39,7 @@ export async function GET() {
   const memberIds = (members ?? []).map(m => m.user_id);
 
   // ── Parallel data fetch ───────────────────────────────────────────────────
-  const [clerkResult, usersResult, loResult, usageResult] = await Promise.allSettled([
+  const [clerkResult, usersResult, loResult, usageResult, scenariosResult] = await Promise.allSettled([
     // Clerk: names + emails
     (async () => {
       const clerk = await clerkClient();
@@ -74,6 +74,12 @@ export async function GET() {
       .select("user_id, chat_messages")
       .in("user_id", memberIds)
       .eq("month", currentMonth()),
+
+    // scenario_briefs — count posted this month
+    sb.from("scenario_briefs")
+      .select("user_id")
+      .in("user_id", memberIds)
+      .gte("created_at", `${currentMonth()}-01`),
   ]);
 
   const clerkMap: Record<string, { name: string; email: string | null }> = {};
@@ -94,6 +100,13 @@ export async function GET() {
   const usageMap: Record<string, number> = {};
   if (usageResult.status === "fulfilled" && usageResult.value.data) {
     for (const u of usageResult.value.data) usageMap[u.user_id] = u.chat_messages ?? 0;
+  }
+
+  const scenariosMap: Record<string, number> = {};
+  if (scenariosResult.status === "fulfilled" && scenariosResult.value.data) {
+    for (const s of scenariosResult.value.data) {
+      scenariosMap[s.user_id] = (scenariosMap[s.user_id] ?? 0) + 1;
+    }
   }
 
   // Count borrowers per LO (batch)
@@ -123,6 +136,7 @@ export async function GET() {
       plan: planMap[m.user_id] ?? "free",
       borrowers: loId ? (borrowerCounts[loId] ?? 0) : 0,
       chat_messages_mo: usageMap[m.user_id] ?? 0,
+      scenarios_mo: scenariosMap[m.user_id] ?? 0,
     };
   });
 
