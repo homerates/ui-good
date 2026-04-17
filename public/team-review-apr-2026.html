@@ -863,7 +863,182 @@
 
 
 <!-- ══════════════════════════════════════════════════════════════
-     SLIDE 9 — CLOSING
+     SLIDE 9 — SCALING REVIEW
+══════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">09</span>
+    <h1 class="slide-title">Infrastructure <span>Scaling Review</span></h1>
+    <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:18px;width:auto;opacity:0.5;" />
+  </div>
+
+  <div class="cols-2">
+    <div class="card" style="grid-column: span 2;">
+      <div class="card-title"><span class="dot"></span>Stack-by-Stack Scaling Capacity</div>
+      <table class="review-table">
+        <tr>
+          <th style="width:14%;">Service</th>
+          <th style="width:11%;">Role</th>
+          <th style="width:22%;">Current Plan / Limits</th>
+          <th style="width:26%;">Scale Trigger</th>
+          <th style="width:19%;">Scale Action</th>
+          <th style="width:8%;">Status</th>
+        </tr>
+        <tr>
+          <td>Vercel</td>
+          <td>Hosting / serverless</td>
+          <td>Pro — 1M function invocations/mo, 1TB bandwidth, 300s max execution</td>
+          <td>High concurrent AI chat traffic; function limits approached</td>
+          <td>Upgrade to Enterprise — dedicated compute, higher concurrency, SLA</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+        <tr>
+          <td>Supabase</td>
+          <td>Database (PostgreSQL)</td>
+          <td>Pro — 8GB storage, 60 direct connections, pgBouncer pooler available</td>
+          <td>Connection pool exhaustion at high concurrent users; storage &gt;6GB</td>
+          <td>Enable pgBouncer; upgrade Pro → Team for dedicated resources</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+        <tr>
+          <td>Clerk</td>
+          <td>Authentication</td>
+          <td>Pro — flat rate base, per-MAU beyond 10,000</td>
+          <td>10,000+ monthly active users</td>
+          <td>Linear per-MAU cost increase — no hard cap, no migration needed</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+        <tr>
+          <td>xAI / Grok</td>
+          <td>AI chat + content writing</td>
+          <td>Pay-per-token (grok-4-1-fast)</td>
+          <td>High chat volume; content engine growing</td>
+          <td>Per-user rate limits (credit gate already enforces); cache common queries</td>
+          <td><span class="badge badge-blue">Monitor</span></td>
+        </tr>
+        <tr>
+          <td>Resend</td>
+          <td>Transactional email</td>
+          <td>Pro — 50,000 emails/month</td>
+          <td>Digest × all users + transactional at 5,000+ users</td>
+          <td>Upgrade to Scale tier (100k emails); linear with no deliverability impact</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+        <tr>
+          <td>Rentcast</td>
+          <td>Property AVM + listings</td>
+          <td>Usage-based — per AVM call</td>
+          <td>High property lookup volume</td>
+          <td>Results cached in Supabase (already live); negotiate volume contract at scale</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+        <tr>
+          <td>Tavily</td>
+          <td>Web research (content engine)</td>
+          <td>Usage-based — ~90 calls/day at current cadence</td>
+          <td>If content engine scales to more articles/day</td>
+          <td>Upgrade Tavily plan tier — well within limits at current volume</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+        <tr>
+          <td>Stripe</td>
+          <td>Billing + payments</td>
+          <td>Per-transaction — no rate limits</td>
+          <td>No practical scaling ceiling</td>
+          <td>Negotiate enterprise pricing at significant annual volume</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+        <tr>
+          <td>Google Places</td>
+          <td>Address autocomplete</td>
+          <td>Monthly free credit, then per-request</td>
+          <td>High address input usage across multiple pages</td>
+          <td>Debounce in place; API key domain-restricted; free tier covers early growth</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+        <tr>
+          <td>FRED API</td>
+          <td>Live rate data</td>
+          <td>Free — 120 req/min limit</td>
+          <td>Not a concern — 1hr cache revalidation in place</td>
+          <td>No action needed</td>
+          <td><span class="badge badge-green">Fine ✓</span></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="slide">
+  <div class="slide-header">
+    <span class="slide-number">09b</span>
+    <h1 class="slide-title">Scaling <span>Strategy &amp; Thresholds</span></h1>
+    <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style="height:18px;width:auto;opacity:0.5;" />
+  </div>
+
+  <div class="cols-3" style="margin-bottom:12px;">
+    <div class="card" style="border-color:rgba(0,232,122,0.2);">
+      <div class="card-title"><span class="dot"></span>0 → 5,000 Users — Today's Stack</div>
+      <ul class="feature-list">
+        <li>All current services handle this comfortably <strong>with no changes</strong></li>
+        <li>Vercel serverless auto-scales per request</li>
+        <li>Supabase pgBouncer handles connection load</li>
+        <li>Resend Pro (50k/mo) covers all email volume</li>
+        <li>Clerk Pro covers up to 10k MAU at flat rate</li>
+        <li><strong>Est. monthly infra cost: ~$200–$400/mo</strong></li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(61,139,255,0.2);">
+      <div class="card-title"><span class="dot dot-blue"></span>5,000 → 50,000 Users</div>
+      <ul class="feature-list">
+        <li>Clerk: +$0.02/MAU beyond 10k — predictable linear cost</li>
+        <li>Supabase: upgrade to Team tier ($599/mo) for dedicated resources</li>
+        <li>Resend: Scale tier ($90/mo = 100k emails)</li>
+        <li>xAI/Grok: main cost driver — implement per-user rate limits + response caching for repeated queries</li>
+        <li>Vercel: may need Enterprise for SLA + higher concurrency</li>
+        <li><strong>Est. monthly infra cost: ~$1,500–$3,000/mo</strong></li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(167,139,250,0.2);">
+      <div class="card-title"><span class="dot dot-purple"></span>50,000+ Users — Enterprise Scale</div>
+      <ul class="feature-list">
+        <li>Supabase Enterprise — dedicated Postgres, read replicas, custom SLA</li>
+        <li>Vercel Enterprise — dedicated edge, custom domains, support SLA</li>
+        <li>xAI: negotiate enterprise token pricing; implement semantic caching layer</li>
+        <li>Rentcast: volume API contract negotiation</li>
+        <li>Consider CDN layer (Cloudflare) in front of Vercel for static content</li>
+        <li><strong>Est. monthly infra cost: ~$8,000–$20,000/mo</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div class="card" style="border-color:rgba(255,140,66,0.2);">
+      <div class="card-title"><span class="dot dot-orange"></span>Key Risks to Watch</div>
+      <table class="review-table">
+        <tr><th>Risk</th><th>Mitigation</th></tr>
+        <tr><td><strong>xAI token cost spike</strong></td><td>Per-user rate limits + credit gate already enforces usage. Monitor spend dashboard weekly.</td></tr>
+        <tr><td><strong>Supabase connection exhaustion</strong></td><td>pgBouncer pooler available now — enable before reaching 50+ concurrent users on DB.</td></tr>
+        <tr><td><strong>Cold start latency</strong></td><td>Vercel Pro keeps functions warm. Critical routes (chat, answers) are already optimized.</td></tr>
+        <tr><td><strong>Rentcast AVM cost at scale</strong></td><td>Results cached per property in Supabase. Duplicate lookups serve cache, not API.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot dot-blue"></span>Built-In Scaling Advantages</div>
+      <ul class="feature-list" style="gap:7px;">
+        <li><strong>Serverless architecture</strong> — no servers to provision, auto-scales to zero and to peak without ops work</li>
+        <li><strong>Credit gate</strong> — free users are rate-limited at the app layer, protecting AI API costs from abuse</li>
+        <li><strong>Content cached at edge</strong> — articles, sitemap, FRED data all served from Vercel CDN after first render</li>
+        <li><strong>Supabase RLS</strong> — row-level security enforced at database, not app layer — scales with DB not app servers</li>
+        <li><strong>All email async</strong> — fire-and-forget, never blocks request path, no email bottleneck on user actions</li>
+        <li><strong>Stateless API routes</strong> — every route is independently deployable and scalable</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 10 — CLOSING
 ══════════════════════════════════════════════════════════════ -->
 <div class="slide slide-cover" style="justify-content:center;">
   <div class="cover-bg-accent"></div>
