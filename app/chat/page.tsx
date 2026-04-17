@@ -1147,6 +1147,33 @@ export default function Page() {
     const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
     const [showAuthRequired, setShowAuthRequired] = useState(false);
 
+    // Credit gate state — refreshed after each query
+    const [creditState, setCreditState] = useState<{
+        state: 'ok' | 'grace' | 'blocked';
+        grace_remaining: number;
+        balance: number;
+    }>({ state: 'ok', grace_remaining: 0, balance: 0 });
+
+    async function refreshCreditState() {
+        if (!isSignedIn) return;
+        try {
+            const res = await fetch('/api/credits');
+            if (!res.ok) return;
+            const data = await res.json();
+            setCreditState({
+                state: data.credit_state ?? 'ok',
+                grace_remaining: data.grace_remaining ?? 0,
+                balance: data.balance ?? 0,
+            });
+        } catch { /* non-blocking */ }
+    }
+
+    // Load credit state on mount (signed-in only)
+    useEffect(() => {
+        if (isSignedIn) refreshCreditState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSignedIn]);
+
     const [history, setHistory] = useState<
         { id: string; title: string; updatedAt?: number }[]
     >([]);
@@ -2414,6 +2441,12 @@ export default function Page() {
             }
 
 
+            // Credits exhausted — hard block
+            if (meta.credits_exhausted) {
+                setCreditState({ state: 'blocked', grace_remaining: 0, balance: 0 });
+                return;
+            }
+
             // If the backend signals that a limit was hit, surface the right modal
             if (meta.upgradeRequired || meta.limitHit) {
                 if (!isSignedIn) {
@@ -2448,6 +2481,8 @@ export default function Page() {
             ]);
         } finally {
             setLoading(false);
+            // Refresh credit state after every query (non-blocking)
+            if (isSignedIn) refreshCreditState();
         }
     }
 
@@ -2946,6 +2981,68 @@ export default function Page() {
                     </div>
                 </div>
 
+                {/* ── Credit grace banner ── shown when balance=0 but grace messages remain */}
+                {isSignedIn && creditState.state === 'grace' && (
+                    <div style={{
+                        margin: '0 auto 6px', maxWidth: 640, width: '100%',
+                        background: 'rgba(255,180,0,0.08)',
+                        border: '1px solid rgba(255,180,0,0.22)',
+                        borderRadius: 10, padding: '8px 14px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        gap: 10, flexWrap: 'wrap',
+                        fontSize: '0.8rem', color: '#e8b800',
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                    }}>
+                        <span>
+                            ⚡ Credits empty —{' '}
+                            <strong>{creditState.grace_remaining} grace {creditState.grace_remaining === 1 ? 'message' : 'messages'} left</strong>
+                        </span>
+                        <span style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                            <a href="/pricing" style={{
+                                background: '#00e87a', color: '#080c12',
+                                padding: '3px 10px', borderRadius: 6,
+                                fontWeight: 700, fontSize: '0.78rem', textDecoration: 'none',
+                            }}>Upgrade $7/mo</a>
+                            <a href="/profile" style={{
+                                border: '1px solid rgba(255,180,0,0.3)', color: '#e8b800',
+                                padding: '3px 10px', borderRadius: 6,
+                                fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none',
+                            }}>Refer +500 credits</a>
+                        </span>
+                    </div>
+                )}
+
+                {/* ── Credit blocked banner ── shown when all grace used up */}
+                {isSignedIn && creditState.state === 'blocked' && (
+                    <div style={{
+                        margin: '0 auto 6px', maxWidth: 640, width: '100%',
+                        background: 'rgba(255,95,95,0.07)',
+                        border: '1px solid rgba(255,95,95,0.25)',
+                        borderRadius: 12, padding: '16px 18px',
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                    }}>
+                        <div style={{ fontWeight: 700, color: '#ff5f5f', marginBottom: 4, fontSize: '0.9rem' }}>
+                            ⛔ Credit balance empty
+                        </div>
+                        <div style={{ color: '#8fa3b8', fontSize: '0.82rem', marginBottom: 12, lineHeight: 1.5 }}>
+                            You&apos;ve used your free credits and grace messages.
+                            Upgrade for $7/mo to get 500 credits/month — or refer a friend to earn 500 free credits instantly.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <a href="/pricing" style={{
+                                background: '#00e87a', color: '#080c12',
+                                padding: '6px 16px', borderRadius: 8,
+                                fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none',
+                            }}>Upgrade to Plus — $7/mo</a>
+                            <a href="/profile" style={{
+                                border: '1px solid rgba(255,255,255,0.1)', color: '#8fa3b8',
+                                padding: '6px 14px', borderRadius: 8,
+                                fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none',
+                            }}>Refer a friend (+500 credits)</a>
+                        </div>
+                    </div>
+                )}
+
                 {/* HR: main Ask composer; isolated classes so globals don't interfere */}
                 <div
                     className="hr-composer"
@@ -2979,8 +3076,9 @@ export default function Page() {
                         <textarea
                             ref={composerRef}
                             className={`hr-composer-input${priceCheckMode ? ' hr-composer-input--price-check' : ''}`}
-                            placeholder="Ask about DTI, PMI, or where rates sit vs the 10-year ..."
+                            placeholder={creditState.state === 'blocked' ? 'Upgrade to continue chatting…' : 'Ask about DTI, PMI, or where rates sit vs the 10-year ...'}
                             value={input}
+                            disabled={creditState.state === 'blocked'}
                             rows={1}
                             onChange={(e) => {
                                 setInput(e.target.value);
@@ -3017,9 +3115,9 @@ export default function Page() {
                             aria-label="Send message"
                             title="Send"
                             onClick={send}
-                            disabled={loading || !input.trim()}
+                            disabled={loading || !input.trim() || creditState.state === 'blocked'}
                             style={{
-                                opacity: loading || !input.trim() ? 0.4 : 1,
+                                opacity: loading || !input.trim() || creditState.state === 'blocked' ? 0.4 : 1,
                             }}
                         >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true">

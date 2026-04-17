@@ -107,6 +107,113 @@ export async function getBalance(userId: string): Promise<number> {
   }
 }
 
+const GRACE_MAX = 3;
+
+/**
+ * Credit gate for free users.
+ * - Paid users: always 'ok'
+ * - Free users with balance > 0: 'ok'
+ * - Free users with balance = 0, grace < GRACE_MAX: 'grace' — increments counter atomically
+ * - Free users with balance = 0, grace >= GRACE_MAX: 'blocked'
+ */
+export async function checkCreditGate(userId: string): Promise<{
+  state: 'ok' | 'grace' | 'blocked';
+  grace_remaining: number;
+  balance: number;
+}> {
+  try {
+    const sb = getSupabase();
+    if (!sb) return { state: 'ok', grace_remaining: 0, balance: 0 };
+
+    // Get plan + balance in parallel
+    const [{ data: userData }, balance] = await Promise.all([
+      sb.from('users').select('plan').eq('id', userId).maybeSingle(),
+      getBalance(userId),
+    ]);
+
+    const plan = userData?.plan ?? 'free';
+
+    // Paid users never gated
+    if (plan !== 'free') return { state: 'ok', grace_remaining: 0, balance };
+
+    // Free user with credits remaining
+    if (balance > 0) return { state: 'ok', grace_remaining: 0, balance };
+
+    // Balance = 0 — atomically increment grace and check
+    const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const { data: newGrace, error } = await sb.rpc('increment_grace', {
+      p_user_id: userId,
+      p_month: month,
+    });
+
+    if (error) {
+      console.error('[credits] increment_grace error:', error);
+      // Fail open — don't block if RPC fails
+      return { state: 'grace', grace_remaining: 1, balance: 0 };
+    }
+
+    const graceCount = typeof newGrace === 'number' ? newGrace : Number(newGrace);
+
+    if (graceCount > GRACE_MAX) {
+      // Roll back the increment we just made — over limit
+      await sb.rpc('increment_grace', { p_user_id: userId, p_month: month })
+        .then(() => {}) // intentionally not awaited for response speed
+        .catch(() => {});
+      // Just return blocked — the DB value may be > 3 but that's fine
+      return { state: 'blocked', grace_remaining: 0, balance: 0 };
+    }
+
+    return {
+      state: 'grace',
+      grace_remaining: GRACE_MAX - graceCount, // 0 means this was the last grace
+      balance: 0,
+    };
+  } catch (e) {
+    console.error('[credits] checkCreditGate error:', e);
+    return { state: 'ok', grace_remaining: 0, balance: 0 }; // fail open
+  }
+}
+
+/**
+ * Read-only grace state — for the credits API response.
+ * Does NOT increment the counter.
+ */
+export async function getGraceState(userId: string): Promise<{
+  grace_queries: number;
+  grace_remaining: number;
+  credit_state: 'ok' | 'grace' | 'blocked';
+}> {
+  try {
+    const sb = getSupabase();
+    if (!sb) return { grace_queries: 0, grace_remaining: GRACE_MAX, credit_state: 'ok' };
+
+    const [{ data: userData }, balance] = await Promise.all([
+      sb.from('users').select('plan').eq('id', userId).maybeSingle(),
+      getBalance(userId),
+    ]);
+
+    const plan = userData?.plan ?? 'free';
+    if (plan !== 'free') return { grace_queries: 0, grace_remaining: 0, credit_state: 'ok' };
+    if (balance > 0) return { grace_queries: 0, grace_remaining: 0, credit_state: 'ok' };
+
+    const month = new Date().toISOString().slice(0, 7);
+    const { data } = await sb
+      .from('usage_monthly')
+      .select('grace_queries')
+      .eq('user_id', userId)
+      .eq('month', month)
+      .maybeSingle();
+
+    const graceUsed = data?.grace_queries ?? 0;
+    const remaining = Math.max(0, GRACE_MAX - graceUsed);
+    const state = graceUsed >= GRACE_MAX ? 'blocked' : 'grace';
+
+    return { grace_queries: graceUsed, grace_remaining: remaining, credit_state: state };
+  } catch {
+    return { grace_queries: 0, grace_remaining: GRACE_MAX, credit_state: 'ok' };
+  }
+}
+
 export async function getHistory(userId: string, limit = 10) {
   try {
     const sb = getSupabase();

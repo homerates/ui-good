@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getBalance, getHistory } from "../../../lib/credits";
+import { getBalance, getHistory, getGraceState } from "../../../lib/credits";
 import { getSupabase } from "../../../lib/supabaseServer";
 
 export async function GET() {
@@ -30,10 +30,17 @@ export async function GET() {
     earnedThisMonth = (data ?? []).reduce((s, r) => s + r.amount, 0);
   }
 
-  const [balance, recent] = await Promise.all([
+  const [balance, recent, graceState] = await Promise.all([
     getBalance(userId),
     getHistory(userId, 5),
+    getGraceState(userId),
   ]);
 
-  return NextResponse.json({ balance, earned_this_month: earnedThisMonth, recent });
+  return NextResponse.json({
+    balance,
+    earned_this_month: earnedThisMonth,
+    recent,
+    grace_remaining: graceState.grace_remaining,
+    credit_state: graceState.credit_state,
+  });
 }

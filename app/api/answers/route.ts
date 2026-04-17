@@ -46,7 +46,7 @@ import {
 } from "../../../lib/memory";
 import { resolveGeoFeatures, extractZip, extractIncome } from "../../../lib/geoFeatures";
 import { tavily as createTavilyClient } from '@tavily/core';
-import { spendCredits } from "../../../lib/credits";
+import { spendCredits, checkCreditGate } from "../../../lib/credits";
 import { getUserPlan } from "../../../lib/subscription";
 import { isAdminId } from "../../../lib/adminAuth";
 // Verify calc engine on cold start — logs failures, never throws
@@ -2103,10 +2103,30 @@ async function handle(req: NextRequest, intentParam?: string) {
     const question = (req.nextUrl.searchParams.get("q") || body.question || "").trim();
     const intent = (intentParam || body.intent || "web").trim() || "web";
 
+    // ── Credit gate ──────────────────────────────────────────────────────────
+    // Free users: blocked when balance=0 AND grace exhausted (3 grace messages).
+    // Paid users (Plus/Pro) and admins always bypass.
+    if (userId) {
+      const adminBypass = await isAdminId(userId);
+      if (!adminBypass) {
+        const gate = await checkCreditGate(userId);
+        if (gate.state === 'blocked') {
+          return noStore({
+            ok: false,
+            credits_exhausted: true,
+            upgrade: true,
+            balance: 0,
+            route: 'credits_gate',
+          }, 402);
+        }
+        // 'grace' state: continue normally — gate already incremented grace counter
+      }
+    }
+
     // ── Credit spend ─────────────────────────────────────────────────────────
     // Deduct at request time (non-blocking) — same pattern as Claude/ChatGPT.
     // Costs: deep analysis = 25, standard AI query = 15, local calc = 5.
-    // Balance floors at 0 (never goes negative). Non-enforced for now.
+    // Balance floors at 0 (never goes negative).
     if (userId) {
       const _isDeep = /^\[deep-analysis\]/i.test(question);
       const _isCalcOnly = /^\$([\d,.]+[kKmM]?)|\b(what.*(payment|piti|rate)|how much|afford|calculate|refi|dscr|fha|va loan|jumbo)\b/i.test(question) && question.length < 120;
