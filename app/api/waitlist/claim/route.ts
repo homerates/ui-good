@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { checkFoundingMilestone } from "../../../../lib/foundingMilestone";
 
 export async function POST() {
   const { userId } = await auth();
@@ -69,6 +70,9 @@ export async function POST() {
       .update({ is_founding_member: true })
       .eq("user_id", userId);
   }
+
+  // Non-blocking: fire urgency blast at 450 and 490
+  checkFoundingMilestone(foundingNumber).catch(console.error);
 
   return NextResponse.json({ ok: true, foundingNumber });
 }
