@@ -56,7 +56,7 @@ function CircleGauge({ pct, label, sublabel, color = '#00e87a' }: {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
             <svg width={160} height={160} viewBox="0 0 160 160">
-                <circle cx={80} cy={80} r={r} fill="none" stroke="#f1f5f9" strokeWidth={10} />
+                <circle cx={80} cy={80} r={r} fill="none" stroke="#1e293b" strokeWidth={10} />
                 <circle
                     cx={80} cy={80} r={r} fill="none"
                     stroke={color} strokeWidth={10}
@@ -65,8 +65,8 @@ function CircleGauge({ pct, label, sublabel, color = '#00e87a' }: {
                     transform="rotate(-90 80 80)"
                     style={{ transition: 'stroke-dasharray 1s ease' }}
                 />
-                <text x={80} y={74} textAnchor="middle" fill="#0f172a" fontSize={28} fontWeight={800} fontFamily="system-ui,sans-serif">{pct}%</text>
-                <text x={80} y={96} textAnchor="middle" fill="#94a3b8" fontSize={11} fontFamily="system-ui,sans-serif">{label}</text>
+                <text x={80} y={74} textAnchor="middle" fill="#f1f5f9" fontSize={28} fontWeight={800} fontFamily="system-ui,sans-serif">{pct}%</text>
+                <text x={80} y={96} textAnchor="middle" fill="#64748b" fontSize={11} fontFamily="system-ui,sans-serif">{label}</text>
             </svg>
             {sublabel && <div style={{ fontSize: '0.72rem', color: '#94a3b8', textAlign: 'center' }}>{sublabel}</div>}
         </div>
@@ -107,7 +107,7 @@ function AppreciationChart({ projections }: { projections: { yr: number; val: nu
                     <circle cx={p.x} cy={p.y} r={i === 0 || i === pts.length - 1 ? 5 : 3.5}
                         fill={i === 0 ? '#94a3b8' : '#00e87a'} stroke="#fff" strokeWidth={1.5} />
                     {/* value label above */}
-                    <text x={p.x} y={p.y - 10} textAnchor="middle" fill="#0f172a" fontSize={10} fontWeight={700} fontFamily="system-ui,sans-serif">
+                    <text x={p.x} y={p.y - 10} textAnchor="middle" fill="#f1f5f9" fontSize={10} fontWeight={700} fontFamily="system-ui,sans-serif">
                         {fmtK(p.val)}
                     </text>
                     {/* gain label */}
@@ -166,11 +166,11 @@ export default function ReportPage() {
         : null;
 
     const psStyle = `
-        body:has(.ps-root){display:block!important;height:auto!important;overflow-y:auto!important;background:#f1f5f9!important;}
+        body:has(.ps-root){display:block!important;height:auto!important;overflow-y:auto!important;background:#080c12!important;}
         html:has(.ps-root){height:auto!important;overflow:visible!important;}
         body:has(.ps-root) nav{display:none!important;}
         body:has(.ps-root) .app-footer{display:none!important;}
-        .ps-root{min-height:100vh;width:100%;background:#f1f5f9;}
+        .ps-root{min-height:100vh;width:100%;background:#080c12;}
         @keyframes spin{to{transform:rotate(360deg);}}
     `;
 
@@ -217,57 +217,60 @@ export default function ReportPage() {
         isCurrent: liveRate != null && Math.abs(r - liveRate) < 0.26,
     })) : [];
 
-    // style tokens
+    // Dark theme tokens
+    const BG      = '#080c12';
+    const CARD    = '#0f172a';
+    const CARD2   = '#1e293b';
+    const TEXT    = '#f1f5f9';
+    const MUTED   = '#64748b';
+    const DIM     = '#334155';
+    const GREEN   = '#00e87a';
+    const GREEN2  = '#00b459';
+
     const card: React.CSSProperties = {
-        background: '#fff', borderRadius: 20,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        background: CARD, borderRadius: 20,
+        boxShadow: '0 2px 16px rgba(0,0,0,0.35)',
         overflow: 'hidden',
     };
     const label: React.CSSProperties = {
         fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em',
-        textTransform: 'uppercase', color: '#94a3b8', marginBottom: 4,
+        textTransform: 'uppercase', color: MUTED, marginBottom: 4,
     };
     const bigNum: React.CSSProperties = {
-        fontSize: '2rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1,
-    };
-    const medNum: React.CSSProperties = {
-        fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1,
+        fontSize: '2rem', fontWeight: 800, color: TEXT, lineHeight: 1.1,
     };
 
     return (
-        <div className="ps-root" style={{ fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,sans-serif' }}>
+        <div className="ps-root" style={{ fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,sans-serif', background: BG }}>
             <style>{psStyle + `* { box-sizing: border-box; } @media print { body { background: white; } }`}</style>
 
             {/* ── HomeRates branded header ──────────────────────── */}
-            <div style={{ background: '#0f172a', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/assets/homerates-mark.svg" alt="HomeRates" style={{ height: 26, width: 'auto' }} />
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.03em' }}>HomeRates</span>
-                </div>
-                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Home Intelligence Report</span>
+            <div style={{ background: '#000', borderBottom: `1px solid rgba(0,232,122,0.15)`, padding: '11px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/homerates-email-logo.png" alt="HomeRates" style={{ height: 28, width: 'auto' }} />
+                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Home Intelligence Report</span>
             </div>
 
             <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 72px' }}>
 
                 {/* ── TOP BAR: LO identity ─────────────────────────── */}
-                <div style={{ ...card, padding: '0', marginBottom: 16, overflow: 'hidden' }}>
-                <div style={{ height: 3, background: 'linear-gradient(90deg,#00e87a,#00b459)' }} />
+                <div style={{ ...card, padding: '0', marginBottom: 16 }}>
+                <div style={{ height: 3, background: `linear-gradient(90deg,${GREEN},${GREEN2})` }} />
                 <div style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                        {lo.photo && <img src={lo.photo} alt={lo.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />}
+                        {lo.photo && <img src={lo.photo} alt={lo.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${DIM}` }} />}
                         <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'visible' }}>{lo.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 1 }}>
+                            <div style={{ fontWeight: 800, fontSize: '1rem', color: TEXT }}>{lo.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: MUTED, marginTop: 1 }}>
                                 {[lo.title, lo.lender].filter(Boolean).join(' · ')}
                             </div>
-                            {lo.nmls && <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 1 }}>NMLS# {lo.nmls}</div>}
+                            {lo.nmls && <div style={{ fontSize: '0.72rem', color: DIM, marginTop: 1 }}>NMLS# {lo.nmls}</div>}
                         </div>
                     </div>
-                    <div style={{ textAlign: 'right', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.8 }}>
-                        {lo.phone && <div style={{ fontWeight: 600 }}>{lo.phone}</div>}
+                    <div style={{ textAlign: 'right', fontSize: '0.78rem', color: MUTED, lineHeight: 1.8 }}>
+                        {lo.phone && <div style={{ fontWeight: 600, color: TEXT }}>{lo.phone}</div>}
                         {lo.email && <div>{lo.email}</div>}
-                        {lo.website && <div style={{ color: '#00b459' }}>{lo.website}</div>}
+                        {lo.website && <div style={{ color: GREEN2 }}>{lo.website}</div>}
                     </div>
                 </div>
                 </div>
@@ -305,17 +308,17 @@ export default function ReportPage() {
 
                     {/* 4 hero stats below photo */}
                     {val && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: '24px 24px', gap: 0 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: '24px', gap: 0 }}>
                             {[
                                 { label: 'Est. Home Value', value: fmtFull(val), sub: valLow && valHigh ? `${fmtK(valLow)} – ${fmtK(valHigh)}` : undefined, green: true },
                                 { label: 'Total Equity', value: equity != null ? fmtFull(equity) : '—', sub: equityPct ? `${equityPct}% of value` : undefined },
                                 { label: 'Gain Since Purchase', value: appPct != null ? `+${appPct}%` : '—', sub: origPrice ? `from ${fmtK(origPrice)}` : undefined, green: appPct != null && appPct > 0 },
                                 { label: 'Current Rate', value: liveRate ? `${liveRate}%` : '—', sub: analysis?.rateIsEstimated ? 'estimated' : 'on file' },
                             ].map((x, i) => (
-                                <div key={i} style={{ padding: '0 16px 0 0', borderRight: i < 3 ? '1px solid #f1f5f9' : 'none', paddingLeft: i > 0 ? 16 : 0 }}>
+                                <div key={i} style={{ padding: '0 16px 0 0', borderRight: i < 3 ? `1px solid ${DIM}` : 'none', paddingLeft: i > 0 ? 16 : 0 }}>
                                     <div style={label}>{x.label}</div>
-                                    <div style={{ ...bigNum, color: x.green ? '#00b459' : '#0f172a', fontSize: '1.55rem' }}>{x.value}</div>
-                                    {x.sub && <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 3 }}>{x.sub}</div>}
+                                    <div style={{ ...bigNum, color: x.green ? GREEN : TEXT, fontSize: '1.55rem' }}>{x.value}</div>
+                                    {x.sub && <div style={{ fontSize: '0.7rem', color: MUTED, marginTop: 3 }}>{x.sub}</div>}
                                 </div>
                             ))}
                         </div>
@@ -337,18 +340,18 @@ export default function ReportPage() {
                                     { label: 'Loan Balance', value: fmtFull(balance), sub: analysis?.balanceIsEstimated ? 'est.' : 'on file' },
                                     { label: 'LTV Ratio', value: `${ltv}%`, sub: ltv < 80 ? '✓ under 80%' : undefined },
                                 ].map((x, i) => (
-                                    <div key={i} style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 12px' }}>
+                                    <div key={i} style={{ background: CARD2, borderRadius: 10, padding: '10px 12px' }}>
                                         <div style={label}>{x.label}</div>
-                                        <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{x.value}</div>
-                                        {x.sub && <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 2 }}>{x.sub}</div>}
+                                        <div style={{ fontWeight: 700, fontSize: '1rem', color: TEXT }}>{x.value}</div>
+                                        {x.sub && <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: 2 }}>{x.sub}</div>}
                                     </div>
                                 ))}
                             </div>
                             {analysis?.helocMax && analysis.helocMax > 0 && (
-                                <div style={{ width: '100%', background: '#f0fdf4', border: '1px solid rgba(0,180,89,0.2)', borderRadius: 10, padding: '10px 14px' }}>
+                                <div style={{ width: '100%', background: 'rgba(0,232,122,0.07)', border: `1px solid rgba(0,180,89,0.25)`, borderRadius: 10, padding: '10px 14px' }}>
                                     <div style={label}>Available HELOC</div>
-                                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#00b459' }}>{fmtFull(analysis.helocMax)}</div>
-                                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 2 }}>up to 85% LTV</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: GREEN }}>{fmtFull(analysis.helocMax)}</div>
+                                    <div style={{ fontSize: '0.7rem', color: MUTED, marginTop: 2 }}>up to 85% LTV</div>
                                 </div>
                             )}
                         </div>
@@ -358,7 +361,7 @@ export default function ReportPage() {
                     {RATES_SHOW.length > 0 && (
                         <div style={{ ...card, padding: '28px 24px' }}>
                             <div style={label}>Rate Sensitivity</div>
-                            <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 20 }}>
+                            <div style={{ fontSize: '0.82rem', color: MUTED, marginBottom: 20 }}>
                                 Monthly principal, interest &amp; taxes at each rate
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -369,31 +372,31 @@ export default function ReportPage() {
                                         <div key={row.rate} style={{
                                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                             padding: '13px 14px',
-                                            background: row.isCurrent ? '#f0fdf4' : '#fff',
+                                            background: row.isCurrent ? 'rgba(0,232,122,0.08)' : CARD2,
                                             borderRadius: isFirst ? '10px 10px 0 0' : isLast ? '0 0 10px 10px' : 0,
-                                            border: row.isCurrent ? '1px solid rgba(0,180,89,0.25)' : '1px solid #f1f5f9',
+                                            border: row.isCurrent ? `1px solid rgba(0,232,122,0.25)` : `1px solid ${DIM}`,
                                             marginTop: i > 0 ? -1 : 0,
                                             zIndex: row.isCurrent ? 1 : 0, position: 'relative',
                                         }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                 <div style={{
                                                     width: 36, height: 36, borderRadius: '50%',
-                                                    background: row.isCurrent ? '#00e87a' : '#f1f5f9',
+                                                    background: row.isCurrent ? GREEN : DIM,
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                     fontSize: '0.72rem', fontWeight: 800,
-                                                    color: row.isCurrent ? '#0f172a' : '#64748b',
+                                                    color: row.isCurrent ? '#0f172a' : MUTED,
                                                 }}>
                                                     {row.rate}%
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: row.isCurrent ? 700 : 500, fontSize: '0.85rem', color: '#0f172a' }}>
+                                                    <div style={{ fontWeight: row.isCurrent ? 700 : 500, fontSize: '0.85rem', color: TEXT }}>
                                                         {row.rate}% rate
                                                     </div>
-                                                    {row.isCurrent && <div style={{ fontSize: '0.65rem', color: '#00b459', fontWeight: 600 }}>YOUR RATE</div>}
+                                                    {row.isCurrent && <div style={{ fontSize: '0.65rem', color: GREEN, fontWeight: 600 }}>YOUR RATE</div>}
                                                 </div>
                                             </div>
-                                            <div style={{ fontWeight: 800, fontSize: '1.1rem', color: row.isCurrent ? '#00b459' : '#0f172a' }}>
-                                                ${row.piti.toLocaleString()}<span style={{ fontSize: '0.7rem', fontWeight: 400, color: '#94a3b8' }}>/mo</span>
+                                            <div style={{ fontWeight: 800, fontSize: '1.1rem', color: row.isCurrent ? GREEN : TEXT }}>
+                                                ${row.piti.toLocaleString()}<span style={{ fontSize: '0.7rem', fontWeight: 400, color: MUTED }}>/mo</span>
                                             </div>
                                         </div>
                                     );
@@ -409,17 +412,17 @@ export default function ReportPage() {
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
                             <div>
                                 <div style={label}>5-Year Value Projection</div>
-                                <div style={{ fontWeight: 800, fontSize: '1.6rem', color: '#0f172a' }}>
+                                <div style={{ fontWeight: 800, fontSize: '1.6rem', color: TEXT }}>
                                     {fmtFull(projections[5]?.val)}
-                                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#00b459', marginLeft: 10 }}>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: GREEN2, marginLeft: 10 }}>
                                         +{(((projections[5]?.val - projections[0]?.val) / projections[0]?.val) * 100).toFixed(1)}% over 5 years
                                     </span>
                                 </div>
-                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 4 }}>Based on 4.2% avg annual appreciation · historical CA average</div>
+                                <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: 4 }}>Based on 4.2% avg annual appreciation · historical CA average</div>
                             </div>
-                            <div style={{ background: '#f0fdf4', border: '1px solid rgba(0,180,89,0.2)', borderRadius: 10, padding: '8px 16px', textAlign: 'center' }}>
+                            <div style={{ background: 'rgba(0,232,122,0.07)', border: `1px solid rgba(0,180,89,0.25)`, borderRadius: 10, padding: '8px 16px', textAlign: 'center' }}>
                                 <div style={label}>Projected gain</div>
-                                <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#00b459' }}>
+                                <div style={{ fontWeight: 800, fontSize: '1.2rem', color: GREEN }}>
                                     +{fmtFull(projections[5]?.val - projections[0]?.val)}
                                 </div>
                             </div>
@@ -433,35 +436,35 @@ export default function ReportPage() {
                     <div style={{ ...card, padding: '20px 24px', marginBottom: 16 }}>
                         <div style={label}>Property Details</div>
                         <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', marginTop: 8 }}>
-                            {analysis.beds  && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>{analysis.beds}</span><span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: 4 }}>beds</span></div>}
-                            {analysis.baths && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>{analysis.baths}</span><span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: 4 }}>baths</span></div>}
-                            {analysis.sqft  && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>{fmt(analysis.sqft)}</span><span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: 4 }}>sq ft</span></div>}
-                            {analysis.city  && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>{analysis.city}{analysis.state ? `, ${analysis.state}` : ''}</span><span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: 4 }}>location</span></div>}
-                            {piti           && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>${piti.toLocaleString()}</span><span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: 4 }}>/mo est. PITI</span></div>}
+                            {analysis.beds  && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: TEXT }}>{analysis.beds}</span><span style={{ fontSize: '0.78rem', color: MUTED, marginLeft: 4 }}>beds</span></div>}
+                            {analysis.baths && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: TEXT }}>{analysis.baths}</span><span style={{ fontSize: '0.78rem', color: MUTED, marginLeft: 4 }}>baths</span></div>}
+                            {analysis.sqft  && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: TEXT }}>{fmt(analysis.sqft)}</span><span style={{ fontSize: '0.78rem', color: MUTED, marginLeft: 4 }}>sq ft</span></div>}
+                            {analysis.city  && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: TEXT }}>{analysis.city}{analysis.state ? `, ${analysis.state}` : ''}</span><span style={{ fontSize: '0.78rem', color: MUTED, marginLeft: 4 }}>location</span></div>}
+                            {piti           && <div><span style={{ fontWeight: 700, fontSize: '1.1rem', color: GREEN }}>${piti.toLocaleString()}</span><span style={{ fontSize: '0.78rem', color: MUTED, marginLeft: 4 }}>/mo est. PITI</span></div>}
                         </div>
                     </div>
                 )}
 
-                {/* ── LO dark footer ───────────────────────────────── */}
-                <div style={{ background: '#0f172a', borderRadius: 20, padding: '24px 28px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                {/* ── LO CTA footer ────────────────────────────────── */}
+                <div style={{ background: CARD2, border: `1px solid ${DIM}`, borderRadius: 20, padding: '24px 28px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        {lo.photo && <img src={lo.photo} alt={lo.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)' }} />}
+                        {lo.photo && <img src={lo.photo} alt={lo.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${DIM}` }} />}
                         <div>
-                            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#f1f5f9' }}>{lo.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'rgba(185,208,192,0.6)', marginTop: 2 }}>
+                            <div style={{ fontWeight: 800, fontSize: '1rem', color: TEXT }}>{lo.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: MUTED, marginTop: 2 }}>
                                 {[lo.lender, lo.nmls ? `NMLS# ${lo.nmls}` : null].filter(Boolean).join(' · ')}
                             </div>
-                            {lo.office_address && <div style={{ fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 2 }}>{lo.office_address}</div>}
+                            {lo.office_address && <div style={{ fontSize: '0.7rem', color: DIM, marginTop: 2 }}>{lo.office_address}</div>}
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         {lo.phone && (
-                            <a href={`tel:${lo.phone}`} style={{ padding: '8px 18px', borderRadius: 999, background: '#00e87a', color: '#0f172a', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none' }}>
+                            <a href={`tel:${lo.phone}`} style={{ padding: '10px 20px', borderRadius: 999, background: GREEN, color: '#0f172a', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>
                                 {lo.phone}
                             </a>
                         )}
                         {lo.email && (
-                            <a href={`mailto:${lo.email}`} style={{ padding: '8px 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: '0.82rem', textDecoration: 'none' }}>
+                            <a href={`mailto:${lo.email}`} style={{ padding: '10px 20px', borderRadius: 999, border: `1px solid ${DIM}`, color: TEXT, fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none' }}>
                                 Email Me
                             </a>
                         )}
@@ -469,7 +472,7 @@ export default function ReportPage() {
                 </div>
 
                 {/* ── Disclaimer ───────────────────────────────────── */}
-                <div style={{ fontSize: '0.62rem', color: '#94a3b8', lineHeight: 1.8, padding: '0 4px' }}>
+                <div style={{ fontSize: '0.62rem', color: DIM, lineHeight: 1.8, padding: '0 4px' }}>
                     <strong>Current as of {today}.</strong> This report is provided for informational and educational purposes only and does not constitute a loan commitment, guarantee, or offer to lend.
                     Rates and terms are subject to change without notice. Estimated values, equity, and projections are based on third-party automated valuation models and historical averages; actual values may differ.
                     This document should not be construed as investment or mortgage advice. For actual terms and rate information, please contact your loan officer directly.

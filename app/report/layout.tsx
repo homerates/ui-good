@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function ReportLayout({ children }: { children: React.ReactNode }) {
     return (
-        <div style={{ minHeight: '100vh', background: '#f1f5f9' }}>
+        <div style={{ minHeight: '100vh', background: '#080c12' }}>
             {children}
         </div>
     );
