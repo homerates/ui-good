@@ -41,22 +41,20 @@ export async function GET(
     // Fetch LO profile
     const { data: lo } = await supabase
         .from('loan_officers')
-        .select('id, user_id, name, lender, nmls, company_nmls, title, phone, website, office_address')
+        .select('id, user_id, lender, nmls, company_nmls, title, phone, website, office_address')
         .eq('id', report.lo_id)
         .single();
     if (!lo) return NextResponse.json({ error: 'LO not found' }, { status: 404 });
 
-    // Fetch LO name + photo from Clerk; fall back to loan_officers.name if Clerk name is short/missing
-    let loName: string = (lo as { name?: string }).name ?? 'Your Loan Officer';
+    // Fetch LO name + photo from Clerk
+    let loName = 'Your Loan Officer';
     let loEmail = '';
     let loPhoto = '';
     try {
         const clerk = await clerkClient();
         const clerkUser = await clerk.users.getUser(lo.user_id);
         const clerkName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ');
-        // Use Clerk name only if it's plausibly a full name (>= 5 chars, has a space)
-        if (clerkName && clerkName.length >= 5 && clerkName.includes(' ')) loName = clerkName;
-        else if (clerkName && clerkName.length > (loName?.length ?? 0)) loName = clerkName;
+        if (clerkName) loName = clerkName;
         loEmail = clerkUser.emailAddresses?.[0]?.emailAddress ?? '';
         loPhoto = clerkUser.imageUrl ?? '';
     } catch {}
