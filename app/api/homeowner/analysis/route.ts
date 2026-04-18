@@ -209,6 +209,36 @@ function buildAnalysis(
 }
 
 export async function GET(request: NextRequest) {
+  // ── REPORT TOKEN PATH: public shareable report (no Clerk auth needed) ────────
+  const reportToken = request.nextUrl.searchParams.get('report_token');
+  if (reportToken) {
+    const { data: rep } = await db()
+      .from('borrower_reports')
+      .select('borrower_id')
+      .eq('token', reportToken)
+      .single();
+    if (!rep) return NextResponse.json({ error: 'Invalid report token' }, { status: 404 });
+
+    const { data: bor } = await db()
+      .from('borrowers')
+      .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
+      .eq('id', rep.borrower_id)
+      .single();
+    if (!bor?.property_address) return NextResponse.json({ error: 'No address on file' }, { status: 404 });
+
+    const [rentcast, fred] = await Promise.all([
+      rentcastLookup(bor.property_address),
+      getFredSnapshot({ timeoutMs: 8000 }),
+    ]);
+    if (!rentcast) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
+
+    return NextResponse.json({
+      ...buildAnalysis(rentcast, fred, bor, []),
+      borrowerName: bor.name,
+      address: bor.property_address,
+    });
+  }
+
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 

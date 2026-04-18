@@ -136,6 +136,14 @@ export default function ReportPage() {
     const [loading, setLoading]   = React.useState(true);
     const [err, setErr]           = React.useState<string | null>(null);
 
+    // Override dark body background for this standalone page
+    React.useEffect(() => {
+        const prev = document.body.style.background;
+        document.body.style.background = '#f1f5f9';
+        document.body.style.backgroundColor = '#f1f5f9';
+        return () => { document.body.style.background = prev; };
+    }, []);
+
     React.useEffect(() => {
         if (!token) return;
         (async () => {
@@ -144,18 +152,12 @@ export default function ReportPage() {
             if (!d.ok) { setErr('Report not found or has expired.'); setLoading(false); return; }
             setLo(d.lo);
             setBorrower(d.borrower);
-            if (d.borrower.property_address) {
-                const p = new URLSearchParams({ address: d.borrower.property_address });
-                if (d.borrower.actual_balance)        p.set('actual_balance',        String(d.borrower.actual_balance));
-                if (d.borrower.actual_rate)           p.set('actual_rate',           String(d.borrower.actual_rate));
-                if (d.borrower.actual_purchase_price) p.set('actual_purchase_price', String(d.borrower.actual_purchase_price));
-                if (d.borrower.actual_purchase_date)  p.set('actual_purchase_date',  d.borrower.actual_purchase_date);
-                try {
-                    const ar = await fetch(`/api/homeowner/analysis?${p}`);
-                    const ad = await ar.json();
-                    if (ad.ok !== false) setAnalysis(ad);
-                } catch {}
-            }
+            // Fetch analysis via report_token path (no auth required)
+            try {
+                const ar = await fetch(`/api/homeowner/analysis?report_token=${token}`);
+                const ad = await ar.json();
+                if (ad.ok !== false && !ad.error) setAnalysis(ad);
+            } catch {}
             setLoading(false);
         })();
     }, [token]);
