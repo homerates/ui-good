@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         .from('borrowers')
         .select('id')
         .eq('id', borrowerId)
-        .eq('lo_id', lo.id)
+        .eq('loan_officer_id', lo.id)
         .single();
     if (!borrower) return NextResponse.json({ error: 'Borrower not found' }, { status: 404 });
 
