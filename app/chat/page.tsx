@@ -1875,12 +1875,16 @@ export default function Page() {
                     tickerRes ? tickerRes.json().catch(() => null) : Promise.resolve(null),
                 ]);
 
-                // Parse live 30Y rate from ticker — fall back to 7.0 if unavailable
-                let liveRate = 7.0;
+                // Parse live 30Y rate from ticker — fall back to FRED national avg when unavailable
+                let liveRate = 6.65; // matches FRED_FALLBACK in answers engine
+                let liveRateIsLive = false;
                 const thirtyYItem = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
                 if (thirtyYItem?.value) {
                     const parsed = parseFloat(String(thirtyYItem.value).replace('%', ''));
-                    if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
+                    if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) {
+                        liveRate = parsed;
+                        liveRateIsLive = true;
+                    }
                 }
 
                 if (lookupJson.ok && lookupJson.data) {
@@ -1926,7 +1930,8 @@ export default function Page() {
                         const headline = `${addressShort ?? locationStr} — off market.${saleNote}`;
                         const subline  = [detailStr, locationStr, estVal ? `Est. value ${fmtK(estVal)}` : null, equity ? `Est. equity ${fmtK(equity)}` : null].filter(Boolean).join(' · ');
                         const balNote  = d.estimatedBalance ? `~${fmtK(bal)} est. balance` : `~${fmtK(bal)} est. balance (adjust below)`;
-                        const cta      = `Est. refi payment at today's ${liveRate.toFixed(2)}%: $${refiPmt.toLocaleString()}/mo on ${balNote}. Adjust the sliders below.`;
+                        const rateLabel = liveRateIsLive ? `${liveRate.toFixed(2)}%` : `~${liveRate.toFixed(2)}% (est.)`;
+                        const cta      = `Est. refi payment at today's ${rateLabel}: $${refiPmt.toLocaleString()}/mo on ${balNote}. Adjust the sliders below.`;
 
                         const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
@@ -2023,8 +2028,9 @@ export default function Page() {
                         ? `${pitiStr} estimated — that's your PITI on ${addressShort ?? locationStr}.`
                         : `${priceStr ?? 'Listing'} in ${locationStr}.`;
                     const subline = [priceStr, detailStr, locationStr + domNote].filter(Boolean).join(' · ');
+                    const rateLabel = liveRateIsLive ? `${liveRate.toFixed(2)}%` : `~${liveRate.toFixed(2)}% (est.)`;
                     const cta = d.price
-                        ? `Pre-loaded at today's ${liveRate.toFixed(2)}% with 20% down. Adjust the sliders to explore.`
+                        ? `Pre-loaded at today's ${rateLabel} with 20% down. Adjust the sliders to explore.`
                         : `Zillow blocked price data — enter the listing price below to run the numbers.`;
 
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
