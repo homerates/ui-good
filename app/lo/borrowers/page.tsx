@@ -468,7 +468,16 @@ export default function LoBorrowersPage() {
                                                 </div>
                                                 {b.email && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>{b.email}</div>}
                                                 {b.property_address && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>📍 {b.property_address}</div>}
-                                                {b.purchase_price && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", marginTop: 2 }}>Purchase: ${b.purchase_price.toLocaleString()}{b.loan_amount ? ` · Loan $${b.loan_amount.toLocaleString()}` : ''}{b.interest_rate ? ` · ${b.interest_rate}%` : ''}{b.close_date ? ` · ${b.close_date}` : ''}</div>}
+                                                {(b.purchase_price || b.loan_amount || b.interest_rate || b.close_date) && (
+                                                    <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", marginTop: 2 }}>
+                                                        {[
+                                                            b.purchase_price ? `Purchase: $${b.purchase_price.toLocaleString()}` : null,
+                                                            b.loan_amount    ? `Loan: $${b.loan_amount.toLocaleString()}` : null,
+                                                            b.interest_rate  ? `Rate: ${b.interest_rate}%` : null,
+                                                            b.close_date     ? `Close: ${b.close_date}` : null,
+                                                        ].filter(Boolean).join(' · ')}
+                                                    </div>
+                                                )}
                                                 {b.notes && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.4)", marginTop: 2, fontStyle: "italic" }}>{b.notes}</div>}
                                             </div>
                                             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
