@@ -421,21 +421,21 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                                         <thead>
                                             <tr style={{ background: 'rgba(59,130,246,0.06)' }}>
-                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'left' }}>Rate</th>
-                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'right' }}>Monthly PITI</th>
-                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'right' }}>Income Needed</th>
+                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'left', color: '#1e293b' }}>Rate</th>
+                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'right', color: '#1e293b' }}>Monthly PITI</th>
+                                                <th style={{ padding: '6px 10px', fontWeight: 600, textAlign: 'right', color: '#1e293b' }}>Income Needed</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {data.rateSensitivity.map((s, i) => (
                                                 <tr key={i} style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', background: s.rate === data.rate ? 'rgba(59,130,246,0.04)' : 'transparent' }}>
-                                                    <td style={{ padding: '6px 10px', fontWeight: s.rate === data.rate ? 700 : 400 }}>
+                                                    <td style={{ padding: '6px 10px', fontWeight: s.rate === data.rate ? 700 : 400, color: '#1e293b' }}>
                                                         {s.rate.toFixed(3)}%{s.rate === data.rate ? ' ◀ current' : ''}
                                                     </td>
-                                                    <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: s.rate === data.rate ? 700 : 400 }}>
+                                                    <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: s.rate === data.rate ? 700 : 400, color: '#1e293b' }}>
                                                         ${s.piti.toLocaleString()}/mo
                                                     </td>
-                                                    <td style={{ padding: '6px 10px', textAlign: 'right', color: '#6b7280' }}>
+                                                    <td style={{ padding: '6px 10px', textAlign: 'right', color: '#374151' }}>
                                                         ${Math.round(s.incomeNeeded / 1000)}k/yr
                                                     </td>
                                                 </tr>
