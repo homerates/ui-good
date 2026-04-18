@@ -18,6 +18,7 @@ export type ParsedBorrower = {
     property_address: string | null;
     purchase_price:   number | null;
     loan_amount:      number | null;
+    interest_rate:    number | null; // e.g. 5.99 (not 0.0599)
     close_date:       string | null; // ISO date YYYY-MM-DD or null
     notes:            string | null;
     confidence:       'high' | 'medium' | 'low';
@@ -67,17 +68,18 @@ Extract every distinct person who appears to be a borrower/prospect/client. For 
 - name: full name (required — skip if no name found)
 - email: email address or null
 - property_address: full property address including city/state/zip if present, or null
-- purchase_price: purchase price as a number (no $ or commas) or null
-- loan_amount: loan amount as a number if explicitly stated, or null
-- close_date: closing/settlement date as YYYY-MM-DD if present, or null (convert "June 2026" → "2026-06-01", "Q2 2026" → "2026-04-01")
-- notes: any other relevant notes (down payment %, credit score, rate mentioned) as a short string, or null
-- confidence: "high" (clear data), "medium" (some ambiguity), or "low" (guessed)
+- purchase_price: purchase/sale price as a number (no $ or commas) or null. "$980k" = 980000, "$1.2M" = 1200000
+- loan_amount: loan/mortgage amount as a number if explicitly stated, or null
+- interest_rate: interest/mortgage rate as a decimal number (e.g. "5.99%" → 5.99, "6.5%" → 6.5) or null. Look for: "rate", "interest rate", "at X%", "locked at X%"
+- close_date: closing/purchase/settlement date as YYYY-MM-DD or null. "4/7/2026" → "2026-04-07", "June 2026" → "2026-06-01", "Feb 2018" → "2018-02-01"
+- notes: any remaining relevant details (credit score, down payment %, property type) as a short string, or null
+- confidence: "high" (clear explicit data), "medium" (some ambiguity), or "low" (guessed)
 
 Rules:
 - Only include records where you found a name
 - If the same person appears multiple times, merge into one record
 - Do NOT invent data — if a field is not present, use null
-- Dollar amounts: "750k" = 750000, "$1.2M" = 1200000
+- Be aggressive about extracting rates and dates — these are critical for mortgage analysis
 
 Return valid JSON only:
 {"borrowers": [...]}`;

@@ -62,8 +62,8 @@ export default function LoBorrowersPage() {
     type ParsedBorrower = {
         name: string; email: string | null; property_address: string | null;
         purchase_price: number | null; loan_amount: number | null;
-        close_date: string | null; notes: string | null;
-        confidence: 'high' | 'medium' | 'low';
+        interest_rate: number | null; close_date: string | null;
+        notes: string | null; confidence: 'high' | 'medium' | 'low';
     };
     const [pasteOpen, setPasteOpen] = React.useState(false);
     const [pasteText, setPasteText] = React.useState('');
@@ -98,6 +98,7 @@ export default function LoBorrowersPage() {
     async function confirmBorrower(b: ParsedBorrower, idx: number) {
         setAddingIdx(idx);
         try {
+            // Step 1 — create the borrower record
             const res = await fetch('/api/borrowers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -105,18 +106,36 @@ export default function LoBorrowersPage() {
                     name: b.name,
                     email: b.email ?? null,
                     property_address: b.property_address ?? null,
-                    actual_purchase_price: b.purchase_price ?? undefined,
-                    actual_close_date: b.close_date ?? undefined,
                     send_welcome: false,
                 }),
             });
             const data = await res.json();
-            if (data.borrower) {
-                setBorrowers(prev => [data.borrower, ...prev]);
-                setAddedIdx(prev => new Set([...prev, idx]));
-            } else {
-                setParseErr(data.error ?? 'Failed to add borrower');
+            if (!data.borrower) { setParseErr(data.error ?? 'Failed to add borrower'); setAddingIdx(null); return; }
+
+            // Step 2 — patch loan details if any were parsed
+            const hasLoanData = b.purchase_price || b.loan_amount || b.interest_rate || b.close_date;
+            if (hasLoanData) {
+                const patch: Record<string, any> = { id: data.borrower.id };
+                if (b.purchase_price)  patch.actual_purchase_price = b.purchase_price;
+                if (b.loan_amount)     patch.actual_balance         = b.loan_amount;
+                if (b.interest_rate)   patch.actual_rate            = b.interest_rate;
+                if (b.close_date)      patch.actual_purchase_date   = b.close_date;
+                const patchRes = await fetch('/api/borrowers', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(patch),
+                });
+                const patchData = await patchRes.json();
+                if (patchData.borrower) {
+                    setBorrowers(prev => [patchData.borrower, ...prev]);
+                    setAddedIdx(prev => new Set([...prev, idx]));
+                    setAddingIdx(null);
+                    return;
+                }
             }
+
+            setBorrowers(prev => [data.borrower, ...prev]);
+            setAddedIdx(prev => new Set([...prev, idx]));
         } catch { setParseErr('Unexpected error.'); }
         setAddingIdx(null);
     }
@@ -449,7 +468,7 @@ export default function LoBorrowersPage() {
                                                 </div>
                                                 {b.email && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>{b.email}</div>}
                                                 {b.property_address && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>📍 {b.property_address}</div>}
-                                                {b.purchase_price && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", marginTop: 2 }}>Purchase: ${b.purchase_price.toLocaleString()}{b.close_date ? ` · Close ${b.close_date}` : ''}</div>}
+                                                {b.purchase_price && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", marginTop: 2 }}>Purchase: ${b.purchase_price.toLocaleString()}{b.loan_amount ? ` · Loan $${b.loan_amount.toLocaleString()}` : ''}{b.interest_rate ? ` · ${b.interest_rate}%` : ''}{b.close_date ? ` · ${b.close_date}` : ''}</div>}
                                                 {b.notes && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.4)", marginTop: 2, fontStyle: "italic" }}>{b.notes}</div>}
                                             </div>
                                             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
