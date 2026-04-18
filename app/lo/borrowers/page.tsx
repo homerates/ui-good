@@ -73,6 +73,9 @@ export default function LoBorrowersPage() {
     const [addingIdx, setAddingIdx] = React.useState<number | null>(null);
     const [addedIdx, setAddedIdx] = React.useState<Set<number>>(new Set());
     const [skippedIdx, setSkippedIdx] = React.useState<Set<number>>(new Set());
+    const [editingIdx, setEditingIdx] = React.useState<number | null>(null);
+    const [editDraft, setEditDraft] = React.useState<ParsedBorrower | null>(null);
+    const [addingAll, setAddingAll] = React.useState(false);
 
     async function handleParse() {
         if (!pasteText.trim()) return;
@@ -144,12 +147,39 @@ export default function LoBorrowersPage() {
         setSkippedIdx(prev => new Set([...prev, idx]));
     }
 
+    async function addAllBorrowers() {
+        if (!parsed) return;
+        setAddingAll(true);
+        for (let i = 0; i < parsed.length; i++) {
+            if (addedIdx.has(i) || skippedIdx.has(i)) continue;
+            await confirmBorrower(parsed[i], i);
+        }
+        setAddingAll(false);
+    }
+
+    function startEdit(b: ParsedBorrower, idx: number) {
+        setEditDraft({ ...b });
+        setEditingIdx(idx);
+    }
+
+    function saveEdit(idx: number) {
+        if (!editDraft || !parsed) return;
+        const next = [...parsed];
+        next[idx] = editDraft;
+        setParsed(next);
+        setEditingIdx(null);
+        setEditDraft(null);
+    }
+
     function resetPaste() {
         setPasteText('');
         setParsed(null);
         setParseErr(null);
         setAddedIdx(new Set());
         setSkippedIdx(new Set());
+        setEditingIdx(null);
+        setEditDraft(null);
+        setAddingAll(false);
     }
 
     React.useEffect(() => {
@@ -442,75 +472,149 @@ export default function LoBorrowersPage() {
                     ) : (
                         <>
                             <p style={{ margin: "0 0 12px", fontSize: "0.82rem", color: "rgba(185,208,192,0.7)" }}>
-                                Found <strong style={{ color: "#e0f0e8" }}>{parsed.length}</strong> borrower{parsed.length !== 1 ? 's' : ''} — confirm or skip each one:
+                                Found <strong style={{ color: "#e0f0e8" }}>{parsed.length}</strong> borrower{parsed.length !== 1 ? 's' : ''} — edit, add individually, or use Add All:
                             </p>
                             <div style={{ display: "grid", gap: 10 }}>
                                 {parsed.map((b, i) => {
                                     const added   = addedIdx.has(i);
                                     const skipped = skippedIdx.has(i);
-                                    const busy    = addingIdx === i;
+                                    const busy    = addingIdx === i || addingAll;
+                                    const editing = editingIdx === i;
+                                    const inputSty: React.CSSProperties = {
+                                        width: "100%", padding: "4px 8px", borderRadius: 6, fontSize: "0.78rem",
+                                        border: "1px solid rgba(99,179,237,0.3)", background: "rgba(8,12,18,0.6)",
+                                        color: "#f1f5f9", outline: "none", boxSizing: "border-box",
+                                    };
                                     return (
                                         <div key={i} style={{
                                             padding: "12px 14px", borderRadius: 10,
-                                            border: added ? "1px solid rgba(0,232,122,0.3)" : skipped ? "1px solid rgba(148,163,184,0.1)" : "1px solid rgba(99,179,237,0.2)",
-                                            background: added ? "rgba(0,232,122,0.04)" : skipped ? "rgba(0,0,0,0.1)" : "rgba(99,179,237,0.04)",
+                                            border: added ? "1px solid rgba(0,232,122,0.3)" : skipped ? "1px solid rgba(148,163,184,0.1)" : editing ? "1px solid rgba(99,179,237,0.4)" : "1px solid rgba(99,179,237,0.2)",
+                                            background: added ? "rgba(0,232,122,0.04)" : skipped ? "rgba(0,0,0,0.1)" : editing ? "rgba(99,179,237,0.06)" : "rgba(99,179,237,0.04)",
                                             opacity: skipped ? 0.5 : 1,
-                                            display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
                                         }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#f1f5f9" }}>{b.name}</span>
-                                                    <span style={{
-                                                        fontSize: "0.7rem", padding: "1px 6px", borderRadius: 999,
-                                                        background: b.confidence === 'high' ? "rgba(0,232,122,0.15)" : b.confidence === 'medium' ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)",
-                                                        color: b.confidence === 'high' ? "#00e87a" : b.confidence === 'medium' ? "#fbbf24" : "#f87171",
-                                                    }}>{b.confidence}</span>
-                                                </div>
-                                                {b.email && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>{b.email}</div>}
-                                                {b.property_address && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>📍 {b.property_address}</div>}
-                                                {(b.purchase_price || b.loan_amount || b.interest_rate || b.close_date) && (
-                                                    <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", marginTop: 2 }}>
-                                                        {[
-                                                            b.purchase_price ? `Purchase: $${b.purchase_price.toLocaleString()}` : null,
-                                                            b.loan_amount    ? `Loan: $${b.loan_amount.toLocaleString()}` : null,
-                                                            b.interest_rate  ? `Rate: ${b.interest_rate}%` : null,
-                                                            b.close_date     ? `Close: ${b.close_date}` : null,
-                                                        ].filter(Boolean).join(' · ')}
+                                            {editing && editDraft ? (
+                                                <div style={{ display: "grid", gap: 6 }}>
+                                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                                                        <div>
+                                                            <div style={{ fontSize: "0.68rem", color: "rgba(185,208,192,0.5)", marginBottom: 2 }}>Name</div>
+                                                            <input style={inputSty} value={editDraft.name} onChange={e => setEditDraft(d => d ? { ...d, name: e.target.value } : d)} />
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: "0.68rem", color: "rgba(185,208,192,0.5)", marginBottom: 2 }}>Email</div>
+                                                            <input style={inputSty} value={editDraft.email ?? ''} placeholder="email@example.com" onChange={e => setEditDraft(d => d ? { ...d, email: e.target.value || null } : d)} />
+                                                        </div>
                                                     </div>
-                                                )}
-                                                {b.notes && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.4)", marginTop: 2, fontStyle: "italic" }}>{b.notes}</div>}
-                                            </div>
-                                            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                                                {added ? (
-                                                    <span style={{ fontSize: "0.8rem", color: "#00e87a", fontWeight: 600 }}>✓ Added</span>
-                                                ) : skipped ? (
-                                                    <span style={{ fontSize: "0.8rem", color: "rgba(185,208,192,0.4)" }}>Skipped</span>
-                                                ) : (
-                                                    <>
-                                                        <button type="button" onClick={() => confirmBorrower(b, i)} disabled={busy} style={{
-                                                            padding: "5px 14px", borderRadius: 999, border: "none",
-                                                            background: busy ? "rgba(0,232,122,0.3)" : "#00e87a",
-                                                            color: "#080c12", fontSize: "0.78rem", fontWeight: 600,
-                                                            cursor: busy ? "default" : "pointer",
-                                                        }}>
-                                                            {busy ? "Adding…" : "Add"}
-                                                        </button>
-                                                        <button type="button" onClick={() => skipBorrower(i)} style={{
-                                                            padding: "5px 10px", borderRadius: 999,
+                                                    <div>
+                                                        <div style={{ fontSize: "0.68rem", color: "rgba(185,208,192,0.5)", marginBottom: 2 }}>Address</div>
+                                                        <input style={inputSty} value={editDraft.property_address ?? ''} onChange={e => setEditDraft(d => d ? { ...d, property_address: e.target.value || null } : d)} />
+                                                    </div>
+                                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+                                                        <div>
+                                                            <div style={{ fontSize: "0.68rem", color: "rgba(185,208,192,0.5)", marginBottom: 2 }}>Purchase $</div>
+                                                            <input style={inputSty} value={editDraft.purchase_price ?? ''} placeholder="980000" onChange={e => setEditDraft(d => d ? { ...d, purchase_price: e.target.value ? Number(e.target.value) : null } : d)} />
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: "0.68rem", color: "rgba(185,208,192,0.5)", marginBottom: 2 }}>Loan $</div>
+                                                            <input style={inputSty} value={editDraft.loan_amount ?? ''} placeholder="650000" onChange={e => setEditDraft(d => d ? { ...d, loan_amount: e.target.value ? Number(e.target.value) : null } : d)} />
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: "0.68rem", color: "rgba(185,208,192,0.5)", marginBottom: 2 }}>Rate %</div>
+                                                            <input style={inputSty} value={editDraft.interest_rate ?? ''} placeholder="5.99" onChange={e => setEditDraft(d => d ? { ...d, interest_rate: e.target.value ? Number(e.target.value) : null } : d)} />
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: "0.68rem", color: "rgba(185,208,192,0.5)", marginBottom: 2 }}>Close date</div>
+                                                            <input style={inputSty} value={editDraft.close_date ?? ''} placeholder="2026-04-07" onChange={e => setEditDraft(d => d ? { ...d, close_date: e.target.value || null } : d)} />
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                                                        <button type="button" onClick={() => saveEdit(i)} style={{
+                                                            padding: "4px 14px", borderRadius: 999, border: "none",
+                                                            background: "#63b3ed", color: "#080c12", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer",
+                                                        }}>Save</button>
+                                                        <button type="button" onClick={() => { setEditingIdx(null); setEditDraft(null); }} style={{
+                                                            padding: "4px 10px", borderRadius: 999,
                                                             border: "1px solid rgba(148,163,184,0.2)", background: "transparent",
                                                             color: "rgba(185,208,192,0.5)", fontSize: "0.78rem", cursor: "pointer",
-                                                        }}>
-                                                            Skip
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
+                                                        }}>Cancel</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                                            <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#f1f5f9" }}>{b.name}</span>
+                                                            <span style={{
+                                                                fontSize: "0.7rem", padding: "1px 6px", borderRadius: 999,
+                                                                background: b.confidence === 'high' ? "rgba(0,232,122,0.15)" : b.confidence === 'medium' ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)",
+                                                                color: b.confidence === 'high' ? "#00e87a" : b.confidence === 'medium' ? "#fbbf24" : "#f87171",
+                                                            }}>{b.confidence}</span>
+                                                        </div>
+                                                        {b.email
+                                                            ? <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>{b.email}</div>
+                                                            : !added && !skipped && <div style={{ fontSize: "0.75rem", color: "rgba(251,191,36,0.6)", marginTop: 2 }}>No email — tap Edit to add</div>
+                                                        }
+                                                        {b.property_address && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>📍 {b.property_address}</div>}
+                                                        {(b.purchase_price || b.loan_amount || b.interest_rate || b.close_date) && (
+                                                            <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", marginTop: 2 }}>
+                                                                {[
+                                                                    b.purchase_price ? `Purchase: $${b.purchase_price.toLocaleString()}` : null,
+                                                                    b.loan_amount    ? `Loan: $${b.loan_amount.toLocaleString()}` : null,
+                                                                    b.interest_rate  ? `Rate: ${b.interest_rate}%` : null,
+                                                                    b.close_date     ? `Close: ${b.close_date}` : null,
+                                                                ].filter(Boolean).join(' · ')}
+                                                            </div>
+                                                        )}
+                                                        {b.notes && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.4)", marginTop: 2, fontStyle: "italic" }}>{b.notes}</div>}
+                                                    </div>
+                                                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                                                        {added ? (
+                                                            <span style={{ fontSize: "0.8rem", color: "#00e87a", fontWeight: 600 }}>✓ Added</span>
+                                                        ) : skipped ? (
+                                                            <span style={{ fontSize: "0.8rem", color: "rgba(185,208,192,0.4)" }}>Skipped</span>
+                                                        ) : (
+                                                            <>
+                                                                <button type="button" onClick={() => startEdit(b, i)} disabled={busy} style={{
+                                                                    padding: "5px 10px", borderRadius: 999,
+                                                                    border: "1px solid rgba(99,179,237,0.35)", background: "transparent",
+                                                                    color: "#63b3ed", fontSize: "0.78rem", cursor: busy ? "default" : "pointer",
+                                                                }}>Edit</button>
+                                                                <button type="button" onClick={() => confirmBorrower(b, i)} disabled={busy} style={{
+                                                                    padding: "5px 14px", borderRadius: 999, border: "none",
+                                                                    background: busy ? "rgba(0,232,122,0.3)" : "#00e87a",
+                                                                    color: "#080c12", fontSize: "0.78rem", fontWeight: 600,
+                                                                    cursor: busy ? "default" : "pointer",
+                                                                }}>
+                                                                    {busy ? "Adding…" : "Add"}
+                                                                </button>
+                                                                <button type="button" onClick={() => skipBorrower(i)} disabled={busy} style={{
+                                                                    padding: "5px 10px", borderRadius: 999,
+                                                                    border: "1px solid rgba(148,163,184,0.2)", background: "transparent",
+                                                                    color: "rgba(185,208,192,0.5)", fontSize: "0.78rem", cursor: busy ? "default" : "pointer",
+                                                                }}>Skip</button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
                             {parseErr && <p style={{ margin: "10px 0 0", fontSize: "0.8rem", color: "#f87171" }}>{parseErr}</p>}
-                            <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+                            <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                                {(() => {
+                                    const pending = parsed.filter((_, i) => !addedIdx.has(i) && !skippedIdx.has(i)).length;
+                                    return pending > 0 ? (
+                                        <button type="button" onClick={addAllBorrowers} disabled={addingAll || editingIdx !== null} style={{
+                                            padding: "7px 18px", borderRadius: 999, border: "none",
+                                            background: addingAll ? "rgba(0,232,122,0.3)" : "#00e87a",
+                                            color: "#080c12", fontSize: "0.82rem", fontWeight: 700,
+                                            cursor: addingAll || editingIdx !== null ? "default" : "pointer",
+                                        }}>
+                                            {addingAll ? "Adding…" : `Add All (${pending})`}
+                                        </button>
+                                    ) : null;
+                                })()}
                                 <button type="button" onClick={resetPaste} style={{
                                     padding: "7px 16px", borderRadius: 999,
                                     border: "1px solid rgba(99,179,237,0.3)", background: "transparent",
