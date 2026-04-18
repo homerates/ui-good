@@ -137,7 +137,10 @@ function buildAnalysis(
   })) : [];
 
   const origPurchasePrice   = purchasePriceOverride ?? lastSalePrice;
-  const origBalance         = origPurchasePrice ? origPurchasePrice * 0.8 : (estimatedBalance ?? 0) * 1.5;
+  // If LO entered actual balance, use it directly; otherwise estimate 80% LTV from purchase price
+  const origBalance         = record.actual_balance
+    ? Number(record.actual_balance)
+    : origPurchasePrice ? origPurchasePrice * 0.8 : (estimatedBalance ?? 0) * 1.5;
   const refiMonthlySaving   = (purchaseRate && estimatedBalance && purchaseRate > liveRate)
     ? Math.max(0, monthlyPayment(estimatedBalance, purchaseRate) - monthlyPayment(estimatedBalance, liveRate)) : 0;
   const refiClosingCost     = estimatedBalance ? Math.round(estimatedBalance * 0.02) : 0;
@@ -170,12 +173,22 @@ function buildAnalysis(
   const rentMonthly = rentcast.rentEstimate ?? (estimatedValue ? Math.round(estimatedValue * 0.0055) : null);
   const rentVsOwn   = (piti && rentMonthly) ? rentMonthly - piti : null;
 
-  const appreciationPct = (lastSalePrice && estimatedValue) ? +((estimatedValue - lastSalePrice) / lastSalePrice * 100).toFixed(1) : null;
+  // Use actual purchase price override when available — avoids comparing vs a 2018 Rentcast sale
+  const appreciationBaseline = purchasePriceOverride ?? lastSalePrice;
+  const appreciationPct = (appreciationBaseline && estimatedValue) ? +((estimatedValue - appreciationBaseline) / appreciationBaseline * 100).toFixed(1) : null;
 
   const valueHistory = historyRows.map(r => ({ date: r.snapshot_date as string, value: r.estimated_value as number }));
 
+  // Overlay actual purchase data so the UI always shows what the LO entered, not Rentcast history
+  const displaySalePrice = purchasePriceOverride ?? lastSalePrice;
+  const displaySaleDate  = record.actual_purchase_date
+    ? new Date(record.actual_purchase_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : lastSaleDate;
+
   return {
     ...rentcast,
+    lastSalePrice: displaySalePrice,
+    lastSaleDate:  displaySaleDate,
     estimatedBalance, estimatedEquity, purchaseRate,
     liveRate, fedFundsRate: null,
     valueHistory: valueHistory.length >= 2 ? valueHistory : [],
