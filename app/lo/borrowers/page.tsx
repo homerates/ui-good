@@ -58,6 +58,81 @@ export default function LoBorrowersPage() {
     const [quickAddOk, setQuickAddOk] = React.useState(false);
     const [quickForm, setQuickForm] = React.useState({ name: "", email: "", address: "", sendWelcome: true });
 
+    // Paste import state
+    type ParsedBorrower = {
+        name: string; email: string | null; property_address: string | null;
+        purchase_price: number | null; loan_amount: number | null;
+        close_date: string | null; notes: string | null;
+        confidence: 'high' | 'medium' | 'low';
+    };
+    const [pasteOpen, setPasteOpen] = React.useState(false);
+    const [pasteText, setPasteText] = React.useState('');
+    const [parsing, setParsing] = React.useState(false);
+    const [parsed, setParsed] = React.useState<ParsedBorrower[] | null>(null);
+    const [parseErr, setParseErr] = React.useState<string | null>(null);
+    const [addingIdx, setAddingIdx] = React.useState<number | null>(null);
+    const [addedIdx, setAddedIdx] = React.useState<Set<number>>(new Set());
+    const [skippedIdx, setSkippedIdx] = React.useState<Set<number>>(new Set());
+
+    async function handleParse() {
+        if (!pasteText.trim()) return;
+        setParsing(true);
+        setParseErr(null);
+        setParsed(null);
+        setAddedIdx(new Set());
+        setSkippedIdx(new Set());
+        try {
+            const res = await fetch('/api/borrowers/parse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: pasteText }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.ok) { setParseErr(data.error ?? 'Could not parse. Try again.'); }
+            else if (data.borrowers.length === 0) { setParseErr('No borrowers found. Make sure names and emails are included.'); }
+            else { setParsed(data.borrowers); }
+        } catch { setParseErr('Unexpected error. Please try again.'); }
+        setParsing(false);
+    }
+
+    async function confirmBorrower(b: ParsedBorrower, idx: number) {
+        setAddingIdx(idx);
+        try {
+            const res = await fetch('/api/borrowers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: b.name,
+                    email: b.email ?? null,
+                    property_address: b.property_address ?? null,
+                    actual_purchase_price: b.purchase_price ?? undefined,
+                    actual_close_date: b.close_date ?? undefined,
+                    send_welcome: false,
+                }),
+            });
+            const data = await res.json();
+            if (data.borrower) {
+                setBorrowers(prev => [data.borrower, ...prev]);
+                setAddedIdx(prev => new Set([...prev, idx]));
+            } else {
+                setParseErr(data.error ?? 'Failed to add borrower');
+            }
+        } catch { setParseErr('Unexpected error.'); }
+        setAddingIdx(null);
+    }
+
+    function skipBorrower(idx: number) {
+        setSkippedIdx(prev => new Set([...prev, idx]));
+    }
+
+    function resetPaste() {
+        setPasteText('');
+        setParsed(null);
+        setParseErr(null);
+        setAddedIdx(new Set());
+        setSkippedIdx(new Set());
+    }
+
     React.useEffect(() => {
         if (isLoaded && !isSignedIn) {
             router.replace("/sign-in?redirect_url=" + encodeURIComponent("/lo/borrowers"));
@@ -266,7 +341,14 @@ export default function LoBorrowersPage() {
                     )}
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => { setQuickAddOpen(o => !o); setError(null); }} style={{
+                    <button type="button" onClick={() => { setPasteOpen(o => !o); setQuickAddOpen(false); setError(null); resetPaste(); }} style={{
+                        padding: "9px 18px", borderRadius: 999, border: "1px solid rgba(99,179,237,0.4)",
+                        background: pasteOpen ? "rgba(99,179,237,0.1)" : "transparent",
+                        color: "#63b3ed", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                    }}>
+                        ⚡ Paste Import
+                    </button>
+                    <button type="button" onClick={() => { setQuickAddOpen(o => !o); setPasteOpen(false); setError(null); }} style={{
                         padding: "9px 18px", borderRadius: 999, border: "1px solid rgba(0,232,122,0.4)",
                         background: quickAddOpen ? "rgba(0,232,122,0.1)" : "transparent",
                         color: "#00e87a", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
@@ -283,6 +365,143 @@ export default function LoBorrowersPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Paste Import panel */}
+            {pasteOpen && (
+                <section style={{
+                    padding: "18px 20px", borderRadius: 12, marginBottom: 20,
+                    border: "1px solid rgba(99,179,237,0.2)", background: "rgba(99,179,237,0.03)",
+                }}>
+                    <p style={{ margin: "0 0 4px", fontSize: "0.88rem", fontWeight: 600, color: "#e0f0e8" }}>
+                        ⚡ Paste & Import
+                    </p>
+                    <p style={{ margin: "0 0 14px", fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", lineHeight: 1.6 }}>
+                        Paste anything — a forwarded email, spreadsheet rows, notes from a call, or a CRM export.
+                        AI extracts names, emails, addresses and loan details automatically.
+                    </p>
+
+                    {!parsed ? (
+                        <>
+                            <textarea
+                                value={pasteText}
+                                onChange={e => setPasteText(e.target.value)}
+                                placeholder={"John Smith, john@email.com, 123 Main St Irvine CA, $750k purchase, closing June 2026\n\nOr paste a forwarded email, spreadsheet rows, notes from a call…"}
+                                rows={6}
+                                style={{
+                                    width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                                    borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)",
+                                    background: "rgba(255,255,255,0.04)", color: "#e0f0e8",
+                                    fontSize: "0.82rem", lineHeight: 1.6, outline: "none",
+                                    fontFamily: "inherit", resize: "vertical",
+                                }}
+                            />
+                            {parseErr && <p style={{ margin: "8px 0 0", fontSize: "0.8rem", color: "#f87171" }}>{parseErr}</p>}
+                            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                                <button
+                                    type="button"
+                                    onClick={handleParse}
+                                    disabled={parsing || !pasteText.trim()}
+                                    style={{
+                                        padding: "8px 20px", borderRadius: 999, border: "none",
+                                        background: parsing || !pasteText.trim() ? "rgba(99,179,237,0.3)" : "#63b3ed",
+                                        color: parsing || !pasteText.trim() ? "rgba(8,12,18,0.5)" : "#080c12",
+                                        fontSize: "0.85rem", fontWeight: 600,
+                                        cursor: parsing || !pasteText.trim() ? "default" : "pointer",
+                                    }}
+                                >
+                                    {parsing ? "Parsing…" : "Parse →"}
+                                </button>
+                                <button type="button" onClick={() => setPasteOpen(false)} style={{
+                                    padding: "8px 16px", borderRadius: 999,
+                                    border: "1px solid rgba(148,163,184,0.2)", background: "transparent",
+                                    color: "rgba(185,208,192,0.6)", fontSize: "0.85rem", cursor: "pointer",
+                                }}>
+                                    Cancel
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p style={{ margin: "0 0 12px", fontSize: "0.82rem", color: "rgba(185,208,192,0.7)" }}>
+                                Found <strong style={{ color: "#e0f0e8" }}>{parsed.length}</strong> borrower{parsed.length !== 1 ? 's' : ''} — confirm or skip each one:
+                            </p>
+                            <div style={{ display: "grid", gap: 10 }}>
+                                {parsed.map((b, i) => {
+                                    const added   = addedIdx.has(i);
+                                    const skipped = skippedIdx.has(i);
+                                    const busy    = addingIdx === i;
+                                    return (
+                                        <div key={i} style={{
+                                            padding: "12px 14px", borderRadius: 10,
+                                            border: added ? "1px solid rgba(0,232,122,0.3)" : skipped ? "1px solid rgba(148,163,184,0.1)" : "1px solid rgba(99,179,237,0.2)",
+                                            background: added ? "rgba(0,232,122,0.04)" : skipped ? "rgba(0,0,0,0.1)" : "rgba(99,179,237,0.04)",
+                                            opacity: skipped ? 0.5 : 1,
+                                            display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
+                                        }}>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#f1f5f9" }}>{b.name}</span>
+                                                    <span style={{
+                                                        fontSize: "0.7rem", padding: "1px 6px", borderRadius: 999,
+                                                        background: b.confidence === 'high' ? "rgba(0,232,122,0.15)" : b.confidence === 'medium' ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)",
+                                                        color: b.confidence === 'high' ? "#00e87a" : b.confidence === 'medium' ? "#fbbf24" : "#f87171",
+                                                    }}>{b.confidence}</span>
+                                                </div>
+                                                {b.email && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>{b.email}</div>}
+                                                {b.property_address && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>📍 {b.property_address}</div>}
+                                                {b.purchase_price && <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", marginTop: 2 }}>Purchase: ${b.purchase_price.toLocaleString()}{b.close_date ? ` · Close ${b.close_date}` : ''}</div>}
+                                                {b.notes && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.4)", marginTop: 2, fontStyle: "italic" }}>{b.notes}</div>}
+                                            </div>
+                                            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                                                {added ? (
+                                                    <span style={{ fontSize: "0.8rem", color: "#00e87a", fontWeight: 600 }}>✓ Added</span>
+                                                ) : skipped ? (
+                                                    <span style={{ fontSize: "0.8rem", color: "rgba(185,208,192,0.4)" }}>Skipped</span>
+                                                ) : (
+                                                    <>
+                                                        <button type="button" onClick={() => confirmBorrower(b, i)} disabled={busy} style={{
+                                                            padding: "5px 14px", borderRadius: 999, border: "none",
+                                                            background: busy ? "rgba(0,232,122,0.3)" : "#00e87a",
+                                                            color: "#080c12", fontSize: "0.78rem", fontWeight: 600,
+                                                            cursor: busy ? "default" : "pointer",
+                                                        }}>
+                                                            {busy ? "Adding…" : "Add"}
+                                                        </button>
+                                                        <button type="button" onClick={() => skipBorrower(i)} style={{
+                                                            padding: "5px 10px", borderRadius: 999,
+                                                            border: "1px solid rgba(148,163,184,0.2)", background: "transparent",
+                                                            color: "rgba(185,208,192,0.5)", fontSize: "0.78rem", cursor: "pointer",
+                                                        }}>
+                                                            Skip
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {parseErr && <p style={{ margin: "10px 0 0", fontSize: "0.8rem", color: "#f87171" }}>{parseErr}</p>}
+                            <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+                                <button type="button" onClick={resetPaste} style={{
+                                    padding: "7px 16px", borderRadius: 999,
+                                    border: "1px solid rgba(99,179,237,0.3)", background: "transparent",
+                                    color: "#63b3ed", fontSize: "0.82rem", cursor: "pointer",
+                                }}>
+                                    ← Paste more
+                                </button>
+                                <button type="button" onClick={() => { resetPaste(); setPasteOpen(false); }} style={{
+                                    padding: "7px 16px", borderRadius: 999,
+                                    border: "1px solid rgba(148,163,184,0.15)", background: "transparent",
+                                    color: "rgba(185,208,192,0.5)", fontSize: "0.82rem", cursor: "pointer",
+                                }}>
+                                    Done
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </section>
+            )}
 
             {/* Quick-add panel */}
             {quickAddOpen && (
