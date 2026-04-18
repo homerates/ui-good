@@ -163,8 +163,12 @@ export default function ReportPage() {
     }, [token]);
 
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    const streetViewUrl = borrower?.property_address && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-        ? `https://maps.googleapis.com/maps/api/streetview?size=900x360&location=${encodeURIComponent(borrower.property_address)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+    const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    const streetViewUrl = borrower?.property_address && mapsKey
+        ? `https://maps.googleapis.com/maps/api/streetview?size=900x360&location=${encodeURIComponent(borrower.property_address)}&key=${mapsKey}`
+        : null;
+    const staticMapUrl = borrower?.property_address && mapsKey
+        ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(borrower.property_address)}&zoom=15&size=400x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(borrower.property_address)}&key=${mapsKey}`
         : null;
 
     if (loading) return (
@@ -240,8 +244,8 @@ export default function ReportPage() {
                 <div style={{ ...card, padding: '18px 24px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                         {lo.photo && <img src={lo.photo} alt={lo.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />}
-                        <div>
-                            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>{lo.name}</div>
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'visible' }}>{lo.name}</div>
                             <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 1 }}>
                                 {[lo.title, lo.lender].filter(Boolean).join(' · ')}
                             </div>
@@ -255,26 +259,36 @@ export default function ReportPage() {
                     </div>
                 </div>
 
-                {/* ── HERO: property photo + address ───────────────── */}
+                {/* ── HERO: property photo + satellite map ─────────── */}
                 <div style={{ ...card, marginBottom: 16 }}>
-                    {streetViewUrl ? (
-                        <div style={{ position: 'relative', height: 260, background: '#e2e8f0' }}>
-                            <img src={streetViewUrl} alt="Property" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                                onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
-                            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.7) 0%, transparent 50%)' }} />
-                            <div style={{ position: 'absolute', bottom: 20, left: 24 }}>
-                                <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 4 }}>Home Intelligence Report</div>
-                                <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff', lineHeight: 1.3 }}>{borrower.property_address}</div>
-                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>Prepared for {borrower.name} · {today}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: streetViewUrl && staticMapUrl ? '1.6fr 1fr' : '1fr', height: 260 }}>
+                        {/* Street view */}
+                        {streetViewUrl ? (
+                            <div style={{ position: 'relative', background: '#e2e8f0', overflow: 'hidden' }}>
+                                <img src={streetViewUrl} alt="Property" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                    onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
+                                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.72) 0%, transparent 55%)' }} />
+                                <div style={{ position: 'absolute', bottom: 18, left: 20 }}>
+                                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 3 }}>Home Intelligence Report</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.3 }}>{borrower.property_address}</div>
+                                    <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', marginTop: 3 }}>Prepared for {borrower.name} · {today}</div>
+                                </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div style={{ padding: '24px 24px 0' }}>
-                            <div style={label}>Home Intelligence Report</div>
-                            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#0f172a' }}>{borrower.property_address}</div>
-                            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 4 }}>Prepared for {borrower.name} · {today}</div>
-                        </div>
-                    )}
+                        ) : (
+                            <div style={{ padding: '24px 24px 0', background: '#f8fafc', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 20 }}>
+                                <div style={label}>Home Intelligence Report</div>
+                                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a' }}>{borrower.property_address}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 3 }}>Prepared for {borrower.name} · {today}</div>
+                            </div>
+                        )}
+                        {/* Satellite map */}
+                        {staticMapUrl && (
+                            <div style={{ position: 'relative', overflow: 'hidden', background: '#1e293b' }}>
+                                <img src={staticMapUrl} alt="Location map" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                <div style={{ position: 'absolute', bottom: 8, right: 10, fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)' }}>Satellite view</div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* 4 hero stats below photo */}
                     {val && (
