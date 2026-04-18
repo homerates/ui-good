@@ -147,6 +147,16 @@ export default function LoBorrowersPage() {
         setSkippedIdx(prev => new Set([...prev, idx]));
     }
 
+    function findDuplicate(name: string, email: string | null): Borrower | null {
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (email) {
+            const emailMatch = borrowers.find(b => b.email && b.email.toLowerCase() === email.toLowerCase());
+            if (emailMatch) return emailMatch;
+        }
+        const normName = norm(name);
+        return borrowers.find(b => norm(b.name) === normName) ?? null;
+    }
+
     async function addAllBorrowers() {
         if (!parsed) return;
         setAddingAll(true);
@@ -219,6 +229,8 @@ export default function LoBorrowersPage() {
     async function handleQuickAdd(e: React.FormEvent) {
         e.preventDefault();
         if (!quickForm.name || !quickForm.email) return;
+        const dup = findDuplicate(quickForm.name, quickForm.email);
+        if (dup) { setError(`Already in your pipeline as "${dup.name}"${dup.email ? ` (${dup.email})` : ''}.`); return; }
         setQuickAdding(true);
         setError(null);
         try {
@@ -543,14 +555,21 @@ export default function LoBorrowersPage() {
                                             ) : (
                                                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                                            <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#f1f5f9" }}>{b.name}</span>
-                                                            <span style={{
-                                                                fontSize: "0.7rem", padding: "1px 6px", borderRadius: 999,
-                                                                background: b.confidence === 'high' ? "rgba(0,232,122,0.15)" : b.confidence === 'medium' ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)",
-                                                                color: b.confidence === 'high' ? "#00e87a" : b.confidence === 'medium' ? "#fbbf24" : "#f87171",
-                                                            }}>{b.confidence}</span>
-                                                        </div>
+                                                        {(() => {
+                                                            const dup = !added && !skipped ? findDuplicate(b.name, b.email) : null;
+                                                            return (<>
+                                                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                                                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#f1f5f9" }}>{b.name}</span>
+                                                                    <span style={{
+                                                                        fontSize: "0.7rem", padding: "1px 6px", borderRadius: 999,
+                                                                        background: b.confidence === 'high' ? "rgba(0,232,122,0.15)" : b.confidence === 'medium' ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)",
+                                                                        color: b.confidence === 'high' ? "#00e87a" : b.confidence === 'medium' ? "#fbbf24" : "#f87171",
+                                                                    }}>{b.confidence}</span>
+                                                                    {dup && <span style={{ fontSize: "0.7rem", padding: "1px 7px", borderRadius: 999, background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}>⚠ Already in pipeline</span>}
+                                                                </div>
+                                                                {dup && <div style={{ fontSize: "0.74rem", color: "rgba(251,191,36,0.55)", marginTop: 2 }}>Matches "{dup.name}"{dup.email ? ` · ${dup.email}` : ''}</div>}
+                                                            </>);
+                                                        })()}
                                                         {b.email
                                                             ? <div style={{ fontSize: "0.78rem", color: "rgba(185,208,192,0.7)", marginTop: 2 }}>{b.email}</div>
                                                             : !added && !skipped && <div style={{ fontSize: "0.75rem", color: "rgba(251,191,36,0.6)", marginTop: 2 }}>No email — tap Edit to add</div>
