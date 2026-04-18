@@ -92,7 +92,7 @@ Return valid JSON only:
                 model: XAI_MODEL,
                 messages: [{ role: 'user', content: prompt }],
                 temperature: 0.1,
-                max_tokens: 1500,
+                max_tokens: 3000,
                 response_format: { type: 'json_object' },
             }),
             signal: AbortSignal.timeout(20_000),
