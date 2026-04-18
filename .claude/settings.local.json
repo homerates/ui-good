@@ -22,7 +22,20 @@
       "Bash(git -C:*)",
       "Read(//c/Users/rayaa/AppData/Local/Temp/**)",
       "Bash(xxd \"C:/Users/rayaa/AppData/Local/Temp/fhfa2026.xlsx\")",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(curl -sL -o /dev/null -w \"%{http_code}\" \"https://www.huduser.gov/hudapi/public/register\")",
+      "Bash(curl -s \"https://www.fema.gov/api/open\")",
+      "Bash(curl -sL \"https://hazards.fema.gov/nri/Content/StaticDocFiles/NRI_Table_Counties.zip\" -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s \"https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0/query?where=1%3D1&outFields=STCOFIPS%2CCOUNTY%2CSTATEABBRV%2CRISK_SCORE%2CRISK_RATNG%2CHRCN_RISKS%2CWFIR_RISKS%2CRFLD_RISKS%2CCFLD_RISKS%2CERQK_RISKS%2CTRND_RISKS%2CHAIL_RISKS%2CWNTW_RISKS%2CDRGT_RISKS%2CHWAV_RISKS&returnGeometry=false&f=json&resultRecordCount=2&resultOffset=0\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\); print\\(d.get\\('error','ok'\\)\\)\")",
+      "Bash(curl -s \"https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0?f=json\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); fields=d.get\\('fields',[]\\); [print\\(f['name']\\) for f in fields if any\\(x in f['name'].upper\\(\\) for x in ['RISK','HRCN','WFIR','RFLD','CFLD','ERQK','TRND','HAIL','WNTW','DRGT','HWAV','FIPS','COUNTY','STATE']\\)]\")",
+      "Bash(grep -n \"down_payment_pct\" /c/Users/rayaa/ui-good/supabase/migrations/*.sql)",
+      "Bash(node tools/etl-hud.mjs --check-only)",
+      "Bash(node tools/etl-hud.mjs)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(grep -r \"GOOGLE_MAPS\\\\|google.*maps\\\\|maps.*google\" .env.local .env*)",
+      "Bash(npm install *)"
     ]
   }
 }

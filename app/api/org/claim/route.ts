@@ -63,17 +63,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "You already own an organization on HomeRates.ai" }, { status: 409 });
   }
 
-  // Check user is an LO (required to own an org)
-  const { data: lo } = await sb
-    .from("loan_officers")
-    .select("id, brokerage_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!lo) {
-    return NextResponse.json({ error: "A professional profile is required to claim an organization. Please complete your LO profile first." }, { status: 403 });
-  }
-
   // Create brokerage
   const { data: brokerage, error: createErr } = await sb
     .from("brokerages")
@@ -100,7 +89,7 @@ export async function POST(req: NextRequest) {
     role: "owner",
   });
 
-  // Link LO to brokerage
+  // Link LO profile to brokerage if they have one (not required)
   await sb.from("loan_officers").update({ brokerage_id: brokerage.id }).eq("user_id", userId);
 
   // Mark invite accepted, link to brokerage

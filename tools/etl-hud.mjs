@@ -141,7 +141,16 @@ async function processState(stateAbbr) {
 
 async function upsertBatch(table, rows, conflict) {
   if (!rows.length) return;
-  const { error } = await sb.from(table).upsert(rows, { onConflict: conflict });
+  // Deduplicate by conflict key to avoid "cannot affect row a second time" errors
+  const keys = conflict.split(',');
+  const seen = new Set();
+  const deduped = rows.filter(r => {
+    const k = keys.map(k => r[k.trim()]).join('|');
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const { error } = await sb.from(table).upsert(deduped, { onConflict: conflict });
   if (error) throw new Error(`${table}: ${error.message}`);
 }
 
