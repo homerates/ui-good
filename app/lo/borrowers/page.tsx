@@ -49,7 +49,7 @@ export default function LoBorrowersPage() {
     const [deleting, setDeleting] = React.useState<string | null>(null);
     // Loan detail overrides per borrower
     const [loanOpen, setLoanOpen]   = React.useState<string | null>(null);   // borrower id with open panel
-    const [loanForm, setLoanForm]   = React.useState<Record<string, { balance: string; rate: string; purchasePrice: string; purchaseDate: string }>>({});
+    const [loanForm, setLoanForm]   = React.useState<Record<string, { balance: string; rate: string; purchasePrice: string; purchaseDate: string; email: string }>>({});
     const [loanSaving, setLoanSaving] = React.useState<string | null>(null);
     const [loanSaved,  setLoanSaved]  = React.useState<string | null>(null);
     // Quick-add state
@@ -312,6 +312,7 @@ export default function LoBorrowersPage() {
                 rate:          b.actual_rate           ? String(b.actual_rate)           : '',
                 purchasePrice: b.actual_purchase_price ? String(b.actual_purchase_price) : '',
                 purchaseDate:  b.actual_purchase_date  ?? '',
+                email:         b.email ?? '',
             },
         }));
         setLoanOpen(prev => prev === b.id ? null : b.id);
@@ -331,6 +332,7 @@ export default function LoBorrowersPage() {
                 actual_rate:           f.rate          ? Number(f.rate)          : null,
                 actual_purchase_price: f.purchasePrice ? Number(f.purchasePrice) : null,
                 actual_purchase_date:  f.purchaseDate  || null,
+                ...(f.email.trim() ? { email: f.email.trim() } : {}),
             }),
         });
         const data = await res.json().catch(() => ({}));
@@ -928,6 +930,15 @@ export default function LoBorrowersPage() {
                                         <p style={{ margin: 0, fontSize: "0.78rem", color: "rgba(185,208,192,0.5)", lineHeight: 1.5 }}>
                                             Override Rentcast estimates with actual loan data. Leave blank to keep using estimates.
                                         </p>
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                            <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Email {!b.email && <span style={{ color: "#fbbf24" }}>— missing</span>}</label>
+                                            <input
+                                                type="email" placeholder="borrower@email.com"
+                                                value={lf.email}
+                                                onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, email: e.target.value } }))}
+                                                style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                            />
+                                        </div>
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                                                 <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Current Balance ($)</label>
