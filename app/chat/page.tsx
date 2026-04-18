@@ -2060,7 +2060,13 @@ export default function Page() {
                         {
                             label: `What income do I need to qualify?`,
                             seed: `What income do I need to qualify for a ${priceFmt} home${cityStr}?`,
-                            ...(d.price && isJumboLoan ? { paramOverrides: { purchasePrice: d.price, downPaymentPct: defaultDown, annualRatePct: liveRate, loanType: 'jumbo' } } : {}),
+                            paramOverrides: {
+                                purchasePrice: d.price ?? 0,
+                                downPaymentPct: defaultDown,
+                                annualRatePct: liveRate,
+                                propertyTaxRate: taxRate,
+                                ...(isJumboLoan ? { loanType: 'jumbo' } : {}),
+                            },
                         },
                         // FHA doesn't apply to jumbo — swap for jumbo-specific chip
                         ...(isJumboLoan ? [{
@@ -2074,11 +2080,11 @@ export default function Page() {
                         ...(d.price && d.price * (1 - 0.10) <= 832750 ? [{
                             label: `10% down — what's my payment?`,
                             seed: `Conventional loan on ${priceFmt} with 10% down at ${liveRate.toFixed(2)}%`,
-                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 10, annualRatePct: liveRate },
+                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 10, annualRatePct: liveRate, propertyTaxRate: taxRate },
                         }] : [{
                             label: `25% down — what's my payment?`,
                             seed: `${isJumboLoan ? 'Jumbo' : 'Conventional'} loan on ${priceFmt} with 25% down at ${liveRate.toFixed(2)}%`,
-                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 25, annualRatePct: liveRate, ...(isJumboLoan ? { loanType: 'jumbo' } : {}) },
+                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 25, annualRatePct: liveRate, propertyTaxRate: taxRate, ...(isJumboLoan ? { loanType: 'jumbo' } : {}) },
                         }]),
                         ...(d.price && d.address ? [{
                             label: `Full Property Intelligence Report`,
