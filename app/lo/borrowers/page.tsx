@@ -39,6 +39,7 @@ export default function LoBorrowersPage() {
     const [sentOk, setSentOk] = React.useState<string | null>(null);
     const [sendingPreview, setSendingPreview] = React.useState<string | null>(null);
     const [sentPreviewOk, setSentPreviewOk]   = React.useState<string | null>(null);
+    const [reportCopied, setReportCopied]     = React.useState<string | null>(null);
     // Gift credits state
     const [loBalance, setLoBalance] = React.useState<number | null>(null);
     const [giftOpen, setGiftOpen] = React.useState<string | null>(null);    // borrower id with open gift panel
@@ -371,6 +372,20 @@ export default function LoBorrowersPage() {
         setSendingPreview(null);
         if (data.ok) { setSentPreviewOk(borrower.id); setTimeout(() => setSentPreviewOk(null), 4000); }
         else { setError(data.error ?? 'Failed to send preview.'); }
+    }
+
+    async function generateReport(borrower: Borrower) {
+        const res = await fetch('/api/report/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ borrower_id: borrower.id }),
+        });
+        const data = await res.json();
+        if (!data.ok) { setError(data.error ?? 'Failed to generate report.'); return; }
+        const url = `${window.location.origin}/report/${data.token}`;
+        await navigator.clipboard.writeText(url).catch(() => {});
+        setReportCopied(borrower.id);
+        setTimeout(() => setReportCopied(null), 4000);
     }
 
     async function sendDigest(borrower: Borrower) {
@@ -807,6 +822,22 @@ export default function LoBorrowersPage() {
                                         >
                                             View Home →
                                         </Link>
+                                        {/* Send Report button */}
+                                        {b.property_address && (
+                                            <button
+                                                type="button"
+                                                onClick={() => generateReport(b)}
+                                                style={{
+                                                    padding: "6px 14px", borderRadius: 999,
+                                                    border: "1px solid rgba(0,232,122,0.35)",
+                                                    background: reportCopied === b.id ? "rgba(0,232,122,0.12)" : "transparent",
+                                                    color: reportCopied === b.id ? "#00e87a" : "rgba(0,232,122,0.7)",
+                                                    fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                {reportCopied === b.id ? "Link Copied ✓" : "📋 Report Link"}
+                                            </button>
+                                        )}
                                         {/* Loan details override button */}
                                         <button
                                             type="button"
