@@ -238,10 +238,22 @@ export default function ReportPage() {
         <div className="ps-root" style={{ fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,sans-serif' }}>
             <style>{psStyle + `* { box-sizing: border-box; } @media print { body { background: white; } }`}</style>
 
-            <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px 72px' }}>
+            {/* ── HomeRates branded header ──────────────────────── */}
+            <div style={{ background: '#0f172a', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/assets/homerates-mark.svg" alt="HomeRates" style={{ height: 26, width: 'auto' }} />
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.03em' }}>HomeRates</span>
+                </div>
+                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Home Intelligence Report</span>
+            </div>
+
+            <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 72px' }}>
 
                 {/* ── TOP BAR: LO identity ─────────────────────────── */}
-                <div style={{ ...card, padding: '18px 24px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                <div style={{ ...card, padding: '0', marginBottom: 16, overflow: 'hidden' }}>
+                <div style={{ height: 3, background: 'linear-gradient(90deg,#00e87a,#00b459)' }} />
+                <div style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                         {lo.photo && <img src={lo.photo} alt={lo.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />}
                         <div style={{ minWidth: 0 }}>
@@ -257,6 +269,7 @@ export default function ReportPage() {
                         {lo.email && <div>{lo.email}</div>}
                         {lo.website && <div style={{ color: '#00b459' }}>{lo.website}</div>}
                     </div>
+                </div>
                 </div>
 
                 {/* ── HERO: property photo + satellite map ─────────── */}
