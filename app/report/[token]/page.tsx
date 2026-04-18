@@ -136,13 +136,7 @@ export default function ReportPage() {
     const [loading, setLoading]   = React.useState(true);
     const [err, setErr]           = React.useState<string | null>(null);
 
-    // Override dark body background for this standalone page
-    React.useEffect(() => {
-        const prev = document.body.style.background;
-        document.body.style.background = '#f1f5f9';
-        document.body.style.backgroundColor = '#f1f5f9';
-        return () => { document.body.style.background = prev; };
-    }, []);
+    // ps-root pattern handles layout override via CSS
 
     React.useEffect(() => {
         if (!token) return;
@@ -171,18 +165,28 @@ export default function ReportPage() {
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(borrower.property_address)}&zoom=15&size=400x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(borrower.property_address)}&key=${mapsKey}`
         : null;
 
+    const psStyle = `
+        body:has(.ps-root){display:block!important;height:auto!important;overflow-y:auto!important;background:#f1f5f9!important;}
+        html:has(.ps-root){height:auto!important;overflow:visible!important;}
+        body:has(.ps-root) nav{display:none!important;}
+        body:has(.ps-root) .app-footer{display:none!important;}
+        .ps-root{min-height:100vh;width:100%;background:#f1f5f9;}
+        @keyframes spin{to{transform:rotate(360deg);}}
+    `;
+
     if (loading) return (
-        <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui,sans-serif' }}>
+        <div className="ps-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui,sans-serif' }}>
+            <style>{psStyle}</style>
             <div style={{ textAlign: 'center' }}>
                 <div style={{ width: 40, height: 40, border: '3px solid #e2e8f0', borderTopColor: '#00e87a', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
                 <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading your report…</div>
             </div>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 
     if (err || !lo || !borrower) return (
-        <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui,sans-serif' }}>
+        <div className="ps-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui,sans-serif' }}>
+            <style>{psStyle}</style>
             <div style={{ color: '#ef4444' }}>{err ?? 'Unable to load report.'}</div>
         </div>
     );
@@ -231,12 +235,8 @@ export default function ReportPage() {
     };
 
     return (
-        <div style={{ background: '#f1f5f9', minHeight: '100vh', fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,sans-serif' }}>
-            <style>{`
-                @keyframes spin { to { transform: rotate(360deg); } }
-                * { box-sizing: border-box; }
-                @media print { body { background: white; } }
-            `}</style>
+        <div className="ps-root" style={{ fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,sans-serif' }}>
+            <style>{psStyle + `* { box-sizing: border-box; } @media print { body { background: white; } }`}</style>
 
             <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px 72px' }}>
 
