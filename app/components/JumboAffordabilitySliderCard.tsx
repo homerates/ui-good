@@ -319,6 +319,8 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
             borderRadius: 12,
             padding: '12px 14px',
             textAlign: 'center' as const,
+            minWidth: 0,
+            overflow: 'hidden',
         } as CSSProperties,
         heroVal: {
             fontSize: '1.4rem',

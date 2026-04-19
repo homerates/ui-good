@@ -588,6 +588,8 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                 .ll-loan-display__top {
                     display: flex;
                     justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 8px;
                     margin-bottom: 12px;
                 }
                 .ll-loan-amt {
@@ -683,8 +685,8 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                 .ll-limits-row--hb   { background: #fefce8; }
                 .ll-limits-row--jmb  { background: #fef2f2; }
                 .ll-limits-zone { flex: 1; font-weight: 600; color: #374151; white-space: nowrap; }
-                .ll-limits-amt  { color: #0f172a; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 120px; text-align: right; }
-                .ll-limits-rate { color: #64748b; min-width: 100px; text-align: right; font-size: 11px; }
+                .ll-limits-amt  { color: #0f172a; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 80px; text-align: right; }
+                .ll-limits-rate { color: #64748b; min-width: 80px; text-align: right; font-size: 11px; }
 
                 /* Stay conforming callout */
                 .ll-callout {
