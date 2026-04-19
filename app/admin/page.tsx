@@ -827,7 +827,7 @@ export default function AdminDashboard() {
                       </td>
                       <td>
                         {scenarioMsg?.id === s.id ? (
-                          <span style={{ fontSize: "0.72rem", color: "#00e87a" }}>{scenarioMsg.msg}</span>
+                          <span style={{ fontSize: "0.72rem", color: "#00e87a" }}>{scenarioMsg?.msg}</span>
                         ) : (
                           <div style={{ display: "flex", gap: 6 }}>
                             {s.status !== "archived" && (
