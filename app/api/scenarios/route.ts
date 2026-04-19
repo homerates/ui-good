@@ -350,7 +350,7 @@ export async function GET(req: NextRequest) {
   if (myResponses) {
     const { data } = await sb
       .from("scenario_responses")
-      .select("id, rate_estimate, approach, responder_type, created_at, scenario_id, scenario_briefs(id, loan_type, loan_purpose, price_range, state, status, response_count, max_responses, closes_at, created_at)")
+      .select("id, rate_estimate, approach, responder_type, status, created_at, scenario_id, scenario_briefs(id, loan_type, loan_purpose, price_range, state, status, response_count, max_responses, closes_at, created_at)")
       .eq("lo_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);

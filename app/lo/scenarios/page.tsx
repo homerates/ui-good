@@ -61,11 +61,12 @@ const BADGE_COLOR: Record<string, string> = {
   va: "#00e87a", jumbo: "#ff8c42", dscr: "#ff5f5f",
 };
 
-interface MyResponse {
+interface MyPipelineEntry {
   id: string;
   rate_estimate: string;
   approach: string;
   responder_type: string;
+  status: string;          // response status: null | 'invited'
   created_at: string;
   scenario_id: string;
   scenario_briefs: {
@@ -74,7 +75,7 @@ interface MyResponse {
     loan_purpose: string;
     price_range: string;
     state: string;
-    status: string;
+    status: string;        // scenario status: active | matched | closed | withdrawn
     response_count: number;
     max_responses: number;
     closes_at: string;
@@ -96,10 +97,10 @@ const SAMPLE_SCENARIOS: Scenario[] = [
 export default function LOScenariosPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"board" | "referrals" | "responses">("board");
+  const [tab, setTab] = useState<"board" | "referrals" | "pipeline">("board");
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [referrals, setReferrals] = useState<Scenario[]>([]);
-  const [myResponses, setMyResponses] = useState<MyResponse[]>([]);
+  const [myPipeline, setMyPipeline] = useState<MyPipelineEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("All");
   const [filterState, setFilterState] = useState("");
@@ -155,11 +156,11 @@ export default function LOScenariosPage() {
       .catch(() => {});
   }, []);
 
-  // Load my response history once on mount
+  // Load My Pipeline once on mount
   useEffect(() => {
     fetch("/api/scenarios?my_responses=1")
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setMyResponses(d.responses ?? []); })
+      .then(d => { if (d) setMyPipeline(d.responses ?? []); })
       .catch(() => {});
   }, []);
 
@@ -227,7 +228,7 @@ export default function LOScenariosPage() {
     setWithdrawingId(scenarioId);
     const res = await fetch(`/api/scenarios/${scenarioId}/respond`, { method: "DELETE" });
     if (res.ok) {
-      setMyResponses(prev => prev.filter(r => r.scenario_id !== scenarioId));
+      setMyPipeline(prev => prev.filter(r => r.scenario_id !== scenarioId));
     }
     setWithdrawingId(null);
   }
@@ -397,19 +398,24 @@ export default function LOScenariosPage() {
           <div className="los-header">
             <div>
               <h1 className="los-title">
-                {tab === "referrals" ? "My Referrals" : tab === "responses" ? "My Responses" : "The Private Exchange"}
+                {tab === "referrals" ? "My Referrals" : tab === "pipeline" ? "My Pipeline" : "The Private Exchange"}
               </h1>
               <p className="los-sub">
                 {tab === "referrals"
                   ? "Private scenarios from borrowers you referred. Only you can see these."
-                  : tab === "responses"
-                  ? "Scenarios you've responded to. Withdraw a response to reopen your slot."
+                  : tab === "pipeline"
+                  ? "Scenarios you've responded to. Once the cap fills, it lands here exclusively."
                   : "Anonymous borrower scenarios — respond to earn an introduction."}
               </p>
             </div>
             <div className="los-stats">
-              {tab === "board" && <span className="los-stat">{scenarios.filter(s => !s.already_responded).length} new</span>}
+              {tab === "board" && <span className="los-stat">{scenarios.filter(s => !s.already_responded).length} open</span>}
               {tab === "referrals" && referrals.length > 0 && <span className="los-stat los-stat-private">🔒 {referrals.length} private</span>}
+              {tab === "pipeline" && myPipeline.length > 0 && (
+                <span className="los-stat" style={{ background: "rgba(61,139,255,0.1)", color: "#3d8bff", borderColor: "rgba(61,139,255,0.25)" }}>
+                  {myPipeline.filter(r => r.scenario_briefs?.status === "matched" && r.status !== "invited").length} shortlisted
+                </span>
+              )}
             </div>
           </div>
 
@@ -432,11 +438,15 @@ export default function LOScenariosPage() {
               {referrals.length > 0 && <span className="los-tab-badge los-tab-badge-private">{referrals.length}</span>}
             </button>
             <button
-              className={`los-tab ${tab === "responses" ? "active" : ""}`}
-              onClick={() => setTab("responses")}
+              className={`los-tab ${tab === "pipeline" ? "active" : ""}`}
+              onClick={() => setTab("pipeline")}
             >
-              My Responses
-              {myResponses.length > 0 && <span className="los-tab-badge" style={{ background: "#8fa3b8" }}>{myResponses.length}</span>}
+              My Pipeline
+              {myPipeline.filter(r => r.scenario_briefs?.status === "matched" && r.status !== "invited").length > 0 && (
+                <span className="los-tab-badge" style={{ background: "#3d8bff" }}>
+                  {myPipeline.filter(r => r.scenario_briefs?.status === "matched" && r.status !== "invited").length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -510,44 +520,73 @@ export default function LOScenariosPage() {
             )
           )}
 
-          {/* My Responses tab */}
-          {tab === "responses" && (
-            myResponses.length === 0 ? (
+          {/* My Pipeline tab */}
+          {tab === "pipeline" && (
+            myPipeline.length === 0 ? (
               <div className="los-empty">
-                <div className="los-empty-icon">📤</div>
-                <p>No responses yet.</p>
-                <p className="los-empty-sub">Once you respond to scenarios on The Private Exchange, your history appears here.</p>
+                <div className="los-empty-icon">📥</div>
+                <p>Your pipeline is empty.</p>
+                <p className="los-empty-sub">Respond to scenarios on The Private Exchange. Once the response cap fills, the scenario lands here exclusively for the responding LOs.</p>
               </div>
             ) : (
               <div className="los-board">
-                {myResponses.map(r => {
+                {myPipeline.map(r => {
                   const sb = r.scenario_briefs;
                   if (!sb) return null;
-                  const isOpen = sb.status === "active";
+
+                  // Resolve lifecycle stage
+                  const isConnected = r.status === "invited";
+                  const isShortlisted = !isConnected && sb.status === "matched";
+                  const isActive = !isConnected && !isShortlisted && sb.status === "active";
+                  const isClosed = !isConnected && !isShortlisted && !isActive;
+
+                  const stageBadge = isConnected
+                    ? { label: "Connected", color: "#00e87a", bg: "rgba(0,232,122,0.1)", border: "rgba(0,232,122,0.3)" }
+                    : isShortlisted
+                    ? { label: "Shortlisted", color: "#3d8bff", bg: "rgba(61,139,255,0.1)", border: "rgba(61,139,255,0.3)" }
+                    : isActive
+                    ? { label: "Pending", color: "#8fa3b8", bg: "rgba(143,163,184,0.08)", border: "rgba(143,163,184,0.2)" }
+                    : { label: "Closed", color: "#3a4560", bg: "rgba(58,69,96,0.15)", border: "rgba(58,69,96,0.3)" };
+
                   return (
-                    <div key={r.id} className="los-card" style={{ opacity: isOpen ? 1 : 0.65 }}>
+                    <div key={r.id} className="los-card" style={{ opacity: isClosed ? 0.5 : 1, borderColor: isShortlisted ? "rgba(61,139,255,0.25)" : isConnected ? "rgba(0,232,122,0.25)" : undefined }}>
+
+                      {/* Stage banner */}
+                      {isConnected && (
+                        <div style={{ background: "rgba(0,232,122,0.07)", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: "0.82rem", color: "#00e87a", lineHeight: 1.5 }}>
+                          <strong>Contact exchanged.</strong> Continue directly with the borrower — HomeRates.ai's role is done.
+                        </div>
+                      )}
+                      {isShortlisted && (
+                        <div style={{ background: "rgba(61,139,255,0.06)", border: "1px solid rgba(61,139,255,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: "0.82rem", color: "#3d8bff", lineHeight: 1.5 }}>
+                          <strong>You're shortlisted.</strong> The response cap was reached — borrower is reviewing the {sb.max_responses} responses.
+                        </div>
+                      )}
+
                       <div className="los-card-top">
                         <span className="los-loan-badge" style={{ background: BADGE_BG[sb.loan_type] ?? "rgba(61,139,255,0.12)", border: `1px solid ${BADGE_BORDER[sb.loan_type] ?? "rgba(61,139,255,0.3)"}`, color: BADGE_COLOR[sb.loan_type] ?? "#3d8bff" }}>
                           {LABEL_MAP[sb.loan_type] ?? sb.loan_type}
                         </span>
                         <span className="los-card-state">{sb.state}</span>
-                        <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: isOpen ? "rgba(0,232,122,0.08)" : "rgba(58,69,96,0.2)", color: isOpen ? "#00e87a" : "#3a4560", border: `1px solid ${isOpen ? "rgba(0,232,122,0.2)" : "rgba(58,69,96,0.3)"}` }}>
-                          {sb.status === "active" ? "Open" : sb.status === "matched" ? "Matched" : "Closed"}
+                        <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: stageBadge.bg, border: `1px solid ${stageBadge.border}`, color: stageBadge.color }}>
+                          {stageBadge.label}
                         </span>
                         <span className="los-card-time" style={{ marginLeft: "auto" }}>{timeAgo(r.created_at)}</span>
                       </div>
+
                       <div className="los-card-grid">
                         <div className="los-card-field"><div className="los-cf-label">Price</div><div className="los-cf-value">{sb.price_range}</div></div>
                         <div className="los-card-field"><div className="los-cf-label">State</div><div className="los-cf-value">{sb.state}</div></div>
                         <div className="los-card-field"><div className="los-cf-label">My Rate</div><div className="los-cf-value" style={{ color: "#00e87a" }}>{r.rate_estimate}</div></div>
                         <div className="los-card-field"><div className="los-cf-label">Responses</div><div className="los-cf-value">{sb.response_count}/{sb.max_responses}</div></div>
                       </div>
+
                       <div className="los-card-footer">
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          <span className="los-responded-badge">✓ Responded</span>
-                          {sb.closes_at && isOpen && <span className="los-card-timeleft">{timeLeft(sb.closes_at)}</span>}
+                          {isActive && sb.closes_at && <span className="los-card-timeleft">{timeLeft(sb.closes_at)}</span>}
+                          {isActive && <span style={{ fontSize: "0.72rem", color: "#3a4560" }}>{(sb.max_responses ?? 3) - sb.response_count} slot{(sb.max_responses ?? 3) - sb.response_count !== 1 ? "s" : ""} left</span>}
                         </div>
-                        {isOpen && (
+                        {isActive && (
                           <button
                             className="los-modal-cancel"
                             style={{ fontSize: "0.75rem", padding: "5px 14px" }}
