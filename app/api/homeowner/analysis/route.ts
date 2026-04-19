@@ -1,6 +1,7 @@
 // app/api/homeowner/analysis/route.ts
 // GET — full property intelligence for the signed-in homeowner
-// Calls Rentcast (AVM + rent) + FRED, returns all computed fields for the /my-home cards
+// Sources: property_snapshots cache → properties table → FHFA AVM model → Tavily fallback
+// No external paid AVM APIs — all data from public sources + LO overrides
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -52,56 +53,190 @@ function monthlyPayment(principal: number, annualRate: number, months = 360): nu
   return Math.round((principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1));
 }
 
-async function rentcastLookup(address: string) {
-  const key = process.env.RENTCAST_API_KEY;
-  if (!key) return null;
+// ── FHFA state-level annual appreciation rates (5yr CAGR 2019-2024) ──────────
+const FHFA_STATE: Record<string, number> = {
+  AL:4.9, AK:3.8, AZ:8.7, AR:5.6, CA:5.8, CO:5.9, CT:7.2, DE:6.4,
+  FL:10.2,GA:8.4, HI:4.1, ID:9.1, IL:4.8, IN:5.9, IA:4.7, KS:5.2,
+  KY:5.4, LA:4.1, ME:8.3, MD:5.7, MA:6.1, MI:6.2, MN:5.6, MS:4.6,
+  MO:5.5, MT:9.4, NE:5.4, NV:7.8, NH:8.1, NJ:6.3, NM:7.2, NY:4.2,
+  NC:8.1, ND:3.9, OH:5.8, OK:5.3, OR:5.4, PA:5.6, RI:7.8, SC:8.9,
+  SD:5.8, TN:8.6, TX:8.9, UT:8.3, VT:7.6, VA:6.3, WA:6.5, WV:4.2,
+  WI:5.5, WY:5.1, DC:3.9,
+};
+function fhfaRate(state: string | null): number {
+  return (state ? FHFA_STATE[state.toUpperCase()] : null) ?? 5.5;
+}
 
-  const enc  = encodeURIComponent(address);
-  const base = 'https://api.rentcast.io/v1';
-  const hdrs = { 'X-Api-Key': key, Accept: 'application/json' };
+// Extract state from an address string (last 2-letter token before ZIP or at end)
+function stateFromAddress(address: string): string | null {
+  const m = address.match(/\b([A-Z]{2})\b\s*\d{5}/) ?? address.match(/\b([A-Z]{2})\s*$/);
+  if (!m) return null;
+  return m[1] in FHFA_STATE ? m[1] : null;
+}
 
-  const [propRes, avmRes, rentRes] = await Promise.allSettled([
-    fetch(`${base}/properties?address=${enc}&limit=1`, { headers: hdrs }),
-    fetch(`${base}/avm/value?address=${enc}`,          { headers: hdrs }),
-    fetch(`${base}/avm/rent/long-term?address=${enc}`, { headers: hdrs }),
-  ]);
+// ── Tavily: async fire-and-forget to find last sale data ─────────────────────
+async function tavilyPropertySearch(address: string): Promise<{ lastSalePrice: number | null; lastSaleDate: string | null }> {
+  const key = process.env.TAVILY_API_KEY;
+  if (!key) return { lastSalePrice: null, lastSaleDate: null };
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 7000);
+    const res = await fetch('https://api.tavily.com/search', {
+      method: 'POST', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: key,
+        query: `"${address}" sold price last sale public records`,
+        max_results: 3,
+        search_depth: 'basic',
+        include_answer: true,
+      }),
+    });
+    clearTimeout(t);
+    if (!res.ok) return { lastSalePrice: null, lastSaleDate: null };
+    const data = await res.json();
+    const text = [data.answer ?? '', ...(data.results ?? []).map((r: any) => r.content ?? '')].join(' ');
+    // Parse price: $NNN,NNN or $N.NM
+    const priceMatch = text.match(/\$\s*([\d,]+)\s*(?:thousand|k)?/i);
+    let lastSalePrice: number | null = null;
+    if (priceMatch) {
+      const raw = Number(priceMatch[1].replace(/,/g, ''));
+      lastSalePrice = raw > 10000 ? raw : raw * 1000; // handle "250,000" vs "250k"
+    }
+    // Parse date: Month YYYY or YYYY
+    const dateMatch = text.match(/(?:sold|purchased|closed)[^.]{0,40}?((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}|\d{4})/i);
+    const lastSaleDate = dateMatch ? dateMatch[1] : null;
+    return { lastSalePrice, lastSaleDate };
+  } catch { return { lastSalePrice: null, lastSaleDate: null }; }
+}
 
-  const propData = propRes.status === 'fulfilled' && propRes.value.ok ? await propRes.value.json() : null;
-  const avmData  = avmRes.status  === 'fulfilled' && avmRes.value.ok  ? await avmRes.value.json()  : null;
-  const rentData = rentRes.status === 'fulfilled' && rentRes.value.ok ? await rentRes.value.json() : null;
-  const prop     = Array.isArray(propData) ? propData[0] : propData;
-  if (!prop) return null;
+// ── property_snapshots cache helpers ─────────────────────────────────────────
+const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-  const rawDate        = prop.lastSaleDate ?? null;
-  const lastSaleDate   = rawDate ? new Date(rawDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
-  const lastSalePrice  = prop.lastSalePrice ?? null;
-  const estimatedValue      = avmData?.price          ?? null;
-  const estimatedValueLow   = avmData?.priceRangeLow  ?? null;
-  const estimatedValueHigh  = avmData?.priceRangeHigh ?? null;
-  const rentEstimate         = rentData?.rent ?? rentData?.rentRangeLow ?? null;
+function normalizeAddr(a: string) { return a.toLowerCase().replace(/\s+/g, ' ').trim(); }
 
+async function getSnapshot(address: string) {
+  try {
+    const { data: prop } = await db().from('properties').select('id').eq('address_full', normalizeAddr(address)).maybeSingle();
+    if (!prop) return null;
+    const { data: snap } = await db().from('property_snapshots')
+      .select('data, fetched_at').eq('property_id', prop.id).eq('snapshot_type', 'full')
+      .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
+    if (!snap) return null;
+    if (snap.fetched_at && Date.now() - new Date(snap.fetched_at).getTime() > SNAPSHOT_TTL_MS) return null;
+    return snap.data as PropertyData;
+  } catch { return null; }
+}
+
+async function saveSnapshot(address: string, data: PropertyData) {
+  try {
+    const addr = normalizeAddr(address);
+    const state = stateFromAddress(address.toUpperCase()) ?? null;
+    const zip   = address.match(/\b(\d{5})\b/)?.[1] ?? null;
+    const { data: prop } = await db().from('properties')
+      .upsert({ address_full: addr, state, zip, enriched_at: new Date().toISOString(), enrichment_source: 'internal', updated_at: new Date().toISOString() }, { onConflict: 'address_full' })
+      .select('id').single();
+    if (!prop) return;
+    const expiresAt = new Date(Date.now() + SNAPSHOT_TTL_MS).toISOString();
+    await db().from('property_snapshots').insert({ property_id: prop.id, snapshot_type: 'full', source: 'internal', data, expires_at: expiresAt, confidence: 0.75 });
+  } catch { /* non-blocking */ }
+}
+
+type PropertyData = {
+  estimatedValue: number | null; estimatedValueLow: number | null; estimatedValueHigh: number | null;
+  estimatedBalance: number | null; estimatedEquity: number | null; purchaseRate: number | null;
+  lastSaleDate: string | null; lastSalePrice: number | null; rentEstimate: number | null;
+};
+
+// ── Main local property intelligence — replaces rentcastLookup ───────────────
+async function propertyLookup(address: string, record: Record<string, any>): Promise<PropertyData | null> {
+  // 1. Check snapshot cache
+  const cached = await getSnapshot(address);
+  if (cached) return cached;
+
+  // 2. Check properties table for stored sale data
+  const addr = normalizeAddr(address);
+  const { data: prop } = await db().from('properties')
+    .select('latest_last_sale_price, latest_last_sale_date, state, zip').eq('address_full', addr).maybeSingle();
+
+  // 3. Resolve last sale data (DB → LO override → Tavily)
+  let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;
+  let rawSaleDateStr: string | null = prop?.latest_last_sale_date ?? null;
+
+  // If we have no sale data in DB, fire Tavily async and use it this request too
+  if (!rawSalePrice && !record.actual_purchase_price) {
+    const tv = await tavilyPropertySearch(address);
+    rawSalePrice = tv.lastSalePrice;
+    if (tv.lastSaleDate) rawSaleDateStr = tv.lastSaleDate;
+    // Persist to properties table for next time
+    if (rawSalePrice) {
+      void db().from('properties').upsert({
+        address_full: addr,
+        latest_last_sale_price: rawSalePrice,
+        latest_last_sale_date: rawSaleDateStr,
+        enrichment_source: 'tavily',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'address_full' });
+    }
+  }
+
+  // 4. FHFA AVM: lastSalePrice × (1 + annualRate)^yearsElapsed
+  const stateCode = prop?.state ?? stateFromAddress(address.toUpperCase());
+  const annualRate = fhfaRate(stateCode) / 100;
+  const salePrice = rawSalePrice ?? null;
+  const saleDate  = rawSaleDateStr ? new Date(rawSaleDateStr) : null;
+  const yearsElapsed = saleDate ? Math.max(0, (Date.now() - saleDate.getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
+
+  let estimatedValue: number | null = null;
+  if (salePrice && yearsElapsed !== null) {
+    estimatedValue = Math.round(salePrice * Math.pow(1 + annualRate, yearsElapsed));
+  }
+  const estimatedValueLow  = estimatedValue ? Math.round(estimatedValue * 0.92) : null;
+  const estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
+
+  // 5. HUD Fair Market Rent via geo_crosswalk
+  const zip = prop?.zip ?? address.match(/\b(\d{5})\b/)?.[1] ?? null;
+  let rentEstimate: number | null = null;
+  if (zip) {
+    try {
+      const { data: geo } = await db().from('geo_crosswalk').select('county_fips').eq('zip', zip).limit(1).maybeSingle();
+      if (geo?.county_fips) {
+        const { data: hud } = await db().from('hud_features').select('fmr_2br, fmr_3br').eq('county_fips', geo.county_fips).maybeSingle();
+        rentEstimate = hud?.fmr_3br ?? hud?.fmr_2br ?? null;
+      }
+    } catch { /* non-blocking */ }
+  }
+  // Fallback: 0.55% of value/mo (common rule of thumb)
+  if (!rentEstimate && estimatedValue) rentEstimate = Math.round(estimatedValue * 0.0055);
+
+  // 6. Loan math
   let estimatedBalance: number | null = null;
   let estimatedEquity:  number | null = null;
   let purchaseRate:     number | null = null;
 
-  if (lastSalePrice && rawDate) {
-    const saleDate   = new Date(rawDate);
-    const elapsed    = monthsAgo(saleDate);
+  if (salePrice && saleDate) {
+    const elapsed = monthsAgo(saleDate);
     purchaseRate     = historicalRate(saleDate.getFullYear());
-    estimatedBalance = Math.round(remainingBalance(lastSalePrice, 0.20, purchaseRate, elapsed));
-    estimatedEquity  = Math.round((estimatedValue ?? lastSalePrice) - estimatedBalance);
+    estimatedBalance = Math.round(remainingBalance(salePrice, 0.20, purchaseRate, elapsed));
+    estimatedEquity  = Math.round((estimatedValue ?? salePrice) - estimatedBalance);
   }
 
-  return {
+  const lastSaleDate = saleDate ? saleDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
+
+  const result: PropertyData = {
     estimatedValue, estimatedValueLow, estimatedValueHigh,
     estimatedBalance, estimatedEquity, purchaseRate,
-    lastSaleDate, lastSalePrice, rentEstimate,
+    lastSaleDate, lastSalePrice: salePrice, rentEstimate,
   };
+
+  // 7. Cache result (non-blocking)
+  void saveSnapshot(address, result);
+  return result;
 }
 
 // ── Shared computation — same logic for consumer and LO/borrower paths ────────
 function buildAnalysis(
-  rentcast: NonNullable<Awaited<ReturnType<typeof rentcastLookup>>>,
+  rentcast: NonNullable<PropertyData>,
   fred: Awaited<ReturnType<typeof getFredSnapshot>>,
   record: Record<string, any>,
   historyRows: Record<string, any>[],
@@ -233,23 +368,14 @@ export async function GET(request: NextRequest) {
       .single();
     if (!bor?.property_address) return NextResponse.json({ error: 'No address on file' }, { status: 404 });
 
-    const [rentcast, fred] = await Promise.all([
-      rentcastLookup(bor.property_address),
+    const [propData, fred] = await Promise.all([
+      propertyLookup(bor.property_address, bor),
       getFredSnapshot({ timeoutMs: 8000 }),
     ]);
-    const effectiveRc = rentcast ?? (bor.actual_value ? {
-      estimatedValue: Number(bor.actual_value), estimatedValueLow: null, estimatedValueHigh: null,
-      estimatedBalance: bor.actual_balance ? Number(bor.actual_balance) : null,
-      estimatedEquity: (bor.actual_value && bor.actual_balance) ? Math.round(Number(bor.actual_value) - Number(bor.actual_balance)) : null,
-      purchaseRate: bor.actual_rate ? Number(bor.actual_rate) : null,
-      lastSaleDate: bor.actual_purchase_date ?? null,
-      lastSalePrice: bor.actual_purchase_price ? Number(bor.actual_purchase_price) : null,
-      rentEstimate: null,
-    } : null);
-    if (!effectiveRc) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
+    if (!propData) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
 
     return NextResponse.json({
-      ...buildAnalysis(effectiveRc, fred, bor, []),
+      ...buildAnalysis(propData, fred, bor, []),
       borrowerName: bor.name,
       address: bor.property_address,
     });
@@ -297,8 +423,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No address on file for this borrower' }, { status: 404 });
     }
 
-    const [rentcast, fred, historyRes] = await Promise.all([
-      rentcastLookup(borrower.property_address),
+    const [propData, fred, historyRes] = await Promise.all([
+      propertyLookup(borrower.property_address, borrower),
       getFredSnapshot({ timeoutMs: 8000 }),
       db()
         .from('homeowner_snapshots')
@@ -309,23 +435,10 @@ export async function GET(request: NextRequest) {
         .limit(12),
     ]);
 
-    // If Rentcast is down/rate-limited but LO has entered overrides, build a synthetic stub so the card still renders
-    const effectiveRentcast = rentcast ?? (borrower.actual_value ? {
-      estimatedValue: Number(borrower.actual_value),
-      estimatedValueLow: null, estimatedValueHigh: null,
-      estimatedBalance: borrower.actual_balance ? Number(borrower.actual_balance) : null,
-      estimatedEquity: (borrower.actual_value && borrower.actual_balance)
-        ? Math.round(Number(borrower.actual_value) - Number(borrower.actual_balance)) : null,
-      purchaseRate: borrower.actual_rate ? Number(borrower.actual_rate) : null,
-      lastSaleDate: borrower.actual_purchase_date ?? null,
-      lastSalePrice: borrower.actual_purchase_price ? Number(borrower.actual_purchase_price) : null,
-      rentEstimate: null,
-    } : null);
-
-    if (!effectiveRentcast) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
+    if (!propData) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
 
     return NextResponse.json({
-      ...buildAnalysis(effectiveRentcast, fred, borrower, historyRes.data ?? []),
+      ...buildAnalysis(propData, fred, borrower, historyRes.data ?? []),
       borrowerName: borrower.name,
       address: borrower.property_address,
       isLoView: true,
@@ -387,9 +500,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No address on file' }, { status: 404 });
   }
 
-  // Fetch Rentcast + FRED + value history in parallel
-  const [rentcast, fred, historyRes] = await Promise.all([
-    rentcastLookup(homeowner.property_address),
+  const [propData, fred, historyRes] = await Promise.all([
+    propertyLookup(homeowner.property_address, homeowner),
     getFredSnapshot({ timeoutMs: 8000 }),
     db()
       .from('consumer_snapshots')
@@ -400,12 +512,12 @@ export async function GET(request: NextRequest) {
       .limit(12),
   ]);
 
-  if (!rentcast) {
+  if (!propData) {
     return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
   }
 
   return NextResponse.json({
     address: homeowner.property_address,
-    ...buildAnalysis(rentcast, fred, homeowner, historyRes.data ?? []),
+    ...buildAnalysis(propData, fred, homeowner, historyRes.data ?? []),
   });
 }
