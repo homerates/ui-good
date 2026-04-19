@@ -44,9 +44,11 @@ export async function GET() {
   const planFromSub   = (subResult.data?.plan ?? "free") as string;
   const effectivePlan = planFromUsers !== "free" ? planFromUsers : planFromSub;
 
-  // Auto-heal: if subscription shows paid but users.plan is stale, repair it silently
+  // Auto-heal: if subscription shows paid but users.plan is stale, repair it before responding
   if (planFromUsers === "free" && planFromSub !== "free") {
-    void sb.from("users").update({ plan: planFromSub }).eq("id", userId);
+    const { error: healErr } = await sb.from("users").update({ plan: planFromSub }).eq("id", userId);
+    if (healErr) console.error("[profile] auto-heal plan update failed:", healErr);
+    else console.log(`[profile] auto-healed plan ${planFromUsers} → ${planFromSub} for user=${userId}`);
   }
 
   const role = userRow?.role ?? (loRow ? "lo" : agentRow ? "agent" : "borrower");

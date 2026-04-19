@@ -24,7 +24,7 @@ async function updateUserPlan(userId: string, plan: PlanKey, customerId: string,
   if (!sb) return;
 
   // Update users table
-  await sb.from("users").upsert(
+  const { error: userErr } = await sb.from("users").upsert(
     {
       id: userId,
       plan,
@@ -34,6 +34,7 @@ async function updateUserPlan(userId: string, plan: PlanKey, customerId: string,
     },
     { onConflict: "id", ignoreDuplicates: false }
   );
+  if (userErr) console.error(`[stripe/webhook] updateUserPlan upsert failed for user=${userId}:`, userErr);
 
   // Keep loan_officers.allowed_borrower_slots in sync
   await sb
