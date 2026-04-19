@@ -191,6 +191,7 @@ function buildAnalysis(
 
   return {
     ...rentcast,
+    estimatedValue,
     lastSalePrice: displaySalePrice,
     lastSaleDate:  displaySaleDate,
     estimatedBalance, estimatedEquity, purchaseRate,
