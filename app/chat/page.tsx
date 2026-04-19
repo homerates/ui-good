@@ -3065,7 +3065,7 @@ export default function Page() {
                         // position/bottom now handled in CSS (desktop vs mobile)
                         zIndex: 900,
                         borderTop: '1px solid rgba(245, 247, 250, 0.06)',
-                        background: 'transparent',
+                        background: '#080c12',
                     }}
                 >
                     {/* Price Check floating hint — lives inside the sticky composer so it's always visible */}
