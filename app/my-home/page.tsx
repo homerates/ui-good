@@ -543,6 +543,12 @@ function MyHomePageInner() {
   async function addProperty() {
     if (!newAddress.trim()) return;
     setSaving(true);
+    // Fire Redfin enrichment in background before saving
+    void fetch('/api/property/enrich', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: newAddress.trim() }),
+    });
     try {
       const res = await fetch('/api/homeowner/save', {
         method: 'POST',

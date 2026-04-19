@@ -267,6 +267,14 @@ export default function LoBorrowersPage() {
     async function saveAddress(borrower: Borrower) {
         const address = editing[borrower.id] ?? borrower.property_address ?? '';
         setSaving(borrower.id);
+        // Enrich property data from Redfin in background
+        if (address.trim()) {
+            void fetch('/api/property/enrich', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ address: address.trim() }),
+            });
+        }
         const res = await fetch("/api/borrowers", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },

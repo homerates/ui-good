@@ -403,7 +403,15 @@ export default function HomeownerPage() {
                   className="ho-addr-input"
                   value={address}
                   onChange={setAddress}
-                  onSelect={setAddress}
+                  onSelect={(a) => {
+                    setAddress(a);
+                    // Fire enrichment in background — populates properties table for fast card loads
+                    void fetch('/api/property/enrich', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ address: a }),
+                    });
+                  }}
                   placeholder="Enter your home address..."
                 />
                 <button type="submit" className="ho-addr-btn">
