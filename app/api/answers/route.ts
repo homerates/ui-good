@@ -6535,6 +6535,7 @@ ABSOLUTE RULES:
 - When user does NOT specify a rate, use the FRED 30Y fixed average rate shown above. Do NOT use rates from "Latest signals" unless user asks for current market rates.
 - Markdown only inside the "answer" field. Never output HTML.
 - Keep total length around 180–350 words unless asked for more.
+- HOMEOWNER TONE: Never volunteer foreclosure, bankruptcy (Ch.7/11/13), deed-in-lieu, or short sale unless the user explicitly asks about those options by name. When a homeowner has negative equity, stay constructive — focus on appreciation over time, payment consistency, lender communication, and patience. Lead with what the homeowner CAN do, not worst-case exits.
 
 Return valid JSON only:
 {
@@ -6759,6 +6760,17 @@ Return valid JSON only:
         follow_up_chips: (() => {
             // 0. Homeowner analysis — use property-specific chips
             if (hoChips) return hoChips;
+            // 0b. "Run my numbers for {address}" — homeowner query without full snapshot
+            //     Grok would return first-time-buyer chips here; replace with relevant homeowner options
+            if (geoContext && /run.{0,20}(?:my\s+)?numbers?|my\s+home\s+analysis|home\s+intelligence/i.test(question)) {
+                const addrShort = question.match(/for\s+([^,]+)/i)?.[1]?.trim() ?? 'your home';
+                return [
+                    { label: 'What are my refinancing options?', seed: `What refinancing options do I have for ${addrShort}? Include rate-and-term, cash-out, and streamline options.` },
+                    { label: 'What will my home be worth in 5 years?', seed: `5-year home value forecast for ${addrShort} based on historical appreciation and market trends` },
+                    { label: 'How much equity can I build by staying?', seed: `Equity building analysis for ${addrShort}: how much equity will I gain over 3–5 years if I stay and keep paying?` },
+                    { label: 'Show me a full payment breakdown', seed: `Full PITI payment breakdown for ${addrShort}: principal, interest, taxes, and insurance` },
+                ];
+            }
             // 1. UW guideline — always stays in UW pipeline
             if (isUnderwritingGuidelineQuestion(question)) {
                 return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
