@@ -222,7 +222,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             )}
 
             {/* ── Hero: 3 big numbers ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18, minWidth: 0 }}>
                 {/* Monthly savings */}
                 <div style={{
                     background: calc.savings >= 0 ? '#f0fdf4' : '#fef2f2',
@@ -305,15 +305,16 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             </div>
 
             {/* Dual rate sliders */}
-            <div className="refi-rate-row" style={{ display: 'grid', gridTemplateColumns: '1fr 28px 1fr', gap: '0 8px', marginBottom: 14, alignItems: 'end' }}>
+            <div className="refi-rate-row" style={{ display: 'grid', gridTemplateColumns: '1fr 20px 1fr', gap: '0 6px', marginBottom: 14, alignItems: 'end', minWidth: 0 }}>
                 <SliderField
                     label="Current Rate" value={currentRate}
                     min={3} max={12} step={0.125}
                     onChange={setCurrentRate}
                     format={fmtRate}
                     trackColor="#ef4444" theme="light"
+                    style={{ minWidth: 0 }}
                 />
-                <div style={{ textAlign: 'center', paddingBottom: 6, fontSize: 14, color: '#cbd5e1', fontWeight: 700 }}>→</div>
+                <div style={{ textAlign: 'center', paddingBottom: 6, fontSize: 12, color: '#cbd5e1', fontWeight: 700 }}>→</div>
                 <SliderField
                     label={`New Rate${noCost ? ' +0.25%' : ''}`} value={newRate}
                     min={3} max={12} step={0.125}
@@ -321,11 +322,12 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     format={fmtRate}
                     disabled={noCost}
                     trackColor="#059669" theme="light"
+                    style={{ minWidth: 0 }}
                 />
             </div>
 
-            {/* Closing costs + LTV — side by side */}
-            <div style={{ display: 'grid', gridTemplateColumns: propVal ? '1fr 1fr' : '1fr', gap: '0 16px', marginBottom: 14 }}>
+            {/* Closing costs + LTV — stack on mobile, side by side on wider screens */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 16px', marginBottom: 14 }}>
                 {/* Closing costs */}
                 <SliderField
                     label="Closing Costs" value={closingCosts}
@@ -335,6 +337,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     disabled={noCost}
                     midLabel="1% ≈ no-cost · click to type"
                     trackColor="#10b981" theme="light"
+                    style={{ flex: '1 1 200px', minWidth: 0 }}
                 />
 
                 {/* LTV slider — only when property value is known */}
@@ -346,6 +349,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                         format={v => `${v}%`}
                         minLabel="50%" midLabel="80% = no PMI" maxLabel="97%"
                         trackColor={ltv > 80 ? '#ef4444' : '#10b981'} theme="light"
+                        style={{ flex: '1 1 200px', minWidth: 0 }}
                     />
                 )}
             </div>
