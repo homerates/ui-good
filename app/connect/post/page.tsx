@@ -168,9 +168,14 @@ function PostScenarioContent() {
       });
       const data = await res.json();
       if (!res.ok) {
+        if (data.active_count >= 3) {
+          setError("cap_reached");
+          setSubmitting(false);
+          return;
+        }
         if (data.existing_id) {
           setExistingScenarioId(data.existing_id);
-          setError("active_scenario_blocked");
+          setError("duplicate_blocked");
           setSubmitting(false);
           return;
         }
@@ -564,20 +569,29 @@ function PostScenarioContent() {
                   </div>
                 )}
 
-                {!hitLimit && error === "active_scenario_blocked" && (
+                {!hitLimit && error === "cap_reached" && (
                   <div style={{ background: "rgba(255,60,60,0.08)", border: "1px solid rgba(255,60,60,0.3)", borderRadius: 12, padding: "20px 24px", textAlign: "center" }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#ff6b6b", marginBottom: 6 }}>You already have an open scenario</div>
-                    <div style={{ fontSize: 13, color: "#8fa3b8", marginBottom: 18, lineHeight: 1.5 }}>Close your previous scenario first, then you can post a new one.</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#ff6b6b", marginBottom: 6 }}>3 active scenarios already open</div>
+                    <div style={{ fontSize: 13, color: "#8fa3b8", marginBottom: 18, lineHeight: 1.5 }}>You've reached the 3-scenario limit. Close one of your active scenarios to post a new one.</div>
+                    <a href="/connect/my-scenario" style={{ display: "inline-block", background: "#e03e3e", color: "#fff", fontWeight: 700, fontSize: 14, padding: "12px 24px", borderRadius: 10, textDecoration: "none" }}>
+                      Manage My Scenarios →
+                    </a>
+                  </div>
+                )}
+                {!hitLimit && error === "duplicate_blocked" && (
+                  <div style={{ background: "rgba(255,60,60,0.08)", border: "1px solid rgba(255,60,60,0.3)", borderRadius: 12, padding: "20px 24px", textAlign: "center" }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#ff6b6b", marginBottom: 6 }}>Duplicate scenario detected</div>
+                    <div style={{ fontSize: 13, color: "#8fa3b8", marginBottom: 18, lineHeight: 1.5 }}>You already have an active scenario with the same loan type, purpose, and state. Close or update that one instead of posting a duplicate.</div>
                     <button
                       onClick={closeOldAndReturn}
                       disabled={closingOld}
                       style={{ width: "100%", background: "#e03e3e", color: "#fff", fontWeight: 700, fontSize: 15, padding: "14px 20px", borderRadius: 10, border: "none", cursor: closingOld ? "not-allowed" : "pointer", opacity: closingOld ? 0.7 : 1 }}
                     >
-                      {closingOld ? "Closing..." : "Close Previous Scenario"}
+                      {closingOld ? "Closing..." : "Close Duplicate Scenario"}
                     </button>
                   </div>
                 )}
-                {!hitLimit && error && error !== "active_scenario_blocked" && (
+                {!hitLimit && error && error !== "duplicate_blocked" && error !== "cap_reached" && (
                   <div className="post-error">{error}</div>
                 )}
 

@@ -235,25 +235,43 @@ export async function POST(req: NextRequest) {
   const visibility = requestedVisibility === "public" ? "public" : (referredBy ? "private" : "public");
   const referredProId = visibility === "private" ? referredBy : null;
 
-  // One active scenario per borrower at a time
-  // Auto-close any expired active scenarios (closes_at passed but status never updated)
-  const { data: existing, error: existingErr } = await sb
+  // Fetch all active scenarios for this borrower
+  const { data: activeScenarios, error: existingErr } = await sb
     .from("scenario_briefs")
-    .select("id, closes_at")
+    .select("id, loan_type, loan_purpose, state, closes_at")
     .eq("borrower_id", userId)
-    .eq("status", "active")
-    .maybeSingle();
+    .eq("status", "active");
 
   if (existingErr) console.error("[scenarios] existing check error:", existingErr);
-  if (existing) {
-    const isExpired = existing.closes_at && new Date(existing.closes_at) < new Date();
-    if (isExpired) {
-      // Auto-close expired scenario — allows borrower to post fresh
-      await sb.from("scenario_briefs").update({ status: "closed" }).eq("id", existing.id);
-      console.log("[scenarios] auto-closed expired scenario:", existing.id);
-    } else {
-      return NextResponse.json({ error: "You already have an active scenario. Close it before posting a new one.", existing_id: existing.id }, { status: 400 });
-    }
+
+  const active = activeScenarios ?? [];
+
+  // Auto-close any expired ones so they don't count against the cap
+  const now = new Date();
+  const expired = active.filter(s => s.closes_at && new Date(s.closes_at) < now);
+  for (const s of expired) {
+    await sb.from("scenario_briefs").update({ status: "closed" }).eq("id", s.id);
+    console.log("[scenarios] auto-closed expired scenario:", s.id);
+  }
+  const live = active.filter(s => !s.closes_at || new Date(s.closes_at) >= now);
+
+  // Max 3 active scenarios per borrower
+  if (live.length >= 3) {
+    return NextResponse.json({
+      error: "You have 3 active scenarios open. Close one before posting a new one.",
+      active_count: live.length,
+    }, { status: 400 });
+  }
+
+  // Duplicate detection: same loan_type + loan_purpose + state already active
+  const duplicate = live.find(
+    s => s.loan_type === loan_type && s.loan_purpose === (loan_purpose ?? "purchase").toLowerCase() && s.state === state
+  );
+  if (duplicate) {
+    return NextResponse.json({
+      error: "You already have an active scenario with the same loan type, purpose, and state. Close or update that one instead.",
+      existing_id: duplicate.id,
+    }, { status: 400 });
   }
 
   const { data, error } = await sb
