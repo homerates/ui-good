@@ -525,10 +525,11 @@ function MyHomePageInner() {
     setAnalysisErr('');
     setAnalysis(null);
     try {
+      const bust = `_t=${Date.now()}`;
       const url = borrowerId
-        ? `/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}`
-        : `/api/homeowner/analysis?property_id=${encodeURIComponent(pid!)}`;
-      const res = await fetch(url);
+        ? `/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}&${bust}`
+        : `/api/homeowner/analysis?property_id=${encodeURIComponent(pid!)}&${bust}`;
+      const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
       setAnalysis(data);
