@@ -5,6 +5,10 @@
       "schedule": "0 14 * * *"
     },
     {
+      "path": "/api/digest/rate-alert",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/digest/cron",
       "schedule": "0 10 1 * *"
     },

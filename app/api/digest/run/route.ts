@@ -10,7 +10,8 @@ import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '../../../../lib/adminAuth';
 import { Resend } from 'resend';
-import { digestEmailHtml } from '@/digest/emailTemplate';
+import { clerkClient } from '@clerk/nextjs/server';
+import { digestEmailHtml, type NearbySale } from '@/digest/emailTemplate';
 import { getFredSnapshot } from '@/lib/fred';
 
 const sb = () => createClient(
@@ -108,6 +109,58 @@ async function rentcastLookup(address: string) {
     return { estimatedValue, estimatedValueLow, estimatedValueHigh, estimatedBalance, estimatedEquity, purchaseRate, lastSaleDate, lastSalePrice, rentEstimate };
 }
 
+async function fetchNearbySales(address: string): Promise<NearbySale[]> {
+    const key = process.env.RENTCAST_API_KEY;
+    if (!key) return [];
+    try {
+        const enc  = encodeURIComponent(address);
+        const res  = await fetch(
+            `https://api.rentcast.io/v1/listings/sale?address=${enc}&radius=0.5&status=Sold&limit=3`,
+            { headers: { 'X-Api-Key': key, 'Accept': 'application/json' } },
+        );
+        if (!res.ok) return [];
+        const data = await res.json();
+        const listings = Array.isArray(data) ? data : (data.listings ?? []);
+        return listings.slice(0, 3).map((l: Record<string, unknown>) => ({
+            address:  String(l.formattedAddress ?? l.address ?? ''),
+            price:    Number(l.price ?? l.listPrice ?? 0),
+            beds:     l.bedrooms != null ? Number(l.bedrooms) : null,
+            baths:    l.bathrooms != null ? Number(l.bathrooms) : null,
+            sqft:     l.squareFootage != null ? Number(l.squareFootage) : null,
+            soldDate: l.removedDate
+                ? new Date(String(l.removedDate)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                : (l.listedDate ? new Date(String(l.listedDate)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'),
+        })).filter((s: NearbySale) => s.price > 0);
+    } catch { return []; }
+}
+
+function generateToken(len = 10): string {
+    const chars = 'abcdefghijkmnpqrstuvwxyz23456789';
+    let t = '';
+    for (let i = 0; i < len; i++) t += chars[Math.floor(Math.random() * chars.length)];
+    return t;
+}
+
+async function getOrCreateReportToken(db: ReturnType<typeof sb>, borrowerId: string, loId: string): Promise<string | null> {
+    try {
+        const { data: existing } = await db
+            .from('borrower_reports')
+            .select('token')
+            .eq('borrower_id', borrowerId)
+            .eq('lo_id', loId)
+            .single();
+        if (existing?.token) return existing.token;
+        let token = generateToken();
+        for (let i = 0; i < 5; i++) {
+            const { data: clash } = await db.from('borrower_reports').select('token').eq('token', token).single();
+            if (!clash) break;
+            token = generateToken();
+        }
+        const { error } = await db.from('borrower_reports').insert({ token, borrower_id: borrowerId, lo_id: loId });
+        return error ? null : token;
+    } catch { return null; }
+}
+
 export async function POST(req: Request) {
     // Allow either authenticated LO or internal cron call
     const cronSecret = process.env.CRON_SECRET;
@@ -118,7 +171,7 @@ export async function POST(req: Request) {
     if (!isCron && !userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { borrower_id, consumer_id, preview = false, send_to_lo = false, admin_override = false } = body;
+    const { borrower_id, consumer_id, preview = false, send_to_lo = false, admin_override = false, is_rate_alert = false, rate_delta = null } = body;
     if (!borrower_id && !consumer_id) return NextResponse.json({ error: 'borrower_id or consumer_id required' }, { status: 400 });
 
     // Admin bypass — validate admin status when flag is set
@@ -255,8 +308,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'No property address on file for this borrower.' }, { status: 400 });
     }
 
-    // Fetch live rate + Rentcast in parallel
-    const [liveRate, rentcast] = await Promise.all([getLiveRate(), rentcastLookup(borrower.property_address)]);
+    // Fetch live rate + Rentcast + nearby comps in parallel
+    const [liveRate, rentcast, nearbySales] = await Promise.all([
+        getLiveRate(),
+        rentcastLookup(borrower.property_address),
+        fetchNearbySales(borrower.property_address),
+    ]);
 
     if (!rentcast) {
         return NextResponse.json({ error: 'Could not look up property data for this address.' }, { status: 422 });
@@ -300,8 +357,49 @@ export async function POST(req: Request) {
     const prevSnapshot = prevSnapshotRes.data;
     const valueHistory = (historyRes.data ?? []).map(r => ({ date: r.snapshot_date, value: r.estimated_value as number }));
 
-    const loName  = 'HomeRates.ai';
-    const loEmail = (borrower.loan_officers as any)?.email ?? null;
+    const loUserId = (borrower.loan_officers as any)?.user_id ?? null;
+    const loEmail  = (borrower.loan_officers as any)?.email ?? null;
+    let loName     = 'HomeRates.ai';
+    let loPhoto: string | null = null;
+    let loPhone: string | null = null;
+    let loTitle: string | null = null;
+    let loLender: string | null = null;
+    let loNmls: string | null = null;
+    let loDbId: string | null = null;
+
+    if (loUserId) {
+        // Fetch LO name + photo from Clerk
+        try {
+            const clerk = await clerkClient();
+            const clerkUser = await clerk.users.getUser(loUserId);
+            const n = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ');
+            if (n) loName = n;
+            loPhoto = clerkUser.imageUrl ?? null;
+        } catch { /* skip */ }
+        // Fetch LO profile fields from DB
+        const { data: loProfile } = await sb()
+            .from('loan_officers')
+            .select('id, phone, title, lender, nmls')
+            .eq('user_id', loUserId)
+            .single();
+        if (loProfile) {
+            loDbId  = loProfile.id;
+            loPhone = loProfile.phone ?? null;
+            loTitle = loProfile.title ?? null;
+            loLender = loProfile.lender ?? null;
+            loNmls  = loProfile.nmls ?? null;
+        }
+    }
+
+    // Auto-generate shareable report token when LO is attached
+    let reportUrl: string | null = null;
+    if (loDbId) {
+        const token = await getOrCreateReportToken(sb(), borrower_id, loDbId);
+        if (token) {
+            const appBase = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
+            reportUrl = `${appBase}/report/${token}`;
+        }
+    }
 
     // Prefer LO-supplied overrides over Rentcast/historical estimates
     const overrideBalance = borrower.actual_balance        ? Number(borrower.actual_balance)        : null;
@@ -326,7 +424,16 @@ export async function POST(req: Request) {
             ? effectiveEquity - prevSnapshot.estimated_equity : null,
         loName,
         loEmail,
-        valueHistory: valueHistory.length >= 2 ? valueHistory : undefined,
+        loPhoto,
+        loPhone,
+        loTitle,
+        loLender,
+        loNmls,
+        reportUrl,
+        valueHistory:  valueHistory.length >= 2 ? valueHistory : undefined,
+        nearbySales:   nearbySales.length > 0 ? nearbySales : undefined,
+        isRateAlert:   is_rate_alert || undefined,
+        rateDelta:     is_rate_alert ? rate_delta : undefined,
     };
 
     // Preview mode — return data without sending

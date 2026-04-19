@@ -768,6 +768,75 @@ function MyHomePageInner() {
                   )}
                 </div>
 
+                {/* ── HOME INTELLIGENCE HERO — shown when analysis is loaded ── */}
+                {analysis && !analysisLoading && (
+                  <div style={{
+                    background: '#0f172a', borderRadius: 16, marginBottom: 16,
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.4)', overflow: 'hidden',
+                  }}>
+                    {/* Green accent line */}
+                    <div style={{ height: 3, background: 'linear-gradient(90deg,#00e87a,#00b459)' }} />
+                    <div style={{ padding: '20px 24px' }}>
+                      {/* Address + date */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 3 }}>Home Intelligence</div>
+                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#f1f5f9', lineHeight: 1.3 }}>{analysis.address}</div>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#334155' }}>
+                          {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      </div>
+                      {/* 4 key stats */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
+                        {[
+                          { label: 'Est. Value', value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true },
+                          { label: 'Total Equity', value: analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false },
+                          { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true },
+                          { label: 'LTV Ratio', value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false },
+                        ].map((s, i) => (
+                          <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
+                            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
+                            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: s.green ? '#00e87a' : '#f1f5f9', lineHeight: 1.1 }}>{s.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Equity bar */}
+                      {analysis.equityPct != null && (
+                        <div style={{ marginBottom: 20 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#475569', marginBottom: 5 }}>
+                            <span style={{ color: '#00e87a' }}>
+                              {analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity / 1000)}K equity (${analysis.equityPct}%)` : 'Equity'}
+                            </span>
+                            <span>
+                              {analysis.estimatedBalance ? `$${Math.round(analysis.estimatedBalance / 1000)}K balance` : 'Balance'}
+                            </span>
+                          </div>
+                          <div style={{ height: 6, background: '#1e293b', borderRadius: 999, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
+                          </div>
+                        </div>
+                      )}
+                      {/* CTA buttons */}
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <a
+                          href={`/chat?q=${encodeURIComponent(`Run my numbers for ${analysis.address}`)}`}
+                          style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                        >
+                          Run My Numbers →
+                        </a>
+                        <a
+                          href="#equity"
+                          onClick={e => { e.preventDefault(); (document.querySelector('[data-chip="equity"]') as HTMLButtonElement)?.click(); }}
+                          style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid #1e293b', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                        >
+                          Full Analysis ↓
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* INTELLIGENCE SECTION — always visible; locked preview when no address */}
                 <div className="mh-card" style={{ padding: 0, overflow: 'hidden' }}>
                   {/* Chip nav */}
@@ -775,6 +844,7 @@ function MyHomePageInner() {
                     {CHIPS.map(c => (
                       <button
                         key={c.id}
+                        data-chip={c.id}
                         className={`mh-chip${activeChip === c.id ? ' mh-chip-active' : ''}${!hasAddress ? ' mh-chip-dim' : ''}`}
                         onClick={() => { if (hasAddress) setActiveChip(c.id); }}
                         style={!hasAddress ? { cursor: 'default' } : undefined}

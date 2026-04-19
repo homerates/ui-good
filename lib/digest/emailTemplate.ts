@@ -2,12 +2,31 @@
 // Premium dark homeowner intelligence digest email — no shared shell, fully self-contained.
 // 6 sections: Alerts · Value & Equity · Mortgage Intelligence · HELOC Power · Economy Snapshot · Equity Milestones
 
+export interface NearbySale {
+  address: string;
+  price: number;
+  beds?: number | null;
+  baths?: number | null;
+  sqft?: number | null;
+  soldDate: string;
+}
+
 export interface DigestEmailData {
   // Identity
   borrowerName:    string;
   address:         string;
   loName:          string;
   loEmail:         string | null;
+
+  // LO branding (present when digest is sent by an LO, not HomeRates-direct)
+  loPhoto?:        string | null;
+  loPhone?:        string | null;
+  loTitle?:        string | null;
+  loLender?:       string | null;
+  loNmls?:         string | null;
+
+  // Shareable report URL (auto-generated when LO attached)
+  reportUrl?:      string | null;
 
   // Property / AVM
   estimatedValue:      number | null;
@@ -27,9 +46,16 @@ export interface DigestEmailData {
   liveRate: number;
 
   // Optional extras (populated when available)
-  fedFundsRate?:      number | null;    // FEDFUNDS from FRED
-  valueHistory?:      { date: string; value: number }[];  // last N months of snapshots
-  rentEstimate?:      number | null;    // monthly rent estimate from Rentcast
+  fedFundsRate?:      number | null;
+  valueHistory?:      { date: string; value: number }[];
+  rentEstimate?:      number | null;
+
+  // Nearby sold comps
+  nearbySales?:       NearbySale[];
+
+  // Rate alert mode — set true when digest is triggered by a rate move
+  isRateAlert?:       boolean;
+  rateDelta?:         number | null;
 }
 
 // ── Format helpers ─────────────────────────────────────────────────────────────
@@ -571,10 +597,42 @@ function sectionMilestones(data: DigestEmailData): string {
   `);
 }
 
+// ── Nearby sales section ───────────────────────────────────────────────────────
+function sectionNearbySales(data: DigestEmailData): string {
+  if (!data.nearbySales?.length) return '';
+  const rows = data.nearbySales.map(s => {
+    const details = [s.beds ? `${s.beds}bd` : null, s.baths ? `${s.baths}ba` : null, s.sqft ? `${s.sqft.toLocaleString()} sqft` : null].filter(Boolean).join(' · ');
+    return `
+      <tr><td style="padding-bottom:10px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border:1px solid ${BORDER};border-radius:10px;">
+          <tr><td style="padding:12px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="vertical-align:middle;">
+                <div style="font-size:12px;font-weight:700;color:${TXT};">${fmtDollar(s.price)}</div>
+                <div style="font-size:11px;color:${TXT2};margin-top:2px;">${s.address}</div>
+                ${details ? `<div style="font-size:10px;color:${TXT2};margin-top:1px;">${details}</div>` : ''}
+              </td>
+              <td style="text-align:right;vertical-align:middle;white-space:nowrap;padding-left:12px;">
+                <div style="font-size:10px;color:${GREEN};font-weight:700;">SOLD</div>
+                <div style="font-size:10px;color:${TXT2};">${s.soldDate}</div>
+              </td>
+            </tr></table>
+          </td></tr>
+        </table>
+      </td></tr>`;
+  }).join('');
+  return card(`
+    ${eyebrow('Recent Nearby Sales')}
+    <p style="margin:0 0 12px;font-size:12px;color:${TXT2};">Homes recently sold near ${data.address.split(',')[0]}</p>
+    <table width="100%" cellpadding="0" cellspacing="0">${rows}</table>
+  `);
+}
+
 // ── Main export ────────────────────────────────────────────────────────────────
 
 export function digestEmailHtml(data: DigestEmailData): string {
   const firstName = data.borrowerName.split(' ')[0];
+  const isLoBranded = !!(data.loPhoto || (data.loName && data.loName !== 'HomeRates.ai'));
   const unsubscribeLink = data.loEmail
     ? `<a href="${BASE}/api/unsubscribe?email=${encodeURIComponent(data.loEmail)}" style="color:${TXT2};text-decoration:underline;">Unsubscribe</a>`
     : '';
@@ -586,7 +644,27 @@ export function digestEmailHtml(data: DigestEmailData): string {
     sectionHELOC(data),
     sectionEconomy(data),
     sectionMilestones(data),
+    sectionNearbySales(data),
   ].filter(Boolean).join('');
+
+  // ── Primary CTAs: Run My Numbers + View Full Report ──────────────────────────
+  const chatUrl  = `${BASE}/chat?q=${encodeURIComponent(`Run my numbers for ${data.address}`)}`;
+  const reportLink = data.reportUrl ?? `${BASE}/my-home`;
+  const primaryCta = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#0d1f14,#0f2a1a);border:1px solid rgba(0,232,122,0.2);border-radius:14px;margin-bottom:16px;">
+      <tr><td style="padding:20px 22px;">
+        <p style="margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${GREEN};">Your Home — Live Intelligence</p>
+        <p style="margin:0 0 16px;font-size:13px;color:#c8d8c8;">What's your home worth today? Run updated numbers or view your full report.</p>
+        <table cellpadding="0" cellspacing="0"><tr>
+          <td style="padding-right:10px;">
+            <a href="${chatUrl}" style="display:inline-block;padding:11px 22px;background:${GREEN};color:#07100f;font-size:13px;font-weight:800;border-radius:999px;text-decoration:none;">Run My Numbers →</a>
+          </td>
+          <td>
+            <a href="${reportLink}" style="display:inline-block;padding:11px 22px;background:rgba(0,232,122,0.1);color:${GREEN};border:1px solid rgba(0,232,122,0.3);font-size:13px;font-weight:700;border-radius:999px;text-decoration:none;">View Full Report</a>
+          </td>
+        </tr></table>
+      </td></tr>
+    </table>`;
 
   // ── 5-card personalized CTAs ──────────────────────────────────────────────────
   const ctaCards: string[] = [];
@@ -709,10 +787,11 @@ export function digestEmailHtml(data: DigestEmailData): string {
       </td></tr>`);
   }
 
-  const cta = ctaCards.length > 0 ? `
+  const cta = `
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
+      <tr><td>${primaryCta}</td></tr>
       ${ctaCards.join('')}
-    </table>` : '';
+    </table>`;
 
   const footer = `
     <p style="margin:20px 0 4px;font-size:11px;color:${TXT2};line-height:1.6;text-align:center;">
@@ -721,6 +800,48 @@ export function digestEmailHtml(data: DigestEmailData): string {
       HomeRates.ai is an educational tool, not a mortgage lender. Comp data from MLS public records.
     </p>
     ${unsubscribeLink ? `<p style="margin:0;font-size:10px;color:${TXT2};text-align:center;">${unsubscribeLink} · ${PHYSICAL_ADDRESS}</p>` : `<p style="margin:0;font-size:10px;color:${TXT2};text-align:center;">${PHYSICAL_ADDRESS}</p>`}`;
+
+  // LO-branded header block (when LO is attached)
+  const loHeader = isLoBranded ? `
+  <tr><td style="padding:0 0 16px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;border:1px solid rgba(0,232,122,0.15);border-radius:14px;overflow:hidden;">
+      <tr><td style="height:3px;background:linear-gradient(90deg,${GREEN},#00b459);font-size:0;line-height:0;">&nbsp;</td></tr>
+      <tr><td style="padding:16px 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td style="vertical-align:middle;">
+            <table cellpadding="0" cellspacing="0"><tr>
+              ${data.loPhoto ? `<td style="padding-right:12px;vertical-align:middle;"><img src="${data.loPhoto}" alt="${data.loName}" width="44" height="44" style="border-radius:50%;display:block;object-fit:cover;"></td>` : ''}
+              <td style="vertical-align:middle;">
+                <div style="font-size:13px;font-weight:800;color:#f1f5f9;">${data.loName}</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px;">${[data.loTitle, data.loLender].filter(Boolean).join(' · ')}</div>
+                ${data.loNmls ? `<div style="font-size:10px;color:#334155;margin-top:1px;">NMLS# ${data.loNmls}</div>` : ''}
+              </td>
+            </tr></table>
+          </td>
+          <td style="text-align:right;vertical-align:middle;">
+            ${data.loPhone ? `<a href="tel:${data.loPhone}" style="display:inline-block;padding:8px 16px;background:${GREEN};color:#07100f;font-size:11px;font-weight:800;border-radius:999px;text-decoration:none;margin-bottom:6px;">${data.loPhone}</a><br>` : ''}
+            ${data.loEmail ? `<a href="mailto:${data.loEmail}" style="display:inline-block;padding:7px 14px;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);font-size:11px;font-weight:600;border-radius:999px;text-decoration:none;">Email Me</a>` : ''}
+          </td>
+        </tr></table>
+      </td></tr>
+    </table>
+  </td></tr>` : '';
+
+  // Rate alert banner (shown when digest triggered by a rate move)
+  const rateAlertBanner = data.isRateAlert ? `
+  <tr><td style="padding:0 0 16px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,165,0,0.08);border:1px solid rgba(255,165,0,0.25);border-radius:12px;">
+      <tr><td style="padding:14px 18px;">
+        <table cellpadding="0" cellspacing="0"><tr>
+          <td style="padding-right:10px;font-size:18px;">📊</td>
+          <td>
+            <div style="font-size:12px;font-weight:800;color:#fbbf24;margin-bottom:2px;">RATE ALERT</div>
+            <div style="font-size:12px;color:#e6edf3;">Mortgage rates just moved ${data.rateDelta != null ? (data.rateDelta > 0 ? `up ${data.rateDelta.toFixed(2)}%` : `down ${Math.abs(data.rateDelta).toFixed(2)}%`) : ''} — now at <strong>${data.liveRate.toFixed(2)}%</strong>. See how this affects your home.</div>
+          </td>
+        </tr></table>
+      </td></tr>
+    </table>
+  </td></tr>` : '';
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:${BG};font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -734,9 +855,15 @@ export function digestEmailHtml(data: DigestEmailData): string {
       <td>
         <img src="${BASE}/assets/homerates-email-logo.png" alt="HomeRates.ai" style="height:32px;display:block;" onerror="this.style.display='none'">
       </td>
-      <td style="text-align:right;font-size:11px;color:${TXT2};">${monthLabel()} · Weekly Home Update</td>
+      <td style="text-align:right;font-size:11px;color:${TXT2};">${monthLabel()} · ${data.isRateAlert ? '🔔 Rate Alert' : 'Weekly Home Update'}</td>
     </tr></table>
   </td></tr>
+
+  <!-- LO branding (when sent by LO) -->
+  ${loHeader}
+
+  <!-- Rate alert banner -->
+  ${rateAlertBanner}
 
   <!-- Greeting -->
   <tr><td style="padding:0 0 20px;">
