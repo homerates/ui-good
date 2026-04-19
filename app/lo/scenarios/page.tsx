@@ -2,7 +2,7 @@
 // app/lo/scenarios/page.tsx
 // LO board: see anonymous borrower scenarios and respond
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -25,10 +25,9 @@ interface Scenario {
   closes_at?: string;
   created_at: string;
   already_responded: boolean;
-  is_mine?: boolean;           // true when current LO posted this scenario as a borrower
-  visibility?: string;         // 'public' | 'private'
+  is_mine?: boolean;
+  visibility?: string;
   referred_pro_id?: string;
-  // Card data — present when borrower posted from an AI analysis card
   has_card_data?: boolean;
   card_price?: number;
   card_dp_pct?: number;
@@ -66,7 +65,7 @@ interface MyPipelineEntry {
   rate_estimate: string;
   approach: string;
   responder_type: string;
-  status: string;          // response status: null | 'invited'
+  status: string;
   created_at: string;
   scenario_id: string;
   scenario_briefs: {
@@ -75,7 +74,7 @@ interface MyPipelineEntry {
     loan_purpose: string;
     price_range: string;
     state: string;
-    status: string;        // scenario status: active | matched | closed | withdrawn
+    status: string;
     response_count: number;
     max_responses: number;
     closes_at: string;
@@ -97,9 +96,8 @@ const SAMPLE_SCENARIOS: Scenario[] = [
 export default function LOScenariosPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"board" | "referrals" | "pipeline">("board");
+  const [pipelineOpen, setPipelineOpen] = useState(false);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [referrals, setReferrals] = useState<Scenario[]>([]);
   const [myPipeline, setMyPipeline] = useState<MyPipelineEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("All");
@@ -107,6 +105,9 @@ export default function LOScenariosPage() {
   const [sort, setSort] = useState<"newest" | "closing_soon" | "most_active">("newest");
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [modal, setModal] = useState<RespondModal | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [filledIds, setFilledIds] = useState<Set<string>>(new Set());
+  const prevScenariosRef = useRef<Scenario[]>([]);
 
   // Response form state
   const [rateEstimate, setRateEstimate] = useState("");
@@ -117,16 +118,19 @@ export default function LOScenariosPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // LO profile cache — fetched once on mount for pre-fill + gate check
-  const [loProfile, setLoProfile] = useState<{ full_name: string; nmls: string } | null>(null);
+  const [loProfile, setLoProfile] = useState<{ full_name: string; nmls: string; license_state: string } | null>(null);
   type GateStatus = "loading" | "ok" | "not-lo" | "no-nmls" | "no-plan";
   const [gateStatus, setGateStatus] = useState<GateStatus>("loading");
 
+  // Load + 30s auto-refresh; resets timer on filter change
   useEffect(() => {
     load();
+    const interval = setInterval(() => load(true), 30000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType, filterState, sort]);
 
-  // Fetch LO profile — gate check + form pre-fill
+  // Fetch LO profile — gate check + form pre-fill + state default
   useEffect(() => {
     fetch("/api/profile")
       .then(r => r.ok ? r.json() : null)
@@ -135,26 +139,20 @@ export default function LOScenariosPage() {
         if (!d.lo && d.role !== "lo" && !d.isLO) { setGateStatus("not-lo"); return; }
         if (!d.lo?.nmls) { setGateStatus("no-nmls"); return; }
         if (d.plan !== "pro") { setGateStatus("no-plan"); return; }
-        setLoProfile({ full_name: d.full_name ?? d.clerkName ?? "", nmls: d.lo.nmls ?? "" });
+        const licenseState = d.lo?.license_state ?? "";
+        setLoProfile({ full_name: d.full_name ?? d.clerkName ?? "", nmls: d.lo.nmls ?? "", license_state: licenseState });
+        if (licenseState) setFilterState(licenseState);
         setGateStatus("ok");
       })
       .catch(() => setGateStatus("not-lo"));
   }, []);
 
-  // Redirect signed-out users to sign-in
+  // Redirect signed-out users
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.replace("/sign-in?redirect_url=" + encodeURIComponent("/lo/scenarios"));
     }
   }, [isLoaded, isSignedIn, router]);
-
-  // Load referrals once on mount (private scenarios — not filter-dependent)
-  useEffect(() => {
-    fetch("/api/scenarios?my_referrals=1")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setReferrals(d.scenarios ?? []); })
-      .catch(() => {});
-  }, []);
 
   // Load My Pipeline once on mount
   useEffect(() => {
@@ -164,8 +162,8 @@ export default function LOScenariosPage() {
       .catch(() => {});
   }, []);
 
-  async function load() {
-    setLoading(true);
+  async function load(silent = false) {
+    if (!silent) setLoading(true);
     const params = new URLSearchParams();
     if (filterType !== "All") params.set("loan_type", filterType);
     if (filterState) params.set("state", filterState);
@@ -173,27 +171,37 @@ export default function LOScenariosPage() {
     const res = await fetch(`/api/scenarios?${params}`);
     if (res.ok) {
       const data = await res.json();
-      // Public board only — separate out private referrals
-      setScenarios((data.scenarios ?? []).filter((s: Scenario) => s.visibility !== "private"));
-      setReferrals(prev => {
-        // Merge any private scenarios returned here with our existing referrals list
-        const privates = (data.scenarios ?? []).filter((s: Scenario) => s.visibility === "private");
-        const ids = new Set(prev.map(s => s.id));
-        const merged = [...prev, ...privates.filter((s: Scenario) => !ids.has(s.id))];
-        return merged;
-      });
+      const incoming = (data.scenarios ?? []) as Scenario[];
+
+      // Detect scenarios that filled since last poll — show 3s overlay before removing
+      const prevIds = new Set(prevScenariosRef.current.map(s => s.id));
+      const incomingIds = new Set(incoming.map(s => s.id));
+      const justFilled = prevScenariosRef.current
+        .filter(s => prevIds.has(s.id) && !incomingIds.has(s.id))
+        .map(s => s.id);
+
+      if (justFilled.length > 0) {
+        setFilledIds(new Set(justFilled));
+        setTimeout(() => {
+          setFilledIds(new Set());
+          setScenarios(incoming);
+          prevScenariosRef.current = incoming;
+        }, 3000);
+      } else {
+        setScenarios(incoming);
+        prevScenariosRef.current = incoming;
+      }
+      setLastRefreshed(new Date());
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
 
   function openModal(scenario: Scenario) {
     setModal({ scenario });
     setApproach("");
     setSubmitError(""); setSubmitSuccess(false);
-    // Pre-fill from LO profile if available
     setLoName(loProfile?.full_name ?? "");
     setLoNmls(loProfile?.nmls ?? "");
-    // Pre-fill rate from the scenario's AI card if present
     setRateEstimate(scenario.card_rate ? `${scenario.card_rate.toFixed(2)}%` : "");
   }
 
@@ -201,6 +209,25 @@ export default function LOScenariosPage() {
     if (!modal) return;
     setSubmitting(true);
     setSubmitError("");
+
+    // Pre-flight: verify scenario is still accepting responses
+    try {
+      const check = await fetch(`/api/scenarios/${modal.scenario.id}`);
+      if (check.ok) {
+        const checkData = await check.json();
+        const sc = checkData.scenario;
+        if (sc && (sc.status !== "active" || (sc.response_count ?? 0) >= (sc.max_responses ?? 3))) {
+          setSubmitError("This scenario just filled while you were composing. Try another.");
+          setScenarios(prev => prev.filter(p => p.id !== modal.scenario.id));
+          setModal(null);
+          setSubmitting(false);
+          return;
+        }
+      }
+    } catch {
+      // Network hiccup — proceed and let the server reject if needed
+    }
+
     const res = await fetch(`/api/scenarios/${modal.scenario.id}/respond`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -218,10 +245,14 @@ export default function LOScenariosPage() {
     }
     setSubmitSuccess(true);
     setSubmitting(false);
-    // Mark as responded in list
     setScenarios(prev => prev.map(s =>
       s.id === modal.scenario.id ? { ...s, already_responded: true, response_count: s.response_count + 1 } : s
     ));
+    // Refresh pipeline list after successful response
+    fetch("/api/scenarios?my_responses=1")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setMyPipeline(d.responses ?? []); })
+      .catch(() => {});
   }
 
   async function withdrawResponse(scenarioId: string) {
@@ -258,9 +289,11 @@ export default function LOScenariosPage() {
     return `${Math.ceil(h / 24)}d left`;
   };
 
-  const filtered = scenarios.filter(s => !filterState || s.state === filterState);
+  const shortlistedCount = myPipeline.filter(r =>
+    r.scenario_briefs?.status === "matched" && r.status !== "invited"
+  ).length;
 
-  // Teaser view for signed-out users — sample board with lock overlay
+  // Teaser view for signed-out users
   if (isLoaded && !isSignedIn) {
     return (
       <div className="los-root">
@@ -273,12 +306,11 @@ export default function LOScenariosPage() {
         <div className="los-container" style={{ position: "relative" }}>
           <div className="los-header">
             <div>
-              <h1 className="los-title">Match Board</h1>
+              <h1 className="los-title">The Private Exchange</h1>
               <p className="los-sub">Anonymous borrower scenarios open to professionals on HomeRates.ai.</p>
             </div>
-            <span className="los-stat" style={{ background: "rgba(0,232,122,0.1)", color: "#00e87a", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 999, padding: "4px 14px", fontSize: "0.82rem", fontWeight: 700 }}>Live now</span>
+            <span className="los-stat">Live now</span>
           </div>
-          {/* Sample scenario cards — blurred */}
           <div style={{ position: "relative" }}>
             <div style={{ filter: "blur(3px)", pointerEvents: "none", userSelect: "none", opacity: 0.7 }}>
               {SAMPLE_SCENARIOS.map(s => (
@@ -286,8 +318,6 @@ export default function LOScenariosPage() {
                   <div className="los-card-top">
                     <span className="los-badge" style={{ background: BADGE_BG[s.loan_type] ?? "rgba(255,255,255,0.08)", border: `1px solid ${BADGE_BORDER[s.loan_type] ?? "rgba(255,255,255,0.15)"}`, color: BADGE_COLOR[s.loan_type] ?? "#f0f4ff" }}>{LABEL_MAP[s.loan_type] ?? s.loan_type}</span>
                     <span className="los-card-state">{s.state}</span>
-                    <span className="los-card-purpose">{s.loan_purpose}</span>
-                    <span className="los-card-age" style={{ marginLeft: "auto" }}>{Math.round((Date.now() - new Date(s.created_at).getTime()) / 3600000)}h ago</span>
                   </div>
                   <div className="los-card-grid">
                     <div className="los-card-field"><div className="los-card-label">PRICE RANGE</div><div className="los-card-value">{s.price_range}</div></div>
@@ -301,7 +331,6 @@ export default function LOScenariosPage() {
                 </div>
               ))}
             </div>
-            {/* Lock overlay */}
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
               <div style={{ background: "rgba(8,12,18,0.92)", backdropFilter: "blur(8px)", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 20, padding: "32px 40px", textAlign: "center", maxWidth: 380 }}>
                 <div style={{ fontSize: "2rem", marginBottom: 12 }}>🔒</div>
@@ -313,11 +342,11 @@ export default function LOScenariosPage() {
             </div>
           </div>
         </div>
+        <style>{`body:has(.los-root){display:block!important;height:auto!important;overflow-y:auto!important;background:#080c12!important}`}</style>
       </div>
     );
   }
 
-  // Gate screens — pro validation
   if (gateStatus === "loading" && isLoaded && isSignedIn) {
     return (
       <div className="los-root">
@@ -395,321 +424,316 @@ export default function LOScenariosPage() {
 
         <div className="los-container">
 
+          {/* Header */}
           <div className="los-header">
             <div>
-              <h1 className="los-title">
-                {tab === "referrals" ? "My Referrals" : tab === "pipeline" ? "My Pipeline" : "The Private Exchange"}
-              </h1>
-              <p className="los-sub">
-                {tab === "referrals"
-                  ? "Private scenarios from borrowers you referred. Only you can see these."
-                  : tab === "pipeline"
-                  ? "Scenarios you've responded to. Once the cap fills, it lands here exclusively."
-                  : "Anonymous borrower scenarios — respond to earn an introduction."}
-              </p>
+              <h1 className="los-title">The Private Exchange</h1>
+              <p className="los-sub">Anonymous borrower scenarios — respond to earn an introduction.</p>
             </div>
-            <div className="los-stats">
-              {tab === "board" && <span className="los-stat">{scenarios.filter(s => !s.already_responded).length} open</span>}
-              {tab === "referrals" && referrals.length > 0 && <span className="los-stat los-stat-private">🔒 {referrals.length} private</span>}
-              {tab === "pipeline" && myPipeline.length > 0 && (
-                <span className="los-stat" style={{ background: "rgba(61,139,255,0.1)", color: "#3d8bff", borderColor: "rgba(61,139,255,0.25)" }}>
-                  {myPipeline.filter(r => r.scenario_briefs?.status === "matched" && r.status !== "invited").length} shortlisted
-                </span>
-              )}
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <span className="los-stat">{scenarios.filter(s => !s.already_responded).length} open</span>
+              <button
+                className="los-pipeline-btn"
+                onClick={() => setPipelineOpen(true)}
+              >
+                My Pipeline
+                {myPipeline.length > 0 && (
+                  <span className="los-pipeline-count">{myPipeline.length}</span>
+                )}
+                {shortlistedCount > 0 && (
+                  <span className="los-pipeline-shortlisted">{shortlistedCount} shortlisted</span>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Tab switcher */}
-          <div className="los-tabs">
-            <button
-              className={`los-tab ${tab === "board" ? "active" : ""}`}
-              onClick={() => setTab("board")}
-            >
-              The Private Exchange
-              {scenarios.filter(s => !s.already_responded).length > 0 && (
-                <span className="los-tab-badge">{scenarios.filter(s => !s.already_responded).length}</span>
-              )}
-            </button>
-            <button
-              className={`los-tab ${tab === "referrals" ? "active" : ""}`}
-              onClick={() => setTab("referrals")}
-            >
-              My Referrals
-              {referrals.length > 0 && <span className="los-tab-badge los-tab-badge-private">{referrals.length}</span>}
-            </button>
-            <button
-              className={`los-tab ${tab === "pipeline" ? "active" : ""}`}
-              onClick={() => setTab("pipeline")}
-            >
-              My Pipeline
-              {myPipeline.filter(r => r.scenario_briefs?.status === "matched" && r.status !== "invited").length > 0 && (
-                <span className="los-tab-badge" style={{ background: "#3d8bff" }}>
-                  {myPipeline.filter(r => r.scenario_briefs?.status === "matched" && r.status !== "invited").length}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Sort + Filters — only on Exchange tab */}
-          {tab === "board" && (
-            <div className="los-filters">
-              <div style={{ display: "flex", gap: 6, marginBottom: "0.75rem", width: "100%", flexWrap: "wrap" }}>
-                {(["newest", "closing_soon", "most_active"] as const).map(s => (
-                  <button
-                    key={s}
-                    className={`los-filter-chip ${sort === s ? "active" : ""}`}
-                    onClick={() => setSort(s)}
-                  >
-                    {s === "newest" ? "Newest" : s === "closing_soon" ? "Closing Soon" : "Most Active"}
-                  </button>
-                ))}
+          {/* Sort + Filters */}
+          <div className="los-filters">
+            <div style={{ display: "flex", gap: 6, marginBottom: "0.75rem", width: "100%", flexWrap: "wrap" }}>
+              {(["newest", "closing_soon", "most_active"] as const).map(s => (
+                <button
+                  key={s}
+                  className={`los-filter-chip ${sort === s ? "active" : ""}`}
+                  onClick={() => setSort(s)}
+                >
+                  {s === "newest" ? "Newest" : s === "closing_soon" ? "Closing Soon" : "Most Active"}
+                </button>
+              ))}
+            </div>
+            <div className="los-filter-group">
+              {LOAN_TYPES.map(t => (
+                <button
+                  key={t}
+                  className={`los-filter-chip ${filterType === t ? "active" : ""}`}
+                  onClick={() => setFilterType(t)}
+                >
+                  {t === "All" ? "All types" : LABEL_MAP[t]}
+                </button>
+              ))}
+            </div>
+            {filterState ? (
+              <div className="los-state-chip">
+                <span>Your state: <strong>{filterState}</strong></span>
+                <button className="los-state-chip-clear" onClick={() => setFilterState("")} title="Clear state filter">×</button>
               </div>
-              <div className="los-filter-group">
-                {LOAN_TYPES.map(t => (
-                  <button
-                    key={t}
-                    className={`los-filter-chip ${filterType === t ? "active" : ""}`}
-                    onClick={() => setFilterType(t)}
-                  >
-                    {t === "All" ? "All types" : LABEL_MAP[t]}
-                  </button>
-                ))}
-              </div>
+            ) : (
               <input
                 className="los-state-input"
-                placeholder="Filter by state (e.g. CA)"
+                placeholder="State (e.g. CA)"
                 value={filterState}
                 onChange={e => setFilterState(e.target.value.toUpperCase().slice(0, 2))}
                 maxLength={2}
               />
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* My Referrals tab */}
-          {tab === "referrals" && (
-            referrals.length === 0 ? (
-              <div className="los-empty">
-                <div className="los-empty-icon">🔒</div>
-                <p>No private referrals yet.</p>
-                <p className="los-empty-sub">When you invite a borrower and they post a scenario, it will appear here — exclusively for you.</p>
-              </div>
-            ) : (
-              <div className="los-board">
-                {referrals.map(s => (
-                  <div key={s.id} className="los-card los-card-private" onClick={() => openModal(s)}>
-                    <div className="los-card-private-badge">🔒 Private — only you</div>
-                    <div className="los-card-top">
-                      <span className="los-loan-badge">{LABEL_MAP[s.loan_type] ?? s.loan_type}</span>
-                      <span className="los-state-badge">{s.state}</span>
-                      {s.has_card_data && <span className="los-ai-badge">⚡ AI card</span>}
-                    </div>
-                    <div className="los-card-grid">
-                      <div className="los-card-field"><div className="los-card-label">Price</div><div className="los-card-value">{s.price_range}</div></div>
-                      <div className="los-card-field"><div className="los-card-label">Down</div><div className="los-card-value">{s.down_payment_pct}%</div></div>
-                      <div className="los-card-field"><div className="los-card-label">Credit</div><div className="los-card-value">{s.credit_tier?.split(" ")[0]}</div></div>
-                      <div className="los-card-field"><div className="los-card-label">Timeline</div><div className="los-card-value">{s.timeline?.split(" ")[0]}</div></div>
-                    </div>
-                    <div className="los-card-footer">
-                      {s.already_responded
-                        ? <span className="los-responded-badge">✓ Responded</span>
-                        : <span className="los-respond-cta">View & respond →</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
+          {/* Auto-refresh indicator */}
+          <div className="los-refresh-bar">
+            <span className="los-refresh-dot" />
+            <span className="los-refresh-text">
+              Auto-refreshes every 30s
+              {lastRefreshed && ` · Updated ${lastRefreshed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+            </span>
+            <button className="los-refresh-btn" onClick={() => load()}>Refresh now</button>
+          </div>
 
-          {/* My Pipeline tab */}
-          {tab === "pipeline" && (
-            myPipeline.length === 0 ? (
-              <div className="los-empty">
-                <div className="los-empty-icon">📥</div>
-                <p>Your pipeline is empty.</p>
-                <p className="los-empty-sub">Respond to scenarios on The Private Exchange. Once the response cap fills, the scenario lands here exclusively for the responding LOs.</p>
-              </div>
-            ) : (
-              <div className="los-board">
-                {myPipeline.map(r => {
-                  const sb = r.scenario_briefs;
-                  if (!sb) return null;
-
-                  // Resolve lifecycle stage
-                  const isConnected = r.status === "invited";
-                  const isShortlisted = !isConnected && sb.status === "matched";
-                  const isActive = !isConnected && !isShortlisted && sb.status === "active";
-                  const isClosed = !isConnected && !isShortlisted && !isActive;
-
-                  const stageBadge = isConnected
-                    ? { label: "Connected", color: "#00e87a", bg: "rgba(0,232,122,0.1)", border: "rgba(0,232,122,0.3)" }
-                    : isShortlisted
-                    ? { label: "Shortlisted", color: "#3d8bff", bg: "rgba(61,139,255,0.1)", border: "rgba(61,139,255,0.3)" }
-                    : isActive
-                    ? { label: "Pending", color: "#8fa3b8", bg: "rgba(143,163,184,0.08)", border: "rgba(143,163,184,0.2)" }
-                    : { label: "Closed", color: "#3a4560", bg: "rgba(58,69,96,0.15)", border: "rgba(58,69,96,0.3)" };
-
-                  return (
-                    <div key={r.id} className="los-card" style={{ opacity: isClosed ? 0.5 : 1, borderColor: isShortlisted ? "rgba(61,139,255,0.25)" : isConnected ? "rgba(0,232,122,0.25)" : undefined }}>
-
-                      {/* Stage banner */}
-                      {isConnected && (
-                        <div style={{ background: "rgba(0,232,122,0.07)", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: "0.82rem", color: "#00e87a", lineHeight: 1.5 }}>
-                          <strong>Contact exchanged.</strong> Continue directly with the borrower — HomeRates.ai's role is done.
-                        </div>
-                      )}
-                      {isShortlisted && (
-                        <div style={{ background: "rgba(61,139,255,0.06)", border: "1px solid rgba(61,139,255,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: "0.82rem", color: "#3d8bff", lineHeight: 1.5 }}>
-                          <strong>You're shortlisted.</strong> The response cap was reached — borrower is reviewing the {sb.max_responses} responses.
-                        </div>
-                      )}
-
-                      <div className="los-card-top">
-                        <span className="los-loan-badge" style={{ background: BADGE_BG[sb.loan_type] ?? "rgba(61,139,255,0.12)", border: `1px solid ${BADGE_BORDER[sb.loan_type] ?? "rgba(61,139,255,0.3)"}`, color: BADGE_COLOR[sb.loan_type] ?? "#3d8bff" }}>
-                          {LABEL_MAP[sb.loan_type] ?? sb.loan_type}
-                        </span>
-                        <span className="los-card-state">{sb.state}</span>
-                        <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: stageBadge.bg, border: `1px solid ${stageBadge.border}`, color: stageBadge.color }}>
-                          {stageBadge.label}
-                        </span>
-                        <span className="los-card-time" style={{ marginLeft: "auto" }}>{timeAgo(r.created_at)}</span>
-                      </div>
-
-                      <div className="los-card-grid">
-                        <div className="los-card-field"><div className="los-cf-label">Price</div><div className="los-cf-value">{sb.price_range}</div></div>
-                        <div className="los-card-field"><div className="los-cf-label">State</div><div className="los-cf-value">{sb.state}</div></div>
-                        <div className="los-card-field"><div className="los-cf-label">My Rate</div><div className="los-cf-value" style={{ color: "#00e87a" }}>{r.rate_estimate}</div></div>
-                        <div className="los-card-field"><div className="los-cf-label">Responses</div><div className="los-cf-value">{sb.response_count}/{sb.max_responses}</div></div>
-                      </div>
-
-                      <div className="los-card-footer">
-                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          {isActive && sb.closes_at && <span className="los-card-timeleft">{timeLeft(sb.closes_at)}</span>}
-                          {isActive && <span style={{ fontSize: "0.72rem", color: "#3a4560" }}>{(sb.max_responses ?? 3) - sb.response_count} slot{(sb.max_responses ?? 3) - sb.response_count !== 1 ? "s" : ""} left</span>}
-                        </div>
-                        {isActive && (
-                          <button
-                            className="los-modal-cancel"
-                            style={{ fontSize: "0.75rem", padding: "5px 14px" }}
-                            disabled={withdrawingId === r.scenario_id}
-                            onClick={() => withdrawResponse(r.scenario_id)}
-                          >
-                            {withdrawingId === r.scenario_id ? "Withdrawing..." : "Withdraw"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          )}
-
-          {/* Match Board tab */}
-          {tab === "board" && loading ? (
+          {/* Exchange board */}
+          {loading ? (
             <div className="los-loading">Loading scenarios...</div>
-          ) : tab === "board" && filtered.length === 0 ? (
+          ) : scenarios.length === 0 ? (
             <div className="los-empty">
               <div className="los-empty-icon">📋</div>
-              <p>No active scenarios match your filters. Check back soon.</p>
+              <p>No active scenarios match your filters.</p>
+              <p className="los-empty-sub">
+                {filterState
+                  ? `Try clearing the ${filterState} filter to see all states.`
+                  : "Check back soon — new scenarios are posted daily."}
+              </p>
             </div>
           ) : (
             <div className="los-grid">
-              {filtered.map(scenario => (
-                <div key={scenario.id} className={`los-card ${scenario.already_responded ? "los-card-done" : ""} ${scenario.is_mine ? "los-card-mine" : ""}`}>
-                  <div className="los-card-header">
-                    <span
-                      className="los-loan-badge"
-                      style={{
-                        background: BADGE_BG[scenario.loan_type] ?? "rgba(61,139,255,0.12)",
-                        borderColor: BADGE_BORDER[scenario.loan_type] ?? "rgba(61,139,255,0.3)",
-                        color: BADGE_COLOR[scenario.loan_type] ?? "#3d8bff",
-                      }}
-                    >
-                      {LABEL_MAP[scenario.loan_type] ?? scenario.loan_type}
-                    </span>
-                    {(() => {
-                      const b = getStatusBadge(scenario);
-                      return <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: b.bg, border: `1px solid ${b.border}`, color: b.color, flexShrink: 0 }}>{b.label}</span>;
-                    })()}
-                    {scenario.is_mine && (
-                      <span className="los-mine-badge">My Scenario</span>
-                    )}
-                    <span className="los-card-state">{scenario.state}</span>
-                    <span className="los-card-purpose">{scenario.loan_purpose}</span>
-                    <span className="los-card-time">{timeAgo(scenario.created_at)}</span>
-                  </div>
+              {scenarios.map(scenario => {
+                const isFilled = filledIds.has(scenario.id);
+                return (
+                  <div
+                    key={scenario.id}
+                    className={`los-card ${scenario.already_responded ? "los-card-done" : ""} ${scenario.is_mine ? "los-card-mine" : ""}`}
+                    style={{ position: "relative" }}
+                  >
 
-                  <div className="los-card-grid">
-                    <div className="los-card-field">
-                      <div className="los-cf-label">Price range</div>
-                      <div className="los-cf-value">{scenario.price_range}</div>
-                    </div>
-                    <div className="los-card-field">
-                      <div className="los-cf-label">Down</div>
-                      <div className="los-cf-value">{scenario.down_payment_pct}%</div>
-                    </div>
-                    <div className="los-card-field">
-                      <div className="los-cf-label">Credit</div>
-                      <div className="los-cf-value">{scenario.credit_tier}</div>
-                    </div>
-                    <div className="los-card-field">
-                      <div className="los-cf-label">Timeline</div>
-                      <div className="los-cf-value">{scenario.timeline}</div>
-                    </div>
-                    {scenario.income_range && (
-                      <div className="los-card-field">
-                        <div className="los-cf-label">Income</div>
-                        <div className="los-cf-value">{scenario.income_range}</div>
+                    {/* Just-filled overlay — shown for 3s when scenario fills during session */}
+                    {isFilled && (
+                      <div className="los-filled-overlay">
+                        <div className="los-filled-pill">
+                          <span>⚡</span>
+                          <span>Just filled — response cap reached</span>
+                        </div>
                       </div>
                     )}
-                    <div className="los-card-field">
-                      <div className="los-cf-label">Purpose</div>
-                      <div className="los-cf-value">{scenario.loan_purpose}</div>
-                    </div>
-                  </div>
 
-                  {/* AI card data badge */}
-                  {scenario.has_card_data && (
-                    <div className="los-card-ai-badge">
-                      <span className="los-card-ai-icon">⚡</span>
-                      <span>AI analysis attached</span>
-                      <span className="los-card-ai-nums">
-                        {scenario.card_rate ? `${scenario.card_rate.toFixed(2)}%` : ""}
-                        {scenario.card_monthly ? ` · $${Math.round(scenario.card_monthly).toLocaleString()}/mo` : ""}
+                    {/* Private referral badge */}
+                    {scenario.visibility === "private" && (
+                      <div className="los-card-private-banner">🔒 Private referral — only you can see this</div>
+                    )}
+
+                    <div className="los-card-header">
+                      <span
+                        className="los-loan-badge"
+                        style={{
+                          background: BADGE_BG[scenario.loan_type] ?? "rgba(61,139,255,0.12)",
+                          borderColor: BADGE_BORDER[scenario.loan_type] ?? "rgba(61,139,255,0.3)",
+                          color: BADGE_COLOR[scenario.loan_type] ?? "#3d8bff",
+                        }}
+                      >
+                        {LABEL_MAP[scenario.loan_type] ?? scenario.loan_type}
                       </span>
+                      {(() => {
+                        const b = getStatusBadge(scenario);
+                        return (
+                          <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: b.bg, border: `1px solid ${b.border}`, color: b.color, flexShrink: 0 }}>
+                            {b.label}
+                          </span>
+                        );
+                      })()}
+                      {scenario.is_mine && <span className="los-mine-badge">My Scenario</span>}
+                      <span className="los-card-state">{scenario.state}</span>
+                      <span className="los-card-purpose">{scenario.loan_purpose}</span>
+                      <span className="los-card-time">{timeAgo(scenario.created_at)}</span>
                     </div>
-                  )}
 
-                  {scenario.notes && (
-                    <p className="los-card-note">"{scenario.notes}"</p>
-                  )}
+                    <div className="los-card-grid">
+                      <div className="los-card-field">
+                        <div className="los-cf-label">Price range</div>
+                        <div className="los-cf-value">{scenario.price_range}</div>
+                      </div>
+                      <div className="los-card-field">
+                        <div className="los-cf-label">Down</div>
+                        <div className="los-cf-value">{scenario.down_payment_pct}%</div>
+                      </div>
+                      <div className="los-card-field">
+                        <div className="los-cf-label">Credit</div>
+                        <div className="los-cf-value">{scenario.credit_tier}</div>
+                      </div>
+                      <div className="los-card-field">
+                        <div className="los-cf-label">Timeline</div>
+                        <div className="los-cf-value">{scenario.timeline}</div>
+                      </div>
+                      {scenario.income_range && (
+                        <div className="los-card-field">
+                          <div className="los-cf-label">Income</div>
+                          <div className="los-cf-value">{scenario.income_range}</div>
+                        </div>
+                      )}
+                      <div className="los-card-field">
+                        <div className="los-cf-label">Purpose</div>
+                        <div className="los-cf-value">{scenario.loan_purpose}</div>
+                      </div>
+                    </div>
 
-                  <div className="los-card-footer">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span className="los-card-responses">
-                        {scenario.response_count}{scenario.max_responses ? `/${scenario.max_responses}` : ""} response{scenario.response_count !== 1 ? "s" : ""}
-                      </span>
-                      {scenario.closes_at && (
-                        <span className="los-card-timeleft">{timeLeft(scenario.closes_at)}</span>
+                    {scenario.has_card_data && (
+                      <div className="los-card-ai-badge">
+                        <span className="los-card-ai-icon">⚡</span>
+                        <span>AI analysis attached</span>
+                        <span className="los-card-ai-nums">
+                          {scenario.card_rate ? `${scenario.card_rate.toFixed(2)}%` : ""}
+                          {scenario.card_monthly ? ` · $${Math.round(scenario.card_monthly).toLocaleString()}/mo` : ""}
+                        </span>
+                      </div>
+                    )}
+
+                    {scenario.notes && (
+                      <p className="los-card-note">"{scenario.notes}"</p>
+                    )}
+
+                    <div className="los-card-footer">
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <span className="los-card-responses">
+                          {scenario.response_count}{scenario.max_responses ? `/${scenario.max_responses}` : ""} response{scenario.response_count !== 1 ? "s" : ""}
+                        </span>
+                        {scenario.closes_at && (
+                          <span className="los-card-timeleft">{timeLeft(scenario.closes_at)}</span>
+                        )}
+                      </div>
+                      {scenario.is_mine ? (
+                        <span className="los-mine-label">Posted by you — open to others</span>
+                      ) : scenario.already_responded ? (
+                        <span className="los-responded-badge">✓ Responded</span>
+                      ) : scenario.max_responses && scenario.response_count >= scenario.max_responses ? (
+                        <span className="los-full-badge">Response limit reached</span>
+                      ) : (
+                        <button className="los-respond-btn" onClick={() => openModal(scenario)}>
+                          Respond →
+                        </button>
                       )}
                     </div>
-                    {scenario.is_mine ? (
-                      <span className="los-mine-label">Posted by you — open to others</span>
-                    ) : scenario.already_responded ? (
-                      <span className="los-responded-badge">✓ Responded</span>
-                    ) : scenario.max_responses && scenario.response_count >= scenario.max_responses ? (
-                      <span className="los-full-badge">Response limit reached</span>
-                    ) : (
-                      <button className="los-respond-btn" onClick={() => openModal(scenario)}>
-                        Respond →
-                      </button>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* My Pipeline — slide-over drawer */}
+        {pipelineOpen && (
+          <div
+            className="los-pipeline-overlay"
+            onClick={e => { if (e.target === e.currentTarget) setPipelineOpen(false); }}
+          >
+            <div className="los-pipeline-drawer">
+              <div className="los-drawer-header">
+                <div>
+                  <h2 className="los-drawer-title">My Pipeline</h2>
+                  <p className="los-drawer-sub">Scenarios you've responded to.</p>
+                </div>
+                <button className="los-modal-x" onClick={() => setPipelineOpen(false)}>✕</button>
+              </div>
+
+              {myPipeline.length === 0 ? (
+                <div className="los-empty" style={{ paddingTop: "3rem" }}>
+                  <div className="los-empty-icon">📥</div>
+                  <p>Your pipeline is empty.</p>
+                  <p className="los-empty-sub">Respond to scenarios in The Private Exchange. Once the response cap fills, the scenario lands here for the selected LOs.</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {myPipeline.map(r => {
+                    const sb = r.scenario_briefs;
+                    if (!sb) return null;
+
+                    const isConnected = r.status === "invited";
+                    const isShortlisted = !isConnected && sb.status === "matched";
+                    const isActive = !isConnected && !isShortlisted && sb.status === "active";
+
+                    const stageBadge = isConnected
+                      ? { label: "Connected", color: "#00e87a", bg: "rgba(0,232,122,0.1)", border: "rgba(0,232,122,0.3)" }
+                      : isShortlisted
+                      ? { label: "Shortlisted", color: "#3d8bff", bg: "rgba(61,139,255,0.1)", border: "rgba(61,139,255,0.3)" }
+                      : isActive
+                      ? { label: "Pending", color: "#8fa3b8", bg: "rgba(143,163,184,0.08)", border: "rgba(143,163,184,0.2)" }
+                      : { label: "Closed", color: "#3a4560", bg: "rgba(58,69,96,0.15)", border: "rgba(58,69,96,0.3)" };
+
+                    return (
+                      <div
+                        key={r.id}
+                        className="los-card"
+                        style={{
+                          opacity: stageBadge.label === "Closed" ? 0.5 : 1,
+                          borderColor: isShortlisted ? "rgba(61,139,255,0.25)" : isConnected ? "rgba(0,232,122,0.25)" : undefined,
+                        }}
+                      >
+                        {isConnected && (
+                          <div style={{ background: "rgba(0,232,122,0.07)", border: "1px solid rgba(0,232,122,0.2)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: "0.8rem", color: "#00e87a", lineHeight: 1.5 }}>
+                            <strong>Contact exchanged.</strong> Continue directly with the borrower.
+                          </div>
+                        )}
+                        {isShortlisted && (
+                          <div style={{ background: "rgba(61,139,255,0.06)", border: "1px solid rgba(61,139,255,0.2)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: "0.8rem", color: "#3d8bff", lineHeight: 1.5 }}>
+                            <strong>You're shortlisted.</strong> Borrower is reviewing {sb.max_responses} responses.
+                          </div>
+                        )}
+
+                        <div className="los-card-top">
+                          <span className="los-loan-badge" style={{ background: BADGE_BG[sb.loan_type] ?? "rgba(61,139,255,0.12)", border: `1px solid ${BADGE_BORDER[sb.loan_type] ?? "rgba(61,139,255,0.3)"}`, color: BADGE_COLOR[sb.loan_type] ?? "#3d8bff" }}>
+                            {LABEL_MAP[sb.loan_type] ?? sb.loan_type}
+                          </span>
+                          <span className="los-card-state">{sb.state}</span>
+                          <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: stageBadge.bg, border: `1px solid ${stageBadge.border}`, color: stageBadge.color }}>
+                            {stageBadge.label}
+                          </span>
+                          <span className="los-card-time" style={{ marginLeft: "auto" }}>{timeAgo(r.created_at)}</span>
+                        </div>
+
+                        <div className="los-card-grid">
+                          <div className="los-card-field"><div className="los-cf-label">Price</div><div className="los-cf-value">{sb.price_range}</div></div>
+                          <div className="los-card-field"><div className="los-cf-label">Responses</div><div className="los-cf-value">{sb.response_count}/{sb.max_responses}</div></div>
+                          <div className="los-card-field"><div className="los-cf-label">My Rate</div><div className="los-cf-value" style={{ color: "#00e87a" }}>{r.rate_estimate}</div></div>
+                          <div className="los-card-field"><div className="los-cf-label">State</div><div className="los-cf-value">{sb.state}</div></div>
+                        </div>
+
+                        <div className="los-card-footer">
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            {isActive && sb.closes_at && <span className="los-card-timeleft">{timeLeft(sb.closes_at)}</span>}
+                            {isActive && <span style={{ fontSize: "0.72rem", color: "#3a4560" }}>{(sb.max_responses ?? 3) - sb.response_count} slot{(sb.max_responses ?? 3) - sb.response_count !== 1 ? "s" : ""} left</span>}
+                          </div>
+                          {isActive && (
+                            <button
+                              className="los-modal-cancel"
+                              style={{ fontSize: "0.75rem", padding: "5px 14px" }}
+                              disabled={withdrawingId === r.scenario_id}
+                              onClick={() => withdrawResponse(r.scenario_id)}
+                            >
+                              {withdrawingId === r.scenario_id ? "Withdrawing..." : "Withdraw"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Response Modal */}
         {modal && (
@@ -740,10 +764,8 @@ export default function LOScenariosPage() {
                     <button className="los-modal-x" onClick={() => setModal(null)}>✕</button>
                   </div>
 
-                  {/* Full scenario breakdown */}
                   <div className="los-modal-scenario">
 
-                    {/* AI card block — shown when borrower posted from analysis */}
                     {modal.scenario.has_card_data && (
                       <div className="los-ms-card-block">
                         <div className="los-ms-card-label">⚡ Borrower's AI analysis — real numbers</div>
@@ -926,7 +948,7 @@ export default function LOScenariosPage() {
 
         .los-container { max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 
-        .los-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2rem; }
+        .los-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 12px; }
         .los-title { font-family: 'DM Sans', sans-serif; font-size: 1.75rem; font-weight: 700; margin: 0 0 0.3rem; }
         .los-sub { font-size: 0.9rem; color: #8fa3b8; margin: 0; }
         .los-stat {
@@ -935,7 +957,27 @@ export default function LOScenariosPage() {
           border-radius: 99px; padding: 4px 14px;
         }
 
-        .los-filters { display: flex; align-items: center; gap: 12px; margin-bottom: 1.75rem; flex-wrap: wrap; }
+        /* Pipeline button */
+        .los-pipeline-btn {
+          display: flex; align-items: center; gap: 8px;
+          padding: 8px 18px;
+          background: rgba(61,139,255,0.1); border: 1px solid rgba(61,139,255,0.3);
+          color: #3d8bff; border-radius: 99px;
+          font-size: 0.85rem; font-weight: 700; cursor: pointer;
+          transition: all 0.15s;
+        }
+        .los-pipeline-btn:hover { background: rgba(61,139,255,0.18); border-color: rgba(61,139,255,0.5); }
+        .los-pipeline-count {
+          background: #3d8bff; color: #fff;
+          font-size: 0.72rem; font-weight: 800;
+          border-radius: 99px; padding: 1px 8px;
+        }
+        .los-pipeline-shortlisted {
+          font-size: 0.72rem; color: #3d8bff; opacity: 0.8;
+        }
+
+        /* Filters */
+        .los-filters { display: flex; align-items: center; gap: 12px; margin-bottom: 0.75rem; flex-wrap: wrap; }
         .los-filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
         .los-filter-chip {
           padding: 6px 14px; border-radius: 99px;
@@ -944,6 +986,22 @@ export default function LOScenariosPage() {
         }
         .los-filter-chip:hover { border-color: rgba(255,255,255,0.2); color: #f0f4ff; }
         .los-filter-chip.active { background: rgba(0,232,122,0.1); border-color: rgba(0,232,122,0.35); color: #00e87a; font-weight: 600; }
+
+        /* State chip — shown when a state is set */
+        .los-state-chip {
+          display: flex; align-items: center; gap: 6px;
+          padding: 6px 10px 6px 14px;
+          background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.3);
+          border-radius: 99px; font-size: 0.82rem; color: #00e87a;
+        }
+        .los-state-chip-clear {
+          background: rgba(0,232,122,0.15); border: none; color: #00e87a;
+          width: 18px; height: 18px; border-radius: 50%;
+          font-size: 0.9rem; line-height: 1; cursor: pointer; padding: 0;
+          display: flex; align-items: center; justify-content: center;
+          transition: background 0.15s;
+        }
+        .los-state-chip-clear:hover { background: rgba(0,232,122,0.3); }
         .los-state-input {
           padding: 6px 12px; border-radius: 8px;
           border: 1px solid rgba(255,255,255,0.08); background: #0e1420;
@@ -952,53 +1010,35 @@ export default function LOScenariosPage() {
         }
         .los-state-input:focus { border-color: rgba(0,232,122,0.35); }
 
+        /* Auto-refresh bar */
+        .los-refresh-bar {
+          display: flex; align-items: center; gap: 8px;
+          margin-bottom: 1.75rem;
+          font-size: 0.75rem; color: #3a4560;
+        }
+        .los-refresh-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: #00e87a;
+          box-shadow: 0 0 6px rgba(0,232,122,0.6);
+          animation: los-pulse 2s ease-in-out infinite;
+          flex-shrink: 0;
+        }
+        @keyframes los-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+        .los-refresh-text { color: #3a4560; }
+        .los-refresh-btn {
+          margin-left: auto; background: none; border: none;
+          color: #3d8bff; font-size: 0.75rem; cursor: pointer;
+          padding: 3px 8px; border-radius: 6px;
+          transition: background 0.15s;
+        }
+        .los-refresh-btn:hover { background: rgba(61,139,255,0.1); }
+
         .los-loading, .los-empty { text-align: center; padding: 4rem 0; color: #8fa3b8; }
         .los-empty-icon { font-size: 2rem; margin-bottom: 0.75rem; }
         .los-empty-sub { font-size: 0.82rem; color: #3a4560; margin-top: 0.5rem; max-width: 340px; margin-left: auto; margin-right: auto; }
-
-        /* Tab switcher */
-        .los-tabs {
-          display: flex; gap: 4px;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-          margin-bottom: 1.25rem;
-        }
-        .los-tab {
-          padding: 10px 18px; border: none; background: none;
-          color: #8fa3b8; font-size: 0.875rem; font-weight: 600;
-          cursor: pointer; border-bottom: 2px solid transparent;
-          margin-bottom: -1px; display: flex; align-items: center; gap: 7px;
-          transition: color 0.15s;
-        }
-        .los-tab:hover { color: #f0f4ff; }
-        .los-tab.active { color: #f0f4ff; border-bottom-color: #00e87a; }
-        .los-tab-badge {
-          background: #3d8bff; color: #fff;
-          font-size: 0.68rem; font-weight: 800;
-          border-radius: 99px; padding: 1px 7px;
-        }
-        .los-tab-badge-private { background: #ff8c42; }
-
-        /* Private referral cards */
-        .los-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-        .los-card-private {
-          background: rgba(255,140,66,0.04);
-          border: 1px solid rgba(255,140,66,0.25) !important;
-          cursor: pointer;
-        }
-        .los-card-private:hover { border-color: rgba(255,140,66,0.5) !important; }
-        .los-card-private-badge {
-          font-size: 0.7rem; font-weight: 700; color: #ff8c42;
-          text-transform: uppercase; letter-spacing: 0.06em;
-          margin-bottom: 10px;
-        }
-        .los-card-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-        .los-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-        .los-card-label { font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.05em; }
-        .los-card-value { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
-        .los-card-footer { display: flex; align-items: center; justify-content: flex-end; }
-        .los-respond-cta { font-size: 0.8rem; color: #00e87a; font-weight: 600; }
-        .los-responded-badge { font-size: 0.78rem; color: #3a4560; }
-        .los-stat-private { color: #ff8c42 !important; border-color: rgba(255,140,66,0.25) !important; }
 
         .los-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 
@@ -1011,6 +1051,32 @@ export default function LOScenariosPage() {
         .los-card:hover { border-color: rgba(255,255,255,0.15); }
         .los-card-done { opacity: 0.6; }
         .los-card-mine { border-color: rgba(255,180,0,0.2) !important; background: rgba(255,180,0,0.03) !important; }
+
+        /* Private referral banner on card */
+        .los-card-private-banner {
+          font-size: 0.7rem; font-weight: 700; color: #ff8c42;
+          text-transform: uppercase; letter-spacing: 0.06em;
+          margin-bottom: 10px;
+          background: rgba(255,140,66,0.07); border: 1px solid rgba(255,140,66,0.2);
+          border-radius: 6px; padding: 4px 8px;
+        }
+
+        /* Just-filled overlay */
+        .los-filled-overlay {
+          position: absolute; inset: 0;
+          background: rgba(8,12,18,0.82); border-radius: 14px;
+          display: flex; align-items: center; justify-content: center;
+          z-index: 10;
+          animation: los-filled-fade 0.3s ease;
+        }
+        @keyframes los-filled-fade { from { opacity: 0; } to { opacity: 1; } }
+        .los-filled-pill {
+          display: flex; align-items: center; gap: 8px;
+          background: rgba(255,140,66,0.15); border: 1px solid rgba(255,140,66,0.4);
+          border-radius: 99px; padding: 10px 20px;
+          font-size: 0.88rem; font-weight: 700; color: #ff8c42;
+        }
+
         .los-mine-badge {
           font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
           color: #ffd166; background: rgba(255,180,0,0.12); border: 1px solid rgba(255,180,0,0.25);
@@ -1030,11 +1096,12 @@ export default function LOScenariosPage() {
         .los-card-purpose { font-size: 0.75rem; color: #8fa3b8; }
         .los-card-time { font-size: 0.72rem; color: #3a4560; margin-left: auto; }
 
+        .los-card-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
         .los-card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 0.75rem; }
+        .los-card-field { display: flex; flex-direction: column; }
         .los-cf-label { font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
         .los-cf-value { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
 
-        /* AI card badge on board card */
         .los-card-ai-badge {
           display: flex; align-items: center; gap: 6px;
           font-size: 0.75rem; font-weight: 600; color: #00e87a;
@@ -1058,6 +1125,28 @@ export default function LOScenariosPage() {
         .los-respond-btn:hover { opacity: 0.88; }
         .los-responded-badge { font-size: 0.78rem; color: #00e87a; font-weight: 600; }
 
+        /* Pipeline slide-over drawer */
+        .los-pipeline-overlay {
+          position: fixed; inset: 0; z-index: 300;
+          background: rgba(8,12,18,0.6); backdrop-filter: blur(4px);
+        }
+        .los-pipeline-drawer {
+          position: absolute; right: 0; top: 0; bottom: 0; width: 440px;
+          background: #0e1420; border-left: 1px solid rgba(255,255,255,0.08);
+          overflow-y: auto; padding: 2rem 1.5rem;
+          animation: los-drawer-in 0.25s cubic-bezier(0.25,0.46,0.45,0.94);
+        }
+        @keyframes los-drawer-in {
+          from { transform: translateX(60px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @media (max-width: 480px) {
+          .los-pipeline-drawer { width: 100%; }
+        }
+        .los-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; }
+        .los-drawer-title { font-family: 'DM Sans', sans-serif; font-size: 1.2rem; font-weight: 700; margin: 0 0 3px; color: #f0f4ff; }
+        .los-drawer-sub { font-size: 0.82rem; color: #8fa3b8; margin: 0; }
+
         /* Modal */
         .los-modal-overlay {
           position: fixed; inset: 0; z-index: 200;
@@ -1080,12 +1169,9 @@ export default function LOScenariosPage() {
           background: #141b28; border-radius: 12px; padding: 1.25rem;
           margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.06);
         }
-        /* AI card block inside modal */
         .los-ms-card-block {
-          background: rgba(0,232,122,0.05);
-          border: 1px solid rgba(0,232,122,0.2);
-          border-radius: 10px; padding: 1rem;
-          margin-bottom: 1.25rem;
+          background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.2);
+          border-radius: 10px; padding: 1rem; margin-bottom: 1.25rem;
         }
         .los-ms-card-label {
           font-size: 0.72rem; font-weight: 700; color: #00e87a;
@@ -1097,14 +1183,11 @@ export default function LOScenariosPage() {
         .los-ms-card-rate { color: #00e87a; font-size: 1.05rem; }
         .los-ms-card-note {
           font-size: 0.78rem; color: rgba(0,232,122,0.6);
-          margin: 0; line-height: 1.5; border-top: 1px solid rgba(0,232,122,0.12);
-          padding-top: 0.6rem;
+          margin: 0; line-height: 1.5; border-top: 1px solid rgba(0,232,122,0.12); padding-top: 0.6rem;
         }
-
         .los-ms-header {
           font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-          text-transform: uppercase; color: #3a4560;
-          margin-bottom: 0.75rem;
+          text-transform: uppercase; color: #3a4560; margin-bottom: 0.75rem;
         }
         .los-ms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 0.75rem; }
         .los-ms-label { display: block; font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
@@ -1113,8 +1196,7 @@ export default function LOScenariosPage() {
         .los-ms-slots {
           font-size: 0.78rem; color: #ff8c42;
           margin: 0.5rem 0 0; background: rgba(255,140,66,0.08);
-          border: 1px solid rgba(255,140,66,0.2); border-radius: 7px;
-          padding: 6px 10px;
+          border: 1px solid rgba(255,140,66,0.2); border-radius: 7px; padding: 6px 10px;
         }
         .los-modal-timeleft { color: #ff8c42; font-size: 0.8rem; }
 
@@ -1139,7 +1221,6 @@ export default function LOScenariosPage() {
           background: rgba(255,95,95,0.08); border: 1px solid rgba(255,95,95,0.2);
           border-radius: 8px; padding: 10px 14px; margin-top: 1rem;
         }
-
         .los-modal-footer {
           display: flex; justify-content: flex-end; gap: 10px;
           margin-top: 1.5rem; padding-top: 1.25rem;
@@ -1177,6 +1258,8 @@ export default function LOScenariosPage() {
         @media (max-width: 600px) {
           .los-grid { grid-template-columns: 1fr; }
           .los-header { flex-direction: column; gap: 12px; }
+          .los-ms-card-row { grid-template-columns: repeat(2, 1fr); }
+          .los-ms-grid { grid-template-columns: repeat(2, 1fr); }
         }
       `}</style>
     </>
