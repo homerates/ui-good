@@ -207,14 +207,16 @@ export async function POST(req: NextRequest) {
   // Write property_snapshot so analysis route hits cache next time
   if (upserted?.id && enriched.lastSalePrice) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    await db().from('property_snapshots').insert({
-      property_id: upserted.id,
-      snapshot_type: 'full',
-      source: 'redfin_via_tavily',
-      data: enriched,
-      expires_at: expiresAt,
-      confidence: 0.85,
-    }).catch(() => {});
+    try {
+      await db().from('property_snapshots').insert({
+        property_id: upserted.id,
+        snapshot_type: 'full',
+        source: 'redfin_via_tavily',
+        data: enriched,
+        expires_at: expiresAt,
+        confidence: 0.85,
+      });
+    } catch { /* non-blocking */ }
   }
 
   return NextResponse.json({ ok: true, cached: false, address, data: enriched });
