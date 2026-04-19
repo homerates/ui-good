@@ -26,17 +26,28 @@ export async function GET() {
   const photoUrl = clerkUser.imageUrl ?? null;
 
   // Run all queries in parallel
-  const [loResult, agentResult, userResult, refCountResult] = await Promise.all([
+  const [loResult, agentResult, userResult, refCountResult, subResult] = await Promise.all([
     sb.from("loan_officers").select(LO_SELECT).eq("user_id", userId).maybeSingle(),
     sb.from("agents").select(AGENT_SELECT).eq("user_id", userId).maybeSingle(),
     sb.from("users").select("role, full_name, referred_by, referral_code, plan").eq("id", userId).maybeSingle(),
     sb.from("users").select("id", { count: "exact", head: true }).eq("referred_by", userId),
+    sb.from("subscriptions").select("plan").eq("user_id", userId).in("status", ["active", "trialing"]).order("current_period_end", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const loRow        = loResult.data;
   const agentRow     = agentResult.data;
   const userRow      = userResult.data;
   const referralCount = refCountResult.count ?? 0;
+
+  // Plan: prefer users.plan, fall back to active subscriptions row (webhook delivery delay guard)
+  const planFromUsers = (userRow?.plan ?? "free") as string;
+  const planFromSub   = (subResult.data?.plan ?? "free") as string;
+  const effectivePlan = planFromUsers !== "free" ? planFromUsers : planFromSub;
+
+  // Auto-heal: if subscription shows paid but users.plan is stale, repair it silently
+  if (planFromUsers === "free" && planFromSub !== "free") {
+    void sb.from("users").update({ plan: planFromSub }).eq("id", userId);
+  }
 
   const role = userRow?.role ?? (loRow ? "lo" : agentRow ? "agent" : "borrower");
   const isLO = !!loRow || userRow?.role === "lo";
@@ -69,7 +80,7 @@ export async function GET() {
     referred_by_name: referredByName,
     referral_code: userRow?.referral_code ?? null,
     referral_count: referralCount,
-    plan: userRow?.plan ?? "free",
+    plan: effectivePlan,
   });
 }
 

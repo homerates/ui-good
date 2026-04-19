@@ -273,7 +273,7 @@ export default function LOScenariosPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", color: "#8fa3b8" }}>
           Verifying access...
         </div>
-        <style>{`body:has(.los-root){display:block!important;background:#080c12!important}`}</style>
+        <style>{`body:has(.los-root){display:block!important;height:auto!important;overflow-y:auto!important;background:#080c12!important}`}</style>
       </div>
     );
   }
@@ -308,19 +308,19 @@ export default function LOScenariosPage() {
       <div className="los-root">
         <nav className="los-nav">
           <Link href="/lo/dashboard" className="los-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style={{ height: 28 }} />
           </Link>
           <AppNav drawerOnly />
         </nav>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", padding: "2rem" }}>
-          <div style={{ background: "rgba(8,12,18,0.92)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 20, padding: "40px 48px", textAlign: "center", maxWidth: 440 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "70vh", padding: "2rem" }}>
+          <div style={{ background: "rgba(14,20,32,0.96)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 20, padding: "40px 40px", textAlign: "center", maxWidth: 420 }}>
             <div style={{ fontSize: "2.5rem", marginBottom: 16 }}>{g.icon}</div>
             <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "#f0f4ff", marginBottom: 10 }}>{g.title}</div>
             <div style={{ fontSize: "0.88rem", color: "#8fa3b8", lineHeight: 1.6, marginBottom: 28 }}>{g.body}</div>
             <Link href={g.href} style={{ display: "inline-block", background: "#00e87a", color: "#080c12", fontWeight: 700, fontSize: "0.9rem", borderRadius: 999, padding: "11px 28px", textDecoration: "none" }}>{g.cta}</Link>
           </div>
         </div>
-        <style>{`body:has(.los-root){display:block!important;background:#080c12!important}`}</style>
+        <style>{`body:has(.los-root){display:block!important;height:auto!important;overflow-y:auto!important;background:#080c12!important}html:has(.los-root){background:#080c12!important}.los-nav-logo img{height:28px}`}</style>
       </div>
     );
   }
