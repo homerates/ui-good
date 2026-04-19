@@ -11,6 +11,100 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { fetchPropertyData } from '@/property/fetch';
 import { lookupTaxRate }     from '@/property/taxTable';
+import { getSupabase }       from '../../../../lib/supabaseServer';
+
+// Cache TTL: 7 days for Rentcast snapshots
+const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Normalize address for canonical lookup (lowercase, trim extra spaces)
+function normalizeAddress(addr: string): string {
+  return addr.trim().replace(/\s+/g, ' ');
+}
+
+// Upsert a canonical property + snapshot into Supabase and return the property id
+async function cachePropertyResult(address: string, data: Record<string, unknown>, source: string): Promise<void> {
+  try {
+    const sb = getSupabase();
+    if (!sb) return;
+    const addressFull = normalizeAddress(address);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + SNAPSHOT_TTL_MS).toISOString();
+
+    // Upsert canonical property record
+    const { data: prop } = await sb
+      .from('properties')
+      .upsert({
+        address_full:            addressFull,
+        address_line:            (data.address as string | null) ?? null,
+        city:                    (data.city as string | null) ?? null,
+        state:                   (data.state as string | null) ?? null,
+        zip:                     (data.zip as string | null) ?? null,
+        beds:                    (data.beds as number | null) ?? null,
+        baths:                   (data.baths as number | null) ?? null,
+        sqft:                    (data.sqft as number | null) ?? null,
+        latest_value:            (data.estimatedValue as number | null) ?? null,
+        latest_value_low:        (data.estimatedValueLow as number | null) ?? null,
+        latest_value_high:       (data.estimatedValueHigh as number | null) ?? null,
+        latest_rent:             (data.rentEstimate as number | null) ?? null,
+        latest_last_sale_price:  (data.lastSalePrice as number | null) ?? null,
+        latest_last_sale_date:   (data.lastSaleDate as string | null) ?? null,
+        latest_listing_status:   (data.listingStatus as string | null) ?? null,
+        enriched_at:             now.toISOString(),
+        enrichment_source:       source,
+        confidence:              source === 'rentcast' ? 0.90 : 0.65,
+        updated_at:              now.toISOString(),
+      }, { onConflict: 'address_full' })
+      .select('id')
+      .maybeSingle();
+
+    if (!prop?.id) return;
+
+    // Insert snapshot row (full payload)
+    await sb.from('property_snapshots').insert({
+      property_id:   prop.id,
+      snapshot_type: 'full',
+      source,
+      data,
+      fetched_at:    now.toISOString(),
+      expires_at:    expiresAt,
+      confidence:    source === 'rentcast' ? 0.90 : 0.65,
+    });
+  } catch {
+    // Non-fatal — cache write failures should never break the lookup response
+  }
+}
+
+// Check if a fresh cached snapshot exists for this address
+async function getCachedSnapshot(address: string): Promise<Record<string, unknown> | null> {
+  try {
+    const sb = getSupabase();
+    if (!sb) return null;
+    const addressFull = normalizeAddress(address);
+    const { data: prop } = await sb
+      .from('properties')
+      .select('id, enriched_at')
+      .eq('address_full', addressFull)
+      .maybeSingle();
+    if (!prop?.id || !prop.enriched_at) return null;
+
+    const age = Date.now() - new Date(prop.enriched_at).getTime();
+    if (age > SNAPSHOT_TTL_MS) return null;
+
+    const { data: snap } = await sb
+      .from('property_snapshots')
+      .select('data')
+      .eq('property_id', prop.id)
+      .eq('snapshot_type', 'full')
+      .gt('expires_at', new Date().toISOString())
+      .order('fetched_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return (snap?.data as Record<string, unknown>) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // ── Historical 30yr fixed annual averages (FRED MORTGAGE30US) ──────────────
 const HIST_RATES: Record<number, number> = {
@@ -365,9 +459,16 @@ async function handleUrl(rawUrl: string) {
     });
 }
 
-// ── Address handler (Rentcast) ──────────────────────────────────────────────
+// ── Address handler (cache-first, then Rentcast) ────────────────────────────
 
 async function handleAddress(rawAddress: string) {
+    // Check canonical property cache first — skip Rentcast if data is fresh
+    const cached = await getCachedSnapshot(rawAddress);
+    if (cached) {
+        console.log('[property/lookup] served from cache:', rawAddress);
+        return NextResponse.json({ ok: true, data: cached, fromCache: true });
+    }
+
     const key = process.env.RENTCAST_API_KEY;
     if (!key) {
         return NextResponse.json({
@@ -428,40 +529,42 @@ async function handleAddress(rawAddress: string) {
 
         const sqft = prop.squareFootage ?? null;
 
-        return NextResponse.json({
-            ok: true,
-            data: {
-                source:     'rentcast',
-                url:        '',
-                parsedBy:   'rentcast-api-v1',
-                parseWarnings: [],
-                price,
-                address:    prop.formattedAddress ?? rawAddress,
-                city:       prop.city      ?? null,
-                state:      prop.state     ?? null,
-                zip:        prop.zipCode   ?? null,
-                beds:       prop.bedrooms  ?? null,
-                baths:      prop.bathrooms ?? null,
-                sqft,
-                annualTaxes:      null,
-                taxRateEffective: 0.011,
-                taxSource:        'table',
-                photoUrl:         null,
-                listingStatus,
-                daysOnMarket:     active?.daysOnMarket ?? null,
-                lastSaleDate,
-                lastSalePrice,
-                estimatedValue,
-                estimatedValueLow,
-                estimatedValueHigh,
-                estimatedBalance,
-                estimatedEquity,
-                purchaseRate,
-                remainingMonths,
-                hoaMonthly:  null,
-                pricePerSqft: (price && sqft) ? Math.round(price / sqft) : null,
-            },
-        });
+        const responseData = {
+            source:     'rentcast',
+            url:        '',
+            parsedBy:   'rentcast-api-v1',
+            parseWarnings: [],
+            price,
+            address:    prop.formattedAddress ?? rawAddress,
+            city:       prop.city      ?? null,
+            state:      prop.state     ?? null,
+            zip:        prop.zipCode   ?? null,
+            beds:       prop.bedrooms  ?? null,
+            baths:      prop.bathrooms ?? null,
+            sqft,
+            annualTaxes:      null,
+            taxRateEffective: 0.011,
+            taxSource:        'table',
+            photoUrl:         null,
+            listingStatus,
+            daysOnMarket:     active?.daysOnMarket ?? null,
+            lastSaleDate,
+            lastSalePrice,
+            estimatedValue,
+            estimatedValueLow,
+            estimatedValueHigh,
+            estimatedBalance,
+            estimatedEquity,
+            purchaseRate,
+            remainingMonths,
+            hoaMonthly:  null,
+            pricePerSqft: (price && sqft) ? Math.round(price / sqft) : null,
+        };
+
+        // Write to canonical property cache (non-blocking)
+        void cachePropertyResult(prop.formattedAddress ?? rawAddress, responseData, 'rentcast');
+
+        return NextResponse.json({ ok: true, data: responseData });
     } catch (err: any) {
         return NextResponse.json({ ok: false, error: `Rentcast lookup failed: ${err.message}` });
     }

@@ -829,7 +829,19 @@ function MyHomePageInner() {
                       {/* CTA buttons */}
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <a
-                          href={`/chat?sq=${encodeURIComponent(`Run my numbers for ${analysis.address}`)}`}
+                          href={(() => {
+                            const a = analysis;
+                            const parts: string[] = [`Run my numbers for ${a.address}.`];
+                            if (a.estimatedValue) parts.push(`Home value: $${Math.round(a.estimatedValue).toLocaleString()}${a.estimatedValueLow && a.estimatedValueHigh ? ` (range $${Math.round(a.estimatedValueLow/1000)}K–$${Math.round(a.estimatedValueHigh/1000)}K)` : ''}.`);
+                            if (a.estimatedBalance) parts.push(`Loan balance: $${Math.round(a.estimatedBalance).toLocaleString()}${a.balanceIsEstimated ? ' (estimated)' : ' (on file)'}.`);
+                            const rate = a.savedOverrides?.actual_rate ?? a.purchaseRate;
+                            if (rate) parts.push(`Rate: ${rate}%${a.rateIsEstimated ? ' (estimated from purchase year)' : ' (on file)'}.`);
+                            if (a.estimatedEquity) parts.push(`Equity: $${Math.round(a.estimatedEquity).toLocaleString()} (${a.equityPct}%).`);
+                            if (a.lastSalePrice) parts.push(`Purchase price: $${Math.round(a.lastSalePrice).toLocaleString()}.`);
+                            if (a.piti) parts.push(`Current PITI: $${Math.round(a.piti).toLocaleString()}/mo.`);
+                            parts.push('Use these exact numbers — do not substitute estimates or benchmarks.');
+                            return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+                          })()}
                           style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                         >
                           Run My Numbers →
