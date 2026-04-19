@@ -648,7 +648,7 @@ export function digestEmailHtml(data: DigestEmailData): string {
   ].filter(Boolean).join('');
 
   // ── Primary CTAs: Run My Numbers + View Full Report ──────────────────────────
-  const chatUrl  = `${BASE}/chat?q=${encodeURIComponent(`Run my numbers for ${data.address}`)}`;
+  const chatUrl  = `${BASE}/chat?sq=${encodeURIComponent(`Run my numbers for ${data.address}`)}`;
   const reportLink = data.reportUrl ?? `${BASE}/my-home`;
   const primaryCta = `
     <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#0d1f14,#0f2a1a);border:1px solid rgba(0,232,122,0.2);border-radius:14px;margin-bottom:16px;">

@@ -445,6 +445,29 @@ export default function ReportPage() {
                     </div>
                 )}
 
+                {/* ── Run My Numbers CTA ──────────────────────────── */}
+                {borrower.property_address && (
+                    <div style={{ background: 'linear-gradient(135deg,#0f172a 0%,#0d1f2d 100%)', border: `1px solid rgba(0,232,122,0.2)`, borderRadius: 20, padding: '28px 28px', marginBottom: 16, textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GREEN, marginBottom: 8 }}>Ready to take action?</div>
+                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: TEXT, marginBottom: 6 }}>Explore your options with AI</div>
+                        <div style={{ fontSize: '0.82rem', color: MUTED, marginBottom: 20 }}>Run a full mortgage analysis, model refi savings, or explore HELOC scenarios — instantly.</div>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <a
+                                href={`/chat?sq=${encodeURIComponent(`Run my numbers for ${borrower.property_address}`)}`}
+                                style={{ padding: '12px 28px', borderRadius: 999, background: GREEN, color: '#07100f', fontWeight: 800, fontSize: '0.9rem', textDecoration: 'none', display: 'inline-block' }}
+                            >
+                                Run My Numbers →
+                            </a>
+                            <a
+                                href="/"
+                                style={{ padding: '12px 28px', borderRadius: 999, border: `1px solid ${DIM}`, color: TEXT, fontWeight: 600, fontSize: '0.9rem', textDecoration: 'none', display: 'inline-block' }}
+                            >
+                                Visit HomeRates.ai
+                            </a>
+                        </div>
+                    </div>
+                )}
+
                 {/* ── LO CTA footer ────────────────────────────────── */}
                 <div style={{ background: CARD2, border: `1px solid ${DIM}`, borderRadius: 20, padding: '24px 28px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

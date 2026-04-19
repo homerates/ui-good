@@ -791,22 +791,22 @@ function MyHomePageInner() {
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
                         {[
                           { label: 'Est. Value', value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true },
-                          { label: 'Total Equity', value: analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false },
+                          { label: 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 },
                           { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true },
-                          { label: 'LTV Ratio', value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false },
+                          { label: 'LTV Ratio', value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100 },
                         ].map((s, i) => (
                           <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
                             <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
-                            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: s.green ? '#00e87a' : '#f1f5f9', lineHeight: 1.1 }}>{s.value}</div>
+                            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: (s as {green?:boolean;warn?:boolean}).warn ? '#f59e0b' : s.green ? '#00e87a' : '#f1f5f9', lineHeight: 1.1 }}>{s.value}</div>
                           </div>
                         ))}
                       </div>
-                      {/* Equity bar */}
-                      {analysis.equityPct != null && (
+                      {/* Equity bar — only show when not underwater */}
+                      {analysis.equityPct != null && analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 && (
                         <div style={{ marginBottom: 20 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#475569', marginBottom: 5 }}>
                             <span style={{ color: '#00e87a' }}>
-                              {analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity / 1000)}K equity (${analysis.equityPct}%)` : 'Equity'}
+                              {`$${Math.round(analysis.estimatedEquity / 1000)}K equity (${analysis.equityPct}%)`}
                             </span>
                             <span>
                               {analysis.estimatedBalance ? `$${Math.round(analysis.estimatedBalance / 1000)}K balance` : 'Balance'}
@@ -817,17 +817,33 @@ function MyHomePageInner() {
                           </div>
                         </div>
                       )}
+                      {/* Underwater warning */}
+                      {analysis.estimatedEquity != null && analysis.estimatedEquity < 0 && (
+                        <div style={{ marginBottom: 20, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
+                          <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700 }}>⚠️ Property is currently underwater</div>
+                          <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 3 }}>
+                            Balance exceeds estimated value by {analysis.estimatedBalance && analysis.estimatedValue ? `$${Math.round(Math.abs(analysis.estimatedBalance - analysis.estimatedValue) / 1000)}K` : '—'}. Consider running refi math.
+                          </div>
+                        </div>
+                      )}
                       {/* CTA buttons */}
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <a
-                          href={`/chat?q=${encodeURIComponent(`Run my numbers for ${analysis.address}`)}`}
+                          href={`/chat?sq=${encodeURIComponent(`Run my numbers for ${analysis.address}`)}`}
                           style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                         >
                           Run My Numbers →
                         </a>
                         <a
                           href="#equity"
-                          onClick={e => { e.preventDefault(); (document.querySelector('[data-chip="equity"]') as HTMLButtonElement)?.click(); }}
+                          onClick={e => {
+                            e.preventDefault();
+                            const chip = document.querySelector('[data-chip="equity"]') as HTMLButtonElement | null;
+                            chip?.click();
+                            setTimeout(() => {
+                              (document.querySelector('.mh-chip-bar') as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 50);
+                          }}
                           style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid #1e293b', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                         >
                           Full Analysis ↓
