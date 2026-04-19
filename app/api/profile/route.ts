@@ -29,7 +29,7 @@ export async function GET() {
   const [loResult, agentResult, userResult, refCountResult] = await Promise.all([
     sb.from("loan_officers").select(LO_SELECT).eq("user_id", userId).maybeSingle(),
     sb.from("agents").select(AGENT_SELECT).eq("user_id", userId).maybeSingle(),
-    sb.from("users").select("role, full_name, referred_by, referral_code").eq("id", userId).maybeSingle(),
+    sb.from("users").select("role, full_name, referred_by, referral_code, plan").eq("id", userId).maybeSingle(),
     sb.from("users").select("id", { count: "exact", head: true }).eq("referred_by", userId),
   ]);
 
@@ -69,6 +69,7 @@ export async function GET() {
     referred_by_name: referredByName,
     referral_code: userRow?.referral_code ?? null,
     referral_count: referralCount,
+    plan: userRow?.plan ?? "free",
   });
 }
 

@@ -15,10 +15,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await req.json();
-  const { rate_estimate, approach, lo_name, lo_nmls, responder_type } = body;
+  const { rate_estimate, approach, lo_name } = body;
 
-  if (!rate_estimate || !approach || !lo_name || !lo_nmls) {
-    return NextResponse.json({ error: "rate_estimate, approach, lo_name, and lo_nmls are required" }, { status: 400 });
+  if (!rate_estimate || !approach || !lo_name) {
+    return NextResponse.json({ error: "rate_estimate, approach, and lo_name are required" }, { status: 400 });
   }
   if (approach.length > 800) {
     return NextResponse.json({ error: "Approach must be 800 characters or less" }, { status: 400 });
@@ -26,6 +26,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
+
+  // Validate professional identity from DB — never trust client-supplied nmls/license/responder_type
+  const [loRow, agentRow] = await Promise.all([
+    sb.from("loan_officers").select("user_id, nmls").eq("user_id", userId).maybeSingle(),
+    sb.from("agents").select("user_id, license").eq("user_id", userId).maybeSingle(),
+  ]);
+
+  let resolvedResponderType: "lo" | "agent";
+  let resolvedCredential: string;
+
+  if (loRow.data) {
+    if (!loRow.data.nmls) {
+      return NextResponse.json(
+        { error: "Add your NMLS number to your profile before responding to scenarios" },
+        { status: 403 }
+      );
+    }
+    resolvedResponderType = "lo";
+    resolvedCredential = loRow.data.nmls;
+  } else if (agentRow.data) {
+    if (!agentRow.data.license) {
+      return NextResponse.json(
+        { error: "Add your DRE license number to your profile before responding to scenarios" },
+        { status: 403 }
+      );
+    }
+    resolvedResponderType = "agent";
+    resolvedCredential = agentRow.data.license;
+  } else {
+    return NextResponse.json({ error: "Professional account required to respond to scenarios" }, { status: 403 });
+  }
 
   // Verify scenario exists and is active
   const { data: scenarioFull } = await sb
@@ -70,10 +101,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       scenario_id: id,
       lo_id: userId,
       lo_name: lo_name.trim(),
-      lo_nmls: lo_nmls.trim(),
+      lo_nmls: resolvedCredential,
       rate_estimate: rate_estimate.trim(),
       approach: approach.trim(),
-      responder_type: responder_type === "agent" ? "agent" : "lo",
+      responder_type: resolvedResponderType,
     })
     .select()
     .single();

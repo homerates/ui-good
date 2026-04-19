@@ -92,23 +92,28 @@ export default function LOScenariosPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // LO profile cache — fetched once on mount for pre-fill
+  // LO profile cache — fetched once on mount for pre-fill + gate check
   const [loProfile, setLoProfile] = useState<{ full_name: string; nmls: string } | null>(null);
+  type GateStatus = "loading" | "ok" | "not-lo" | "no-nmls" | "no-plan";
+  const [gateStatus, setGateStatus] = useState<GateStatus>("loading");
 
   useEffect(() => {
     load();
   }, [filterType, filterState]);
 
-  // Fetch LO profile once for form pre-fill
+  // Fetch LO profile — gate check + form pre-fill
   useEffect(() => {
     fetch("/api/profile")
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.full_name || d?.nmls) {
-          setLoProfile({ full_name: d.full_name ?? "", nmls: d.nmls ?? "" });
-        }
+        if (!d) { setGateStatus("not-lo"); return; }
+        if (!d.lo && d.role !== "lo" && !d.isLO) { setGateStatus("not-lo"); return; }
+        if (!d.lo?.nmls) { setGateStatus("no-nmls"); return; }
+        if (d.plan !== "pro") { setGateStatus("no-plan"); return; }
+        setLoProfile({ full_name: d.full_name ?? d.clerkName ?? "", nmls: d.lo.nmls ?? "" });
+        setGateStatus("ok");
       })
-      .catch(() => {});
+      .catch(() => setGateStatus("not-lo"));
   }, []);
 
   // Redirect signed-out users to sign-in
@@ -169,7 +174,6 @@ export default function LOScenariosPage() {
         rate_estimate: rateEstimate,
         approach,
         lo_name: loName,
-        lo_nmls: loNmls,
       }),
     });
     const data = await res.json();
@@ -258,6 +262,65 @@ export default function LOScenariosPage() {
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Gate screens — pro validation
+  if (gateStatus === "loading" && isLoaded && isSignedIn) {
+    return (
+      <div className="los-root">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", color: "#8fa3b8" }}>
+          Verifying access...
+        </div>
+        <style>{`body:has(.los-root){display:block!important;background:#080c12!important}`}</style>
+      </div>
+    );
+  }
+
+  const GATE_MESSAGES: Record<string, { icon: string; title: string; body: string; cta: string; href: string }> = {
+    "not-lo": {
+      icon: "🔒",
+      title: "Loan Officers Only",
+      body: "The Scenario Board is reserved for registered loan officers. Complete your professional profile to access live borrower scenarios.",
+      cta: "Complete My Profile →",
+      href: "/profile",
+    },
+    "no-nmls": {
+      icon: "📋",
+      title: "NMLS Number Required",
+      body: "You need a verified NMLS number on your profile before you can respond to borrower scenarios. Add it in your LO profile.",
+      cta: "Add NMLS to Profile →",
+      href: "/profile",
+    },
+    "no-plan": {
+      icon: "⚡",
+      title: "Pro Subscription Required",
+      body: "Access to the Scenario Board requires an active Pro plan. Upgrade to connect with live borrower scenarios in your state.",
+      cta: "Upgrade to Pro →",
+      href: "/pricing",
+    },
+  };
+
+  if (gateStatus !== "loading" && gateStatus !== "ok" && isLoaded && isSignedIn) {
+    const g = GATE_MESSAGES[gateStatus];
+    return (
+      <div className="los-root">
+        <nav className="los-nav">
+          <Link href="/lo/dashboard" className="los-nav-logo">
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+          </Link>
+          <AppNav drawerOnly />
+        </nav>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", padding: "2rem" }}>
+          <div style={{ background: "rgba(8,12,18,0.92)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 20, padding: "40px 48px", textAlign: "center", maxWidth: 440 }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: 16 }}>{g.icon}</div>
+            <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "#f0f4ff", marginBottom: 10 }}>{g.title}</div>
+            <div style={{ fontSize: "0.88rem", color: "#8fa3b8", lineHeight: 1.6, marginBottom: 28 }}>{g.body}</div>
+            <Link href={g.href} style={{ display: "inline-block", background: "#00e87a", color: "#080c12", fontWeight: 700, fontSize: "0.9rem", borderRadius: 999, padding: "11px 28px", textDecoration: "none" }}>{g.cta}</Link>
+          </div>
+        </div>
+        <style>{`body:has(.los-root){display:block!important;background:#080c12!important}`}</style>
       </div>
     );
   }

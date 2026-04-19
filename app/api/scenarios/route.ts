@@ -333,8 +333,17 @@ export async function GET(req: NextRequest) {
   // LO or agent board (anonymized — no borrower_id exposed)
   const state = url.searchParams.get("state");
   const loan_type = url.searchParams.get("loan_type");
-  const responder_type = url.searchParams.get("responder_type") ?? "lo"; // 'lo' or 'agent'
   const myReferrals = url.searchParams.get("my_referrals") === "1";
+
+  // Derive responder_type from DB — never trust the client-supplied param
+  const [loDbRow, agentDbRow] = await Promise.all([
+    sb.from("loan_officers").select("user_id").eq("user_id", userId).maybeSingle(),
+    sb.from("agents").select("user_id").eq("user_id", userId).maybeSingle(),
+  ]);
+  const responder_type = loDbRow.data ? "lo" : agentDbRow.data ? "agent" : null;
+  if (!responder_type) {
+    return NextResponse.json({ error: "Professional account required", scenarios: [] }, { status: 403 });
+  }
 
   // Short-circuit: LO fetching only their private referred scenarios
   if (myReferrals) {

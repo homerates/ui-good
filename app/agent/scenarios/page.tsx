@@ -5,6 +5,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import AppNav from "../../components/AppNav";
 
 interface Scenario {
@@ -28,6 +30,8 @@ const PRICE_FILTERS = ["All", "Under $300k", "$300k–$500k", "$500k–$750k", "
 const PURPOSE_FILTERS = ["All", "Purchase", "Refinance"];
 
 export default function AgentScenariosPage() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterPrice, setFilterPrice] = useState("All");
@@ -43,11 +47,37 @@ export default function AgentScenariosPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  useEffect(() => { load(); }, [filterState]);
+  type AgentGate = "loading" | "ok" | "not-agent" | "no-license";
+  const [gateStatus, setGateStatus] = useState<AgentGate>("loading");
+
+  // Redirect signed-out users
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace("/sign-in?redirect_url=" + encodeURIComponent("/agent/scenarios"));
+    }
+  }, [isLoaded, isSignedIn, router]);
+
+  // Gate check — must be agent with DRE license
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    fetch("/api/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) { setGateStatus("not-agent"); return; }
+        if (!d.agent && d.role !== "agent") { setGateStatus("not-agent"); return; }
+        if (!d.agent?.license) { setGateStatus("no-license"); return; }
+        setAgentName(d.full_name ?? d.clerkName ?? "");
+        setAgentLicense(d.agent.license ?? "");
+        setGateStatus("ok");
+      })
+      .catch(() => setGateStatus("not-agent"));
+  }, [isLoaded, isSignedIn]);
+
+  useEffect(() => { if (gateStatus === "ok") load(); }, [gateStatus, filterState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     setLoading(true);
-    const params = new URLSearchParams({ responder_type: "agent" });
+    const params = new URLSearchParams();
     if (filterState) params.set("state", filterState);
     const res = await fetch(`/api/scenarios?${params}`);
     if (res.ok) {
@@ -74,8 +104,6 @@ export default function AgentScenariosPage() {
         rate_estimate: fee,
         approach,
         lo_name: agentName,
-        lo_nmls: agentLicense,
-        responder_type: "agent",
       }),
     });
     const data = await res.json();
@@ -120,6 +148,59 @@ export default function AgentScenariosPage() {
     if (filterPurpose !== "All" && s.loan_purpose?.toLowerCase() !== filterPurpose.toLowerCase()) return false;
     return true;
   });
+
+  // Gate screens
+  if (!isLoaded || (isLoaded && isSignedIn && gateStatus === "loading")) {
+    return (
+      <div className="ag-root">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", color: "#8fa3b8" }}>
+          Verifying access...
+        </div>
+        <style>{`body:has(.ag-root){display:block!important;background:#080c12!important}`}</style>
+      </div>
+    );
+  }
+
+  const AG_GATE: Record<string, { icon: string; title: string; body: string; cta: string; href: string }> = {
+    "not-agent": {
+      icon: "🔒",
+      title: "Real Estate Agents Only",
+      body: "The Buyer Scenario Board is reserved for licensed real estate agents. Complete your professional profile to access live buyer scenarios.",
+      cta: "Complete My Profile →",
+      href: "/profile",
+    },
+    "no-license": {
+      icon: "📋",
+      title: "DRE License Required",
+      body: "You need a verified DRE license number on your profile before you can respond to buyer scenarios. Add it in your agent profile.",
+      cta: "Add License to Profile →",
+      href: "/profile",
+    },
+  };
+
+  if (isLoaded && isSignedIn && gateStatus !== "ok" && gateStatus !== "loading") {
+    const g = AG_GATE[gateStatus] ?? AG_GATE["not-agent"];
+    return (
+      <div className="ag-root">
+        <nav className="ag-nav">
+          <Link href="/dashboard" className="ag-nav-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+          </Link>
+          <AppNav drawerOnly />
+        </nav>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", padding: "2rem" }}>
+          <div style={{ background: "rgba(8,12,18,0.92)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 20, padding: "40px 48px", textAlign: "center", maxWidth: 440 }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: 16 }}>{g.icon}</div>
+            <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "#f0f4ff", marginBottom: 10 }}>{g.title}</div>
+            <div style={{ fontSize: "0.88rem", color: "#8fa3b8", lineHeight: 1.6, marginBottom: 28 }}>{g.body}</div>
+            <Link href={g.href} style={{ display: "inline-block", background: "#00e87a", color: "#080c12", fontWeight: 700, fontSize: "0.9rem", borderRadius: 999, padding: "11px 28px", textDecoration: "none" }}>{g.cta}</Link>
+          </div>
+        </div>
+        <style>{`body:has(.ag-root){display:block!important;background:#080c12!important}`}</style>
+      </div>
+    );
+  }
 
   return (
     <>
