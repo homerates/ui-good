@@ -669,9 +669,18 @@ function MyHomePageInner() {
                         {analysis?.borrowerName ? `${analysis.borrowerName}'s home intelligence` : 'Loading borrower data…'}
                       </span>
                     </div>
-                    <Link href="/lo/borrowers" style={{ fontSize: '0.78rem', color: 'rgba(99,179,237,0.7)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                      ← Back to Borrowers
-                    </Link>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <button
+                        onClick={() => loadAnalysis()}
+                        disabled={analysisLoading}
+                        style={{ fontSize: '0.75rem', color: 'rgba(0,232,122,0.8)', background: 'none', border: '1px solid rgba(0,232,122,0.25)', borderRadius: 999, padding: '4px 12px', cursor: analysisLoading ? 'default' : 'pointer', opacity: analysisLoading ? 0.5 : 1 }}
+                      >
+                        {analysisLoading ? 'Refreshing…' : '↻ Refresh'}
+                      </button>
+                      <Link href="/lo/borrowers" style={{ fontSize: '0.78rem', color: 'rgba(99,179,237,0.7)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        ← Back to Borrowers
+                      </Link>
+                    </div>
                   </div>
                 )}
 
