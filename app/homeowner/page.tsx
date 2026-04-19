@@ -22,8 +22,7 @@ export default function HomeownerPage() {
       return;
     }
     setUrlError(false);
-    const question = `Run a complete homeowner analysis for ${q}: current estimated value, how much equity I likely have, whether today's rates make refinancing worth it, and my monthly payment if I cash-out refinanced.`;
-    router.push('/chat?sq=' + encodeURIComponent(question));
+    router.push('/my-home?address=' + encodeURIComponent(q));
   }
 
   // Typewriter placeholder

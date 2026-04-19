@@ -460,7 +460,8 @@ function Sparkline({ history }: { history: { date: string; value: number }[] }) 
 function MyHomePageInner() {
   const { user, isLoaded } = useUser();
   const searchParams = useSearchParams()!;
-  const borrowerId   = searchParams?.get('borrower_id') ?? null;
+  const borrowerId    = searchParams?.get('borrower_id') ?? null;
+  const previewAddress = searchParams?.get('address') ?? null; // from /homeowner page
 
   // Multi-home state
   const [properties, setProperties]           = useState<HomeownerProperty[]>([]);
@@ -490,10 +491,11 @@ function MyHomePageInner() {
     ?? properties.find(p => p.is_primary)
     ?? properties[0]
     ?? null;
-  const hasAddress = borrowerId ? true : properties.length > 0;
+  const hasAddress = borrowerId ? true : previewAddress ? true : properties.length > 0;
 
   // Load property list on mount
   useEffect(() => {
+    if (previewAddress) { setLoading(false); return; } // preview mode — no saved properties needed
     if (!isLoaded || !user) return;
     if (borrowerId) { setLoading(false); return; }
     fetch('/api/homeowner/save')
@@ -505,7 +507,7 @@ function MyHomePageInner() {
         if (primary) setActivePropertyId(primary.id);
       })
       .finally(() => setLoading(false));
-  }, [isLoaded, user, borrowerId]);
+  }, [isLoaded, user, borrowerId, previewAddress]);
 
   // Load analysis whenever active property changes
   useEffect(() => {
@@ -513,14 +515,18 @@ function MyHomePageInner() {
       if (!analysisLoading) loadAnalysis();
       return;
     }
+    if (previewAddress) {
+      if (!analysisLoading) loadAnalysis();
+      return;
+    }
     if (!activeProperty?.id) return;
     loadAnalysis(activeProperty.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeProperty?.id, borrowerId]);
+  }, [activeProperty?.id, borrowerId, previewAddress]);
 
   async function loadAnalysis(propertyId?: string) {
     const pid = propertyId ?? activeProperty?.id;
-    if (!borrowerId && !pid) return;
+    if (!borrowerId && !previewAddress && !pid) return;
     setAnalysisLoading(true);
     setAnalysisErr('');
     setAnalysis(null);
@@ -528,7 +534,9 @@ function MyHomePageInner() {
       const bust = `_t=${Date.now()}`;
       const url = borrowerId
         ? `/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}&${bust}`
-        : `/api/homeowner/analysis?property_id=${encodeURIComponent(pid!)}&${bust}`;
+        : previewAddress
+          ? `/api/homeowner/analysis?preview_address=${encodeURIComponent(previewAddress)}&${bust}`
+          : `/api/homeowner/analysis?property_id=${encodeURIComponent(pid!)}&${bust}`;
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
@@ -691,13 +699,40 @@ function MyHomePageInner() {
                   </div>
                 )}
 
+                {/* Preview mode: save CTA */}
+                {previewAddress && analysis && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 16px', borderRadius: 10, marginBottom: 16, background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.2)' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#e0f0e8' }}>Save this property to track value, equity &amp; rate alerts monthly.</span>
+                    <SignedIn>
+                      <button
+                        onClick={async () => {
+                          void fetch('/api/homeowner/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: previewAddress }) });
+                          window.location.href = '/my-home';
+                        }}
+                        style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#00e87a', color: '#080c12', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        Save Property
+                      </button>
+                    </SignedIn>
+                    <SignedOut>
+                      <SignInButton mode="modal">
+                        <button style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#00e87a', color: '#080c12', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          Sign In to Save
+                        </button>
+                      </SignInButton>
+                    </SignedOut>
+                  </div>
+                )}
+
                 {/* HEADER + PROPERTY SELECTOR */}
                 <div className="mh-header">
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                     <div>
-                      <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : 'My Properties'}</h1>
+                      <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : previewAddress ? 'Home Analysis' : 'My Properties'}</h1>
                       <p style={{ marginTop: 4 }}>{borrowerId
                         ? `Viewing property intelligence for ${analysis?.address ?? '…'}`
+                        : previewAddress
+                          ? `Property intelligence for ${analysis?.address ?? previewAddress}`
                         : hasAddress
                           ? `${user?.firstName ? `Hi ${user.firstName}.` : ''} Your property intelligence is below.`
                           : 'Add your address to unlock equity tracking, HELOC capacity, and rate alerts.'

@@ -381,6 +381,21 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // ── PREVIEW PATH: unauthenticated address lookup (from /homeowner page) ─────
+  const previewAddress = request.nextUrl.searchParams.get('preview_address');
+  if (previewAddress) {
+    const [propData, fred] = await Promise.all([
+      propertyLookup(previewAddress, {}),
+      getFredSnapshot({ timeoutMs: 8000 }),
+    ]);
+    if (!propData) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
+    return NextResponse.json({
+      address: previewAddress,
+      isPreview: true,
+      ...buildAnalysis(propData, fred, {}, []),
+    });
+  }
+
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
