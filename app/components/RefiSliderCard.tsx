@@ -184,7 +184,14 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16,
             padding: '20px 20px 16px', marginTop: 12, width: '100%', boxSizing: 'border-box',
             fontFamily: 'system-ui, -apple-system, sans-serif',
+            overflow: 'hidden',
         }}>
+        <style>{`
+          .refi-hero-val{font-size:22px;font-weight:800;letter-spacing:-0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+          @media(max-width:420px){.refi-hero-val{font-size:16px;}}
+          .refi-rate-grid{display:grid;grid-template-columns:1fr 20px 1fr;gap:0 6px;align-items:end;}
+          @media(max-width:420px){.refi-rate-grid{display:flex;flex-direction:column;gap:10px;}.refi-rate-arrow{display:none;}}
+        `}</style>
             {/* ── Header ── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tier !== 'conforming' ? 8 : 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>
@@ -222,14 +229,14 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             )}
 
             {/* ── Hero: 3 big numbers ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18, minWidth: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
                 {/* Monthly savings */}
                 <div style={{
                     background: calc.savings >= 0 ? '#f0fdf4' : '#fef2f2',
                     border: `1px solid ${calc.savings >= 0 ? '#6ee7b7' : '#fca5a5'}`,
-                    borderRadius: 10, padding: '10px 12px', textAlign: 'center',
+                    borderRadius: 10, padding: '10px 8px', textAlign: 'center', minWidth: 0, overflow: 'hidden',
                 }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: calc.savings >= 0 ? '#059669' : '#dc2626', letterSpacing: '-0.03em' }}>
+                    <div className="refi-hero-val" style={{ color: calc.savings >= 0 ? '#059669' : '#dc2626' }}>
                         {calc.savings >= 0 ? '+' : '−'}{fmt$(calc.savings)}
                     </div>
                     <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Monthly savings</div>
@@ -238,9 +245,9 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                 {/* Break-even */}
                 <div style={{
                     background: beC.bg, border: `1px solid ${beC.border}`,
-                    borderRadius: 10, padding: '10px 12px', textAlign: 'center',
+                    borderRadius: 10, padding: '10px 8px', textAlign: 'center', minWidth: 0, overflow: 'hidden',
                 }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: beC.text, letterSpacing: '-0.03em' }}>
+                    <div className="refi-hero-val" style={{ color: beC.text }}>
                         {beLabel}
                     </div>
                     <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Break-even</div>
@@ -250,9 +257,9 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                 <div style={{
                     background: calc.net5yr >= 0 ? '#f0fdf4' : '#fef2f2',
                     border: `1px solid ${calc.net5yr >= 0 ? '#6ee7b7' : '#fca5a5'}`,
-                    borderRadius: 10, padding: '10px 12px', textAlign: 'center',
+                    borderRadius: 10, padding: '10px 8px', textAlign: 'center', minWidth: 0, overflow: 'hidden',
                 }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: calc.net5yr >= 0 ? '#059669' : '#dc2626', letterSpacing: '-0.03em' }}>
+                    <div className="refi-hero-val" style={{ color: calc.net5yr >= 0 ? '#059669' : '#dc2626' }}>
                         {calc.net5yr >= 0 ? '+' : '−'}{fmt$(calc.net5yr)}
                     </div>
                     <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, fontWeight: 500 }}>5-yr net</div>
@@ -305,7 +312,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             </div>
 
             {/* Dual rate sliders */}
-            <div className="refi-rate-row" style={{ display: 'grid', gridTemplateColumns: '1fr 20px 1fr', gap: '0 6px', marginBottom: 14, alignItems: 'end', minWidth: 0 }}>
+            <div className="refi-rate-grid" style={{ marginBottom: 14 }}>
                 <SliderField
                     label="Current Rate" value={currentRate}
                     min={3} max={12} step={0.125}
@@ -314,7 +321,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     trackColor="#ef4444" theme="light"
                     style={{ minWidth: 0 }}
                 />
-                <div style={{ textAlign: 'center', paddingBottom: 6, fontSize: 12, color: '#cbd5e1', fontWeight: 700 }}>→</div>
+                <div className="refi-rate-arrow" style={{ textAlign: 'center', paddingBottom: 6, fontSize: 12, color: '#cbd5e1', fontWeight: 700 }}>→</div>
                 <SliderField
                     label={`New Rate${noCost ? ' +0.25%' : ''}`} value={newRate}
                     min={3} max={12} step={0.125}
