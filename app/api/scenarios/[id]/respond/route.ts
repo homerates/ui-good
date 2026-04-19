@@ -146,3 +146,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   return NextResponse.json({ response });
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const sb = getSupabase();
+  if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
+
+  const { data: response } = await sb
+    .from("scenario_responses")
+    .select("id")
+    .eq("scenario_id", id)
+    .eq("lo_id", userId)
+    .maybeSingle();
+
+  if (!response) return NextResponse.json({ error: "Response not found" }, { status: 404 });
+
+  const { data: scenario } = await sb
+    .from("scenario_briefs")
+    .select("id, status, response_count")
+    .eq("id", id)
+    .single();
+
+  if (!scenario) return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
+
+  await sb.from("scenario_responses").delete().eq("id", response.id);
+
+  const newCount = Math.max(0, (scenario.response_count ?? 1) - 1);
+  await sb.from("scenario_briefs").update({
+    response_count: newCount,
+    ...(scenario.status === "matched" ? { status: "active" } : {}),
+  }).eq("id", id);
+
+  console.log(`[scenarios/respond] user=${userId} withdrew response from scenario=${id}`);
+  return NextResponse.json({ ok: true });
+}

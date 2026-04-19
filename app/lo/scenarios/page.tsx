@@ -61,6 +61,27 @@ const BADGE_COLOR: Record<string, string> = {
   va: "#00e87a", jumbo: "#ff8c42", dscr: "#ff5f5f",
 };
 
+interface MyResponse {
+  id: string;
+  rate_estimate: string;
+  approach: string;
+  responder_type: string;
+  created_at: string;
+  scenario_id: string;
+  scenario_briefs: {
+    id: string;
+    loan_type: string;
+    loan_purpose: string;
+    price_range: string;
+    state: string;
+    status: string;
+    response_count: number;
+    max_responses: number;
+    closes_at: string;
+    created_at: string;
+  } | null;
+}
+
 interface RespondModal {
   scenario: Scenario;
 }
@@ -75,12 +96,15 @@ const SAMPLE_SCENARIOS: Scenario[] = [
 export default function LOScenariosPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"board" | "referrals">("board");
+  const [tab, setTab] = useState<"board" | "referrals" | "responses">("board");
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [referrals, setReferrals] = useState<Scenario[]>([]);
+  const [myResponses, setMyResponses] = useState<MyResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("All");
   const [filterState, setFilterState] = useState("");
+  const [sort, setSort] = useState<"newest" | "closing_soon" | "most_active">("newest");
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [modal, setModal] = useState<RespondModal | null>(null);
 
   // Response form state
@@ -99,7 +123,7 @@ export default function LOScenariosPage() {
 
   useEffect(() => {
     load();
-  }, [filterType, filterState]);
+  }, [filterType, filterState, sort]);
 
   // Fetch LO profile — gate check + form pre-fill
   useEffect(() => {
@@ -131,11 +155,20 @@ export default function LOScenariosPage() {
       .catch(() => {});
   }, []);
 
+  // Load my response history once on mount
+  useEffect(() => {
+    fetch("/api/scenarios?my_responses=1")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setMyResponses(d.responses ?? []); })
+      .catch(() => {});
+  }, []);
+
   async function load() {
     setLoading(true);
     const params = new URLSearchParams();
     if (filterType !== "All") params.set("loan_type", filterType);
     if (filterState) params.set("state", filterState);
+    if (sort !== "newest") params.set("sort", sort);
     const res = await fetch(`/api/scenarios?${params}`);
     if (res.ok) {
       const data = await res.json();
@@ -188,6 +221,23 @@ export default function LOScenariosPage() {
     setScenarios(prev => prev.map(s =>
       s.id === modal.scenario.id ? { ...s, already_responded: true, response_count: s.response_count + 1 } : s
     ));
+  }
+
+  async function withdrawResponse(scenarioId: string) {
+    setWithdrawingId(scenarioId);
+    const res = await fetch(`/api/scenarios/${scenarioId}/respond`, { method: "DELETE" });
+    if (res.ok) {
+      setMyResponses(prev => prev.filter(r => r.scenario_id !== scenarioId));
+    }
+    setWithdrawingId(null);
+  }
+
+  function getStatusBadge(s: Scenario): { label: string; color: string; bg: string; border: string } {
+    const hoursLeft = s.closes_at ? (new Date(s.closes_at).getTime() - Date.now()) / 3600000 : Infinity;
+    const fillPct = s.max_responses ? s.response_count / s.max_responses : 0;
+    if (fillPct >= 0.75 || hoursLeft < 6) return { label: "Closing Soon", color: "#ff8c42", bg: "rgba(255,140,66,0.1)", border: "rgba(255,140,66,0.3)" };
+    if (s.response_count > 0) return { label: "Filling Up", color: "#ffd166", bg: "rgba(255,180,0,0.08)", border: "rgba(255,180,0,0.25)" };
+    return { label: "Open", color: "#00e87a", bg: "rgba(0,232,122,0.1)", border: "rgba(0,232,122,0.3)" };
   }
 
   const timeAgo = (iso: string) => {
@@ -337,7 +387,7 @@ export default function LOScenariosPage() {
             <Link href="/lo/dashboard" className="los-nav-link">Dashboard</Link>
             <Link href="/lo/borrowers" className="los-nav-link">Borrowers</Link>
             <Link href="/messages" className="los-nav-link">Messages</Link>
-            <span className="los-nav-active">Scenario Board</span>
+            <span className="los-nav-active">Private Exchange</span>
           </div>
           <AppNav drawerOnly />
         </nav>
@@ -346,11 +396,15 @@ export default function LOScenariosPage() {
 
           <div className="los-header">
             <div>
-              <h1 className="los-title">{tab === "referrals" ? "My Referrals" : "Match Board"}</h1>
+              <h1 className="los-title">
+                {tab === "referrals" ? "My Referrals" : tab === "responses" ? "My Responses" : "The Private Exchange"}
+              </h1>
               <p className="los-sub">
                 {tab === "referrals"
                   ? "Private scenarios from borrowers you referred. Only you can see these."
-                  : "Anonymous borrower scenarios open to all professionals on HomeRates.ai. Respond to earn an introduction."}
+                  : tab === "responses"
+                  ? "Scenarios you've responded to. Withdraw a response to reopen your slot."
+                  : "Anonymous borrower scenarios — respond to earn an introduction."}
               </p>
             </div>
             <div className="los-stats">
@@ -365,7 +419,7 @@ export default function LOScenariosPage() {
               className={`los-tab ${tab === "board" ? "active" : ""}`}
               onClick={() => setTab("board")}
             >
-              Match Board
+              The Private Exchange
               {scenarios.filter(s => !s.already_responded).length > 0 && (
                 <span className="los-tab-badge">{scenarios.filter(s => !s.already_responded).length}</span>
               )}
@@ -377,11 +431,29 @@ export default function LOScenariosPage() {
               My Referrals
               {referrals.length > 0 && <span className="los-tab-badge los-tab-badge-private">{referrals.length}</span>}
             </button>
+            <button
+              className={`los-tab ${tab === "responses" ? "active" : ""}`}
+              onClick={() => setTab("responses")}
+            >
+              My Responses
+              {myResponses.length > 0 && <span className="los-tab-badge" style={{ background: "#8fa3b8" }}>{myResponses.length}</span>}
+            </button>
           </div>
 
-          {/* Filters — only on Match Board tab */}
+          {/* Sort + Filters — only on Exchange tab */}
           {tab === "board" && (
             <div className="los-filters">
+              <div style={{ display: "flex", gap: 6, marginBottom: "0.75rem", width: "100%", flexWrap: "wrap" }}>
+                {(["newest", "closing_soon", "most_active"] as const).map(s => (
+                  <button
+                    key={s}
+                    className={`los-filter-chip ${sort === s ? "active" : ""}`}
+                    onClick={() => setSort(s)}
+                  >
+                    {s === "newest" ? "Newest" : s === "closing_soon" ? "Closing Soon" : "Most Active"}
+                  </button>
+                ))}
+              </div>
               <div className="los-filter-group">
                 {LOAN_TYPES.map(t => (
                   <button
@@ -438,6 +510,61 @@ export default function LOScenariosPage() {
             )
           )}
 
+          {/* My Responses tab */}
+          {tab === "responses" && (
+            myResponses.length === 0 ? (
+              <div className="los-empty">
+                <div className="los-empty-icon">📤</div>
+                <p>No responses yet.</p>
+                <p className="los-empty-sub">Once you respond to scenarios on The Private Exchange, your history appears here.</p>
+              </div>
+            ) : (
+              <div className="los-board">
+                {myResponses.map(r => {
+                  const sb = r.scenario_briefs;
+                  if (!sb) return null;
+                  const isOpen = sb.status === "active";
+                  return (
+                    <div key={r.id} className="los-card" style={{ opacity: isOpen ? 1 : 0.65 }}>
+                      <div className="los-card-top">
+                        <span className="los-loan-badge" style={{ background: BADGE_BG[sb.loan_type] ?? "rgba(61,139,255,0.12)", border: `1px solid ${BADGE_BORDER[sb.loan_type] ?? "rgba(61,139,255,0.3)"}`, color: BADGE_COLOR[sb.loan_type] ?? "#3d8bff" }}>
+                          {LABEL_MAP[sb.loan_type] ?? sb.loan_type}
+                        </span>
+                        <span className="los-card-state">{sb.state}</span>
+                        <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: isOpen ? "rgba(0,232,122,0.08)" : "rgba(58,69,96,0.2)", color: isOpen ? "#00e87a" : "#3a4560", border: `1px solid ${isOpen ? "rgba(0,232,122,0.2)" : "rgba(58,69,96,0.3)"}` }}>
+                          {sb.status === "active" ? "Open" : sb.status === "matched" ? "Matched" : "Closed"}
+                        </span>
+                        <span className="los-card-time" style={{ marginLeft: "auto" }}>{timeAgo(r.created_at)}</span>
+                      </div>
+                      <div className="los-card-grid">
+                        <div className="los-card-field"><div className="los-cf-label">Price</div><div className="los-cf-value">{sb.price_range}</div></div>
+                        <div className="los-card-field"><div className="los-cf-label">State</div><div className="los-cf-value">{sb.state}</div></div>
+                        <div className="los-card-field"><div className="los-cf-label">My Rate</div><div className="los-cf-value" style={{ color: "#00e87a" }}>{r.rate_estimate}</div></div>
+                        <div className="los-card-field"><div className="los-cf-label">Responses</div><div className="los-cf-value">{sb.response_count}/{sb.max_responses}</div></div>
+                      </div>
+                      <div className="los-card-footer">
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span className="los-responded-badge">✓ Responded</span>
+                          {sb.closes_at && isOpen && <span className="los-card-timeleft">{timeLeft(sb.closes_at)}</span>}
+                        </div>
+                        {isOpen && (
+                          <button
+                            className="los-modal-cancel"
+                            style={{ fontSize: "0.75rem", padding: "5px 14px" }}
+                            disabled={withdrawingId === r.scenario_id}
+                            onClick={() => withdrawResponse(r.scenario_id)}
+                          >
+                            {withdrawingId === r.scenario_id ? "Withdrawing..." : "Withdraw"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
           {/* Match Board tab */}
           {tab === "board" && loading ? (
             <div className="los-loading">Loading scenarios...</div>
@@ -461,6 +588,10 @@ export default function LOScenariosPage() {
                     >
                       {LABEL_MAP[scenario.loan_type] ?? scenario.loan_type}
                     </span>
+                    {(() => {
+                      const b = getStatusBadge(scenario);
+                      return <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: b.bg, border: `1px solid ${b.border}`, color: b.color, flexShrink: 0 }}>{b.label}</span>;
+                    })()}
                     {scenario.is_mine && (
                       <span className="los-mine-badge">My Scenario</span>
                     )}
@@ -675,12 +806,12 @@ export default function LOScenariosPage() {
                       />
                     </div>
                     <div className="los-mf">
-                      <label>NMLS # <span className="los-mf-req">*</span></label>
+                      <label>NMLS #</label>
                       <input
                         className="los-input"
-                        placeholder="123456"
                         value={loNmls}
-                        onChange={e => setLoNmls(e.target.value.replace(/\D/g, ""))}
+                        readOnly
+                        style={{ opacity: 0.6, cursor: "default" }}
                       />
                     </div>
                     <div className="los-mf">
@@ -716,7 +847,7 @@ export default function LOScenariosPage() {
                     <button className="los-modal-cancel" onClick={() => setModal(null)}>Cancel</button>
                     <button
                       className="los-modal-submit"
-                      disabled={submitting || !rateEstimate || !approach || !loName || !loNmls}
+                      disabled={submitting || !rateEstimate || !approach || !loName}
                       onClick={submitResponse}
                     >
                       {submitting ? "Submitting..." : "Submit Response →"}

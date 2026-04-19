@@ -52,6 +52,34 @@ export default function AdminDashboard() {
   const [blasting, setBlasting] = useState(false);
   const [blastResult, setBlastResult] = useState<string | null>(null);
 
+  // Scenario management state
+  const [adminScenarios, setAdminScenarios] = useState<any[]>([]);
+  const [scenariosLoading, setScenariosLoading] = useState(false);
+  const [scenarioMsg, setScenarioMsg] = useState<{ id: string; msg: string } | null>(null);
+
+  async function fetchAdminScenarios() {
+    setScenariosLoading(true);
+    fetch("/api/admin/scenarios")
+      .then(r => r.json())
+      .then(d => setAdminScenarios(d.scenarios ?? []))
+      .finally(() => setScenariosLoading(false));
+  }
+
+  async function adminScenarioAction(id: string, action: "archive" | "delete") {
+    if (action === "delete" && !confirm("Delete this scenario and all its responses? This cannot be undone.")) return;
+    const res = action === "delete"
+      ? await fetch("/api/admin/scenarios", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+      : await fetch("/api/admin/scenarios", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "archived" }) });
+    const d = await res.json();
+    if (res.ok) {
+      setAdminScenarios(prev => action === "delete" ? prev.filter(s => s.id !== id) : prev.map(s => s.id === id ? { ...s, status: "archived" } : s));
+      setScenarioMsg({ id, msg: action === "delete" ? "Deleted" : "Archived ✓" });
+      setTimeout(() => setScenarioMsg(null), 3000);
+    } else {
+      setScenarioMsg({ id, msg: d.error ?? "Failed" });
+    }
+  }
+
   // LO Networks state
   type LORow = { id: string; user_id: string; name: string; email: string; lender: string; borrower_count: number };
   type BorrowerRow = { id: string; name: string; email: string | null; property_address: string | null; digest_enabled: boolean; actual_balance: number | null; actual_rate: number | null };
@@ -121,6 +149,7 @@ export default function AdminDashboard() {
       .then(d => d && setFoundingStats(d));
     fetchAdmins();
     fetchUsers(0, "");
+    fetchAdminScenarios();
   }, [isLoaded, adminLoading, isAdmin]);
 
   function fetchUsers(page: number, q: string) {
@@ -751,6 +780,69 @@ export default function AdminDashboard() {
               </div>
             </>
           )}
+
+          {/* ── Private Exchange — Scenario Management ── */}
+          <div className="adm-section">
+            <div className="adm-section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>Private Exchange — Scenarios ({adminScenarios.length})</span>
+              <button className="adm-btn secondary" style={{ fontSize: "0.72rem", padding: "4px 10px" }} onClick={fetchAdminScenarios}>Refresh</button>
+            </div>
+            {scenariosLoading ? (
+              <div style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.8rem", padding: "1rem 0" }}>Loading…</div>
+            ) : adminScenarios.length === 0 ? (
+              <div style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.8rem", padding: "1rem 0" }}>No scenarios.</div>
+            ) : (
+              <table className="adm-table">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>State</th>
+                    <th>Price</th>
+                    <th>Vis.</th>
+                    <th>Status</th>
+                    <th>Resp.</th>
+                    <th>Posted</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminScenarios.map(s => (
+                    <tr key={s.id}>
+                      <td style={{ fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem" }}>{s.loan_type}</td>
+                      <td>{s.state}</td>
+                      <td style={{ fontSize: "0.78rem" }}>{s.price_range}</td>
+                      <td>
+                        <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: s.visibility === "private" ? "rgba(255,140,66,0.1)" : "rgba(0,232,122,0.08)", color: s.visibility === "private" ? "#ff8c42" : "#00e87a" }}>
+                          {s.visibility}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: "0.72rem", color: s.status === "active" ? "#00e87a" : s.status === "matched" ? "#3d8bff" : "rgba(255,255,255,0.3)" }}>
+                          {s.status}
+                        </span>
+                      </td>
+                      <td style={{ color: "rgba(255,255,255,0.5)" }}>{s.response_count}/{s.max_responses}</td>
+                      <td style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.72rem" }}>
+                        {new Date(s.created_at).toLocaleDateString()}
+                      </td>
+                      <td>
+                        {scenarioMsg?.id === s.id ? (
+                          <span style={{ fontSize: "0.72rem", color: "#00e87a" }}>{scenarioMsg.msg}</span>
+                        ) : (
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {s.status !== "archived" && (
+                              <button className="adm-btn secondary" style={{ fontSize: "0.68rem", padding: "3px 8px" }} onClick={() => adminScenarioAction(s.id, "archive")}>Archive</button>
+                            )}
+                            <button className="adm-remove-btn" style={{ fontSize: "0.68rem" }} onClick={() => adminScenarioAction(s.id, "delete")}>Delete</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
 
           {/* ── LO Networks ──────────────────────────────────────────────── */}
           {isAdmin && (

@@ -211,7 +211,7 @@ export default function MyScenarioPage() {
                     {scenario.status === "closed" && <span className="ms-status-closed">Closed</span>}
                     {scenario.status === "active" && !fromBlocked && (
                       <button className="ms-close-btn" onClick={closeScenario} disabled={closingScenario}>
-                        {closingScenario ? "Closing..." : "Close scenario"}
+                        {closingScenario ? "Withdrawing..." : "Withdraw scenario"}
                       </button>
                     )}
                   </div>

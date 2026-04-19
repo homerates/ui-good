@@ -331,6 +331,7 @@ export async function GET(req: NextRequest) {
   }
 
   // LO or agent board (anonymized — no borrower_id exposed)
+  const myResponses = url.searchParams.get("my_responses") === "1";
   const state = url.searchParams.get("state");
   const loan_type = url.searchParams.get("loan_type");
   const myReferrals = url.searchParams.get("my_referrals") === "1";
@@ -343,6 +344,17 @@ export async function GET(req: NextRequest) {
   const responder_type = loDbRow.data ? "lo" : agentDbRow.data ? "agent" : null;
   if (!responder_type) {
     return NextResponse.json({ error: "Professional account required", scenarios: [] }, { status: 403 });
+  }
+
+  // My responses history — LO's own submitted responses with joined scenario data
+  if (myResponses) {
+    const { data } = await sb
+      .from("scenario_responses")
+      .select("id, rate_estimate, approach, responder_type, created_at, scenario_id, scenario_briefs(id, loan_type, loan_purpose, price_range, state, status, response_count, max_responses, closes_at, created_at)")
+      .eq("lo_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    return NextResponse.json({ responses: data ?? [] });
   }
 
   // Short-circuit: LO fetching only their private referred scenarios
@@ -372,20 +384,31 @@ export async function GET(req: NextRequest) {
   // borrower_id included only to compute is_mine — stripped before returning
   const BOARD_SELECT = "id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, response_window_hours, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term, visibility, referred_pro_id, borrower_id";
 
+  const sort = url.searchParams.get("sort") ?? "newest";
+
   // Two queries merged in JS — avoids .or() parser issues:
   // 1) Public scenarios on the board
   // 2) Private scenarios where I am the referred professional
   let publicQ = sb.from("scenario_briefs").select(BOARD_SELECT)
     .eq("status", "active").eq("visibility", "public")
-    .in("needs_professional", profFilter)
-    .order("created_at", { ascending: false }).limit(50);
+    .in("needs_professional", profFilter).limit(50);
   let privateQ = sb.from("scenario_briefs").select(BOARD_SELECT)
     .eq("status", "active").eq("visibility", "private").eq("referred_pro_id", userId)
-    .in("needs_professional", profFilter)
-    .order("created_at", { ascending: false }).limit(20);
+    .in("needs_professional", profFilter).limit(20);
 
   if (state) { publicQ = publicQ.eq("state", state); privateQ = privateQ.eq("state", state); }
   if (loan_type) { publicQ = publicQ.eq("loan_type", loan_type); privateQ = privateQ.eq("loan_type", loan_type); }
+
+  if (sort === "closing_soon") {
+    publicQ = publicQ.order("closes_at", { ascending: true, nullsFirst: false });
+    privateQ = privateQ.order("closes_at", { ascending: true, nullsFirst: false });
+  } else if (sort === "most_active") {
+    publicQ = publicQ.order("response_count", { ascending: false });
+    privateQ = privateQ.order("response_count", { ascending: false });
+  } else {
+    publicQ = publicQ.order("created_at", { ascending: false });
+    privateQ = privateQ.order("created_at", { ascending: false });
+  }
 
   const [publicRes, privateRes] = await Promise.all([publicQ, privateQ]);
   if (publicRes.error) return NextResponse.json({ error: "Failed to load board" }, { status: 500 });
