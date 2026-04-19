@@ -237,10 +237,19 @@ export async function GET(request: NextRequest) {
       rentcastLookup(bor.property_address),
       getFredSnapshot({ timeoutMs: 8000 }),
     ]);
-    if (!rentcast) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
+    const effectiveRc = rentcast ?? (bor.actual_value ? {
+      estimatedValue: Number(bor.actual_value), estimatedValueLow: null, estimatedValueHigh: null,
+      estimatedBalance: bor.actual_balance ? Number(bor.actual_balance) : null,
+      estimatedEquity: (bor.actual_value && bor.actual_balance) ? Math.round(Number(bor.actual_value) - Number(bor.actual_balance)) : null,
+      purchaseRate: bor.actual_rate ? Number(bor.actual_rate) : null,
+      lastSaleDate: bor.actual_purchase_date ?? null,
+      lastSalePrice: bor.actual_purchase_price ? Number(bor.actual_purchase_price) : null,
+      rentEstimate: null,
+    } : null);
+    if (!effectiveRc) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
 
     return NextResponse.json({
-      ...buildAnalysis(rentcast, fred, bor, []),
+      ...buildAnalysis(effectiveRc, fred, bor, []),
       borrowerName: bor.name,
       address: bor.property_address,
     });
@@ -300,10 +309,23 @@ export async function GET(request: NextRequest) {
         .limit(12),
     ]);
 
-    if (!rentcast) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
+    // If Rentcast is down/rate-limited but LO has entered overrides, build a synthetic stub so the card still renders
+    const effectiveRentcast = rentcast ?? (borrower.actual_value ? {
+      estimatedValue: Number(borrower.actual_value),
+      estimatedValueLow: null, estimatedValueHigh: null,
+      estimatedBalance: borrower.actual_balance ? Number(borrower.actual_balance) : null,
+      estimatedEquity: (borrower.actual_value && borrower.actual_balance)
+        ? Math.round(Number(borrower.actual_value) - Number(borrower.actual_balance)) : null,
+      purchaseRate: borrower.actual_rate ? Number(borrower.actual_rate) : null,
+      lastSaleDate: borrower.actual_purchase_date ?? null,
+      lastSalePrice: borrower.actual_purchase_price ? Number(borrower.actual_purchase_price) : null,
+      rentEstimate: null,
+    } : null);
+
+    if (!effectiveRentcast) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
 
     return NextResponse.json({
-      ...buildAnalysis(rentcast, fred, borrower, historyRes.data ?? []),
+      ...buildAnalysis(effectiveRentcast, fred, borrower, historyRes.data ?? []),
       borrowerName: borrower.name,
       address: borrower.property_address,
       isLoView: true,
