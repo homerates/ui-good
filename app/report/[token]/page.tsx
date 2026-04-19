@@ -453,7 +453,17 @@ export default function ReportPage() {
                         <div style={{ fontSize: '0.82rem', color: MUTED, marginBottom: 20 }}>Run a full mortgage analysis, model refi savings, or explore HELOC scenarios — instantly.</div>
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
                             <a
-                                href={`/chat?sq=${encodeURIComponent(`Run my numbers for ${borrower.property_address}`)}`}
+                                href={(() => {
+                                    const parts: string[] = [`Run my numbers for ${borrower.property_address}.`];
+                                    if (balance) parts.push(`Loan balance: $${Math.round(balance).toLocaleString()}${borrower.actual_balance ? ' (on file)' : ' (estimated)'}.`);
+                                    if (liveRate) parts.push(`Current mortgage rate: ${liveRate}%${borrower.actual_rate ? ' (on file)' : ' (estimated)'}.`);
+                                    if (val) parts.push(`Home value: $${Math.round(val).toLocaleString()}${valLow && valHigh ? ` (range $${Math.round(valLow/1000)}K–$${Math.round(valHigh/1000)}K)` : ''}.`);
+                                    if (equity) parts.push(`Equity: $${Math.round(equity).toLocaleString()} (${equityPct}%).`);
+                                    if (origPrice) parts.push(`Purchase price: $${Math.round(origPrice).toLocaleString()}.`);
+                                    if (piti) parts.push(`Current PITI: $${Math.round(piti).toLocaleString()}/mo.`);
+                                    parts.push('Use these exact figures — do not substitute estimates or benchmarks.');
+                                    return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+                                })()}
                                 style={{ padding: '12px 28px', borderRadius: 999, background: GREEN, color: '#07100f', fontWeight: 800, fontSize: '0.9rem', textDecoration: 'none', display: 'inline-block' }}
                             >
                                 Run My Numbers →
