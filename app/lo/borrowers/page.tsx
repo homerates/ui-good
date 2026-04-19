@@ -20,6 +20,7 @@ type Borrower = {
     actual_rate:           number | null;
     actual_purchase_price: number | null;
     actual_purchase_date:  string | null;
+    actual_value:          number | null;
 };
 
 export default function LoBorrowersPage() {
@@ -50,7 +51,7 @@ export default function LoBorrowersPage() {
     const [deleting, setDeleting] = React.useState<string | null>(null);
     // Loan detail overrides per borrower
     const [loanOpen, setLoanOpen]   = React.useState<string | null>(null);   // borrower id with open panel
-    const [loanForm, setLoanForm]   = React.useState<Record<string, { balance: string; rate: string; purchasePrice: string; purchaseDate: string; email: string }>>({});
+    const [loanForm, setLoanForm]   = React.useState<Record<string, { balance: string; rate: string; purchasePrice: string; purchaseDate: string; email: string; value: string }>>({});
     const [loanSaving, setLoanSaving] = React.useState<string | null>(null);
     const [loanSaved,  setLoanSaved]  = React.useState<string | null>(null);
     // Quick-add state
@@ -325,6 +326,7 @@ export default function LoBorrowersPage() {
                 rate:          b.actual_rate           ? String(b.actual_rate)           : '',
                 purchasePrice: b.actual_purchase_price ? String(b.actual_purchase_price) : '',
                 purchaseDate:  b.actual_purchase_date  ?? '',
+                value:         b.actual_value          ? String(b.actual_value)          : '',
                 email:         b.email ?? '',
             },
         }));
@@ -345,6 +347,7 @@ export default function LoBorrowersPage() {
                 actual_rate:           f.rate          ? Number(f.rate)          : null,
                 actual_purchase_price: f.purchasePrice ? Number(f.purchasePrice) : null,
                 actual_purchase_date:  f.purchaseDate  || null,
+                actual_value:          f.value         ? Number(f.value)         : null,
                 ...(f.email.trim() ? { email: f.email.trim() } : {}),
             }),
         });
@@ -790,8 +793,8 @@ export default function LoBorrowersPage() {
                         const isLoanOpen   = loanOpen   === b.id;
                         const isLoanSaving = loanSaving === b.id;
                         const didLoanSave  = loanSaved  === b.id;
-                        const lf = loanForm[b.id] ?? { balance: '', rate: '', purchasePrice: '', purchaseDate: '' };
-                        const hasOverrides = !!(b.actual_balance || b.actual_rate || b.actual_purchase_price || b.actual_purchase_date);
+                        const lf = loanForm[b.id] ?? { balance: '', rate: '', purchasePrice: '', purchaseDate: '', value: '' };
+                        const hasOverrides = !!(b.actual_balance || b.actual_rate || b.actual_purchase_price || b.actual_purchase_date || b.actual_value);
 
                         const isSendingPreview = sendingPreview === b.id;
                         const didSendPreview   = sentPreviewOk  === b.id;
@@ -1024,6 +1027,17 @@ export default function LoBorrowersPage() {
                                                     value={lf.purchaseDate}
                                                     onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, purchaseDate: e.target.value } }))}
                                                     style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                                />
+                                            </div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: "1 / -1" }}>
+                                                <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>
+                                                    Verified Value ($) <span style={{ color: "rgba(0,232,122,0.5)", fontWeight: 400 }}>— appraisal or last known good valuation</span>
+                                                </label>
+                                                <input
+                                                    type="number" min={0} placeholder="e.g. 239000 — overrides AVM estimate"
+                                                    value={lf.value}
+                                                    onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, value: e.target.value } }))}
+                                                    style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${lf.value ? "rgba(0,232,122,0.35)" : "rgba(148,163,184,0.2)"}`, background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
                                                 />
                                             </div>
                                         </div>

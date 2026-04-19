@@ -18,7 +18,7 @@ export async function GET() {
 
     const { data, error } = await supabase
         .from("borrowers")
-        .select("id, name, email, user_id, property_address, digest_enabled, created_at, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date")
+        .select("id, name, email, user_id, property_address, digest_enabled, created_at, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value")
         .eq("loan_officer_id", lo.id)
         .order("created_at", { ascending: false });
 
@@ -46,6 +46,7 @@ export async function PATCH(req: NextRequest) {
     if ('actual_rate'           in body) updates.actual_rate           = body.actual_rate           ? Number(body.actual_rate)           : null;
     if ('actual_purchase_price' in body) updates.actual_purchase_price = body.actual_purchase_price ? Number(body.actual_purchase_price) : null;
     if ('actual_purchase_date'  in body) updates.actual_purchase_date  = body.actual_purchase_date  ?? null;
+    if ('actual_value'          in body) updates.actual_value          = body.actual_value          ? Number(body.actual_value)          : null;
 
     const { data, error } = await supabase
         .from("borrowers")

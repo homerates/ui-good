@@ -110,7 +110,11 @@ function buildAnalysis(
   const prime     = 4.25 + 3;
   const helocRate = prime + 0.5;
 
-  const { estimatedValue, lastSalePrice, lastSaleDate } = rentcast;
+  const { lastSalePrice, lastSaleDate } = rentcast;
+
+  // actual_value: LO/borrower-entered appraisal or verified valuation — always wins over AVM estimate
+  const estimatedValue   = record.actual_value ? Number(record.actual_value) : rentcast.estimatedValue;
+  const valueIsVerified  = !!record.actual_value;
 
   const balance        = record.actual_balance ? Number(record.actual_balance) : rentcast.estimatedBalance;
   const purchaseRate   = record.actual_rate    ? Number(record.actual_rate)    : rentcast.purchaseRate;
@@ -192,11 +196,13 @@ function buildAnalysis(
     estimatedBalance, estimatedEquity, purchaseRate,
     liveRate, fedFundsRate: null,
     valueHistory: valueHistory.length >= 2 ? valueHistory : [],
+    valueIsVerified,
     savedOverrides: {
       actual_balance:        record.actual_balance        ?? null,
       actual_rate:           record.actual_rate           ?? null,
       actual_purchase_price: record.actual_purchase_price ?? null,
       actual_purchase_date:  record.actual_purchase_date  ?? null,
+      actual_value:          record.actual_value          ?? null,
     },
     balanceIsEstimated, rateIsEstimated,
     ltv, equityPct, appreciationPct,
@@ -221,7 +227,7 @@ export async function GET(request: NextRequest) {
 
     const { data: bor } = await db()
       .from('borrowers')
-      .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
+      .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value')
       .eq('id', rep.borrower_id)
       .single();
     if (!bor?.property_address) return NextResponse.json({ error: 'No address on file' }, { status: 404 });
@@ -260,7 +266,7 @@ export async function GET(request: NextRequest) {
     {
       let q = db()
         .from('borrowers')
-        .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
+        .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value')
         .eq('id', borrowerId);
       if (!isAdmin && loRes.data) q = q.eq('loan_officer_id', loRes.data.id);
       const res = await q.maybeSingle();
@@ -306,7 +312,7 @@ export async function GET(request: NextRequest) {
   // ── CONSUMER PATH: viewing own home ───────────────────────────────────────
   // Accepts ?property_id=<uuid> for multi-home; falls back to primary or first.
   const propertyId = request.nextUrl.searchParams.get('property_id');
-  const SEL = 'id, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date';
+  const SEL = 'id, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value';
 
   let homeowner: Record<string, any> | null = null;
 
@@ -348,7 +354,7 @@ export async function GET(request: NextRequest) {
     // Legacy fallback: old consumer_homeowners table (pre-migration)
     const legacy = await db()
       .from('consumer_homeowners')
-      .select('property_address, id, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
+      .select('property_address, id, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value')
       .eq('user_id', userId)
       .maybeSingle();
     homeowner = legacy.data ?? null;
