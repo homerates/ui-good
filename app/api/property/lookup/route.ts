@@ -477,13 +477,17 @@ async function findRedfinUrl(address: string): Promise<string | null> {
     const short = clean.replace(/,\s*\d{5}(-\d{4})?/, '').trim();
 
     const extractRedfinUrl = (results: any[]): string | null => {
+        // First pass: ideal /home/XXXXXXX listing URL
         for (const r of results) {
             const url: string = r.url ?? '';
             if (/redfin\.com\/.*\/home\/\d+/i.test(url)) return url;
         }
+        // Second pass: any Redfin listing-like path, excluding known non-listing pages
         for (const r of results) {
             const url: string = r.url ?? '';
-            if (/redfin\.com/i.test(url)) return url;
+            if (!/redfin\.com/i.test(url)) continue;
+            if (/\/(city|school|news|research|mortgage|blog|about|help|sitemap)\//i.test(url)) continue;
+            if (/redfin\.com\/[A-Z]{2}\/[^/]+\/[^/]+-\d+\//.test(url)) return url; // state/city/street-number pattern
         }
         return null;
     };
