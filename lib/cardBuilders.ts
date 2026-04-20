@@ -62,6 +62,8 @@ export interface BuiltCard {
         insRate: number;
         loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
         vaFundingFeePct?: number;  // VA only — funding fee % (0 = exempt)
+        buydownType?: '2/1' | '1/0' | '3/2/1' | 'none';
+        sellerCredit?: number;
     };
     affordabilitySlider?: {
         annualIncome: number;
@@ -3589,6 +3591,18 @@ ${schedTable}
             },
         ],
         confidence: '0.99 (calculated — deterministic buydown math)',
+        interactiveSlider: {
+            price:       purchasePrice,
+            downPct:     0,
+            rate:        annualRatePct,
+            term:        30,
+            taxRate:     annualTax     ? annualTax     / purchasePrice : 0.011,
+            insRate:     annualInsurance ? annualInsurance / purchasePrice : 0.005,
+            loanType:    isVA ? 'va' : 'conventional',
+            ...(isVA ? { vaFundingFeePct: 0 } : {}),
+            buydownType: buydownType,
+            sellerCredit: sellerCredit ?? 0,
+        },
     };
 }
 

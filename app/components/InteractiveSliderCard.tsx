@@ -2,7 +2,7 @@
 
 // app/components/InteractiveSliderCard.tsx
 // Interactive mortgage payment explorer — Conventional · FHA · VA · Jumbo tabs
-// All math is local (no API calls on slider move); re-run sends to API.
+// Supports optional rate buydown mode (2/1 · 1/0 · 3/2/1) with seller-credit coverage check
 
 import React, { useState, useMemo } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
@@ -17,6 +17,8 @@ export interface SliderCardParams {
     insRate: number;          // annual % of price as decimal — e.g. 0.005
     loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
     vaFundingFeePct?: number; // VA only — 0 = exempt, else 1.25 / 1.5 / 2.15
+    buydownType?: '2/1' | '1/0' | '3/2/1' | 'none'; // Buydown mode
+    sellerCredit?: number;    // Seller credit amount for buydown coverage check
     onRunScenario?: (seed: string, paramOverrides: Record<string, any>) => void;
 }
 
@@ -46,11 +48,43 @@ function fmtRate(r: number) {
     return parseFloat(r.toFixed(3)) + '%';
 }
 
-function trackStyle(val: number, min: number, max: number): React.CSSProperties {
-    const pct = ((val - min) / (max - min)) * 100;
-    return {
-        background: `linear-gradient(to right, #00e87a 0%, #00e87a ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`,
-    };
+interface BuydownRow {
+    yr: number;
+    effectiveRate: number;
+    pi: number;
+    monthlySavings: number;
+    annualSavings: number;
+}
+
+interface BuydownSchedule {
+    rows: BuydownRow[];
+    piNote: number;
+    totalCost: number;
+}
+
+function computeBuydownSchedule(
+    loan: number,
+    noteRate: number,
+    term: number,
+    bdType: '2/1' | '1/0' | '3/2/1',
+): BuydownSchedule {
+    const piNote = calcPI(loan, noteRate, term);
+    const reductions: number[] =
+        bdType === '3/2/1' ? [3, 2, 1] :
+        bdType === '2/1'   ? [2, 1]    :
+                             [1];       // 1/0
+
+    const rows: BuydownRow[] = reductions.map((reduction, i) => {
+        const yr = i + 1;
+        const effectiveRate = Math.max(0, noteRate - reduction);
+        const pi = calcPI(loan, effectiveRate, term);
+        const monthlySavings = piNote - pi;
+        const annualSavings  = monthlySavings * 12;
+        return { yr, effectiveRate, pi, monthlySavings, annualSavings };
+    });
+
+    const totalCost = rows.reduce((sum, r) => sum + r.annualSavings, 0);
+    return { rows, piNote, totalCost };
 }
 
 const C = { pi: '#3d8bff', tax: '#ff8c42', ins: '#00e87a', pmi: '#ff5f5f', ff: '#ff5f5f' };
@@ -66,6 +100,13 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     // VA funding fee — initialise from prop (0 = exempt)
     const initFfPct = props.vaFundingFeePct ?? 2.15;
     const [vaFfPct, setVaFfPct]  = useState<number>(initFfPct);
+    // Buydown mode
+    const initBdType = (props.buydownType ?? 'none') as '2/1' | '1/0' | '3/2/1' | 'none';
+    const [activeBdType, setActiveBdType] = useState<'2/1' | '1/0' | '3/2/1' | 'none'>(initBdType);
+    const [sellerCreditAmt, setSellerCreditAmt] = useState(props.sellerCredit ?? 0);
+
+    const hasBuydownUI = props.buydownType !== undefined;
+    const vaConcessionCap = Math.round(price * 0.04 / 1000) * 1000;
 
     const priceMax      = loanType === 'jumbo' ? 5000000 : props.price > 2000000 ? 4000000 : 2000000;
     const priceMaxLabel = priceMax === 5000000 ? '$5M' : priceMax === 4000000 ? '$4M' : '$2M';
@@ -97,43 +138,61 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
         const total         = pi + tax + ins + pmi;
         const totalInterest = Math.max(0, pi * term * 12 - baseLoan);
 
-        return { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest };
-    }, [price, downPct, rate, term, loanType, vaFfPct, props.taxRate, props.insRate]);
+        // Buydown schedule
+        const buydown: BuydownSchedule | null =
+            activeBdType !== 'none'
+                ? computeBuydownSchedule(loanAmt, rate, term, activeBdType)
+                : null;
 
-    const { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest } = calc;
+        return { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown };
+    }, [price, downPct, rate, term, loanType, vaFfPct, activeBdType, props.taxRate, props.insRate]);
+
+    const { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown } = calc;
+
+    // When buydown active, hero shows yr1 payment as primary
+    const yr1Total = buydown ? buydown.rows[0].pi + tax + ins + pmi : null;
+    const heroTotal = (activeBdType !== 'none' && yr1Total) ? yr1Total : total;
+    const heroSubtitle = activeBdType !== 'none' && yr1Total
+        ? `${fmtDollar(total)}/mo at note rate (yr ${(buydown?.rows.length ?? 0) + 1}+)`
+        : null;
 
     const isDirty = price !== props.price || downPct !== props.downPct ||
         Math.abs(rate - props.rate) > 0.001 || term !== props.term ||
-        loanType !== props.loanType || (loanType === 'va' && vaFfPct !== initFfPct);
+        loanType !== props.loanType || (loanType === 'va' && vaFfPct !== initFfPct) ||
+        activeBdType !== initBdType || sellerCreditAmt !== (props.sellerCredit ?? 0);
 
     function buildSeed(): string {
-        if (loanType === 'fha')   return `FHA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed`;
-        if (loanType === 'va')    return `VA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)}${vaFfPct === 0 ? ', funding fee exempt' : ''}`;
-        if (loanType === 'jumbo') return `Jumbo loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed`;
-        return `Conventional loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed`;
+        const bdSuffix = activeBdType !== 'none'
+            ? ` with ${activeBdType} buydown${sellerCreditAmt > 0 ? ` and ${fmtDollar(sellerCreditAmt)} seller credit` : ''}`
+            : '';
+        if (loanType === 'fha')   return `FHA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
+        if (loanType === 'va')    return `VA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)}${vaFfPct === 0 ? ', funding fee exempt' : ''}${bdSuffix}`;
+        if (loanType === 'jumbo') return `Jumbo loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
+        return `Conventional loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
     }
 
     function getRunOverrides(): Record<string, any> {
-        if (loanType === 'va') {
-            return {
-                purchasePrice:      price,
-                downPaymentPct:     downPct,
-                annualRatePct:      rate,
-                loanType:           'va',
-                vaFundingFeeExempt: vaFfPct === 0,
-                ...(vaFfPct > 0 ? { customFundingFeePct: vaFfPct } : {}),
-            };
+        const vaBase = loanType === 'va' ? {
+            purchasePrice:      price,
+            downPaymentPct:     downPct,
+            annualRatePct:      rate,
+            loanType:           'va',
+            vaFundingFeeExempt: vaFfPct === 0,
+            ...(vaFfPct > 0 ? { customFundingFeePct: vaFfPct } : {}),
+        } : loanType === 'fha' ? {
+            purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, isFHA: true,
+        } : loanType === 'jumbo' ? {
+            purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'jumbo',
+        } : {
+            purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate,
+        };
+        if (activeBdType !== 'none') {
+            return { ...vaBase, buydownType: activeBdType, sellerCredit: sellerCreditAmt };
         }
-        if (loanType === 'fha') {
-            return { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, isFHA: true };
-        }
-        if (loanType === 'jumbo') {
-            return { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'jumbo' };
-        }
-        return { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate };
+        return vaBase;
     }
 
-    // Bar widths
+    // Bar widths (note-rate based)
     const piPct  = total > 0 ? (pi  / total) * 100 : 0;
     const taxPct = total > 0 ? (tax / total) * 100 : 0;
     const insPct = total > 0 ? (ins / total) * 100 : 0;
@@ -142,7 +201,6 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     const minDown = loanType === 'fha' ? 3.5 : loanType === 'va' ? 0 : loanType === 'jumbo' ? 20 : 3;
 
-    // When switching tabs — enforce min down and reset VA FF default
     function switchTab(next: 'conventional' | 'fha' | 'va' | 'jumbo') {
         setLoanType(next);
         if (next === 'fha'   && downPct < 3.5)  setDownPct(3.5);
@@ -156,7 +214,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
             {/* ── Header ── */}
             <div className="isc__hdr">
-                <span className="isc__hdr-label">Adjust &amp; Explore</span>
+                <span className="isc__hdr-label">
+                    {activeBdType !== 'none' ? `${activeBdType} Buydown Explorer` : 'Adjust & Explore'}
+                </span>
                 <div className="isc__type">
                     <button
                         className={`isc__type-btn${loanType === 'conventional' ? ' isc__type-btn--on' : ''}`}
@@ -180,9 +240,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             {/* ── Payment hero ── */}
             <div className="isc__hero">
                 <div className="isc__payment">
-                    <span className="isc__amount">{fmtDollar(total)}</span>
-                    <span className="isc__per">/mo</span>
+                    <span className="isc__amount">{fmtDollar(heroTotal)}</span>
+                    <span className="isc__per">/mo{activeBdType !== 'none' ? ' yr 1' : ''}</span>
                 </div>
+                {heroSubtitle && (
+                    <div className="isc__bd-subtitle">{heroSubtitle}</div>
+                )}
 
                 {loanType === 'va' && (
                     <div className="isc__va-badge">🎖️ No PMI · Funding fee {vaFfPct === 0 ? 'exempt' : `${vaFfPct}%`} ({vaFfPct === 0 ? '$0' : fmtDollar(fundingFee)}) rolled in</div>
@@ -191,29 +254,89 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     <div className="isc__jumbo-badge">🏛️ Jumbo · No PMI · 20% min down · Up to $5M</div>
                 )}
 
-                {/* Stacked bar */}
-                <div className="isc__bar">
-                    <div style={{ width: `${piPct}%`,  background: C.pi,  height: '100%', minWidth: 2, transition: 'width .2s' }} />
-                    <div style={{ width: `${taxPct}%`, background: C.tax, height: '100%', minWidth: 2, transition: 'width .2s' }} />
-                    <div style={{ width: `${insPct}%`, background: C.ins, height: '100%', minWidth: 2, transition: 'width .2s' }} />
-                    {pmi > 0 && <div style={{ width: `${pmiPct}%`, background: C.pmi, height: '100%', minWidth: 2, transition: 'width .2s' }} />}
-                </div>
-
-                {/* Legend */}
-                <div className="isc__legend">
-                    {([
-                        { color: C.pi,  name: 'P&I',      val: pi  },
-                        { color: C.tax, name: 'Tax',       val: tax },
-                        { color: C.ins, name: 'Insurance', val: ins },
-                        ...(pmi > 0 ? [{ color: C.pmi, name: pmiLabel, val: pmi }] : []),
-                    ] as { color: string; name: string; val: number }[]).map(item => (
-                        <div key={item.name} className="isc__legend-item">
-                            <span className="isc__dot" style={{ background: item.color }} />
-                            <span className="isc__legend-name">{item.name}</span>
-                            <span className="isc__legend-val">{fmtDollar(item.val)}</span>
+                {/* Buydown year-by-year table */}
+                {activeBdType !== 'none' && buydown && (
+                    <div className="isc__bd-table">
+                        <div className="isc__bd-thead">
+                            <span>Year</span>
+                            <span>Rate</span>
+                            <span>P&I</span>
+                            <span>PITI</span>
+                            <span>Saves/mo</span>
                         </div>
-                    ))}
-                </div>
+                        {buydown.rows.map(row => (
+                            <div key={row.yr} className="isc__bd-trow isc__bd-trow--reduced">
+                                <span>Yr {row.yr}</span>
+                                <span>{fmtRate(row.effectiveRate)}</span>
+                                <span>{fmtDollar(row.pi)}</span>
+                                <span>{fmtDollar(row.pi + tax + ins + pmi)}</span>
+                                <span className="isc__bd-green">↓ {fmtDollar(row.monthlySavings)}</span>
+                            </div>
+                        ))}
+                        <div className="isc__bd-trow isc__bd-trow--note">
+                            <span>Yr {buydown.rows.length + 1}+</span>
+                            <span>{fmtRate(rate)}</span>
+                            <span>{fmtDollar(pi)}</span>
+                            <span>{fmtDollar(total)}</span>
+                            <span className="isc__bd-muted">note rate</span>
+                        </div>
+                        <div className="isc__bd-cost-row">
+                            <span>Buydown cost</span>
+                            <span className="isc__bd-cost-amt">{fmtDollar(buydown.totalCost)}</span>
+                            {sellerCreditAmt > 0 && (
+                                <span className={buydown.totalCost <= sellerCreditAmt ? 'isc__bd-covered' : 'isc__bd-short'}>
+                                    {buydown.totalCost <= sellerCreditAmt
+                                        ? `✓ Covered · ${fmtDollar(sellerCreditAmt - buydown.totalCost)} surplus`
+                                        : `⚠ Short ${fmtDollar(buydown.totalCost - sellerCreditAmt)}`}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Stacked bar — note rate breakdown */}
+                {activeBdType === 'none' && (
+                    <>
+                        <div className="isc__bar">
+                            <div style={{ width: `${piPct}%`,  background: C.pi,  height: '100%', minWidth: 2, transition: 'width .2s' }} />
+                            <div style={{ width: `${taxPct}%`, background: C.tax, height: '100%', minWidth: 2, transition: 'width .2s' }} />
+                            <div style={{ width: `${insPct}%`, background: C.ins, height: '100%', minWidth: 2, transition: 'width .2s' }} />
+                            {pmi > 0 && <div style={{ width: `${pmiPct}%`, background: C.pmi, height: '100%', minWidth: 2, transition: 'width .2s' }} />}
+                        </div>
+
+                        <div className="isc__legend">
+                            {([
+                                { color: C.pi,  name: 'P&I',      val: pi  },
+                                { color: C.tax, name: 'Tax',       val: tax },
+                                { color: C.ins, name: 'Insurance', val: ins },
+                                ...(pmi > 0 ? [{ color: C.pmi, name: pmiLabel, val: pmi }] : []),
+                            ] as { color: string; name: string; val: number }[]).map(item => (
+                                <div key={item.name} className="isc__legend-item">
+                                    <span className="isc__dot" style={{ background: item.color }} />
+                                    <span className="isc__legend-name">{item.name}</span>
+                                    <span className="isc__legend-val">{fmtDollar(item.val)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                {/* When buydown active — compact legend row */}
+                {activeBdType !== 'none' && (
+                    <div className="isc__legend isc__legend--compact">
+                        {([
+                            { color: C.tax, name: 'Tax',  val: tax },
+                            { color: C.ins, name: 'Ins',  val: ins },
+                            ...(pmi > 0 ? [{ color: C.pmi, name: pmiLabel, val: pmi }] : []),
+                        ] as { color: string; name: string; val: number }[]).map(item => (
+                            <div key={item.name} className="isc__legend-item">
+                                <span className="isc__dot" style={{ background: item.color }} />
+                                <span className="isc__legend-name">{item.name}</span>
+                                <span className="isc__legend-val">{fmtDollar(item.val)}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* ── Sliders ── */}
@@ -261,6 +384,49 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         </div>
                         <div className="isc__ff-hint">First use: 0% down=2.15% · 5%+ down=1.50% · 10%+ down=1.25% · Disability=Exempt</div>
                     </div>
+                )}
+
+                {/* Rate Buydown toggle — only when buydownType prop provided */}
+                {hasBuydownUI && (
+                    <div className="isc__row">
+                        <div className="isc__row-hdr">
+                            <span className="isc__row-name">Rate Buydown</span>
+                            <span className="isc__row-val">
+                                {activeBdType === 'none' ? 'None (note rate)' : `${activeBdType} Temporary Buydown`}
+                            </span>
+                        </div>
+                        <div className="isc__terms">
+                            {(['none', '1/0', '2/1', '3/2/1'] as const).map(t => (
+                                <button key={t}
+                                    className={`isc__term${activeBdType === t ? ' isc__term--on isc__term--bd' : ''}`}
+                                    onClick={() => setActiveBdType(t)}
+                                >{t === 'none' ? 'None' : t}</button>
+                            ))}
+                        </div>
+                        {activeBdType !== 'none' && (
+                            <div className="isc__ff-hint">
+                                {activeBdType === '2/1' && 'Year 1 rate −2% · Year 2 rate −1% · Year 3+ note rate'}
+                                {activeBdType === '1/0' && 'Year 1 rate −1% · Year 2+ note rate'}
+                                {activeBdType === '3/2/1' && 'Year 1 rate −3% · Year 2 −2% · Year 3 −1% · Year 4+ note rate'}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Seller Credit slider — shown when buydown active */}
+                {hasBuydownUI && activeBdType !== 'none' && (
+                    <SliderField
+                        label="Seller Credit"
+                        value={sellerCreditAmt}
+                        min={0}
+                        max={vaConcessionCap}
+                        step={1000}
+                        onChange={setSellerCreditAmt}
+                        format={v => `${fmtDollar(v)}${buydown ? (v >= buydown.totalCost ? ' ✓ covers buydown' : ` · short ${fmtDollar(buydown.totalCost - v)}`) : ''}`}
+                        minLabel="$0"
+                        maxLabel={`${fmtDollar(vaConcessionCap)} (4% cap)`}
+                        trackColor="#6366f1" theme="light"
+                    />
                 )}
 
                 {/* Interest Rate */}
@@ -312,6 +478,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         <span className="isc__stat-label">Total Interest ({term}yr)</span>
                         <span className="isc__stat-val">{fmtDollar(totalInterest)}</span>
                     </div>
+                    {activeBdType !== 'none' && buydown && (
+                        <div className="isc__stat">
+                            <span className="isc__stat-label">Buydown Cost</span>
+                            <span className="isc__stat-val">{fmtDollar(buydown.totalCost)}</span>
+                        </div>
+                    )}
                 </div>
                 <div className="isc__actions">
                     {props.onRunScenario && isDirty && (
@@ -422,7 +594,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     display: flex;
                     align-items: baseline;
                     gap: 6px;
-                    margin-bottom: 14px;
+                    margin-bottom: 4px;
                 }
                 .isc__amount {
                     font-size: clamp(2rem, 5vw, 2.6rem);
@@ -436,6 +608,86 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     font-size: .9rem;
                     color: #64748b;
                     font-weight: 500;
+                }
+                .isc__bd-subtitle {
+                    font-size: 11px;
+                    color: #94a3b8;
+                    font-weight: 500;
+                    margin-bottom: 12px;
+                }
+
+                /* Buydown year table */
+                .isc__bd-table {
+                    border: 1px solid #e2e8f0;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    margin-bottom: 12px;
+                    font-size: 12px;
+                }
+                .isc__bd-thead {
+                    display: grid;
+                    grid-template-columns: 50px 60px 80px 80px 1fr;
+                    gap: 6px;
+                    background: #f1f5f9;
+                    padding: 6px 10px;
+                    font-size: 10px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: .05em;
+                    color: #94a3b8;
+                }
+                .isc__bd-trow {
+                    display: grid;
+                    grid-template-columns: 50px 60px 80px 80px 1fr;
+                    gap: 6px;
+                    padding: 7px 10px;
+                    font-weight: 600;
+                    font-variant-numeric: tabular-nums;
+                    border-top: 1px solid #f1f5f9;
+                }
+                .isc__bd-trow--reduced {
+                    background: #f0fdf4;
+                    color: #065f46;
+                }
+                .isc__bd-trow--note {
+                    background: #fff;
+                    color: #64748b;
+                }
+                .isc__bd-green { color: #10b981; font-weight: 700; }
+                .isc__bd-muted { color: #94a3b8; font-style: italic; }
+                .isc__bd-cost-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 7px 10px;
+                    border-top: 1px solid #e2e8f0;
+                    background: #f8fafc;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #374151;
+                }
+                .isc__bd-cost-amt {
+                    font-weight: 700;
+                    color: #0f172a;
+                    font-variant-numeric: tabular-nums;
+                }
+                .isc__bd-covered {
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #10b981;
+                    background: #f0fdf4;
+                    border: 1px solid #6ee7b7;
+                    border-radius: 5px;
+                    padding: 2px 7px;
+                }
+                .isc__bd-short {
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #dc2626;
+                    background: #fff5f5;
+                    border: 1px solid #fecaca;
+                    border-radius: 5px;
+                    padding: 2px 7px;
                 }
 
                 /* Stacked bar */
@@ -454,6 +706,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     display: flex;
                     flex-wrap: wrap;
                     gap: 6px 14px;
+                }
+                .isc__legend--compact {
+                    margin-top: 4px;
                 }
                 .isc__legend-item {
                     display: flex;
@@ -491,9 +746,16 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     font-size: 10px;
                     color: #94a3b8;
                     line-height: 1.4;
+                    margin-top: 4px;
                 }
 
-                /* Term / FF toggle */
+                /* Row container */
+                .isc__row { display: flex; flex-direction: column; gap: 8px; }
+                .isc__row-hdr { display: flex; justify-content: space-between; align-items: baseline; }
+                .isc__row-name { font-size: 13px; font-weight: 700; color: #374151; }
+                .isc__row-val  { font-size: 12px; font-weight: 600; color: #64748b; }
+
+                /* Term / FF / BD toggle */
                 .isc__terms {
                     display: flex;
                     gap: 8px;
@@ -519,6 +781,11 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     border-color: #dc2626;
                     color: #7f1d1d;
                     background: #fff5f5;
+                }
+                .isc__term--bd.isc__term--on {
+                    border-color: #6366f1;
+                    color: #3730a3;
+                    background: #eef2ff;
                 }
                 .isc__term:hover:not(.isc__term--on) {
                     border-color: #94a3b8;
@@ -587,6 +854,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     .isc__legend-name { font-size: 10px; }
                     .isc__terms { gap: 5px; }
                     .isc__term { font-size: 11px; padding: 8px 0; }
+                    .isc__bd-thead,
+                    .isc__bd-trow { font-size: 10px; grid-template-columns: 40px 52px 68px 68px 1fr; }
                 }
             `}</style>
         </div>
