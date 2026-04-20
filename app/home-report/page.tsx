@@ -158,7 +158,7 @@ function HomeReportInner() {
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Derived
-  const val       = data?.estimatedValue    ?? null;
+  const val       = data?.estimatedValue ?? data?.price ?? data?.lastSalePrice ?? null;
   const equity    = data?.estimatedEquity   ?? null;
   const balance   = data?.estimatedBalance  ?? null;
   const eqPct     = (equity && val) ? Math.round(Math.max(0,equity) / val * 100) : null;

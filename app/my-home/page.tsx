@@ -495,11 +495,15 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   const prime = 7.5; // Prime ≈ 7.5% (FF 4.25–4.50% + 3)
   const helocRate = prime + 0.5;
 
-  const estimatedValue    = d.estimatedValue    as number | null ?? null;
+  // Fall back: estimatedValue → price (active listing) → lastSalePrice (sold)
+  const estimatedValue    = (d.estimatedValue    as number | null)
+                          ?? (d.price            as number | null)
+                          ?? (d.lastSalePrice    as number | null)
+                          ?? null;
   const estimatedBalance  = d.estimatedBalance  as number | null ?? null;
   const estimatedEquity   = d.estimatedEquity   as number | null ?? null;
   const purchaseRate      = d.purchaseRate      as number | null ?? null;
-  const lastSalePrice     = d.lastSalePrice     as number | null ?? null;
+  const lastSalePrice     = (d.lastSalePrice    as number | null) ?? (d.price as number | null) ?? null;
   const lastSaleDate      = d.lastSaleDate      as string | null ?? null;
   const remainingMonths   = d.remainingMonths   as number | null ?? null;
 
