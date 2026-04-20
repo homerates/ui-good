@@ -72,7 +72,8 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
 
     acRef.current.addListener('place_changed', () => {
       const place = acRef.current!.getPlace();
-      const addr  = place.formatted_address ?? input.value;
+      const raw   = place.formatted_address ?? input.value;
+      const addr  = raw.replace(/,\s*(USA|United States)$/i, '').trim();
       onChange(addr);
       onSelect?.(addr);
     });

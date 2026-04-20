@@ -492,20 +492,55 @@ function Sparkline({ history }: { history: { date: string; value: number }[] }) 
 
 // ── Map /api/property/lookup response → AnalysisData ─────────────────────────
 function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
-  const prime = 7.5; // Prime ≈ 7.5% (FF 4.25–4.50% + 3)
+  const prime = 7.5;
   const helocRate = prime + 0.5;
 
-  // Fall back: estimatedValue → price (active listing) → lastSalePrice (sold)
-  const estimatedValue    = (d.estimatedValue    as number | null)
-                          ?? (d.price            as number | null)
-                          ?? (d.lastSalePrice    as number | null)
-                          ?? null;
-  const estimatedBalance  = d.estimatedBalance  as number | null ?? null;
-  const estimatedEquity   = d.estimatedEquity   as number | null ?? null;
-  const purchaseRate      = d.purchaseRate      as number | null ?? null;
-  const lastSalePrice     = (d.lastSalePrice    as number | null) ?? (d.price as number | null) ?? null;
-  const lastSaleDate      = d.lastSaleDate      as string | null ?? null;
-  const remainingMonths   = d.remainingMonths   as number | null ?? null;
+  // Parse sale data first — needed for value + balance estimation below
+  const lastSalePrice   = (d.lastSalePrice  as number | null) ?? (d.price as number | null) ?? null;
+  const lastSaleDate    = (d.lastSaleDate   as string | null) ?? null;
+  const remainingMonths = (d.remainingMonths as number | null) ?? null;
+  const purchaseRate    = (d.purchaseRate   as number | null) ?? null;
+
+  // Fall back: estimatedValue → listing price → lastSalePrice + FHFA 4.2%/yr appreciation
+  let estimatedValue = (d.estimatedValue as number | null) ?? (d.price as number | null) ?? null;
+  if (!estimatedValue && lastSalePrice) {
+    if (lastSaleDate) {
+      const saleYr = parseInt(lastSaleDate.match(/\d{4}/)?.[0] ?? '0');
+      if (saleYr >= 1950) {
+        const yearsHeld = Math.max(0, new Date().getFullYear() - saleYr);
+        estimatedValue = Math.round(lastSalePrice * Math.pow(1.042, yearsHeld));
+      } else {
+        estimatedValue = lastSalePrice;
+      }
+    } else {
+      estimatedValue = lastSalePrice;
+    }
+  }
+
+  let estimatedBalance = (d.estimatedBalance as number | null) ?? null;
+  let estimatedEquity  = (d.estimatedEquity  as number | null) ?? null;
+
+  // Estimate mortgage balance via amortization when Redfin doesn't provide it
+  if (!estimatedBalance && lastSalePrice && lastSaleDate && purchaseRate) {
+    const saleYr = parseInt(lastSaleDate.match(/\d{4}/)?.[0] ?? '0');
+    if (saleYr >= 1970) {
+      const monthsElapsed = Math.min(360, Math.max(0,
+        Math.round((Date.now() - new Date(saleYr, 0, 1).getTime()) / (30.44 * 24 * 60 * 60 * 1000))
+      ));
+      if (monthsElapsed < 360) {
+        const p = lastSalePrice * 0.80, r = purchaseRate / 100 / 12, n = 360;
+        const remainingBal = r > 0
+          ? p * (Math.pow(1+r, n) - Math.pow(1+r, monthsElapsed)) / (Math.pow(1+r, n) - 1)
+          : Math.max(0, p - (p / n) * monthsElapsed);
+        estimatedBalance = Math.max(0, Math.round(remainingBal));
+      }
+    }
+  }
+
+  // Derive equity when Redfin doesn't provide it
+  if (!estimatedEquity && estimatedBalance != null && estimatedValue) {
+    estimatedEquity = Math.round(estimatedValue - estimatedBalance);
+  }
 
   const ltv        = (estimatedBalance && estimatedValue) ? Math.round(estimatedBalance / estimatedValue * 100) : null;
   const equityPct  = (estimatedEquity  && estimatedValue) ? Math.round(Math.max(0, estimatedEquity) / estimatedValue * 100) : null;
