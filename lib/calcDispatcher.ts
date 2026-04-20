@@ -67,6 +67,8 @@ export type CalcType =
     | 'about_data'
     | 'about_founder'
     | 'how_it_works'
+    | 'buydown'
+    | 'seller_credit'
     | 'no_calc_match';
 
 export interface DispatchResult {
@@ -95,6 +97,27 @@ export interface RefiNeedsInput {
 export interface FHANeedsInput {
     parsedPrice: number | null;
     parsedRate: number | null;
+}
+
+export interface BuydownInput {
+    purchasePrice: number;
+    loanAmount:    number;
+    annualRatePct: number;
+    buydownType:   '2/1' | '1/0' | '3/2/1';
+    isVA:          boolean;
+    sellerCredit?: number;
+    annualTax?:    number;
+    annualInsurance?: number;
+}
+
+export interface SellerCreditInput {
+    purchasePrice: number;
+    loanAmount:    number;
+    sellerCredit:  number;
+    annualRatePct: number;
+    isVA:          boolean;
+    annualTax?:    number;
+    annualInsurance?: number;
 }
 
 // ─────────────────────────────────────────────
@@ -360,6 +383,34 @@ export function isJumboQuestion(q: string): boolean {
     return /\bjumbo\s*(loan|mortgage|financing|purchase)\b/i.test(q) ||
         /\bnon.?conforming\b/i.test(q) ||
         (/\$\s*[\d,]+[kKmM]?\b/.test(q) && /\bjumbo\b/i.test(q));
+}
+
+export function isBuydownQuestion(q: string): boolean {
+    if (isRefiQuestion(q)) return false;
+    return /\bbuy[\s-]?down\b/i.test(q) ||
+        /\b(?:2[\s\/\-]1|2-1)\s*(?:buydown|buy[\s-]?down)\b/i.test(q) ||
+        /\b(?:1[\s\/]0)\s*(?:buydown|buy[\s-]?down)\b/i.test(q) ||
+        /\b3[\s\/]2[\s\/]1\s*(?:buydown|buy[\s-]?down)\b/i.test(q) ||
+        /\btemporary\s*(?:rate\s*)?(?:buydown|buy[\s-]?down|rate\s*reduction)\b/i.test(q) ||
+        /\bpermanent\s*(?:rate\s*)?(?:buydown|buy[\s-]?down|points?)\b/i.test(q);
+}
+
+export function isSellerCreditQuestion(q: string): boolean {
+    if (!/seller/i.test(q)) return false;
+    return /seller\s*credit|seller\s*concession/i.test(q) ||
+        (/seller.*(?:offering|giving|paying|contribut)/i.test(q) && /\$[\d,]+[kKmM]?\b/.test(q));
+}
+
+function extractSellerCredit(text: string): number | null {
+    const m = text.match(/\$\s*([\d,]+)k?\s+seller\s*credit/i) ||
+        text.match(/seller\s*credit\s*(?:of\s*)?\$?\s*([\d,]+)k?/i) ||
+        text.match(/seller\s*(?:is\s*)?(?:giving|offering|paying|contribut\w+)\s*\$?\s*([\d,]+)k?/i) ||
+        text.match(/\$\s*([\d,]+)k?\s*(?:seller\s*)?(?:credit|concession)\b/i);
+    if (!m) return null;
+    let v = parseFloat(m[1].replace(/,/g, ''));
+    const isK = /\$\s*[\d,]+k\b/i.test(m[0]);
+    if (isK && v < 1000) v *= 1000;
+    return v >= 1000 && v <= 300000 ? v : null;
 }
 
 export type ScenarioComparisonTool = 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
@@ -742,6 +793,63 @@ export function dispatch(
             confidence: 1.0,
             assumptions,
         };
+    }
+
+    // ── 4b. SELLER CREDIT ALLOCATOR — before VA so "VA purchase with $55K seller credit" routes here ──
+    if (isSellerCreditQuestion(q) && !isAffordabilityQuestion(q) && !isRefiQuestion(q)) {
+        const price  = extractPrice(q) ?? pullFromHistory(hist, extractPrice) ?? null;
+        const credit = extractSellerCredit(q) ?? extractSellerCredit(hist) ?? null;
+        const rate   = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
+        const vaHint = isVAQuestion(q) || /\bva\b.*(?:loan|purchase)|veteran/i.test(hist);
+        const downPct = extractDownPct(q) ?? (vaHint ? 0 : 20);
+        const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1.0215 : 1.0)) : null;
+        if (price && credit && loanAmt) {
+            if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+            if (vaHint) assumptions.push('VA loan — 2.15% funding fee financed into loan amount');
+            return {
+                type: 'seller_credit',
+                params: {
+                    purchasePrice: price,
+                    loanAmount:    loanAmt,
+                    sellerCredit:  credit,
+                    annualRatePct: rate,
+                    isVA:          vaHint,
+                    annualTax:     price * 0.011,
+                    annualInsurance: price * 0.005,
+                } as SellerCreditInput,
+                confidence: 0.95,
+                assumptions,
+            };
+        }
+    }
+
+    // ── 4c. BUYDOWN ANALYZER — before VA so "VA 2/1 buydown" routes here ──
+    if (isBuydownQuestion(q) && !isAffordabilityQuestion(q) && !isRefiQuestion(q)) {
+        const price  = extractPrice(q) ?? pullFromHistory(hist, extractPrice) ?? null;
+        const rate   = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
+        const credit = extractSellerCredit(q) ?? extractSellerCredit(hist) ?? undefined;
+        const vaHint = isVAQuestion(q) || /\bva\b.*(?:loan|purchase)|veteran/i.test(hist);
+        const downPct = extractDownPct(q) ?? (vaHint ? 0 : 20);
+        const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1.0215 : 1.0)) : null;
+        if (price && loanAmt) {
+            if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+            if (vaHint) assumptions.push('VA loan — 2.15% funding fee financed into loan amount');
+            return {
+                type: 'buydown',
+                params: {
+                    purchasePrice: price,
+                    loanAmount:    loanAmt,
+                    annualRatePct: rate,
+                    buydownType:   /3[\s\/]2[\s\/]1/i.test(q) ? '3/2/1' : /\b1[\s\/]0\b/i.test(q) ? '1/0' : '2/1',
+                    isVA:          vaHint,
+                    sellerCredit:  credit,
+                    annualTax:     price * 0.011,
+                    annualInsurance: price * 0.005,
+                } as BuydownInput,
+                confidence: 0.95,
+                assumptions,
+            };
+        }
     }
 
     // ── 5. VA ──

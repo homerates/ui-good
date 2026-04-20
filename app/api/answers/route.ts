@@ -23,6 +23,7 @@ import {
     buildLoanLimitsCard,
     buildJumboAffordabilityCard,
     buildScenarioComparisonCard,
+    buildBuydownCard, buildSellerCreditCard,
     buildUWCard, type UWCardInput, buildLabCard, buildAboutCard,
     buildAboutTrustCard, buildAboutDifferenceCard, buildAboutDataCard, buildAboutFounderCard,
     buildUWStarterCard, buildHowItWorksCard, getContextChips,
@@ -4651,6 +4652,14 @@ ${uwAnswerText}`,
             } else if (calcDispatch.type === 'va_needs_input') {
                 calcCard = buildVANeedsInputCard(fredRateForCard);
                 calcDebugModel = 'va_needs_input';
+
+            } else if (calcDispatch.type === 'buydown' && calcDispatch.params) {
+                calcCard = buildBuydownCard(calcDispatch.params as any, calcAssumptions, fredRateForCard);
+                calcDebugModel = 'calcEngine-buydown';
+
+            } else if (calcDispatch.type === 'seller_credit' && calcDispatch.params) {
+                calcCard = buildSellerCreditCard(calcDispatch.params as any, calcAssumptions, fredRateForCard);
+                calcDebugModel = 'calcEngine-seller-credit';
 
             } else if (calcDispatch.type === 'jumbo' && calcDispatch.params) {
                 const result = calcJumbo(calcDispatch.params as any);
