@@ -71,6 +71,11 @@ interface AnalysisData {
 
 type ChipId = 'equity' | 'heloc' | 'refi' | 'economy' | 'milestones';
 
+interface NearbySale {
+  address: string; price: number; sqft: number | null;
+  beds: number | null; baths: number | null; date: string; pricePerSqft: number | null;
+}
+
 const CHIPS: { id: ChipId; label: string; icon: string }[] = [
   { id: 'equity',     label: 'Equity & Value',  icon: '🏠' },
   { id: 'heloc',      label: 'HELOC Power',      icon: '💳' },
@@ -103,7 +108,7 @@ function rate(n: number | null | undefined): string { return n ? `${n.toFixed(2)
 
 // ── Sub-cards ──────────────────────────────────────────────────────────────────
 
-function CardEquity({ d }: { d: AnalysisData }) {
+function CardEquity({ d, nearbySales }: { d: AnalysisData; nearbySales?: NearbySale[] }) {
   const eqPct = d.equityPct ?? 0;
   const balPct = 100 - eqPct;
   return (
@@ -161,6 +166,36 @@ function CardEquity({ d }: { d: AnalysisData }) {
         <div style={{ marginTop: 20 }}>
           <div className="mh-section-sub-label">12-month value trend</div>
           <Sparkline history={d.valueHistory} />
+        </div>
+      )}
+
+      {/* Nearby Sales */}
+      {nearbySales && nearbySales.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <div className="mh-section-sub-label" style={{ marginBottom: 10 }}>Recent Nearby Sales</div>
+          <table className="mh-table">
+            <thead>
+              <tr>
+                <th>Address</th>
+                <th>Price</th>
+                <th>Details</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nearbySales.map((s, i) => (
+                <tr key={i}>
+                  <td style={{ color: 'rgba(255,255,255,0.5)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address || '—'}</td>
+                  <td style={{ color: '#22c55e' }}>{s.price >= 1_000_000 ? `$${(s.price/1_000_000).toFixed(2)}M` : `$${Math.round(s.price/1000)}K`}</td>
+                  <td style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>
+                    {[s.beds && `${s.beds}bd`, s.baths && `${s.baths}ba`, s.sqft && `${s.sqft.toLocaleString()}sf`].filter(Boolean).join(' · ')}
+                  </td>
+                  <td style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>{s.date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mh-footnote" style={{ marginTop: 8 }}>Recent sales sourced from Redfin. For informational purposes only.</div>
         </div>
       )}
     </div>
@@ -600,6 +635,15 @@ function MyHomePageInner() {
   const [loanSaving, setLoanSaving]                 = useState(false);
   const [loanSaved, setLoanSaved]                   = useState(false);
 
+  // Rate Watch
+  const [alertRate, setAlertRate]   = useState('');
+  const [alertSaved, setAlertSaved] = useState(false);
+  const [alertSaving, setAlertSaving] = useState(false);
+  const [showAlertBox, setShowAlertBox] = useState(false);
+
+  // Nearby sales
+  const [nearbySales, setNearbySales] = useState<NearbySale[]>([]);
+
   // Derived
   const activeProperty = properties.find(p => p.id === activePropertyId)
     ?? properties.find(p => p.is_primary)
@@ -710,6 +754,33 @@ function MyHomePageInner() {
     } finally {
       setAnalysisLoading(false);
     }
+  }
+
+  // Load nearby sales when analysis address changes
+  useEffect(() => {
+    const addr = analysis?.address;
+    if (!addr) return;
+    fetch(`/api/homeowner/nearby-sales?address=${encodeURIComponent(addr)}`)
+      .then(r => r.json())
+      .then(d => { if (d.sales?.length) setNearbySales(d.sales); })
+      .catch(() => {});
+  }, [analysis?.address]);
+
+  async function saveAlert() {
+    const rate = parseFloat(alertRate);
+    if (!rate || rate < 3 || rate > 12) return;
+    setAlertSaving(true);
+    await fetch('/api/homeowner/rate-alert', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        property_id: activeProperty?.id ?? null,
+        property_address: analysis?.address ?? activeProperty?.property_address ?? previewAddress,
+        threshold_rate: rate,
+      }),
+    });
+    setAlertSaving(false);
+    setAlertSaved(true);
+    setTimeout(() => { setAlertSaved(false); setShowAlertBox(false); }, 3000);
   }
 
   async function addProperty() {
@@ -1043,6 +1114,13 @@ function MyHomePageInner() {
                       )}
                       {/* CTA buttons */}
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        {/* My Full Report */}
+                        <a
+                          href={`/home-report?address=${encodeURIComponent(analysis.address)}`}
+                          style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                        >
+                          My Full Report ↗
+                        </a>
                         <a
                           href={(() => {
                             const a = analysis;
@@ -1174,7 +1252,7 @@ function MyHomePageInner() {
 
                         {!analysisLoading && !analysisErr && analysis && (
                           <>
-                            {activeChip === 'equity'     && <CardEquity     d={analysis} />}
+                            {activeChip === 'equity'     && <CardEquity     d={analysis} nearbySales={nearbySales} />}
                             {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
                             {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
                             {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
@@ -1184,6 +1262,41 @@ function MyHomePageInner() {
                       </>
                     )}
                   </div>
+
+                  {/* Rate Watch — inline below chip card */}
+                  {analysis && !analysisLoading && !borrowerId && (
+                    <div style={{ padding: '12px 24px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      {!showAlertBox ? (
+                        <button
+                          onClick={() => setShowAlertBox(true)}
+                          style={{ fontSize: '0.78rem', color: 'rgba(0,232,122,0.7)', background: 'none', border: '1px solid rgba(0,232,122,0.2)', borderRadius: 999, padding: '5px 14px', cursor: 'pointer' }}
+                        >
+                          🔔 Set Rate Alert
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>Alert me when 30Y drops to:</span>
+                          <input
+                            type="number" step="0.125" min="3" max="10"
+                            value={alertRate}
+                            onChange={e => setAlertRate(e.target.value)}
+                            placeholder={`e.g. ${((analysis.liveRate ?? 6.65) - 1).toFixed(2)}`}
+                            style={{ width: 80, padding: '5px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#fff', fontSize: '0.85rem', fontFamily: 'inherit' }}
+                          />
+                          <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>%</span>
+                          <button
+                            onClick={saveAlert}
+                            disabled={alertSaving || alertSaved || !alertRate}
+                            style={{ padding: '5px 14px', borderRadius: 999, background: alertSaved ? 'rgba(0,232,122,0.15)' : '#00e87a', border: 'none', color: alertSaved ? '#00e87a' : '#07100f', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            {alertSaved ? '✓ Set' : alertSaving ? '…' : 'Save'}
+                          </button>
+                          <button onClick={() => setShowAlertBox(false)} style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                          {alertSaved && <span style={{ fontSize: '0.75rem', color: '#00e87a' }}>We'll email you when rates hit {alertRate}%</span>}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Refresh + chat CTA footer — only when analysis is loaded */}
                   {analysis && !analysisLoading && (

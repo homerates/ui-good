@@ -85,5 +85,43 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    return NextResponse.json({ ok: true, currentRate, prevRate: lastSnap.rate, delta, borrowersNotified: results.length, results });
+    // Also notify consumer homeowners who set a personal rate threshold
+    const { data: consumerAlerts } = await db
+        .from('homeowner_rate_alerts')
+        .select('id, email, property_address, threshold_rate')
+        .eq('active', true)
+        .gte('threshold_rate', currentRate); // their target rate is now at or above current (i.e. rates dropped to their level)
+
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const consumerResults: { email: string; status: string }[] = [];
+
+    for (const alert of (consumerAlerts ?? [])) {
+        try {
+            await resend.emails.send({
+                from: 'HomeRates.ai <digest@homerates.ai>',
+                to: alert.email,
+                subject: `🔔 Rate Alert: 30-year mortgage rates dropped to ${currentRate.toFixed(2)}%`,
+                html: `
+<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;background:#080c12;color:#f0f0f0;padding:32px 24px;border-radius:12px">
+  <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#00e87a;margin-bottom:8px">Rate Alert</div>
+  <h2 style="font-size:1.4rem;font-weight:800;color:#fff;margin:0 0 16px">30-Year rates hit ${currentRate.toFixed(2)}%</h2>
+  <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin:0 0 20px">
+    You set an alert for when 30-year fixed rates dropped to <strong style="color:#fff">${alert.threshold_rate}%</strong> or below.
+    Current rate: <strong style="color:#00e87a">${currentRate.toFixed(2)}%</strong>.
+  </p>
+  ${alert.property_address ? `<p style="color:#64748b;font-size:0.8rem;margin:0 0 20px">For: ${alert.property_address}</p>` : ''}
+  <a href="${appBase}/my-home" style="display:inline-block;padding:12px 24px;background:#00e87a;color:#07100f;font-weight:800;font-size:0.88rem;border-radius:999px;text-decoration:none">Run My Numbers →</a>
+  <p style="color:#1e293b;font-size:0.68rem;margin-top:24px;line-height:1.5">HomeRates.ai · Educational use only · Not financial advice · <a href="${appBase}/my-home" style="color:#1e293b">Manage alerts</a></p>
+</div>`,
+            });
+            // Mark alert as triggered
+            await db.from('homeowner_rate_alerts').update({ triggered_at: new Date().toISOString(), active: false }).eq('id', alert.id);
+            consumerResults.push({ email: alert.email, status: 'sent' });
+        } catch (e) {
+            consumerResults.push({ email: alert.email, status: `error:${String(e)}` });
+        }
+    }
+
+    return NextResponse.json({ ok: true, currentRate, prevRate: lastSnap.rate, delta, borrowersNotified: results.length, results, consumerAlertsNotified: consumerResults.length, consumerResults });
 }
