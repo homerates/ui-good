@@ -455,6 +455,120 @@ function Sparkline({ history }: { history: { date: string; value: number }[] }) 
   );
 }
 
+// ── Map /api/property/lookup response → AnalysisData ─────────────────────────
+function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
+  const prime = 7.5; // Prime ≈ 7.5% (FF 4.25–4.50% + 3)
+  const helocRate = prime + 0.5;
+
+  const estimatedValue    = d.estimatedValue    as number | null ?? null;
+  const estimatedBalance  = d.estimatedBalance  as number | null ?? null;
+  const estimatedEquity   = d.estimatedEquity   as number | null ?? null;
+  const purchaseRate      = d.purchaseRate      as number | null ?? null;
+  const lastSalePrice     = d.lastSalePrice     as number | null ?? null;
+  const lastSaleDate      = d.lastSaleDate      as string | null ?? null;
+  const remainingMonths   = d.remainingMonths   as number | null ?? null;
+
+  const ltv        = (estimatedBalance && estimatedValue) ? Math.round(estimatedBalance / estimatedValue * 100) : null;
+  const equityPct  = (estimatedEquity  && estimatedValue) ? Math.round(Math.max(0, estimatedEquity) / estimatedValue * 100) : null;
+  const appreciationPct = (lastSalePrice && estimatedValue && lastSalePrice > 0)
+    ? Math.round((estimatedValue - lastSalePrice) / lastSalePrice * 100) : null;
+
+  // HELOC / cash-out
+  const helocMax   = (estimatedValue && estimatedBalance) ? Math.max(0, Math.round(estimatedValue * 0.85 - estimatedBalance)) : null;
+  const cashOutMax = (estimatedValue && estimatedBalance) ? Math.max(0, Math.round(estimatedValue * 0.80 - estimatedBalance)) : null;
+
+  const helocDraws: AnalysisData['helocDraws'] = [];
+  if (helocMax && helocMax >= 25_000) {
+    const r = helocRate / 100 / 12;
+    for (const [label, amt] of [
+      ['25% draw', Math.round(helocMax * 0.25)],
+      ['50% draw', Math.round(helocMax * 0.50)],
+      ['Max draw', helocMax],
+    ] as [string, number][]) {
+      helocDraws.push({
+        label, amount: amt,
+        interestOnly: Math.round(amt * r),
+        amortizing: Math.round((amt * r * Math.pow(1 + r, 240)) / (Math.pow(1 + r, 240) - 1)),
+      });
+    }
+  }
+
+  // PITI (based on original purchase, not current market rate)
+  let piti: number | null = null;
+  if (lastSalePrice && purchaseRate) {
+    const r = purchaseRate / 100 / 12, n = 360, p = lastSalePrice * 0.80;
+    const pi = r > 0 ? (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1) : p / n;
+    const tax = (estimatedValue ?? lastSalePrice) * 0.011 / 12;
+    const ins = (estimatedValue ?? lastSalePrice) * 0.005 / 12;
+    piti = Math.round(pi + tax + ins);
+  }
+
+  // Refi savings
+  const refiClosingCost = estimatedBalance ? Math.round(estimatedBalance * 0.01) : 10_000;
+  let refiMonthlySaving = 0;
+  let refiBreakEven: number | null = null;
+  if (estimatedBalance && purchaseRate && liveRate < purchaseRate) {
+    const n = remainingMonths ?? 360;
+    const r1 = purchaseRate / 100 / 12, r2 = liveRate / 100 / 12;
+    const pmt1 = r1 > 0 ? (estimatedBalance * r1 * Math.pow(1+r1,n)) / (Math.pow(1+r1,n) - 1) : estimatedBalance / n;
+    const pmt2 = r2 > 0 ? (estimatedBalance * r2 * Math.pow(1+r2,n)) / (Math.pow(1+r2,n) - 1) : estimatedBalance / n;
+    refiMonthlySaving = Math.max(0, Math.round(pmt1 - pmt2));
+    if (refiMonthlySaving > 0) refiBreakEven = Math.ceil(refiClosingCost / refiMonthlySaving);
+  }
+
+  // Payoff progress
+  let paidOffPct = 0, yearsElapsed: number | null = null, payoffYear: number | null = null;
+  let interestPaid: number | null = null;
+  if (lastSaleDate && purchaseRate && lastSalePrice) {
+    const mo: Record<string,number> = { january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11,jan:0,feb:1,mar:2,apr:3,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+    const parts = lastSaleDate.toLowerCase().split(/[\s,]+/);
+    const yr = parseInt(parts.find(p => /^\d{4}$/.test(p)) ?? '0');
+    const mn = mo[parts[0]] ?? mo[parts[1]] ?? 0;
+    if (yr > 1990) {
+      const sd = new Date(yr, mn, 1);
+      const elapsed = Math.max(0, Math.round((Date.now() - sd.getTime()) / (30.44 * 24 * 60 * 60 * 1000)));
+      yearsElapsed = Math.round(elapsed / 12);
+      paidOffPct   = Math.min(100, Math.round(elapsed / 360 * 100));
+      payoffYear   = new Date().getFullYear() + Math.round(Math.max(0, 360 - elapsed) / 12);
+      const p = lastSalePrice * 0.80, r = purchaseRate / 100 / 12, n = 360;
+      const pmt = r > 0 ? (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1) : p / n;
+      interestPaid = Math.round(pmt * elapsed - (p - (estimatedBalance ?? 0)));
+    }
+  }
+
+  // 12-month value trend (backwards from today at 4.2% annual)
+  const valueHistory: { date: string; value: number }[] = [];
+  if (estimatedValue) {
+    const mr = 0.042 / 12;
+    for (let i = 11; i >= 0; i--) {
+      const dt = new Date(); dt.setMonth(dt.getMonth() - i);
+      valueHistory.push({ date: dt.toISOString().slice(0, 7), value: Math.round(estimatedValue / Math.pow(1 + mr, i)) });
+    }
+  }
+
+  // Next value milestone
+  let nextValueTarget: number | null = null, nextValueTargetYear: number | null = null;
+  if (estimatedValue) {
+    nextValueTarget = Math.ceil((estimatedValue + 1) / 500_000) * 500_000;
+    nextValueTargetYear = new Date().getFullYear() + Math.max(1, Math.ceil(Math.log(nextValueTarget / estimatedValue) / Math.log(1.042)));
+  }
+
+  return {
+    address: d.address ?? '',
+    estimatedValue, estimatedValueLow: d.estimatedValueLow ?? null, estimatedValueHigh: d.estimatedValueHigh ?? null,
+    estimatedBalance, estimatedEquity, purchaseRate, lastSaleDate, lastSalePrice,
+    liveRate, rentEstimate: null, valueHistory,
+    ltv, equityPct, appreciationPct,
+    helocMax, helocRate, helocRateLabel: 'Prime + 0.50%', cashOutMax, helocDraws,
+    refiMonthlySaving, refiBreakEven, refiClosingCost,
+    paidOffPct, interestPaid, yearsElapsed, payoffYear,
+    nextValueTarget, nextValueTargetYear,
+    piti, rentMonthly: null, rentVsOwn: null, prime,
+    savedOverrides: { actual_balance: null, actual_rate: null, actual_purchase_price: null, actual_purchase_date: null },
+    balanceIsEstimated: true, rateIsEstimated: true,
+  };
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 function MyHomePageInner() {
@@ -531,12 +645,37 @@ function MyHomePageInner() {
     setAnalysisErr('');
     setAnalysis(null);
     try {
+      // Preview mode: use property/lookup (Redfin via Tavily) for rich data
+      if (previewAddress) {
+        const [lookupRes, tickerRes] = await Promise.all([
+          fetch('/api/property/lookup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: previewAddress }),
+            cache: 'no-store',
+          }),
+          fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
+        ]);
+        const lookupJson = await lookupRes.json();
+        if (!lookupRes.ok || !lookupJson.ok || !lookupJson.data) {
+          setAnalysisErr(lookupJson.error ?? 'Could not retrieve property data');
+          return;
+        }
+        const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
+        const thirtyY = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
+        let liveRate = 6.65;
+        if (thirtyY?.value) {
+          const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
+          if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
+        }
+        setAnalysis(lookupToAnalysis(lookupJson.data, liveRate));
+        return;
+      }
+
       const bust = `_t=${Date.now()}`;
       const url = borrowerId
         ? `/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}&${bust}`
-        : previewAddress
-          ? `/api/homeowner/analysis?preview_address=${encodeURIComponent(previewAddress)}&${bust}`
-          : `/api/homeowner/analysis?property_id=${encodeURIComponent(pid!)}&${bust}`;
+        : `/api/homeowner/analysis?property_id=${encodeURIComponent(pid!)}&${bust}`;
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
@@ -882,16 +1021,17 @@ function MyHomePageInner() {
                         <a
                           href={(() => {
                             const a = analysis;
-                            const parts: string[] = [`Run my numbers for ${a.address}.`];
+                            // Start with explicit refi/homeowner framing so calcDispatcher routes to refi path not jumbo purchase
+                            const parts: string[] = [`I own this home at ${a.address} and want to refinance or review my options.`];
                             // Balance and rate first — refi parser grabs the first large dollar figure as the balance
                             if (a.estimatedBalance) parts.push(`Loan balance: $${Math.round(a.estimatedBalance).toLocaleString()}${a.balanceIsEstimated ? ' (estimated)' : ' (on file)'}.`);
-                            const rate = a.savedOverrides?.actual_rate ?? a.purchaseRate;
-                            if (rate) parts.push(`Current mortgage rate: ${rate}%${a.rateIsEstimated ? ' (estimated from purchase year)' : ' (on file)'}.`);
+                            const effectiveRate = a.savedOverrides?.actual_rate ?? a.purchaseRate;
+                            if (effectiveRate) parts.push(`Current mortgage rate: ${effectiveRate}%${a.rateIsEstimated ? ' (estimated from purchase year)' : ' (on file)'}.`);
                             if (a.estimatedValue) parts.push(`Home value: $${Math.round(a.estimatedValue).toLocaleString()}${a.estimatedValueLow && a.estimatedValueHigh ? ` (range $${Math.round(a.estimatedValueLow/1000)}K–$${Math.round(a.estimatedValueHigh/1000)}K)` : ''}.`);
                             if (a.estimatedEquity) parts.push(`Equity: $${Math.round(a.estimatedEquity).toLocaleString()} (${a.equityPct}%).`);
                             if (a.lastSalePrice) parts.push(`Purchase price: $${Math.round(a.lastSalePrice).toLocaleString()}.`);
                             if (a.piti) parts.push(`Current PITI: $${Math.round(a.piti).toLocaleString()}/mo.`);
-                            parts.push('Use these exact figures — do not substitute estimates or benchmarks.');
+                            parts.push('Show me refinance savings, break-even, and equity options. Use these exact figures.');
                             return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
                           })()}
                           style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}

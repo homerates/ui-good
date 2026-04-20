@@ -459,21 +459,71 @@ async function handleUrl(rawUrl: string) {
     });
 }
 
-// ── Address handler (cache-first, then Rentcast) ────────────────────────────
+// ── Tavily search → find Redfin URL for an address ─────────────────────────
+
+async function findRedfinUrl(address: string): Promise<string | null> {
+    const key = process.env.TAVILY_API_KEY;
+    if (!key) return null;
+    try {
+        const res = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(8_000),
+            body: JSON.stringify({
+                api_key: key,
+                query: `"${address}" site:redfin.com`,
+                max_results: 3,
+                search_depth: 'basic',
+                include_answer: false,
+            }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        for (const r of (data.results ?? [])) {
+            const url: string = r.url ?? '';
+            if (/redfin\.com\/.*\/home\/\d+/i.test(url)) return url;
+        }
+        // Broader Redfin URL match
+        for (const r of (data.results ?? [])) {
+            const url: string = r.url ?? '';
+            if (/redfin\.com/i.test(url)) return url;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+// ── Address handler (cache-first, then Redfin via Tavily, then Rentcast) ───
 
 async function handleAddress(rawAddress: string) {
-    // Check canonical property cache first — skip Rentcast if data is fresh
+    // Check canonical property cache first — skip external API if data is fresh
     const cached = await getCachedSnapshot(rawAddress);
     if (cached) {
         console.log('[property/lookup] served from cache:', rawAddress);
         return NextResponse.json({ ok: true, data: cached, fromCache: true });
     }
 
+    // Prefer Redfin via Tavily (free, rich data) over Rentcast (paid)
+    const redfinUrl = await findRedfinUrl(rawAddress);
+    if (redfinUrl) {
+        console.log('[property/lookup] found Redfin URL via Tavily for', rawAddress);
+        const result = await handleUrl(redfinUrl);
+        // Cache the result under the raw address too for next lookup
+        try {
+            const body = await result.clone().json();
+            if (body?.ok && body?.data) {
+                void cachePropertyResult(rawAddress, body.data, body.data.source ?? 'redfin_via_tavily');
+            }
+        } catch { /* non-blocking */ }
+        return result;
+    }
+
     const key = process.env.RENTCAST_API_KEY;
     if (!key) {
         return NextResponse.json({
             ok: false,
-            error: 'Address lookup requires a Rentcast API key. Paste the Redfin link instead for instant results.',
+            error: 'Could not find property data for this address. Try pasting the Redfin link directly.',
         });
     }
 
