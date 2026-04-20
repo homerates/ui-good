@@ -67,9 +67,17 @@ interface AnalysisData {
   rateIsEstimated: boolean;
   borrowerName?: string;
   isLoView?: boolean;
+  // Listing context (buyer mode)
+  listingStatus: string;
+  daysOnMarket: number | null;
+  listPrice: number | null;
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
 }
 
 type ChipId = 'equity' | 'heloc' | 'refi' | 'economy' | 'milestones';
+type BuyerChipId = 'position' | 'payment' | 'comps' | 'cost' | 'signal';
 
 interface NearbySale {
   address: string; price: number; sqft: number | null;
@@ -82,6 +90,14 @@ const CHIPS: { id: ChipId; label: string; icon: string }[] = [
   { id: 'refi',       label: 'Refi Math',        icon: '🔁' },
   { id: 'economy',    label: 'Economy',          icon: '📈' },
   { id: 'milestones', label: 'Milestones',       icon: '🏁' },
+];
+
+const BUYER_CHIPS: { id: BuyerChipId; label: string; icon: string }[] = [
+  { id: 'position', label: 'Market Position', icon: '📊' },
+  { id: 'payment',  label: 'My Payment',      icon: '💰' },
+  { id: 'comps',    label: 'Comp Analysis',   icon: '🏘' },
+  { id: 'cost',     label: 'True Cost',       icon: '📅' },
+  { id: 'signal',   label: 'Offer Signal',    icon: '🎯' },
 ];
 
 // ── Estimated badge ────────────────────────────────────────────────────────────
@@ -490,6 +506,272 @@ function Sparkline({ history }: { history: { date: string; value: number }[] }) 
   );
 }
 
+// ── Buyer Cards ───────────────────────────────────────────────────────────────
+
+function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[] }) {
+  const listPrice = d.listPrice;
+  const avm       = d.estimatedValue;
+  const basis     = d.lastSalePrice;
+  const basisYear = d.lastSaleDate?.match(/\d{4}/)?.[0] ?? null;
+  const spread    = (listPrice && avm) ? Math.round((avm - listPrice) / listPrice * 100) : null;
+  const basisGain = (listPrice && basis && basis > 0) ? Math.round((listPrice - basis) / basis * 100) : null;
+  const psf       = (listPrice && d.sqft) ? Math.round(listPrice / d.sqft) : null;
+  return (
+    <div className="mh-card">
+      <div className="mh-card-label">Market Position</div>
+      <div className="mh-stat-row">
+        <div className="mh-stat">
+          <div className="mh-stat-label">List Price</div>
+          <div className="mh-stat-value" style={{ color: '#93c5fd' }}>{listPrice ? fmt(listPrice) : '—'}</div>
+          <div className="mh-stat-sub">{psf ? `$${psf}/sqft` : ''}</div>
+        </div>
+        <div className="mh-stat">
+          <div className="mh-stat-label">Redfin AVM</div>
+          <div className="mh-stat-value" style={{ color: spread != null ? (spread >= 0 ? '#22c55e' : '#f87171') : '#f1f5f9' }}>
+            {avm ? fmt(avm) : '—'}
+          </div>
+          <div className="mh-stat-sub">{spread != null ? `${spread > 0 ? '+' : ''}${spread}% vs ask` : ''}</div>
+        </div>
+        <div className="mh-stat">
+          <div className="mh-stat-label">Seller Paid{basisYear ? ` (${basisYear})` : ''}</div>
+          <div className="mh-stat-value">{basis ? fmt(basis) : '—'}</div>
+          <div className="mh-stat-sub">{basisGain != null ? `+${basisGain}% seller gain` : ''}</div>
+        </div>
+      </div>
+      {d.daysOnMarket != null && (
+        <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(99,179,237,0.06)', border: '1px solid rgba(99,179,237,0.15)', borderRadius: 8 }}>
+          <div style={{ fontSize: '0.72rem', color: '#93c5fd', fontWeight: 700 }}>
+            {d.daysOnMarket <= 7 ? '🔥 Fresh listing' : d.daysOnMarket <= 30 ? '📅 Active listing' : '⏳ Extended time on market'}
+          </div>
+          <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 3 }}>
+            {d.daysOnMarket} days on market{d.daysOnMarket > 30 ? ' — sellers may have more flexibility on price' : ''}
+          </div>
+        </div>
+      )}
+      {d.beds || d.baths || d.sqft ? (
+        <div style={{ marginTop: 12, fontSize: '0.78rem', color: '#475569' }}>
+          {[d.beds && `${d.beds} bd`, d.baths && `${d.baths} ba`, d.sqft && `${d.sqft.toLocaleString()} sqft`].filter(Boolean).join(' · ')}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CardMyPayment({ d }: { d: AnalysisData }) {
+  const askPrice = d.listPrice ?? d.estimatedValue;
+  const liveRate = d.liveRate;
+  function pitiAt(price: number, r: number) {
+    const p = price * 0.80, mo = r / 100 / 12, n = 360;
+    const pi = mo > 0 ? (p * mo * Math.pow(1+mo,n)) / (Math.pow(1+mo,n)-1) : p/n;
+    return Math.round(pi + price * 0.011 / 12 + price * 0.005 / 12);
+  }
+  if (!askPrice) return (
+    <div className="mh-card">
+      <div className="mh-card-label">My Payment</div>
+      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>List price not available.</div>
+    </div>
+  );
+  const rows = [
+    { label: `Today (${liveRate.toFixed(2)}%)`,           rate: liveRate,       highlight: true },
+    { label: `+0.5% (${(liveRate+0.5).toFixed(2)}%)`,     rate: liveRate + 0.5, highlight: false },
+    { label: `-0.5% (${(liveRate-0.5).toFixed(2)}%)`,     rate: liveRate - 0.5, highlight: false },
+    { label: `-1.0% (${(liveRate-1.0).toFixed(2)}%)`,     rate: liveRate - 1.0, highlight: false },
+  ].filter(r => r.rate >= 3 && r.rate <= 12);
+  const base = pitiAt(askPrice, liveRate);
+  return (
+    <div className="mh-card">
+      <div className="mh-card-label">My Payment at Ask Price</div>
+      <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: 16 }}>
+        {fmt(askPrice)} · 20% down · P&amp;I + taxes + insurance
+      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>{['Rate', 'Monthly PITI', 'vs Today'].map(h => (
+            <th key={h} style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', textAlign: 'left', paddingBottom: 8 }}>{h}</th>
+          ))}</tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => {
+            const p = pitiAt(askPrice, row.rate);
+            const diff = p - base;
+            return (
+              <tr key={i} style={{ background: row.highlight ? 'rgba(99,179,237,0.06)' : 'transparent', borderRadius: 6 }}>
+                <td style={{ fontSize: '0.82rem', color: row.highlight ? '#93c5fd' : '#64748b', padding: '8px 0', fontWeight: row.highlight ? 700 : 400 }}>{row.label}</td>
+                <td style={{ fontSize: '1rem', fontWeight: 700, color: row.highlight ? '#f1f5f9' : '#94a3b8', padding: '8px 0' }}>${p.toLocaleString()}/mo</td>
+                <td style={{ fontSize: '0.82rem', color: diff < 0 ? '#22c55e' : diff > 0 ? '#f87171' : '#64748b', padding: '8px 0' }}>
+                  {row.highlight ? '—' : `${diff < 0 ? '−' : '+'}$${Math.abs(diff).toLocaleString()}`}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: '0.68rem', color: '#334155' }}>
+        Down payment: ${Math.round(askPrice * 0.20).toLocaleString()} · Loan amount: ${Math.round(askPrice * 0.80).toLocaleString()}
+      </div>
+    </div>
+  );
+}
+
+function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: NearbySale[] }) {
+  const askPrice   = d.listPrice ?? d.estimatedValue;
+  const askPsf     = (askPrice && d.sqft) ? Math.round(askPrice / d.sqft) : null;
+  const valid      = (nearbySales ?? []).filter(s => s.price > 0);
+  const avgPrice   = valid.length ? Math.round(valid.reduce((s, c) => s + c.price, 0) / valid.length) : null;
+  const psfComps   = valid.filter(s => s.pricePerSqft && s.pricePerSqft > 0);
+  const avgPsf     = psfComps.length ? Math.round(psfComps.reduce((s, c) => s + (c.pricePerSqft ?? 0), 0) / psfComps.length) : null;
+  const priceDelta = (askPrice && avgPrice) ? Math.round((askPrice - avgPrice) / avgPrice * 100) : null;
+  const psfDelta   = (askPsf && avgPsf) ? Math.round((askPsf - avgPsf) / avgPsf * 100) : null;
+  if (valid.length < 3) return (
+    <div className="mh-card">
+      <div className="mh-card-label">Comp Analysis</div>
+      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', textAlign: 'center', padding: '28px 0' }}>
+        Not enough local sales data (need ≥ 3 recent comps).<br />
+        <a href={`/chat?sq=${encodeURIComponent(`Run a full CMA for ${d.address}`)}`} style={{ color: '#93c5fd', textDecoration: 'none', marginTop: 8, display: 'inline-block' }}>Run a full CMA in chat →</a>
+      </div>
+    </div>
+  );
+  return (
+    <div className="mh-card">
+      <div className="mh-card-label">Comp Analysis · {valid.length} Nearby Sales</div>
+      <div className="mh-stat-row">
+        <div className="mh-stat">
+          <div className="mh-stat-label">This Home (Ask)</div>
+          <div className="mh-stat-value" style={{ color: '#93c5fd' }}>{askPrice ? fmt(askPrice) : '—'}</div>
+          <div className="mh-stat-sub">{askPsf ? `$${askPsf}/sqft` : ''}</div>
+        </div>
+        <div className="mh-stat">
+          <div className="mh-stat-label">Avg Nearby Sale</div>
+          <div className="mh-stat-value">{avgPrice ? fmt(avgPrice) : '—'}</div>
+          <div className="mh-stat-sub">{avgPsf ? `$${avgPsf}/sqft` : ''}</div>
+        </div>
+        <div className="mh-stat">
+          <div className="mh-stat-label">vs Comps</div>
+          <div className="mh-stat-value" style={{ color: priceDelta != null ? (priceDelta > 5 ? '#f87171' : priceDelta < -5 ? '#22c55e' : '#f1f5f9') : undefined }}>
+            {priceDelta != null ? `${priceDelta > 0 ? '+' : ''}${priceDelta}%` : '—'}
+          </div>
+          <div className="mh-stat-sub">{psfDelta != null ? `${psfDelta > 0 ? '+' : ''}${psfDelta}% $/sqft` : ''}</div>
+        </div>
+      </div>
+      <div style={{ marginTop: 16 }}>
+        {valid.slice(0, 4).map((s, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address}</div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f1f5f9' }}>{fmt(s.price)}</span>
+              {s.pricePerSqft && <span style={{ fontSize: '0.72rem', color: '#334155' }}>${s.pricePerSqft}/sf</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CardTrueCost({ d }: { d: AnalysisData }) {
+  const askPrice = d.listPrice ?? d.estimatedValue;
+  const rate     = d.liveRate;
+  if (!askPrice) return (
+    <div className="mh-card">
+      <div className="mh-card-label">True Cost</div>
+      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>List price not available.</div>
+    </div>
+  );
+  function calcHorizon(years: number) {
+    const p = askPrice! * 0.80, r = rate / 100 / 12, n = 360, k = years * 12;
+    const pmt        = r > 0 ? (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n)-1) : p/n;
+    const balAfter   = r > 0 ? p * (Math.pow(1+r,n) - Math.pow(1+r,k)) / (Math.pow(1+r,n)-1) : Math.max(0, p - pmt*k);
+    const valueAfter = Math.round(askPrice! * Math.pow(1.042, years));
+    const equity     = Math.round(valueAfter - balAfter);
+    const intPaid    = Math.round(pmt * k - (p - balAfter));
+    return { valueAfter, equity, intPaid };
+  }
+  const h5 = calcHorizon(5), h10 = calcHorizon(10);
+  return (
+    <div className="mh-card">
+      <div className="mh-card-label">True Cost of Ownership</div>
+      <div style={{ fontSize: '0.72rem', color: '#475569', marginBottom: 16 }}>At {rate.toFixed(2)}% · 20% down · 4.2%/yr appreciation</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {([{ label: '5 Years', h: h5 }, { label: '10 Years', h: h10 }] as const).map(({ label, h }) => (
+          <div key={label} style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#93c5fd', marginBottom: 10 }}>{label}</div>
+            {[
+              { label: 'Interest Paid', value: fmt(h.intPaid),    color: '#f87171' },
+              { label: 'Est. Value',    value: fmt(h.valueAfter), color: '#22c55e' },
+              { label: 'Equity Built',  value: fmt(h.equity),     color: '#22c55e' },
+            ].map(s => (
+              <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: '0.72rem', color: '#475569' }}>{s.label}</span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: s.color }}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 12, fontSize: '0.65rem', color: '#334155', lineHeight: 1.5 }}>
+        Assumes 20% down, 30yr fixed, 1.1% tax, 0.5% insurance, 4.2%/yr appreciation (FHFA historical avg).
+      </div>
+    </div>
+  );
+}
+
+function CardOfferSignal({ d, nearbySales }: { d: AnalysisData; nearbySales?: NearbySale[] }) {
+  const askPrice   = d.listPrice ?? d.estimatedValue;
+  const avm        = d.estimatedValue;
+  const dom        = d.daysOnMarket;
+  const valid      = (nearbySales ?? []).filter(s => s.price > 0);
+  const avgComp    = valid.length >= 3 ? Math.round(valid.reduce((s, c) => s + c.price, 0) / valid.length) : null;
+  const avmDelta   = (askPrice && avm) ? (askPrice - avm) / avm * 100 : null;
+  const compDelta  = (askPrice && avgComp) ? (askPrice - avgComp) / avgComp * 100 : null;
+  const delta      = avmDelta ?? compDelta;
+  let priceSignal: 'below' | 'at' | 'above' = 'at';
+  let priceReason = '';
+  if (delta != null) {
+    if (delta > 7)       { priceSignal = 'above'; priceReason = `Listed ${Math.round(delta)}% above ${avm ? 'Redfin AVM' : 'avg comp'}`; }
+    else if (delta < -5) { priceSignal = 'below'; priceReason = `Listed ${Math.round(Math.abs(delta))}% below ${avm ? 'Redfin AVM' : 'avg comp'}`; }
+    else                 { priceSignal = 'at';    priceReason = `Within ${Math.abs(Math.round(delta))}% of ${avm ? 'Redfin AVM' : 'avg comp'}`; }
+  }
+  const domSignal = dom != null ? (dom <= 7 ? 'hot' : dom <= 30 ? 'normal' : 'slow') : null;
+  const SIG = {
+    below: { label: 'Below Market', color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.3)',   icon: '↓' },
+    at:    { label: 'At Market',    color: '#f1f5f9', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.1)', icon: '≈' },
+    above: { label: 'Above Market', color: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.3)', icon: '↑' },
+  }[priceSignal];
+  const factors: { label: string; value: string; ok: boolean }[] = [];
+  if (avmDelta != null)  factors.push({ label: 'vs Redfin AVM',  value: `${avmDelta > 0 ? '+' : ''}${Math.round(avmDelta)}%`,   ok: avmDelta < 5 });
+  if (compDelta != null) factors.push({ label: 'vs Nearby Sales', value: `${compDelta > 0 ? '+' : ''}${Math.round(compDelta)}%`, ok: compDelta < 5 });
+  if (dom != null)       factors.push({ label: 'Days on Market',  value: `${dom}d`,                                               ok: dom < 30 });
+  return (
+    <div className="mh-card">
+      <div className="mh-card-label">Offer Signal</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+        <div style={{ padding: '14px 24px', background: SIG.bg, border: `1px solid ${SIG.border}`, borderRadius: 12, textAlign: 'center', minWidth: 120, flexShrink: 0 }}>
+          <div style={{ fontSize: '2rem', fontWeight: 900, color: SIG.color, lineHeight: 1 }}>{SIG.icon}</div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: SIG.color, marginTop: 4 }}>{SIG.label}</div>
+        </div>
+        <div>
+          {priceReason && <div style={{ fontSize: '0.88rem', color: '#e2e8f0', marginBottom: 6 }}>{priceReason}</div>}
+          {domSignal === 'slow'   && <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>On market {dom} days — sellers may be more open to offers</div>}
+          {domSignal === 'hot'    && <div style={{ fontSize: '0.78rem', color: '#fbbf24' }}>Fresh listing — expect competition, move quickly</div>}
+          {domSignal === 'normal' && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Normal market pace ({dom} days on market)</div>}
+          {!delta && <div style={{ fontSize: '0.78rem', color: '#475569' }}>Limited AVM or comp data for a precise signal — use chat CMA for deeper analysis</div>}
+        </div>
+      </div>
+      {factors.length > 0 && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#334155', marginBottom: 10 }}>Key Factors</div>
+          {factors.map((f, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{f.label}</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: f.ok ? '#22c55e' : '#f87171' }}>{f.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Map /api/property/lookup response → AnalysisData ─────────────────────────
 function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   const prime = 7.5;
@@ -627,6 +909,16 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
     nextValueTargetYear = new Date().getFullYear() + Math.max(1, Math.ceil(Math.log(nextValueTarget / estimatedValue) / Math.log(1.042)));
   }
 
+  // Listing context
+  const listingStatus = (d.listingStatus as string | null) ?? 'UNKNOWN';
+  const daysOnMarket  = (d.daysOnMarket  as number | null) ?? null;
+  const listPrice     = (listingStatus === 'FOR_SALE' || listingStatus === 'PENDING')
+    ? ((d.price as number | null) ?? estimatedValue)
+    : null;
+  const beds  = (d.beds  as number | null) ?? null;
+  const baths = (d.baths as number | null) ?? null;
+  const sqft  = (d.sqft  as number | null) ?? null;
+
   return {
     address: (d.address as string | null) || '',
     estimatedValue, estimatedValueLow: d.estimatedValueLow ?? null, estimatedValueHigh: d.estimatedValueHigh ?? null,
@@ -640,6 +932,7 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
     piti, rentMonthly: null, rentVsOwn: null, prime,
     savedOverrides: { actual_balance: null, actual_rate: null, actual_purchase_price: null, actual_purchase_date: null },
     balanceIsEstimated: true, rateIsEstimated: true,
+    listingStatus, daysOnMarket, listPrice, beds, baths, sqft,
   };
 }
 
@@ -660,8 +953,9 @@ function MyHomePageInner() {
   const [saving, setSaving]                   = useState(false);
   const [saved, setSaved]                     = useState(false);
 
-  const [activeChip, setActiveChip] = useState<ChipId>('equity');
-  const [analysis, setAnalysis]     = useState<AnalysisData | null>(null);
+  const [activeChip, setActiveChip]           = useState<ChipId>('equity');
+  const [activeBuyerChip, setActiveBuyerChip] = useState<BuyerChipId>('position');
+  const [analysis, setAnalysis]               = useState<AnalysisData | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisErr, setAnalysisErr]         = useState('');
 
@@ -979,8 +1273,8 @@ function MyHomePageInner() {
                   </div>
                 )}
 
-                {/* Preview mode: save CTA */}
-                {previewAddress && analysis && (
+                {/* Preview mode: save CTA — only for off-market/owned properties */}
+                {previewAddress && analysis && analysis.listingStatus !== 'FOR_SALE' && analysis.listingStatus !== 'PENDING' && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 16px', borderRadius: 10, marginBottom: 16, background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.2)' }}>
                     <span style={{ fontSize: '0.85rem', color: '#e0f0e8' }}>Save this property to track value, equity &amp; rate alerts monthly.</span>
                     <SignedIn>
@@ -998,6 +1292,27 @@ function MyHomePageInner() {
                       <SignInButton mode="modal">
                         <button style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#00e87a', color: '#080c12', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           Sign In to Save
+                        </button>
+                      </SignInButton>
+                    </SignedOut>
+                  </div>
+                )}
+                {/* Buyer mode: prompt to sign in to get alerts when rate drops */}
+                {previewAddress && analysis && (analysis.listingStatus === 'FOR_SALE' || analysis.listingStatus === 'PENDING') && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 16px', borderRadius: 10, marginBottom: 16, background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#bfdbfe' }}>Get a rate alert when 30Y drops — save money before you make an offer.</span>
+                    <SignedIn>
+                      <button
+                        onClick={() => setShowAlertBox(true)}
+                        style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#3b82f6', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        Set Rate Alert
+                      </button>
+                    </SignedIn>
+                    <SignedOut>
+                      <SignInButton mode="modal">
+                        <button style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#3b82f6', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          Sign In for Alerts
                         </button>
                       </SignInButton>
                     </SignedOut>
@@ -1099,128 +1414,171 @@ function MyHomePageInner() {
                   )}
                 </div>
 
-                {/* ── HOME INTELLIGENCE HERO — shown when analysis is loaded ── */}
-                {analysis && !analysisLoading && (
-                  <div style={{
-                    background: '#0f172a', borderRadius: 16, marginBottom: 16,
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.4)', overflow: 'hidden',
-                  }}>
-                    {/* Green accent line */}
-                    <div style={{ height: 3, background: 'linear-gradient(90deg,#00e87a,#00b459)' }} />
-                    <div style={{ padding: '20px 24px' }}>
-                      {/* Address + date */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
-                        <div>
-                          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 3 }}>Home Intelligence</div>
-                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#f1f5f9', lineHeight: 1.3 }}>{analysis.address || previewAddress || activeProperty?.property_address || ''}</div>
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: '#334155' }}>
-                          {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                        </div>
-                      </div>
-                      {/* 4 key stats */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
-                        {[
-                          { label: 'Est. Value', value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true },
-                          { label: 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 },
-                          { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true },
-                          { label: 'LTV Ratio', value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100 },
-                        ].map((s, i) => (
-                          <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
-                            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
-                            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: (s as {green?:boolean;warn?:boolean}).warn ? '#f59e0b' : s.green ? '#00e87a' : '#f1f5f9', lineHeight: 1.1 }}>{s.value}</div>
+                {/* ── INTELLIGENCE HERO — shown when analysis is loaded ── */}
+                {analysis && !analysisLoading && (() => {
+                  const isBuyer = analysis.listingStatus === 'FOR_SALE' || analysis.listingStatus === 'PENDING';
+                  const heroAddr = analysis.address || previewAddress || activeProperty?.property_address || '';
+                  return (
+                    <div style={{ background: '#0f172a', borderRadius: 16, marginBottom: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
+                      {/* Accent line: blue for buyer, green for owner */}
+                      <div style={{ height: 3, background: isBuyer ? 'linear-gradient(90deg,#3b82f6,#6366f1)' : 'linear-gradient(90deg,#00e87a,#00b459)' }} />
+                      <div style={{ padding: '20px 24px' }}>
+                        {/* Address + mode label */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
+                          <div>
+                            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: isBuyer ? '#60a5fa' : '#00e87a', marginBottom: 3 }}>
+                              {isBuyer ? (analysis.listingStatus === 'PENDING' ? '🔴 Pending · Buyer Intelligence' : '🏷 For Sale · Buyer Intelligence') : 'Home Intelligence'}
+                            </div>
+                            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#f1f5f9', lineHeight: 1.3 }}>{heroAddr}</div>
                           </div>
-                        ))}
-                      </div>
-                      {/* Equity bar — only show when not underwater */}
-                      {analysis.equityPct != null && analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 && (
-                        <div style={{ marginBottom: 20 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#475569', marginBottom: 5 }}>
-                            <span style={{ color: '#00e87a' }}>
-                              {`$${Math.round(analysis.estimatedEquity / 1000)}K equity (${analysis.equityPct}%)`}
-                            </span>
-                            <span>
-                              {analysis.estimatedBalance ? `$${Math.round(analysis.estimatedBalance / 1000)}K balance` : 'Balance'}
-                            </span>
-                          </div>
-                          <div style={{ height: 6, background: '#1e293b', borderRadius: 999, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
+                          <div style={{ fontSize: '0.7rem', color: '#334155' }}>
+                            {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                           </div>
                         </div>
-                      )}
-                      {/* Underwater warning */}
-                      {analysis.estimatedEquity != null && analysis.estimatedEquity < 0 && (
-                        <div style={{ marginBottom: 20, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
-                          <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700 }}>⚠️ Property is currently underwater</div>
-                          <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 3 }}>
-                            Balance exceeds estimated value by {analysis.estimatedBalance && analysis.estimatedValue ? `$${Math.round(Math.abs(analysis.estimatedBalance - analysis.estimatedValue) / 1000)}K` : '—'}. Consider running refi math.
+
+                        {/* 4 key stats — different set for buyer vs owner */}
+                        {isBuyer ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
+                            {[
+                              { label: 'List Price',    value: analysis.listPrice ? `$${Math.round(analysis.listPrice).toLocaleString()}` : (analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—'), blue: true },
+                              { label: 'Redfin AVM',    value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', blue: false },
+                              { label: 'Days on Market',value: analysis.daysOnMarket != null ? `${analysis.daysOnMarket}d` : '—', blue: false },
+                              { label: '$/sqft',        value: (analysis.listPrice && analysis.sqft) ? `$${Math.round(analysis.listPrice / analysis.sqft)}` : '—', blue: false },
+                            ].map((s, i) => (
+                              <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
+                                <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
+                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: s.blue ? '#60a5fa' : '#f1f5f9', lineHeight: 1.1 }}>{s.value}</div>
+                              </div>
+                            ))}
                           </div>
+                        ) : (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
+                            {[
+                              { label: 'Est. Value',   value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true },
+                              { label: 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 },
+                              { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true },
+                              { label: 'LTV Ratio',    value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100 },
+                            ].map((s, i) => (
+                              <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
+                                <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
+                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: (s as {green?:boolean;warn?:boolean}).warn ? '#f59e0b' : s.green ? '#00e87a' : '#f1f5f9', lineHeight: 1.1 }}>{s.value}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Equity bar — owner mode only */}
+                        {!isBuyer && analysis.equityPct != null && analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 && (
+                          <div style={{ marginBottom: 20 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#475569', marginBottom: 5 }}>
+                              <span style={{ color: '#00e87a' }}>{`$${Math.round(analysis.estimatedEquity / 1000)}K equity (${analysis.equityPct}%)`}</span>
+                              <span>{analysis.estimatedBalance ? `$${Math.round(analysis.estimatedBalance / 1000)}K balance` : 'Balance'}</span>
+                            </div>
+                            <div style={{ height: 6, background: '#1e293b', borderRadius: 999, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
+                            </div>
+                          </div>
+                        )}
+                        {/* Underwater warning — owner mode only */}
+                        {!isBuyer && analysis.estimatedEquity != null && analysis.estimatedEquity < 0 && (
+                          <div style={{ marginBottom: 20, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
+                            <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700 }}>⚠️ Property is currently underwater</div>
+                            <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 3 }}>
+                              Balance exceeds estimated value by {analysis.estimatedBalance && analysis.estimatedValue ? `$${Math.round(Math.abs(analysis.estimatedBalance - analysis.estimatedValue) / 1000)}K` : '—'}. Consider running refi math.
+                            </div>
+                          </div>
+                        )}
+
+                        {/* CTA buttons */}
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          <a
+                            href={`/home-report?address=${encodeURIComponent(heroAddr)}`}
+                            style={{ padding: '10px 20px', borderRadius: 999, border: `1px solid ${isBuyer ? 'rgba(99,179,237,0.4)' : 'rgba(0,232,122,0.4)'}`, color: isBuyer ? '#60a5fa' : '#00e87a', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                          >
+                            {isBuyer ? 'Full Report ↗' : 'My Full Report ↗'}
+                          </a>
+                          {isBuyer ? (
+                            <a
+                              href={(() => {
+                                const a = analysis;
+                                const ask = a.listPrice ?? a.estimatedValue;
+                                const parts: string[] = [`I'm looking at buying ${a.address}${ask ? ` listed at $${Math.round(ask).toLocaleString()}` : ''}.`];
+                                parts.push(`Current 30-year rate is ${a.liveRate.toFixed(2)}%.`);
+                                if (a.estimatedValue && ask && a.estimatedValue !== ask) parts.push(`Redfin AVM is $${Math.round(a.estimatedValue).toLocaleString()}.`);
+                                if (a.daysOnMarket != null) parts.push(`Property has been on market ${a.daysOnMarket} days.`);
+                                if (a.lastSalePrice) parts.push(`Seller originally paid $${Math.round(a.lastSalePrice).toLocaleString()}${a.lastSaleDate ? ` in ${a.lastSaleDate}` : ''}.`);
+                                parts.push('Show me monthly PITI, whether it\'s priced fairly vs comps, and my 5-year equity outlook.');
+                                return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+                              })()}
+                              style={{ padding: '10px 20px', borderRadius: 999, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                            >
+                              Run My Numbers →
+                            </a>
+                          ) : (
+                            <a
+                              href={(() => {
+                                const a = analysis;
+                                const parts: string[] = [`I own this home at ${a.address} and want to refinance or review my options.`];
+                                if (a.estimatedBalance) parts.push(`Loan balance: $${Math.round(a.estimatedBalance).toLocaleString()}${a.balanceIsEstimated ? ' (estimated)' : ' (on file)'}.`);
+                                const effectiveRate = a.savedOverrides?.actual_rate ?? a.purchaseRate;
+                                if (effectiveRate) parts.push(`Current mortgage rate: ${effectiveRate}%${a.rateIsEstimated ? ' (estimated from purchase year)' : ' (on file)'}.`);
+                                if (a.estimatedValue) parts.push(`Home value: $${Math.round(a.estimatedValue).toLocaleString()}.`);
+                                if (a.estimatedEquity) parts.push(`Equity: $${Math.round(a.estimatedEquity).toLocaleString()} (${a.equityPct}%).`);
+                                if (a.lastSalePrice) parts.push(`Purchase price: $${Math.round(a.lastSalePrice).toLocaleString()}.`);
+                                if (a.piti) parts.push(`Current PITI: $${Math.round(a.piti).toLocaleString()}/mo.`);
+                                parts.push('Show me refinance savings, break-even, and equity options. Use these exact figures.');
+                                return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+                              })()}
+                              style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                            >
+                              Run My Numbers →
+                            </a>
+                          )}
+                          <a
+                            href={isBuyer ? '#position' : '#equity'}
+                            onClick={e => {
+                              e.preventDefault();
+                              const chipId = isBuyer ? 'position' : 'equity';
+                              const chip = document.querySelector(`[data-chip="${chipId}"]`) as HTMLButtonElement | null;
+                              chip?.click();
+                              setTimeout(() => { (document.querySelector('.mh-chip-bar') as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+                            }}
+                            style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid #1e293b', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                          >
+                            Full Analysis ↓
+                          </a>
                         </div>
-                      )}
-                      {/* CTA buttons */}
-                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                        {/* My Full Report */}
-                        <a
-                          href={`/home-report?address=${encodeURIComponent(analysis.address || previewAddress || activeProperty?.property_address || '')}`}
-                          style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
-                        >
-                          My Full Report ↗
-                        </a>
-                        <a
-                          href={(() => {
-                            const a = analysis;
-                            // Start with explicit refi/homeowner framing so calcDispatcher routes to refi path not jumbo purchase
-                            const parts: string[] = [`I own this home at ${a.address} and want to refinance or review my options.`];
-                            // Balance and rate first — refi parser grabs the first large dollar figure as the balance
-                            if (a.estimatedBalance) parts.push(`Loan balance: $${Math.round(a.estimatedBalance).toLocaleString()}${a.balanceIsEstimated ? ' (estimated)' : ' (on file)'}.`);
-                            const effectiveRate = a.savedOverrides?.actual_rate ?? a.purchaseRate;
-                            if (effectiveRate) parts.push(`Current mortgage rate: ${effectiveRate}%${a.rateIsEstimated ? ' (estimated from purchase year)' : ' (on file)'}.`);
-                            if (a.estimatedValue) parts.push(`Home value: $${Math.round(a.estimatedValue).toLocaleString()}${a.estimatedValueLow && a.estimatedValueHigh ? ` (range $${Math.round(a.estimatedValueLow/1000)}K–$${Math.round(a.estimatedValueHigh/1000)}K)` : ''}.`);
-                            if (a.estimatedEquity) parts.push(`Equity: $${Math.round(a.estimatedEquity).toLocaleString()} (${a.equityPct}%).`);
-                            if (a.lastSalePrice) parts.push(`Purchase price: $${Math.round(a.lastSalePrice).toLocaleString()}.`);
-                            if (a.piti) parts.push(`Current PITI: $${Math.round(a.piti).toLocaleString()}/mo.`);
-                            parts.push('Show me refinance savings, break-even, and equity options. Use these exact figures.');
-                            return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
-                          })()}
-                          style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
-                        >
-                          Run My Numbers →
-                        </a>
-                        <a
-                          href="#equity"
-                          onClick={e => {
-                            e.preventDefault();
-                            const chip = document.querySelector('[data-chip="equity"]') as HTMLButtonElement | null;
-                            chip?.click();
-                            setTimeout(() => {
-                              (document.querySelector('.mh-chip-bar') as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }, 50);
-                          }}
-                          style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid #1e293b', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
-                        >
-                          Full Analysis ↓
-                        </a>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* INTELLIGENCE SECTION — always visible; locked preview when no address */}
+                {(() => {
+                  const isBuyer = !!(analysis && (analysis.listingStatus === 'FOR_SALE' || analysis.listingStatus === 'PENDING'));
+                  return (
                 <div className="mh-card" style={{ padding: 0, overflow: 'hidden' }}>
-                  {/* Chip nav */}
+                  {/* Chip nav — buyer chips when FOR_SALE/PENDING, owner chips otherwise */}
                   <div className="mh-chip-bar">
-                    {CHIPS.map(c => (
-                      <button
-                        key={c.id}
-                        data-chip={c.id}
-                        className={`mh-chip${activeChip === c.id ? ' mh-chip-active' : ''}${!hasAddress ? ' mh-chip-dim' : ''}`}
-                        onClick={() => { if (hasAddress) setActiveChip(c.id); }}
-                        style={!hasAddress ? { cursor: 'default' } : undefined}
-                      >
-                        <span className="mh-chip-icon">{c.icon}</span>
-                        {c.label}
-                      </button>
-                    ))}
+                    {(isBuyer ? BUYER_CHIPS : CHIPS).map(c => {
+                      const isActive = isBuyer ? activeBuyerChip === c.id : activeChip === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          data-chip={c.id}
+                          className={`mh-chip${isActive ? (isBuyer ? ' mh-chip-active-buyer' : ' mh-chip-active') : ''}${!hasAddress ? ' mh-chip-dim' : ''}`}
+                          onClick={() => {
+                            if (!hasAddress) return;
+                            if (isBuyer) setActiveBuyerChip(c.id as BuyerChipId);
+                            else setActiveChip(c.id as ChipId);
+                          }}
+                          style={!hasAddress ? { cursor: 'default' } : undefined}
+                        >
+                          <span className="mh-chip-icon">{c.icon}</span>
+                          {c.label}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Card content */}
@@ -1297,11 +1655,23 @@ function MyHomePageInner() {
 
                         {!analysisLoading && !analysisErr && analysis && (
                           <>
-                            {activeChip === 'equity'     && <CardEquity     d={analysis} nearbySales={nearbySales} />}
-                            {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
-                            {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
-                            {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
-                            {activeChip === 'milestones' && <CardMilestones d={analysis} />}
+                            {isBuyer ? (
+                              <>
+                                {activeBuyerChip === 'position' && <CardMarketPosition d={analysis} nearbySales={nearbySales} />}
+                                {activeBuyerChip === 'payment'  && <CardMyPayment      d={analysis} />}
+                                {activeBuyerChip === 'comps'    && <CardCompDelta       d={analysis} nearbySales={nearbySales} />}
+                                {activeBuyerChip === 'cost'     && <CardTrueCost        d={analysis} />}
+                                {activeBuyerChip === 'signal'   && <CardOfferSignal     d={analysis} nearbySales={nearbySales} />}
+                              </>
+                            ) : (
+                              <>
+                                {activeChip === 'equity'     && <CardEquity     d={analysis} nearbySales={nearbySales} />}
+                                {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
+                                {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
+                                {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
+                                {activeChip === 'milestones' && <CardMilestones d={analysis} />}
+                              </>
+                            )}
                           </>
                         )}
                       </>
@@ -1348,7 +1718,7 @@ function MyHomePageInner() {
                     <div className="mh-chip-footer">
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="mh-refresh-btn" onClick={() => loadAnalysis()}>↻ Refresh</button>
-                        {!borrowerId && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
+                        {!borrowerId && !isBuyer && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
                         {borrowerId && <Link href="/lo/borrowers" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Borrowers</Link>}
                       </div>
                       <Link
@@ -1357,6 +1727,12 @@ function MyHomePageInner() {
                           const bal  = analysis?.estimatedBalance;
                           const live = analysis?.liveRate ?? 6.99;
                           const rate = analysis?.purchaseRate ?? live;
+                          if (isBuyer) {
+                            const ask = analysis.listPrice ?? analysis.estimatedValue;
+                            if (activeBuyerChip === 'comps') return `/chat?sq=${encodeURIComponent(`Run a CMA for ${addr}. What are comparable homes selling for nearby?`)}`;
+                            if (activeBuyerChip === 'payment' && ask) return `/chat?sq=${encodeURIComponent(`What is the PITI payment for ${addr} at $${Math.round(ask).toLocaleString()} with ${live.toFixed(2)}% rate and 20% down?`)}`;
+                            return `/chat?sq=${encodeURIComponent(`I'm considering buying ${addr}${ask ? ` at $${Math.round(ask).toLocaleString()}` : ''}. Is it priced fairly and what are my monthly costs?`)}`;
+                          }
                           if (activeChip === 'refi') {
                             const refibal = bal ?? (analysis?.estimatedValue ? Math.round(analysis.estimatedValue * 0.65) : null);
                             const balNote = bal ? '' : ' (approximate — based on estimated home value, adjust as needed)';
@@ -1372,12 +1748,15 @@ function MyHomePageInner() {
                           return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
                         })()}
                         className="mh-cta-link"
+                        style={isBuyer ? { color: '#60a5fa' } : undefined}
                       >
-                        Ask a mortgage question →
+                        {isBuyer ? 'Ask a buying question →' : 'Ask a mortgage question →'}
                       </Link>
                     </div>
                   )}
                 </div>
+                  );
+                })()}
 
                 {/* LOAN DETAIL EDITOR — consumer only */}
                 {!borrowerId && editingLoan && (
@@ -1513,6 +1892,7 @@ const CSS = `
   .mh-chip{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.55);transition:all .15s}
   .mh-chip:hover{background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.2)}
   .mh-chip-active{background:rgba(34,197,94,0.12);color:#22c55e;border-color:rgba(34,197,94,0.35)}
+  .mh-chip-active-buyer{background:rgba(59,130,246,0.12);color:#60a5fa;border-color:rgba(59,130,246,0.35)}
   .mh-chip-dim{opacity:0.3;pointer-events:none}
   .mh-chip-icon{font-size:.85rem}
 
