@@ -645,41 +645,66 @@ function MyHomePageInner() {
     setAnalysisErr('');
     setAnalysis(null);
     try {
-      // Preview mode: use property/lookup (Redfin via Tavily) for rich data
-      if (previewAddress) {
-        const [lookupRes, tickerRes] = await Promise.all([
-          fetch('/api/property/lookup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: previewAddress }),
-            cache: 'no-store',
-          }),
-          fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
-        ]);
-        const lookupJson = await lookupRes.json();
-        if (!lookupRes.ok || !lookupJson.ok || !lookupJson.data) {
-          setAnalysisErr(lookupJson.error ?? 'Could not retrieve property data');
-          return;
-        }
-        const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
-        const thirtyY = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
-        let liveRate = 6.65;
-        if (thirtyY?.value) {
-          const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
-          if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
-        }
-        setAnalysis(lookupToAnalysis(lookupJson.data, liveRate));
+      // LO borrower view — keep using homeowner analysis (has override fields)
+      if (borrowerId) {
+        const bust = `_t=${Date.now()}`;
+        const res = await fetch(`/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}&${bust}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
+        setAnalysis(data);
         return;
       }
 
-      const bust = `_t=${Date.now()}`;
-      const url = borrowerId
-        ? `/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}&${bust}`
-        : `/api/homeowner/analysis?property_id=${encodeURIComponent(pid!)}&${bust}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json();
-      if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
-      setAnalysis(data);
+      // Preview mode OR saved property — both use property/lookup for rich Redfin data
+      const lookupAddress = previewAddress ?? activeProperty?.property_address ?? null;
+      if (!lookupAddress) { setAnalysisErr('No address available'); return; }
+
+      const [lookupRes, tickerRes] = await Promise.all([
+        fetch('/api/property/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: lookupAddress }),
+          cache: 'no-store',
+        }),
+        fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
+      ]);
+      const lookupJson = await lookupRes.json();
+      if (!lookupRes.ok || !lookupJson.ok || !lookupJson.data) {
+        setAnalysisErr(lookupJson.error ?? 'Could not retrieve property data');
+        return;
+      }
+      const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
+      const thirtyY = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
+      let liveRate = 6.65;
+      if (thirtyY?.value) {
+        const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
+        if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
+      }
+
+      const base = lookupToAnalysis(lookupJson.data, liveRate);
+
+      // Apply saved overrides for authenticated properties
+      if (!previewAddress && activeProperty) {
+        const ov = activeProperty;
+        if (ov.actual_balance) {
+          base.estimatedBalance = ov.actual_balance;
+          base.balanceIsEstimated = false;
+          if (base.estimatedValue) {
+            base.estimatedEquity = Math.round(base.estimatedValue - ov.actual_balance);
+            base.ltv = Math.round(ov.actual_balance / base.estimatedValue * 100);
+            base.equityPct = Math.round(Math.max(0, base.estimatedEquity) / base.estimatedValue * 100);
+          }
+        }
+        if (ov.actual_rate) { base.purchaseRate = ov.actual_rate; base.rateIsEstimated = false; }
+        base.savedOverrides = {
+          actual_balance: ov.actual_balance,
+          actual_rate: ov.actual_rate,
+          actual_purchase_price: ov.actual_purchase_price,
+          actual_purchase_date: ov.actual_purchase_date,
+        };
+      }
+
+      setAnalysis(base);
     } catch {
       setAnalysisErr('Network error — try again');
     } finally {
