@@ -1206,6 +1206,24 @@ export default function Page() {
             newChat();
             setInput(sq);
             pendingSeedRef.current = sq;
+            // CMA URL params — if address present, inject paramOverrides so CMA card fires
+            const cmaAddress = searchParams.get('cmaAddress');
+            if (cmaAddress) {
+                const cmaPrice = searchParams.get('cmaPrice');
+                pendingParamOverridesRef.current = {
+                    cmaAddress,
+                    cmaCity:     searchParams.get('cmaCity')     ?? '',
+                    cmaState:    searchParams.get('cmaState')    ?? '',
+                    cmaPrice:    cmaPrice ? parseFloat(cmaPrice) : undefined,
+                    cmaBeds:     searchParams.get('cmaBeds')     ? parseFloat(searchParams.get('cmaBeds')!)     : undefined,
+                    cmaBaths:    searchParams.get('cmaBaths')    ? parseFloat(searchParams.get('cmaBaths')!)    : undefined,
+                    cmaSqft:     searchParams.get('cmaSqft')     ? parseFloat(searchParams.get('cmaSqft')!)     : undefined,
+                    cmaTaxAnnual: searchParams.get('cmaTaxAnnual') ? parseFloat(searchParams.get('cmaTaxAnnual')!) : undefined,
+                    cmaTaxRate:  0.011,
+                    cmaLiveRate: searchParams.get('cmaLiveRate') ? parseFloat(searchParams.get('cmaLiveRate')!) : undefined,
+                    cmaPhotoUrl: '',
+                };
+            }
         }
     }, [searchParams]);
 

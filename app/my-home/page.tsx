@@ -506,6 +506,29 @@ function Sparkline({ history }: { history: { date: string; value: number }[] }) 
   );
 }
 
+// Build a /chat URL that passes full CMA paramOverrides so the CMA card fires deterministically
+function buildCMAUrl(d: AnalysisData): string {
+  const addr  = d.address ?? '';
+  const parts = addr.split(',');
+  const city  = parts[1]?.trim() ?? '';
+  const stateM = parts[2]?.trim().match(/^([A-Z]{2})/);
+  const state = stateM?.[1] ?? '';
+  const price = d.listPrice ?? d.estimatedValue ?? null;
+  const taxAnnual = price ? Math.round(price * 0.011) : undefined;
+  const seed  = `Property intelligence report: ${addr}`;
+  const p = new URLSearchParams({ sq: seed, cmaAddress: addr });
+  if (city)           p.set('cmaCity', city);
+  if (state)          p.set('cmaState', state);
+  if (price)          p.set('cmaPrice', String(Math.round(price)));
+  if (d.beds != null) p.set('cmaBeds', String(d.beds));
+  if (d.baths != null) p.set('cmaBaths', String(d.baths));
+  if (d.sqft != null) p.set('cmaSqft', String(d.sqft));
+  if (taxAnnual)      p.set('cmaTaxAnnual', String(taxAnnual));
+  p.set('cmaTaxRate', '0.011');
+  if (d.liveRate)     p.set('cmaLiveRate', String(d.liveRate));
+  return `/chat?${p.toString()}`;
+}
+
 // ── Buyer Cards ───────────────────────────────────────────────────────────────
 
 function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[] }) {
@@ -627,7 +650,7 @@ function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: Near
       <div className="mh-card-label">Comp Analysis</div>
       <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', textAlign: 'center', padding: '28px 0' }}>
         Not enough local sales data (need ≥ 3 recent comps).<br />
-        <a href={`/chat?sq=${encodeURIComponent(`Run a full CMA for ${d.address}`)}`} style={{ color: '#93c5fd', textDecoration: 'none', marginTop: 8, display: 'inline-block' }}>Run a full CMA in chat →</a>
+        <a href={buildCMAUrl(d)} style={{ color: '#93c5fd', textDecoration: 'none', marginTop: 8, display: 'inline-block' }}>Run a full CMA in chat →</a>
       </div>
     </div>
   );
@@ -1729,7 +1752,7 @@ function MyHomePageInner() {
                           const rate = analysis?.purchaseRate ?? live;
                           if (isBuyer) {
                             const ask = analysis.listPrice ?? analysis.estimatedValue;
-                            if (activeBuyerChip === 'comps') return `/chat?sq=${encodeURIComponent(`Run a CMA for ${addr}. What are comparable homes selling for nearby?`)}`;
+                            if (activeBuyerChip === 'comps') return buildCMAUrl(analysis);
                             if (activeBuyerChip === 'payment' && ask) return `/chat?sq=${encodeURIComponent(`What is the PITI payment for ${addr} at $${Math.round(ask).toLocaleString()} with ${live.toFixed(2)}% rate and 20% down?`)}`;
                             return `/chat?sq=${encodeURIComponent(`I'm considering buying ${addr}${ask ? ` at $${Math.round(ask).toLocaleString()}` : ''}. Is it priced fairly and what are my monthly costs?`)}`;
                           }
