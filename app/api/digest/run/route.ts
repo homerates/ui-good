@@ -59,78 +59,44 @@ async function getLiveRate(): Promise<number> {
     return 7.0;
 }
 
-async function rentcastLookup(address: string) {
-    const key = process.env.RENTCAST_API_KEY;
-    if (!key) return null;
-    const enc  = encodeURIComponent(address);
-    const base = 'https://api.rentcast.io/v1';
-    const hdrs = { 'X-Api-Key': key, 'Accept': 'application/json' };
+const APP_BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
 
-    const [propRes, avmRes] = await Promise.allSettled([
-        fetch(`${base}/properties?address=${enc}&limit=1`, { headers: hdrs }),
-        fetch(`${base}/avm/value?address=${enc}`,          { headers: hdrs }),
-    ]);
-
-    const propData = propRes.status === 'fulfilled' && propRes.value.ok ? await propRes.value.json() : null;
-    const avmData  = avmRes.status  === 'fulfilled' && avmRes.value.ok  ? await avmRes.value.json()  : null;
-    const prop     = Array.isArray(propData) ? propData[0] : propData;
-    if (!prop) return null;
-
-    const rawDate       = prop.lastSaleDate ?? null;
-    const lastSaleDate  = rawDate ? new Date(rawDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
-    const lastSalePrice = prop.lastSalePrice ?? null;
-    const estimatedValue     = avmData?.price          ?? null;
-    const estimatedValueLow  = avmData?.priceRangeLow  ?? null;
-    const estimatedValueHigh = avmData?.priceRangeHigh ?? null;
-
-    let estimatedBalance: number | null = null;
-    let estimatedEquity:  number | null = null;
-    let purchaseRate:     number | null = null;
-
-    if (lastSalePrice && rawDate) {
-        const saleDate   = new Date(rawDate);
-        const elapsed    = monthsAgo(saleDate);
-        purchaseRate     = historicalRate(saleDate.getFullYear());
-        estimatedBalance = Math.round(remainingBalance(lastSalePrice, 0.20, purchaseRate, elapsed));
-        const curVal     = estimatedValue ?? lastSalePrice;
-        estimatedEquity  = Math.round(curVal - estimatedBalance);
-    }
-
-    // Rent estimate (best-effort — gracefully skip if unavailable)
-    let rentEstimate: number | null = null;
+async function propertyLookup(address: string) {
     try {
-        const rentRes = await fetch(`${base}/avm/rent/long-term?address=${enc}`, { headers: hdrs });
-        if (rentRes.ok) {
-            const rentData = await rentRes.json();
-            rentEstimate = rentData?.rent ?? rentData?.rentRangeHigh ?? null;
-        }
-    } catch { /* skip */ }
-
-    return { estimatedValue, estimatedValueLow, estimatedValueHigh, estimatedBalance, estimatedEquity, purchaseRate, lastSaleDate, lastSalePrice, rentEstimate };
+        const res = await fetch(`${APP_BASE}/api/property/lookup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address }),
+            signal: AbortSignal.timeout(20_000),
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        if (!json?.ok || !json?.data) return null;
+        const d = json.data;
+        return {
+            estimatedValue:     d.estimatedValue     ?? d.price          ?? d.lastSalePrice ?? null,
+            estimatedValueLow:  d.estimatedValueLow  ?? null,
+            estimatedValueHigh: d.estimatedValueHigh ?? null,
+            estimatedBalance:   d.estimatedBalance   ?? null,
+            estimatedEquity:    d.estimatedEquity    ?? null,
+            purchaseRate:       d.purchaseRate       ?? null,
+            lastSaleDate:       d.lastSaleDate       ?? null,
+            lastSalePrice:      d.lastSalePrice      ?? null,
+            rentEstimate:       null,
+        };
+    } catch {
+        return null;
+    }
 }
 
 async function fetchNearbySales(address: string): Promise<NearbySale[]> {
-    const key = process.env.RENTCAST_API_KEY;
-    if (!key) return [];
     try {
-        const enc  = encodeURIComponent(address);
-        const res  = await fetch(
-            `https://api.rentcast.io/v1/listings/sale?address=${enc}&radius=0.5&status=Sold&limit=3`,
-            { headers: { 'X-Api-Key': key, 'Accept': 'application/json' } },
-        );
+        const res = await fetch(`${APP_BASE}/api/homeowner/nearby-sales?address=${encodeURIComponent(address)}`, {
+            signal: AbortSignal.timeout(10_000),
+        });
         if (!res.ok) return [];
-        const data = await res.json();
-        const listings = Array.isArray(data) ? data : (data.listings ?? []);
-        return listings.slice(0, 3).map((l: Record<string, unknown>) => ({
-            address:  String(l.formattedAddress ?? l.address ?? ''),
-            price:    Number(l.price ?? l.listPrice ?? 0),
-            beds:     l.bedrooms != null ? Number(l.bedrooms) : null,
-            baths:    l.bathrooms != null ? Number(l.bathrooms) : null,
-            sqft:     l.squareFootage != null ? Number(l.squareFootage) : null,
-            soldDate: l.removedDate
-                ? new Date(String(l.removedDate)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                : (l.listedDate ? new Date(String(l.listedDate)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'),
-        })).filter((s: NearbySale) => s.price > 0);
+        const json = await res.json();
+        return Array.isArray(json.sales) ? json.sales.slice(0, 3) : [];
     } catch { return []; }
 }
 
@@ -193,23 +159,23 @@ export async function POST(req: Request) {
         if (!consumer) return NextResponse.json({ error: 'Consumer not found' }, { status: 404 });
         if (!consumer.property_address) return NextResponse.json({ error: 'No property address on file.' }, { status: 400 });
 
-        const [liveRate, rentcast] = await Promise.all([getLiveRate(), rentcastLookup(consumer.property_address)]);
-        if (!rentcast) return NextResponse.json({ error: 'Could not look up property data.' }, { status: 422 });
+        const [liveRate, propData] = await Promise.all([getLiveRate(), propertyLookup(consumer.property_address)]);
+        if (!propData) return NextResponse.json({ error: 'Could not look up property data.' }, { status: 422 });
 
         const { data: snapshot } = await db
             .from('consumer_snapshots')
             .upsert({
                 consumer_id,
                 snapshot_date:        today,
-                estimated_value:      rentcast.estimatedValue,
-                estimated_value_low:  rentcast.estimatedValueLow,
-                estimated_value_high: rentcast.estimatedValueHigh,
-                estimated_balance:    rentcast.estimatedBalance,
-                estimated_equity:     rentcast.estimatedEquity,
-                purchase_rate:        rentcast.purchaseRate,
+                estimated_value:      propData.estimatedValue,
+                estimated_value_low:  propData.estimatedValueLow,
+                estimated_value_high: propData.estimatedValueHigh,
+                estimated_balance:    propData.estimatedBalance,
+                estimated_equity:     propData.estimatedEquity,
+                purchase_rate:        propData.purchaseRate,
                 live_rate:            liveRate,
-                last_sale_price:      rentcast.lastSalePrice,
-                last_sale_date:       rentcast.lastSaleDate,
+                last_sale_price:      propData.lastSalePrice,
+                last_sale_date:       propData.lastSaleDate,
             }, { onConflict: 'consumer_id,snapshot_date' })
             .select()
             .single();
@@ -236,11 +202,11 @@ export async function POST(req: Request) {
             borrowerName: consumer.name ?? 'Homeowner',
             address:      consumer.property_address,
             liveRate,
-            ...rentcast,
-            valueDelta:  (rentcast.estimatedValue && prevSnapshot?.estimated_value)
-                ? rentcast.estimatedValue - prevSnapshot.estimated_value : null,
-            equityDelta: (rentcast.estimatedEquity && prevSnapshot?.estimated_equity)
-                ? rentcast.estimatedEquity - prevSnapshot.estimated_equity : null,
+            ...propData,
+            valueDelta:  (propData.estimatedValue && prevSnapshot?.estimated_value)
+                ? propData.estimatedValue - prevSnapshot.estimated_value : null,
+            equityDelta: (propData.estimatedEquity && prevSnapshot?.estimated_equity)
+                ? propData.estimatedEquity - prevSnapshot.estimated_equity : null,
             loName:  'HomeRates.ai',
             loEmail: null,
             valueHistory: valueHistory.length >= 2 ? valueHistory : undefined,
@@ -308,14 +274,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'No property address on file for this borrower.' }, { status: 400 });
     }
 
-    // Fetch live rate + Rentcast + nearby comps in parallel
+    // Fetch live rate + property data + nearby comps in parallel
     const [liveRate, rentcast, nearbySales] = await Promise.all([
         getLiveRate(),
-        rentcastLookup(borrower.property_address),
+        propertyLookup(borrower.property_address),
         fetchNearbySales(borrower.property_address),
     ]);
 
-    if (!rentcast) {
+    if (!propData) {
         return NextResponse.json({ error: 'Could not look up property data for this address.' }, { status: 422 });
     }
 
@@ -325,15 +291,15 @@ export async function POST(req: Request) {
         .upsert({
             borrower_id,
             snapshot_date:       today,
-            estimated_value:     rentcast.estimatedValue,
-            estimated_value_low: rentcast.estimatedValueLow,
-            estimated_value_high: rentcast.estimatedValueHigh,
-            estimated_balance:   rentcast.estimatedBalance,
-            estimated_equity:    rentcast.estimatedEquity,
-            purchase_rate:       rentcast.purchaseRate,
+            estimated_value:     propData.estimatedValue,
+            estimated_value_low: propData.estimatedValueLow,
+            estimated_value_high: propData.estimatedValueHigh,
+            estimated_balance:   propData.estimatedBalance,
+            estimated_equity:    propData.estimatedEquity,
+            purchase_rate:       propData.purchaseRate,
             live_rate:           liveRate,
-            last_sale_price:     rentcast.lastSalePrice,
-            last_sale_date:      rentcast.lastSaleDate,
+            last_sale_price:     propData.lastSalePrice,
+            last_sale_date:      propData.lastSaleDate,
         }, { onConflict: 'borrower_id,snapshot_date' })
         .select()
         .single();
@@ -396,30 +362,29 @@ export async function POST(req: Request) {
     if (loDbId) {
         const token = await getOrCreateReportToken(sb(), borrower_id, loDbId);
         if (token) {
-            const appBase = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
-            reportUrl = `${appBase}/report/${token}`;
+            reportUrl = `${APP_BASE}/report/${token}`;
         }
     }
 
-    // Prefer LO-supplied overrides over Rentcast/historical estimates
+    // Prefer LO-supplied overrides over estimated values
     const overrideBalance = borrower.actual_balance        ? Number(borrower.actual_balance)        : null;
     const overrideRate    = borrower.actual_rate           ? Number(borrower.actual_rate)           : null;
-    const overrideValue   = rentcast.estimatedValue; // AVM always from Rentcast
-    const effectiveBalance = overrideBalance ?? rentcast.estimatedBalance;
-    const effectiveRate    = overrideRate    ?? rentcast.purchaseRate;
-    const effectiveEquity  = (overrideValue && effectiveBalance) ? Math.round(overrideValue - effectiveBalance) : rentcast.estimatedEquity;
+    const overrideValue   = propData.estimatedValue;
+    const effectiveBalance = overrideBalance ?? propData.estimatedBalance;
+    const effectiveRate    = overrideRate    ?? propData.purchaseRate;
+    const effectiveEquity  = (overrideValue && effectiveBalance) ? Math.round(overrideValue - effectiveBalance) : propData.estimatedEquity;
 
     const emailData = {
         borrowerName:    borrower.name,
         address:         borrower.property_address,
         liveRate,
-        ...rentcast,
+        ...propData,
         // Override-aware fields (actual wins over estimate)
         estimatedBalance: effectiveBalance,
         estimatedEquity:  effectiveEquity,
         purchaseRate:     effectiveRate,
-        valueDelta: (rentcast.estimatedValue && prevSnapshot?.estimated_value)
-            ? rentcast.estimatedValue - prevSnapshot.estimated_value : null,
+        valueDelta: (propData.estimatedValue && prevSnapshot?.estimated_value)
+            ? propData.estimatedValue - prevSnapshot.estimated_value : null,
         equityDelta: (effectiveEquity && prevSnapshot?.estimated_equity)
             ? effectiveEquity - prevSnapshot.estimated_equity : null,
         loName,

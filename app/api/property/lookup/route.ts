@@ -4,7 +4,7 @@
 //
 // For URL: uses existing lib/property/fetch pipeline for base data,
 //          Tavily extract for extended fields (status, last sale, equity).
-// For address: Rentcast API (requires RENTCAST_API_KEY env var).
+// For address: Tavily search → Redfin extract → broad web search fallback.
 
 export const runtime = 'nodejs';
 
@@ -13,7 +13,7 @@ import { fetchPropertyData } from '@/property/fetch';
 import { lookupTaxRate }     from '@/property/taxTable';
 import { getSupabase }       from '../../../../lib/supabaseServer';
 
-// Cache TTL: 7 days for Rentcast snapshots
+// Cache TTL: 7 days for property snapshots
 const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Normalize address for canonical lookup (lowercase, trim extra spaces)
@@ -51,7 +51,7 @@ async function cachePropertyResult(address: string, data: Record<string, unknown
         latest_listing_status:   (data.listingStatus as string | null) ?? null,
         enriched_at:             now.toISOString(),
         enrichment_source:       source,
-        confidence:              source === 'rentcast' ? 0.90 : 0.65,
+        confidence:              source === 'redfin' ? 0.90 : 0.65,
         updated_at:              now.toISOString(),
       }, { onConflict: 'address_full' })
       .select('id')
@@ -67,7 +67,7 @@ async function cachePropertyResult(address: string, data: Record<string, unknown
       data,
       fetched_at:    now.toISOString(),
       expires_at:    expiresAt,
-      confidence:    source === 'rentcast' ? 0.90 : 0.65,
+      confidence:    source === 'redfin' ? 0.90 : 0.65,
     });
   } catch {
     // Non-fatal — cache write failures should never break the lookup response
@@ -589,22 +589,19 @@ async function findRedfinUrl(address: string): Promise<string | null> {
     }
 }
 
-// ── Address handler (cache-first, then Redfin via Tavily, then Rentcast) ───
+// ── Address handler (cache-first → Redfin via Tavily → broad web search) ───
 
 async function handleAddress(rawAddress: string) {
-    // Check canonical property cache first — skip external API if data is fresh
     const cached = await getCachedSnapshot(rawAddress);
     if (cached) {
         console.log('[property/lookup] served from cache:', rawAddress);
         return NextResponse.json({ ok: true, data: cached, fromCache: true });
     }
 
-    // Prefer Redfin via Tavily (free, rich data) over Rentcast (paid)
     const redfinUrl = await findRedfinUrl(rawAddress);
     if (redfinUrl) {
         console.log('[property/lookup] found Redfin URL via Tavily for', rawAddress);
         const result = await handleUrl(redfinUrl);
-        // Cache the result under the raw address too for next lookup
         try {
             const body = await result.clone().json();
             if (body?.ok && body?.data) {
@@ -614,7 +611,6 @@ async function handleAddress(rawAddress: string) {
         return result;
     }
 
-    // No Redfin URL found — try broad search across Zillow/Realtor/etc.
     console.log('[property/lookup] no Redfin URL found, trying broad search for', rawAddress);
     const broadData = await broadSearchFallback(rawAddress);
     if (broadData) {
@@ -622,103 +618,8 @@ async function handleAddress(rawAddress: string) {
         return NextResponse.json({ ok: true, data: broadData });
     }
 
-    const key = process.env.RENTCAST_API_KEY;
-    if (!key) {
-        return NextResponse.json({
-            ok: false,
-            error: 'Could not find property data for this address. Try pasting the Redfin link directly.',
-        });
-    }
-
-    const enc  = encodeURIComponent(rawAddress);
-    const base = 'https://api.rentcast.io/v1';
-    const hdrs = { 'X-Api-Key': key, 'Accept': 'application/json' };
-
-    try {
-        const [propRes, avmRes] = await Promise.allSettled([
-            fetch(`${base}/properties?address=${enc}&limit=1`, { headers: hdrs }),
-            fetch(`${base}/avm/value?address=${enc}`,          { headers: hdrs }),
-        ]);
-
-        const propData = propRes.status === 'fulfilled' && propRes.value.ok
-            ? await propRes.value.json() : null;
-        const avmData  = avmRes.status  === 'fulfilled' && avmRes.value.ok
-            ? await avmRes.value.json()  : null;
-
-        const prop = Array.isArray(propData) ? propData[0] : propData;
-        if (!prop) return NextResponse.json({ ok: false, error: 'Property not found at that address.' });
-
-        const listRes   = await fetch(`${base}/listings/sale?address=${enc}&status=Active&limit=1`, { headers: hdrs });
-        const listData  = listRes.ok ? await listRes.json() : null;
-        const active    = Array.isArray(listData?.listings) ? listData.listings[0] : null;
-
-        const listingStatus  = active ? 'FOR_SALE' : 'OFF_MARKET';
-        const price: number | null = active?.price ?? null;
-
-        const rawDate       = prop.lastSaleDate ?? null;
-        const lastSaleDate  = rawDate
-            ? new Date(rawDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-            : null;
-        const lastSalePrice: number | null = prop.lastSalePrice ?? null;
-
-        const estimatedValue:     number | null = avmData?.price         ?? null;
-        const estimatedValueLow:  number | null = avmData?.priceRangeLow ?? null;
-        const estimatedValueHigh: number | null = avmData?.priceRangeHigh ?? null;
-
-        let estimatedBalance: number | null = null;
-        let estimatedEquity:  number | null = null;
-        let purchaseRate:     number | null = null;
-        let remainingMonths:  number | null = null;
-
-        if (listingStatus === 'OFF_MARKET' && lastSalePrice && rawDate) {
-            const saleDate   = new Date(rawDate);
-            const elapsed    = monthsAgo(saleDate);
-            purchaseRate     = historicalRate(saleDate.getFullYear());
-            estimatedBalance = Math.round(remainingBalance(lastSalePrice, 0.20, purchaseRate, elapsed));
-            remainingMonths  = Math.max(60, 360 - elapsed);
-            const curVal     = estimatedValue ?? lastSalePrice;
-            estimatedEquity  = Math.round(curVal - estimatedBalance);
-        }
-
-        const sqft = prop.squareFootage ?? null;
-
-        const responseData = {
-            source:     'rentcast',
-            url:        '',
-            parsedBy:   'rentcast-api-v1',
-            parseWarnings: [],
-            price,
-            address:    prop.formattedAddress ?? rawAddress,
-            city:       prop.city      ?? null,
-            state:      prop.state     ?? null,
-            zip:        prop.zipCode   ?? null,
-            beds:       prop.bedrooms  ?? null,
-            baths:      prop.bathrooms ?? null,
-            sqft,
-            annualTaxes:      null,
-            taxRateEffective: 0.011,
-            taxSource:        'table',
-            photoUrl:         null,
-            listingStatus,
-            daysOnMarket:     active?.daysOnMarket ?? null,
-            lastSaleDate,
-            lastSalePrice,
-            estimatedValue,
-            estimatedValueLow,
-            estimatedValueHigh,
-            estimatedBalance,
-            estimatedEquity,
-            purchaseRate,
-            remainingMonths,
-            hoaMonthly:  null,
-            pricePerSqft: (price && sqft) ? Math.round(price / sqft) : null,
-        };
-
-        // Write to canonical property cache (non-blocking)
-        void cachePropertyResult(prop.formattedAddress ?? rawAddress, responseData, 'rentcast');
-
-        return NextResponse.json({ ok: true, data: responseData });
-    } catch (err: any) {
-        return NextResponse.json({ ok: false, error: `Rentcast lookup failed: ${err.message}` });
-    }
+    return NextResponse.json({
+        ok: false,
+        error: 'Could not find property data for this address. Try pasting the Redfin or Zillow link directly.',
+    });
 }

@@ -5209,51 +5209,14 @@ ${dtiSection}
         const liveRate: number = Number(cmaParams.cmaLiveRate ?? fred?.mort30Avg ?? 6.5);
         const photoUrl: string = String(cmaParams.cmaPhotoUrl ?? '');
 
-        // Parallel Rentcast fetch: sale AVM + rent AVM simultaneously
-        // Both use the same API key — no extra cost tier needed
-        let rentcastAvmPrice: number | null = null;
-        let rentcastAvmLow: number | null = null;
-        let rentcastAvmHigh: number | null = null;
-        let rentcastRentEstimate: number | null = null;
-        let rentcastRentLow: number | null = null;
-        let rentcastRentHigh: number | null = null;
-        const rentcastKey = process.env.RENTCAST_API_KEY;
-        if (rentcastKey && addr) {
-            try {
-                const enc = encodeURIComponent(addr);
-                const hdrs = { 'X-Api-Key': rentcastKey, 'Accept': 'application/json' };
-                // Build rent AVM URL — include property details for higher accuracy when available
-                const rentQs = [
-                    `address=${enc}`,
-                    beds  > 0 ? `bedrooms=${beds}`          : '',
-                    baths > 0 ? `bathrooms=${baths}`         : '',
-                    sqft  > 0 ? `squareFootage=${sqft}`      : '',
-                    'propertyType=Single Family',
-                ].filter(Boolean).join('&');
-                const [avmRes, rentRes] = await Promise.all([
-                    fetch(`https://api.rentcast.io/v1/avm/value?address=${enc}`,       { headers: hdrs }),
-                    fetch(`https://api.rentcast.io/v1/avm/rent?${rentQs}`,             { headers: hdrs }),
-                ]);
-                if (avmRes.ok) {
-                    const avmData = await avmRes.json();
-                    rentcastAvmPrice = avmData?.price          ?? null;
-                    rentcastAvmLow   = avmData?.priceRangeLow  ?? null;
-                    rentcastAvmHigh  = avmData?.priceRangeHigh ?? null;
-                    console.log(`[CMA Rentcast AVM] ${addr} → $${rentcastAvmPrice}`);
-                }
-                if (rentRes.ok) {
-                    const rentData = await rentRes.json();
-                    rentcastRentEstimate = rentData?.rent          ?? rentData?.price          ?? null;
-                    rentcastRentLow      = rentData?.rentRangeLow  ?? rentData?.priceRangeLow  ?? null;
-                    rentcastRentHigh     = rentData?.rentRangeHigh ?? rentData?.priceRangeHigh ?? null;
-                    console.log(`[CMA Rentcast Rent] ${addr} → $${rentcastRentEstimate}/mo`);
-                }
-            } catch (e) {
-                console.warn('[CMA Rentcast] fetch failed:', e);
-            }
-        }
-        // Authoritative price: Rentcast AVM > chip cmaPrice > 0
-        const price: number = rentcastAvmPrice ?? Number(cmaParams.cmaPrice ?? 0);
+        // Price from chip params — no external AVM call
+        const rentcastAvmPrice: number | null = null;
+        const rentcastAvmLow: number | null = null;
+        const rentcastAvmHigh: number | null = null;
+        const rentcastRentEstimate: number | null = null;
+        const rentcastRentLow: number | null = null;
+        const rentcastRentHigh: number | null = null;
+        const price: number = Number(cmaParams.cmaPrice ?? 0);
 
         const annualIns = Math.max(1200, Math.round(price * 0.005));
 
@@ -5283,7 +5246,7 @@ ${dtiSection}
         const dscrDown       = Math.round(price * 0.25);
         const closingCostEst = Math.round(price * 0.02);         // ~2% standard investor closing cost estimate
 
-        // Metrics — only computed when Rentcast rent data is available
+        // Metrics — only computed when rent data is available
         const rentMo = rentcastRentEstimate;
         // Gross yield: raw rent income vs property value (pre-expense benchmark)
         const grossYield: number | null = rentMo && price > 0
@@ -5342,7 +5305,7 @@ HARD RULES — violations destroy consumer trust:
 
 PROPERTY (these are the ONLY facts about this property — treat as ground truth):
 Address: ${addr}
-AVM Value (Rentcast live): ${rentcastAvmPrice ? `$${rentcastAvmPrice.toLocaleString()} (range $${rentcastAvmLow?.toLocaleString() ?? '?'} – $${rentcastAvmHigh?.toLocaleString() ?? '?'})` : `$${price.toLocaleString()} (from chip)`}
+Est. Value: $${price.toLocaleString()} (from chip params)
 Listed: ${priceFmtCMA} | ${beds}bd / ${baths}ba / ${sqft.toLocaleString()} sqft | ${psfStr}
 Taxes: $${taxAnnual.toLocaleString()}/yr (${(taxRate * 100).toFixed(2)}% effective)
 
@@ -5352,7 +5315,7 @@ DETERMINISTIC FINANCIALS (do not recalculate):
 - Monthly PITI: $${cmaPiti.toLocaleString()}/mo at ${liveRate}% 30yr fixed
 - Income required @ 43% DTI: $${Math.round((cmaPiti / 0.43) * 12).toLocaleString()}/yr
 
-INVESTMENT METRICS (Rentcast Rent AVM — do not recalculate, use verbatim):
+INVESTMENT METRICS (do not recalculate, use verbatim):
 - Estimated monthly rent: ${rentMo ? `$${rentMo.toLocaleString()}/mo (range $${rentcastRentLow?.toLocaleString() ?? '?'} – $${rentcastRentHigh?.toLocaleString() ?? '?'})` : 'unavailable'}
 - Gross yield: ${grossYield !== null ? `${grossYield}%` : 'N/A'}
 - Cap rate (35% expense ratio): ${capRate !== null ? `${capRate}%` : 'N/A'}
@@ -5411,14 +5374,14 @@ Output JSON:
             const _cmaLoanType = isJumboCMA ? 'jumbo' : undefined;
             const _cmaDown = isJumboCMA ? 25 : 20;
 
-            // DSCR chip: pre-fill actual Rentcast rent so downstream calc uses real data
+            // DSCR chip: pre-fill rent estimate for downstream calc
             // Label dynamically shows coverage % when rent data is available
             const dscrCoverage = rentMo && dscrPITI > 0 ? Math.round((rentMo / dscrPITI) * 100) : null;
             const dscrChipLabel = rentMo && dscrCoverage !== null
                 ? `DSCR — $${rentMo.toLocaleString()}/mo rent covers ${dscrCoverage}% of payment`
                 : `DSCR — what rent covers this at ${priceFmtCMA}?`;
             const dscrChipSeed = rentMo
-                ? `DSCR analysis — ${priceFmtCMA} at ${dscrRatePct}% with 25% down. Rentcast rent estimate: $${rentMo.toLocaleString()}/mo. DSCR ratio: ${dscrRatio ?? 'N/A'}. Run full DSCR breakdown.`
+                ? `DSCR analysis — ${priceFmtCMA} at ${dscrRatePct}% with 25% down. Rent estimate: $${rentMo.toLocaleString()}/mo. DSCR ratio: ${dscrRatio ?? 'N/A'}. Run full DSCR breakdown.`
                 : `DSCR rental analysis — what monthly rent covers ${priceFmtCMA} with 25% down at ${dscrRatePct}%?`;
 
             const cmaChips = [
@@ -5481,9 +5444,9 @@ Output JSON:
                     baths,
                     sqft,
                     photoUrl: photoUrl || null,
-                    // ── Valuation (Rentcast Sale AVM) ─────────────────────────
+                    // ── Valuation ─────────────────────────────────────────────
                     price,
-                    priceSource: rentcastAvmPrice ? 'rentcast-avm' : 'param',
+                    priceSource: 'param',
                     estimatedValueLow:  rentcastAvmLow,
                     estimatedValueHigh: rentcastAvmHigh,
                     pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
@@ -5494,7 +5457,7 @@ Output JSON:
                     loanAmt: cmaLoan,
                     incomeNeeded: Math.round((cmaPiti / 0.43) * 12),
                     rateSensitivity: rateScenarios,
-                    // ── Investment intelligence (Rentcast Rent AVM) ───────────
+                    // ── Investment intelligence ────────────────────────────────
                     rentEstimate:    rentcastRentEstimate,
                     rentRangeLow:    rentcastRentLow,
                     rentRangeHigh:   rentcastRentHigh,
@@ -5521,91 +5484,58 @@ Output JSON:
     const isHomeownerAnalysisQuery = /homeowner analysis|run a complete.*analysis.*for|complete homeowner/i.test(question);
     let homeownerSnapshot: Record<string, any> | null = null;
 
-    // ── HOMEOWNER ANALYSIS: fetch Rentcast AVM + inject into Grok context ──────
+    // ── HOMEOWNER ANALYSIS: fetch property data via lookup pipeline ──────────
     if (isHomeownerAnalysisQuery && !mortgageCalcContext) {
         const addrMatch = question.match(/(?:homeowner analysis|complete.*analysis)\s+for\s+(.+?)(?:\s*:|,\s*current|\s*—|\s*\u2014)/i);
         const hoAddr = addrMatch?.[1]?.trim();
         if (hoAddr) {
             try {
-                const rentcastKey = process.env.RENTCAST_API_KEY;
-                if (rentcastKey) {
-                    const enc  = encodeURIComponent(hoAddr);
-                    const base = 'https://api.rentcast.io/v1';
-                    const hdrs = { 'X-Api-Key': rentcastKey, 'Accept': 'application/json' };
-                    const [propRes, avmRes] = await Promise.allSettled([
-                        fetch(`${base}/properties?address=${enc}&limit=1`, { headers: hdrs }),
-                        fetch(`${base}/avm/value?address=${enc}`,          { headers: hdrs }),
-                    ]);
-                    const propData = propRes.status === 'fulfilled' && propRes.value.ok ? await propRes.value.json() : null;
-                    const avmData  = avmRes.status  === 'fulfilled' && avmRes.value.ok  ? await avmRes.value.json()  : null;
-                    const prop = Array.isArray(propData) ? propData[0] : propData;
-                    if (prop || avmData) {
-                        const estimatedValue     = avmData?.price          ?? null;
-                        const estimatedValueLow  = avmData?.priceRangeLow  ?? null;
-                        const estimatedValueHigh = avmData?.priceRangeHigh ?? null;
-                        const lastSalePrice: number | null = prop?.lastSalePrice ?? null;
-                        const lastSaleDate: string | null  = prop?.lastSaleDate
-                            ? new Date(prop.lastSaleDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                            : null;
-                        const beds  = prop?.bedrooms     ?? null;
-                        const baths = prop?.bathrooms    ?? null;
-                        const sqft  = prop?.squareFootage ?? null;
-
-                        // Estimated balance & equity (same logic as digest/run)
-                        let estimatedBalance: number | null = null;
-                        let estimatedEquity:  number | null = null;
-                        let purchaseRate:     number | null = null;
-                        const HIST_RATES_HO: Record<number,number> = {
-                            2025:6.76,2024:6.87,2023:6.81,2022:5.34,2021:2.96,2020:3.11,
-                            2019:3.94,2018:4.54,2017:3.99,2016:3.65,2015:3.85,2014:4.17,
-                            2013:3.98,2012:3.66,2011:4.45,2010:4.69,2009:5.04,2008:6.03,
-                        };
-                        let remainingMonths: number | null = null;
-                        if (lastSalePrice && prop?.lastSaleDate) {
-                            const sd = new Date(prop.lastSaleDate);
-                            const elapsed = Math.max(0, (new Date().getFullYear() - sd.getFullYear()) * 12 + (new Date().getMonth() - sd.getMonth()));
-                            remainingMonths = Math.max(0, 360 - elapsed);
-                            purchaseRate = HIST_RATES_HO[sd.getFullYear()] ?? 5.5;
-                            const r = purchaseRate / 100 / 12, n = 360, p = lastSalePrice * 0.80;
-                            const pmt = r > 0 ? (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1) : p / n;
-                            estimatedBalance = Math.max(0, Math.round(p * Math.pow(1+r,elapsed) - pmt * ((Math.pow(1+r,elapsed)-1)/r)));
-                            estimatedEquity  = Math.round((estimatedValue ?? lastSalePrice) - estimatedBalance);
-                        }
-
+                const appBase = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
+                const lookupRes = await fetch(`${appBase}/api/property/lookup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: hoAddr }),
+                    signal: AbortSignal.timeout(20_000),
+                });
+                if (lookupRes.ok) {
+                    const lookupJson = await lookupRes.json();
+                    const d = lookupJson?.data;
+                    if (d) {
+                        const estimatedValue     = d.estimatedValue ?? d.price ?? d.lastSalePrice ?? null;
+                        const estimatedValueLow  = d.estimatedValueLow  ?? null;
+                        const estimatedValueHigh = d.estimatedValueHigh ?? null;
+                        const lastSalePrice: number | null = d.lastSalePrice ?? null;
+                        const lastSaleDate: string | null  = d.lastSaleDate  ?? null;
+                        const estimatedBalance   = d.estimatedBalance ?? null;
+                        const estimatedEquity    = d.estimatedEquity  ?? null;
+                        const purchaseRate       = d.purchaseRate     ?? null;
+                        const remainingMonths    = d.remainingMonths  ?? null;
+                        const beds  = d.beds  ?? null;
+                        const baths = d.baths ?? null;
+                        const sqft  = d.sqft  ?? null;
                         const liveRate = fred?.mort30Avg ?? 6.5;
                         const fmt = (n: number | null) => n != null ? `$${Math.round(n).toLocaleString()}` : 'N/A';
                         mortgageCalcContext =
-`PROPERTY DATA (Rentcast AVM — live API, use these numbers EXACTLY):
-- Address: ${prop?.formattedAddress ?? hoAddr}
+`PROPERTY DATA (web lookup — use these numbers EXACTLY):
+- Address: ${d.address ?? hoAddr}
 - Beds/Baths/Sqft: ${beds ?? '?'} bd / ${baths ?? '?'} ba / ${sqft ? sqft.toLocaleString() : '?'} sqft
-- AVM Estimated Value: ${fmt(estimatedValue)} (range: ${fmt(estimatedValueLow)} – ${fmt(estimatedValueHigh)})
+- Est. Value: ${fmt(estimatedValue)} (range: ${fmt(estimatedValueLow)} – ${fmt(estimatedValueHigh)})
 - Last Sale: ${lastSaleDate ?? 'N/A'} at ${fmt(lastSalePrice)}
 - Est. Purchase Rate (historical avg at sale year): ${purchaseRate ? purchaseRate.toFixed(2) + '%' : 'N/A'}
 - Est. Remaining Mortgage Balance (20% down assumed): ${fmt(estimatedBalance)}
 - Est. Equity: ${fmt(estimatedEquity)}
 - Today's 30Y Fixed Rate (FRED): ${liveRate}%
-CRITICAL: Use Rentcast AVM value (${fmt(estimatedValue)}) as the property value. Do NOT substitute generic market estimates or ranges from your training data.`;
+CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value. Do NOT substitute generic market estimates from your training data.`;
                         homeownerSnapshot = {
-                            address: prop?.formattedAddress ?? hoAddr,
-                            estimatedValue,
-                            estimatedValueLow,
-                            estimatedValueHigh,
-                            estimatedBalance,
-                            estimatedEquity,
-                            purchaseRate,
-                            remainingMonths,
-                            lastSalePrice,
-                            lastSaleDate,
-                            liveRate,
-                            beds:  prop?.bedrooms      ?? null,
-                            baths: prop?.bathrooms     ?? null,
-                            sqft:  prop?.squareFootage ?? null,
+                            address: d.address ?? hoAddr,
+                            estimatedValue, estimatedValueLow, estimatedValueHigh,
+                            estimatedBalance, estimatedEquity, purchaseRate, remainingMonths,
+                            lastSalePrice, lastSaleDate, liveRate, beds, baths, sqft,
                         };
-                        console.log('[HomeownerAnalysis] Rentcast data fetched for', hoAddr, '— value:', estimatedValue);
                     }
                 }
             } catch (hoErr: any) {
-                console.warn('[HomeownerAnalysis] Rentcast fetch failed:', hoErr.message);
+                console.warn('[HomeownerAnalysis] lookup failed:', hoErr.message);
             }
         }
     }
@@ -6682,7 +6612,7 @@ Return valid JSON only:
     } : null;
 
     const hoPropertyCard = homeownerSnapshot ? {
-        source:           'rentcast',
+        source:           'web_lookup',
         url:              '',
         parsedBy:         'rentcast-api-v1',
         parseWarnings:    [],
