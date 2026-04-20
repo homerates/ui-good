@@ -275,7 +275,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch live rate + property data + nearby comps in parallel
-    const [liveRate, rentcast, nearbySales] = await Promise.all([
+    const [liveRate, propData, nearbySales] = await Promise.all([
         getLiveRate(),
         propertyLookup(borrower.property_address),
         fetchNearbySales(borrower.property_address),

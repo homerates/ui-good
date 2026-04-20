@@ -5210,12 +5210,11 @@ ${dtiSection}
         const photoUrl: string = String(cmaParams.cmaPhotoUrl ?? '');
 
         // Price from chip params — no external AVM call
-        const rentcastAvmPrice: number | null = null;
-        const rentcastAvmLow: number | null = null;
-        const rentcastAvmHigh: number | null = null;
-        const rentcastRentEstimate: number | null = null;
-        const rentcastRentLow: number | null = null;
-        const rentcastRentHigh: number | null = null;
+        const avmLow: number | null = null;
+        const avmHigh: number | null = null;
+        const rentMoEstimate: number | null = null;
+        const rentMoLow: number | null = null;
+        const rentMoHigh: number | null = null;
         const price: number = Number(cmaParams.cmaPrice ?? 0);
 
         const annualIns = Math.max(1200, Math.round(price * 0.005));
@@ -5247,7 +5246,7 @@ ${dtiSection}
         const closingCostEst = Math.round(price * 0.02);         // ~2% standard investor closing cost estimate
 
         // Metrics — only computed when rent data is available
-        const rentMo = rentcastRentEstimate;
+        const rentMo = rentMoEstimate as number | null;
         // Gross yield: raw rent income vs property value (pre-expense benchmark)
         const grossYield: number | null = rentMo && price > 0
             ? parseFloat(((rentMo * 12 / price) * 100).toFixed(2))
@@ -5316,7 +5315,7 @@ DETERMINISTIC FINANCIALS (do not recalculate):
 - Income required @ 43% DTI: $${Math.round((cmaPiti / 0.43) * 12).toLocaleString()}/yr
 
 INVESTMENT METRICS (do not recalculate, use verbatim):
-- Estimated monthly rent: ${rentMo ? `$${rentMo.toLocaleString()}/mo (range $${rentcastRentLow?.toLocaleString() ?? '?'} – $${rentcastRentHigh?.toLocaleString() ?? '?'})` : 'unavailable'}
+- Estimated monthly rent: ${rentMo ? `$${rentMo.toLocaleString()}/mo (range $${rentMoLow?.toLocaleString() ?? '?'} – $${rentMoHigh?.toLocaleString() ?? '?'})` : 'unavailable'}
 - Gross yield: ${grossYield !== null ? `${grossYield}%` : 'N/A'}
 - Cap rate (35% expense ratio): ${capRate !== null ? `${capRate}%` : 'N/A'}
 - DSCR @ 25% down / ${dscrRatePct}% (investor rate): ${dscrLabel}
@@ -5447,8 +5446,8 @@ Output JSON:
                     // ── Valuation ─────────────────────────────────────────────
                     price,
                     priceSource: 'param',
-                    estimatedValueLow:  rentcastAvmLow,
-                    estimatedValueHigh: rentcastAvmHigh,
+                    estimatedValueLow:  avmLow,
+                    estimatedValueHigh: avmHigh,
                     pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
                     // ── Purchase financing (20% down, primary) ────────────────
                     rate: liveRate,
@@ -5458,15 +5457,15 @@ Output JSON:
                     incomeNeeded: Math.round((cmaPiti / 0.43) * 12),
                     rateSensitivity: rateScenarios,
                     // ── Investment intelligence ────────────────────────────────
-                    rentEstimate:    rentcastRentEstimate,
-                    rentRangeLow:    rentcastRentLow,
-                    rentRangeHigh:   rentcastRentHigh,
+                    rentEstimate:    rentMoEstimate,
+                    rentRangeLow:    rentMoLow,
+                    rentRangeHigh:   rentMoHigh,
                     grossYield,       // % — annual rent / price
                     capRate,          // % — NOI (65% of gross rent) / price
                     dscrRatio,        // gross rent / PI payment (DSCR lender convention)
-                    dscrRate:         rentcastRentEstimate ? dscrRatePct : null,
-                    dscrPiti:         rentcastRentEstimate ? dscrPITI    : null,
-                    dscrDown:         rentcastRentEstimate ? dscrDown    : null,
+                    dscrRate:         rentMoEstimate ? dscrRatePct : null,
+                    dscrPiti:         rentMoEstimate ? dscrPITI    : null,
+                    dscrDown:         rentMoEstimate ? dscrDown    : null,
                     monthlyCashFlow,  // rent − full PITI (25% down investor scenario)
                     cashOnCash,       // % — annualized cash flow / (down + closing costs)
                     // ── Meta ──────────────────────────────────────────────────
