@@ -4075,6 +4075,30 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).buydownType && (paramOverrides as any).buydownType !== 'none' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            // Buydown slider "Run adjusted scenario" — must sit BEFORE VA so buydownType wins over loanType:'va'
+            const _bdPrice    = paramOverrides.purchasePrice as number;
+            const _bdDown     = (paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0) as number;
+            const _bdBaseLoan = _bdPrice * (1 - _bdDown / 100);
+            const _bdIsVA     = (paramOverrides as any).loanType === 'va';
+            const _bdFfPct    = (_bdIsVA ? ((paramOverrides as any).vaFundingFeePct ?? 0) : 0) as number;
+            const _bdLoan     = Math.round(_bdBaseLoan * (1 + _bdFfPct / 100));
+            (calcDispatch as any).type = 'buydown';
+            (calcDispatch as any).params = {
+                purchasePrice:   _bdPrice,
+                loanAmount:      _bdLoan,
+                annualRatePct:   paramOverrides.annualRatePct,
+                buydownType:     (paramOverrides as any).buydownType,
+                isVA:            _bdIsVA,
+                sellerCredit:    (paramOverrides as any).sellerCredit ?? 0,
+                annualTax:       _bdPrice * 0.011,
+                annualInsurance: _bdPrice * 0.005,
+            };
+            (calcDispatch as any).assumptions = [
+                `${(paramOverrides as any).buydownType} buydown at ${paramOverrides.annualRatePct}%`,
+                ...(_bdIsVA ? ['VA loan — no down payment required'] : []),
+                ...((paramOverrides as any).sellerCredit > 0 ? [`seller credit $${Number((paramOverrides as any).sellerCredit).toLocaleString()}`] : []),
+            ];
         } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'va';
             (calcDispatch as any).params = {
@@ -4383,6 +4407,30 @@ ${uwAnswerText}`,
                 purchasePrice: `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
             };
             (calcDispatch as any).assumptions = _changedKeys.filter(k => _labelMap[k]).map(k => _labelMap[k]);
+        } else if ((paramOverrides as any).buydownType && (paramOverrides as any).buydownType !== 'none' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            // Buydown slider "Run adjusted scenario" — must sit BEFORE VA so buydownType wins over loanType:'va'
+            const _bdPrice    = paramOverrides.purchasePrice as number;
+            const _bdDown     = (paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0) as number;
+            const _bdBaseLoan = _bdPrice * (1 - _bdDown / 100);
+            const _bdIsVA     = (paramOverrides as any).loanType === 'va';
+            const _bdFfPct    = (_bdIsVA ? ((paramOverrides as any).vaFundingFeePct ?? 0) : 0) as number;
+            const _bdLoan     = Math.round(_bdBaseLoan * (1 + _bdFfPct / 100));
+            (calcDispatch as any).type = 'buydown';
+            (calcDispatch as any).params = {
+                purchasePrice:   _bdPrice,
+                loanAmount:      _bdLoan,
+                annualRatePct:   paramOverrides.annualRatePct,
+                buydownType:     (paramOverrides as any).buydownType,
+                isVA:            _bdIsVA,
+                sellerCredit:    (paramOverrides as any).sellerCredit ?? 0,
+                annualTax:       _bdPrice * 0.011,
+                annualInsurance: _bdPrice * 0.005,
+            };
+            (calcDispatch as any).assumptions = [
+                `${(paramOverrides as any).buydownType} buydown at ${paramOverrides.annualRatePct}%`,
+                ...(_bdIsVA ? ['VA loan — no down payment required'] : []),
+                ...((paramOverrides as any).sellerCredit > 0 ? [`seller credit $${Number((paramOverrides as any).sellerCredit).toLocaleString()}`] : []),
+            ];
         } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'va';
             (calcDispatch as any).params = {
