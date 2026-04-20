@@ -415,18 +415,23 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
                 {/* Seller Credit slider — shown when buydown active */}
                 {hasBuydownUI && activeBdType !== 'none' && (
-                    <SliderField
-                        label="Seller Credit"
-                        value={sellerCreditAmt}
-                        min={0}
-                        max={vaConcessionCap}
-                        step={1000}
-                        onChange={setSellerCreditAmt}
-                        format={v => `${fmtDollar(v)}${buydown ? (v >= buydown.totalCost ? ' ✓ covers buydown' : ` · short ${fmtDollar(buydown.totalCost - v)}`) : ''}`}
-                        minLabel="$0"
-                        maxLabel={`${fmtDollar(vaConcessionCap)} (4% cap)`}
-                        trackColor="#6366f1" theme="light"
-                    />
+                    <div className="isc__row">
+                        <SliderField
+                            label="Seller / Builder Credit"
+                            value={sellerCreditAmt}
+                            min={0}
+                            max={vaConcessionCap}
+                            step={1000}
+                            onChange={setSellerCreditAmt}
+                            format={v => `${fmtDollar(v)}${buydown ? (v >= buydown.totalCost ? ' ✓ covers buydown' : ` · short ${fmtDollar(buydown.totalCost - v)}`) : ''}`}
+                            minLabel="$0"
+                            maxLabel={`${fmtDollar(vaConcessionCap)} (4% cap)`}
+                            trackColor="#6366f1" theme="light"
+                        />
+                        <div className="isc__ff-hint">
+                            Must be funded by seller, builder, or interested third party — borrower cannot self-fund a buydown. Buydown structures apply to all loan types; allowable credit amounts and underwriting guidelines vary by program. Check with your lender.
+                        </div>
+                    </div>
                 )}
 
                 {/* Interest Rate */}
