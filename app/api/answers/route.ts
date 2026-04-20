@@ -5315,7 +5315,7 @@ DETERMINISTIC FINANCIALS (do not recalculate):
 - Income required @ 43% DTI: $${Math.round((cmaPiti / 0.43) * 12).toLocaleString()}/yr
 
 INVESTMENT METRICS (do not recalculate, use verbatim):
-- Estimated monthly rent: ${rentMo ? `$${rentMo.toLocaleString()}/mo (range $${rentMoLow?.toLocaleString() ?? '?'} – $${rentMoHigh?.toLocaleString() ?? '?'})` : 'unavailable'}
+- Estimated monthly rent: ${rentMo ? `$${rentMo.toLocaleString()}/mo (range $${(rentMoLow as number | null)?.toLocaleString() ?? '?'} – $${(rentMoHigh as number | null)?.toLocaleString() ?? '?'})` : 'unavailable'}
 - Gross yield: ${grossYield !== null ? `${grossYield}%` : 'N/A'}
 - Cap rate (35% expense ratio): ${capRate !== null ? `${capRate}%` : 'N/A'}
 - DSCR @ 25% down / ${dscrRatePct}% (investor rate): ${dscrLabel}
