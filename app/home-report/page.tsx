@@ -192,7 +192,7 @@ function HomeReportInner() {
     val && val !== listPrice ? `Redfin AVM is ${fmtFull(val)}.` : '',
     daysOnMarket != null ? `Property has been on market ${daysOnMarket} days.` : '',
     data?.lastSalePrice ? `Seller originally paid ${fmtFull(data.lastSalePrice)}${data?.lastSaleDate ? ` in ${data.lastSaleDate}` : ''}.` : '',
-    'Show me monthly PITI, whether it\'s priced fairly vs comps, and my 5-year equity outlook.',
+    'Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.',
   ].filter(Boolean).join(' ') : [
     `I own this home at ${address} and want to refinance or review my options.`,
     balance ? `Loan balance: ${fmtFull(balance)} (estimated).` : '',

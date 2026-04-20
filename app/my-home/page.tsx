@@ -1507,7 +1507,7 @@ function MyHomePageInner() {
                                 if (a.estimatedValue && ask && a.estimatedValue !== ask) parts.push(`Redfin AVM is $${Math.round(a.estimatedValue).toLocaleString()}.`);
                                 if (a.daysOnMarket != null) parts.push(`Property has been on market ${a.daysOnMarket} days.`);
                                 if (a.lastSalePrice) parts.push(`Seller originally paid $${Math.round(a.lastSalePrice).toLocaleString()}${a.lastSaleDate ? ` in ${a.lastSaleDate}` : ''}.`);
-                                parts.push('Show me monthly PITI, whether it\'s priced fairly vs comps, and my 5-year equity outlook.');
+                                parts.push('Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.');
                                 return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
                               })()}
                               style={{ padding: '10px 20px', borderRadius: 999, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}

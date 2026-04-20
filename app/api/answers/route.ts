@@ -4186,6 +4186,13 @@ ${uwAnswerText}`,
             ?? question.match(/(?:at|to)\s+([\d]+\.?\d*)\s*%/i))![1]) : null;
 
     const isFollowUp = /what if|what about|instead|same but|same scenario|same home|same fha|same property|same rental|same refi|same loan|show me|if rates?|rates? drop|rates? go|rates? fall|drop to|down to|how much income|what income|what salary|income.*(?:need|qualify|required)|do i qualify|can i qualify|monthly debt|car payment|student loan.*payment|\$\d+.*debt|debt.*\$\d+/i.test(question);
+    // A fresh-context query carries full property/buying/owning context — never treat as follow-up,
+    // even if phrasing accidentally matches isFollowUp tokens like "show me".
+    const isFreshContextQuery =
+        /\b(?:i'?m|i\s+am)\s+(?:looking\s+at\s+)?buy(?:ing)?\b/i.test(question) ||
+        /\blisted\s+at\s+\$/i.test(question) ||
+        /\bi\s+own\s+this\s+(?:home|property)\b/i.test(question) ||
+        /\bi\s+own\s+(?:this\s+)?home\s+at\b/i.test(question);
     const isRefiHypothetical = /what if.*refinanc|refinanc.*later|refinanc.*future|refinanc.*\d+\s*year/i.test(question);
     // isDSCRFollowUp: fires when prior DSCR snapshot exists and dispatch couldn't extract full params
     // catches natural follow-ups like "run my numbers", "calculate", "try at 7%" that isFollowUp misses
@@ -4194,7 +4201,7 @@ ${uwAnswerText}`,
         // conventional drift: dispatch saw price+down% and routed to conventional, but snapshot was DSCR
         (calcDispatch.type === 'dscr_needs_input' || calcDispatch.type === 'no_calc_match' || calcDispatch.type === 'conventional');
     const isSalaryFollowUp = /(?:qualify|afford|make|earn|salary|income)\s+(?:on\s+)?\$[\d,]+k?\b|\$[\d,]+k?\s+(?:salary|income|a year|\/year)/i.test(question);
-    if ((isFollowUp || isDSCRFollowUp) && snapshotLoanType && !isSalaryFollowUp &&
+    if ((isFollowUp || isDSCRFollowUp) && snapshotLoanType && !isSalaryFollowUp && !isFreshContextQuery &&
         calcDispatch.type !== 'uw_starter' && calcDispatch.type !== 'lab' && calcDispatch.type !== 'about' && calcDispatch.type !== 'how_it_works' &&
         !(calcDispatch.type === 'conventional' && calcDispatch.params && !isDSCRFollowUp) &&
         !(calcDispatch.type === 'refi' && isRefiHypothetical) &&
