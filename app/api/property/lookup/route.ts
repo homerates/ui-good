@@ -461,32 +461,67 @@ async function handleUrl(rawUrl: string) {
 
 // ── Tavily search → find Redfin URL for an address ─────────────────────────
 
+function cleanAddressForSearch(address: string): string {
+    return address
+        .replace(/,?\s*USA\s*$/i, '')          // strip ", USA" suffix from Google Places
+        .replace(/,?\s*United States\s*$/i, '') // strip ", United States"
+        .trim();
+}
+
 async function findRedfinUrl(address: string): Promise<string | null> {
     const key = process.env.TAVILY_API_KEY;
     if (!key) return null;
+
+    const clean = cleanAddressForSearch(address);
+    // Also try short form: "Street, City, ST" without zip
+    const short = clean.replace(/,\s*\d{5}(-\d{4})?/, '').trim();
+
+    const extractRedfinUrl = (results: any[]): string | null => {
+        for (const r of results) {
+            const url: string = r.url ?? '';
+            if (/redfin\.com\/.*\/home\/\d+/i.test(url)) return url;
+        }
+        for (const r of results) {
+            const url: string = r.url ?? '';
+            if (/redfin\.com/i.test(url)) return url;
+        }
+        return null;
+    };
+
     try {
+        // Try exact cleaned address first
         const res = await fetch('https://api.tavily.com/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: AbortSignal.timeout(8_000),
             body: JSON.stringify({
                 api_key: key,
-                query: `"${address}" site:redfin.com`,
-                max_results: 3,
-                search_depth: 'basic',
-                include_answer: false,
+                query: `"${clean}" site:redfin.com`,
+                max_results: 3, search_depth: 'basic', include_answer: false,
             }),
         });
-        if (!res.ok) return null;
-        const data = await res.json();
-        for (const r of (data.results ?? [])) {
-            const url: string = r.url ?? '';
-            if (/redfin\.com\/.*\/home\/\d+/i.test(url)) return url;
+        if (res.ok) {
+            const data = await res.json();
+            const url = extractRedfinUrl(data.results ?? []);
+            if (url) return url;
         }
-        // Broader Redfin URL match
-        for (const r of (data.results ?? [])) {
-            const url: string = r.url ?? '';
-            if (/redfin\.com/i.test(url)) return url;
+
+        // Retry with short form (no zip)
+        if (short !== clean) {
+            const res2 = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(6_000),
+                body: JSON.stringify({
+                    api_key: key,
+                    query: `${short} redfin site:redfin.com`,
+                    max_results: 3, search_depth: 'basic', include_answer: false,
+                }),
+            });
+            if (res2.ok) {
+                const data2 = await res2.json();
+                return extractRedfinUrl(data2.results ?? []);
+            }
         }
         return null;
     } catch {

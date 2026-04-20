@@ -717,6 +717,12 @@ function MyHomePageInner() {
         setAnalysisErr(lookupJson.error ?? 'Could not retrieve property data');
         return;
       }
+      // Require at least one meaningful value — empty data renders as all dashes
+      const d = lookupJson.data;
+      if (!d.estimatedValue && !d.lastSalePrice && !d.price && !d.beds) {
+        setAnalysisErr('Could not find data for this address. Try pasting the Redfin link in chat for instant results.');
+        return;
+      }
       const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
       const thirtyY = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
       let liveRate = 6.65;

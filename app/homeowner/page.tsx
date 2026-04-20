@@ -22,7 +22,9 @@ export default function HomeownerPage() {
       return;
     }
     setUrlError(false);
-    router.push('/my-home?address=' + encodeURIComponent(q));
+    // Strip ", USA" / ", United States" appended by Google Places autocomplete
+    const clean = q.replace(/,?\s*USA\s*$/i, '').replace(/,?\s*United States\s*$/i, '').trim();
+    router.push('/my-home?address=' + encodeURIComponent(clean));
   }
 
   // Typewriter placeholder
