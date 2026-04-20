@@ -13,7 +13,7 @@ import {
     calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale, calcOneExtraPaymentPerYear,
     calcVA, calcJumbo,
 } from "../../../lib/calcEngine";
-import { dispatch, isRefiQuestion, isLoanLimitsQuestion, isScenarioComparisonQuestion } from "../../../lib/calcDispatcher";
+import { dispatch, isRefiQuestion, isLoanLimitsQuestion, isScenarioComparisonQuestion, isBuydownQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
     buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
@@ -3464,7 +3464,9 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
         return false;
     }
     // ── SCENARIO COMPARISON CARD ──────────────────────────────────────────────
-    const _scenarioTool = isScenarioComparisonQuestion(question);
+    // Exempt when the question is specifically asking FOR a buydown (2/1, 1/0, 3/2/1) — that
+    // should go to the buydown analyzer, not the side-by-side comparison card.
+    const _scenarioTool = !isBuydownQuestion(question) ? isScenarioComparisonQuestion(question) : null;
     if (_scenarioTool) {
         // Extract numbers from question (best-effort — card has defaults if not found)
         const _scPriceM = question.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[mM]\b/);
