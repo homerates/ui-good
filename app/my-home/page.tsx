@@ -589,7 +589,7 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   }
 
   return {
-    address: d.address ?? '',
+    address: (d.address as string | null) || '',
     estimatedValue, estimatedValueLow: d.estimatedValueLow ?? null, estimatedValueHigh: d.estimatedValueHigh ?? null,
     estimatedBalance, estimatedEquity, purchaseRate, lastSaleDate, lastSalePrice,
     liveRate, rentEstimate: null, valueHistory,
@@ -717,10 +717,10 @@ function MyHomePageInner() {
         setAnalysisErr(lookupJson.error ?? 'Could not retrieve property data');
         return;
       }
-      // Require at least one meaningful value — empty data renders as all dashes
+      // Require financial data — beds/baths alone renders as all dashes with no useful info
       const d = lookupJson.data;
-      if (!d.estimatedValue && !d.lastSalePrice && !d.price && !d.beds) {
-        setAnalysisErr('Could not find data for this address. Try pasting the Redfin link in chat for instant results.');
+      if (!d.estimatedValue && !d.lastSalePrice && !d.price) {
+        setAnalysisErr('Could not find property value data for this address. Try pasting the Redfin link directly in chat for instant results.');
         return;
       }
       const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
@@ -973,7 +973,7 @@ function MyHomePageInner() {
                       <p style={{ marginTop: 4 }}>{borrowerId
                         ? `Viewing property intelligence for ${analysis?.address ?? '…'}`
                         : previewAddress
-                          ? `Property intelligence for ${analysis?.address ?? previewAddress}`
+                          ? `Property intelligence for ${analysis?.address || previewAddress}`
                         : hasAddress
                           ? `${user?.firstName ? `Hi ${user.firstName}.` : ''} Your property intelligence is below.`
                           : 'Add your address to unlock equity tracking, HELOC capacity, and rate alerts.'
@@ -1073,7 +1073,7 @@ function MyHomePageInner() {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
                         <div>
                           <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 3 }}>Home Intelligence</div>
-                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#f1f5f9', lineHeight: 1.3 }}>{analysis.address}</div>
+                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#f1f5f9', lineHeight: 1.3 }}>{analysis.address || previewAddress || activeProperty?.property_address || ''}</div>
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#334155' }}>
                           {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -1122,7 +1122,7 @@ function MyHomePageInner() {
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         {/* My Full Report */}
                         <a
-                          href={`/home-report?address=${encodeURIComponent(analysis.address)}`}
+                          href={`/home-report?address=${encodeURIComponent(analysis.address || previewAddress || activeProperty?.property_address || '')}`}
                           style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                         >
                           My Full Report ↗
