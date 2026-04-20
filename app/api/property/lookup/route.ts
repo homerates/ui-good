@@ -354,6 +354,62 @@ async function tavilyExtract(url: string): Promise<string | null> {
     }
 }
 
+// ── Broad real-estate search fallback (any site, not just Redfin) ──────────
+// Used when findRedfinUrl returns null. Searches across Zillow, Realtor, etc.
+// and extracts data from the first relevant listing page.
+async function broadSearchFallback(address: string): Promise<Record<string, unknown> | null> {
+    const key = process.env.TAVILY_API_KEY;
+    if (!key) return null;
+    const clean = cleanAddressForSearch(address);
+    const RE_DOMAINS = /redfin\.com|zillow\.com|realtor\.com|trulia\.com|homes\.com|movoto\.com/i;
+    try {
+        const res = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(8_000),
+            body: JSON.stringify({
+                api_key: key,
+                query: `${clean} home sold price`,
+                max_results: 5,
+                search_depth: 'basic',
+                include_answer: false,
+            }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const reResults: any[] = (data.results ?? []).filter((r: any) => RE_DOMAINS.test(r.url ?? ''));
+        if (reResults.length === 0) return null;
+        // Extract full page content from the first real-estate result
+        const text = await tavilyExtract(reResults[0].url);
+        if (!text || text.length < 200) return null;
+        const tp  = parsePropertyFromText(text);
+        const ext = parseExtended(text, tp.price, tp.sqft);
+        if (!tp.price && !ext.lastSalePrice && !ext.estimatedValue) return null;
+        const { rate } = lookupTaxRate(tp.state ?? '', null);
+        return {
+            source:           'web_search',
+            url:              reResults[0].url,
+            parsedBy:         'tavily_fallback',
+            parseWarnings:    ['Data sourced from web search — may be less precise than a direct listing'],
+            price:            tp.price,
+            address:          tp.address ?? clean,
+            city:             tp.city,
+            state:            tp.state,
+            zip:              tp.zip,
+            beds:             tp.beds,
+            baths:            tp.baths,
+            sqft:             tp.sqft,
+            annualTaxes:      (tp.price && rate) ? Math.round(tp.price * rate) : null,
+            taxRateEffective: rate,
+            taxSource:        'table',
+            photoUrl:         null,
+            ...ext,
+        };
+    } catch {
+        return null;
+    }
+}
+
 // ── Main handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
@@ -556,6 +612,14 @@ async function handleAddress(rawAddress: string) {
             }
         } catch { /* non-blocking */ }
         return result;
+    }
+
+    // No Redfin URL found — try broad search across Zillow/Realtor/etc.
+    console.log('[property/lookup] no Redfin URL found, trying broad search for', rawAddress);
+    const broadData = await broadSearchFallback(rawAddress);
+    if (broadData) {
+        void cachePropertyResult(rawAddress, broadData, 'web_search');
+        return NextResponse.json({ ok: true, data: broadData });
     }
 
     const key = process.env.RENTCAST_API_KEY;
