@@ -158,19 +158,26 @@ function HomeReportInner() {
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Derived
-  const val       = data?.estimatedValue ?? data?.price ?? data?.lastSalePrice ?? null;
-  const equity    = data?.estimatedEquity   ?? null;
-  const balance   = data?.estimatedBalance  ?? null;
-  const eqPct     = (equity && val) ? Math.round(Math.max(0,equity) / val * 100) : null;
-  const ltv       = (balance && val) ? Math.round(balance / val * 100) : null;
-  const appPct    = (data?.lastSalePrice && val) ? Math.round((val - data.lastSalePrice) / data.lastSalePrice * 100) : null;
-  const annualTax = val ? Math.round(val * 0.0115) : 0;
-  const projections = val ? Array.from({ length: 6 }, (_, i) => {
+  const listingStatus = data?.listingStatus ?? 'UNKNOWN';
+  const isBuyer       = listingStatus === 'FOR_SALE' || listingStatus === 'PENDING';
+  const daysOnMarket  = data?.daysOnMarket ?? null;
+  const val           = data?.estimatedValue ?? data?.price ?? data?.lastSalePrice ?? null;
+  const listPrice     = isBuyer ? (data?.price ?? val) : null;
+  const equity        = data?.estimatedEquity ?? null;
+  const balance       = data?.estimatedBalance ?? null;
+  const eqPct         = (equity && val) ? Math.round(Math.max(0,equity) / val * 100) : null;
+  const ltv           = (balance && val) ? Math.round(balance / val * 100) : null;
+  const appPct        = (data?.lastSalePrice && val) ? Math.round((val - data.lastSalePrice) / data.lastSalePrice * 100) : null;
+  const annualTax     = (isBuyer ? listPrice : val) ? Math.round(((isBuyer ? listPrice : val)!) * 0.0115) : 0;
+  const baseVal       = isBuyer ? listPrice : val;
+  const projections   = val ? Array.from({ length: 6 }, (_, i) => {
     const v = Math.round(val * Math.pow(1.042, i));
     return { yr: i, val: v, gain: i === 0 ? '' : `+${(((v - val) / val) * 100).toFixed(1)}%` };
   }) : [];
-  const rateScenarios = balance ? RATE_SCENARIOS.map(r => ({
-    rate: r, piti: pitiCalc(balance, r, annualTax),
+  // Rate scenarios: buyer uses listPrice × 0.80 as loan; owner uses estimated balance
+  const scenarioBase  = isBuyer ? (listPrice ? Math.round(listPrice * 0.80) : null) : balance;
+  const rateScenarios = scenarioBase ? RATE_SCENARIOS.map(r => ({
+    rate: r, piti: pitiCalc(scenarioBase, r, annualTax),
     isCurrent: Math.abs(r - liveRate) < 0.26,
   })) : [];
 
@@ -178,15 +185,22 @@ function HomeReportInner() {
     ? `https://maps.googleapis.com/maps/api/streetview?size=900x360&location=${encodeURIComponent(address)}&key=${mapsKey}`
     : null;
 
-  // Seed for Run My Numbers
-  const runSeed = data ? [
+  // Seed for Run My Numbers — buyer vs owner context
+  const runSeed = data ? (isBuyer && listPrice ? [
+    `I'm looking at buying ${address} listed at ${fmtFull(listPrice)}.`,
+    `Current 30-year rate is ${liveRate.toFixed(2)}%.`,
+    val && val !== listPrice ? `Redfin AVM is ${fmtFull(val)}.` : '',
+    daysOnMarket != null ? `Property has been on market ${daysOnMarket} days.` : '',
+    data?.lastSalePrice ? `Seller originally paid ${fmtFull(data.lastSalePrice)}${data?.lastSaleDate ? ` in ${data.lastSaleDate}` : ''}.` : '',
+    'Show me monthly PITI, whether it\'s priced fairly vs comps, and my 5-year equity outlook.',
+  ].filter(Boolean).join(' ') : [
     `I own this home at ${address} and want to refinance or review my options.`,
     balance ? `Loan balance: ${fmtFull(balance)} (estimated).` : '',
     data?.purchaseRate ? `Current mortgage rate: ${data.purchaseRate}% (estimated from purchase year).` : '',
     val ? `Home value: ${fmtFull(val)}.` : '',
     equity ? `Equity: ${fmtFull(equity)} (${eqPct}%).` : '',
     `Show me refinance savings, break-even, and equity options. Use these exact figures.`,
-  ].filter(Boolean).join(' ') : '';
+  ].filter(Boolean).join(' ')) : '';
 
   return (
     <>
@@ -240,7 +254,9 @@ function HomeReportInner() {
                   <img src={streetViewUrl} alt="Street view" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(8,12,18,0.9) 100%)' }} />
                   <div style={{ position: 'absolute', bottom: 20, left: 24 }}>
-                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 4 }}>Home Intelligence</div>
+                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: isBuyer ? '#60a5fa' : '#00e87a', marginBottom: 4 }}>
+                      {isBuyer ? (listingStatus === 'PENDING' ? '🔴 Pending · Buyer Intelligence' : '🏷 For Sale · Buyer Intelligence') : 'Home Intelligence'}
+                    </div>
                     <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>{data.address ?? address}</div>
                     {(data.beds || data.baths || data.sqft) && (
                       <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>
@@ -253,7 +269,9 @@ function HomeReportInner() {
 
               {!streetViewUrl && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 4 }}>Home Intelligence</div>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: isBuyer ? '#60a5fa' : '#00e87a', marginBottom: 4 }}>
+                    {isBuyer ? (listingStatus === 'PENDING' ? '🔴 Pending · Buyer Intelligence' : '🏷 For Sale · Buyer Intelligence') : 'Home Intelligence'}
+                  </div>
                   <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>{data.address ?? address}</div>
                   {(data.beds || data.baths || data.sqft) && (
                     <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 3 }}>
@@ -270,14 +288,25 @@ function HomeReportInner() {
 
               {/* ── 4 KEY STATS ── */}
               <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-                <StatBox label="Est. Value" value={fmtK(val)} sub={data.estimatedValueLow && data.estimatedValueHigh ? `Range ${fmtK(data.estimatedValueLow)} – ${fmtK(data.estimatedValueHigh)}` : undefined} color="#00e87a" />
-                <StatBox label="Total Equity" value={fmtK(equity)} sub={eqPct != null ? `${eqPct}% of value` : undefined} color={equity && equity > 0 ? '#00e87a' : '#f59e0b'} />
-                <StatBox label="Appreciation" value={fmtPct(appPct)} sub={data.lastSaleDate ? `Since ${data.lastSaleDate}` : undefined} color={appPct && appPct > 0 ? '#00e87a' : '#f97066'} />
-                <StatBox label="LTV Ratio" value={ltv != null ? `${ltv}%` : '—'} sub={balance ? `${fmtK(balance)} balance est.` : undefined} color={ltv && ltv > 80 ? '#f59e0b' : '#f1f5f9'} />
+                {isBuyer ? (<>
+                  <StatBox label="List Price"     value={fmtK(listPrice)} color="#60a5fa" />
+                  <StatBox label="Redfin AVM"     value={fmtK(val)}
+                    sub={val && listPrice ? `${Math.round((val - listPrice) / listPrice * 100) > 0 ? '+' : ''}${Math.round((val - listPrice) / listPrice * 100)}% vs ask` : undefined}
+                    color={val && listPrice && val >= listPrice ? '#22c55e' : '#f97066'} />
+                  <StatBox label="Days on Market" value={daysOnMarket != null ? `${daysOnMarket}d` : '—'}
+                    sub={daysOnMarket != null ? (daysOnMarket <= 7 ? 'Fresh listing' : daysOnMarket <= 30 ? 'Active' : 'Extended — room to negotiate') : undefined}
+                    color={daysOnMarket != null && daysOnMarket > 30 ? '#22c55e' : '#f1f5f9'} />
+                  <StatBox label="$/sqft"         value={listPrice && data?.sqft ? `$${Math.round(listPrice / data.sqft)}` : '—'} color="#f1f5f9" />
+                </>) : (<>
+                  <StatBox label="Est. Value"  value={fmtK(val)} sub={data.estimatedValueLow && data.estimatedValueHigh ? `Range ${fmtK(data.estimatedValueLow)} – ${fmtK(data.estimatedValueHigh)}` : undefined} color="#00e87a" />
+                  <StatBox label="Total Equity" value={fmtK(equity)} sub={eqPct != null ? `${eqPct}% of value` : undefined} color={equity && equity > 0 ? '#00e87a' : '#f59e0b'} />
+                  <StatBox label="Appreciation" value={fmtPct(appPct)} sub={data.lastSaleDate ? `Since ${data.lastSaleDate}` : undefined} color={appPct && appPct > 0 ? '#00e87a' : '#f97066'} />
+                  <StatBox label="LTV Ratio"    value={ltv != null ? `${ltv}%` : '—'} sub={balance ? `${fmtK(balance)} balance est.` : undefined} color={ltv && ltv > 80 ? '#f59e0b' : '#f1f5f9'} />
+                </>)}
               </div>
 
-              {/* ── EQUITY GAUGE + BAR ── */}
-              {eqPct != null && val && equity != null && (
+              {/* ── EQUITY POSITION — owner mode only ── */}
+              {!isBuyer && eqPct != null && val && equity != null && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
                   <div className="hr-section-label">Equity Position</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap', marginTop: 16 }}>
@@ -322,6 +351,36 @@ function HomeReportInner() {
                 </div>
               )}
 
+              {/* ── MARKET POSITION — buyer mode only ── */}
+              {isBuyer && listPrice && (
+                <div className="hr-card" style={{ marginBottom: 20, borderColor: 'rgba(59,130,246,0.2)' }}>
+                  <div className="hr-section-label" style={{ color: '#60a5fa' }}>Market Position</div>
+                  <div style={{ display: 'flex', gap: 24, marginTop: 16, flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'Ask Price',          value: fmtFull(listPrice),        sub: '',                            color: '#60a5fa' },
+                      { label: 'Redfin AVM',         value: fmtFull(val),              sub: val && listPrice ? `${Math.round((val - listPrice) / listPrice * 100) > 0 ? '+' : ''}${Math.round((val - listPrice) / listPrice * 100)}% vs ask` : '', color: val && listPrice ? (val >= listPrice ? '#22c55e' : '#f97066') : '#f1f5f9' },
+                      { label: `Seller Paid${data.lastSaleDate ? ` (${data.lastSaleDate.match(/\d{4}/)?.[0] ?? ''})` : ''}`, value: data.lastSalePrice ? fmtFull(data.lastSalePrice) : '—', sub: data.lastSalePrice && listPrice ? `+${Math.round((listPrice - data.lastSalePrice) / data.lastSalePrice * 100)}% seller gain` : '', color: '#f1f5f9' },
+                    ].map((s, i) => (
+                      <div key={i} style={{ flex: 1, minWidth: 120 }}>
+                        <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 6 }}>{s.label}</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: s.color, lineHeight: 1.1 }}>{s.value}</div>
+                        {s.sub && <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 4 }}>{s.sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  {daysOnMarket != null && (
+                    <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(99,179,237,0.06)', border: '1px solid rgba(99,179,237,0.15)', borderRadius: 8 }}>
+                      <span style={{ fontSize: '0.78rem', color: '#93c5fd', fontWeight: 700 }}>
+                        {daysOnMarket <= 7 ? '🔥 Fresh listing' : daysOnMarket <= 30 ? '📅 Active listing' : '⏳ Extended time on market'}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', marginLeft: 8 }}>
+                        {daysOnMarket} days on market{daysOnMarket > 30 ? ' — sellers may have more flexibility' : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── 5-YEAR PROJECTION ── */}
               {projections.length > 1 && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
@@ -350,8 +409,12 @@ function HomeReportInner() {
               {/* ── RATE SCENARIOS ── */}
               {rateScenarios.length > 0 && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
-                  <div className="hr-section-label">Monthly Payment at Various Rates</div>
-                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 16 }}>Based on {fmtK(balance)} estimated balance · Includes est. taxes & insurance</div>
+                  <div className="hr-section-label">{isBuyer ? 'Monthly Payment at Ask Price' : 'Monthly Payment at Various Rates'}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 16 }}>
+                    {isBuyer
+                      ? `Based on ${fmtK(scenarioBase)} loan (20% down) · Includes est. taxes & insurance`
+                      : `Based on ${fmtK(balance)} estimated balance · Includes est. taxes & insurance`}
+                  </div>
                   <table className="hr-table">
                     <thead>
                       <tr>
@@ -384,8 +447,10 @@ function HomeReportInner() {
               {/* ── NEARBY SALES ── */}
               {sales.length > 0 && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
-                  <div className="hr-section-label">Recent Nearby Sales</div>
-                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 14 }}>Comparable homes sold recently in your area</div>
+                  <div className="hr-section-label">{isBuyer ? 'Recent Comparable Sales' : 'Recent Nearby Sales'}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 14 }}>
+                    {isBuyer ? 'What similar homes have sold for in this area' : 'Comparable homes sold recently in your area'}
+                  </div>
                   <table className="hr-table">
                     <thead>
                       <tr>
@@ -457,27 +522,38 @@ function HomeReportInner() {
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
                 {runSeed && (
                   <a href={`/chat?sq=${encodeURIComponent(runSeed)}`}
-                    style={{ padding: '12px 24px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.88rem', textDecoration: 'none', display: 'inline-block' }}>
+                    style={{ padding: '12px 24px', borderRadius: 999, background: isBuyer ? '#3b82f6' : '#00e87a', color: isBuyer ? '#fff' : '#07100f', fontWeight: 800, fontSize: '0.88rem', textDecoration: 'none', display: 'inline-block' }}>
                     Run My Numbers →
                   </a>
                 )}
-                <SignedIn>
-                  {!saved ? (
-                    <button onClick={saveProperty}
-                      style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.3)', color: '#00e87a', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      Save to My Properties
-                    </button>
-                  ) : (
-                    <Link href="/my-home"
-                      style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.3)', color: '#00e87a', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', textDecoration: 'none', display: 'inline-block' }}>
-                      View My Properties →
-                    </Link>
-                  )}
-                </SignedIn>
+                {isBuyer ? (
+                  /* Buyer: offer rate alert, not save-as-owned */
+                  <SignedIn>
+                    <a href={`/my-home?address=${encodeURIComponent(address)}`}
+                      style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(99,179,237,0.3)', color: '#60a5fa', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', textDecoration: 'none', display: 'inline-block' }}>
+                      Open in My Home →
+                    </a>
+                  </SignedIn>
+                ) : (
+                  /* Owner: save to properties */
+                  <SignedIn>
+                    {!saved ? (
+                      <button onClick={saveProperty}
+                        style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.3)', color: '#00e87a', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        Save to My Properties
+                      </button>
+                    ) : (
+                      <Link href="/my-home"
+                        style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.3)', color: '#00e87a', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', textDecoration: 'none', display: 'inline-block' }}>
+                        View My Properties →
+                      </Link>
+                    )}
+                  </SignedIn>
+                )}
                 <SignedOut>
                   <SignInButton mode="modal">
                     <button style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      Sign in to save & track
+                      {isBuyer ? 'Sign in for rate alerts' : 'Sign in to save & track'}
                     </button>
                   </SignInButton>
                 </SignedOut>
