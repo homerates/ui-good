@@ -1137,7 +1137,7 @@ export default function Page() {
     const composerRef = useRef<HTMLTextAreaElement>(null);
 
     // Seed composer once if we came from a shared-link card
-    const hasSeededFromShareRef = React.useRef(false);
+    const hasSeededFromShareRef = React.useRef<string | null>(null); // tracks last processed sq value
     const searchParams = useSearchParams();
 
     // borrower-only mode fixed
@@ -1190,13 +1190,15 @@ export default function Page() {
     const pendingSeedRef = React.useRef<string | null>(null);
     useEffect(() => {
         if (!searchParams) return;
-        if (hasSeededFromShareRef.current) return;
 
         const from = searchParams.get('fromShare');
         const sq = searchParams.get('sq');
 
         if (!sq) return;
-        hasSeededFromShareRef.current = true;
+        // Only fire if this is a NEW sq value — prevents duplicate fires on re-renders
+        // but allows re-firing when user navigates back with a different sq
+        if (hasSeededFromShareRef.current === sq) return;
+        hasSeededFromShareRef.current = sq;
 
         if (from === '1') {
             // fromShare: just pre-fill, don't auto-send

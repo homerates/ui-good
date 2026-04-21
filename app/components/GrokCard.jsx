@@ -224,7 +224,7 @@ const BQ_STYLES = {
 };
 
 // ===== Custom ReactMarkdown components =====================================
-function buildComponents() {
+function buildComponents(isAiResponse = false) {
     return {
         p({ children }) {
             const raw = Array.isArray(children) ? children.join("") : String(children ?? "");
@@ -240,6 +240,9 @@ function buildComponents() {
 
         h1({ children }) {
             const text   = String(children ?? "");
+            if (!isAiResponse) {
+                return <h1 style={{ margin: "18px 0 8px", fontSize: 16, fontWeight: 800, color: "#f1f5f9" }}>{text}</h1>;
+            }
             const meta   = getSectionMeta(text);
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "18px 0 10px", paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
@@ -250,6 +253,9 @@ function buildComponents() {
         },
         h2({ children }) {
             const text = String(children ?? "");
+            if (!isAiResponse) {
+                return <h2 style={{ margin: "16px 0 6px", fontSize: 14, fontWeight: 700, color: "#f1f5f9" }}>{text}</h2>;
+            }
             const meta = getSectionMeta(text);
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: 7, margin: "20px 0 8px", padding: "7px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8, borderLeft: `3px solid ${meta.color}` }}>
@@ -260,6 +266,9 @@ function buildComponents() {
         },
         h3({ children }) {
             const text = String(children ?? "");
+            if (!isAiResponse) {
+                return <h3 style={{ margin: "12px 0 4px", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{text}</h3>;
+            }
             const meta = getSectionMeta(text);
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "14px 0 6px" }}>
@@ -376,7 +385,8 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
         catch { return [{ type: "md", content: preparedFull }]; }
     }, [preparedFull]);
 
-    const components = useMemo(() => buildComponents(), []);
+    const isAiResponse = !!grok;
+    const components = useMemo(() => buildComponents(isAiResponse), [isAiResponse]);
 
     // Detect answer type for accent color
     const isBuyer    = /buyer|for sale|offer|comp|market position/i.test(answerMarkdown || "");

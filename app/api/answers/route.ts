@@ -6856,66 +6856,7 @@ Return valid JSON only:
         interactiveSlider: (affordabilityAnswer as any)?.interactiveSlider ?? null,
         lenderChecklist: (affordabilityAnswer as any)?.lenderChecklist ?? null,
         followUp: grokFinal?.follow_up || followUpFor(topic),
-        follow_up_chips: (() => {
-            // 0. Homeowner analysis — use property-specific chips
-            if (hoChips) return hoChips;
-            // 0b. "Run my numbers for {address}" — homeowner query without full snapshot
-            //     Grok would return first-time-buyer chips here; replace with relevant homeowner options
-            if (geoContext && /run.{0,20}(?:my\s+)?numbers?|my\s+home\s+analysis|home\s+intelligence/i.test(question)) {
-                const addrShort = question.match(/for\s+([^,]+)/i)?.[1]?.trim() ?? 'your home';
-                return [
-                    { label: 'What are my refinancing options?', seed: `What refinancing options do I have for ${addrShort}? Include rate-and-term, cash-out, and streamline options.` },
-                    { label: 'What will my home be worth in 5 years?', seed: `5-year home value forecast for ${addrShort} based on historical appreciation and market trends` },
-                    { label: 'How much equity can I build by staying?', seed: `Equity building analysis for ${addrShort}: how much equity will I gain over 3–5 years if I stay and keep paying?` },
-                    { label: 'Show me a full payment breakdown', seed: `Full PITI payment breakdown for ${addrShort}: principal, interest, taxes, and insurance` },
-                ];
-            }
-            // 1. UW guideline — always stays in UW pipeline
-            if (isUnderwritingGuidelineQuestion(question)) {
-                return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
-            }
-            // 1b. Homeowner payoff — focused acceleration chips
-            if (module === 'homeowner_payoff') {
-                return [
-                    { label: 'What if I add $200/mo extra to principal?', seed: 'How many years and dollars do I save if I add $200/month to principal on my current mortgage?' },
-                    { label: 'Refi to 15-year — is it worth it?', seed: 'Compare staying on my current loan vs refinancing to a 15-year fixed at current FRED rates — payment change, interest saved, breakeven' },
-                    { label: 'Show me biweekly payment savings', seed: 'Biweekly payment schedule: how much time and interest do I save vs monthly payments on my current mortgage?' },
-                    { label: 'What rate do I need to break even on a refi?', seed: 'What interest rate would I need to break even on a refinance within 3 years, based on my current balance?' },
-                ];
-            }
-            // 2. About — narrative arc
-            if (module === 'about') {
-                return [
-                    { label: 'Why is mortgage info so hard to trust?', seed: 'About HomeRates: why is mortgage information so hard to trust — why do borrowers get conflicting quotes and advice from lenders?' },
-                    { label: 'What does HomeRates.ai do differently?', seed: 'About HomeRates: how is HomeRates.ai different from a lender, broker, or generic AI tool like ChatGPT for mortgage questions?' },
-                    { label: 'What live data does HomeRates.ai use?', seed: 'About HomeRates: what live data sources does HomeRates.ai use — FRED, Freddie Mac, underwriting guidelines — and how does it stay current?' },
-                    { label: 'Who built this and why?', seed: 'About HomeRates: who is the founder and what problem were they trying to solve for borrowers?' },
-                    { label: 'Show me what it can do', seed: 'Show me the HomeRates Lab' },
-                ];
-            }
-            // 3. Snapshot context chips — mid-session always wins
-            const contextChips = getContextChips(snapshotLoanType, snapshotJson, snapshotText, fred);
-            if (contextChips) return contextChips;
-            // 4. FRED rate chips — only when no prior session context
-            if (usedFRED && (topic === 'rates' || module === 'rate')) {
-                const r30 = fred.mort30Avg != null ? `${fred.mort30Avg}%` : 'current';
-                const r15 = fred.mort15Avg != null ? `${fred.mort15Avg}%` : null;
-                const spread = fred.spread != null ? `${fred.spread}%` : null;
-                const curve = fred.t10y2y != null ? `${fred.t10y2y}%` : null;
-                const medPrice = fred.medianHomePrice != null ? `$${Math.round(fred.medianHomePrice / 1000)}k` : '$405k';
-                return [
-                    { label: r15 ? `15Y fixed at ${r15} — is it worth it?` : 'Is a 15-year fixed worth it at current rates?', seed: `Is a 15-year fixed mortgage worth it right now? Compare the payment difference vs 30-year at current rates` },
-                    { label: spread ? `Why is the mortgage-Treasury spread ${spread}?` : 'Why are mortgage rates so high vs Treasury yields?', seed: `Why is the spread between mortgage rates and the 10-year Treasury yield ${spread ?? 'elevated'}? What drives it and when does it compress?` },
-                    { label: curve ? `Yield curve at ${curve} — what does it mean for rates?` : 'What does the yield curve mean for mortgage rates?', seed: `Yield curve update: 10Y-2Y spread is currently ${curve ?? 'near flat'} — analyze the rate outlook for the next 6-12 months based on FRED data` },
-                    { label: `At ${r30}, can I afford ${medPrice}?`, seed: `Affordability check at today's ${r30} rate on a ${medPrice} home — what income and down payment do I need?` },
-                    { label: 'When will the Fed cut rates again?', seed: `Rate outlook: with Fed funds at ${fred.fedFunds ?? '3.64'}%, CPI at ${fred.cpi ?? 'current levels'}, and unemployment ${fred.unemployment ?? '4.4'}% — when will mortgage rates drop and by how much?` },
-                ];
-            }
-            // 5. Grok chips — use when Grok produced context-specific ones (e.g. needs-input prompts)
-            if (grokFinal?.follow_up_chips?.length) return grokFinal.follow_up_chips;
-            // 6. True fallback
-            return generateFallbackChips(question, conversationHistory);
-        })(),
+        follow_up_chips: [], // chips removed — will reintroduce one-at-a-time with robust parsing
     });
 }
 
