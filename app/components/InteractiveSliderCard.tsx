@@ -100,6 +100,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     // VA funding fee — initialise from prop (0 = exempt)
     const initFfPct = props.vaFundingFeePct ?? 2.15;
     const [vaFfPct, setVaFfPct]  = useState<number>(initFfPct);
+    // VA subsequent use
+    const [isSubsequentUse, setIsSubsequentUse] = useState(false);
+    const [priorBalance,    setPriorBalance]    = useState(300000);
     // Buydown mode
     const initBdType = (props.buydownType ?? 'none') as '2/1' | '1/0' | '3/2/1' | 'none';
     const [activeBdType, setActiveBdType] = useState<'2/1' | '1/0' | '3/2/1' | 'none'>(initBdType);
@@ -144,10 +147,24 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 ? computeBuydownSchedule(loanAmt, rate, term, activeBdType)
                 : null;
 
-        return { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown };
-    }, [price, downPct, rate, term, loanType, vaFfPct, activeBdType, props.taxRate, props.insRate]);
+        // VA entitlement (subsequent use) — county limit hardcoded to national baseline;
+        // user can adjust via the county limit is shown in the entitlement section
+        const COUNTY_LIMIT = 832750;
+        let entTotalEntitlement = 0, entUsed = 0, entRemaining = 0, entMaxZeroDn = 0, entDpNeeded = 0, entDpPct = 0;
+        if (loanType === 'va' && isSubsequentUse) {
+            entTotalEntitlement = Math.round(COUNTY_LIMIT * 0.25);
+            entUsed             = Math.round(priorBalance * 0.25);
+            entRemaining        = Math.max(0, entTotalEntitlement - entUsed);
+            entMaxZeroDn        = entRemaining * 4;
+            const required      = Math.round(price * 0.25);
+            entDpNeeded         = Math.max(0, required - entRemaining);
+            entDpPct            = price > 0 ? (entDpNeeded / price) * 100 : 0;
+        }
 
-    const { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown } = calc;
+        return { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown, entTotalEntitlement, entUsed, entRemaining, entMaxZeroDn, entDpNeeded, entDpPct };
+    }, [price, downPct, rate, term, loanType, vaFfPct, activeBdType, props.taxRate, props.insRate, isSubsequentUse, priorBalance]);
+
+    const { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown, entTotalEntitlement, entUsed, entRemaining, entMaxZeroDn, entDpNeeded, entDpPct } = calc;
 
     // When buydown active, hero shows yr1 payment as primary
     const yr1Total = buydown ? buydown.rows[0].pi + tax + ins + pmi : null;
@@ -159,20 +176,27 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const isDirty = price !== props.price || downPct !== props.downPct ||
         Math.abs(rate - props.rate) > 0.001 || term !== props.term ||
         loanType !== props.loanType || (loanType === 'va' && vaFfPct !== initFfPct) ||
-        activeBdType !== initBdType || sellerCreditAmt !== (props.sellerCredit ?? 0);
+        activeBdType !== initBdType || sellerCreditAmt !== (props.sellerCredit ?? 0) ||
+        isSubsequentUse;
 
     function buildSeed(): string {
         const bdSuffix = activeBdType !== 'none'
             ? ` with ${activeBdType} buydown${sellerCreditAmt > 0 ? ` and ${fmtDollar(sellerCreditAmt)} seller credit` : ''}`
             : '';
         if (loanType === 'fha')   return `FHA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
+        if (loanType === 'va' && isSubsequentUse) return `VA loan on a $${price.toLocaleString()} home at ${fmtRate(rate)} — I still have an active VA loan with a balance of $${priorBalance.toLocaleString()}`;
         if (loanType === 'va')    return `VA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)}${vaFfPct === 0 ? ', funding fee exempt' : ''}${bdSuffix}`;
         if (loanType === 'jumbo') return `Jumbo loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
         return `Conventional loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
     }
 
     function getRunOverrides(): Record<string, any> {
-        const vaBase = loanType === 'va' ? {
+        const vaBase = loanType === 'va' && isSubsequentUse ? {
+            purchasePrice:    price,
+            priorLoanBalance: priorBalance,
+            annualRatePct:    rate,
+            loanType:         'va',
+        } : loanType === 'va' ? {
             purchasePrice:      price,
             downPaymentPct:     downPct,
             annualRatePct:      rate,
@@ -383,6 +407,59 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                             ))}
                         </div>
                         <div className="isc__ff-hint">First use: 0% down=2.15% · 5%+ down=1.50% · 10%+ down=1.25% · Disability=Exempt</div>
+                    </div>
+                )}
+
+                {/* VA Subsequent Use — toggle + prior balance slider + entitlement breakdown */}
+                {loanType === 'va' && (
+                    <div className="isc__row">
+                        <div className="isc__row-hdr">
+                            <span className="isc__row-name">Subsequent Use</span>
+                            <button
+                                className={`isc__subseq-toggle${isSubsequentUse ? ' isc__subseq-toggle--on' : ''}`}
+                                onClick={() => setIsSubsequentUse(v => !v)}
+                            >
+                                {isSubsequentUse ? 'On — I have an active VA loan' : 'Off — First use / full entitlement'}
+                            </button>
+                        </div>
+                        {isSubsequentUse && (
+                            <>
+                                <SliderField
+                                    label="Prior VA Loan Balance"
+                                    value={priorBalance}
+                                    min={0}
+                                    max={Math.max(1500000, priorBalance)}
+                                    step={5000}
+                                    onChange={setPriorBalance}
+                                    format={v => fmtDollar(v)}
+                                    minLabel="$0"
+                                    maxLabel={fmtDollar(Math.max(1500000, priorBalance))}
+                                />
+                                <div className="isc__ent-table">
+                                    <div className="isc__ent-row">
+                                        <span>Total entitlement (25% of $832,750)</span>
+                                        <span>{fmtDollar(entTotalEntitlement)}</span>
+                                    </div>
+                                    <div className="isc__ent-row">
+                                        <span>Used (25% of {fmtDollar(priorBalance)})</span>
+                                        <span className="isc__ent-used">−{fmtDollar(entUsed)}</span>
+                                    </div>
+                                    <div className="isc__ent-row isc__ent-row--highlight">
+                                        <span>Remaining entitlement</span>
+                                        <span>{fmtDollar(entRemaining)}</span>
+                                    </div>
+                                    <div className="isc__ent-row">
+                                        <span>Max loan at $0 down</span>
+                                        <span>{fmtDollar(entMaxZeroDn)}</span>
+                                    </div>
+                                    <div className={`isc__ent-row isc__ent-row--dp${entDpNeeded > 0 ? ' isc__ent-row--warn' : ' isc__ent-row--ok'}`}>
+                                        <span><strong>Down payment required</strong></span>
+                                        <span><strong>{entDpNeeded > 0 ? `${fmtDollar(entDpNeeded)} (${entDpPct.toFixed(1)}%)` : '$0 — fully covered'}</strong></span>
+                                    </div>
+                                </div>
+                                <div className="isc__ff-hint">Based on standard county limit $832,750 — adjust for high-cost counties via AI. Check with your lender.</div>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -852,6 +929,71 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 }
                 .isc__rerun:hover { background: #1e293b; }
                 .isc__rerun:active { transform: scale(.97); }
+
+                /* Subsequent use toggle button */
+                .isc__subseq-toggle {
+                    padding: 5px 12px;
+                    border: 1.5px solid #e2e8f0;
+                    border-radius: 20px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    color: #64748b;
+                    background: #fff;
+                    transition: all .15s;
+                    white-space: nowrap;
+                }
+                .isc__subseq-toggle--on {
+                    border-color: #dc2626;
+                    color: #7f1d1d;
+                    background: #fff5f5;
+                }
+                .isc__subseq-toggle:hover:not(.isc__subseq-toggle--on) {
+                    border-color: #94a3b8;
+                    color: #374151;
+                }
+
+                /* Entitlement breakdown table */
+                .isc__ent-table {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    font-size: 12px;
+                    margin-top: 2px;
+                }
+                .isc__ent-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 7px 12px;
+                    border-bottom: 1px solid #f1f5f9;
+                    color: #374151;
+                    font-weight: 500;
+                }
+                .isc__ent-row:last-child { border-bottom: none; }
+                .isc__ent-row--highlight {
+                    background: #f0fdf4;
+                    color: #065f46;
+                    font-weight: 700;
+                }
+                .isc__ent-row--dp {
+                    background: #f8fafc;
+                }
+                .isc__ent-row--warn {
+                    background: #fffbeb;
+                    color: #92400e;
+                }
+                .isc__ent-row--ok {
+                    background: #f0fdf4;
+                    color: #065f46;
+                }
+                .isc__ent-used {
+                    color: #dc2626;
+                    font-weight: 700;
+                }
 
                 @media (max-width: 480px) {
                     .isc__amount { font-size: 1.9rem; }

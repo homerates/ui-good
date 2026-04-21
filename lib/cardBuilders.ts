@@ -2786,8 +2786,8 @@ ${countySection}${buydownSection}${dtiSection}
     const chips: BuiltCard['follow_up_chips'] = [
         {
             label: `I have an active VA loan — what's my down payment?`,
-            seed: `VA loan on a ${fK(r.purchasePrice)} home at ${fPct(r.originalRatePct)} — I still have an active VA loan with a balance of $`,
-            inputOnly: true,
+            seed: `VA subsequent use — ${fK(r.purchasePrice)} home at ${fPct(r.originalRatePct)}, prior VA balance $300,000`,
+            paramOverrides: { purchasePrice: r.purchasePrice, priorLoanBalance: 300000, annualRatePct: r.originalRatePct, loanType: 'va' },
         },
         {
             label: `Rate drops to ${fPct(rateDown)} — new payment?`,
