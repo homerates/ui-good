@@ -160,13 +160,13 @@ export default function ReportPage() {
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     const streetViewUrl = borrower?.property_address && mapsKey
-        ? `https://maps.googleapis.com/maps/api/streetview?size=900x360&location=${encodeURIComponent(borrower.property_address)}&key=${mapsKey}`
+        ? `https://maps.googleapis.com/maps/api/streetview?size=900x360&location=${encodeURIComponent(borrower.property_address)}&return_error_code=true&key=${mapsKey}`
         : null;
     const staticMapUrl = borrower?.property_address && mapsKey
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(borrower.property_address)}&zoom=15&size=400x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(borrower.property_address)}&key=${mapsKey}`
         : null;
-    // Use Redfin/Zillow scraped photo when Google Maps key is absent
-    const heroPhotoUrl = streetViewUrl ?? analysis?.photoUrl ?? null;
+    // Prefer Redfin/scraped photo — street view often returns "no imagery" placeholder
+    const heroPhotoUrl = analysis?.photoUrl ?? streetViewUrl ?? null;
 
     const psStyle = `
         body:has(.ps-root){display:block!important;height:auto!important;overflow-y:auto!important;background:#080c12!important;}
@@ -177,7 +177,7 @@ export default function ReportPage() {
         @keyframes spin{to{transform:rotate(360deg);}}
         @media(max-width:640px){
             .rp-hero-grid{grid-template-columns:1fr!important;height:auto!important;}
-            .rp-hero-map{display:none!important;}
+            .rp-hero-map{height:180px!important;}
             .rp-hero-photo{height:220px!important;}
             .rp-stats-4{grid-template-columns:1fr 1fr!important;gap:16px!important;padding:16px!important;}
             .rp-row2{grid-template-columns:1fr!important;}
@@ -296,7 +296,17 @@ export default function ReportPage() {
                         {heroPhotoUrl ? (
                             <div className="rp-hero-photo" style={{ position: 'relative', background: '#e2e8f0', overflow: 'hidden' }}>
                                 <img src={heroPhotoUrl} alt="Property" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                                    onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
+                                    onError={e => {
+                                        const img = e.target as HTMLImageElement;
+                                        // Cascade: Redfin photo → street view → hide
+                                        if (analysis?.photoUrl && img.src !== analysis.photoUrl) {
+                                            img.src = analysis.photoUrl;
+                                        } else if (streetViewUrl && img.src !== streetViewUrl) {
+                                            img.src = streetViewUrl.replace('return_error_code=true&', '');
+                                        } else {
+                                            img.parentElement!.style.display = 'none';
+                                        }
+                                    }} />
                                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.72) 0%, transparent 55%)' }} />
                                 <div style={{ position: 'absolute', bottom: 18, left: 20 }}>
                                     <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 3 }}>Home Intelligence Report</div>
@@ -340,7 +350,8 @@ export default function ReportPage() {
                 </div>
 
                 {/* ── ROW 2: Equity gauge + Rate sensitivity ────────── */}
-                <div className="rp-row2" style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, marginBottom: 16 }}>
+                {/* When equity gauge is absent, rate sensitivity spans full width */}
+                <div className="rp-row2" style={{ display: 'grid', gridTemplateColumns: (equityPct != null && balance != null && val != null) ? '1fr 1.4fr' : '1fr', gap: 16, marginBottom: 16 }}>
 
                     {/* Equity gauge */}
                     {equityPct != null && balance != null && val != null && (
