@@ -109,7 +109,8 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
     // Hoist all derived values before JSX
     const dp = data.downPaymentPct ?? Math.round((1 - data.ltv) * 100);
     const purpose = data.pdfType === 'refi' ? 'Refinance' : 'Purchase';
-    const lt = data.loanType.charAt(0).toUpperCase() + data.loanType.slice(1);
+    const LT_MAP: Record<string, string> = { va: 'VA', fha: 'FHA', conventional: 'Conventional', jumbo: 'Jumbo', dscr: 'DSCR' };
+    const lt = LT_MAP[data.loanType.toLowerCase()] ?? (data.loanType.charAt(0).toUpperCase() + data.loanType.slice(1));
     const matchParams = new URLSearchParams({
         from: 'scenario', lt,
         price: String(Math.round(data.price)),

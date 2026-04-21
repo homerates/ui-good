@@ -113,14 +113,15 @@ function PostScenarioContent() {
   // Pre-fill form from scenario params on first render
   useEffect(() => {
     if (!fromScenario) return;
-    const isVA = scLoanType === "VA";
+    const isVALoan = scLoanType.toUpperCase() === "VA";
+    const normLoanType = LOAN_TYPES.find(t => t.toUpperCase() === scLoanType.toUpperCase()) ?? "Conventional";
     setForm(prev => ({
       ...prev,
-      loan_type:        LOAN_TYPES.includes(scLoanType) ? scLoanType : "Conventional",
+      loan_type:        normLoanType,
       loan_purpose:     PURPOSES.includes(scPurpose) ? scPurpose : prev.loan_purpose,
       price_range:      scPrice > 0 ? priceToRange(scPrice) : prev.price_range,
-      // VA loans: always 0% down; otherwise use card dp if present
-      down_payment_pct: isVA ? "0" : (scDp > 0 ? String(scDp) : prev.down_payment_pct),
+      // VA: always 0% default (entitlement calc may require more, but lender match uses benefit); else use card dp
+      down_payment_pct: isVALoan ? "0" : (scDp > 0 ? String(scDp) : prev.down_payment_pct),
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -133,8 +134,15 @@ function PostScenarioContent() {
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
-  const isVA = form.loan_type === "VA" || (fromScenario && scLoanType === "VA");
-  const dpOptions = isVA ? [0, ...DOWN_PAYMENTS] : DOWN_PAYMENTS;
+  const isVA = form.loan_type === "VA" || (fromScenario && scLoanType.toUpperCase() === "VA");
+  const dpOptions = (() => {
+    const base = isVA ? [0, ...DOWN_PAYMENTS] : DOWN_PAYMENTS;
+    // Insert scenario dp if it's not already in the list (e.g. 5.7% from VA partial entitlement)
+    if (scDp > 0 && !base.includes(scDp)) {
+      return [...base, scDp].sort((a, b) => a - b);
+    }
+    return base;
+  })();
 
   // Loan type required; when arriving from scenario it's set automatically (defaults to Conventional)
   const step1Valid = form.loan_purpose && form.price_range && form.down_payment_pct && form.loan_type;
