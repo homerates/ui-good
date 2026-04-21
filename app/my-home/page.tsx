@@ -214,6 +214,11 @@ function CardEquity({ d, nearbySales }: { d: AnalysisData; nearbySales?: NearbyS
           <div className="mh-footnote" style={{ marginTop: 8 }}>Recent sales sourced from Redfin. For informational purposes only.</div>
         </div>
       )}
+      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <Link href={`/chat?sq=${encodeURIComponent(`Equity options for ${d.address}: value ${d.estimatedValue ? fmt(d.estimatedValue) : '?'}, balance ${d.estimatedBalance ? fmt(d.estimatedBalance) : '?'}, equity ${d.estimatedEquity ? fmt(d.estimatedEquity) : '?'} (${d.equityPct ?? '?'}%). What are my best options — HELOC, cash-out refi, or sell?`)}`} className="mh-cta-link">
+          Explore my equity options →
+        </Link>
+      </div>
     </div>
   );
 }
@@ -269,6 +274,11 @@ function CardHELOC({ d }: { d: AnalysisData }) {
         Rate is estimated Prime + 0.50% variable. Actual rates vary by lender, credit, and LTV.{' '}
         <Link href="/messages" className="mh-inline-link">
           Message my LO →
+        </Link>
+      </div>
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <Link href={`/chat?sq=${encodeURIComponent(`HELOC vs cash-out refi analysis for ${d.address}: I have ${d.helocMax ? '$' + Math.round(d.helocMax).toLocaleString() : 'equity'} available at ~${d.helocRate?.toFixed(2) ?? '7.75'}% HELOC rate. Compare accessing equity via HELOC vs cash-out refi at today's ${d.liveRate.toFixed(2)}% rate. Show payments, costs, and break-even.`)}`} className="mh-cta-link">
+          Compare HELOC vs cash-out refi →
         </Link>
       </div>
     </div>
@@ -422,6 +432,11 @@ function CardEconomy({ d }: { d: AnalysisData }) {
           <div className="mh-footnote">Rent estimate from Rentcast market data. Ownership cost includes est. taxes &amp; insurance at 1.5% annual.</div>
         </div>
       )}
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <Link href={`/chat?sq=${encodeURIComponent(`I own ${d.address}. Market rate is ${d.liveRate.toFixed(2)}% and my rate is ${d.purchaseRate?.toFixed(2) ?? 'unknown'}%. How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC rate, and overall equity strategy?`)}`} className="mh-cta-link">
+          How do rates affect my options? →
+        </Link>
+      </div>
     </div>
   );
 }
@@ -474,6 +489,11 @@ function CardMilestones({ d }: { d: AnalysisData }) {
         </div>
       ))}
       <div className="mh-footnote" style={{ marginTop: 16 }}>Milestones based on Rentcast AVM, FRED rates, and 4.2% national avg. appreciation.</div>
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <Link href={`/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${d.address}: ${d.estimatedEquity ? '$' + Math.round(d.estimatedEquity).toLocaleString() + ' current equity' : 'equity tracker'}${d.payoffYear ? `, mortgage payoff projected ${d.payoffYear}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`} className="mh-cta-link">
+          Get my full payoff plan →
+        </Link>
+      </div>
     </div>
   );
 }
@@ -576,6 +596,11 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
           {[d.beds && `${d.beds} bd`, d.baths && `${d.baths} ba`, d.sqft && `${d.sqft.toLocaleString()} sqft`].filter(Boolean).join(' · ')}
         </div>
       ) : null}
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
+        <a href={`/chat?sq=${encodeURIComponent(`Pricing analysis for ${d.address}: listed at ${listPrice ? fmt(listPrice) : '?'}${spread != null ? `, Redfin AVM ${avm ? fmt(avm) : '?'} (${spread > 0 ? '+' : ''}${spread}% vs ask)` : ''}${d.daysOnMarket != null ? `, ${d.daysOnMarket} days on market` : ''}${basisGain != null ? `, seller gain ${basisGain}% since purchase` : ''}. Is this home fairly priced and what should I offer?`)}`} className="mh-cta-link" style={{ color: '#93c5fd' }}>
+          Run pricing analysis in chat →
+        </a>
+      </div>
     </div>
   );
 }
@@ -632,6 +657,11 @@ function CardMyPayment({ d }: { d: AnalysisData }) {
       <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: '0.68rem', color: '#334155' }}>
         Down payment: ${Math.round(askPrice * 0.20).toLocaleString()} · Loan amount: ${Math.round(askPrice * 0.80).toLocaleString()}
       </div>
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
+        <a href={`/chat?sq=${encodeURIComponent(`Full buyer analysis for ${d.address}${askPrice ? ` at ${fmt(askPrice)}` : ''}: 20% down, ${liveRate.toFixed(2)}% rate, 30yr fixed. Show monthly PITI, total interest over loan term, break-even vs renting, and 5 and 10-year equity projection.`)}`} className="mh-cta-link" style={{ color: '#93c5fd' }}>
+          Full buyer analysis in chat →
+        </a>
+      </div>
     </div>
   );
 }
@@ -687,6 +717,11 @@ function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: Near
           </div>
         ))}
       </div>
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
+        <a href={buildCMAUrl(d)} className="mh-cta-link" style={{ color: '#93c5fd' }}>
+          Run a full CMA with full market data →
+        </a>
+      </div>
     </div>
   );
 }
@@ -733,6 +768,11 @@ function CardTrueCost({ d }: { d: AnalysisData }) {
       </div>
       <div style={{ marginTop: 12, fontSize: '0.65rem', color: '#334155', lineHeight: 1.5 }}>
         Assumes 20% down, 30yr fixed, 1.1% tax, 0.5% insurance, 4.2%/yr appreciation (FHFA historical avg).
+      </div>
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
+        <a href={`/chat?sq=${encodeURIComponent(`True cost of buying ${d.address}${askPrice ? ` at ${fmt(askPrice)}` : ''}: 20% down, ${rate.toFixed(2)}% rate. Break down total cost at 5 and 10 years including interest paid, taxes, insurance, opportunity cost vs renting, and equity built. Is this a good investment horizon?`)}`} className="mh-cta-link" style={{ color: '#93c5fd' }}>
+          Model my full ownership costs →
+        </a>
       </div>
     </div>
   );
@@ -791,6 +831,11 @@ function CardOfferSignal({ d, nearbySales }: { d: AnalysisData; nearbySales?: Ne
           ))}
         </div>
       )}
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
+        <a href={`/chat?sq=${encodeURIComponent(`Offer strategy for ${d.address}: ${priceReason ? priceReason + '. ' : ''}${dom != null ? `${dom} days on market. ` : ''}${d.listPrice ? `Listed at ${fmt(d.listPrice)}. ` : ''}Based on these signals, what offer price should I make, what contingencies should I include, and what's the strongest overall offer strategy?`)}`} className="mh-cta-link" style={{ color: '#93c5fd' }}>
+          Get offer strategy advice →
+        </a>
+      </div>
     </div>
   );
 }
@@ -1707,9 +1752,9 @@ function MyHomePageInner() {
                       {!showAlertBox ? (
                         <button
                           onClick={() => setShowAlertBox(true)}
-                          style={{ fontSize: '0.78rem', color: 'rgba(0,232,122,0.7)', background: 'none', border: '1px solid rgba(0,232,122,0.2)', borderRadius: 999, padding: '5px 14px', cursor: 'pointer' }}
+                          style={{ fontSize: '0.78rem', color: isBuyer ? 'rgba(99,179,237,0.7)' : 'rgba(0,232,122,0.7)', background: 'none', border: `1px solid ${isBuyer ? 'rgba(99,179,237,0.2)' : 'rgba(0,232,122,0.2)'}`, borderRadius: 999, padding: '5px 14px', cursor: 'pointer' }}
                         >
-                          🔔 Set Rate Alert
+                          {isBuyer ? '🔔 Alert me when rates drop before I buy' : '🔔 Set Rate Alert'}
                         </button>
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -1752,8 +1797,13 @@ function MyHomePageInner() {
                           const rate = analysis?.purchaseRate ?? live;
                           if (isBuyer) {
                             const ask = analysis.listPrice ?? analysis.estimatedValue;
+                            const avm = analysis.estimatedValue;
+                            const spread = (ask && avm) ? Math.round((avm - ask) / ask * 100) : null;
                             if (activeBuyerChip === 'comps') return buildCMAUrl(analysis);
-                            if (activeBuyerChip === 'payment' && ask) return `/chat?sq=${encodeURIComponent(`What is the PITI payment for ${addr} at $${Math.round(ask).toLocaleString()} with ${live.toFixed(2)}% rate and 20% down?`)}`;
+                            if (activeBuyerChip === 'payment' && ask) return `/chat?sq=${encodeURIComponent(`Full payment breakdown for buying ${addr} at $${Math.round(ask).toLocaleString()}: 20% down, ${live.toFixed(2)}% rate, 30yr fixed. Include monthly PITI, total interest, and 5-year equity projection.`)}`;
+                            if (activeBuyerChip === 'position' && ask) return `/chat?sq=${encodeURIComponent(`Pricing analysis for ${addr}: listed at $${Math.round(ask).toLocaleString()}${spread != null ? `, Redfin AVM ${avm ? '$' + Math.round(avm).toLocaleString() : '?'} (${spread > 0 ? '+' : ''}${spread}% vs ask)` : ''}${analysis.daysOnMarket != null ? `, ${analysis.daysOnMarket} days on market` : ''}. Is this fairly priced and what should I offer?`)}`;
+                            if (activeBuyerChip === 'cost' && ask) return `/chat?sq=${encodeURIComponent(`True cost of buying ${addr} at $${Math.round(ask).toLocaleString()}: 20% down, ${live.toFixed(2)}% rate. Break down total costs at 5 and 10 years including interest, taxes, insurance, and equity built.`)}`;
+                            if (activeBuyerChip === 'signal' && ask) return `/chat?sq=${encodeURIComponent(`Offer strategy for ${addr}: listed at $${Math.round(ask).toLocaleString()}${analysis.daysOnMarket != null ? `, ${analysis.daysOnMarket} days on market` : ''}${spread != null ? `, priced ${spread > 0 ? '+' : ''}${spread}% vs AVM` : ''}. What offer price, contingencies, and strategy do you recommend?`)}`;
                             return `/chat?sq=${encodeURIComponent(`I'm considering buying ${addr}${ask ? ` at $${Math.round(ask).toLocaleString()}` : ''}. Is it priced fairly and what are my monthly costs?`)}`;
                           }
                           if (activeChip === 'refi') {
@@ -1766,7 +1816,13 @@ function MyHomePageInner() {
                             return `/chat?sq=${encodeURIComponent(`HELOC analysis for ${addr}: I have ${analysis.helocMax ? '$' + Math.round(analysis.helocMax).toLocaleString() : 'equity'} available at ~${analysis.helocRate?.toFixed(2) ?? '7.75'}%. What are my best options for accessing home equity?`)}`;
                           }
                           if (activeChip === 'equity' && bal) {
-                            return `/chat?sq=${encodeURIComponent(`Equity analysis for ${addr}: estimated value ${analysis?.estimatedValue ? '$' + Math.round(analysis.estimatedValue).toLocaleString() : 'unknown'}, balance $${Math.round(bal).toLocaleString()}, equity ${analysis?.estimatedEquity ? '$' + Math.round(analysis.estimatedEquity).toLocaleString() : 'unknown'}. What are my options?`)}`;
+                            return `/chat?sq=${encodeURIComponent(`Equity options for ${addr}: value ${analysis?.estimatedValue ? '$' + Math.round(analysis.estimatedValue).toLocaleString() : '?'}, balance $${Math.round(bal).toLocaleString()}, equity ${analysis?.estimatedEquity ? '$' + Math.round(analysis.estimatedEquity).toLocaleString() : '?'} (${analysis.equityPct ?? '?'}%). What are my best options — HELOC, cash-out refi, or sell?`)}`;
+                          }
+                          if (activeChip === 'economy') {
+                            return `/chat?sq=${encodeURIComponent(`I own ${addr}. Market rate is ${live.toFixed(2)}%, my rate is ${rate.toFixed(2)}%. How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC rate, and equity strategy?`)}`;
+                          }
+                          if (activeChip === 'milestones') {
+                            return `/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${addr}: ${analysis?.estimatedEquity ? '$' + Math.round(analysis.estimatedEquity).toLocaleString() + ' current equity' : 'building equity'}${analysis?.payoffYear ? `, projected payoff ${analysis.payoffYear}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`;
                           }
                           return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
                         })()}
@@ -1837,8 +1893,8 @@ function MyHomePageInner() {
                   </div>
                 )}
 
-                {/* DIGEST TOGGLE — consumer only */}
-                {!borrowerId && <div className="mh-card">
+                {/* DIGEST TOGGLE — homeowner only (not buyer mode) */}
+                {!borrowerId && !(analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING') && <div className="mh-card">
                   <div className="mh-card-label">Weekly Digest</div>
                   <div className="mh-digest-row">
                     <div className="mh-digest-info">
