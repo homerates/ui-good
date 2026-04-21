@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
 
   const hasCardData = !!(card_price && card_rate && card_monthly);
 
-  if (!loan_type || !price_range || !down_payment_pct || !income_range || !credit_tier || !timeline || !state) {
+  if (!loan_type || !price_range || down_payment_pct == null || !income_range || !credit_tier || !timeline || !state) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
