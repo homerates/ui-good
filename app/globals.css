@@ -228,6 +228,7 @@ body {
   flex: 1;
   padding-bottom: calc(var(--footer-h, 40px) + 84px);
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 
@@ -1165,7 +1166,8 @@ body {
    ===================================================== */
 html:has(.page-shell),
 body:has(.page-shell) {
-  overflow: auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
   height: auto !important;
 }
 
@@ -1509,6 +1511,7 @@ body:has(.page-shell) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Prevent messages from hiding behind the Ask composer */

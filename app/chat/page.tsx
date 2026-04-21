@@ -2739,6 +2739,7 @@ export default function Page() {
                         flex: '1 1 auto',
                         minHeight: 0,
                         overflowY: 'auto',
+                        overflowX: 'hidden',
                         overflowAnchor: 'none',
                     }}
                 >
