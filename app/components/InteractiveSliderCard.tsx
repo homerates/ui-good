@@ -7,8 +7,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
-import { CA_LOAN_LIMITS_2026 } from '@/lib/loanLimits2026';
-import { HIGH_COST_COUNTIES } from '@/lib/loanLimitsNational2026';
+import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
+import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '@/loanLimitsNational2026';
 
 export interface SliderCardParams {
     price: number;
@@ -125,7 +125,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             if (c.county.includes(upper))
                 results.push({ label: c.county, state: 'CA', limit: c.conforming.units1 });
         }
-        for (const [state, counties] of Object.entries(HIGH_COST_COUNTIES)) {
+        for (const [state, counties] of Object.entries(HIGH_COST_COUNTIES) as [string, NationalCountyLimits[]][]) {
             for (const c of counties) {
                 if (c.county.includes(upper))
                     results.push({ label: c.county, state, limit: c.conforming.units1 });
@@ -149,7 +149,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 for (const c of CA_LOAN_LIMITS_2026)
                     list.push({ label: c.county, state: 'CA', limit: c.conforming.units1 });
             } else if (HIGH_COST_COUNTIES[st]) {
-                for (const c of HIGH_COST_COUNTIES[st])
+                for (const c of (HIGH_COST_COUNTIES[st] as NationalCountyLimits[]))
                     list.push({ label: c.county, state: st, limit: c.conforming.units1 });
             }
             if (list.length > 0) {
