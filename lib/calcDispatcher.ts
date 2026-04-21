@@ -671,13 +671,27 @@ export function dispatch(
     // ── 0a. HOMEOWNER EQUITY / PAYOFF CONTEXT — seeded from my-home milestones/equity CTAs ──
     // These queries contain dollar amounts that are equity/balance figures, NOT purchase prices.
     // Must be caught before extractPrice() runs or they dispatch as conventional purchase loans.
+
+    // Payoff trajectory / HELOC comparison / rate impact — pure Grok analysis
     if (
         /payoff.*(?:plan|trajectory|acceleration|milestones)|wealth.?building milestones/i.test(q) ||
-        /equity trajectory|equity options.*(?:heloc|cash.?out|sell)|current equity.*(?:mortgage|payoff|balance)/i.test(q) ||
+        /equity trajectory|current equity.*(?:mortgage|payoff|balance)/i.test(q) ||
         /(?:heloc|cash.?out).*(compare|vs|versus).*refi|refi.*(compare|vs|versus).*(?:heloc|cash.?out)/i.test(q) ||
         /how do (?:rates?|current).+(?:affect|impact).*(?:refi|heloc|equity|options)/i.test(q)
     ) {
         return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+    }
+
+    // "Equity options for <address>: value X, balance Y ... HELOC, cash-out refi, or sell?"
+    // Route to refi card (cash-out) with balance pre-filled from seed — avoids Grok asking for data already provided
+    if (/equity options.*(?:heloc|cash.?out|sell)/i.test(q)) {
+        const balance = extractBalance(q) ?? null;
+        return {
+            type: 'refi_needs_input' as CalcType,
+            params: { refiType: 'cash_out', parsedBalance: balance, parsedCurrentRate: null, parsedNewRate: null } as RefiNeedsInput,
+            confidence: 0,
+            assumptions: balance ? [`Balance $${balance.toLocaleString()} extracted from equity seed`] : [],
+        };
     }
 
     // ── 1. REFI (highest priority — must run before affordability/conventional) ──

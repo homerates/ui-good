@@ -1349,8 +1349,12 @@ export default function Page() {
             if (data.memoryThreadByChatId) setMemoryThreadByChatId(data.memoryThreadByChatId);
 
             if (data.activeId && data.threads?.[data.activeId]) {
-                setActiveId(data.activeId);
-                setMessages(data.threads[data.activeId] || []);
+                // Don't restore previous thread if ?sq= is in the URL — newChat() will fire and win
+                const hasSqParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sq');
+                if (!hasSqParam) {
+                    setActiveId(data.activeId);
+                    setMessages(data.threads[data.activeId] || []);
+                }
             }
         } catch (e) {
             console.warn('hr.chat load failed', e);
