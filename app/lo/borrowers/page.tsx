@@ -26,6 +26,7 @@ type Borrower = {
 export default function LoBorrowersPage() {
     const { isLoaded, isSignedIn } = useAuth();
     const router = useRouter();
+    const [isAgent, setIsAgent] = React.useState(false);
     const [borrowers, setBorrowers] = React.useState<Borrower[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [creating, setCreating] = React.useState(false);
@@ -208,10 +209,14 @@ export default function LoBorrowersPage() {
                 setBorrowers(d.borrowers ?? []);
                 setLoading(false);
             })
-            .catch(() => { setError("Failed to load borrowers. Please refresh."); setLoading(false); });
+            .catch(() => { setError("Failed to load clients. Please refresh."); setLoading(false); });
         fetch("/api/credits")
             .then(r => r.ok ? r.json() : null)
             .then(d => { if (d?.balance !== undefined) setLoBalance(d.balance); })
+            .catch(() => {});
+        fetch("/api/profile")
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.role === "agent" || d?.agent) setIsAgent(true); })
             .catch(() => {});
     }, []);
 
@@ -424,9 +429,9 @@ export default function LoBorrowersPage() {
             {/* Header */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
                 <div>
-                    <h1 style={{ fontSize: "1.35rem", fontWeight: 700, margin: "0 0 4px", color: "#f1f5f9" }}>Borrowers</h1>
+                    <h1 style={{ fontSize: "1.35rem", fontWeight: 700, margin: "0 0 4px", color: "#f1f5f9" }}>{isAgent ? "Clients" : "Borrowers"}</h1>
                     <p style={{ margin: 0, fontSize: "0.88rem", color: "rgba(185,208,192,0.7)" }}>
-                        Manage borrowers, set their property address, and send monthly home digests.
+                        Manage {isAgent ? "clients" : "borrowers"}, set their property address, and send monthly home digests.
                     </p>
                     {loBalance !== null && (
                         <p style={{ margin: "6px 0 0", fontSize: "0.78rem", color: "rgba(0,232,122,0.7)" }}>
@@ -694,7 +699,7 @@ export default function LoBorrowersPage() {
                     border: "1px solid rgba(0,232,122,0.2)", background: "rgba(0,232,122,0.03)",
                 }}>
                     <p style={{ margin: "0 0 14px", fontSize: "0.88rem", fontWeight: 600, color: "#e0f0e8" }}>
-                        Add a borrower by email
+                        Add a {isAgent ? "client" : "borrower"} by email
                     </p>
                     <p style={{ margin: "0 0 16px", fontSize: "0.78rem", color: "rgba(185,208,192,0.55)", lineHeight: 1.6 }}>
                         They'll receive a welcome email from you with today's rate and a link to activate their free account.
@@ -702,7 +707,7 @@ export default function LoBorrowersPage() {
                     </p>
                     {quickAddOk ? (
                         <p style={{ color: "#00e87a", fontSize: "0.88rem", fontWeight: 600 }}>
-                            ✓ Borrower added{quickForm.sendWelcome ? " and welcome email sent" : ""}
+                            ✓ {isAgent ? "Client" : "Borrower"} added{quickForm.sendWelcome ? " and welcome email sent" : ""}
                         </p>
                     ) : (
                         <form onSubmit={handleQuickAdd} style={{ display: "grid", gap: 10 }}>
@@ -741,7 +746,7 @@ export default function LoBorrowersPage() {
                                     background: quickAdding ? "rgba(0,232,122,0.3)" : "#00e87a",
                                     color: "#080c12", fontSize: "0.85rem", fontWeight: 700, cursor: quickAdding ? "default" : "pointer",
                                 }}>
-                                    {quickAdding ? "Adding…" : "Add Borrower"}
+                                    {quickAdding ? "Adding…" : isAgent ? "Add Client" : "Add Borrower"}
                                 </button>
                                 <button type="button" onClick={() => setQuickAddOpen(false)} style={{
                                     padding: "9px 16px", borderRadius: 999,
@@ -784,11 +789,11 @@ export default function LoBorrowersPage() {
 
             {/* Borrower list */}
             {loading ? (
-                <p style={{ color: "rgba(185,208,192,0.5)", fontSize: "0.88rem" }}>Loading borrowers…</p>
+                <p style={{ color: "rgba(185,208,192,0.5)", fontSize: "0.88rem" }}>Loading {isAgent ? "clients" : "borrowers"}…</p>
             ) : borrowers.length === 0 ? (
                 <div style={{ padding: "40px 24px", borderRadius: 14, border: "1px dashed rgba(148,163,184,0.15)", textAlign: "center" }}>
-                    <p style={{ color: "rgba(185,208,192,0.5)", margin: "0 0 8px" }}>No borrowers yet.</p>
-                    <p style={{ color: "rgba(185,208,192,0.35)", fontSize: "0.82rem", margin: 0 }}>Invite a borrower using the button above.</p>
+                    <p style={{ color: "rgba(185,208,192,0.5)", margin: "0 0 8px" }}>No {isAgent ? "clients" : "borrowers"} yet.</p>
+                    <p style={{ color: "rgba(185,208,192,0.35)", fontSize: "0.82rem", margin: 0 }}>Invite a {isAgent ? "client" : "borrower"} using the button above.</p>
                 </div>
             ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

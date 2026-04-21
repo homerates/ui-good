@@ -118,7 +118,7 @@ export default function LOScenariosPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  const [loProfile, setLoProfile] = useState<{ full_name: string; nmls: string; license_state: string } | null>(null);
+  const [loProfile, setLoProfile] = useState<{ full_name: string; nmls: string; license_state: string; is_agent: boolean } | null>(null);
   type GateStatus = "loading" | "ok" | "not-lo" | "no-nmls" | "no-plan";
   const [gateStatus, setGateStatus] = useState<GateStatus>("loading");
 
@@ -130,17 +130,22 @@ export default function LOScenariosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType, filterState, sort]);
 
-  // Fetch LO profile — gate check + form pre-fill + state default
+  // Fetch profile — gate check + form pre-fill + state default (supports both LO and Agent)
   useEffect(() => {
     fetch("/api/profile")
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) { setGateStatus("not-lo"); return; }
-        if (!d.lo && d.role !== "lo" && !d.isLO) { setGateStatus("not-lo"); return; }
-        if (!d.lo?.nmls) { setGateStatus("no-nmls"); return; }
+        const isAgent = d.role === "agent" || !!d.agent;
+        const isLO    = d.isLO || d.role === "lo" || !!d.lo;
+        if (!isLO && !isAgent) { setGateStatus("not-lo"); return; }
+        // LOs need NMLS; agents need DRE license
+        if (isLO    && !d.lo?.nmls)       { setGateStatus("no-nmls"); return; }
+        if (isAgent && !d.agent?.license) { setGateStatus("no-nmls"); return; }
         if (d.plan !== "pro") { setGateStatus("no-plan"); return; }
         const licenseState = d.lo?.license_state ?? "";
-        setLoProfile({ full_name: d.full_name ?? d.clerkName ?? "", nmls: d.lo.nmls ?? "", license_state: licenseState });
+        const licenseNum   = isAgent ? (d.agent?.license ?? "") : (d.lo?.nmls ?? "");
+        setLoProfile({ full_name: d.full_name ?? d.clerkName ?? "", nmls: licenseNum, license_state: licenseState, is_agent: isAgent });
         if (licenseState) setFilterState(licenseState);
         setGateStatus("ok");
       })
@@ -361,16 +366,16 @@ export default function LOScenariosPage() {
   const GATE_MESSAGES: Record<string, { icon: string; title: string; body: string; cta: string; href: string }> = {
     "not-lo": {
       icon: "🔒",
-      title: "Loan Officers Only",
-      body: "The Scenario Board is reserved for registered loan officers. Complete your professional profile to access live borrower scenarios.",
+      title: "Professionals Only",
+      body: "The Scenario Board is reserved for registered loan officers and real estate agents. Complete your professional profile to access live borrower scenarios.",
       cta: "Complete My Profile →",
       href: "/profile",
     },
     "no-nmls": {
       icon: "📋",
-      title: "NMLS Number Required",
-      body: "You need a verified NMLS number on your profile before you can respond to borrower scenarios. Add it in your LO profile.",
-      cta: "Add NMLS to Profile →",
+      title: "License Number Required",
+      body: "You need a verified NMLS number (LOs) or DRE license (agents) on your profile before you can respond to borrower scenarios.",
+      cta: "Add License to Profile →",
       href: "/profile",
     },
     "no-plan": {
@@ -867,7 +872,7 @@ export default function LOScenariosPage() {
                       />
                     </div>
                     <div className="los-mf">
-                      <label>NMLS #</label>
+                      <label>{loProfile?.is_agent ? "DRE #" : "NMLS #"}</label>
                       <input
                         className="los-input"
                         value={loNmls}
