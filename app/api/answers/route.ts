@@ -4695,7 +4695,48 @@ ${uwAnswerText}`,
 
             } else if (calcDispatch.type === 'va' && calcDispatch.params) {
                 const result = calcVA(calcDispatch.params as any);
-                calcCard = buildVACard(result, calcAssumptions, fredRateForCard);
+                // Resolve county data for VA eligibility section (best-effort)
+                let vaCountyData: import('../../../lib/cardBuilders').VACountyData | undefined;
+                try {
+                    const _vaZip = extractZip(question);
+                    // CA: ZIP → county, then limits
+                    if (_vaZip && /^9[0-6]/.test(_vaZip)) {
+                        const _caCounty = getCACountyByZip(_vaZip);
+                        if (_caCounty) {
+                            const _caLimits = getCALoanLimits(_caCounty);
+                            if (_caLimits) {
+                                vaCountyData = { countyName: _caLimits.county, stateAbbr: 'CA', limit: _caLimits.conformingLimit, isHighBalance: _caLimits.conformingLimit > NATIONAL_CONFORMING_BASELINE.units1};
+                            }
+                        }
+                    }
+                    // CA: city name in question (no ZIP)
+                    if (!vaCountyData) {
+                        const _caMatch = question.match(/\b(nipomo|atascadero|paso robles|arroyo grande|pismo beach|grover beach|morro bay|cambria|san luis obispo|santa barbara|goleta|lompoc|monterey|carmel|seaside|king city|santa cruz|capitola|watsonville|scotts valley|los angeles|orange|irvine|anaheim|san diego|san francisco|san jose|sacramento|fresno|riverside|bakersfield|stockton|modesto|marin|napa|sonoma|ventura|santa clara|alameda|contra costa|san mateo|thousand oaks|long beach|oakland|berkeley|fremont|hayward|palo alto|mountain view|sunnyvale|cupertino|santa rosa|petaluma)\b/i);
+                        if (_caMatch) {
+                            const _caLimits = getCALoanLimits(_caMatch[1]);
+                            if (_caLimits) {
+                                vaCountyData = { countyName: _caLimits.county, stateAbbr: 'CA', limit: _caLimits.conformingLimit, isHighBalance: _caLimits.conformingLimit > NATIONAL_CONFORMING_BASELINE.units1};
+                            }
+                        }
+                    }
+                    // Non-CA: extract state abbreviation + county/city
+                    if (!vaCountyData) {
+                        const _stateMatch = question.match(/\b([A-Z]{2})\b/) ?? question.match(/\b(alabama|alaska|arizona|arkansas|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming)\b/i);
+                        if (_stateMatch) {
+                            const _stateRaw = _stateMatch[1];
+                            const _abbr = _stateRaw.length === 2 ? _stateRaw.toUpperCase() : (Object.entries({ alabama:'AL',alaska:'AK',arizona:'AZ',arkansas:'AR',colorado:'CO',connecticut:'CT',delaware:'DE',florida:'FL',georgia:'GA',hawaii:'HI',idaho:'ID',illinois:'IL',indiana:'IN',iowa:'IA',kansas:'KS',kentucky:'KY',louisiana:'LA',maine:'ME',maryland:'MD',massachusetts:'MA',michigan:'MI',minnesota:'MN',mississippi:'MS',missouri:'MO',montana:'MT',nebraska:'NE',nevada:'NV','new hampshire':'NH','new jersey':'NJ','new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND',ohio:'OH',oklahoma:'OK',oregon:'OR',pennsylvania:'PA','rhode island':'RI','south carolina':'SC','south dakota':'SD',tennessee:'TN',texas:'TX',utah:'UT',vermont:'VT',virginia:'VA',washington:'WA','west virginia':'WV',wisconsin:'WI',wyoming:'WY' }).find(([k]) => k === _stateRaw.toLowerCase())?.[1] ?? null);
+                            if (_abbr && _abbr !== 'VA') { // skip VA (veteran) false match
+                                const _countyMatch = question.match(/\b(\w[\w\s]{2,25}?)\s+(?:county|co\.)/i);
+                                const _countyName = _countyMatch ? _countyMatch[1].trim() : '';
+                                if (_countyName) {
+                                    const _natLimits = getNationalLimits(_abbr, _countyName);
+                                    vaCountyData = { countyName: _countyName, stateAbbr: _abbr, limit: _natLimits.conforming.units1, isHighBalance: _natLimits.isHighBalance };
+                                }
+                            }
+                        }
+                    }
+                } catch (_e) { /* county lookup is best-effort */ }
+                calcCard = buildVACard(result, calcAssumptions, fredRateForCard, vaCountyData);
                 calcDebugModel = 'calcEngine-va';
                 injectCmaChip(calcCard);
 

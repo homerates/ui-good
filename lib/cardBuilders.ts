@@ -2628,10 +2628,18 @@ export function buildHowItWorksCard(): BuiltCard {
 // VA LOAN CARD
 // ─────────────────────────────────────────────
 
+export interface VACountyData {
+    countyName: string;
+    stateAbbr: string;
+    limit: number;
+    isHighBalance: boolean;
+}
+
 export function buildVACard(
     r: VAResult,
     assumptions: string[] = [],
     fredRateStr?: string,
+    countyData?: VACountyData,
 ): BuiltCard {
     const rateStr  = fPct(r.annualRatePct);
     const origRate = fPct(r.originalRatePct);
@@ -2672,6 +2680,23 @@ export function buildVACard(
         : r.vaSavingsVsConv <= 0
             ? `\n> ℹ️ VA monthly cost similar to conventional at this down payment — funding fee is the trade-off for no PMI.\n`
             : '';
+
+    // County eligibility section
+    const countySection = countyData ? `
+---
+
+## 📍 ${countyData.countyName} County, ${countyData.stateAbbr} — 2026 Loan Limits
+
+| | |
+|--|--|
+| 2026 Conforming Limit | ${f$(countyData.limit)}${countyData.isHighBalance ? ' *(high-balance county)*' : ''} |
+| Your VA Loan | ${f$(r.totalLoanAmount)} — ${countyData.limit < r.totalLoanAmount ? `**VA Jumbo** (${Math.round((r.totalLoanAmount / countyData.limit - 1) * 100)}% above county limit)` : '✅ within county limit'} |
+| Full Entitlement | ✅ No loan limit cap since Jan 2020 (Blue Water Navy Act) |
+| VA Guaranty | 25% of ${f$(r.totalLoanAmount)} = **${f$(Math.round(r.totalLoanAmount * 0.25))}** |
+| Seller Concession Cap | 4% max = **${f$(Math.round(r.purchasePrice * 0.04))}** toward closing costs |
+
+${countyData.limit < r.totalLoanAmount ? `> ⚠️ **VA Jumbo:** Your loan exceeds the county conforming limit. VA still allows this with full entitlement — no down payment required. Lender may apply additional qualifying criteria.` : `> ✅ Your loan is within the county conforming limit — standard VA underwriting applies.`}
+` : '';
 
     // DTI / income section
     const dtiSection = r.frontEndDTI !== null ? `
@@ -2744,7 +2769,7 @@ ${savingsNote}
 - ✅ Primary residence only
 - ✅ VA appraisal required (lender arranges)
 - ${r.isExempt ? '✅ Funding fee **exempt** — disability rating confirmed' : `ℹ️ Funding fee ${fPct(r.fundingFeePct)} (${f$(r.fundingFee)}) — rolled into loan, no cash needed`}
-${buydownSection}${dtiSection}
+${countySection}${buydownSection}${dtiSection}
 ---
 
 **Next Steps:**
