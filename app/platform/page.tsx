@@ -205,7 +205,7 @@ export default function PlatformPage() {
           {/* CTA */}
           <div className="ph-cta-block">
             <p className="ph-cta-p">Ready to see it in action? Paste any address — get a full Intelligence Card in seconds. No email. No forms.</p>
-            <Link href="/chat" className="ph-cta-btn">Try free — paste any address or URL →</Link>
+            <Link href="/homeowner" className="ph-cta-btn">Try free — paste any address or URL →</Link>
           </div>
         </main>
 
