@@ -59,6 +59,7 @@ function PostScenarioContent() {
   const scMonthly   = Number(searchParams?.get("monthly") ?? 0);
   const scTerm      = Number(searchParams?.get("term") ?? 30);
   const scPurpose   = searchParams?.get("purpose") ?? "Purchase";
+  const scInvest    = searchParams?.get("invest") === "1";
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -115,6 +116,19 @@ function PostScenarioContent() {
     if (!fromScenario) return;
     const isVALoan = scLoanType.toUpperCase() === "VA";
     const normLoanType = LOAN_TYPES.find(t => t.toUpperCase() === scLoanType.toUpperCase()) ?? "Conventional";
+
+    // Auto-generate notes summary from all available card data — LO sees this immediately
+    const dpStr = isVALoan ? '0% down (VA benefit)' : (scDp > 0 ? `${scDp}% down` : '');
+    const noteParts = [
+      normLoanType + (scInvest ? ' · Investment/DSCR' : '') + ' loan',
+      scPurpose !== 'Purchase' ? scPurpose : null,
+      scPrice > 0 ? `$${(scPrice / 1000).toFixed(0)}k purchase` : null,
+      dpStr || null,
+      scRate > 0 ? `${scRate}% rate` : null,
+      scTerm ? `${scTerm}yr` : null,
+      scMonthly > 0 ? `$${Math.round(scMonthly).toLocaleString()}/mo est. PITI` : null,
+    ].filter(Boolean).join(' · ');
+
     setForm(prev => ({
       ...prev,
       loan_type:        normLoanType,
@@ -122,6 +136,7 @@ function PostScenarioContent() {
       price_range:      scPrice > 0 ? priceToRange(scPrice) : prev.price_range,
       // VA: always 0% default (entitlement calc may require more, but lender match uses benefit); else use card dp
       down_payment_pct: isVALoan ? "0" : (scDp > 0 ? String(scDp) : prev.down_payment_pct),
+      notes:            noteParts,
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -162,15 +177,15 @@ function PostScenarioContent() {
           max_responses: parseInt(form.max_responses),
           response_window_hours: parseInt(form.response_window_hours),
           visibility, // 'private' (referred) or 'public' (Match Board)
-          // Card snapshot: only attach if the user hasn't changed down payment from
-          // the original card. If they changed dp, the price/monthly no longer match
-          // the card and the snapshot would be misleading to LOs.
-          ...(fromScenario && scPrice > 0 && (Number(form.down_payment_pct) === scDp || !scDp) ? {
+          // Card snapshot: always attach when from scenario — rate/term/price are card facts,
+          // dp reflects what the user actually selected (may differ from card default).
+          ...(fromScenario && scPrice > 0 ? {
             card_price:    scPrice,
-            card_dp_pct:   scDp,
-            card_rate:     scRate,
-            card_monthly:  scMonthly,
-            card_term:     scTerm,
+            card_dp_pct:   parseFloat(form.down_payment_pct) || scDp,
+            card_rate:     scRate || undefined,
+            card_monthly:  scMonthly || undefined,
+            card_term:     scTerm || undefined,
+            card_is_investment: scInvest || undefined,
           } : {}),
         }),
       });
