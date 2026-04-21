@@ -3572,12 +3572,12 @@ ${schedTable}
             {
                 label: `Permanent buydown breakeven`,
                 seed: `Permanent rate buydown on ${f$(purchasePrice)} ${isVA ? 'VA ' : ''}purchase at ${fPct(annualRatePct)} — how many years to break even?`,
-                paramOverrides: { purchasePrice, loanAmount, annualRatePct, buydownType: '2/1' as const, isVA, sellerCredit: sellerCredit ?? 0 },
+                paramOverrides: { purchasePrice, loanAmount, annualRatePct, buydownType: '2/1' as const, loanType: isVA ? 'va' : 'conventional', isVA, sellerCredit: sellerCredit ?? 0 },
             },
             ...(sellerCredit ? [{
                 label: `Allocate ${f$(sellerCredit)} seller credit — all options`,
                 seed: `Seller credit allocator: ${f$(sellerCredit)} on ${f$(purchasePrice)} ${isVA ? 'VA ' : ''}purchase at ${fPct(annualRatePct)}`,
-                paramOverrides: { purchasePrice, loanAmount, sellerCredit, annualRatePct, isVA },
+                paramOverrides: { purchasePrice, loanAmount, sellerCredit, annualRatePct, loanType: isVA ? 'va' : 'conventional', isVA },
             }] : []),
             {
                 label: `What if rates drop to 5.25% — refi analysis`,
@@ -3587,7 +3587,7 @@ ${schedTable}
             {
                 label: `Full ${isVA ? 'VA ' : ''}purchase payment breakdown`,
                 seed: `Full ${isVA ? 'VA ' : ''}mortgage PITI breakdown for ${f$(purchasePrice)} at ${fPct(annualRatePct)}`,
-                paramOverrides: { purchasePrice, annualRatePct, isVA, downPaymentPct: isVA ? 0 : 20 },
+                paramOverrides: { purchasePrice, annualRatePct, loanType: isVA ? 'va' : 'conventional', isVA, downPaymentPct: isVA ? 0 : 20 },
             },
         ],
         confidence: '0.99 (calculated — deterministic buydown math)',

@@ -4082,7 +4082,7 @@ ${uwAnswerText}`,
             const _bdPrice    = paramOverrides.purchasePrice as number;
             const _bdDown     = (paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0) as number;
             const _bdBaseLoan = _bdPrice * (1 - _bdDown / 100);
-            const _bdIsVA     = (paramOverrides as any).loanType === 'va';
+            const _bdIsVA     = (paramOverrides as any).loanType === 'va' || (paramOverrides as any).isVA === true;
             const _bdFfPct    = (_bdIsVA ? ((paramOverrides as any).vaFundingFeePct ?? 0) : 0) as number;
             const _bdLoan     = Math.round(_bdBaseLoan * (1 + _bdFfPct / 100));
             (calcDispatch as any).type = 'buydown';
@@ -4414,7 +4414,7 @@ ${uwAnswerText}`,
             const _bdPrice    = paramOverrides.purchasePrice as number;
             const _bdDown     = (paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0) as number;
             const _bdBaseLoan = _bdPrice * (1 - _bdDown / 100);
-            const _bdIsVA     = (paramOverrides as any).loanType === 'va';
+            const _bdIsVA     = (paramOverrides as any).loanType === 'va' || (paramOverrides as any).isVA === true;
             const _bdFfPct    = (_bdIsVA ? ((paramOverrides as any).vaFundingFeePct ?? 0) : 0) as number;
             const _bdLoan     = Math.round(_bdBaseLoan * (1 + _bdFfPct / 100));
             (calcDispatch as any).type = 'buydown';
