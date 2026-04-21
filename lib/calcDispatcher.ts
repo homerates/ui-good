@@ -668,6 +668,18 @@ export function dispatch(
         return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
     }
 
+    // ── 0a. HOMEOWNER EQUITY / PAYOFF CONTEXT — seeded from my-home milestones/equity CTAs ──
+    // These queries contain dollar amounts that are equity/balance figures, NOT purchase prices.
+    // Must be caught before extractPrice() runs or they dispatch as conventional purchase loans.
+    if (
+        /payoff.*(?:plan|trajectory|acceleration|milestones)|wealth.?building milestones/i.test(q) ||
+        /equity trajectory|equity options.*(?:heloc|cash.?out|sell)|current equity.*(?:mortgage|payoff|balance)/i.test(q) ||
+        /(?:heloc|cash.?out).*(compare|vs|versus).*refi|refi.*(compare|vs|versus).*(?:heloc|cash.?out)/i.test(q) ||
+        /how do (?:rates?|current).+(?:affect|impact).*(?:refi|heloc|equity|options)/i.test(q)
+    ) {
+        return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+    }
+
     // ── 1. REFI (highest priority — must run before affordability/conventional) ──
     if (isRefiQuestion(q)) {
         const balance = extractBalance(q) ?? extractBalance(hist) ?? null;
