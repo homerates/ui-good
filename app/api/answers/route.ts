@@ -2187,7 +2187,8 @@ async function handle(req: NextRequest, intentParam?: string) {
         | "underwriting"
         | "dscr"
         | "qualify"
-        | "about";
+        | "about"
+        | "homeowner_payoff";
 
     let module: ModuleKey = "general";
     const q = question.toLowerCase();
@@ -2226,6 +2227,10 @@ async function handle(req: NextRequest, intentParam?: string) {
         )
     ) {
         module = "about";
+    } else if (
+        /(payoff.*(?:plan|trajectory|accelerat|milestone)|equity.*(?:build|trajectory|milestone|plan|accelerat)|extra.*payment|biweekly|bi.?weekly|pay off.*(?:early|faster|sooner)|reduce.*(?:term|years|payoff)|refi.*15.?year|15.?year.*refi|wealth.*build|wealth.?building|payoff.*milestone)/i.test(q)
+    ) {
+        module = "homeowner_payoff";
     }
 
 
@@ -2313,6 +2318,20 @@ async function handle(req: NextRequest, intentParam?: string) {
             "  Correct income at 43%: $6,254÷0.43×12 = $174,600/yr\n" +
             "LOAN LIMITS: $832,750 standard conforming (2026). CA most counties $832,750+, high-cost ceiling $1,249,125. Jumbo if over county limit.\n" +
             "Table: max PITI, required income at 43% DTI, required income at 45% DTI. Cite [Fannie Mae Selling Guide] or [HUD 4000.1]. No fluff. Tone: calm, decisive. Respond in 150-250 words max. End with disclaimer.",
+
+        homeowner_payoff:
+            "You are Payoff Planner — Grok 4.1 Fast Non-Reasoning mode. Homeowner equity acceleration specialist.\n" +
+            "Your only job: show this homeowner the fastest, most cost-effective paths to build equity and pay off their mortgage early.\n" +
+            "ALWAYS cover exactly these three strategies (with real math from the numbers provided):\n" +
+            "1) Extra monthly payments — pick meaningful amounts ($100, $200, $500/mo) and show: months saved, interest saved, new payoff date.\n" +
+            "2) Refi to 15-year — use the FRED 15Y rate provided in context. Show new P&I, total interest saved vs staying on current loan, breakeven on closing costs (~$3,500 assumed if not given).\n" +
+            "3) Biweekly payments — show: extra payments/year (26 half-payments = 13 full payments), months saved, interest saved vs monthly schedule.\n" +
+            "MATH: amortization formula M = P [r(1+r)^n / ((1+r)^n-1)] where r=monthly rate, n=months. Use FRED mort15Avg for 15Y refi rate.\n" +
+            "FORMATTING: Lead with a clean markdown table comparing all three strategies (Strategy | Monthly Change | Months Saved | Interest Saved). Then one short paragraph per strategy with the numbers.\n" +
+            "DO NOT discuss: market conditions, AMI, FEMA risk, unemployment, Case-Shiller, neighborhood trends, foreclosure options, or general macro. Homeowner is focused — stay focused.\n" +
+            "DO NOT use 'Example Scenario' labels when real numbers are provided in context.\n" +
+            "Tone: calm, precise, empowering — like a trusted financial advisor showing someone how to get their house paid off.\n" +
+            "Respond in 200-350 words. End with disclaimer.",
 
         about:
             "You are the dedicated About HomeRates.ai module — Grok 4.1 Fast Non-Reasoning mode.\n" +
@@ -2678,7 +2697,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .join("\n")
             : "No recent sources";
 
-    const specialistPrefix = clampText(compactWhitespace(modulePrompts[module] ?? ""), module === 'about' ? 1200 : 450);
+    const specialistPrefix = clampText(compactWhitespace(modulePrompts[module] ?? ""), module === 'about' ? 1200 : module === 'homeowner_payoff' ? 900 : 450);
     const guidelineCtxTrim = clampText(compactWhitespace(guidelineContext || ""), 300);
     const tavilyCtxTrim = clampText(compactWhitespace(tavilyContextRaw), 240);
     const conversationTrim = clampText(compactWhitespace(conversationHistory || ""), 320);
@@ -6615,7 +6634,7 @@ ABSOLUTE RULES:
 
 Return valid JSON only:
 {
-  "answer": "Use sections: **Summary**, **Key Numbers**, **Comparison Table** (at least one markdown table), **What This Means For You**.",
+  "answer": "${module === 'homeowner_payoff' ? 'Lead with a comparison table of all three strategies, then explain each one with exact numbers. Sections: **Strategy Comparison** (table), **Extra Monthly Payments**, **15-Year Refi**, **Biweekly Payments**.' : 'Use sections: **Summary**, **Key Numbers**, **Comparison Table** (at least one markdown table), **What This Means For You**.'}",
   "next_step": "1–2 concrete actions.",
   "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
@@ -6737,11 +6756,15 @@ Return valid JSON only:
         }
     }
 
+    // When Grok completely fails (both attempts failed, repaired: true, grokFinal null),
+    // return empty answerMarkdown so the UI suppresses the GrokCard instead of showing junk.
+    const grokCompletelyFailed = !grokFinal && debug?.repaired === true;
+
     const finalMarkdown = grokFinal
         ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
             grokFinal.confidence
         )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
-        : legacyAnswerMarkdown;
+        : grokCompletelyFailed ? "" : legacyAnswerMarkdown;
 
     const message = grokFinal?.answer || legacyAnswer;
 
@@ -6850,6 +6873,15 @@ Return valid JSON only:
             // 1. UW guideline — always stays in UW pipeline
             if (isUnderwritingGuidelineQuestion(question)) {
                 return buildUWCard({ question, answerMarkdown: '' }).follow_up_chips;
+            }
+            // 1b. Homeowner payoff — focused acceleration chips
+            if (module === 'homeowner_payoff') {
+                return [
+                    { label: 'What if I add $200/mo extra to principal?', seed: 'How many years and dollars do I save if I add $200/month to principal on my current mortgage?' },
+                    { label: 'Refi to 15-year — is it worth it?', seed: 'Compare staying on my current loan vs refinancing to a 15-year fixed at current FRED rates — payment change, interest saved, breakeven' },
+                    { label: 'Show me biweekly payment savings', seed: 'Biweekly payment schedule: how much time and interest do I save vs monthly payments on my current mortgage?' },
+                    { label: 'What rate do I need to break even on a refi?', seed: 'What interest rate would I need to break even on a refinance within 3 years, based on my current balance?' },
+                ];
             }
             // 2. About — narrative arc
             if (module === 'about') {

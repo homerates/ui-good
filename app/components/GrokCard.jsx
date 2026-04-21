@@ -360,6 +360,9 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
     if (!data) return null;
 
     const { grok, answerMarkdown, followUp, data_freshness } = data;
+
+    // Suppress rendering when Grok completely failed (empty answerMarkdown, no grok object)
+    if (!grok && (!answerMarkdown || answerMarkdown.trim().length < 20)) return null;
     const [vaultState, setVaultState] = React.useState("idle");
 
     const preparedFull = useMemo(() => injectMiniChartMarkers(answerMarkdown || ""), [answerMarkdown]);
