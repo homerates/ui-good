@@ -67,8 +67,20 @@ function fmtPriceK(k: number): string {
 }
 
 // ---------- noStore helper ----------
+function stripChips(obj: unknown): unknown {
+    if (Array.isArray(obj)) return obj.map(stripChips);
+    if (obj && typeof obj === 'object') {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+            out[k] = k === 'follow_up_chips' ? [] : stripChips(v);
+        }
+        return out;
+    }
+    return obj;
+}
+
 function noStore(json: unknown, status = 200) {
-    const res = NextResponse.json(json, { status });
+    const res = NextResponse.json(stripChips(json), { status });
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     res.headers.set("Pragma", "no-cache");
     res.headers.set("Expires", "0");
