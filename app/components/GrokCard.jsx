@@ -7,6 +7,10 @@ import ReactMarkdown from "react-markdown";
 const SECTION_META = [
     { keys: ['summary'],                    icon: '📊', color: '#00e87a' },
     { keys: ['key numbers', 'key metrics'], icon: '🔢', color: '#3b82f6' },
+    { keys: ['strategy comparison', 'comparison'],   icon: '⚖️', color: '#3b82f6' },
+    { keys: ['current baseline', 'baseline'],        icon: '🏠', color: '#94a3b8' },
+    { keys: ['extra monthly', 'extra payment'],      icon: '💵', color: '#00e87a' },
+    { keys: ['biweekly', 'bi-weekly'],               icon: '📅', color: '#10b981' },
     { keys: ['equity trajectory', 'acceleration options', 'payoff'], icon: '📈', color: '#8b5cf6' },
     { keys: ['what this means', 'what it means'], icon: '💡', color: '#f59e0b' },
     { keys: ['next steps', 'action items'],  icon: '✅', color: '#10b981' },
@@ -14,6 +18,7 @@ const SECTION_META = [
     { keys: ['monthly payment', 'piti'],     icon: '💰', color: '#00e87a' },
     { keys: ['lifetime cost', 'total cost'], icon: '📊', color: '#8b5cf6' },
     { keys: ['income', 'qualify'],           icon: '💼', color: '#f97316' },
+    { keys: ['15-year refi', '15yr refi', '15 year refi'], icon: '🔄', color: '#f59e0b' },
     { keys: ['refi', 'refinanc'],            icon: '🔄', color: '#3b82f6' },
     { keys: ['market', 'comps', 'comp'],     icon: '📍', color: '#94a3b8' },
     { keys: ['heloc'],                       icon: '💳', color: '#3b82f6' },
