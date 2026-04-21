@@ -359,6 +359,9 @@ export default function VACalculatorPage() {
             </main>
 
             <style>{`
+            body:has(.calc-nav){display:block!important;height:auto!important;overflow-y:auto!important;overflow-x:hidden!important;background:#f8fafc!important;}
+            html:has(.calc-nav){height:auto!important;overflow-y:auto!important;overflow-x:hidden!important;}
+            body:has(.calc-nav) .app-footer{display:none!important;}
             .va-page { max-width:860px; margin:0 auto; padding:0 20px 60px; font-family:system-ui,sans-serif; color:#1e293b; }
             .breadcrumb ol { display:flex; gap:6px; list-style:none; padding:16px 0 0; margin:0; font-size:.8rem; color:#64748b; }
             .breadcrumb a { color:#64748b; text-decoration:none; } .breadcrumb a:hover { color:#1e40af; }
