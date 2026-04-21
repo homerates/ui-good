@@ -2743,7 +2743,13 @@ export default function Page() {
                                     onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                     onPriceCheck={onPriceCheck}
                                 />
-                                : messages.map((m, mIdx) => {
+                                : (() => {
+                                    // Index of the last assistant message that has follow-up chips —
+                                    // chips are only shown on that message so stale chips from earlier
+                                    // adjusted-scenario runs don't confuse the user.
+                                    const lastChipIdx = messages.reduce((acc, msg, i) =>
+                                        msg.role === 'assistant' && (msg as any).meta?.follow_up_chips?.length ? i : acc, -1);
+                                    return messages.map((m, mIdx) => {
                                     const prevQuestion = m.role === 'assistant'
                                         ? messages.slice(0, mIdx).reverse().find((x) => x.role === 'user')?.content ?? ''
                                         : '';
@@ -2913,8 +2919,8 @@ export default function Page() {
                                                         {m.meta.lenderChecklist && !loading && typingId === null && (
                                                             <LenderChecklistCard data={m.meta.lenderChecklist} />
                                                         )}
-                                                        {/* Smart follow-up chips — only show when typewriter is done */}
-                                                        {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && !loading && typingId === null && (
+                                                        {/* Smart follow-up chips — only on the latest card to prevent stale chips from adjusted runs */}
+                                                        {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && mIdx === lastChipIdx && !loading && typingId === null && (
                                                             <div className="follow-up-chips">
                                                                 {m.meta.follow_up_chips.slice(0, 6).map((chip: { label: string; seed: string; paramOverrides?: Record<string, any> }, i: number) => (
                                                                     <button
@@ -2997,7 +3003,7 @@ export default function Page() {
                                         )}
                                     </div>
                                     );
-                                })}
+                                }); })()}
 
                             {loading && (
                                 <Bubble role="assistant">
