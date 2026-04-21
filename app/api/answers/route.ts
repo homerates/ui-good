@@ -6634,7 +6634,7 @@ ABSOLUTE RULES:
 
 Return valid JSON only:
 {
-  "answer": "${module === 'homeowner_payoff' ? 'IMPORTANT: Use ## markdown headings (not **bold**) for each section. Structure: ## Strategy Comparison (then table), ## Current Baseline, ## Extra Monthly Payments, ## 15-Year Refi, ## Biweekly Payments, ## Equity Trajectory. Each section is a ## heading followed by 1-2 sentences of explanation.' : 'Use ## markdown headings for sections: ## Summary, ## Key Numbers, ## Comparison Table (at least one markdown table), ## What This Means For You.'}",
+  "answer": "${module === 'homeowner_payoff' ? 'IMPORTANT: Use ## markdown headings (not **bold**) for each section. Structure: ## Strategy Comparison (then table), ## Current Baseline, ## Extra Monthly Payments, ## 15-Year Refi, ## Biweekly Payments, ## Equity Trajectory. Each section is a ## heading followed by 1-2 sentences of explanation.' : 'Use sections: **Summary**, **Key Numbers**, **Comparison Table** (at least one markdown table), **What This Means For You**.'}",
   "next_step": "1–2 concrete actions.",
   "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
