@@ -2705,7 +2705,7 @@ export default function Page() {
                         {/* Nav — same as landing page */}
                         <nav className="app-nav">
                             <a href="/" className="app-nav-link">Home</a>
-                            <a href="/chat" className="app-nav-link">Scenario Engine</a>
+                            <button type="button" className="app-nav-link" onClick={() => newChat()}>Scenario Engine</button>
                             <button
                                 className="app-nav-link"
                                 type="button"
@@ -2932,32 +2932,33 @@ export default function Page() {
                                                                     </div>
                                                                     <div style={{ fontSize: 13, color: '#cbd5e1', marginTop: 4 }}>Click any module to run an instant example — or type your own numbers.</div>
                                                                 </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
                                                                     {(m.meta.labModules as Array<{ icon: string; label: string; tag: string; desc: string; seed: string }>).map((mod, mi) => (
                                                                         <button
                                                                             key={mi}
                                                                             type="button"
                                                                             onClick={() => send(mod.seed)}
                                                                             style={{
-                                                                                display: 'flex', alignItems: 'center', gap: 12,
-                                                                                padding: '11px 18px',
+                                                                                display: 'flex', alignItems: 'center', gap: 10,
+                                                                                padding: '10px 16px',
                                                                                 background: 'transparent', border: 'none',
-                                                                                borderTop: mi > 0 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                                                                                borderTop: mi >= 2 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                                                                                borderLeft: mi % 2 === 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                                                                                 cursor: 'pointer', textAlign: 'left',
                                                                                 transition: 'background 0.12s',
                                                                             }}
                                                                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.06)')}
                                                                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                                                         >
-                                                                            <span style={{ fontSize: 18, flexShrink: 0, width: 24, textAlign: 'center' }}>{mod.icon}</span>
+                                                                            <span style={{ fontSize: 17, flexShrink: 0, width: 22, textAlign: 'center' }}>{mod.icon}</span>
                                                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                                                    <span style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>{mod.label}</span>
-                                                                                    <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '1px 6px', letterSpacing: '0.04em' }}>{mod.tag}</span>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                                                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>{mod.label}</span>
+                                                                                    <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>{mod.tag}</span>
                                                                                 </div>
-                                                                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{mod.desc}</div>
+                                                                                <div style={{ fontSize: 11, color: '#475569', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mod.desc}</div>
                                                                             </div>
-                                                                            <span style={{ fontSize: 13, color: '#00e87a', flexShrink: 0, opacity: 0.7 }}>Run →</span>
+                                                                            <span style={{ fontSize: 11, color: '#00e87a', flexShrink: 0, opacity: 0.6 }}>Run →</span>
                                                                         </button>
                                                                     ))}
                                                                 </div>

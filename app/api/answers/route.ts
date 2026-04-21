@@ -5116,8 +5116,8 @@ ${uwAnswerText}`,
                 },
                 data_freshness: `Live (calcEngine-deterministic)`,
                 message: calcCard.answer,
-                answerMarkdown: `**Answer**\n${answerWithSources}`,
-                followUp: calcCard.follow_up,
+                answerMarkdown: (calcCard as any).labModules ? '' : `**Answer**\n${answerWithSources}`,
+                followUp: (calcCard as any).labModules ? undefined : calcCard.follow_up,
                 follow_up_chips: calcCard.follow_up_chips,
             });
             } // end !_cmaEarlyCheck
