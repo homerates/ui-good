@@ -436,6 +436,7 @@ type ApiResponse = {
         monthlyCashFlow?: number | null; cashOnCash?: number | null;
     } | null;
     proGate?: ProGatePayload | null;
+    labModules?: Array<{ icon: string; label: string; tag: string; desc: string; seed: string }> | null;
 };
 
 
