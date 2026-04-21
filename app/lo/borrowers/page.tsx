@@ -394,7 +394,12 @@ export default function LoBorrowersPage() {
         const data = await res.json();
         if (!data.ok) { setError(data.error ?? 'Failed to generate report.'); return; }
         const url = `${window.location.origin}/report/${data.token}`;
-        await navigator.clipboard.writeText(url).catch(() => {});
+        // Mobile Safari: use Web Share API if available, clipboard as fallback
+        if (navigator.share) {
+            await navigator.share({ title: `${borrower.name} — Home Intelligence Report`, url }).catch(() => {});
+        } else {
+            await navigator.clipboard.writeText(url).catch(() => {});
+        }
         setReportCopied(borrower.id);
         setTimeout(() => setReportCopied(null), 4000);
     }

@@ -164,6 +164,8 @@ export default function ReportPage() {
     const staticMapUrl = borrower?.property_address && mapsKey
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(borrower.property_address)}&zoom=15&size=400x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(borrower.property_address)}&key=${mapsKey}`
         : null;
+    // Use Redfin/Zillow scraped photo when Google Maps key is absent
+    const heroPhotoUrl = streetViewUrl ?? analysis?.photoUrl ?? null;
 
     const psStyle = `
         body:has(.ps-root){display:block!important;height:auto!important;overflow-y:auto!important;background:#080c12!important;}
@@ -172,6 +174,17 @@ export default function ReportPage() {
         body:has(.ps-root) .app-footer{display:none!important;}
         .ps-root{min-height:100vh;width:100%;background:#080c12;}
         @keyframes spin{to{transform:rotate(360deg);}}
+        @media(max-width:640px){
+            .rp-hero-grid{grid-template-columns:1fr!important;height:auto!important;}
+            .rp-hero-map{display:none!important;}
+            .rp-hero-photo{height:220px!important;}
+            .rp-stats-4{grid-template-columns:1fr 1fr!important;gap:16px!important;padding:16px!important;}
+            .rp-row2{grid-template-columns:1fr!important;}
+            .rp-row3{grid-template-columns:1fr!important;}
+            .rp-row4{grid-template-columns:1fr!important;}
+            .rp-lo-bar{flex-direction:column!important;align-items:flex-start!important;gap:8px!important;}
+            .rp-lo-contact{text-align:left!important;}
+        }
     `;
 
     if (loading) return (
@@ -277,11 +290,11 @@ export default function ReportPage() {
 
                 {/* ── HERO: property photo + satellite map ─────────── */}
                 <div style={{ ...card, marginBottom: 16 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: streetViewUrl && staticMapUrl ? '1.6fr 1fr' : '1fr', height: 260 }}>
-                        {/* Street view */}
-                        {streetViewUrl ? (
-                            <div style={{ position: 'relative', background: '#e2e8f0', overflow: 'hidden' }}>
-                                <img src={streetViewUrl} alt="Property" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    <div className="rp-hero-grid" style={{ display: 'grid', gridTemplateColumns: heroPhotoUrl && staticMapUrl ? '1.6fr 1fr' : '1fr', height: 260 }}>
+                        {/* Street view / property photo */}
+                        {heroPhotoUrl ? (
+                            <div className="rp-hero-photo" style={{ position: 'relative', background: '#e2e8f0', overflow: 'hidden' }}>
+                                <img src={heroPhotoUrl} alt="Property" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                     onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
                                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.72) 0%, transparent 55%)' }} />
                                 <div style={{ position: 'absolute', bottom: 18, left: 20 }}>
@@ -299,7 +312,7 @@ export default function ReportPage() {
                         )}
                         {/* Satellite map */}
                         {staticMapUrl && (
-                            <div style={{ position: 'relative', overflow: 'hidden', background: '#1e293b' }}>
+                            <div className="rp-hero-map" style={{ position: 'relative', overflow: 'hidden', background: '#1e293b' }}>
                                 <img src={staticMapUrl} alt="Location map" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                                 <div style={{ position: 'absolute', bottom: 8, right: 10, fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)' }}>Satellite view</div>
                             </div>
@@ -308,7 +321,7 @@ export default function ReportPage() {
 
                     {/* 4 hero stats below photo */}
                     {val && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: '24px', gap: 0 }}>
+                        <div className="rp-stats-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: '24px', gap: 0 }}>
                             {[
                                 { label: 'Est. Home Value', value: fmtFull(val), sub: valLow && valHigh ? `${fmtK(valLow)} – ${fmtK(valHigh)}` : undefined, green: true },
                                 { label: 'Total Equity', value: equity != null ? fmtFull(equity) : '—', sub: equityPct ? `${equityPct}% of value` : undefined },
@@ -326,7 +339,7 @@ export default function ReportPage() {
                 </div>
 
                 {/* ── ROW 2: Equity gauge + Rate sensitivity ────────── */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, marginBottom: 16 }}>
+                <div className="rp-row2" style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, marginBottom: 16 }}>
 
                     {/* Equity gauge */}
                     {equityPct != null && balance != null && val != null && (
@@ -479,7 +492,7 @@ export default function ReportPage() {
                 )}
 
                 {/* ── LO CTA footer ────────────────────────────────── */}
-                <div style={{ background: CARD2, border: `1px solid ${DIM}`, borderRadius: 20, padding: '24px 28px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                <div className="rp-lo-bar" style={{ background: CARD2, border: `1px solid ${DIM}`, borderRadius: 20, padding: '24px 28px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                         {lo.photo && <img src={lo.photo} alt={lo.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${DIM}` }} />}
                         <div>
@@ -490,7 +503,7 @@ export default function ReportPage() {
                             {lo.office_address && <div style={{ fontSize: '0.7rem', color: DIM, marginTop: 2 }}>{lo.office_address}</div>}
                         </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <div className="rp-lo-contact" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         {lo.phone && (
                             <a href={`tel:${lo.phone}`} style={{ padding: '10px 20px', borderRadius: 999, background: GREEN, color: '#0f172a', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>
                                 {lo.phone}
