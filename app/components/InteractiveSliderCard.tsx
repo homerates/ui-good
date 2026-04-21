@@ -4,9 +4,11 @@
 // Interactive mortgage payment explorer — Conventional · FHA · VA · Jumbo tabs
 // Supports optional rate buydown mode (2/1 · 1/0 · 3/2/1) with seller-credit coverage check
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
+import { CA_LOAN_LIMITS_2026 } from '@/lib/loanLimits2026';
+import { HIGH_COST_COUNTIES } from '@/lib/loanLimitsNational2026';
 
 export interface SliderCardParams {
     price: number;
@@ -104,10 +106,77 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const [isSubsequentUse, setIsSubsequentUse] = useState(false);
     const [countyLimit,     setCountyLimit]     = useState(832750);
     const [prevEntUsed,     setPrevEntUsed]     = useState(0);
+    const [countyQuery,     setCountyQuery]     = useState('');
+    const [countyResults,   setCountyResults]   = useState<{label: string; state: string; limit: number}[]>([]);
+    const [countyMsg,       setCountyMsg]       = useState('');
+    const [countySelected,  setCountySelected]  = useState('');
     // Buydown mode
     const initBdType = (props.buydownType ?? 'none') as '2/1' | '1/0' | '3/2/1' | 'none';
     const [activeBdType, setActiveBdType] = useState<'2/1' | '1/0' | '3/2/1' | 'none'>(initBdType);
     const [sellerCreditAmt, setSellerCreditAmt] = useState(props.sellerCredit ?? 0);
+
+    // ── County / ZIP search ──────────────────────────────────────────────────────
+
+    function searchCountyName(q: string) {
+        const upper = q.toUpperCase().trim();
+        if (upper.length < 2) { setCountyResults([]); setCountyMsg(''); return; }
+        const results: {label: string; state: string; limit: number}[] = [];
+        for (const c of CA_LOAN_LIMITS_2026) {
+            if (c.county.includes(upper))
+                results.push({ label: c.county, state: 'CA', limit: c.conforming.units1 });
+        }
+        for (const [state, counties] of Object.entries(HIGH_COST_COUNTIES)) {
+            for (const c of counties) {
+                if (c.county.includes(upper))
+                    results.push({ label: c.county, state, limit: c.conforming.units1 });
+            }
+        }
+        setCountyResults(results.slice(0, 8));
+        setCountyMsg(results.length === 0 ? 'Not in high-cost list — standard $832,750 applies' : '');
+    }
+
+    async function lookupZip(zip: string) {
+        setCountyMsg('Looking up ZIP...');
+        setCountyResults([]);
+        try {
+            const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
+            if (!res.ok) { setCountyMsg('ZIP not found — type county name instead'); return; }
+            const data = await res.json();
+            const st: string = data.places?.[0]?.['state abbreviation'] ?? '';
+            if (!st) { setCountyMsg('ZIP not found — type county name instead'); return; }
+            const list: {label: string; state: string; limit: number}[] = [];
+            if (st === 'CA') {
+                for (const c of CA_LOAN_LIMITS_2026)
+                    list.push({ label: c.county, state: 'CA', limit: c.conforming.units1 });
+            } else if (HIGH_COST_COUNTIES[st]) {
+                for (const c of HIGH_COST_COUNTIES[st])
+                    list.push({ label: c.county, state: st, limit: c.conforming.units1 });
+            }
+            if (list.length > 0) {
+                setCountyResults(list);
+                setCountyMsg(`${st} — select your county:`);
+            } else {
+                setCountyLimit(832750);
+                setCountySelected(`Standard conforming — ${st}`);
+                setCountyMsg(`${st} uses national baseline $832,750`);
+            }
+        } catch {
+            setCountyMsg('Lookup failed — type county name instead');
+        }
+    }
+
+    useEffect(() => {
+        if (!countyQuery) { setCountyResults([]); setCountyMsg(''); return; }
+        const trimmed = countyQuery.trim();
+        if (/^\d{5}$/.test(trimmed)) {
+            const t = setTimeout(() => lookupZip(trimmed), 400);
+            return () => clearTimeout(t);
+        }
+        searchCountyName(trimmed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [countyQuery]);
+
+    // ────────────────────────────────────────────────────────────────────────────
 
     const hasBuydownUI = props.buydownType !== undefined;
     const vaConcessionCap = Math.round(price * 0.04 / 1000) * 1000;
@@ -426,6 +495,46 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         </div>
                         {isSubsequentUse && (
                             <>
+                                {/* County / ZIP lookup */}
+                                <div style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                                        <span className="sf__lbl-l">County or ZIP</span>
+                                        {countySelected && (
+                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>✓ {countySelected}</span>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. San Diego  or  92101"
+                                        value={countyQuery}
+                                        onChange={e => { setCountyQuery(e.target.value); setCountySelected(''); }}
+                                        style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#0f172a', boxSizing: 'border-box' }}
+                                    />
+                                    {countyMsg && (
+                                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{countyMsg}</div>
+                                    )}
+                                    {countyResults.length > 0 && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
+                                            {countyResults.map((r, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => {
+                                                        setCountyLimit(r.limit);
+                                                        setCountySelected(`${r.label}, ${r.state}`);
+                                                        setCountyQuery('');
+                                                        setCountyResults([]);
+                                                        setCountyMsg('');
+                                                    }}
+                                                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', textAlign: 'left', fontSize: 12, color: '#0f172a' }}
+                                                >
+                                                    <span>{r.label}, {r.state}</span>
+                                                    <span style={{ fontWeight: 700, color: '#059669', marginLeft: 8, flexShrink: 0 }}>${r.limit.toLocaleString()}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
                                 <SliderField
                                     label="County Loan Limit"
                                     value={countyLimit}
