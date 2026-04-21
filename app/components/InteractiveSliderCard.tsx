@@ -184,7 +184,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             ? ` with ${activeBdType} buydown${sellerCreditAmt > 0 ? ` and ${fmtDollar(sellerCreditAmt)} seller credit` : ''}`
             : '';
         if (loanType === 'fha')   return `FHA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
-        if (loanType === 'va' && isSubsequentUse) return `VA loan on a $${price.toLocaleString()} home at ${fmtRate(rate)} — I still have an active VA loan with a balance of $${priorBalance.toLocaleString()}`;
+        if (loanType === 'va' && isSubsequentUse) return `VA loan on a $${price.toLocaleString()} home at ${fmtRate(rate)} — I still have an active VA loan with a balance of $${priorBalance.toLocaleString()}${vaFfPct === 0 ? ', funding fee exempt' : ''}`;
         if (loanType === 'va')    return `VA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)}${vaFfPct === 0 ? ', funding fee exempt' : ''}${bdSuffix}`;
         if (loanType === 'jumbo') return `Jumbo loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
         return `Conventional loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
@@ -192,10 +192,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     function getRunOverrides(): Record<string, any> {
         const vaBase = loanType === 'va' && isSubsequentUse ? {
-            purchasePrice:    price,
-            priorLoanBalance: priorBalance,
-            annualRatePct:    rate,
-            loanType:         'va',
+            purchasePrice:       price,
+            priorLoanBalance:    priorBalance,
+            annualRatePct:       rate,
+            loanType:            'va',
+            vaFundingFeeExempt:  vaFfPct === 0,
+            ...(vaFfPct > 0 ? { customFundingFeePct: vaFfPct } : {}),
         } : loanType === 'va' ? {
             purchasePrice:      price,
             downPaymentPct:     downPct,

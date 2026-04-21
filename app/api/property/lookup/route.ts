@@ -177,13 +177,20 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
 
     // Listing status — check strongest signals first to avoid false positives
     // (sold pages contain "Contract Pending" in history; sold must win over pending)
+    // FOR_SALE requires specific signals — not just any "for sale" text which appears on all pages in nav/ads
     let listingStatus: ExtendedFields['listingStatus'] = 'UNKNOWN';
     if (/sold\s+(?:on\s+)?\w+\s+\d{1,2},?\s+\d{4}/i.test(t)   // "Sold on Feb 17, 2026"
         || /sold\s+price/i.test(t)                               // "Sold Price"
-        || /\bsold\s+\w+\s+\d{4}\s+for\b/i.test(t))             // "Sold Feb 2026 for"
+        || /\bsold\s+\w+\s+\d{4}\s+for\b/i.test(t)             // "Sold Feb 2026 for"
+        || /this\s+home\s+(?:is\s+)?(?:no\s+longer\s+)?(?:sold|was\s+sold)/i.test(t))
                                                     { listingStatus = 'SOLD'; }
-    else if (/off[\s-]?market/i.test(t))            { listingStatus = 'OFF_MARKET'; }
-    else if (/for[\s-]?sale/i.test(t))              { listingStatus = 'FOR_SALE'; }
+    else if (/off[\s-]?market/i.test(t)
+        || /not\s+(?:currently\s+)?(?:for\s+sale|listed|available)/i.test(t)
+        || /no\s+longer\s+(?:for\s+sale|listed|available|accepting)/i.test(t))
+                                                    { listingStatus = 'OFF_MARKET'; }
+    else if (/(?:^|\n|\.)\s*(?:this\s+home\s+is\s+for\s+sale|listed\s+for\s+sale|active\s+listing|price\s+reduced|new\s+listing)/i.test(t)
+        || /(?:beds?|baths?|sq\s*ft)[^.]{0,60}for\s+sale/i.test(t))
+                                                    { listingStatus = 'FOR_SALE'; }
     else if (/\bpending\b/i.test(t))                { listingStatus = 'PENDING'; }
     else if (/\bsold\b/i.test(t))                   { listingStatus = 'SOLD'; }
 

@@ -497,7 +497,7 @@ function CardMilestones({ d }: { d: AnalysisData }) {
       ))}
       <div className="mh-footnote" style={{ marginTop: 16 }}>Milestones based on Rentcast AVM, FRED rates, and 4.2% national avg. appreciation.</div>
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${d.address}: ${d.estimatedEquity ? '$' + Math.round(d.estimatedEquity).toLocaleString() + ' current equity' : 'equity tracker'}${d.payoffYear ? `, mortgage payoff projected ${d.payoffYear}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`} className="mh-cta-link">
+        <Link href={`/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${d.address}: mortgage balance $${d.estimatedBalance ? Math.round(d.estimatedBalance).toLocaleString() : 'unknown'}${d.purchaseRate ? ` at ${d.purchaseRate}%` : ''}${d.payoffYear ? `, payoff projected ${d.payoffYear}` : ''}${d.estimatedEquity ? ` — current equity $${Math.round(d.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`} className="mh-cta-link">
           Get my full payoff plan →
         </Link>
       </div>
@@ -1833,7 +1833,7 @@ function MyHomePageInner() {
                             return `/chat?sq=${encodeURIComponent(`I own ${addr}. Market rate is ${live.toFixed(2)}%, my rate is ${rate.toFixed(2)}%. How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC rate, and equity strategy?`)}`;
                           }
                           if (activeChip === 'milestones') {
-                            return `/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${addr}: ${analysis?.estimatedEquity ? '$' + Math.round(analysis.estimatedEquity).toLocaleString() + ' current equity' : 'building equity'}${analysis?.payoffYear ? `, projected payoff ${analysis.payoffYear}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`;
+                            return `/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${addr}: mortgage balance $${analysis?.estimatedBalance ? Math.round(analysis.estimatedBalance).toLocaleString() : 'unknown'}${analysis?.purchaseRate ? ` at ${analysis.purchaseRate}%` : ''}${analysis?.payoffYear ? `, payoff projected ${analysis.payoffYear}` : ''}${analysis?.estimatedEquity ? ` — current equity $${Math.round(analysis.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`;
                           }
                           return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
                         })()}

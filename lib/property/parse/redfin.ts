@@ -73,8 +73,9 @@ function detectRedfinStatus(html: string, blob: unknown): ListingStatus {
     const titleM = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     if (titleM) {
         const title = titleM[1].trim();
-        if (/^sold\b/i.test(title))    return 'SOLD';
-        if (/^pending\b/i.test(title)) return 'PENDING';
+        if (/^sold\b/i.test(title))       return 'SOLD';
+        if (/^off.market\b/i.test(title)) return 'OFF_MARKET';
+        if (/^pending\b/i.test(title))    return 'PENDING';
     }
     // 2. JSON-LD offers.availability
     const avail = toStr(dig(blob, 'offers', 'availability')) ?? '';
@@ -82,8 +83,12 @@ function detectRedfinStatus(html: string, blob: unknown): ListingStatus {
     if (/limitedavailability|pending/i.test(avail))        return 'PENDING';
     if (/instock|forsale|available/i.test(avail))          return 'FOR_SALE';
     // 3. Redfin data-rf attribute in HTML
-    if (/data-rf-test-name="abp-status"[^>]*>\s*Sold/i.test(html))    return 'SOLD';
-    if (/data-rf-test-name="abp-status"[^>]*>\s*Pending/i.test(html)) return 'PENDING';
+    if (/data-rf-test-name="abp-status"[^>]*>\s*Sold/i.test(html))       return 'SOLD';
+    if (/data-rf-test-name="abp-status"[^>]*>\s*Off.Market/i.test(html)) return 'OFF_MARKET';
+    if (/data-rf-test-name="abp-status"[^>]*>\s*Pending/i.test(html))    return 'PENDING';
+    // 4. Redfin sold-banner or off-market indicators in page body
+    if (/class="[^"]*sold[^"]*"[^>]*>\s*(?:This home|Sold)/i.test(html)) return 'SOLD';
+    if (/off.market|not.*for.*sale|no longer.*listed/i.test(html))        return 'OFF_MARKET';
     return null;
 }
 
