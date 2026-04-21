@@ -35,6 +35,7 @@ type Analysis = {
     valueHistory: { year: number; value: number }[];
     balanceIsEstimated: boolean; rateIsEstimated: boolean;
     refiMonthlySaving: number | null; helocMax: number | null;
+    photoUrl: string | null;
 };
 
 const RATES = [5.5, 5.99, 6.5, 6.99, 7.5];
