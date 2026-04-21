@@ -102,7 +102,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const [vaFfPct, setVaFfPct]  = useState<number>(initFfPct);
     // VA subsequent use
     const [isSubsequentUse, setIsSubsequentUse] = useState(false);
-    const [priorBalance,    setPriorBalance]    = useState(300000);
+    const [countyLimit,     setCountyLimit]     = useState(832750);
+    const [prevEntUsed,     setPrevEntUsed]     = useState(0);
     // Buydown mode
     const initBdType = (props.buydownType ?? 'none') as '2/1' | '1/0' | '3/2/1' | 'none';
     const [activeBdType, setActiveBdType] = useState<'2/1' | '1/0' | '3/2/1' | 'none'>(initBdType);
@@ -147,22 +148,20 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 ? computeBuydownSchedule(loanAmt, rate, term, activeBdType)
                 : null;
 
-        // VA entitlement (subsequent use) — county limit hardcoded to national baseline;
-        // user can adjust via the county limit is shown in the entitlement section
-        const COUNTY_LIMIT = 832750;
+        // VA entitlement (subsequent use) — per lender worksheet:
+        // Max Entitlement = 25% × county limit; Available = Max − Used; DP = 25% × (Price − 4 × Available)
         let entTotalEntitlement = 0, entUsed = 0, entRemaining = 0, entMaxZeroDn = 0, entDpNeeded = 0, entDpPct = 0;
         if (loanType === 'va' && isSubsequentUse) {
-            entTotalEntitlement = Math.round(COUNTY_LIMIT * 0.25);
-            entUsed             = Math.round(priorBalance * 0.25);
+            entTotalEntitlement = Math.round(countyLimit * 0.25);
+            entUsed             = prevEntUsed;
             entRemaining        = Math.max(0, entTotalEntitlement - entUsed);
             entMaxZeroDn        = entRemaining * 4;
-            const required      = Math.round(price * 0.25);
-            entDpNeeded         = Math.max(0, required - entRemaining);
+            entDpNeeded         = price > entMaxZeroDn ? Math.round(0.25 * (price - entMaxZeroDn)) : 0;
             entDpPct            = price > 0 ? (entDpNeeded / price) * 100 : 0;
         }
 
         return { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown, entTotalEntitlement, entUsed, entRemaining, entMaxZeroDn, entDpNeeded, entDpPct };
-    }, [price, downPct, rate, term, loanType, vaFfPct, activeBdType, props.taxRate, props.insRate, isSubsequentUse, priorBalance]);
+    }, [price, downPct, rate, term, loanType, vaFfPct, activeBdType, props.taxRate, props.insRate, isSubsequentUse, countyLimit, prevEntUsed]);
 
     const { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown, entTotalEntitlement, entUsed, entRemaining, entMaxZeroDn, entDpNeeded, entDpPct } = calc;
 
@@ -177,14 +176,14 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
         Math.abs(rate - props.rate) > 0.001 || term !== props.term ||
         loanType !== props.loanType || (loanType === 'va' && vaFfPct !== initFfPct) ||
         activeBdType !== initBdType || sellerCreditAmt !== (props.sellerCredit ?? 0) ||
-        isSubsequentUse;
+        isSubsequentUse || countyLimit !== 832750 || prevEntUsed !== 0;
 
     function buildSeed(): string {
         const bdSuffix = activeBdType !== 'none'
             ? ` with ${activeBdType} buydown${sellerCreditAmt > 0 ? ` and ${fmtDollar(sellerCreditAmt)} seller credit` : ''}`
             : '';
         if (loanType === 'fha')   return `FHA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
-        if (loanType === 'va' && isSubsequentUse) return `VA loan on a $${price.toLocaleString()} home at ${fmtRate(rate)} — I still have an active VA loan with a balance of $${priorBalance.toLocaleString()}${vaFfPct === 0 ? ', funding fee exempt' : ''}`;
+        if (loanType === 'va' && isSubsequentUse) return `VA loan on a $${price.toLocaleString()} home at ${fmtRate(rate)} — subsequent use, county limit $${countyLimit.toLocaleString()}, previous entitlement used $${prevEntUsed.toLocaleString()}${vaFfPct === 0 ? ', funding fee exempt' : ''}`;
         if (loanType === 'va')    return `VA loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)}${vaFfPct === 0 ? ', funding fee exempt' : ''}${bdSuffix}`;
         if (loanType === 'jumbo') return `Jumbo loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
         return `Conventional loan on a $${price.toLocaleString()} home with ${downPct}% down at ${fmtRate(rate)} — ${term} year fixed${bdSuffix}`;
@@ -192,11 +191,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     function getRunOverrides(): Record<string, any> {
         const vaBase = loanType === 'va' && isSubsequentUse ? {
-            purchasePrice:       price,
-            priorLoanBalance:    priorBalance,
-            annualRatePct:       rate,
-            loanType:            'va',
-            vaFundingFeeExempt:  vaFfPct === 0,
+            purchasePrice:           price,
+            countyLoanLimit:         countyLimit,
+            previousEntitlementUsed: prevEntUsed,
+            annualRatePct:           rate,
+            loanType:                'va',
+            vaFundingFeeExempt:      vaFfPct === 0,
             ...(vaFfPct > 0 ? { customFundingFeePct: vaFfPct } : {}),
         } : loanType === 'va' ? {
             purchasePrice:      price,
@@ -427,31 +427,42 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         {isSubsequentUse && (
                             <>
                                 <SliderField
-                                    label="Prior VA Loan Balance"
-                                    value={priorBalance}
+                                    label="County Loan Limit"
+                                    value={countyLimit}
+                                    min={647200}
+                                    max={2000000}
+                                    step={1000}
+                                    onChange={setCountyLimit}
+                                    format={v => fmtDollar(v)}
+                                    minLabel="$647,200"
+                                    maxLabel="$2M"
+                                />
+                                <SliderField
+                                    label="Previous Entitlement Used (Not Restored)"
+                                    value={prevEntUsed}
                                     min={0}
-                                    max={Math.max(1500000, priorBalance)}
-                                    step={5000}
-                                    onChange={setPriorBalance}
+                                    max={Math.round(countyLimit * 0.25)}
+                                    step={100}
+                                    onChange={setPrevEntUsed}
                                     format={v => fmtDollar(v)}
                                     minLabel="$0"
-                                    maxLabel={fmtDollar(Math.max(1500000, priorBalance))}
+                                    maxLabel={fmtDollar(Math.round(countyLimit * 0.25))}
                                 />
                                 <div className="isc__ent-table">
                                     <div className="isc__ent-row">
-                                        <span>Total entitlement (25% of $832,750)</span>
+                                        <span>Max entitlement (25% of {fmtDollar(countyLimit)})</span>
                                         <span>{fmtDollar(entTotalEntitlement)}</span>
                                     </div>
                                     <div className="isc__ent-row">
-                                        <span>Used (25% of {fmtDollar(priorBalance)})</span>
+                                        <span>Previous entitlement used</span>
                                         <span className="isc__ent-used">−{fmtDollar(entUsed)}</span>
                                     </div>
                                     <div className="isc__ent-row isc__ent-row--highlight">
-                                        <span>Remaining entitlement</span>
+                                        <span>Available entitlement</span>
                                         <span>{fmtDollar(entRemaining)}</span>
                                     </div>
                                     <div className="isc__ent-row">
-                                        <span>Max loan at $0 down</span>
+                                        <span>Max loan at $0 down (4 × available)</span>
                                         <span>{fmtDollar(entMaxZeroDn)}</span>
                                     </div>
                                     <div className={`isc__ent-row isc__ent-row--dp${entDpNeeded > 0 ? ' isc__ent-row--warn' : ' isc__ent-row--ok'}`}>
@@ -459,7 +470,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                                         <span><strong>{entDpNeeded > 0 ? `${fmtDollar(entDpNeeded)} (${entDpPct.toFixed(1)}%)` : '$0 — fully covered'}</strong></span>
                                     </div>
                                 </div>
-                                <div className="isc__ff-hint">Based on standard county limit $832,750 — adjust for high-cost counties via AI. Check with your lender.</div>
+                                <div className="isc__ff-hint">Per VA partial entitlement worksheet. Click any value to type exact amounts. Check with your lender for your COE details.</div>
                             </>
                         )}
                     </div>

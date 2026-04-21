@@ -168,8 +168,13 @@ export default function SliderField({
     }
 
     function commitEdit() {
-        const parsed = parse ? parse(editText) : parseFloat(editText);
-        if (!isNaN(parsed)) onChange(snap(parsed, step, min, max));
+        const rawText = editText.replace(/[$,\s]/g, '');
+        const parsed = parse ? parse(editText) : parseFloat(rawText);
+        if (!isNaN(parsed)) {
+            // Clamp to range but don't snap to step — preserve exact typed values
+            const clamped = Math.max(min, Math.min(max, parsed));
+            onChange(clamped);
+        }
         setEditing(false);
     }
 
