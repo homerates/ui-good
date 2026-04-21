@@ -2836,6 +2836,7 @@ ${countySection}${buydownSection}${dtiSection}
             insRate:         r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
             loanType:        'va' as const,
             vaFundingFeePct: r.isExempt ? 0 : r.fundingFeePct,
+            buydownType:     'none' as const,
         },
         lenderChecklist: {
             loanType: 'va',

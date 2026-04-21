@@ -33,6 +33,7 @@ const calculators = [
         title: 'Affordability Calculator',
         desc: 'How much house can you afford? Enter your income and savings — get three real scenarios (FHA, 3% down, 20% down) with monthly payment, cash needed, and DTI analysis.',
         tags: ['First-time buyers', 'Income-based', 'FHA + Conventional'],
+        chatSeed: 'How much house can I afford? I want to see FHA, 3% down, and 20% down scenarios with monthly payment and cash needed.',
     },
     {
         href: '/fha-calculator',
@@ -40,6 +41,7 @@ const calculators = [
         title: 'FHA Loan Calculator',
         desc: 'Full FHA payment breakdown including UFMIP (1.75%), monthly MIP (0.55%/yr), property taxes, and insurance. MIP duration logic and FHA vs conventional comparison.',
         tags: ['2026 HUD limits', 'MIP breakdown', 'FHA vs Conv'],
+        chatSeed: 'Calculate an FHA loan — show me UFMIP, monthly MIP, total payment, and compare to conventional.',
     },
     {
         href: '/dscr-calculator',
@@ -47,6 +49,7 @@ const calculators = [
         title: 'DSCR Calculator',
         desc: 'Rental property cash flow and debt service coverage ratio. Full PITIA breakdown, lender qualification status, and cash-on-cash return. No income docs required.',
         tags: ['Investment property', 'No income docs', 'Non-QM'],
+        chatSeed: 'Calculate DSCR for a rental property — show PITIA breakdown, debt service coverage ratio, and cash-on-cash return.',
     },
     {
         href: '/refinance-calculator',
@@ -54,6 +57,7 @@ const calculators = [
         title: 'Refinance Calculator',
         desc: 'Breakeven analysis, monthly savings, and rate-watch trigger points for your refi decision. Includes FHA-to-conventional refi math and no-cost refi comparison.',
         tags: ['Breakeven analysis', 'Rate triggers', 'FHA-to-Conv refi'],
+        chatSeed: 'Should I refinance? Show me breakeven months, monthly savings, and rate triggers for my refi decision.',
     },
     {
         href: '/conventional-loan-calculator',
@@ -61,6 +65,7 @@ const calculators = [
         title: 'Conventional Loan Calculator',
         desc: 'Full conventional payment with PMI, exact PMI cancellation year, DTI analysis, and FHA vs conventional comparison. 2026 FHFA limits.',
         tags: ['PMI cancellation', 'DTI analysis', 'Fannie Mae'],
+        chatSeed: 'Calculate a conventional loan — include PMI, show when PMI cancels, DTI analysis, and compare to FHA.',
     },
     {
         href: '/jumbo-calculator',
@@ -68,6 +73,15 @@ const calculators = [
         title: 'Jumbo Loan Calculator',
         desc: 'Jumbo affordability calculator for properties above $832,750. Adjustable price, down payment, and rate sliders with conforming zone crossover callouts and reserve estimates.',
         tags: ['Above $832k', 'Jumbo zone', 'Reserve calc'],
+        chatSeed: 'Calculate a jumbo loan on a home above $832,750 — show payment, reserves needed, and conforming zone comparison.',
+    },
+    {
+        href: '/va-calculator',
+        icon: '🎖️',
+        title: 'VA Loan Calculator',
+        desc: 'Full VA loan payment with funding fee (0%–3.3%), subsequent-use entitlement, no-PMI savings, and 2026 county limits. Includes funding fee exemption and rate buydown scenarios.',
+        tags: ['$0 down', 'No PMI', 'Funding fee', 'VA entitlement'],
+        chatSeed: 'Calculate a VA loan — show funding fee, no-down-payment payment, PMI savings vs conventional, and VA entitlement.',
     },
 ];
 
@@ -164,7 +178,7 @@ export default function CalculatorsPage() {
 
                     <div className="calc-grid">
                         {calculators.map((calc) => (
-                            <Link key={calc.href} href={calc.href} className="calc-card">
+                            <div key={calc.href} className="calc-card" style={{ textDecoration: 'none' }}>
                                 <div className="calc-card-icon">{calc.icon}</div>
                                 <div className="calc-card-title">{calc.title}</div>
                                 <div className="calc-card-desc">{calc.desc}</div>
@@ -173,8 +187,11 @@ export default function CalculatorsPage() {
                                         <span key={tag} className="calc-card-tag">{tag}</span>
                                     ))}
                                 </div>
-                                <div className="calc-card-cta">Open calculator →</div>
-                            </Link>
+                                <div style={{ display: 'flex', gap: 10, marginTop: 'auto', paddingTop: 12 }}>
+                                    <Link href={calc.href} className="calc-card-cta" style={{ flex: 1 }}>Open calculator →</Link>
+                                    <Link href={`/chat?sq=${encodeURIComponent(calc.chatSeed)}`} style={{ fontSize: '0.82rem', fontWeight: 600, color: '#6b7a99', textDecoration: 'none' }}>Chat →</Link>
+                                </div>
+                            </div>
                         ))}
                     </div>
 
