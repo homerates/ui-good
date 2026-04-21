@@ -2921,6 +2921,47 @@ export default function Page() {
                                                         {m.meta.lenderChecklist && !loading && typingId === null && (
                                                             <LenderChecklistCard data={m.meta.lenderChecklist} />
                                                         )}
+                                                        {/* HomeRates Lab — clickable module grid */}
+                                                        {m.meta.labModules && !loading && typingId === null && (
+                                                            <div style={{ marginTop: 12, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.02)' }}>
+                                                                <div style={{ padding: '14px 18px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                        <span style={{ fontSize: 15 }}>🧪</span>
+                                                                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8' }}>HomeRates Lab</span>
+                                                                    </div>
+                                                                    <div style={{ fontSize: 13, color: '#cbd5e1', marginTop: 4 }}>Click any module to run an instant example — or type your own numbers.</div>
+                                                                </div>
+                                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                    {(m.meta.labModules as Array<{ icon: string; label: string; tag: string; desc: string; seed: string }>).map((mod, mi) => (
+                                                                        <button
+                                                                            key={mi}
+                                                                            type="button"
+                                                                            onClick={() => send(mod.seed)}
+                                                                            style={{
+                                                                                display: 'flex', alignItems: 'center', gap: 12,
+                                                                                padding: '11px 18px',
+                                                                                background: 'transparent', border: 'none',
+                                                                                borderTop: mi > 0 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                                                                                cursor: 'pointer', textAlign: 'left',
+                                                                                transition: 'background 0.12s',
+                                                                            }}
+                                                                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.06)')}
+                                                                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                                                        >
+                                                                            <span style={{ fontSize: 18, flexShrink: 0, width: 24, textAlign: 'center' }}>{mod.icon}</span>
+                                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                                    <span style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>{mod.label}</span>
+                                                                                    <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '1px 6px', letterSpacing: '0.04em' }}>{mod.tag}</span>
+                                                                                </div>
+                                                                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{mod.desc}</div>
+                                                                            </div>
+                                                                            <span style={{ fontSize: 13, color: '#00e87a', flexShrink: 0, opacity: 0.7 }}>Run →</span>
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                         {/* Smart follow-up chips — only on the latest card to prevent stale chips from adjusted runs */}
                                                         {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && mIdx === lastChipIdx && !loading && typingId === null && (
                                                             <div className="follow-up-chips">

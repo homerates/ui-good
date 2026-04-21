@@ -5104,6 +5104,7 @@ ${uwAnswerText}`,
                 loanLimitsSlider: calcCard.loanLimitsSlider ?? null,
                 jumboAffordabilitySlider: calcCard.jumboAffordabilitySlider ?? null,
                 lenderChecklist: calcCard.lenderChecklist ?? null,
+                labModules: (calcCard as any).labModules ?? null,
                 debug: {
                     requestedModel: 'calcEngine',
                     servedModel: calcDebugModel,
