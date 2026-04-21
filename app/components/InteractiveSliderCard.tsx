@@ -178,6 +178,23 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     // ────────────────────────────────────────────────────────────────────────────
 
+    // Auto-sync downPct to entitlement-required amount when subsequent use inputs change
+    useEffect(() => {
+        if (!isSubsequentUse || loanType !== 'va') {
+            if (!isSubsequentUse && loanType === 'va') setDownPct(0);
+            return;
+        }
+        const entTotal  = Math.round(countyLimit * 0.25);
+        const entRemain = Math.max(0, entTotal - prevEntUsed);
+        const maxZeroDn = entRemain * 4;
+        const dpNeeded  = price > maxZeroDn ? Math.round(0.25 * (price - maxZeroDn)) : 0;
+        const dpPct     = price > 0 ? parseFloat(((dpNeeded / price) * 100).toFixed(2)) : 0;
+        setDownPct(dpPct);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSubsequentUse, countyLimit, prevEntUsed, price, loanType]);
+
+    // ────────────────────────────────────────────────────────────────────────────
+
     const hasBuydownUI = props.buydownType !== undefined;
     const vaConcessionCap = Math.round(price * 0.04 / 1000) * 1000;
 
