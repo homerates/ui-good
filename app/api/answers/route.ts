@@ -11,7 +11,7 @@ import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculat
 import {
     calcConventional, calcFHA, calcRefi, calcAffordability, calcAffordabilityScenario,
     calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale, calcOneExtraPaymentPerYear,
-    calcVA, calcJumbo,
+    calcVA, calcJumbo, calcVAEntitlement,
 } from "../../../lib/calcEngine";
 import { dispatch, isRefiQuestion, isLoanLimitsQuestion, isScenarioComparisonQuestion, isBuydownQuestion } from "../../../lib/calcDispatcher";
 import {
@@ -19,7 +19,7 @@ import {
     buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
     buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
-    buildVACard, buildVANeedsInputCard, buildJumboCard,
+    buildVACard, buildVANeedsInputCard, buildVAEntitlementCard, buildVAEntitlementNeedsInputCard, buildJumboCard,
     buildLoanLimitsCard,
     buildJumboAffordabilityCard,
     buildScenarioComparisonCard,
@@ -4692,6 +4692,46 @@ ${uwAnswerText}`,
                     );
                 }
                 injectCmaChip(calcCard);
+
+            } else if (calcDispatch.type === 'va_entitlement_needs_input') {
+                const _p = calcDispatch.params as any;
+                calcCard = buildVAEntitlementNeedsInputCard(_p?.price ?? null, _p?.priorBalance ?? null);
+                calcDebugModel = 'calcEngine-va-entitlement-needs-input';
+
+            } else if (calcDispatch.type === 'va_entitlement' && calcDispatch.params) {
+                const _ep = calcDispatch.params as any;
+                // Resolve county limit — same logic as VA card
+                let _entCountyLimit = NATIONAL_CONFORMING_BASELINE.units1;
+                try {
+                    const _eZip = extractZip(question);
+                    if (_eZip && /^9[0-6]/.test(_eZip)) {
+                        const _eCo = getCACountyByZip(_eZip);
+                        if (_eCo) { const _eL = getCALoanLimits(_eCo); if (_eL) _entCountyLimit = _eL.conformingLimit; }
+                    }
+                    if (_entCountyLimit === NATIONAL_CONFORMING_BASELINE.units1) {
+                        const _caM = question.match(/\b(nipomo|atascadero|paso robles|arroyo grande|pismo beach|grover beach|morro bay|cambria|san luis obispo|santa barbara|goleta|lompoc|monterey|carmel|seaside|king city|santa cruz|capitola|watsonville|scotts valley|los angeles|orange|irvine|anaheim|san diego|san francisco|san jose|sacramento|fresno|riverside|bakersfield|stockton|marin|napa|sonoma|ventura|santa clara|alameda|san mateo|thousand oaks|long beach|oakland|palo alto|mountain view|sunnyvale|santa rosa)\b/i);
+                        if (_caM) { const _eL2 = getCALoanLimits(_caM[1]); if (_eL2) _entCountyLimit = _eL2.conformingLimit; }
+                    }
+                    if (_entCountyLimit === NATIONAL_CONFORMING_BASELINE.units1) {
+                        const _stM = question.match(/\b([A-Z]{2})\b/);
+                        const _coM = question.match(/\b(\w[\w\s]{2,25}?)\s+county\b/i);
+                        if (_stM && _coM) {
+                            const _nl = getNationalLimits(_stM[1], _coM[1].trim());
+                            _entCountyLimit = _nl.conforming.units1;
+                        }
+                    }
+                } catch (_e) { /* best-effort */ }
+                const result = calcVAEntitlement({
+                    purchasePrice:    _ep.purchasePrice,
+                    priorLoanBalance: _ep.priorLoanBalance,
+                    countyLimit:      (_ep.countyLimit as number | undefined) ?? _entCountyLimit,
+                    annualRatePct:    _ep.annualRatePct,
+                    isExempt:         _ep.isExempt ?? false,
+                    annualTax:        _ep.annualTax,
+                    annualInsurance:  _ep.annualInsurance,
+                });
+                calcCard = buildVAEntitlementCard(result);
+                calcDebugModel = 'calcEngine-va-entitlement';
 
             } else if (calcDispatch.type === 'va' && calcDispatch.params) {
                 const result = calcVA(calcDispatch.params as any);

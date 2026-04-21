@@ -1354,6 +1354,104 @@ export function calcVA(input: VAInput): VAResult {
 }
 
 // ─────────────────────────────────────────────
+// CALC: VA ENTITLEMENT (SUBSEQUENT USE)
+// ─────────────────────────────────────────────
+
+export interface VAEntitlementInput {
+    purchasePrice:    number;
+    priorLoanBalance: number;    // remaining balance on prior VA loan (we take 25% as entitlement used)
+    countyLimit:      number;    // 2026 conforming limit for the buyer's county
+    annualRatePct:    number;
+    termYears?:       number;    // default 30
+    annualTax?:       number;    // override; else 1.2% of price
+    annualInsurance?: number;    // override; else 0.35% of price
+    isExempt?:        boolean;   // disability → funding fee = 0
+}
+
+export interface VAEntitlementResult {
+    purchasePrice:       number;
+    priorLoanBalance:    number;
+    countyLimit:         number;
+    // Entitlement math
+    totalEntitlement:    number;  // 25% of county conforming limit
+    entitlementUsed:     number;  // 25% of prior loan balance
+    remainingEntitlement:number;
+    maxZeroDownLoan:     number;  // remaining × 4
+    downPaymentNeeded:   number;  // max(0, price×0.25 − remaining)
+    downPaymentPct:      number;  // downPaymentNeeded / purchasePrice × 100
+    baseLoan:            number;  // purchasePrice − downPaymentNeeded
+    isJumboVA:           boolean; // baseLoan > countyLimit
+    // Funding fee (subsequent use rates)
+    fundingFeePct:       number;
+    fundingFee:          number;
+    totalLoan:           number;  // baseLoan + fundingFee
+    isExempt:            boolean;
+    // Monthly payment
+    annualRatePct:       number;
+    termYears:           number;
+    monthlyPI:           number;
+    monthlyTax:          number;
+    monthlyInsurance:    number;
+    totalMonthly:        number;
+}
+
+export function calcVAEntitlement(input: VAEntitlementInput): VAEntitlementResult {
+    const {
+        purchasePrice,
+        priorLoanBalance,
+        countyLimit,
+        annualRatePct,
+        termYears    = 30,
+        annualTax,
+        annualInsurance,
+        isExempt     = false,
+    } = input;
+
+    // Entitlement math
+    const totalEntitlement     = Math.round(countyLimit * 0.25);
+    const entitlementUsed      = Math.round(priorLoanBalance * 0.25);
+    const remainingEntitlement = Math.max(0, totalEntitlement - entitlementUsed);
+    const maxZeroDownLoan      = remainingEntitlement * 4;
+
+    // Down payment = shortfall in VA guaranty (VA wants 25% of purchase price covered)
+    const requiredGuaranty = Math.round(purchasePrice * 0.25);
+    const downPaymentNeeded = Math.max(0, requiredGuaranty - remainingEntitlement);
+    const downPaymentPct    = purchasePrice > 0 ? (downPaymentNeeded / purchasePrice) * 100 : 0;
+    const baseLoan          = purchasePrice - downPaymentNeeded;
+    const isJumboVA         = baseLoan > countyLimit;
+
+    // Funding fee — subsequent use rates (VA Circular 26-23-21)
+    let fundingFeePct = 0;
+    if (!isExempt) {
+        if      (downPaymentPct >= 10) fundingFeePct = 1.25;
+        else if (downPaymentPct >= 5)  fundingFeePct = 1.50;
+        else                           fundingFeePct = 3.30;
+    }
+    const fundingFee = Math.round(baseLoan * fundingFeePct / 100);
+    const totalLoan  = baseLoan + fundingFee;
+
+    // Monthly P&I on total loan
+    const monthlyRate = annualRatePct / 100 / 12;
+    const n = termYears * 12;
+    const monthlyPI = monthlyRate > 0
+        ? Math.round(totalLoan * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1))
+        : Math.round(totalLoan / n);
+    const monthlyTax      = annualTax      ? Math.round(annualTax / 12)      : Math.round(purchasePrice * 0.012 / 12);
+    const monthlyInsurance = annualInsurance ? Math.round(annualInsurance / 12) : Math.round(purchasePrice * 0.0035 / 12);
+    const totalMonthly    = monthlyPI + monthlyTax + monthlyInsurance;
+
+    return {
+        purchasePrice, priorLoanBalance, countyLimit,
+        totalEntitlement, entitlementUsed, remainingEntitlement,
+        maxZeroDownLoan, downPaymentNeeded, downPaymentPct,
+        baseLoan, isJumboVA,
+        fundingFeePct, fundingFee, totalLoan, isExempt,
+        annualRatePct, termYears,
+        monthlyPI, monthlyTax, monthlyInsurance, totalMonthly,
+    };
+}
+
+// ─────────────────────────────────────────────
 // CALC: JUMBO LOAN
 // ─────────────────────────────────────────────
 

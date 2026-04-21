@@ -27,6 +27,7 @@ import {
     OneExtraPaymentPerYearResult,
     VAResult,
     JumboResult,
+    VAEntitlementResult,
 } from './calcEngine';
 import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 import { NATIONAL_CONFORMING_BASELINE } from './loanLimits2026';
@@ -45,7 +46,7 @@ export interface BuiltCard {
     answer: string;
     next_step: string;
     follow_up: string;
-    follow_up_chips: Array<{ label: string; seed: string; paramOverrides?: Record<string, number | string | boolean>; changedKeys?: string[] }>;
+    follow_up_chips: Array<{ label: string; seed: string; paramOverrides?: Record<string, number | string | boolean>; changedKeys?: string[]; inputOnly?: boolean }>;
     confidence: string;
     memoryPayload?: {
         plain_english_summary: string;
@@ -2807,6 +2808,11 @@ ${countySection}${buydownSection}${dtiSection}
             paramOverrides: { purchasePrice: r.purchasePrice, downPaymentPct: 5, annualRatePct: r.originalRatePct, loanType: 'va' },
             changedKeys: ['downPaymentPct'],
         },
+        {
+            label: `I still have an active VA loan — what's my down payment?`,
+            seed: `VA loan on a ${fK(r.purchasePrice)} home at ${fPct(r.originalRatePct)} — I still have an active VA loan with a balance of $`,
+            inputOnly: true,
+        },
     ];
 
     return {
@@ -2839,6 +2845,154 @@ ${countySection}${buydownSection}${dtiSection}
             monthlyPITI: r.totalMonthly, termYears: r.termYears,
             isInvestment: false,
         },
+    };
+}
+
+// ─────────────────────────────────────────────
+// VA ENTITLEMENT CARD (SUBSEQUENT USE)
+// ─────────────────────────────────────────────
+
+export function buildVAEntitlementCard(r: VAEntitlementResult): BuiltCard {
+    const dpRow = r.downPaymentNeeded > 0
+        ? `| **Down Payment Required** | **${f$(r.downPaymentNeeded)} (${r.downPaymentPct.toFixed(1)}% of purchase price)** |`
+        : `| **Down Payment Required** | **$0 — full coverage within remaining entitlement** |`;
+
+    const jumboNote = r.isJumboVA
+        ? `\n> ⚠️ **VA Jumbo:** Your base loan (${f$(r.baseLoan)}) exceeds the county conforming limit (${f$(r.countyLimit)}). VA still allows this loan with full entitlement — standard VA Jumbo underwriting applies.`
+        : `\n> ✅ Your loan is within the county conforming limit — standard VA underwriting applies.`;
+
+    const ffRow = r.isExempt
+        ? `| VA Funding Fee | **Exempt** (disability) |`
+        : `| VA Funding Fee | ${f$(r.fundingFee)} (${fPct(r.fundingFeePct)} subsequent use — rolled in) |`;
+
+    const answer = `**VA Entitlement — Subsequent Use Analysis**
+
+**${f$(r.purchasePrice)} purchase · prior VA loan balance ${f$(r.priorLoanBalance)} · ${fPct(r.annualRatePct)} · ${r.termYears}-year fixed**
+
+---
+
+## 📊 Entitlement Breakdown
+
+| | |
+|--|--|
+| 2026 County Conforming Limit | ${f$(r.countyLimit)} |
+| Total Entitlement (25% of limit) | ${f$(r.totalEntitlement)} |
+| Entitlement Used (25% × prior balance) | ${f$(r.entitlementUsed)} |
+| **Remaining Entitlement** | **${f$(r.remainingEntitlement)}** |
+| Max Loan at $0 Down | ${f$(r.maxZeroDownLoan)} |
+${dpRow}
+
+${jumboNote}
+
+---
+
+## 🏠 Loan Structure
+
+| | |
+|--|--|
+| Purchase Price | ${f$(r.purchasePrice)} |
+| Down Payment | ${r.downPaymentNeeded > 0 ? f$(r.downPaymentNeeded) : '**$0**'} |
+| Base Loan | ${f$(r.baseLoan)} |
+${ffRow}
+| **Total Loan** | **${f$(r.totalLoan)}** |
+
+---
+
+## 💰 Monthly Payment
+
+| Component | Amount |
+|-----------|--------|
+| Principal & Interest | ${f$(r.monthlyPI)} |
+| Property Taxes | ${f$(r.monthlyTax)} |
+| Home Insurance | ${f$(r.monthlyInsurance)} |
+| **Total Monthly (PITI)** | **${f$(r.totalMonthly)}** |
+
+> ✅ **No PMI** — VA loans never require private mortgage insurance regardless of down payment.
+
+---
+
+## 🏅 Subsequent Use Notes
+
+- Funding fee for subsequent use with <5% down: **3.3%** (vs 2.15% first use)
+- If you sell your prior home and pay off the VA loan, entitlement restores fully — $0 down available again
+- Partial entitlement can also be used if you're keeping both properties (investment/rental exception applies)
+- Check your exact entitlement balance on your COE at [VA.gov](https://www.va.gov/housing-assistance/home-loans/certificate-of-eligibility/)
+
+> ⚠️ *Check with your lender — underwriting guidelines and entitlement restoration timelines vary.*`;
+
+    const priceUp = Math.round(r.purchasePrice * 1.1 / 10000) * 10000;
+    const priceDown = Math.round(r.purchasePrice * 0.9 / 10000) * 10000;
+    const chips: BuiltCard['follow_up_chips'] = [
+        {
+            label: `What if I pay off the prior loan first — $0 down?`,
+            seed: `VA loan on a ${fK(r.purchasePrice)} home at ${fPct(r.annualRatePct)}, prior VA loan paid off, full entitlement restored`,
+            paramOverrides: { purchasePrice: r.purchasePrice, annualRatePct: r.annualRatePct, downPaymentPct: 0, loanType: 'va' },
+        },
+        {
+            label: `What if home price is ${fK(priceDown)} instead?`,
+            seed: `VA subsequent use — ${fK(priceDown)} home at ${fPct(r.annualRatePct)}, prior VA balance ${fK(r.priorLoanBalance)}`,
+            paramOverrides: { purchasePrice: priceDown, annualRatePct: r.annualRatePct, priorLoanBalance: r.priorLoanBalance, loanType: 'va' },
+        },
+        {
+            label: `What if home price is ${fK(priceUp)}?`,
+            seed: `VA subsequent use — ${fK(priceUp)} home at ${fPct(r.annualRatePct)}, prior VA balance ${fK(r.priorLoanBalance)}`,
+            paramOverrides: { purchasePrice: priceUp, annualRatePct: r.annualRatePct, priorLoanBalance: r.priorLoanBalance, loanType: 'va' },
+        },
+        {
+            label: `Run full VA payment breakdown`,
+            seed: `VA loan on a ${fK(r.purchasePrice)} home with ${r.downPaymentPct.toFixed(1)}% down at ${fPct(r.annualRatePct)}`,
+            paramOverrides: { purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, annualRatePct: r.annualRatePct, loanType: 'va' },
+        },
+    ];
+
+    return {
+        answer,
+        next_step: `Down payment needed: ${r.downPaymentNeeded > 0 ? f$(r.downPaymentNeeded) + ` (${r.downPaymentPct.toFixed(1)}%)` : '$0'}. Monthly PITI: ${f$(r.totalMonthly)}.`,
+        follow_up: chips[0].label,
+        follow_up_chips: chips,
+        confidence: '1.00 (calculated — no LLM)',
+        memoryPayload: {
+            plain_english_summary: `VA subsequent use: ${f$(r.purchasePrice)} purchase, prior balance ${f$(r.priorLoanBalance)}, remaining entitlement ${f$(r.remainingEntitlement)}, down payment needed ${f$(r.downPaymentNeeded)}.`,
+            scenario_inputs: { price: r.purchasePrice, prior_balance: r.priorLoanBalance, county_limit: r.countyLimit, rate: r.annualRatePct },
+            computed_financials: { down_payment_needed: r.downPaymentNeeded, remaining_entitlement: r.remainingEntitlement, monthly_pitia: r.totalMonthly },
+            monthly_payment: r.totalMonthly,
+        },
+    };
+}
+
+export function buildVAEntitlementNeedsInputCard(price: number | null, priorBalance: number | null): BuiltCard {
+    const hasPrior = priorBalance !== null;
+    const hasPrice = price !== null;
+    const question = !hasPrice && !hasPrior
+        ? `What's the purchase price of the home you're buying, and what's the remaining balance on your current VA loan?`
+        : !hasPrice
+        ? `Got it — prior VA balance is ${f$(priorBalance!)}. What's the purchase price of the new home?`
+        : `Got the price (${f$(price!)}). What's the remaining balance on your current VA loan? (Or provide the entitlement used from your COE.)`;
+
+    const answer = `**VA Subsequent Use — Entitlement Calculator**
+
+To calculate your down payment and remaining entitlement, I need two numbers:
+
+| | |
+|--|--|
+| New Home Purchase Price | ${hasPrice ? `✅ ${f$(price!)}` : '❓ Not provided yet'} |
+| Prior VA Loan Balance | ${hasPrior ? `✅ ${f$(priorBalance!)}` : '❓ Not provided yet'} |
+
+**${question}**
+
+> 💡 Your prior VA loan balance is the current payoff amount — not the original loan. You can find it on your mortgage statement or by calling your servicer.
+>
+> You can also provide the **entitlement charged** amount directly from your COE (Certificate of Eligibility).`;
+
+    return {
+        answer,
+        next_step: question,
+        follow_up: question,
+        follow_up_chips: [
+            { label: 'What is VA entitlement?', seed: 'Explain VA entitlement — what is it, how does subsequent use work, and when does it restore?' },
+            { label: 'How do I get my COE?', seed: 'How do I get my VA Certificate of Eligibility (COE) and what does it show?' },
+        ],
+        confidence: '0.00 (needs_input)',
     };
 }
 

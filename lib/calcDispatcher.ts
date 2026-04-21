@@ -26,6 +26,7 @@ import {
     FHAvsConvInput,
     VAInput,
     JumboInput,
+    VAEntitlementInput,
     FHA_FLOOR_2026,
     FHA_CEILING_2026,
     CONF_STANDARD,
@@ -50,6 +51,8 @@ export type CalcType =
     | 'refi_needs_input'
     | 'va'
     | 'va_needs_input'
+    | 'va_entitlement'
+    | 'va_entitlement_needs_input'
     | 'jumbo'
     | 'jumbo_needs_input'
     | 'fha_needs_input'
@@ -82,6 +85,8 @@ export interface DispatchResult {
     | DSCRInput
     | RefiNeedsInput
     | FHANeedsInput
+    | VAEntitlementInput
+    | { price: number | null; priorBalance: number | null }
     | null;
     confidence: number;  // 0–1
     assumptions: string[]; // list of defaults applied
@@ -356,6 +361,17 @@ export function isVAQuestion(q: string): boolean {
         /\bno\s*down\s*payment\b.{0,30}\b(va|veteran|military)\b/i.test(q) ||
         /\bfunding\s*fee\b/i.test(q) ||
         /\bva\b.{0,10}\b\$[\d,]+[kKmM]?\b/i.test(q);
+}
+
+export function isVAEntitlementQuestion(q: string): boolean {
+    return /\b(?:still have|active|existing|current|prior|previous|second|another)\b.{0,30}\bva\s*(?:loan|mortgage)\b/i.test(q) ||
+        /\bva\s*(?:loan|mortgage).{0,30}\b(?:still have|active|existing|second|another|prior)\b/i.test(q) ||
+        /\b(?:two|2)\s*va\s*loans?\b/i.test(q) ||
+        /\bsubsequent\s*(?:va\s*)?(?:use|loan|purchase)\b/i.test(q) ||
+        /\bentitlement\s*(?:used|remaining|restored|left|available)\b/i.test(q) ||
+        /\b(?:remaining|used|available|restore)\s*entitlement\b/i.test(q) ||
+        /\bva\b.{0,20}\b(?:entitlement|down\s*payment\s*required|bonus\s*entitlement)\b/i.test(q) ||
+        /\bsecond\s*(?:time\s*)?va\b/i.test(q);
 }
 
 export function isConventionalQuestion(q: string): boolean {
@@ -850,6 +866,30 @@ export function dispatch(
                 assumptions,
             };
         }
+    }
+
+    // ── 5a. VA ENTITLEMENT (subsequent use) — must precede generic VA ──
+    if (isVAEntitlementQuestion(q)) {
+        const price  = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        const rate   = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
+        // Extract prior balance from text: "prior balance of $500k", "still owe $400k", "balance of $X"
+        const priorMatch = q.match(/(?:prior|previous|existing|current|owe|balance|outstanding)[^\d$]*\$?\s*([\d,]+)\s*[kKmM]?/i)
+            ?? q.match(/\$\s*([\d,]+)\s*[kKmM]?\s*(?:balance|remaining|outstanding|left|owed)/i);
+        const priorRaw = priorMatch ? parseFloat(priorMatch[1].replace(/,/g, '')) : null;
+        const priorMult = priorMatch?.[0]?.match(/[kK]/) ? 1000 : priorMatch?.[0]?.match(/[mM]/) ? 1000000 : 1;
+        const priorBalance = priorRaw ? priorRaw * priorMult : null;
+
+        if (!price || priorBalance === null) {
+            return { type: 'va_entitlement_needs_input', params: { price: price ?? null, priorBalance }, confidence: 0, assumptions: [] };
+        }
+        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+
+        return {
+            type: 'va_entitlement',
+            params: { purchasePrice: price, priorLoanBalance: priorBalance, annualRatePct: rate },
+            confidence: 0.95,
+            assumptions,
+        };
     }
 
     // ── 5. VA ──
