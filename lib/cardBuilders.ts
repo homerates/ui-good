@@ -2785,6 +2785,11 @@ ${countySection}${buydownSection}${dtiSection}
 
     const chips: BuiltCard['follow_up_chips'] = [
         {
+            label: `I have an active VA loan — what's my down payment?`,
+            seed: `VA loan on a ${fK(r.purchasePrice)} home at ${fPct(r.originalRatePct)} — I still have an active VA loan with a balance of $`,
+            inputOnly: true,
+        },
+        {
             label: `Rate drops to ${fPct(rateDown)} — new payment?`,
             seed: `Same home, VA loan, rate drops to ${fPct(rateDown)}`,
             paramOverrides: { annualRatePct: rateDown, purchasePrice: r.purchasePrice, downPaymentPct: r.downPaymentPct, loanType: 'va' },
@@ -2807,11 +2812,6 @@ ${countySection}${buydownSection}${dtiSection}
             seed: `VA loan on a ${fK(r.purchasePrice)} home with 5% down at ${fPct(r.originalRatePct)}`,
             paramOverrides: { purchasePrice: r.purchasePrice, downPaymentPct: 5, annualRatePct: r.originalRatePct, loanType: 'va' },
             changedKeys: ['downPaymentPct'],
-        },
-        {
-            label: `I still have an active VA loan — what's my down payment?`,
-            seed: `VA loan on a ${fK(r.purchasePrice)} home at ${fPct(r.originalRatePct)} — I still have an active VA loan with a balance of $`,
-            inputOnly: true,
         },
     ];
 
