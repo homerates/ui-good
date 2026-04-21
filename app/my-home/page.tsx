@@ -124,11 +124,18 @@ function rate(n: number | null | undefined): string { return n ? `${n.toFixed(2)
 
 // ── Sub-cards ──────────────────────────────────────────────────────────────────
 
-function CardEquity({ d, nearbySales }: { d: AnalysisData; nearbySales?: NearbySale[] }) {
+function CardEquity({ d, nearbySales, onEdit }: { d: AnalysisData; nearbySales?: NearbySale[]; onEdit?: () => void }) {
   const eqPct = d.equityPct ?? 0;
   const balPct = 100 - eqPct;
+  const missingBalance = !d.estimatedEquity && !(d.estimatedEquity != null && d.estimatedEquity < 0);
   return (
     <div>
+      {missingBalance && onEdit && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(234,179,8,0.05)', border: '1px dashed rgba(234,179,8,0.25)', borderRadius: 8, marginBottom: 16 }}>
+          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Equity and LTV require your loan balance.</span>
+          <button onClick={onEdit} style={{ fontSize: '0.78rem', fontWeight: 700, color: '#eab308', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Add your numbers →</button>
+        </div>
+      )}
       <div className="mh-stat-row">
         <div className="mh-stat">
           <div className="mh-stat-label">Est. Value</div>
@@ -141,12 +148,12 @@ function CardEquity({ d, nearbySales }: { d: AnalysisData; nearbySales?: NearbyS
         </div>
         <div className="mh-stat">
           <div className="mh-stat-label">Est. Equity</div>
-          <div className="mh-stat-value">{d.estimatedEquity ? fmt(d.estimatedEquity) : '—'}</div>
+          <div className="mh-stat-value">{d.estimatedEquity ? fmt(d.estimatedEquity) : missingBalance && onEdit ? <button onClick={onEdit} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#64748b', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '3px 8px' }}>Add balance →</button> : '—'}</div>
           <div className="mh-stat-sub">{pct(d.equityPct)} of value</div>
         </div>
         <div className="mh-stat">
           <div className="mh-stat-label">LTV Ratio</div>
-          <div className="mh-stat-value">{pct(d.ltv)}</div>
+          <div className="mh-stat-value">{d.ltv !== null ? pct(d.ltv) : missingBalance && onEdit ? <button onClick={onEdit} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#64748b', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '3px 8px' }}>Add balance →</button> : '—'}</div>
           <div className="mh-stat-sub">{d.estimatedBalance ? fmt(d.estimatedBalance) + ' balance' : ''}</div>
         </div>
       </div>
@@ -1522,14 +1529,18 @@ function MyHomePageInner() {
                         ) : (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
                             {[
-                              { label: 'Est. Value',   value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true },
-                              { label: 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 },
-                              { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true },
-                              { label: 'LTV Ratio',    value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100 },
+                              { label: 'Est. Value',   value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true, missing: false },
+                              { label: 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0, missing: !analysis.estimatedEquity && !(analysis.estimatedEquity != null && analysis.estimatedEquity < 0) },
+                              { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true, missing: false },
+                              { label: 'LTV Ratio',    value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100, missing: analysis.ltv === null },
                             ].map((s, i) => (
                               <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
                                 <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
-                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: (s as {green?:boolean;warn?:boolean}).warn ? '#f59e0b' : s.green ? '#00e87a' : '#f1f5f9', lineHeight: 1.1 }}>{s.value}</div>
+                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: s.warn ? '#f59e0b' : s.green ? '#00e87a' : '#f1f5f9', lineHeight: 1.1 }}>
+                                  {s.missing && !borrowerId
+                                    ? <button onClick={openLoanEditor} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#64748b', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '4px 10px', lineHeight: 1.4 }}>Add balance →</button>
+                                    : s.value}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1733,7 +1744,7 @@ function MyHomePageInner() {
                               </>
                             ) : (
                               <>
-                                {activeChip === 'equity'     && <CardEquity     d={analysis} nearbySales={nearbySales} />}
+                                {activeChip === 'equity'     && <CardEquity     d={analysis} nearbySales={nearbySales} onEdit={!borrowerId ? openLoanEditor : undefined} />}
                                 {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
                                 {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
                                 {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
