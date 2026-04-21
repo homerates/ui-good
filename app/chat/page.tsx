@@ -2940,29 +2940,32 @@ export default function Page() {
                                                                             onClick={() => send(mod.seed)}
                                                                             style={{
                                                                                 display: 'grid',
-                                                                                gridTemplateColumns: '180px 1fr auto',
+                                                                                gridTemplateColumns: '1fr 1fr',
                                                                                 alignItems: 'center',
-                                                                                gap: 12,
-                                                                                padding: '10px 16px',
+                                                                                padding: '10px 18px',
                                                                                 background: 'transparent', border: 'none',
                                                                                 borderTop: mi > 0 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                                                                                 cursor: 'pointer', textAlign: 'left',
                                                                                 transition: 'background 0.12s',
                                                                                 width: '100%',
+                                                                                gap: 0,
                                                                             }}
                                                                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.06)')}
                                                                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                                                         >
-                                                                            {/* Left col: icon + name + tag */}
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                                                <span style={{ fontSize: 16, flexShrink: 0, width: 20, textAlign: 'center' }}>{mod.icon}</span>
-                                                                                <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9', whiteSpace: 'nowrap' }}>{mod.label}</span>
-                                                                                <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>{mod.tag}</span>
+                                                                            {/* Left col: icon + name + tag below */}
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 12, borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+                                                                                <span style={{ fontSize: 16, flexShrink: 0, width: 22, textAlign: 'center' }}>{mod.icon}</span>
+                                                                                <div>
+                                                                                    <div style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>{mod.label}</div>
+                                                                                    <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>{mod.tag}</div>
+                                                                                </div>
                                                                             </div>
-                                                                            {/* Right col: scenario example */}
-                                                                            <div style={{ fontSize: 12, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mod.desc}</div>
-                                                                            {/* Run arrow */}
-                                                                            <span style={{ fontSize: 11, color: '#00e87a', opacity: 0.7, whiteSpace: 'nowrap' }}>Run →</span>
+                                                                            {/* Right col: scenario + Run */}
+                                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 14 }}>
+                                                                                <span style={{ fontSize: 12, color: '#64748b' }}>{mod.desc}</span>
+                                                                                <span style={{ fontSize: 11, color: '#00e87a', opacity: 0.8, flexShrink: 0, marginLeft: 12 }}>Run →</span>
+                                                                            </div>
                                                                         </button>
                                                                     ))}
                                                                 </div>
