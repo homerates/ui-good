@@ -2422,8 +2422,9 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     // TAVILY GATE — only fire for questions that need live web data
     // Skips: calc engine questions, rate lookups (FRED handles), UW guidelines, about, lab
-    // Detect a street address in the question (e.g. "1984 Lake Sherwood Dr, CA 91361")
-    const isAddressQuery = /^\d+\s+\w.{0,80}\b(dr|drive|st|street|ave|avenue|blvd|boulevard|ln|lane|way|rd|road|ct|court|pl|place|cir|circle|ter|terrace|pkwy|parkway|hwy|highway|loop|trail|run|path)\b/i.test(question.trim());
+    // Detect a street address anywhere in the question
+    // e.g. "1984 Lake Sherwood Dr" / "CMA for 1984 Lake Sherwood Dr, CA" / "What's 123 Main St worth"
+    const isAddressQuery = /\b\d{1,5}\s+\w.{0,80}\b(dr|drive|st|street|ave|avenue|blvd|boulevard|ln|lane|way|rd|road|ct|court|pl|place|cir|circle|ter|terrace|pkwy|parkway|hwy|highway|loop|trail|run|path)\b/i.test(question);
 
     const needsWebSearch = (
         // Street address — always fetch comps + market context
