@@ -179,6 +179,21 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     const basic = await db().from('properties').select(BASIC_SEL).eq('address_full', addr).maybeSingle();
     prop = basic.data ?? null;
   }
+  // Fuzzy fallback: addresses from URL params lack commas (Google Places adds them).
+  // "8 peachtree coto de caza ca 92697" ≠ "8 peachtree, coto de caza, ca 92697"
+  if (!prop) {
+    // Strip all commas from stored addresses and compare
+    const addrNoComma = addr.replace(/,\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    const firstTokens = addrNoComma.split(' ').slice(0, 3).join(' ');
+    const { data: fuzzyFull } = await db().from('properties').select(ATTOM_SEL)
+      .ilike('address_full', `${firstTokens}%`).limit(5);
+    if (fuzzyFull?.length) {
+      prop = fuzzyFull.find((r: any) => {
+        const stored = (r.address_full ?? '').replace(/,\s*/g, ' ').replace(/\s+/g, ' ').toLowerCase().trim();
+        return stored === addrNoComma;
+      }) ?? null;
+    }
+  }
 
   // 3. Resolve last sale data (DB → LO override → Tavily)
   let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;
