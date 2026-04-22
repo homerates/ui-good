@@ -1658,40 +1658,43 @@ function MyHomePageInner() {
                       {/* Accent line */}
                       <div style={{ height: 3, background: isBuyer ? 'linear-gradient(90deg,#3b82f6,#6366f1)' : 'linear-gradient(90deg,#00e87a,#00b459)' }} />
 
-                      {/* Street View hero photo */}
-                      {!isBuyer && analysis.streetViewUrl && (
-                        <div style={{ position: 'relative', height: 200, overflow: 'hidden', background: '#0f172a' }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={analysis.streetViewUrl}
-                            alt="Street view"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            onError={e => {
-                              const img = e.currentTarget;
-                              img.style.display = 'none';
-                              const wrap = img.parentElement;
-                              if (wrap && !wrap.querySelector('.sv-placeholder')) {
-                                const ph = document.createElement('div');
-                                ph.className = 'sv-placeholder';
-                                ph.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#0a1628;border-bottom:1px solid #1e293b;';
-                                ph.innerHTML = '<div style="font-size:2.2rem;opacity:0.2">🏠</div><div style="font-size:0.68rem;color:#334155;letter-spacing:0.05em;text-align:center;">No street view available</div>';
-                                wrap.appendChild(ph);
-                              }
-                            }}
-                          />
-                          {/* Satellite map overlay — bottom right */}
+                      {/* Street View hero photo — satellite map as base layer; photo on top */}
+                      {!isBuyer && (analysis.streetViewUrl || analysis.staticMapUrl) && (
+                        <div style={{ position: 'relative', height: 200, overflow: 'hidden', background: '#0a1628' }}>
+                          {/* Satellite map — always rendered full-size as base */}
                           {analysis.staticMapUrl && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={analysis.staticMapUrl}
                               alt="Satellite map"
-                              style={{ position: 'absolute', bottom: 8, right: 8, width: 120, height: 80, borderRadius: 8, border: '2px solid rgba(0,232,122,0.4)', objectFit: 'cover' }}
-                              onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
+                              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={e => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                            />
+                          )}
+                          {/* Street view — on top; hides to reveal full map when unavailable */}
+                          {analysis.streetViewUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={analysis.streetViewUrl}
+                              alt="Street view"
+                              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={e => {
+                                const img = e.currentTarget;
+                                img.style.display = 'none';
+                                const wrap = img.parentElement;
+                                if (wrap && !wrap.querySelector('.sv-placeholder')) {
+                                  const ph = document.createElement('div');
+                                  ph.className = 'sv-placeholder';
+                                  ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,0.35);pointer-events:none;';
+                                  ph.innerHTML = '<div style="font-size:2rem;opacity:0.4">🏠</div><div style="font-size:0.68rem;color:rgba(255,255,255,0.45);letter-spacing:0.05em;">No street view available</div>';
+                                  wrap.appendChild(ph);
+                                }
+                              }}
                             />
                           )}
                           {/* AVM source badge */}
                           {(analysis.avmSource === 'attom' || analysis.avmSource === 'attom_assessed') && (
-                            <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,20,10,0.75)', border: '1px solid rgba(0,232,122,0.35)', borderRadius: 6, padding: '3px 8px', fontSize: '0.6rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.06em' }}>
+                            <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, background: 'rgba(0,20,10,0.75)', border: '1px solid rgba(0,232,122,0.35)', borderRadius: 6, padding: '3px 8px', fontSize: '0.6rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.06em' }}>
                               {analysis.avmSource === 'attom' ? 'ATTOM AVM' : 'ATTOM ASSESSED'}
                             </div>
                           )}

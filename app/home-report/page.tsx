@@ -105,27 +105,20 @@ function HomeReportInner() {
   const [alertSaving, setAlertSaving] = useState(false);
   const [saved, setSaved]       = useState(false);
 
-  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
   useEffect(() => {
     if (!address) { setLoading(false); return; }
     (async () => {
-      const [lookupRes, tickerRes, salesRes] = await Promise.all([
-        fetch('/api/property/lookup', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address }), cache: 'no-store',
-        }),
-        fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
+      // Use homeowner/analysis (FHFA/ATTOM model) for consistent data with my-home page
+      const [analysisRes, salesRes] = await Promise.all([
+        fetch(`/api/homeowner/analysis?preview_address=${encodeURIComponent(address)}`, { cache: 'no-store' }),
         fetch(`/api/homeowner/nearby-sales?address=${encodeURIComponent(address)}`).catch(() => null),
       ]);
 
-      const lj = await lookupRes.json();
-      if (!lookupRes.ok || !lj.ok || !lj.data) { setErr(lj.error ?? 'Could not retrieve property data'); setLoading(false); return; }
-      setData(lj.data);
-
-      const tj = tickerRes ? await tickerRes.json().catch(() => null) : null;
-      const r30 = tj?.items?.find((i: any) => i.label === '30Y FIXED');
-      if (r30?.value) { const p = parseFloat(String(r30.value).replace('%','')); if (p > 3 && p < 12) setLiveRate(p); }
+      const aj = await analysisRes.json().catch(() => null);
+      if (!analysisRes.ok || aj?.error) { setErr(aj?.error ?? 'Could not retrieve property data'); setLoading(false); return; }
+      setData(aj);
+      // liveRate comes directly from analysis response
+      if (aj?.liveRate && aj.liveRate > 3 && aj.liveRate < 12) setLiveRate(aj.liveRate);
 
       const sj = salesRes ? await salesRes.json().catch(() => null) : null;
       if (sj?.sales?.length) setSales(sj.sales);
@@ -157,57 +150,38 @@ function HomeReportInner() {
 
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-  // Derived
-  // If cached snapshot says FOR_SALE but sale date is recent (< 18 months), it's stale data
-  let listingStatus = data?.listingStatus ?? 'UNKNOWN';
-  if (listingStatus === 'FOR_SALE' && data?.lastSaleDate) {
-    const parsed = new Date(data.lastSaleDate);
-    if (!isNaN(parsed.getTime()) && (Date.now() - parsed.getTime()) < 18 * 30.44 * 24 * 3600 * 1000) {
-      listingStatus = 'SOLD';
-    }
-  }
-  const isBuyer       = listingStatus === 'FOR_SALE' || listingStatus === 'PENDING';
-  const daysOnMarket  = data?.daysOnMarket ?? null;
-  const val           = data?.estimatedValue ?? data?.price ?? data?.lastSalePrice ?? null;
-  const listPrice     = isBuyer ? (data?.price ?? val) : null;
-  const equity        = data?.estimatedEquity ?? null;
-  const balance       = data?.estimatedBalance ?? null;
-  const eqPct         = (equity && val) ? Math.round(Math.max(0,equity) / val * 100) : null;
-  const ltv           = (balance && val) ? Math.round(balance / val * 100) : null;
-  const appPct        = (data?.lastSalePrice && val) ? Math.round((val - data.lastSalePrice) / data.lastSalePrice * 100) : null;
-  const annualTax     = (isBuyer ? listPrice : val) ? Math.round(((isBuyer ? listPrice : val)!) * 0.0115) : 0;
-  const baseVal       = isBuyer ? listPrice : val;
-  const projections   = val ? Array.from({ length: 6 }, (_, i) => {
+  // Derived — analysis API is always homeowner/owner mode (no buyer context)
+  const val      = data?.estimatedValue ?? null;
+  const equity   = data?.estimatedEquity ?? null;
+  const balance  = data?.estimatedBalance ?? null;
+  const eqPct    = data?.equityPct ?? (equity && val ? Math.round(Math.max(0, equity) / val * 100) : null);
+  const ltv      = data?.ltv ?? (balance && val ? Math.round(balance / val * 100) : null);
+  const appPct   = data?.appreciationPct ?? null;
+  const annualTax = val ? Math.round(val * 0.0115) : 0;
+  const projections = val ? Array.from({ length: 6 }, (_, i) => {
     const v = Math.round(val * Math.pow(1.042, i));
     return { yr: i, val: v, gain: i === 0 ? '' : `+${(((v - val) / val) * 100).toFixed(1)}%` };
   }) : [];
-  // Rate scenarios: buyer uses listPrice × 0.80 as loan; owner uses estimated balance
-  const scenarioBase  = isBuyer ? (listPrice ? Math.round(listPrice * 0.80) : null) : balance;
+  const scenarioBase  = balance;
   const rateScenarios = scenarioBase ? RATE_SCENARIOS.map(r => ({
     rate: r, piti: pitiCalc(scenarioBase, r, annualTax),
     isCurrent: Math.abs(r - liveRate) < 0.26,
   })) : [];
 
-  const streetViewUrl = address && mapsKey
-    ? `https://maps.googleapis.com/maps/api/streetview?size=900x360&location=${encodeURIComponent(address)}&return_error_code=true&key=${mapsKey}`
-    : null;
+  // Photo + map come from analysis API (server-side, avoids exposing API key client-side)
+  const streetViewUrl = (data?.streetViewUrl as string | null) ?? null;
+  const staticMapUrl  = (data?.staticMapUrl  as string | null) ?? null;
+  const photoUrl      = (data?.photoUrl      as string | null) ?? null;
+  const heroSrc       = photoUrl ?? streetViewUrl ?? null;
 
-  // Seed for Run My Numbers — buyer vs owner context
-  const runSeed = data ? (isBuyer && listPrice ? [
-    `I'm looking at buying ${address} listed at ${fmtFull(listPrice)}.`,
-    `Current 30-year rate is ${liveRate.toFixed(2)}%.`,
-    val && val !== listPrice ? `Redfin AVM is ${fmtFull(val)}.` : '',
-    daysOnMarket != null ? `Property has been on market ${daysOnMarket} days.` : '',
-    data?.lastSalePrice ? `Seller originally paid ${fmtFull(data.lastSalePrice)}${data?.lastSaleDate ? ` in ${data.lastSaleDate}` : ''}.` : '',
-    'Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.',
-  ].filter(Boolean).join(' ') : [
+  const runSeed = data ? [
     `I own this home at ${address} and want to refinance or review my options.`,
     balance ? `Loan balance: ${fmtFull(balance)} (estimated).` : '',
     data?.purchaseRate ? `Current mortgage rate: ${data.purchaseRate}% (estimated from purchase year).` : '',
     val ? `Home value: ${fmtFull(val)}.` : '',
     equity ? `Equity: ${fmtFull(equity)} (${eqPct}%).` : '',
     `Show me refinance savings, break-even, and equity options. Use these exact figures.`,
-  ].filter(Boolean).join(' ')) : '';
+  ].filter(Boolean).join(' ') : '';
 
   return (
     <>
@@ -254,80 +228,69 @@ function HomeReportInner() {
           {/* ── REPORT ── */}
           {!loading && !err && data && (
             <>
-              {/* ── HERO — Street View + Address ── */}
-              {streetViewUrl && (
-                <div id="hr-hero-wrap" style={{ width: '100%', height: 240, borderRadius: 16, overflow: 'hidden', marginBottom: 28, position: 'relative', background: '#0a1628' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={streetViewUrl} alt="Street view"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              {/* ── HERO — satellite map as base, photo/street view on top ── */}
+              <div style={{ width: '100%', height: 240, borderRadius: 16, overflow: 'hidden', marginBottom: 28, position: 'relative', background: '#0a1628' }}>
+                {/* Satellite map — always rendered as background layer */}
+                {staticMapUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={staticMapUrl} alt="Satellite map"
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                )}
+                {/* Photo / street view — layered on top; collapses to map on error */}
+                {heroSrc && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={heroSrc} alt="Property"
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     onError={e => {
                       const img = e.currentTarget;
+                      // Cascade: Redfin photo → street view → map-only
+                      if (!img.dataset.errored && streetViewUrl && img.src !== streetViewUrl) {
+                        img.dataset.errored = '1';
+                        img.src = streetViewUrl.replace('return_error_code=true&', '');
+                        return;
+                      }
                       img.style.display = 'none';
                       const wrap = img.parentElement;
-                      if (wrap && !wrap.querySelector('.hr-sv-ph')) {
+                      if (wrap && !wrap.querySelector('.hr-sv-ph') && !staticMapUrl) {
                         const ph = document.createElement('div');
                         ph.className = 'hr-sv-ph';
                         ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;';
-                        ph.innerHTML = '<div style="font-size:2.5rem;opacity:0.15">🏠</div><div style="font-size:0.7rem;color:#334155;letter-spacing:0.05em;">No street view available</div>';
+                        ph.innerHTML = '<div style="font-size:2.5rem;opacity:0.2">🏠</div><div style="font-size:0.72rem;color:#475569;letter-spacing:0.05em;">No street view available</div>';
                         wrap.appendChild(ph);
                       }
                     }}
                   />
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(8,12,18,0.9) 100%)', pointerEvents: 'none' }} />
-                  <div style={{ position: 'absolute', bottom: 20, left: 24 }}>
-                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: isBuyer ? '#60a5fa' : '#00e87a', marginBottom: 4 }}>
-                      {isBuyer ? (listingStatus === 'PENDING' ? '🔴 Pending · Buyer Intelligence' : '🏷 For Sale · Buyer Intelligence') : 'Home Intelligence'}
-                    </div>
-                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>{data.address ?? address}</div>
-                    {(data.beds || data.baths || data.sqft) && (
-                      <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>
-                        {[data.beds && `${data.beds} bd`, data.baths && `${data.baths} ba`, data.sqft && `${data.sqft.toLocaleString()} sqft`].filter(Boolean).join(' · ')}
-                      </div>
-                    )}
+                )}
+                {/* No photo and no map */}
+                {!heroSrc && !staticMapUrl && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ fontSize: '2.5rem', opacity: 0.15 }}>🏠</div>
+                    <div style={{ fontSize: '0.72rem', color: '#334155', letterSpacing: '0.05em' }}>No street view available</div>
                   </div>
-                </div>
-              )}
-
-              {!streetViewUrl && (
-                <div className="hr-card" style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: isBuyer ? '#60a5fa' : '#00e87a', marginBottom: 4 }}>
-                    {isBuyer ? (listingStatus === 'PENDING' ? '🔴 Pending · Buyer Intelligence' : '🏷 For Sale · Buyer Intelligence') : 'Home Intelligence'}
-                  </div>
+                )}
+                {/* Gradient + address overlay */}
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 35%, rgba(8,12,18,0.88) 100%)', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', bottom: 20, left: 24, right: 24 }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 4 }}>Home Intelligence</div>
                   <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>{data.address ?? address}</div>
                   {(data.beds || data.baths || data.sqft) && (
-                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 3 }}>
+                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>
                       {[data.beds && `${data.beds} bd`, data.baths && `${data.baths} ba`, data.sqft && `${data.sqft.toLocaleString()} sqft`].filter(Boolean).join(' · ')}
                     </div>
                   )}
-                  {data.lastSaleDate && data.lastSalePrice && (
-                    <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: 6 }}>
-                      Purchased {fmtFull(data.lastSalePrice)} · {data.lastSaleDate}
-                    </div>
-                  )}
                 </div>
-              )}
+              </div>
 
               {/* ── 4 KEY STATS ── */}
               <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-                {isBuyer ? (<>
-                  <StatBox label="List Price"     value={fmtK(listPrice)} color="#60a5fa" />
-                  <StatBox label="Redfin AVM"     value={fmtK(val)}
-                    sub={val && listPrice ? `${Math.round((val - listPrice) / listPrice * 100) > 0 ? '+' : ''}${Math.round((val - listPrice) / listPrice * 100)}% vs ask` : undefined}
-                    color={val && listPrice && val >= listPrice ? '#22c55e' : '#f97066'} />
-                  <StatBox label="Days on Market" value={daysOnMarket != null ? `${daysOnMarket}d` : '—'}
-                    sub={daysOnMarket != null ? (daysOnMarket <= 7 ? 'Fresh listing' : daysOnMarket <= 30 ? 'Active' : 'Extended — room to negotiate') : undefined}
-                    color={daysOnMarket != null && daysOnMarket > 30 ? '#22c55e' : '#f1f5f9'} />
-                  <StatBox label="$/sqft"         value={listPrice && data?.sqft ? `$${Math.round(listPrice / data.sqft)}` : '—'} color="#f1f5f9" />
-                </>) : (<>
-                  <StatBox label="Est. Value"  value={fmtK(val)} sub={data.estimatedValueLow && data.estimatedValueHigh ? `Range ${fmtK(data.estimatedValueLow)} – ${fmtK(data.estimatedValueHigh)}` : undefined} color="#00e87a" />
-                  <StatBox label="Total Equity" value={fmtK(equity)} sub={eqPct != null ? `${eqPct}% of value` : undefined} color={equity && equity > 0 ? '#00e87a' : '#f59e0b'} />
-                  <StatBox label="Appreciation" value={fmtPct(appPct)} sub={data.lastSaleDate ? `Since ${data.lastSaleDate}` : undefined} color={appPct && appPct > 0 ? '#00e87a' : '#f97066'} />
-                  <StatBox label="LTV Ratio"    value={ltv != null ? `${ltv}%` : '—'} sub={balance ? `${fmtK(balance)} balance est.` : undefined} color={ltv && ltv > 80 ? '#f59e0b' : '#f1f5f9'} />
-                </>)}
+                <StatBox label="Est. Value"   value={fmtK(val)} sub={data.estimatedValueLow && data.estimatedValueHigh ? `Range ${fmtK(data.estimatedValueLow)} – ${fmtK(data.estimatedValueHigh)}` : undefined} color="#00e87a" />
+                <StatBox label="Total Equity" value={fmtK(equity)} sub={eqPct != null ? `${eqPct}% of value` : undefined} color={equity && equity > 0 ? '#00e87a' : '#f59e0b'} />
+                <StatBox label="Appreciation" value={appPct != null ? fmtPct(appPct) : '—'} sub={data?.lastSaleDate ? `Since ${data.lastSaleDate}` : undefined} color={appPct != null && appPct > 0 ? '#00e87a' : '#f97066'} />
+                <StatBox label="LTV Ratio"    value={ltv != null ? `${ltv}%` : '—'} sub={balance ? `${fmtK(balance)} balance est.` : undefined} color={ltv && ltv > 80 ? '#f59e0b' : '#f1f5f9'} />
               </div>
 
-              {/* ── EQUITY POSITION — owner mode only ── */}
-              {!isBuyer && eqPct != null && val && equity != null && (
+              {/* ── EQUITY POSITION ── */}
+              {eqPct != null && val && equity != null && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
                   <div className="hr-section-label">Equity Position</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap', marginTop: 16 }}>
@@ -372,35 +335,6 @@ function HomeReportInner() {
                 </div>
               )}
 
-              {/* ── MARKET POSITION — buyer mode only ── */}
-              {isBuyer && listPrice && (
-                <div className="hr-card" style={{ marginBottom: 20, borderColor: 'rgba(59,130,246,0.2)' }}>
-                  <div className="hr-section-label" style={{ color: '#60a5fa' }}>Market Position</div>
-                  <div style={{ display: 'flex', gap: 24, marginTop: 16, flexWrap: 'wrap' }}>
-                    {[
-                      { label: 'Ask Price',          value: fmtFull(listPrice),        sub: '',                            color: '#60a5fa' },
-                      { label: 'Redfin AVM',         value: fmtFull(val),              sub: val && listPrice ? `${Math.round((val - listPrice) / listPrice * 100) > 0 ? '+' : ''}${Math.round((val - listPrice) / listPrice * 100)}% vs ask` : '', color: val && listPrice ? (val >= listPrice ? '#22c55e' : '#f97066') : '#f1f5f9' },
-                      { label: `Seller Paid${data.lastSaleDate ? ` (${data.lastSaleDate.match(/\d{4}/)?.[0] ?? ''})` : ''}`, value: data.lastSalePrice ? fmtFull(data.lastSalePrice) : '—', sub: data.lastSalePrice && listPrice ? `+${Math.round((listPrice - data.lastSalePrice) / data.lastSalePrice * 100)}% seller gain` : '', color: '#f1f5f9' },
-                    ].map((s, i) => (
-                      <div key={i} style={{ flex: 1, minWidth: 120 }}>
-                        <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 6 }}>{s.label}</div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: s.color, lineHeight: 1.1 }}>{s.value}</div>
-                        {s.sub && <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 4 }}>{s.sub}</div>}
-                      </div>
-                    ))}
-                  </div>
-                  {daysOnMarket != null && (
-                    <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(99,179,237,0.06)', border: '1px solid rgba(99,179,237,0.15)', borderRadius: 8 }}>
-                      <span style={{ fontSize: '0.78rem', color: '#93c5fd', fontWeight: 700 }}>
-                        {daysOnMarket <= 7 ? '🔥 Fresh listing' : daysOnMarket <= 30 ? '📅 Active listing' : '⏳ Extended time on market'}
-                      </span>
-                      <span style={{ fontSize: '0.72rem', color: '#64748b', marginLeft: 8 }}>
-                        {daysOnMarket} days on market{daysOnMarket > 30 ? ' — sellers may have more flexibility' : ''}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* ── 5-YEAR PROJECTION ── */}
               {projections.length > 1 && (
@@ -430,11 +364,9 @@ function HomeReportInner() {
               {/* ── RATE SCENARIOS ── */}
               {rateScenarios.length > 0 && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
-                  <div className="hr-section-label">{isBuyer ? 'Monthly Payment at Ask Price' : 'Monthly Payment at Various Rates'}</div>
+                  <div className="hr-section-label">Monthly Payment at Various Rates</div>
                   <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 16 }}>
-                    {isBuyer
-                      ? `Based on ${fmtK(scenarioBase)} loan (20% down) · Includes est. taxes & insurance`
-                      : `Based on ${fmtK(balance)} estimated balance · Includes est. taxes & insurance`}
+                    Based on {fmtK(balance)} estimated balance · Includes est. taxes &amp; insurance
                   </div>
                   <table className="hr-table">
                     <thead>
@@ -468,10 +400,8 @@ function HomeReportInner() {
               {/* ── NEARBY SALES ── */}
               {sales.length > 0 && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
-                  <div className="hr-section-label">{isBuyer ? 'Recent Comparable Sales' : 'Recent Nearby Sales'}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 14 }}>
-                    {isBuyer ? 'What similar homes have sold for in this area' : 'Comparable homes sold recently in your area'}
-                  </div>
+                  <div className="hr-section-label">Recent Nearby Sales</div>
+                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 14 }}>Comparable homes sold recently in your area</div>
                   <table className="hr-table">
                     <thead>
                       <tr>
