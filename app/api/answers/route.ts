@@ -1686,7 +1686,7 @@ async function callGrokOnce(prompt: string, opts?: { maxTokens?: number }) {
                     messages: [{ role: "user", content: prompt }],
                     response_format: { type: "json_object" },
                     temperature: 0.25,
-                    max_tokens: opts?.maxTokens ?? 650,
+                    max_tokens: opts?.maxTokens ?? 1100,
                 }),
                 cache: "no-store",
             },
@@ -2724,7 +2724,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     const specialistPrefix = clampText(compactWhitespace(modulePrompts[module] ?? ""), module === 'about' ? 1200 : module === 'homeowner_payoff' ? 900 : 450);
     const guidelineCtxTrim = clampText(compactWhitespace(guidelineContext || ""), 300);
-    const tavilyCtxTrim = clampText(compactWhitespace(tavilyContextRaw), 240);
+    const tavilyCtxTrim = clampText(compactWhitespace(tavilyContextRaw), 600);
     const conversationTrim = clampText(compactWhitespace(conversationHistory || ""), 320);
 
     // Refi guardrail: ask for inputs only if missing; otherwise compute locally (no Grok)
