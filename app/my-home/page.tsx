@@ -1341,8 +1341,8 @@ function MyHomePageInner() {
                       >
                         {analysisLoading ? 'Refreshing…' : '↻ Refresh'}
                       </button>
-                      <Link href="/lo/borrowers" style={{ fontSize: '0.78rem', color: 'rgba(99,179,237,0.7)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                        ← Back to Borrowers
+                      <Link href="/pro/clients" style={{ fontSize: '0.78rem', color: 'rgba(99,179,237,0.7)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        ← Back to Clients
                       </Link>
                     </div>
                   </div>
@@ -1798,7 +1798,7 @@ function MyHomePageInner() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="mh-refresh-btn" onClick={() => loadAnalysis()}>↻ Refresh</button>
                         {!borrowerId && !isBuyer && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
-                        {borrowerId && <Link href="/lo/borrowers" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Borrowers</Link>}
+                        {borrowerId && <Link href="/pro/clients" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Clients</Link>}
                       </div>
                       <Link
                         href={(() => {

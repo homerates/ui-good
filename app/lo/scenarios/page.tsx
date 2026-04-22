@@ -420,7 +420,7 @@ export default function LOScenariosPage() {
           </Link>
           <div className="los-nav-links">
             <Link href="/lo/dashboard" className="los-nav-link">Dashboard</Link>
-            <Link href="/lo/borrowers" className="los-nav-link">Borrowers</Link>
+            <Link href="/pro/clients" className="los-nav-link">Clients</Link>
             <Link href="/messages" className="los-nav-link">Messages</Link>
             <span className="los-nav-active">Private Exchange</span>
           </div>

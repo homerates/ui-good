@@ -360,7 +360,7 @@ export default async function DashboardPage() {
                   <CardBody>
                     Invite your own borrowers to HomeRates.ai and have their questions automatically tied to your file. They get AI-powered answers; you stay in the loop.
                   </CardBody>
-                  <ActionLink href="/lo/borrowers" variant="green">Manage borrowers →</ActionLink>
+                  <ActionLink href="/pro/clients" variant="green">Manage clients →</ActionLink>
                 </SectionCard>
 
                 <SectionCard accent="none">
@@ -530,7 +530,7 @@ export default async function DashboardPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {(userType === "lo" ? [
                   { href: "/lo/scenarios", label: "Scenario Board" },
-                  { href: "/lo/borrowers", label: "Borrower Invites" },
+                  { href: "/pro/clients", label: "Clients" },
                   { href: "/messages", label: "Messages", badge: unreadMessages > 0 ? unreadMessages : 0 },
                   { href: "/my-home", label: "My Properties" },
                   { href: "/chat", label: "AI Chat" },
