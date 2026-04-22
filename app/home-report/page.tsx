@@ -158,7 +158,14 @@ function HomeReportInner() {
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Derived
-  const listingStatus = data?.listingStatus ?? 'UNKNOWN';
+  // If cached snapshot says FOR_SALE but sale date is recent (< 18 months), it's stale data
+  let listingStatus = data?.listingStatus ?? 'UNKNOWN';
+  if (listingStatus === 'FOR_SALE' && data?.lastSaleDate) {
+    const parsed = new Date(data.lastSaleDate);
+    if (!isNaN(parsed.getTime()) && (Date.now() - parsed.getTime()) < 18 * 30.44 * 24 * 3600 * 1000) {
+      listingStatus = 'SOLD';
+    }
+  }
   const isBuyer       = listingStatus === 'FOR_SALE' || listingStatus === 'PENDING';
   const daysOnMarket  = data?.daysOnMarket ?? null;
   const val           = data?.estimatedValue ?? data?.price ?? data?.lastSalePrice ?? null;
@@ -182,7 +189,7 @@ function HomeReportInner() {
   })) : [];
 
   const streetViewUrl = address && mapsKey
-    ? `https://maps.googleapis.com/maps/api/streetview?size=900x360&location=${encodeURIComponent(address)}&key=${mapsKey}`
+    ? `https://maps.googleapis.com/maps/api/streetview?size=900x360&location=${encodeURIComponent(address)}&return_error_code=true&key=${mapsKey}`
     : null;
 
   // Seed for Run My Numbers — buyer vs owner context
@@ -249,10 +256,24 @@ function HomeReportInner() {
             <>
               {/* ── HERO — Street View + Address ── */}
               {streetViewUrl && (
-                <div style={{ width: '100%', height: 240, borderRadius: 16, overflow: 'hidden', marginBottom: 28, position: 'relative' }}>
+                <div id="hr-hero-wrap" style={{ width: '100%', height: 240, borderRadius: 16, overflow: 'hidden', marginBottom: 28, position: 'relative', background: '#0a1628' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={streetViewUrl} alt="Street view" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(8,12,18,0.9) 100%)' }} />
+                  <img src={streetViewUrl} alt="Street view"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={e => {
+                      const img = e.currentTarget;
+                      img.style.display = 'none';
+                      const wrap = img.parentElement;
+                      if (wrap && !wrap.querySelector('.hr-sv-ph')) {
+                        const ph = document.createElement('div');
+                        ph.className = 'hr-sv-ph';
+                        ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;';
+                        ph.innerHTML = '<div style="font-size:2.5rem;opacity:0.15">🏠</div><div style="font-size:0.7rem;color:#334155;letter-spacing:0.05em;">No street view available</div>';
+                        wrap.appendChild(ph);
+                      }
+                    }}
+                  />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(8,12,18,0.9) 100%)', pointerEvents: 'none' }} />
                   <div style={{ position: 'absolute', bottom: 20, left: 24 }}>
                     <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: isBuyer ? '#60a5fa' : '#00e87a', marginBottom: 4 }}>
                       {isBuyer ? (listingStatus === 'PENDING' ? '🔴 Pending · Buyer Intelligence' : '🏷 For Sale · Buyer Intelligence') : 'Home Intelligence'}

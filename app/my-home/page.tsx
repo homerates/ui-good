@@ -978,7 +978,17 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   const lastSalePrice   = (d.lastSalePrice  as number | null) ?? (d.price as number | null) ?? null;
   const lastSaleDate    = (d.lastSaleDate   as string | null) ?? null;
   const remainingMonths = (d.remainingMonths as number | null) ?? null;
-  const purchaseRate    = (d.purchaseRate   as number | null) ?? null;
+  // purchaseRate may be null when API computed it in FOR_SALE mode; derive from year as fallback
+  const HIST_RATES_CLIENT: Record<number, number> = {
+    2025:6.76,2024:6.87,2023:6.81,2022:5.34,2021:2.96,2020:3.11,2019:3.94,2018:4.54,
+    2017:3.99,2016:3.65,2015:3.85,2014:4.17,2013:3.98,2012:3.66,2011:4.45,2010:4.69,
+    2009:5.04,2008:6.03,2007:6.34,2006:6.41,2005:5.87,2004:5.84,
+  };
+  let purchaseRate = (d.purchaseRate as number | null) ?? null;
+  if (!purchaseRate && lastSaleDate) {
+    const yr = parseInt(lastSaleDate.match(/\d{4}/)?.[0] ?? '0');
+    if (yr >= 2004) purchaseRate = HIST_RATES_CLIENT[yr] ?? 5.5;
+  }
 
   // Fall back: estimatedValue → listing price → lastSalePrice + FHFA 4.2%/yr appreciation
   let estimatedValue = (d.estimatedValue as number | null) ?? (d.price as number | null) ?? null;
@@ -1107,7 +1117,19 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   }
 
   // Listing context
-  const listingStatus = (d.listingStatus as string | null) ?? 'UNKNOWN';
+  // If cached data says FOR_SALE but there's a recent sale date (< 18 months),
+  // the snapshot is stale — the property has since sold.
+  let listingStatus = (d.listingStatus as string | null) ?? 'UNKNOWN';
+  if (listingStatus === 'FOR_SALE') {
+    const rawDate = d.lastSaleDate as string | null;
+    if (rawDate) {
+      const parsed = new Date(rawDate);
+      const monthsOld = isNaN(parsed.getTime())
+        ? Infinity
+        : (Date.now() - parsed.getTime()) / (30.44 * 24 * 3600 * 1000);
+      if (monthsOld <= 18) listingStatus = 'SOLD';
+    }
+  }
   const daysOnMarket  = (d.daysOnMarket  as number | null) ?? null;
   const listPrice     = (listingStatus === 'FOR_SALE' || listingStatus === 'PENDING')
     ? ((d.price as number | null) ?? estimatedValue)
@@ -1644,7 +1666,18 @@ function MyHomePageInner() {
                             src={analysis.streetViewUrl}
                             alt="Street view"
                             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
+                            onError={e => {
+                              const img = e.currentTarget;
+                              img.style.display = 'none';
+                              const wrap = img.parentElement;
+                              if (wrap && !wrap.querySelector('.sv-placeholder')) {
+                                const ph = document.createElement('div');
+                                ph.className = 'sv-placeholder';
+                                ph.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#0a1628;border-bottom:1px solid #1e293b;';
+                                ph.innerHTML = '<div style="font-size:2.2rem;opacity:0.2">🏠</div><div style="font-size:0.68rem;color:#334155;letter-spacing:0.05em;text-align:center;">No street view available</div>';
+                                wrap.appendChild(ph);
+                              }
+                            }}
                           />
                           {/* Satellite map overlay — bottom right */}
                           {analysis.staticMapUrl && (

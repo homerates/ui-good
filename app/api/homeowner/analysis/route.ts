@@ -157,6 +157,7 @@ type PropertyData = {
   avmSource: 'attom' | 'attom_assessed' | 'fhfa' | null; avmConfidence: number | null; avmDate: string | null;
   mortgageSource: 'attom' | 'estimated' | null; mortgageLender: string | null; mortgageOriginalAmount: number | null; mortgageOriginationDate: string | null;
   comps: AttomComp[]; streetViewUrl: string | null; staticMapUrl: string | null;
+  photoUrl: string | null;
   attomCheckedAt: string | null;
 };
 
@@ -327,6 +328,19 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(address)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(address)}&key=${mapsKey}`
     : null;
 
+  // 10. Property photo — pull from most recent 'full' snapshot (scraped from Redfin)
+  let photoUrl: string | null = null;
+  if (prop?.id) {
+    try {
+      const { data: photoSnap } = await db().from('property_snapshots')
+        .select('data').eq('property_id', prop.id).eq('snapshot_type', 'full')
+        .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
+      const snapData = photoSnap?.data as Record<string, any> | null;
+      const candidate = snapData?.photoUrl ?? null;
+      if (typeof candidate === 'string' && candidate.startsWith('http')) photoUrl = candidate;
+    } catch { /* non-blocking */ }
+  }
+
   const result: PropertyData = {
     estimatedValue, estimatedValueLow, estimatedValueHigh,
     estimatedBalance, estimatedEquity, purchaseRate,
@@ -350,6 +364,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     comps,
     streetViewUrl,
     staticMapUrl,
+    photoUrl,
     attomCheckedAt: process.env.ATTOM_API_KEY ? new Date().toISOString() : null,
   };
 
