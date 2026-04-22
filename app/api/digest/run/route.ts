@@ -107,13 +107,14 @@ function generateToken(len = 10): string {
     return t;
 }
 
-async function getOrCreateReportToken(db: ReturnType<typeof sb>, borrowerId: string, loId: string): Promise<string | null> {
+async function getOrCreateReportToken(db: ReturnType<typeof sb>, borrowerId: string, proId: string, isAgent = false): Promise<string | null> {
     try {
+        const col = isAgent ? 'agent_id' : 'lo_id';
         const { data: existing } = await db
             .from('borrower_reports')
             .select('token')
             .eq('borrower_id', borrowerId)
-            .eq('lo_id', loId)
+            .eq(col, proId)
             .single();
         if (existing?.token) return existing.token;
         let token = generateToken();
@@ -122,7 +123,8 @@ async function getOrCreateReportToken(db: ReturnType<typeof sb>, borrowerId: str
             if (!clash) break;
             token = generateToken();
         }
-        const { error } = await db.from('borrower_reports').insert({ token, borrower_id: borrowerId, lo_id: loId });
+        const insertRow: Record<string, unknown> = { token, borrower_id: borrowerId, [col]: proId };
+        const { error } = await db.from('borrower_reports').insert(insertRow);
         return error ? null : token;
     } catch { return null; }
 }
@@ -327,7 +329,8 @@ export async function POST(req: Request) {
     const valueHistory = (historyRes.data ?? []).map(r => ({ date: r.snapshot_date, value: r.estimated_value as number }));
 
     const loUserId = (borrower.loan_officers as any)?.user_id ?? null;
-    const loEmail  = (borrower.loan_officers as any)?.email ?? null;
+    const loEmailFromLo = (borrower.loan_officers as any)?.email ?? null;
+    let loEmail: string | null = loEmailFromLo;
     let loName     = 'HomeRates.ai';
     let loPhoto: string | null = null;
     let loPhone: string | null = null;
@@ -335,6 +338,7 @@ export async function POST(req: Request) {
     let loLender: string | null = null;
     let loNmls: string | null = null;
     let loDbId: string | null = null;
+    let isAgentOwned = false;
 
     if (loUserId) {
         // Fetch LO name + photo from Clerk
@@ -358,12 +362,34 @@ export async function POST(req: Request) {
             loLender = loProfile.lender ?? null;
             loNmls  = loProfile.nmls ?? null;
         }
+    } else if (borrower.agent_id) {
+        isAgentOwned = true;
+        const { data: agent } = await sb()
+            .from('agents')
+            .select('id, user_id, brokerage, license, phone, title')
+            .eq('id', borrower.agent_id)
+            .single();
+        if (agent) {
+            loDbId   = agent.id;
+            loLender = agent.brokerage ?? null;
+            loNmls   = agent.license   ?? null;
+            loPhone  = agent.phone     ?? null;
+            loTitle  = agent.title     ?? null;
+            try {
+                const clerk = await clerkClient();
+                const clerkUser = await clerk.users.getUser(agent.user_id);
+                const n = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ');
+                if (n) loName = n;
+                loPhoto = clerkUser.imageUrl ?? null;
+                loEmail = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
+            } catch { /* skip */ }
+        }
     }
 
-    // Auto-generate shareable report token when LO is attached
+    // Auto-generate shareable report token when pro is attached
     let reportUrl: string | null = null;
     if (loDbId) {
-        const token = await getOrCreateReportToken(sb(), borrower_id, loDbId);
+        const token = await getOrCreateReportToken(sb(), borrower_id, loDbId, isAgentOwned);
         if (token) {
             reportUrl = `${APP_BASE}/report/${token}`;
         }
