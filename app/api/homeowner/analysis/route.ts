@@ -11,7 +11,7 @@ import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
 import { requireAdmin } from '../../../../lib/adminAuth';
-import type { AttomComp } from '../../../../lib/attom';
+import { enrichFromAttom, getAttomAVM, getAttomMortgage, getAttomComps, type AttomComp, type AttomAVM, type AttomMortgage, type AttomProperty } from '../../../../lib/attom';
 
 function db() {
   return createClient(
@@ -125,6 +125,8 @@ async function getSnapshot(address: string) {
       .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
     if (!snap) return null;
     if (snap.fetched_at && Date.now() - new Date(snap.fetched_at).getTime() > SNAPSHOT_TTL_MS) return null;
+    // Invalidate if ATTOM is configured but snapshot predates ATTOM support (no avmDate)
+    if (process.env.ATTOM_API_KEY && !(snap.data as PropertyData)?.avmDate) return null;
     return snap.data as PropertyData;
   } catch { return null; }
 }
@@ -171,8 +173,8 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;
   let rawSaleDateStr: string | null = prop?.latest_last_sale_date ?? null;
 
-  // If we have no sale data in DB, fire Tavily async and use it this request too
-  if (!rawSalePrice && !record.actual_purchase_price) {
+  // If we have no sale data in DB, fire Tavily (only when ATTOM is not configured)
+  if (!rawSalePrice && !record.actual_purchase_price && !process.env.ATTOM_API_KEY) {
     const tv = await tavilyPropertySearch(address);
     rawSalePrice = tv.lastSalePrice;
     if (tv.lastSaleDate) rawSaleDateStr = tv.lastSaleDate;
@@ -202,12 +204,46 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let estimatedValueLow  = estimatedValue ? Math.round(estimatedValue * 0.92) : null;
   let estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
 
-  // ATTOM AVM overrides FHFA appreciation model — more accurate
-  const avmSource: 'attom' | 'fhfa' = prop?.avm_value ? 'attom' : 'fhfa';
-  if (prop?.avm_value) {
-    estimatedValue     = prop.avm_value;
-    estimatedValueLow  = prop.avm_value_low  ?? Math.round(prop.avm_value * 0.92);
-    estimatedValueHigh = prop.avm_value_high ?? Math.round(prop.avm_value * 1.08);
+  // ── ATTOM inline fetch — runs on first load before enrich has completed ──────
+  // Fires all 4 ATTOM endpoints in parallel; results persist to DB for future requests.
+  // After first successful fetch the properties table has full data and this block is skipped.
+  let inlineProfile: AttomProperty | null = null;
+  let inlineAvm: AttomAVM | null = null;
+  let inlineMtg: AttomMortgage | null = null;
+  let inlineComps: AttomComp[] = [];
+  if (process.env.ATTOM_API_KEY && !prop?.avm_value) {
+    const [profileRes, avmRes, mtgRes, compsRes] = await Promise.allSettled([
+      enrichFromAttom(address),
+      getAttomAVM(address),
+      getAttomMortgage(address),
+      getAttomComps(address),
+    ]);
+    inlineProfile = profileRes.status === 'fulfilled' && (profileRes.value.beds || profileRes.value.lastSalePrice) ? profileRes.value : null;
+    inlineAvm     = avmRes.status     === 'fulfilled' && avmRes.value.estimatedValue   ? avmRes.value   : null;
+    inlineMtg     = mtgRes.status     === 'fulfilled' && mtgRes.value.openBalance      ? mtgRes.value   : null;
+    inlineComps   = compsRes.status   === 'fulfilled'                                  ? compsRes.value : [];
+
+    // Persist to properties table (non-blocking) — only possible when prop row exists
+    if (prop?.id) {
+      const upd: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (inlineProfile?.beds)            { upd.beds = inlineProfile.beds; upd.baths = inlineProfile.baths; upd.sqft = inlineProfile.sqft; upd.year_built = inlineProfile.yearBuilt; upd.property_type = inlineProfile.propertyType; upd.apn = inlineProfile.apn; upd.lot_size_sqft = inlineProfile.lotSizeSqft; upd.attom_id = inlineProfile.attomId; }
+      if (inlineProfile?.lastSalePrice)   { upd.latest_last_sale_price = inlineProfile.lastSalePrice; upd.latest_last_sale_date = inlineProfile.lastSaleDate; }
+      if (inlineAvm?.estimatedValue)      { upd.avm_value = inlineAvm.estimatedValue; upd.avm_value_low = inlineAvm.estimatedValueLow; upd.avm_value_high = inlineAvm.estimatedValueHigh; upd.avm_confidence = inlineAvm.confidence; upd.avm_date = inlineAvm.avmDate; }
+      if (inlineMtg?.openBalance)         { upd.mortgage_open_balance = inlineMtg.openBalance; upd.mortgage_original_amount = inlineMtg.originalAmount; upd.mortgage_interest_rate = inlineMtg.interestRate; upd.mortgage_lender = inlineMtg.lender; upd.mortgage_origination_date = inlineMtg.originationDate; }
+      if (Object.keys(upd).length > 1) void db().from('properties').update(upd).eq('id', prop.id);
+      if (inlineComps.length > 0) {
+        void db().from('property_snapshots').insert({ property_id: prop.id, snapshot_type: 'comps', source: 'attom', data: inlineComps, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), confidence: 0.95 });
+      }
+    }
+  }
+
+  // ATTOM AVM overrides FHFA appreciation model — stored prop wins, inline is fallback
+  const attomAvm = prop?.avm_value ?? inlineAvm?.estimatedValue ?? null;
+  const avmSource: 'attom' | 'fhfa' = attomAvm ? 'attom' : 'fhfa';
+  if (attomAvm) {
+    estimatedValue     = attomAvm;
+    estimatedValueLow  = prop?.avm_value_low  ?? inlineAvm?.estimatedValueLow  ?? Math.round(attomAvm * 0.92);
+    estimatedValueHigh = prop?.avm_value_high ?? inlineAvm?.estimatedValueHigh ?? Math.round(attomAvm * 1.08);
   }
 
   // 5. HUD Fair Market Rent via geo_crosswalk
@@ -237,19 +273,21 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     estimatedEquity  = Math.round((estimatedValue ?? salePrice) - estimatedBalance);
   }
 
-  // ATTOM mortgage data overrides estimated balance/rate — real public record
-  const mortgageSource: 'attom' | 'estimated' = prop?.mortgage_open_balance ? 'attom' : 'estimated';
-  if (prop?.mortgage_open_balance) {
-    estimatedBalance = prop.mortgage_open_balance;
-    if (prop.mortgage_interest_rate) purchaseRate = prop.mortgage_interest_rate;
+  // ATTOM mortgage data overrides estimated balance/rate — stored prop wins, inline is fallback
+  const attomBalance = prop?.mortgage_open_balance ?? inlineMtg?.openBalance ?? null;
+  const mortgageSource: 'attom' | 'estimated' = attomBalance ? 'attom' : 'estimated';
+  if (attomBalance) {
+    estimatedBalance = attomBalance;
+    const attomRate = prop?.mortgage_interest_rate ?? inlineMtg?.interestRate ?? null;
+    if (attomRate) purchaseRate = attomRate;
     if (estimatedValue && estimatedBalance) estimatedEquity = Math.round(estimatedValue - estimatedBalance);
   }
 
   const lastSaleDate = saleDate ? saleDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
 
-  // 8. Comps from property_snapshots (stored by enrich route)
-  let comps: AttomComp[] = [];
-  if (prop?.id) {
+  // 8. Comps: stored snapshot first, fall back to inline fetch results
+  let comps: AttomComp[] = inlineComps; // may already have inline comps from step above
+  if (!comps.length && prop?.id) {
     try {
       const { data: compsSnap } = await db().from('property_snapshots')
         .select('data').eq('property_id', prop.id).eq('snapshot_type', 'comps')
@@ -271,21 +309,23 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   const result: PropertyData = {
     estimatedValue, estimatedValueLow, estimatedValueHigh,
     estimatedBalance, estimatedEquity, purchaseRate,
-    lastSaleDate, lastSalePrice: salePrice, rentEstimate,
-    beds: prop?.beds ?? null,
-    baths: prop?.baths ?? null,
-    sqft: prop?.sqft ?? null,
-    yearBuilt: prop?.year_built ?? null,
-    propertyType: prop?.property_type ?? null,
-    lotSizeSqft: prop?.lot_size_sqft ?? null,
-    apn: prop?.apn ?? null,
+    lastSaleDate: lastSaleDate ?? (inlineProfile?.lastSaleDate ?? null),
+    lastSalePrice: salePrice ?? inlineProfile?.lastSalePrice ?? null,
+    rentEstimate,
+    beds: prop?.beds ?? inlineProfile?.beds ?? null,
+    baths: prop?.baths ?? inlineProfile?.baths ?? null,
+    sqft: prop?.sqft ?? inlineProfile?.sqft ?? null,
+    yearBuilt: prop?.year_built ?? inlineProfile?.yearBuilt ?? null,
+    propertyType: prop?.property_type ?? inlineProfile?.propertyType ?? null,
+    lotSizeSqft: prop?.lot_size_sqft ?? inlineProfile?.lotSizeSqft ?? null,
+    apn: prop?.apn ?? inlineProfile?.apn ?? null,
     avmSource,
-    avmConfidence: prop?.avm_confidence ?? null,
-    avmDate: prop?.avm_date ?? null,
+    avmConfidence: prop?.avm_confidence ?? inlineAvm?.confidence ?? null,
+    avmDate: prop?.avm_date ?? inlineAvm?.avmDate ?? null,
     mortgageSource,
-    mortgageLender: prop?.mortgage_lender ?? null,
-    mortgageOriginalAmount: prop?.mortgage_original_amount ?? null,
-    mortgageOriginationDate: prop?.mortgage_origination_date ?? null,
+    mortgageLender: prop?.mortgage_lender ?? inlineMtg?.lender ?? null,
+    mortgageOriginalAmount: prop?.mortgage_original_amount ?? inlineMtg?.originalAmount ?? null,
+    mortgageOriginationDate: prop?.mortgage_origination_date ?? inlineMtg?.originationDate ?? null,
     comps,
     streetViewUrl,
     staticMapUrl,
