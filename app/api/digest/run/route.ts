@@ -264,10 +264,13 @@ export async function POST(req: Request) {
 
     if (!borrower) return NextResponse.json({ error: 'Borrower not found' }, { status: 404 });
 
-    // LO auth check (skip for cron or verified admin)
+    // Auth check — LO or agent must own this borrower (skip for cron or verified admin)
     if (!isCron && !isAdmin && userId) {
         const loUserId = (borrower.loan_officers as any)?.user_id;
-        if (loUserId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        const agentOwnsIt = borrower.agent_id
+            ? await db.from('agents').select('id').eq('id', borrower.agent_id).eq('user_id', userId).maybeSingle().then(r => !!r.data)
+            : false;
+        if (loUserId !== userId && !agentOwnsIt) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (!borrower.property_address) {

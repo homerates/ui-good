@@ -407,11 +407,18 @@ export async function GET(request: NextRequest) {
     const adminCheck = await requireAdmin();
     const isAdmin = !adminCheck.error;
 
-    // Verify caller is an LO who owns this borrower (skip for admins)
-    const loRes = isAdmin
-      ? { data: null }
-      : await db().from('loan_officers').select('id').eq('user_id', userId).maybeSingle();
-    if (!isAdmin && !loRes.data) return NextResponse.json({ error: 'Not an LO account' }, { status: 403 });
+    // Verify caller is an LO or agent who owns this borrower (skip for admins)
+    const [loRes, agentRes] = isAdmin
+      ? [{ data: null }, { data: null }]
+      : await Promise.all([
+          db().from('loan_officers').select('id').eq('user_id', userId).maybeSingle(),
+          db().from('agents').select('id').eq('user_id', userId).maybeSingle(),
+        ]);
+    const isPro = isAdmin || !!loRes.data || !!agentRes.data;
+    if (!isPro) return NextResponse.json({ error: 'Not an LO account' }, { status: 403 });
+
+    const ownerCol = loRes.data ? 'loan_officer_id' : 'agent_id';
+    const ownerId  = loRes.data?.id ?? agentRes.data?.id ?? null;
 
     let borrower: Record<string, any> | null = null;
     {
@@ -419,14 +426,14 @@ export async function GET(request: NextRequest) {
         .from('borrowers')
         .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value')
         .eq('id', borrowerId);
-      if (!isAdmin && loRes.data) q = q.eq('loan_officer_id', loRes.data.id);
+      if (!isAdmin && ownerId) q = q.eq(ownerCol, ownerId);
       const res = await q.maybeSingle();
       if (res.error?.code === '42703') {
         let qf = db()
           .from('borrowers')
           .select('id, name, property_address')
           .eq('id', borrowerId);
-        if (!isAdmin && loRes.data) qf = qf.eq('loan_officer_id', loRes.data.id);
+        if (!isAdmin && ownerId) qf = qf.eq(ownerCol, ownerId);
         const fallback = await qf.maybeSingle();
         borrower = fallback.data;
       } else {

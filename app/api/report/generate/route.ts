@@ -28,23 +28,25 @@ export async function POST(req: NextRequest) {
 
     const supabase = db();
 
-    const { data: lo } = await supabase
-        .from('loan_officers')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
-    if (!lo) return NextResponse.json({ error: 'LO profile not found' }, { status: 400 });
+    const [loRes, agentRes] = await Promise.all([
+        supabase.from('loan_officers').select('id').eq('user_id', userId).maybeSingle(),
+        supabase.from('agents').select('id').eq('user_id', userId).maybeSingle(),
+    ]);
+    const proId = loRes.data?.id ?? agentRes.data?.id ?? null;
+    if (!proId) return NextResponse.json({ error: 'Professional profile not found' }, { status: 400 });
+
+    const ownerCol = loRes.data ? 'loan_officer_id' : 'agent_id';
 
     const body = await req.json().catch(() => null);
     const borrowerId: string = body?.borrower_id ?? '';
     if (!borrowerId) return NextResponse.json({ error: 'borrower_id required' }, { status: 400 });
 
-    // Verify borrower belongs to this LO
+    // Verify borrower belongs to this professional
     const { data: borrower } = await supabase
         .from('borrowers')
         .select('id')
         .eq('id', borrowerId)
-        .eq('loan_officer_id', lo.id)
+        .eq(ownerCol, proId)
         .single();
     if (!borrower) return NextResponse.json({ error: 'Borrower not found' }, { status: 404 });
 
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
         .from('borrower_reports')
         .select('token')
         .eq('borrower_id', borrowerId)
-        .eq('lo_id', lo.id)
+        .eq('lo_id', proId)
         .single();
     if (existing) return NextResponse.json({ ok: true, token: existing.token });
 
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabase
         .from('borrower_reports')
-        .insert({ token, borrower_id: borrowerId, lo_id: lo.id });
+        .insert({ token, borrower_id: borrowerId, lo_id: proId });
     if (error) return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
 
     return NextResponse.json({ ok: true, token });
