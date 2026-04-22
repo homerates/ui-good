@@ -19,6 +19,13 @@ async function getProContext(supabase: ReturnType<typeof getSupabaseServerClient
     ]);
     if (loRes.data) return { type: "lo",    id: loRes.data.id,    email: loRes.data.email,     lender: loRes.data.lender };
     if (agentRes.data) return { type: "agent", id: agentRes.data.id, brokerage: agentRes.data.brokerage };
+
+    // Auto-create agents row if users.role = "agent" but no agents row exists yet
+    const { data: userRow } = await supabase.from("users").select("role").eq("id", userId).maybeSingle();
+    if (userRow?.role === "agent") {
+        const { data: newAgent } = await supabase.from("agents").insert({ user_id: userId }).select("id, brokerage").single();
+        if (newAgent) return { type: "agent", id: newAgent.id, brokerage: newAgent.brokerage };
+    }
     return null;
 }
 
@@ -28,7 +35,8 @@ export async function GET() {
 
     const supabase = getSupabaseServerClient();
     const pro = await getProContext(supabase, userId);
-    if (!pro) return NextResponse.json({ error: "Professional profile not found" }, { status: 400 });
+    // For GET, return empty list gracefully if no profile yet (profile not saved yet)
+    if (!pro) return NextResponse.json({ borrowers: [] });
 
     const col = pro.type === "lo" ? "loan_officer_id" : "agent_id";
     const { data, error } = await supabase
