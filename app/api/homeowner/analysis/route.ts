@@ -146,6 +146,8 @@ type PropertyData = {
   estimatedValue: number | null; estimatedValueLow: number | null; estimatedValueHigh: number | null;
   estimatedBalance: number | null; estimatedEquity: number | null; purchaseRate: number | null;
   lastSaleDate: string | null; lastSalePrice: number | null; rentEstimate: number | null;
+  beds: number | null; baths: number | null; sqft: number | null;
+  yearBuilt: number | null; propertyType: string | null;
 };
 
 // ── Main local property intelligence — replaces rentcastLookup ───────────────
@@ -157,7 +159,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // 2. Check properties table for stored sale data
   const addr = normalizeAddr(address);
   const { data: prop } = await db().from('properties')
-    .select('latest_last_sale_price, latest_last_sale_date, state, zip').eq('address_full', addr).maybeSingle();
+    .select('latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type').eq('address_full', addr).maybeSingle();
 
   // 3. Resolve last sale data (DB → LO override → Tavily)
   let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;
@@ -227,6 +229,11 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     estimatedValue, estimatedValueLow, estimatedValueHigh,
     estimatedBalance, estimatedEquity, purchaseRate,
     lastSaleDate, lastSalePrice: salePrice, rentEstimate,
+    beds: prop?.beds ?? null,
+    baths: prop?.baths ?? null,
+    sqft: prop?.sqft ?? null,
+    yearBuilt: prop?.year_built ?? null,
+    propertyType: prop?.property_type ?? null,
   };
 
   // 7. Cache result (non-blocking)

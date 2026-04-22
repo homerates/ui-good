@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
     try {
       await db().from('property_snapshots').insert({
         property_id: upserted.id,
-        snapshot_type: 'full',
+        snapshot_type: source === 'attom' ? 'attom' : 'enrich',
         source: source ?? 'redfin_via_tavily',
         data: enriched,
         expires_at: expiresAt,
