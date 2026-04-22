@@ -17,15 +17,13 @@ async function getProContext(supabase: ReturnType<typeof getSupabaseServerClient
         supabase.from("loan_officers").select("id, email, lender").eq("user_id", userId).maybeSingle(),
         supabase.from("agents").select("id, brokerage").eq("user_id", userId).maybeSingle(),
     ]);
-    console.log("[getProContext] userId:", userId, "lo:", loRes.data?.id ?? null, "lo_err:", loRes.error?.message ?? null, "agent:", agentRes.data?.id ?? null, "agent_err:", agentRes.error?.message ?? null);
     if (loRes.data) return { type: "lo",    id: loRes.data.id,    email: loRes.data.email,     lender: loRes.data.lender };
     if (agentRes.data) return { type: "agent", id: agentRes.data.id, brokerage: agentRes.data.brokerage };
 
     // Auto-create agents row if users.role = "agent" but no agents row exists yet
     const { data: userRow } = await supabase.from("users").select("role").eq("id", userId).maybeSingle();
     if (userRow?.role === "agent") {
-        const { data: newAgent, error: insertErr } = await supabase.from("agents").insert({ user_id: userId }).select("id, brokerage").single();
-        console.log("[getProContext] auto-create agent:", newAgent?.id ?? null, "err:", insertErr?.message ?? null);
+        const { data: newAgent } = await supabase.from("agents").insert({ user_id: userId }).select("id, brokerage").single();
         if (newAgent) return { type: "agent", id: newAgent.id, brokerage: newAgent.brokerage };
     }
     return null;
@@ -37,7 +35,7 @@ export async function GET() {
 
     const supabase = getSupabaseServerClient();
     const pro = await getProContext(supabase, userId);
-    // For GET, return empty list gracefully if no profile yet (profile not saved yet)
+    console.log("[GET /api/borrowers] pro:", pro ? `${pro.type}:${pro.id}` : "null");
     if (!pro) return NextResponse.json({ borrowers: [] });
 
     const col = pro.type === "lo" ? "loan_officer_id" : "agent_id";
@@ -47,6 +45,7 @@ export async function GET() {
         .eq(col, pro.id)
         .order("created_at", { ascending: false });
 
+    console.log("[GET /api/borrowers] rows:", data?.length ?? 0, "err:", error?.message ?? null);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ borrowers: data ?? [] });
 }
