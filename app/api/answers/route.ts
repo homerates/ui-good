@@ -13,6 +13,7 @@ import {
     calcDSCR, calcFHAvsConv, runCalcTests, calcRefi20vs30, calcExtraPayment, calcRefiEarlySale, calcOneExtraPaymentPerYear,
     calcVA, calcJumbo, calcVAEntitlement,
 } from "../../../lib/calcEngine";
+import { buildAnswerMarkdown, runFormatTests } from "../../../lib/answerFormat";
 import { dispatch, isRefiQuestion, isLoanLimitsQuestion, isScenarioComparisonQuestion, isBuydownQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
@@ -60,6 +61,17 @@ try {
     }
 } catch (e) {
     console.error('[CalcEngine] Test runner threw:', e);
+}
+// Verify answer format rules on cold start
+try {
+    const fmtResult = runFormatTests();
+    if (!fmtResult.passed) {
+        console.error('[AnswerFormat] VERIFICATION FAILURES:', fmtResult.failures);
+    } else {
+        console.log('[AnswerFormat] Format rules verified ✓');
+    }
+} catch (e) {
+    console.error('[AnswerFormat] Test runner threw:', e);
 }
 // ---------- Price formatter — handles $500k and $4.995M correctly ----------
 function fmtPriceK(k: number): string {
@@ -2390,7 +2402,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 grok: null,
                 debug: { bypass: "dscrOverride" },
                 message: typeof dscrOverride === "string" ? dscrOverride : "Answered via DSCR override.",
-                answerMarkdown: typeof dscrOverride === "string" ? `**Answer**\n${dscrOverride}\n` : `**Answer**\n${JSON.stringify(dscrOverride)}\n`,
+                answerMarkdown: buildAnswerMarkdown(typeof dscrOverride === "string" ? dscrOverride : JSON.stringify(dscrOverride)),
                 followUp: followUpFor(topic),
             });
         }
@@ -2908,7 +2920,7 @@ To give you a real verdict (not just math), I need:
                 generatedAt, usedFRED, usedTavily, fred, topSources,
                 grok: { answer: askMsg, follow_up: contextChips[0].label, follow_up_chips: contextChips, confidence: "needs_input" },
                 debug: { bypass: "refi_needs_input", refiType, parsed: { balance, currentRate, newRate, monthsLeft } },
-                message: askMsg, answerMarkdown: `**Answer**\n${askMsg}`,
+                message: askMsg, answerMarkdown: buildAnswerMarkdown(askMsg),
                 followUp: contextChips[0].label, follow_up_chips: contextChips,
                 refiSlider: {
                     balance:      defaultBal,
@@ -3277,7 +3289,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
                 refiType, verdict: vTitle,
                 parsed: { balance, currentRate, newRate: effNewRate, monthsLeft, yearsIn, closingCosts: effCosts, monthlySavings: Math.round(save), beMonths: beM ? Math.round(beM) : null, triggerRates: { yr2: trig2yr, yr3: trig3yr, yr5: trig5yr } },
             },
-            message: md, answerMarkdown: `**Answer**\n${md}`,
+            message: md, answerMarkdown: buildAnswerMarkdown(md),
             followUp: refiChips[0].label, follow_up_chips: refiChips,
         });
 
@@ -3955,8 +3967,7 @@ ${uwDatabase}`;
             },
             data_freshness: `Live (grok-3-mini + guidelines database)`,
             message: uwAnswerText,
-            answerMarkdown: `**Answer**
-${uwAnswerText}`,
+            answerMarkdown: buildAnswerMarkdown(uwAnswerText),
             followUp: buildUWCard({ question, answerMarkdown: uwAnswerText }).follow_up,
             follow_up_chips: buildUWCard({ question, answerMarkdown: uwAnswerText }).follow_up_chips,
         });
@@ -5116,7 +5127,7 @@ ${uwAnswerText}`,
                 },
                 data_freshness: `Live (calcEngine-deterministic)`,
                 message: calcCard.answer,
-                answerMarkdown: (calcCard as any).labModules ? null : `**Answer**\n${answerWithSources}`,
+                answerMarkdown: (calcCard as any).labModules ? null : buildAnswerMarkdown(answerWithSources),
                 followUp: (calcCard as any).labModules ? null : calcCard.follow_up,
                 follow_up_chips: calcCard.follow_up_chips,
             });
@@ -6775,9 +6786,10 @@ Return valid JSON only:
     const grokCompletelyFailed = !grokFinal && debug?.repaired === true;
 
     const finalMarkdown = grokFinal
-        ? `**Answer**\n${String(grokFinal.answer)}\n\n**Confidence**: ${String(
-            grokFinal.confidence
-        )}\n${!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : ""}${fredLine || ""}`
+        ? buildAnswerMarkdown(String(grokFinal.answer))
+            + `\n\n**Confidence**: ${String(grokFinal.confidence)}\n`
+            + (!sourcesInjected && topSources.length ? `\n**Sources**\n${sourcesMd}\n` : "")
+            + (fredLine || "")
         : grokCompletelyFailed ? "" : legacyAnswerMarkdown;
 
     const message = grokFinal?.answer || legacyAnswer;

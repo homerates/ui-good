@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { buildAnswerMarkdown } from "../../../../lib/answerFormat";
 import { runScenarioMath } from "../../../../lib/scenarioMath";
 import { isScenarioComparisonQuestion } from "../../../../lib/calcDispatcher";
 import { buildScenarioComparisonCard } from "../../../../lib/cardBuilders";
@@ -2656,7 +2657,7 @@ To give you a real verdict (not just math), I need:
                     ok: true, memory_thread_id: memoryThreadId, route: "answers",
                     grok: { answer: askMsg, follow_up: contextChips[0].label, follow_up_chips: contextChips, confidence: "needs_input" },
                     debug: { bypass: "refi_needs_input", refiType, parsed: { balance, currentRate, newRate, monthsLeft } },
-                    message: askMsg, answerMarkdown: `**Answer**\n${askMsg}`,
+                    message: askMsg, answerMarkdown: buildAnswerMarkdown(askMsg),
                     followUp: contextChips[0].label, follow_up_chips: contextChips,
                 });
             }
