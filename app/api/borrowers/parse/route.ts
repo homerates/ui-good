@@ -35,14 +35,13 @@ export async function POST(req: NextRequest) {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    // Verify LO profile
+    // Verify LO or agent profile
     const supabase = db();
-    const { data: lo } = await supabase
-        .from('loan_officers')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
-    if (!lo) return NextResponse.json({ error: 'LO profile not found' }, { status: 400 });
+    const [loRes, agentRes] = await Promise.all([
+        supabase.from('loan_officers').select('id').eq('user_id', userId).maybeSingle(),
+        supabase.from('agents').select('id').eq('user_id', userId).maybeSingle(),
+    ]);
+    if (!loRes.data && !agentRes.data) return NextResponse.json({ error: 'Professional profile not found' }, { status: 400 });
 
     const body = await req.json().catch(() => null);
     const text: string = body?.text ?? '';
@@ -53,9 +52,9 @@ export async function POST(req: NextRequest) {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    const prompt = `You are a data extraction assistant for a mortgage platform. Extract all borrower/prospect records from the text below.
+    const prompt = `You are a data extraction assistant for a real estate and mortgage platform. Extract all client/prospect records from the text below.
 
-The text may be: a forwarded email, spreadsheet rows pasted as text, handwritten notes, a CRM export, or any other format.
+The text may come from a loan officer OR a real estate agent. It may be: a forwarded email, spreadsheet rows, handwritten notes, a CRM export, MLS data, or any other format.
 
 TODAY: ${today}
 
@@ -64,22 +63,22 @@ TEXT TO PARSE:
 ${text}
 """
 
-Extract every distinct person who appears to be a borrower/prospect/client. For each person return:
+Extract every distinct person who appears to be a client/borrower/buyer/seller/prospect. For each person return:
 - name: full name (required — skip if no name found)
 - email: email address or null
 - property_address: full property address including city/state/zip if present, or null
-- purchase_price: purchase/sale price as a number (no $ or commas) or null. "$980k" = 980000, "$1.2M" = 1200000
-- loan_amount: loan/mortgage amount as a number if explicitly stated, or null
-- interest_rate: interest/mortgage rate as a decimal number (e.g. "5.99%" → 5.99, "6.5%" → 6.5) or null. Look for: "rate", "interest rate", "at X%", "locked at X%"
-- close_date: closing/purchase/settlement date as YYYY-MM-DD or null. "4/7/2026" → "2026-04-07", "June 2026" → "2026-06-01", "Feb 2018" → "2018-02-01"
-- notes: any remaining relevant details (credit score, down payment %, property type) as a short string, or null
+- purchase_price: purchase/sale/list price as a number (no $ or commas) or null. "$980k" = 980000, "$1.2M" = 1200000
+- loan_amount: loan/mortgage amount as a number if explicitly stated, or null (often absent for agent data)
+- interest_rate: mortgage rate as a decimal number (e.g. "5.99%" → 5.99) or null. Look for: "rate", "at X%", "locked at"
+- close_date: closing/sold/settlement date as YYYY-MM-DD or null. "4/7/2026" → "2026-04-07", "June 2026" → "2026-06-01", "Feb 2018" → "2018-02-01"
+- notes: any remaining relevant details (property type, buyer/seller side, listing status, bedrooms) as a short string, or null
 - confidence: "high" (clear explicit data), "medium" (some ambiguity), or "low" (guessed)
 
 Rules:
 - Only include records where you found a name
 - If the same person appears multiple times, merge into one record
 - Do NOT invent data — if a field is not present, use null
-- Be aggressive about extracting rates and dates — these are critical for mortgage analysis
+- For agent data: focus on extracting address, sale price, and close date — loan fields will often be null
 
 Return valid JSON only:
 {"borrowers": [...]}`;
