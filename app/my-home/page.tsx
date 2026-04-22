@@ -1276,7 +1276,7 @@ function MyHomePageInner() {
   async function saveLoanDetails() {
     if (!activeProperty?.id) return;
     setLoanSaving(true);
-    await fetch('/api/homeowner/save', {
+    const res = await fetch('/api/homeowner/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1287,6 +1287,10 @@ function MyHomePageInner() {
         actual_purchase_date:  loanPurchaseDate  || null,
       }),
     });
+    const saved = await res.json().catch(() => null);
+    if (saved?.property) {
+      setProperties(prev => prev.map(p => p.id === saved.property.id ? saved.property : p));
+    }
     setLoanSaving(false);
     setLoanSaved(true);
     setEditingLoan(false);
