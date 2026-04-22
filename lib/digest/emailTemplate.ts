@@ -648,7 +648,13 @@ export function digestEmailHtml(data: DigestEmailData): string {
   ].filter(Boolean).join('');
 
   // ── Primary CTAs: Run My Numbers + View Full Report ──────────────────────────
-  const chatUrl  = `${BASE}/chat?sq=${encodeURIComponent(`Run my numbers for ${data.address}`)}`;
+  const chatQueryParts: string[] = [];
+  if (data.estimatedValue)   chatQueryParts.push(`My home at ${data.address} is estimated at $${Math.round(data.estimatedValue).toLocaleString('en-US')}.`);
+  if (data.estimatedBalance) chatQueryParts.push(`Current loan balance: $${Math.round(data.estimatedBalance).toLocaleString('en-US')}.`);
+  if (data.purchaseRate)     chatQueryParts.push(`My rate is ${data.purchaseRate.toFixed(2)}%.`);
+  if (data.estimatedEquity && data.estimatedEquity > 0) chatQueryParts.push(`Equity: $${Math.round(data.estimatedEquity).toLocaleString('en-US')}.`);
+  chatQueryParts.push(`Live market rate is ${data.liveRate.toFixed(2)}%. Show me refinance savings, break-even, and equity options. Use these exact figures.`);
+  const chatUrl  = `${BASE}/chat?sq=${encodeURIComponent(chatQueryParts.join(' '))}`;
   const reportLink = data.reportUrl ?? `${BASE}/my-home`;
   const primaryCta = `
     <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#0d1f14,#0f2a1a);border:1px solid rgba(0,232,122,0.2);border-radius:14px;margin-bottom:16px;">
@@ -681,7 +687,7 @@ export function digestEmailHtml(data: DigestEmailData): string {
                 <div style="font-size:13px;color:#e6edf3;">Your home is worth <strong>${fmtDollar(data.estimatedValue ?? data.estimatedEquity + (data.estimatedBalance ?? 0))}</strong> with <strong>${fmtDollar(data.estimatedEquity)}</strong> in equity</div>
               </td>
               <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
-                <a href="${BASE}/my-home#equity" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                <a href="${BASE}/my-home?chip=equity" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
                   See equity →
                 </a>
               </td>
@@ -705,7 +711,7 @@ export function digestEmailHtml(data: DigestEmailData): string {
                   <div style="font-size:13px;color:#e6edf3;">You could access up to <strong>${fmtDollar(ctaHelocMax)}</strong> via a HELOC today</div>
                 </td>
                 <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
-                  <a href="${BASE}/my-home#heloc" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                  <a href="${BASE}/my-home?chip=heloc" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
                     Explore HELOC →
                   </a>
                 </td>
@@ -732,7 +738,7 @@ export function digestEmailHtml(data: DigestEmailData): string {
                   <div style="font-size:13px;color:#e6edf3;">Refinancing could save you <strong>${fmtDollar(ctaSaving)}/mo</strong> at today's ${data.liveRate.toFixed(2)}% rate</div>
                 </td>
                 <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
-                  <a href="${BASE}/my-home#refi" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                  <a href="${BASE}/my-home?chip=refi" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
                     Run numbers →
                   </a>
                 </td>
@@ -754,7 +760,7 @@ export function digestEmailHtml(data: DigestEmailData): string {
               <div style="font-size:13px;color:#e6edf3;">30yr fixed at <strong>${data.liveRate.toFixed(2)}%</strong>${data.fedFundsRate ? ` · Fed funds at <strong>${data.fedFundsRate.toFixed(2)}%</strong>` : ''} — see what it means for you</div>
             </td>
             <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
-              <a href="${BASE}/my-home#economy" style="display:inline-block;padding:9px 18px;background:rgba(0,232,122,0.12);color:${GREEN};border:1px solid rgba(0,232,122,0.3);font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+              <a href="${BASE}/my-home?chip=economy" style="display:inline-block;padding:9px 18px;background:rgba(0,232,122,0.12);color:${GREEN};border:1px solid rgba(0,232,122,0.3);font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
                 View economy →
               </a>
             </td>
@@ -777,7 +783,7 @@ export function digestEmailHtml(data: DigestEmailData): string {
                 <div style="font-size:13px;color:#e6edf3;">You're on track to pay off your home in <strong>${ctaPayoffYr}</strong> — track your progress</div>
               </td>
               <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
-                <a href="${BASE}/my-home#milestones" style="display:inline-block;padding:9px 18px;background:rgba(0,232,122,0.12);color:${GREEN};border:1px solid rgba(0,232,122,0.3);font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
+                <a href="${BASE}/my-home?chip=milestones" style="display:inline-block;padding:9px 18px;background:rgba(0,232,122,0.12);color:${GREEN};border:1px solid rgba(0,232,122,0.3);font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">
                   See milestones →
                 </a>
               </td>

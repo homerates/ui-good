@@ -1018,6 +1018,7 @@ function MyHomePageInner() {
   const searchParams = useSearchParams()!;
   const borrowerId    = searchParams?.get('borrower_id') ?? null;
   const previewAddress = searchParams?.get('address') ?? null; // from /homeowner page
+  const chipParam     = searchParams?.get('chip') as ChipId | null;
 
   // Multi-home state
   const [properties, setProperties]           = useState<HomeownerProperty[]>([]);
@@ -1028,7 +1029,10 @@ function MyHomePageInner() {
   const [saving, setSaving]                   = useState(false);
   const [saved, setSaved]                     = useState(false);
 
-  const [activeChip, setActiveChip]           = useState<ChipId>('equity');
+  const CHIP_IDS: ChipId[] = ['equity', 'heloc', 'refi', 'economy', 'milestones'];
+  const [activeChip, setActiveChip]           = useState<ChipId>(
+    chipParam && CHIP_IDS.includes(chipParam) ? chipParam : 'equity'
+  );
   const [activeBuyerChip, setActiveBuyerChip] = useState<BuyerChipId>('position');
   const [analysis, setAnalysis]               = useState<AnalysisData | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -1311,8 +1315,23 @@ function MyHomePageInner() {
         <div className="mh-shell">
           <SignedOut>
             <div className="mh-signin-box">
-              <h2>Your Home, Analyzed for Free</h2>
-              <p>Sign in to monitor equity, HELOC capacity, refi timing, and more — no agent or lender required.</p>
+              {chipParam ? (
+                <>
+                  <div style={{ fontSize: '2rem', marginBottom: 10 }}>🔒</div>
+                  <h2>Sign in to view your {
+                    chipParam === 'equity' ? 'Equity & Value' :
+                    chipParam === 'heloc'  ? 'HELOC Power' :
+                    chipParam === 'refi'   ? 'Refi Math' :
+                    chipParam === 'economy' ? 'Economy' : 'Milestones'
+                  }</h2>
+                  <p>Your personalized home intelligence is waiting. Sign in to see full details.</p>
+                </>
+              ) : (
+                <>
+                  <h2>Your Home, Analyzed for Free</h2>
+                  <p>Sign in to monitor equity, HELOC capacity, refi timing, and more — no agent or lender required.</p>
+                </>
+              )}
               <SignInButton mode="modal">
                 <button className="mh-signin-cta">Sign In — See My Properties</button>
               </SignInButton>
