@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { enrichFromAttom } from '@/lib/attom';
+import { enrichFromAttom } from '../../../../lib/attom';
 
 function db() {
   return createClient(

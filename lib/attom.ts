@@ -47,9 +47,9 @@ function mapPropType(raw: string | undefined): string | null {
   return raw.toLowerCase();
 }
 
-async function attomGet(path: string, params: Record<string, string>, apiKey: string): Promise<any> {
+async function attomGet(path: string, params: Record<string, string | undefined>, apiKey: string): Promise<any> {
   const url = new URL(`${ATTOM_BASE}${path}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined) url.searchParams.set(k, v); });
   const res = await fetch(url.toString(), {
     headers: { apikey: apiKey, accept: 'application/json' },
     signal: AbortSignal.timeout(TIMEOUT_MS),
