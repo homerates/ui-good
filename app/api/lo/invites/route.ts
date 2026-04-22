@@ -35,47 +35,32 @@ export async function POST(_req: NextRequest) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         const baseUrl = appBaseUrl.replace(/\/+$/, "");
 
-        // 3) Find this loan officer's row by Clerk userId
-        const { data: lo, error: loError } = await supabase
-            .from("loan_officers")
-            .select("id")
-            .eq("user_id", userId)
-            .maybeSingle();
+        // 3) Resolve professional — LO or Agent
+        const [loRes, agentRes] = await Promise.all([
+            supabase.from("loan_officers").select("id").eq("user_id", userId).maybeSingle(),
+            supabase.from("agents").select("id").eq("user_id", userId).maybeSingle(),
+        ]);
 
-        if (loError) {
-            console.error("loan_officers lookup error:", loError, {
-                clerkUserId: userId,
-            });
+        if (!loRes.data && !agentRes.data) {
             return NextResponse.json(
-                { error: "Failed to create invite" },
-                { status: 500 }
-            );
-        }
-
-        if (!lo) {
-            return NextResponse.json(
-                {
-                    error: "No loan officer record found for this user",
-                    debug: { clerkUserId: userId },
-                },
+                { error: "No professional profile found for this user" },
                 { status: 403 }
             );
         }
 
-        const loanOfficerId = lo.id as string;
+        const loanOfficerId = loRes.data?.id ?? null;
 
-        // 4) Generate a unique invite code (text)
+        // 4) Generate a unique invite code
         const code = randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
 
-        // 5) Insert into invite_codes using your actual schema:
-        // id (auto), code, created_by_loan_officer, target_plan, max_uses, used_count, etc.
+        // 5) Insert invite code — created_by_loan_officer is null for agents (nullable)
         const { data: invite, error: inviteError } = await supabase
             .from("invite_codes")
             .insert({
                 code,
                 created_by_loan_officer: loanOfficerId,
-                target_plan: "borrower-onboarding", // any non-null text is valid
-                max_uses: 1, // single-use; adjust if you want multi-use later
+                target_plan: "borrower-onboarding",
+                max_uses: 1,
             })
             .select("code")
             .single();
