@@ -125,8 +125,9 @@ async function getSnapshot(address: string) {
       .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
     if (!snap) return null;
     if (snap.fetched_at && Date.now() - new Date(snap.fetched_at).getTime() > SNAPSHOT_TTL_MS) return null;
-    // Invalidate if ATTOM is configured but snapshot predates ATTOM support (no avmDate)
-    if (process.env.ATTOM_API_KEY && !(snap.data as PropertyData)?.avmDate) return null;
+    // Invalidate only if ATTOM is configured AND this snapshot was never ATTOM-checked at all
+    // (avmDate may be null for properties where ATTOM has no AVM — that's OK, still cache it)
+    if (process.env.ATTOM_API_KEY && !(snap.data as any)?.attomCheckedAt) return null;
     return snap.data as PropertyData;
   } catch { return null; }
 }
@@ -153,9 +154,10 @@ type PropertyData = {
   lastSaleDate: string | null; lastSalePrice: number | null; rentEstimate: number | null;
   beds: number | null; baths: number | null; sqft: number | null;
   yearBuilt: number | null; propertyType: string | null; lotSizeSqft: number | null; apn: string | null;
-  avmSource: 'attom' | 'fhfa' | null; avmConfidence: number | null; avmDate: string | null;
+  avmSource: 'attom' | 'attom_assessed' | 'fhfa' | null; avmConfidence: number | null; avmDate: string | null;
   mortgageSource: 'attom' | 'estimated' | null; mortgageLender: string | null; mortgageOriginalAmount: number | null; mortgageOriginationDate: string | null;
   comps: AttomComp[]; streetViewUrl: string | null; staticMapUrl: string | null;
+  attomCheckedAt: string | null;
 };
 
 // ── Main local property intelligence — replaces rentcastLookup ───────────────
@@ -249,11 +251,20 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
 
   // ATTOM AVM overrides FHFA appreciation model — stored prop wins, inline is fallback
   const attomAvm = prop?.avm_value ?? inlineAvm?.estimatedValue ?? null;
-  const avmSource: 'attom' | 'fhfa' = attomAvm ? 'attom' : 'fhfa';
+  // For properties where ATTOM has no AVM (private estates, sparse comps), use assessed value
+  const assessedFallback = inlineProfile?.assessedValue ?? null;
+  const avmSource: 'attom' | 'attom_assessed' | 'fhfa' =
+    attomAvm ? 'attom' : assessedFallback ? 'attom_assessed' : 'fhfa';
   if (attomAvm) {
     estimatedValue     = attomAvm;
     estimatedValueLow  = prop?.avm_value_low  ?? inlineAvm?.estimatedValueLow  ?? Math.round(attomAvm * 0.92);
     estimatedValueHigh = prop?.avm_value_high ?? inlineAvm?.estimatedValueHigh ?? Math.round(attomAvm * 1.08);
+  } else if (assessedFallback && !estimatedValue) {
+    // CA Prop 13 means assessed values can be far below market for older homes.
+    // Use 1.25× as a conservative floor — better than blank, clearly labelled in UI.
+    estimatedValue     = Math.round(assessedFallback * 1.25);
+    estimatedValueLow  = Math.round(assessedFallback);
+    estimatedValueHigh = Math.round(assessedFallback * 1.50);
   }
 
   // 5. HUD Fair Market Rent via geo_crosswalk
@@ -339,6 +350,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     comps,
     streetViewUrl,
     staticMapUrl,
+    attomCheckedAt: process.env.ATTOM_API_KEY ? new Date().toISOString() : null,
   };
 
   // 7. Cache result (non-blocking)

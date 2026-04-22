@@ -85,9 +85,10 @@ interface AnalysisData {
   propertyType: string | null;
   lotSizeSqft: number | null;
   apn: string | null;
-  avmSource: string | null;
+  avmSource: 'attom' | 'attom_assessed' | 'fhfa' | null;
   avmConfidence: number | null;
   avmDate: string | null;
+  attomCheckedAt: string | null;
   mortgageSource: string | null;
   mortgageLender: string | null;
   mortgageOriginalAmount: number | null;
@@ -1132,7 +1133,7 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
     yearBuilt: null, propertyType: null, lotSizeSqft: null, apn: null,
     avmSource: null, avmConfidence: null, avmDate: null,
     mortgageSource: null, mortgageLender: null, mortgageOriginalAmount: null, mortgageOriginationDate: null,
-    comps: [], streetViewUrl: null, staticMapUrl: null,
+    comps: [], streetViewUrl: null, staticMapUrl: null, attomCheckedAt: null,
   };
 }
 
@@ -1656,9 +1657,9 @@ function MyHomePageInner() {
                             />
                           )}
                           {/* AVM source badge */}
-                          {analysis.avmSource === 'attom' && (
+                          {(analysis.avmSource === 'attom' || analysis.avmSource === 'attom_assessed') && (
                             <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,20,10,0.75)', border: '1px solid rgba(0,232,122,0.35)', borderRadius: 6, padding: '3px 8px', fontSize: '0.6rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.06em' }}>
-                              ATTOM AVM
+                              {analysis.avmSource === 'attom' ? 'ATTOM AVM' : 'ATTOM ASSESSED'}
                             </div>
                           )}
                         </div>
@@ -1715,7 +1716,7 @@ function MyHomePageInner() {
                         ) : (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
                             {[
-                              { label: analysis.avmSource === 'attom' ? 'ATTOM AVM' : 'Est. Value', value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true, missing: false },
+                              { label: analysis.avmSource === 'attom' ? 'ATTOM AVM' : analysis.avmSource === 'attom_assessed' ? 'ATTOM Assessed' : 'Est. Value', value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true, missing: false },
                               { label: 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0, missing: !analysis.estimatedEquity && !(analysis.estimatedEquity != null && analysis.estimatedEquity < 0) },
                               { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true, missing: false },
                               { label: 'LTV Ratio',    value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100, missing: analysis.ltv === null },

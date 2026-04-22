@@ -18,6 +18,7 @@ export type AttomProperty = {
   estimatedValue: number | null;
   lotSizeSqft:    number | null;
   attomId:        string | null;
+  assessedValue:  number | null; // tax-assessed market value — rough AVM fallback
 };
 
 export type AttomAVM = {
@@ -54,7 +55,7 @@ export type AttomMortgage = {
 const EMPTY: AttomProperty = {
   lastSalePrice: null, lastSaleDate: null, beds: null, baths: null,
   sqft: null, yearBuilt: null, propertyType: null, apn: null,
-  estimatedValue: null, lotSizeSqft: null, attomId: null,
+  estimatedValue: null, lotSizeSqft: null, attomId: null, assessedValue: null,
 };
 
 const EMPTY_AVM: AttomAVM = {
@@ -138,9 +139,12 @@ export async function enrichFromAttom(address: string): Promise<AttomProperty> {
     propertyType:  mapPropType(prop?.summary?.proptype),
     apn:           prop?.lot?.apn ?? null,
     lotSizeSqft:   prop?.lot?.lotsize2 ?? null,
-    lastSalePrice: sale?.amount?.saleamt ?? null,
+    lastSalePrice: sale?.amount?.saleamt ?? prop?.sale?.amount?.saleamt ?? null,
     lastSaleDate,
     estimatedValue: null, // use getAttomAVM() for AVM
+    assessedValue:  prop?.assessment?.market?.marketTotalValue
+                 ?? prop?.assessment?.assessed?.assdTtlValue
+                 ?? null,
   };
 }
 
