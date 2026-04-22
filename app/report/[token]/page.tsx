@@ -297,19 +297,20 @@ export default function ReportPage() {
                             <div className="rp-hero-photo" style={{ position: 'relative', background: '#0f172a', overflow: 'hidden' }}>
                                 <img src={heroPhotoUrl} alt="Property" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                     onError={e => {
-                                        const img = e.target as HTMLImageElement;
-                                        // Cascade: Redfin photo → street view → collapse column
-                                        if (analysis?.photoUrl && img.src !== analysis.photoUrl) {
-                                            img.src = analysis.photoUrl;
-                                        } else if (streetViewUrl && img.src !== streetViewUrl) {
-                                            img.src = streetViewUrl.replace('return_error_code=true&', '');
-                                        } else {
-                                            // All sources failed — hide photo and expand map to full width
-                                            const photoDiv = img.parentElement as HTMLElement;
-                                            const grid = photoDiv?.parentElement as HTMLElement;
-                                            photoDiv.style.display = 'none';
-                                            if (grid) grid.style.gridTemplateColumns = '1fr';
+                                        const img = e.currentTarget;
+                                        if (!img.dataset.errored) {
+                                            img.dataset.errored = '1';
+                                            // First error: if we started from Redfin photo, fall back to street view
+                                            if (analysis?.photoUrl && streetViewUrl) {
+                                                img.src = streetViewUrl.replace('return_error_code=true&', '');
+                                                return;
+                                            }
                                         }
+                                        // All sources failed — hide photo column, expand map to full width
+                                        const photoDiv = img.parentElement as HTMLElement;
+                                        const grid = photoDiv?.parentElement as HTMLElement;
+                                        if (photoDiv) photoDiv.style.display = 'none';
+                                        if (grid) grid.style.gridTemplateColumns = '1fr';
                                     }} />
                                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.72) 0%, transparent 55%)' }} />
                                 <div style={{ position: 'absolute', bottom: 18, left: 20 }}>
