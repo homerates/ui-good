@@ -1,13 +1,14 @@
 // app/api/property/enrich/route.ts
 // POST { address } — fires in background when user confirms an address.
-// Searches Redfin (via Tavily), parses structured property data,
-// upserts to properties table. Zero cost after first lookup.
+// Calls ATTOM API first (structured JSON), falls back to Tavily/Redfin scraping.
+// upserts to properties table. Zero cost after first lookup (30-day cache).
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { enrichFromAttom } from '@/lib/attom';
 
 function db() {
   return createClient(
@@ -177,26 +178,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, cached: true, address });
   }
 
-  // Enrich from Tavily / Redfin
-  const enriched = await enrichFromTavily(address);
+  // Try ATTOM first (structured, reliable), fall back to Tavily scraping
+  let enriched = await enrichFromAttom(address);
+  const source = (enriched.beds || enriched.lastSalePrice) ? 'attom' : null;
+
+  if (!source) {
+    enriched = await enrichFromTavily(address) as typeof enriched;
+  }
 
   // Build upsert payload — only include fields we found
   const payload: Record<string, any> = {
     address_full: addr,
     state: state ?? null,
     zip: zip ?? null,
-    enrichment_source: 'redfin_via_tavily',
+    enrichment_source: source ?? 'redfin_via_tavily',
     enriched_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  if (enriched.lastSalePrice) payload.latest_last_sale_price = enriched.lastSalePrice;
-  if (enriched.lastSaleDate)  payload.latest_last_sale_date  = enriched.lastSaleDate;
-  if (enriched.beds)          payload.beds                   = enriched.beds;
-  if (enriched.baths)         payload.baths                  = enriched.baths;
-  if (enriched.sqft)          payload.sqft                   = enriched.sqft;
-  if (enriched.yearBuilt)     payload.year_built             = enriched.yearBuilt;
-  if (enriched.propertyType)  payload.property_type          = enriched.propertyType;
-  if (enriched.apn)           payload.apn                    = enriched.apn;
+  if (enriched.lastSalePrice)  payload.latest_last_sale_price = enriched.lastSalePrice;
+  if (enriched.lastSaleDate)   payload.latest_last_sale_date  = enriched.lastSaleDate;
+  if (enriched.beds)           payload.beds                   = enriched.beds;
+  if (enriched.baths)          payload.baths                  = enriched.baths;
+  if (enriched.sqft)           payload.sqft                   = enriched.sqft;
+  if (enriched.yearBuilt)      payload.year_built             = enriched.yearBuilt;
+  if (enriched.propertyType)   payload.property_type          = enriched.propertyType;
+  if (enriched.apn)            payload.apn                    = enriched.apn;
+  if ((enriched as any).lotSizeSqft)  payload.lot_size_sqft  = (enriched as any).lotSizeSqft;
+  if ((enriched as any).attomId)      payload.attom_id        = (enriched as any).attomId;
 
   const { data: upserted } = await db()
     .from('properties')
@@ -211,10 +219,10 @@ export async function POST(req: NextRequest) {
       await db().from('property_snapshots').insert({
         property_id: upserted.id,
         snapshot_type: 'full',
-        source: 'redfin_via_tavily',
+        source: source ?? 'redfin_via_tavily',
         data: enriched,
         expires_at: expiresAt,
-        confidence: 0.85,
+        confidence: source === 'attom' ? 0.95 : 0.85,
       });
     } catch { /* non-blocking */ }
   }
