@@ -11,6 +11,7 @@ import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
 import { requireAdmin } from '../../../../lib/adminAuth';
+import type { AttomComp } from '../../../../lib/attom';
 
 function db() {
   return createClient(
@@ -130,15 +131,17 @@ async function getSnapshot(address: string) {
 
 async function saveSnapshot(address: string, data: PropertyData) {
   try {
-    const addr = normalizeAddr(address);
+    const addr  = normalizeAddr(address);
     const state = stateFromAddress(address.toUpperCase()) ?? null;
     const zip   = address.match(/\b(\d{5})\b/)?.[1] ?? null;
+    // Don't overwrite enrichment_source — preserve ATTOM enrichment if present
     const { data: prop } = await db().from('properties')
-      .upsert({ address_full: addr, state, zip, enriched_at: new Date().toISOString(), enrichment_source: 'internal', updated_at: new Date().toISOString() }, { onConflict: 'address_full' })
+      .upsert({ address_full: addr, state, zip, updated_at: new Date().toISOString() }, { onConflict: 'address_full' })
       .select('id').single();
     if (!prop) return;
     const expiresAt = new Date(Date.now() + SNAPSHOT_TTL_MS).toISOString();
-    await db().from('property_snapshots').insert({ property_id: prop.id, snapshot_type: 'full', source: 'internal', data, expires_at: expiresAt, confidence: 0.75 });
+    const confidence = data.avmSource === 'attom' ? 0.95 : 0.75;
+    await db().from('property_snapshots').insert({ property_id: prop.id, snapshot_type: 'full', source: data.avmSource === 'attom' ? 'attom_analysis' : 'internal', data, expires_at: expiresAt, confidence });
   } catch { /* non-blocking */ }
 }
 
@@ -147,7 +150,10 @@ type PropertyData = {
   estimatedBalance: number | null; estimatedEquity: number | null; purchaseRate: number | null;
   lastSaleDate: string | null; lastSalePrice: number | null; rentEstimate: number | null;
   beds: number | null; baths: number | null; sqft: number | null;
-  yearBuilt: number | null; propertyType: string | null;
+  yearBuilt: number | null; propertyType: string | null; lotSizeSqft: number | null; apn: string | null;
+  avmSource: 'attom' | 'fhfa' | null; avmConfidence: number | null; avmDate: string | null;
+  mortgageSource: 'attom' | 'estimated' | null; mortgageLender: string | null; mortgageOriginalAmount: number | null; mortgageOriginationDate: string | null;
+  comps: AttomComp[]; streetViewUrl: string | null; staticMapUrl: string | null;
 };
 
 // ── Main local property intelligence — replaces rentcastLookup ───────────────
@@ -159,7 +165,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // 2. Check properties table for stored sale data
   const addr = normalizeAddr(address);
   const { data: prop } = await db().from('properties')
-    .select('latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type').eq('address_full', addr).maybeSingle();
+    .select('id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, lot_size_sqft, apn, avm_value, avm_value_low, avm_value_high, avm_confidence, avm_date, mortgage_open_balance, mortgage_original_amount, mortgage_interest_rate, mortgage_lender, mortgage_origination_date').eq('address_full', addr).maybeSingle();
 
   // 3. Resolve last sale data (DB → LO override → Tavily)
   let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;
@@ -193,8 +199,16 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   if (salePrice && yearsElapsed !== null) {
     estimatedValue = Math.round(salePrice * Math.pow(1 + annualRate, yearsElapsed));
   }
-  const estimatedValueLow  = estimatedValue ? Math.round(estimatedValue * 0.92) : null;
-  const estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
+  let estimatedValueLow  = estimatedValue ? Math.round(estimatedValue * 0.92) : null;
+  let estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
+
+  // ATTOM AVM overrides FHFA appreciation model — more accurate
+  const avmSource: 'attom' | 'fhfa' = prop?.avm_value ? 'attom' : 'fhfa';
+  if (prop?.avm_value) {
+    estimatedValue     = prop.avm_value;
+    estimatedValueLow  = prop.avm_value_low  ?? Math.round(prop.avm_value * 0.92);
+    estimatedValueHigh = prop.avm_value_high ?? Math.round(prop.avm_value * 1.08);
+  }
 
   // 5. HUD Fair Market Rent via geo_crosswalk
   const zip = prop?.zip ?? address.match(/\b(\d{5})\b/)?.[1] ?? null;
@@ -223,7 +237,36 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     estimatedEquity  = Math.round((estimatedValue ?? salePrice) - estimatedBalance);
   }
 
+  // ATTOM mortgage data overrides estimated balance/rate — real public record
+  const mortgageSource: 'attom' | 'estimated' = prop?.mortgage_open_balance ? 'attom' : 'estimated';
+  if (prop?.mortgage_open_balance) {
+    estimatedBalance = prop.mortgage_open_balance;
+    if (prop.mortgage_interest_rate) purchaseRate = prop.mortgage_interest_rate;
+    if (estimatedValue) estimatedEquity = Math.round(estimatedValue - estimatedBalance);
+  }
+
   const lastSaleDate = saleDate ? saleDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
+
+  // 8. Comps from property_snapshots (stored by enrich route)
+  let comps: AttomComp[] = [];
+  if (prop?.id) {
+    try {
+      const { data: compsSnap } = await db().from('property_snapshots')
+        .select('data').eq('property_id', prop.id).eq('snapshot_type', 'comps')
+        .gt('expires_at', new Date().toISOString())
+        .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
+      comps = (compsSnap?.data as AttomComp[]) ?? [];
+    } catch { /* non-blocking */ }
+  }
+
+  // 9. Street View + satellite map URLs
+  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
+  const streetViewUrl = mapsKey
+    ? `https://maps.googleapis.com/maps/api/streetview?size=800x300&location=${encodeURIComponent(address)}&return_error_code=true&key=${mapsKey}`
+    : null;
+  const staticMapUrl = mapsKey
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(address)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(address)}&key=${mapsKey}`
+    : null;
 
   const result: PropertyData = {
     estimatedValue, estimatedValueLow, estimatedValueHigh,
@@ -234,6 +277,18 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     sqft: prop?.sqft ?? null,
     yearBuilt: prop?.year_built ?? null,
     propertyType: prop?.property_type ?? null,
+    lotSizeSqft: prop?.lot_size_sqft ?? null,
+    apn: prop?.apn ?? null,
+    avmSource,
+    avmConfidence: prop?.avm_confidence ?? null,
+    avmDate: prop?.avm_date ?? null,
+    mortgageSource,
+    mortgageLender: prop?.mortgage_lender ?? null,
+    mortgageOriginalAmount: prop?.mortgage_original_amount ?? null,
+    mortgageOriginationDate: prop?.mortgage_origination_date ?? null,
+    comps,
+    streetViewUrl,
+    staticMapUrl,
   };
 
   // 7. Cache result (non-blocking)

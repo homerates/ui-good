@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { enrichFromAttom } from '../../../../lib/attom';
+import { enrichFromAttom, getAttomAVM, getAttomComps, getAttomMortgage } from '../../../../lib/attom';
 
 function db() {
   return createClient(
@@ -165,25 +165,40 @@ export async function POST(req: NextRequest) {
   // Check if we already have fresh data (enriched within 30 days)
   const { data: existing } = await db()
     .from('properties')
-    .select('id, enriched_at, latest_last_sale_price, beds, sqft')
+    .select('id, enriched_at, latest_last_sale_price, beds, sqft, avm_value')
     .eq('address_full', addr)
     .maybeSingle();
 
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
   const isFresh = existing?.enriched_at
     && Date.now() - new Date(existing.enriched_at).getTime() < thirtyDaysMs
-    && existing.latest_last_sale_price; // has meaningful data
+    && (existing.latest_last_sale_price || existing.avm_value);
 
   if (isFresh) {
     return NextResponse.json({ ok: true, cached: true, address });
   }
 
-  // Try ATTOM first (structured, reliable), fall back to Tavily scraping
-  let enriched = await enrichFromAttom(address);
-  const source = (enriched.beds || enriched.lastSalePrice) ? 'attom' : null;
+  // Fire all 4 ATTOM calls in parallel — profile + AVM + comps + mortgage
+  let enriched: any = {};
+  let avmData = null, compsData: any[] = [], mtgData = null;
+  let source: string | null = null;
+
+  if (process.env.ATTOM_API_KEY) {
+    const [enrichedRes, avmRes, compsRes, mtgRes] = await Promise.allSettled([
+      enrichFromAttom(address),
+      getAttomAVM(address),
+      getAttomComps(address),
+      getAttomMortgage(address),
+    ]);
+    enriched  = enrichedRes.status === 'fulfilled' ? enrichedRes.value : {};
+    avmData   = avmRes.status    === 'fulfilled'   ? avmRes.value      : null;
+    compsData = compsRes.status  === 'fulfilled'   ? compsRes.value    : [];
+    mtgData   = mtgRes.status    === 'fulfilled'   ? mtgRes.value      : null;
+    source = (enriched?.beds || enriched?.lastSalePrice || avmData?.estimatedValue) ? 'attom' : null;
+  }
 
   if (!source) {
-    enriched = await enrichFromTavily(address) as typeof enriched;
+    enriched = await enrichFromTavily(address);
   }
 
   // Build upsert payload — only include fields we found
@@ -203,8 +218,21 @@ export async function POST(req: NextRequest) {
   if (enriched.yearBuilt)      payload.year_built             = enriched.yearBuilt;
   if (enriched.propertyType)   payload.property_type          = enriched.propertyType;
   if (enriched.apn)            payload.apn                    = enriched.apn;
-  if ((enriched as any).lotSizeSqft)  payload.lot_size_sqft  = (enriched as any).lotSizeSqft;
-  if ((enriched as any).attomId)      payload.attom_id        = (enriched as any).attomId;
+  if (enriched.lotSizeSqft)    payload.lot_size_sqft          = enriched.lotSizeSqft;
+  if (enriched.attomId)        payload.attom_id               = enriched.attomId;
+  // AVM
+  if (avmData?.estimatedValue)     payload.avm_value                 = avmData.estimatedValue;
+  if (avmData?.estimatedValueLow)  payload.avm_value_low             = avmData.estimatedValueLow;
+  if (avmData?.estimatedValueHigh) payload.avm_value_high            = avmData.estimatedValueHigh;
+  if (avmData?.confidence)         payload.avm_confidence            = avmData.confidence;
+  if (avmData?.avmDate)            payload.avm_date                  = avmData.avmDate;
+  // Mortgage
+  if (mtgData?.lender)             payload.mortgage_lender           = mtgData.lender;
+  if (mtgData?.originalAmount)     payload.mortgage_original_amount  = mtgData.originalAmount;
+  if (mtgData?.openBalance)        payload.mortgage_open_balance     = mtgData.openBalance;
+  if (mtgData?.interestRate)       payload.mortgage_interest_rate    = mtgData.interestRate;
+  if (mtgData?.loanType)           payload.mortgage_loan_type        = mtgData.loanType;
+  if (mtgData?.originationDate)    payload.mortgage_origination_date = mtgData.originationDate;
 
   const { data: upserted } = await db()
     .from('properties')
@@ -212,20 +240,35 @@ export async function POST(req: NextRequest) {
     .select('id')
     .single();
 
-  // Write property_snapshot so analysis route hits cache next time
-  if (upserted?.id && enriched.lastSalePrice) {
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+
+  // Store property characteristics snapshot
+  if (upserted?.id && (enriched.lastSalePrice || avmData?.estimatedValue)) {
     try {
       await db().from('property_snapshots').insert({
-        property_id: upserted.id,
+        property_id:   upserted.id,
         snapshot_type: source === 'attom' ? 'attom' : 'enrich',
-        source: source ?? 'redfin_via_tavily',
-        data: enriched,
-        expires_at: expiresAt,
-        confidence: source === 'attom' ? 0.95 : 0.85,
+        source:        source ?? 'redfin_via_tavily',
+        data:          { ...enriched, avm: avmData, mortgage: mtgData },
+        expires_at:    new Date(Date.now() + weekMs).toISOString(),
+        confidence:    source === 'attom' ? 0.95 : 0.85,
       });
     } catch { /* non-blocking */ }
   }
 
-  return NextResponse.json({ ok: true, cached: false, address, data: enriched });
+  // Store comps snapshot separately with 7-day TTL
+  if (upserted?.id && compsData.length > 0) {
+    try {
+      await db().from('property_snapshots').insert({
+        property_id:   upserted.id,
+        snapshot_type: 'comps',
+        source:        'attom',
+        data:          compsData,
+        expires_at:    new Date(Date.now() + weekMs).toISOString(),
+        confidence:    0.95,
+      });
+    } catch { /* non-blocking */ }
+  }
+
+  return NextResponse.json({ ok: true, cached: false, address, source, data: { ...enriched, avm: avmData, comps: compsData.length, mortgage: !!mtgData } });
 }

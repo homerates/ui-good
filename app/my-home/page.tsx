@@ -28,6 +28,12 @@ interface SavedOverrides {
   actual_purchase_date:  string | null;
 }
 
+interface AttomComp {
+  address: string; city: string | null; salePrice: number; saleDate: string;
+  beds: number | null; baths: number | null; sqft: number | null;
+  pricePerSqft: number | null; propertyType: string | null; yearBuilt: number | null; distanceMiles: number | null;
+}
+
 interface AnalysisData {
   address: string;
   estimatedValue: number | null;
@@ -68,12 +74,27 @@ interface AnalysisData {
   borrowerName?: string;
   isLoView?: boolean;
   // Listing context (buyer mode)
-  listingStatus: string;
+  listingStatus: string | null;
   daysOnMarket: number | null;
   listPrice: number | null;
   beds: number | null;
   baths: number | null;
   sqft: number | null;
+  // ATTOM enrichment
+  yearBuilt: number | null;
+  propertyType: string | null;
+  lotSizeSqft: number | null;
+  apn: string | null;
+  avmSource: string | null;
+  avmConfidence: number | null;
+  avmDate: string | null;
+  mortgageSource: string | null;
+  mortgageLender: string | null;
+  mortgageOriginalAmount: number | null;
+  mortgageOriginationDate: string | null;
+  comps: AttomComp[];
+  streetViewUrl: string | null;
+  staticMapUrl: string | null;
 }
 
 type ChipId = 'equity' | 'heloc' | 'refi' | 'economy' | 'milestones';
@@ -121,6 +142,106 @@ function fmt(n: number): string {
 }
 function pct(n: number | null): string { return n !== null ? `${n}%` : '—'; }
 function rate(n: number | null | undefined): string { return n ? `${n.toFixed(2)}%` : '—'; }
+
+// ── ATTOM Intelligence Cards ──────────────────────────────────────────────────
+
+function CardPropertyIntel({ d }: { d: AnalysisData }) {
+  const hasDetails = d.beds || d.baths || d.sqft || d.yearBuilt || d.lotSizeSqft || d.apn;
+  const hasMortgage = d.mortgageLender || d.mortgageOriginalAmount || d.mortgageOriginationDate;
+  if (!hasDetails && !hasMortgage) return null;
+  return (
+    <div className="mh-card">
+      <div className="mh-card-label">Property Profile</div>
+      {hasDetails && (
+        <div className="mh-stat-row" style={{ flexWrap: 'wrap', gap: 12 }}>
+          {d.beds        && <div className="mh-stat"><div className="mh-stat-label">Beds</div><div className="mh-stat-value">{d.beds}</div></div>}
+          {d.baths       && <div className="mh-stat"><div className="mh-stat-label">Baths</div><div className="mh-stat-value">{d.baths}</div></div>}
+          {d.sqft        && <div className="mh-stat"><div className="mh-stat-label">Living Sqft</div><div className="mh-stat-value">{d.sqft.toLocaleString()}</div></div>}
+          {d.yearBuilt   && <div className="mh-stat"><div className="mh-stat-label">Year Built</div><div className="mh-stat-value">{d.yearBuilt}</div></div>}
+          {d.lotSizeSqft && <div className="mh-stat"><div className="mh-stat-label">Lot Size</div><div className="mh-stat-value">{(d.lotSizeSqft / 43560).toFixed(2)} ac</div></div>}
+          {d.sqft && d.estimatedValue && <div className="mh-stat"><div className="mh-stat-label">$/Sqft</div><div className="mh-stat-value">${Math.round(d.estimatedValue / d.sqft)}</div></div>}
+        </div>
+      )}
+      {d.propertyType && (
+        <div style={{ marginTop: 10, fontSize: '0.72rem', color: '#475569' }}>
+          Property type: <span style={{ color: '#94a3b8', textTransform: 'capitalize' }}>{d.propertyType.replace('_', ' ')}</span>
+          {d.apn && <span style={{ marginLeft: 12 }}>APN: <span style={{ color: '#94a3b8' }}>{d.apn}</span></span>}
+        </div>
+      )}
+      {hasMortgage && (
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 10 }}>Recorded Mortgage</div>
+          <div className="mh-stat-row" style={{ flexWrap: 'wrap', gap: 12 }}>
+            {d.mortgageLender && <div className="mh-stat"><div className="mh-stat-label">Lender</div><div className="mh-stat-value" style={{ fontSize: '0.85rem' }}>{d.mortgageLender}</div></div>}
+            {d.mortgageOriginalAmount && <div className="mh-stat"><div className="mh-stat-label">Original Loan</div><div className="mh-stat-value">{fmt(d.mortgageOriginalAmount)}</div></div>}
+            {d.mortgageOriginationDate && <div className="mh-stat"><div className="mh-stat-label">Originated</div><div className="mh-stat-value" style={{ fontSize: '0.82rem' }}>{new Date(d.mortgageOriginationDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div></div>}
+          </div>
+          <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#334155' }}>Source: ATTOM public records</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CardComps({ d }: { d: AnalysisData }) {
+  const comps = d.comps ?? [];
+  if (!comps.length) return null;
+  const subjectPsf = (d.estimatedValue && d.sqft) ? Math.round(d.estimatedValue / d.sqft) : null;
+  return (
+    <div className="mh-card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div className="mh-card-label" style={{ marginBottom: 0 }}>Comparable Sales</div>
+        <div style={{ fontSize: '0.62rem', color: '#334155' }}>0.5 mi · last 2 yrs · ATTOM</div>
+      </div>
+      {subjectPsf && (
+        <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 8, fontSize: '0.72rem', color: '#94a3b8' }}>
+          Your home: <span style={{ color: '#00e87a', fontWeight: 700 }}>${subjectPsf}/sqft</span> (ATTOM AVM ÷ living sqft)
+        </div>
+      )}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+          <thead>
+            <tr>{['Address', 'Sold', 'Price', 'Bd/Ba', 'Sqft', '$/sqft'].map(h => (
+              <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#475569', borderBottom: '1px solid #1e293b', whiteSpace: 'nowrap' }}>{h}</th>
+            ))}</tr>
+          </thead>
+          <tbody>
+            {comps.map((c, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '8px 8px', color: '#94a3b8', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.address}</td>
+                <td style={{ padding: '8px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>{c.saleDate ? new Date(c.saleDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : '—'}</td>
+                <td style={{ padding: '8px 8px', color: '#f1f5f9', fontWeight: 700, whiteSpace: 'nowrap' }}>{c.salePrice ? `$${Math.round(c.salePrice / 1000)}K` : '—'}</td>
+                <td style={{ padding: '8px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>{c.beds ?? '—'}/{c.baths ?? '—'}</td>
+                <td style={{ padding: '8px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>{c.sqft ? c.sqft.toLocaleString() : '—'}</td>
+                <td style={{ padding: '8px 8px', whiteSpace: 'nowrap', color: c.pricePerSqft && subjectPsf ? (c.pricePerSqft > subjectPsf ? '#22c55e' : c.pricePerSqft < subjectPsf * 0.9 ? '#f87171' : '#94a3b8') : '#94a3b8', fontWeight: 600 }}>
+                  {c.pricePerSqft ? `$${c.pricePerSqft}` : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
+        <a
+          href={(() => {
+            const avgPsf = comps.filter(c => c.pricePerSqft).reduce((s, c) => s + (c.pricePerSqft ?? 0), 0) / comps.filter(c => c.pricePerSqft).length;
+            const avgPrice = comps.filter(c => c.salePrice).reduce((s, c) => s + c.salePrice, 0) / comps.filter(c => c.salePrice).length;
+            const parts = [`CMA for ${d.address}: ATTOM shows ${comps.length} nearby comps within 0.5 mi sold in the last 2 years.`];
+            if (avgPsf) parts.push(`Average comp $/sqft: $${Math.round(avgPsf)}.`);
+            if (avgPrice) parts.push(`Average comp sale price: $${Math.round(avgPrice / 1000)}K.`);
+            if (d.estimatedValue) parts.push(`ATTOM AVM for subject: $${Math.round(d.estimatedValue / 1000)}K.`);
+            parts.push('Run a full CMA analysis with AI. Are comps supporting the AVM value? What price range is defensible?');
+            return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+          })()}
+          className="mh-cta-link"
+          style={{ color: '#93c5fd' }}
+        >
+          Run AI CMA in chat →
+        </a>
+      </div>
+    </div>
+  );
+}
 
 // ── Sub-cards ──────────────────────────────────────────────────────────────────
 
@@ -1101,7 +1222,7 @@ function MyHomePageInner() {
     setAnalysisErr('');
     setAnalysis(null);
     try {
-      // LO borrower view — keep using homeowner analysis (has override fields)
+      // LO borrower view
       if (borrowerId) {
         const bust = `_t=${Date.now()}`;
         const res = await fetch(`/api/homeowner/analysis?borrower_id=${encodeURIComponent(borrowerId)}&${bust}`, { cache: 'no-store' });
@@ -1111,8 +1232,22 @@ function MyHomePageInner() {
         return;
       }
 
-      // Preview mode OR saved property — both use property/lookup for rich Redfin data
-      const lookupAddress = previewAddress ?? activeProperty?.property_address ?? null;
+      // Authenticated homeowner — use homeowner/analysis for ATTOM-powered intelligence
+      if (!previewAddress && activeProperty) {
+        const qp = activeProperty.id ? `?property_id=${encodeURIComponent(activeProperty.id)}&_t=${Date.now()}` : `?_t=${Date.now()}`;
+        const res = await fetch(`/api/homeowner/analysis${qp}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
+        if (!data.estimatedValue && !data.lastSalePrice) {
+          setAnalysisErr('Could not find property value data. Try pasting the Redfin link directly in chat.');
+          return;
+        }
+        setAnalysis(data);
+        return;
+      }
+
+      // Preview mode — use property/lookup for Redfin data + buyer intelligence
+      const lookupAddress = previewAddress ?? null;
       if (!lookupAddress) { setAnalysisErr('No address available'); return; }
 
       const [lookupRes, tickerRes] = await Promise.all([
@@ -1129,7 +1264,6 @@ function MyHomePageInner() {
         setAnalysisErr(lookupJson.error ?? 'Could not retrieve property data');
         return;
       }
-      // Require financial data — beds/baths alone renders as all dashes with no useful info
       const d = lookupJson.data;
       if (!d.estimatedValue && !d.lastSalePrice && !d.price) {
         setAnalysisErr('Could not find property value data for this address. Try pasting the Redfin link directly in chat for instant results.');
@@ -1142,31 +1276,7 @@ function MyHomePageInner() {
         const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
         if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
       }
-
-      const base = lookupToAnalysis(lookupJson.data, liveRate);
-
-      // Apply saved overrides for authenticated properties
-      if (!previewAddress && activeProperty) {
-        const ov = activeProperty;
-        if (ov.actual_balance) {
-          base.estimatedBalance = ov.actual_balance;
-          base.balanceIsEstimated = false;
-          if (base.estimatedValue) {
-            base.estimatedEquity = Math.round(base.estimatedValue - ov.actual_balance);
-            base.ltv = Math.round(ov.actual_balance / base.estimatedValue * 100);
-            base.equityPct = Math.round(Math.max(0, base.estimatedEquity) / base.estimatedValue * 100);
-          }
-        }
-        if (ov.actual_rate) { base.purchaseRate = ov.actual_rate; base.rateIsEstimated = false; }
-        base.savedOverrides = {
-          actual_balance: ov.actual_balance,
-          actual_rate: ov.actual_rate,
-          actual_purchase_price: ov.actual_purchase_price,
-          actual_purchase_date: ov.actual_purchase_date,
-        };
-      }
-
-      setAnalysis(base);
+      setAnalysis(lookupToAnalysis(lookupJson.data, liveRate));
     } catch {
       setAnalysisErr('Network error — try again');
     } finally {
@@ -1518,8 +1628,57 @@ function MyHomePageInner() {
                   const heroAddr = analysis.address || previewAddress || activeProperty?.property_address || '';
                   return (
                     <div style={{ background: '#0f172a', borderRadius: 16, marginBottom: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
-                      {/* Accent line: blue for buyer, green for owner */}
+                      {/* Accent line */}
                       <div style={{ height: 3, background: isBuyer ? 'linear-gradient(90deg,#3b82f6,#6366f1)' : 'linear-gradient(90deg,#00e87a,#00b459)' }} />
+
+                      {/* Street View hero photo */}
+                      {!isBuyer && analysis.streetViewUrl && (
+                        <div style={{ position: 'relative', height: 200, overflow: 'hidden', background: '#0f172a' }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={analysis.streetViewUrl}
+                            alt="Street view"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
+                          />
+                          {/* Satellite map overlay — bottom right */}
+                          {analysis.staticMapUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={analysis.staticMapUrl}
+                              alt="Satellite map"
+                              style={{ position: 'absolute', bottom: 8, right: 8, width: 120, height: 80, borderRadius: 8, border: '2px solid rgba(0,232,122,0.4)', objectFit: 'cover' }}
+                              onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
+                          )}
+                          {/* AVM source badge */}
+                          {analysis.avmSource === 'attom' && (
+                            <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,20,10,0.75)', border: '1px solid rgba(0,232,122,0.35)', borderRadius: 6, padding: '3px 8px', fontSize: '0.6rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.06em' }}>
+                              ATTOM AVM
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Property details bar — beds/baths/sqft/yearBuilt from ATTOM */}
+                      {!isBuyer && (analysis.beds || analysis.baths || analysis.sqft || analysis.yearBuilt || analysis.lotSizeSqft) && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, borderBottom: '1px solid #1e293b', background: '#0a1628' }}>
+                          {[
+                            analysis.beds      && { label: 'Beds',       val: `${analysis.beds}` },
+                            analysis.baths     && { label: 'Baths',      val: `${analysis.baths}` },
+                            analysis.sqft      && { label: 'Sq Ft',      val: analysis.sqft.toLocaleString() },
+                            analysis.yearBuilt && { label: 'Built',      val: `${analysis.yearBuilt}` },
+                            analysis.lotSizeSqft && { label: 'Lot',      val: `${Math.round(analysis.lotSizeSqft / 43560 * 100) / 100} ac` },
+                            analysis.propertyType && { label: 'Type',    val: analysis.propertyType.replace('_', ' ') },
+                          ].filter(Boolean).map((item: any, i, arr) => (
+                            <div key={i} style={{ flex: '1 1 80px', padding: '10px 14px', borderRight: i < arr.length - 1 ? '1px solid #1e293b' : 'none', textAlign: 'center' }}>
+                              <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#475569', marginBottom: 2 }}>{item.label}</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#e2e8f0' }}>{item.val}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       <div style={{ padding: '20px 24px' }}>
                         {/* Address + mode label */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
@@ -1552,7 +1711,7 @@ function MyHomePageInner() {
                         ) : (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
                             {[
-                              { label: 'Est. Value',   value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true, missing: false },
+                              { label: analysis.avmSource === 'attom' ? 'ATTOM AVM' : 'Est. Value', value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true, missing: false },
                               { label: 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0, missing: !analysis.estimatedEquity && !(analysis.estimatedEquity != null && analysis.estimatedEquity < 0) },
                               { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true, missing: false },
                               { label: 'LTV Ratio',    value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100, missing: analysis.ltv === null },
@@ -1767,7 +1926,7 @@ function MyHomePageInner() {
                               </>
                             ) : (
                               <>
-                                {activeChip === 'equity'     && <CardEquity     d={analysis} nearbySales={nearbySales} onEdit={!borrowerId ? openLoanEditor : undefined} />}
+                                {activeChip === 'equity'     && <><CardEquity d={analysis} nearbySales={nearbySales} onEdit={!borrowerId ? openLoanEditor : undefined} /><CardComps d={analysis} /><CardPropertyIntel d={analysis} /></>}
                                 {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
                                 {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
                                 {activeChip === 'economy'    && <CardEconomy    d={analysis} />}

@@ -1,6 +1,6 @@
 // lib/attom.ts
-// ATTOM Data API client — Step 2 of AI/data quality roadmap.
-// Replaces Tavily scraping in property/enrich with structured JSON.
+// ATTOM Data API client — full intelligence suite.
+// Endpoints: basicprofile, saleshistory, AVM, salescomps, detailmortgage
 // Docs: https://api.developer.attomdata.com/docs
 
 const ATTOM_BASE = 'https://api.attomdata.com/propertyapi/v1.0.0';
@@ -20,10 +20,51 @@ export type AttomProperty = {
   attomId:        string | null;
 };
 
+export type AttomAVM = {
+  estimatedValue:     number | null;
+  estimatedValueLow:  number | null;
+  estimatedValueHigh: number | null;
+  avmDate:            string | null;
+  confidence:         number | null; // tScore 0–100
+};
+
+export type AttomComp = {
+  address:       string;
+  city:          string | null;
+  salePrice:     number;
+  saleDate:      string;
+  beds:          number | null;
+  baths:         number | null;
+  sqft:          number | null;
+  pricePerSqft:  number | null;
+  propertyType:  string | null;
+  yearBuilt:     number | null;
+  distanceMiles: number | null;
+};
+
+export type AttomMortgage = {
+  lender:          string | null;
+  originalAmount:  number | null;
+  openBalance:     number | null;
+  interestRate:    number | null;
+  loanType:        string | null;
+  originationDate: string | null;
+};
+
 const EMPTY: AttomProperty = {
   lastSalePrice: null, lastSaleDate: null, beds: null, baths: null,
   sqft: null, yearBuilt: null, propertyType: null, apn: null,
   estimatedValue: null, lotSizeSqft: null, attomId: null,
+};
+
+const EMPTY_AVM: AttomAVM = {
+  estimatedValue: null, estimatedValueLow: null, estimatedValueHigh: null,
+  avmDate: null, confidence: null,
+};
+
+const EMPTY_MTG: AttomMortgage = {
+  lender: null, originalAmount: null, openBalance: null,
+  interestRate: null, loanType: null, originationDate: null,
 };
 
 // Split "1984 Lake Sherwood Dr, Lake Sherwood, CA 91361"
@@ -59,16 +100,14 @@ async function attomGet(path: string, params: Record<string, string | undefined>
   return res.json().catch(() => null);
 }
 
+// ── Basic property profile + sale history ─────────────────────────────────────
 export async function enrichFromAttom(address: string): Promise<AttomProperty> {
   const apiKey = process.env.ATTOM_API_KEY;
   if (!apiKey) return EMPTY;
 
   const { address: street, address2 } = splitAddress(address);
-  const params = address2
-    ? { address: street, address2 }
-    : { address: street };
+  const params = address2 ? { address: street, address2 } : { address: street };
 
-  // Fire basic profile + sale history in parallel
   const [profileRes, historyRes] = await Promise.allSettled([
     attomGet('/property/basicprofile', params, apiKey),
     attomGet('/saleshistory/basichistory', params, apiKey),
@@ -77,30 +116,119 @@ export async function enrichFromAttom(address: string): Promise<AttomProperty> {
   const profile = profileRes.status === 'fulfilled' ? profileRes.value : null;
   const history = historyRes.status === 'fulfilled' ? historyRes.value : null;
 
-  const prop   = profile?.property?.[0];
-  const build  = prop?.building;
-  const sale   = history?.property?.[0]?.salehistory?.[0];
+  const prop  = profile?.property?.[0];
+  const build = prop?.building;
+  const sale  = history?.property?.[0]?.salehistory?.[0];
 
   if (!prop && !sale) return EMPTY;
 
-  const rawSaleDate = sale?.transactiondate ?? null;
+  const rawSaleDate  = sale?.transactiondate ?? null;
   const lastSaleDate = rawSaleDate
     ? new Date(rawSaleDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : null;
 
   return {
-    attomId:        prop?.identifier?.attomId?.toString() ?? null,
-    beds:           build?.rooms?.beds ?? null,
-    baths:          (build?.rooms?.bathsfull ?? null) !== null
-                      ? (build?.rooms?.bathsfull ?? 0) + ((build?.rooms?.bathshalf ?? 0) * 0.5)
-                      : null,
-    sqft:           build?.size?.livingsize ?? build?.size?.universalsize ?? null,
-    yearBuilt:      build?.yearbuilt ?? null,
-    propertyType:   mapPropType(prop?.summary?.proptype),
-    apn:            prop?.lot?.apn ?? null,
-    lotSizeSqft:    prop?.lot?.lotsize2 ?? null,
-    lastSalePrice:  sale?.amount?.saleamt ?? null,
+    attomId:       prop?.identifier?.attomId?.toString() ?? null,
+    beds:          build?.rooms?.beds ?? null,
+    baths:         (build?.rooms?.bathsfull ?? null) !== null
+                     ? (build?.rooms?.bathsfull ?? 0) + ((build?.rooms?.bathshalf ?? 0) * 0.5)
+                     : null,
+    sqft:          build?.size?.livingsize ?? build?.size?.universalsize ?? null,
+    yearBuilt:     build?.yearbuilt ?? null,
+    propertyType:  mapPropType(prop?.summary?.proptype),
+    apn:           prop?.lot?.apn ?? null,
+    lotSizeSqft:   prop?.lot?.lotsize2 ?? null,
+    lastSalePrice: sale?.amount?.saleamt ?? null,
     lastSaleDate,
-    estimatedValue: null, // AVM endpoint — add in Step 3
+    estimatedValue: null, // use getAttomAVM() for AVM
+  };
+}
+
+// ── AVM — Automated Valuation Model ──────────────────────────────────────────
+export async function getAttomAVM(address: string): Promise<AttomAVM> {
+  const apiKey = process.env.ATTOM_API_KEY;
+  if (!apiKey) return EMPTY_AVM;
+
+  const { address: street, address2 } = splitAddress(address);
+  const params = address2 ? { address: street, address2 } : { address: street };
+
+  const res = await attomGet('/attomavm/detail', params, apiKey);
+  const avm = res?.property?.[0]?.avm;
+  if (!avm?.amount?.value) return EMPTY_AVM;
+
+  return {
+    estimatedValue:     avm.amount.value   ?? null,
+    estimatedValueLow:  avm.amount.low     ?? null,
+    estimatedValueHigh: avm.amount.high    ?? null,
+    avmDate:            avm.eventDate      ?? null,
+    confidence:         avm.condition?.tScore ?? null,
+  };
+}
+
+// ── Comparable sales within 0.5 mi, last 2 years ─────────────────────────────
+export async function getAttomComps(address: string): Promise<AttomComp[]> {
+  const apiKey = process.env.ATTOM_API_KEY;
+  if (!apiKey) return [];
+
+  const { address: street, address2 } = splitAddress(address);
+  const twoYearsAgo = new Date(Date.now() - 2 * 365.25 * 24 * 3600 * 1000).toISOString().split('T')[0];
+
+  const params: Record<string, string | undefined> = {
+    address:     street,
+    ...(address2 ? { address2 } : {}),
+    searchType:  'Proximity',
+    miles:       '0.5',
+    minSaleDate: twoYearsAgo,
+  };
+
+  const res = await attomGet('/salescomps/snapshot', params, apiKey);
+  const comps: any[] = res?.salescomps?.[0]?.comps ?? res?.property ?? [];
+
+  return comps
+    .filter((c: any) => (c?.sale?.amount?.saleamt ?? 0) > 0)
+    .slice(0, 8)
+    .map((c: any) => {
+      const addr  = c.address ?? {};
+      const sale  = c.sale ?? {};
+      const bldg  = c.building ?? {};
+      const price = sale.amount?.saleamt ?? null;
+      const sqft  = bldg.size?.livingsize ?? bldg.size?.universalsize ?? null;
+      return {
+        address:       [addr.line1, addr.locality].filter(Boolean).join(', ') || 'Unknown',
+        city:          addr.locality ?? null,
+        salePrice:     price,
+        saleDate:      sale.amount?.salesSearchDate ?? sale.transactiondate ?? '',
+        beds:          bldg.rooms?.beds ?? null,
+        baths:         (bldg.rooms?.bathsfull ?? null) !== null
+                         ? (bldg.rooms?.bathsfull ?? 0) + ((bldg.rooms?.bathshalf ?? 0) * 0.5)
+                         : null,
+        sqft,
+        pricePerSqft:  (price && sqft) ? Math.round(price / sqft) : null,
+        propertyType:  mapPropType(c.summary?.proptype),
+        yearBuilt:     bldg.yearbuilt ?? null,
+        distanceMiles: typeof c.distance === 'number' ? +c.distance.toFixed(2) : null,
+      };
+    });
+}
+
+// ── First mortgage / lien on record ─────────────────────────────────────────
+export async function getAttomMortgage(address: string): Promise<AttomMortgage> {
+  const apiKey = process.env.ATTOM_API_KEY;
+  if (!apiKey) return EMPTY_MTG;
+
+  const { address: street, address2 } = splitAddress(address);
+  const params = address2 ? { address: street, address2 } : { address: street };
+
+  const res = await attomGet('/property/detailmortgage', params, apiKey);
+  const mtg = res?.property?.[0]?.mortgage?.[0];
+  if (!mtg) return EMPTY_MTG;
+
+  return {
+    lender:          mtg.lender?.name ?? null,
+    originalAmount:  mtg.amount?.mOriginalLoanAmt  ?? null,
+    openBalance:     mtg.amount?.mTotalLoanBalance ?? null,
+    interestRate:    mtg.assessment?.mInterestRate ?? null,
+    loanType:        mtg.loan?.mLoanType           ?? null,
+    originationDate: mtg.term?.startDate           ?? null,
   };
 }
