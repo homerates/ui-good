@@ -25,7 +25,7 @@ export async function GET(
 
     const { data: report } = await supabase
         .from('borrower_reports')
-        .select('borrower_id, lo_id')
+        .select('borrower_id, lo_id, agent_id')
         .eq('token', token)
         .single();
     if (!report) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
@@ -38,21 +38,47 @@ export async function GET(
         .single();
     if (!borrower) return NextResponse.json({ error: 'Borrower not found' }, { status: 404 });
 
-    // Fetch LO profile
-    const { data: lo } = await supabase
-        .from('loan_officers')
-        .select('id, user_id, lender, nmls, company_nmls, title, phone, website, office_address')
-        .eq('id', report.lo_id)
-        .single();
-    if (!lo) return NextResponse.json({ error: 'LO not found' }, { status: 404 });
+    // Fetch pro profile — LO or agent
+    let proUserId = '';
+    let proLender: string | null = null;
+    let proNmls: string | null = null;
+    let proCompanyNmls: string | null = null;
+    let proTitle: string | null = null;
+    let proPhone: string | null = null;
+    let proWebsite: string | null = null;
+    let proOffice: string | null = null;
 
-    // Fetch LO name + photo from Clerk
-    let loName = 'Your Loan Officer';
+    if (report.lo_id) {
+        const { data: lo } = await supabase
+            .from('loan_officers')
+            .select('user_id, lender, nmls, company_nmls, title, phone, website, office_address')
+            .eq('id', report.lo_id)
+            .single();
+        if (!lo) return NextResponse.json({ error: 'LO not found' }, { status: 404 });
+        proUserId = lo.user_id;
+        proLender = lo.lender; proNmls = lo.nmls; proCompanyNmls = lo.company_nmls;
+        proTitle = lo.title; proPhone = lo.phone; proWebsite = lo.website; proOffice = lo.office_address;
+    } else if (report.agent_id) {
+        const { data: agent } = await supabase
+            .from('agents')
+            .select('user_id, brokerage, license, title, phone, website, office_address')
+            .eq('id', report.agent_id)
+            .single();
+        if (!agent) return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+        proUserId = agent.user_id;
+        proLender = agent.brokerage; proNmls = agent.license;
+        proTitle = agent.title; proPhone = agent.phone; proWebsite = agent.website; proOffice = agent.office_address;
+    } else {
+        return NextResponse.json({ error: 'Report has no owner' }, { status: 404 });
+    }
+
+    // Fetch name + photo from Clerk
+    let loName = 'Your Agent';
     let loEmail = '';
     let loPhoto = '';
     try {
         const clerk = await clerkClient();
-        const clerkUser = await clerk.users.getUser(lo.user_id);
+        const clerkUser = await clerk.users.getUser(proUserId);
         const clerkName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ');
         if (clerkName) loName = clerkName;
         loEmail = clerkUser.emailAddresses?.[0]?.emailAddress ?? '';
@@ -73,13 +99,13 @@ export async function GET(
             name:           loName,
             email:          loEmail,
             photo:          loPhoto,
-            lender:         lo.lender,
-            nmls:           lo.nmls,
-            company_nmls:   lo.company_nmls,
-            title:          lo.title,
-            phone:          lo.phone,
-            website:        lo.website,
-            office_address: lo.office_address,
+            lender:         proLender,
+            nmls:           proNmls,
+            company_nmls:   proCompanyNmls,
+            title:          proTitle,
+            phone:          proPhone,
+            website:        proWebsite,
+            office_address: proOffice,
         },
     });
 }

@@ -71,9 +71,10 @@ export async function POST(req: NextRequest) {
         token = generateToken();
     }
 
-    const { error } = await supabase
-        .from('borrower_reports')
-        .insert({ token, borrower_id: borrowerId, lo_id: proId });
+    const insertRow: Record<string, unknown> = { token, borrower_id: borrowerId };
+    if (loRes.data) insertRow.lo_id = proId; else insertRow.agent_id = proId;
+
+    const { error } = await supabase.from('borrower_reports').insert(insertRow);
     if (error) return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
 
     return NextResponse.json({ ok: true, token });
