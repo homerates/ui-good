@@ -1129,6 +1129,10 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
     savedOverrides: { actual_balance: null, actual_rate: null, actual_purchase_price: null, actual_purchase_date: null },
     balanceIsEstimated: true, rateIsEstimated: true,
     listingStatus, daysOnMarket, listPrice, beds, baths, sqft,
+    yearBuilt: null, propertyType: null, lotSizeSqft: null, apn: null,
+    avmSource: null, avmConfidence: null, avmDate: null,
+    mortgageSource: null, mortgageLender: null, mortgageOriginalAmount: null, mortgageOriginationDate: null,
+    comps: [], streetViewUrl: null, staticMapUrl: null,
   };
 }
 

@@ -242,7 +242,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   if (prop?.mortgage_open_balance) {
     estimatedBalance = prop.mortgage_open_balance;
     if (prop.mortgage_interest_rate) purchaseRate = prop.mortgage_interest_rate;
-    if (estimatedValue) estimatedEquity = Math.round(estimatedValue - estimatedBalance);
+    if (estimatedValue && estimatedBalance) estimatedEquity = Math.round(estimatedValue - estimatedBalance);
   }
 
   const lastSaleDate = saleDate ? saleDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
