@@ -325,6 +325,14 @@ export default async function DashboardPage() {
                 </SectionCard>
 
                 <SectionCard accent="green">
+                  <CardTitle>Manage Clients</CardTitle>
+                  <CardBody>
+                    Add past and current clients, set their property address, and send monthly home intelligence digests. Paste import from any CRM or spreadsheet.
+                  </CardBody>
+                  <ActionLink href="/pro/clients" variant="green">Manage clients →</ActionLink>
+                </SectionCard>
+
+                <SectionCard accent="green">
                   <CardTitle>How It Works</CardTitle>
                   <CardBody>
                     Buyers post anonymously. You respond with your approach. If they like what they see, they invite you — no Zillow auction, no lead fees, no bidding wars.
@@ -538,6 +546,7 @@ export default async function DashboardPage() {
                   { href: "/for-pros", label: "For Professionals" },
                 ] : userType === "agent" ? [
                   { href: "/agent/scenarios", label: "Buyer Scenarios" },
+                  { href: "/pro/clients", label: "Clients" },
                   { href: "/messages", label: "Messages", badge: unreadMessages > 0 ? unreadMessages : 0 },
                   { href: "/my-home", label: "My Properties" },
                   { href: "/chat", label: "AI Chat" },
