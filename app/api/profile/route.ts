@@ -160,20 +160,22 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // Agent row
+  // Agent row — profile page sends lender/nmls as shared fields; map to agent columns
   if (role === "agent") {
+    const agentBrokerage = brokerage ?? lender;  // accept brokerage or lender (shared field name)
+    const agentLicense   = license   ?? nmls;    // accept license or nmls (shared field name)
     const { data: existing } = await sb.from("agents").select("id").eq("user_id", userId).maybeSingle();
     if (!existing) {
       await sb.from("agents").insert({
         user_id: userId,
-        brokerage: brokerage?.trim() ?? null,
-        license: license?.trim() ?? null,
+        brokerage: agentBrokerage?.trim() ?? null,
+        license:   agentLicense?.trim()   ?? null,
         ...proFields(proBody),
       });
     } else {
       const updates: Record<string, string | null> = { ...proFields(proBody) };
-      if (brokerage !== undefined) updates.brokerage = brokerage?.trim() || null;
-      if (license   !== undefined) updates.license   = license?.trim()   || null;
+      if (agentBrokerage !== undefined) updates.brokerage = agentBrokerage?.trim() || null;
+      if (agentLicense   !== undefined) updates.license   = agentLicense?.trim()   || null;
       if (Object.keys(updates).length > 0) {
         await sb.from("agents").update(updates).eq("id", existing.id);
       }
