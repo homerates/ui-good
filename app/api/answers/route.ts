@@ -2422,7 +2422,12 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     // TAVILY GATE — only fire for questions that need live web data
     // Skips: calc engine questions, rate lookups (FRED handles), UW guidelines, about, lab
+    // Detect a street address in the question (e.g. "1984 Lake Sherwood Dr, CA 91361")
+    const isAddressQuery = /^\d+\s+\w.{0,80}\b(dr|drive|st|street|ave|avenue|blvd|boulevard|ln|lane|way|rd|road|ct|court|pl|place|cir|circle|ter|terrace|pkwy|parkway|hwy|highway|loop|trail|run|path)\b/i.test(question.trim());
+
     const needsWebSearch = (
+        // Street address — always fetch comps + market context
+        isAddressQuery ||
         // Location-specific market questions
         /\b(price|prices|market|median|inventory|homes?\s+in|buying\s+in|selling\s+in)\b.{0,40}\b(in|near|around)\b/i.test(question) ||
         /\b(austin|dallas|houston|miami|phoenix|denver|seattle|chicago|atlanta|boston|nashville|tampa|orlando|charlotte|las\s+vegas|los\s+angeles|san\s+diego|san\s+francisco|bay\s+area|new\s+york|new\s+jersey|virginia|maryland|colorado|florida|texas|california|georgia|arizona|washington)\b/i.test(question) ||
@@ -2439,7 +2444,9 @@ async function handle(req: NextRequest, intentParam?: string) {
 
     if (needsWebSearch) {
         let tavQuery: string;
-        if (module === "underwriting" || module === "qualify") {
+        if (isAddressQuery) {
+            tavQuery = `${question} home value recent sales comparable homes neighborhood market 2026 -youtube -forum -reddit`;
+        } else if (module === "underwriting" || module === "qualify") {
             tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
         } else if (module === "rate") {
             tavQuery = `${question} 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:freddiemac.com OR site:nerdwallet.com OR site:forbes.com -yahoo -aol -forum -blog -reddit`;
@@ -2474,6 +2481,8 @@ async function handle(req: NextRequest, intentParam?: string) {
     if (isFHAQuestion(question) || isMortgageCalculation(question) || module === 'jumbo') fredTopics.push('housing');
     if (/\b(inflation|cpi|pce|prices?)\b/i.test(question)) fredTopics.push('inflation', 'macro');
     if (/\b(housing|home\s*price|inventory|supply|starts|market)\b/i.test(question)) fredTopics.push('housing');
+    // Address queries always need live mortgage rate + housing context for PITI/affordability estimates
+    if (isAddressQuery) { fredTopics.push('rates', 'housing'); }
     const wantFred = fredTopics.length > 0;
     fred = wantFred
         ? await getFredSnapshot(fredTopics)
