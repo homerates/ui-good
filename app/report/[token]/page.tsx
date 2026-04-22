@@ -292,19 +292,23 @@ export default function ReportPage() {
                 {/* ── HERO: property photo + satellite map ─────────── */}
                 <div style={{ ...card, marginBottom: 16 }}>
                     <div className="rp-hero-grid" style={{ display: 'grid', gridTemplateColumns: heroPhotoUrl && staticMapUrl ? '1.6fr 1fr' : '1fr', height: 260 }}>
-                        {/* Street view / property photo */}
-                        {heroPhotoUrl ? (
-                            <div className="rp-hero-photo" style={{ position: 'relative', background: '#e2e8f0', overflow: 'hidden' }}>
+                        {/* Street view / property photo — only render when a URL exists */}
+                        {heroPhotoUrl && (
+                            <div className="rp-hero-photo" style={{ position: 'relative', background: '#0f172a', overflow: 'hidden' }}>
                                 <img src={heroPhotoUrl} alt="Property" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                     onError={e => {
                                         const img = e.target as HTMLImageElement;
-                                        // Cascade: Redfin photo → street view → hide
+                                        // Cascade: Redfin photo → street view → collapse column
                                         if (analysis?.photoUrl && img.src !== analysis.photoUrl) {
                                             img.src = analysis.photoUrl;
                                         } else if (streetViewUrl && img.src !== streetViewUrl) {
                                             img.src = streetViewUrl.replace('return_error_code=true&', '');
                                         } else {
-                                            img.parentElement!.style.display = 'none';
+                                            // All sources failed — hide photo and expand map to full width
+                                            const photoDiv = img.parentElement as HTMLElement;
+                                            const grid = photoDiv?.parentElement as HTMLElement;
+                                            photoDiv.style.display = 'none';
+                                            if (grid) grid.style.gridTemplateColumns = '1fr';
                                         }
                                     }} />
                                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.72) 0%, transparent 55%)' }} />
@@ -314,20 +318,28 @@ export default function ReportPage() {
                                     <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', marginTop: 3 }}>Prepared for {borrower.name} · {today}</div>
                                 </div>
                             </div>
-                        ) : (
-                            <div style={{ padding: '24px 24px 0', background: '#f8fafc', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 20 }}>
-                                <div style={label}>Home Intelligence Report</div>
-                                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a' }}>{borrower.property_address}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 3 }}>Prepared for {borrower.name} · {today}</div>
-                            </div>
                         )}
-                        {/* Satellite map */}
-                        {staticMapUrl && (
+                        {/* Satellite map — full width when no photo, side panel when photo present */}
+                        {staticMapUrl ? (
                             <div className="rp-hero-map" style={{ position: 'relative', overflow: 'hidden', background: '#1e293b' }}>
                                 <img src={staticMapUrl} alt="Location map" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                {!heroPhotoUrl && (
+                                    <div style={{ position: 'absolute', bottom: 18, left: 20 }}>
+                                        <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 3 }}>Home Intelligence Report</div>
+                                        <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.3 }}>{borrower.property_address}</div>
+                                        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', marginTop: 3 }}>Prepared for {borrower.name} · {today}</div>
+                                    </div>
+                                )}
                                 <div style={{ position: 'absolute', bottom: 8, right: 10, fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)' }}>Satellite view</div>
                             </div>
-                        )}
+                        ) : !heroPhotoUrl ? (
+                            /* Neither photo nor map — dark text fallback */
+                            <div style={{ padding: '24px', background: '#0f172a', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                                <div style={label}>Home Intelligence Report</div>
+                                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#e6edf3' }}>{borrower.property_address}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 3 }}>Prepared for {borrower.name} · {today}</div>
+                            </div>
+                        ) : null}
                     </div>
 
                     {/* 4 hero stats below photo */}
