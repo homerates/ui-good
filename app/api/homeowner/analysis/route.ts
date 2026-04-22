@@ -165,14 +165,16 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   if (cached) return cached;
 
   // 2. Check properties table for stored sale data
-  // Try with ATTOM columns first; if migration 040 not yet applied (code 42703), fall back to basic columns
   const addr = normalizeAddr(address);
-  const ATTOM_SEL = 'id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, lot_size_sqft, apn, avm_value, avm_value_low, avm_value_high, avm_confidence, avm_date, mortgage_open_balance, mortgage_original_amount, mortgage_interest_rate, mortgage_lender, mortgage_origination_date';
+  // Try full ATTOM column set; gracefully degrade if any column is missing
+  const ATTOM_SEL = 'id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, apn, avm_value, avm_value_low, avm_value_high, avm_confidence, avm_date, mortgage_open_balance, mortgage_original_amount, mortgage_interest_rate, mortgage_lender, mortgage_origination_date';
   const BASIC_SEL = 'id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, apn';
-  let { data: prop, error: propErr } = await db().from('properties').select(ATTOM_SEL).eq('address_full', addr).maybeSingle();
-  if (propErr?.code === '42703') {
-    const fallback = await db().from('properties').select(BASIC_SEL).eq('address_full', addr).maybeSingle();
-    prop = (fallback.data as any) ?? null;
+  const fullRes = await db().from('properties').select(ATTOM_SEL).eq('address_full', addr).maybeSingle();
+  let prop: any = fullRes.error ? null : (fullRes.data ?? null);
+  // If SELECT errored (e.g. migration not yet applied), fall back to always-available columns
+  if (fullRes.error) {
+    const basic = await db().from('properties').select(BASIC_SEL).eq('address_full', addr).maybeSingle();
+    prop = basic.data ?? null;
   }
 
   // 3. Resolve last sale data (DB → LO override → Tavily)
@@ -218,6 +220,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let inlineMtg: AttomMortgage | null = null;
   let inlineComps: AttomComp[] = [];
   if (process.env.ATTOM_API_KEY && !prop?.avm_value) {
+    console.log('[analysis] ATTOM inline fetch for:', address);
     const [profileRes, avmRes, mtgRes, compsRes] = await Promise.allSettled([
       enrichFromAttom(address),
       getAttomAVM(address),
@@ -228,6 +231,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     inlineAvm     = avmRes.status     === 'fulfilled' && avmRes.value.estimatedValue   ? avmRes.value   : null;
     inlineMtg     = mtgRes.status     === 'fulfilled' && mtgRes.value.openBalance      ? mtgRes.value   : null;
     inlineComps   = compsRes.status   === 'fulfilled'                                  ? compsRes.value : [];
+    console.log('[analysis] ATTOM results — avm:', inlineAvm?.estimatedValue, 'beds:', inlineProfile?.beds, 'mtg:', inlineMtg?.openBalance, 'comps:', inlineComps.length);
 
     // Persist to properties table (non-blocking) — only possible when prop row exists
     if (prop?.id) {
