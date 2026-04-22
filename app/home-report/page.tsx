@@ -473,38 +473,27 @@ function HomeReportInner() {
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
                 {runSeed && (
                   <a href={`/chat?sq=${encodeURIComponent(runSeed)}`}
-                    style={{ padding: '12px 24px', borderRadius: 999, background: isBuyer ? '#3b82f6' : '#00e87a', color: isBuyer ? '#fff' : '#07100f', fontWeight: 800, fontSize: '0.88rem', textDecoration: 'none', display: 'inline-block' }}>
+                    style={{ padding: '12px 24px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.88rem', textDecoration: 'none', display: 'inline-block' }}>
                     Run My Numbers →
                   </a>
                 )}
-                {isBuyer ? (
-                  /* Buyer: offer rate alert, not save-as-owned */
-                  <SignedIn>
-                    <a href={`/my-home?address=${encodeURIComponent(address)}`}
-                      style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(99,179,237,0.3)', color: '#60a5fa', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', textDecoration: 'none', display: 'inline-block' }}>
-                      Open in My Home →
-                    </a>
-                  </SignedIn>
-                ) : (
-                  /* Owner: save to properties */
-                  <SignedIn>
-                    {!saved ? (
-                      <button onClick={saveProperty}
-                        style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.3)', color: '#00e87a', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        Save to My Properties
-                      </button>
-                    ) : (
-                      <Link href="/my-home"
-                        style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.3)', color: '#00e87a', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', textDecoration: 'none', display: 'inline-block' }}>
-                        View My Properties →
-                      </Link>
-                    )}
-                  </SignedIn>
-                )}
+                <SignedIn>
+                  {!saved ? (
+                    <button onClick={saveProperty}
+                      style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.3)', color: '#00e87a', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Save to My Properties
+                    </button>
+                  ) : (
+                    <Link href="/my-home"
+                      style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.3)', color: '#00e87a', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', textDecoration: 'none', display: 'inline-block' }}>
+                      View My Properties →
+                    </Link>
+                  )}
+                </SignedIn>
                 <SignedOut>
                   <SignInButton mode="modal">
                     <button style={{ padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, fontSize: '0.88rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {isBuyer ? 'Sign in for rate alerts' : 'Sign in to save & track'}
+                      Sign in to save &amp; track
                     </button>
                   </SignInButton>
                 </SignedOut>
