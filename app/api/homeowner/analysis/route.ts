@@ -165,16 +165,22 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   if (cached) return cached;
 
   // 2. Check properties table for stored sale data
+  // Try with ATTOM columns first; if migration 040 not yet applied (code 42703), fall back to basic columns
   const addr = normalizeAddr(address);
-  const { data: prop } = await db().from('properties')
-    .select('id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, lot_size_sqft, apn, avm_value, avm_value_low, avm_value_high, avm_confidence, avm_date, mortgage_open_balance, mortgage_original_amount, mortgage_interest_rate, mortgage_lender, mortgage_origination_date').eq('address_full', addr).maybeSingle();
+  const ATTOM_SEL = 'id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, lot_size_sqft, apn, avm_value, avm_value_low, avm_value_high, avm_confidence, avm_date, mortgage_open_balance, mortgage_original_amount, mortgage_interest_rate, mortgage_lender, mortgage_origination_date';
+  const BASIC_SEL = 'id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, apn';
+  let { data: prop, error: propErr } = await db().from('properties').select(ATTOM_SEL).eq('address_full', addr).maybeSingle();
+  if (propErr?.code === '42703') {
+    const fallback = await db().from('properties').select(BASIC_SEL).eq('address_full', addr).maybeSingle();
+    prop = (fallback.data as any) ?? null;
+  }
 
   // 3. Resolve last sale data (DB → LO override → Tavily)
   let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;
   let rawSaleDateStr: string | null = prop?.latest_last_sale_date ?? null;
 
-  // If we have no sale data in DB, fire Tavily (only when ATTOM is not configured)
-  if (!rawSalePrice && !record.actual_purchase_price && !process.env.ATTOM_API_KEY) {
+  // If we have no sale data in DB, fire Tavily as fallback
+  if (!rawSalePrice && !record.actual_purchase_price) {
     const tv = await tavilyPropertySearch(address);
     rawSalePrice = tv.lastSalePrice;
     if (tv.lastSaleDate) rawSaleDateStr = tv.lastSaleDate;
