@@ -2479,11 +2479,9 @@ export function getContextChips(
 
     // ── Conventional ──
     if (snapshotLoanType === 'calcEngine-conventional' && sPrice && sRate) {
-        const rateDown = parseFloat((Number(sRate) - 0.5).toFixed(2));
         const downPct = Number(sDown ?? 15);
         const altDown = downPct < 20 ? 20 : 10;
         return [
-            { label: `Rate drops to ${fPct(rateDown)} — new payment?`, seed: `Conventional loan on a ${priceLabel} home with ${downPct}% down, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), downPaymentPct: downPct }, changedKeys: ['annualRatePct'] },
             { label: downPct < 20 ? `What if I put 20% down?` : `What if I put 10% down?`, seed: `Conventional loan on a ${priceLabel} home with ${altDown}% down at ${fPct(Number(sRate))}`, paramOverrides: { downPaymentPct: altDown, purchasePrice: Number(sPrice), annualRatePct: Number(sRate) }, changedKeys: ['downPaymentPct'] },
             { label: `What income do I need for ${priceLabel}?`, seed: `How much income do I need to qualify for a ${priceLabel} home with ${downPct}% down?` },
             { label: `FHA vs conventional on ${priceLabel}`, seed: `Compare FHA 3.5% down vs conventional ${downPct}% down on a ${priceLabel} home at ${fPct(Number(sRate))}` },
@@ -2492,10 +2490,8 @@ export function getContextChips(
 
     // ── FHA / FHA vs Conv ──
     if ((snapshotLoanType === 'calcEngine-fha' || snapshotLoanType === 'calcEngine-fha_vs_conv') && sPrice && sRate) {
-        const rateDown = parseFloat((Number(sRate) - 0.5).toFixed(2));
         const downPct = Number(sDown ?? 3.5);
         return [
-            { label: `Rate drops to ${fPct(rateDown)} — new payment?`, seed: `FHA loan on ${priceLabel} home with ${downPct}% down, rate drops to ${rateDown}%`, paramOverrides: { annualRatePct: rateDown, purchasePrice: Number(sPrice), downPaymentPct: downPct, isFHA: true }, changedKeys: ['annualRatePct'] },
             { label: `What if I put 10% down?`, seed: `FHA loan on ${priceLabel} home with 10% down at ${fPct(Number(sRate))}`, paramOverrides: { downPaymentPct: 10, purchasePrice: Number(sPrice), annualRatePct: Number(sRate), isFHA: true }, changedKeys: ['downPaymentPct'] },
             { label: `When can I remove FHA MIP?`, seed: `Ask Underwriting: when can I remove FHA MIP on a ${priceLabel} home with ${downPct}% down?` },
             { label: `FHA vs conventional on ${priceLabel}`, seed: `Compare FHA ${downPct}% down vs conventional 5% down on a ${priceLabel} home at ${fPct(Number(sRate))}` },

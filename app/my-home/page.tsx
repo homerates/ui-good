@@ -808,11 +808,6 @@ function CardMyPayment({ d }: { d: AnalysisData }) {
       <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: '0.68rem', color: '#334155' }}>
         Down payment: ${Math.round(askPrice * 0.20).toLocaleString()} · Loan amount: ${Math.round(askPrice * 0.80).toLocaleString()}
       </div>
-      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
-        <a href={`/chat?sq=${encodeURIComponent(`Full buyer analysis for ${d.address}${askPrice ? ` at ${fmt(askPrice)}` : ''}: 20% down, ${liveRate.toFixed(2)}% rate, 30yr fixed. Show monthly PITI, total interest over loan term, break-even vs renting, and 5 and 10-year equity projection.`)}`} className="mh-cta-link" style={{ color: '#93c5fd' }}>
-          Full buyer analysis in chat →
-        </a>
-      </div>
     </div>
   );
 }
@@ -1360,7 +1355,11 @@ function MyHomePageInner() {
   async function addProperty() {
     if (!newAddress.trim()) return;
     const normalized = newAddress.trim().toLowerCase();
-    const alreadySaved = properties.some(p => p.property_address?.toLowerCase() === normalized);
+    const streetOf = (s: string) => s.split(',')[0].trim().toLowerCase();
+    const alreadySaved = properties.some(p =>
+      p.property_address?.toLowerCase() === normalized ||
+      streetOf(p.property_address ?? '') === streetOf(newAddress.trim())
+    );
     if (alreadySaved) {
       setNewAddress('');
       setAddingNew(false);
@@ -1893,7 +1892,7 @@ function MyHomePageInner() {
                                 parts.push(`Current 30-year rate is ${a.liveRate.toFixed(2)}%.`);
                                 if (a.estimatedValue && ask && a.estimatedValue !== ask) parts.push(`Redfin AVM is $${Math.round(a.estimatedValue).toLocaleString()}.`);
                                 if (a.daysOnMarket != null) parts.push(`Property has been on market ${a.daysOnMarket} days.`);
-                                if (a.lastSalePrice) parts.push(`Seller originally paid $${Math.round(a.lastSalePrice).toLocaleString()}${a.lastSaleDate ? ` in ${a.lastSaleDate}` : ''}.`);
+                                // Seller paid intentionally omitted — irrelevant to buyer and leads to bad AI framing;
                                 parts.push('Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.');
                                 const addrParts = (a.address ?? '').split(',').map((s: string) => s.trim());
                                 const p = new URLSearchParams({

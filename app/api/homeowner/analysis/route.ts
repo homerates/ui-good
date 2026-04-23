@@ -174,7 +174,7 @@ function normalizeAddr(a: string) { return a.toLowerCase().replace(/\s+/g, ' ').
 
 async function getSnapshot(address: string) {
   try {
-    const { data: prop } = await db().from('properties').select('id, latest_listing_status').eq('address_full', normalizeAddr(address)).maybeSingle();
+    const { data: prop } = await db().from('properties').select('id, latest_listing_status').ilike('address_full', normalizeAddr(address)).maybeSingle();
     if (!prop) return null;
     // Active listings bypass the 7-day cache — listing prices change daily
     if (prop.latest_listing_status === 'FOR_SALE' || prop.latest_listing_status === 'PENDING') return null;
@@ -247,11 +247,11 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // Try full ATTOM column set; gracefully degrade if any column is missing
   const ATTOM_SEL = 'id, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn, avm_value, avm_value_low, avm_value_high, avm_confidence, avm_date, mortgage_open_balance, mortgage_original_amount, mortgage_interest_rate, mortgage_lender, mortgage_origination_date';
   const BASIC_SEL = 'id, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn';
-  const fullRes = await db().from('properties').select(ATTOM_SEL).eq('address_full', addr).maybeSingle();
+  const fullRes = await db().from('properties').select(ATTOM_SEL).ilike('address_full', addr).maybeSingle();
   let prop: any = fullRes.error ? null : (fullRes.data ?? null);
   // If SELECT errored (e.g. migration not yet applied), fall back to always-available columns
   if (fullRes.error) {
-    const basic = await db().from('properties').select(BASIC_SEL).eq('address_full', addr).maybeSingle();
+    const basic = await db().from('properties').select(BASIC_SEL).ilike('address_full', addr).maybeSingle();
     prop = basic.data ?? null;
   }
   // Fuzzy fallback: addresses from URL params lack commas (Google Places adds them).
