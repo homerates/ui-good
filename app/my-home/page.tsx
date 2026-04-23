@@ -581,7 +581,7 @@ function CardEconomy({ d }: { d: AnalysisData }) {
               </>
             )}
           </div>
-          <div className="mh-footnote">Rent estimate from Rentcast market data. Ownership cost includes est. taxes &amp; insurance at 1.5% annual.</div>
+          <div className="mh-footnote">Rent estimate from HUD Fair Market Rent data. Ownership cost includes est. taxes &amp; insurance at 1.5% annual.</div>
         </div>
       )}
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -640,7 +640,7 @@ function CardMilestones({ d }: { d: AnalysisData }) {
           </div>
         </div>
       ))}
-      <div className="mh-footnote" style={{ marginTop: 16 }}>Milestones based on Rentcast AVM, FRED rates, and 4.2% national avg. appreciation.</div>
+      <div className="mh-footnote" style={{ marginTop: 16 }}>Milestones based on ATTOM AVM or FHFA model, FRED live rates, and 4.2% national avg. appreciation.</div>
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <Link href={`/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${d.address}: mortgage balance $${d.estimatedBalance ? Math.round(d.estimatedBalance).toLocaleString() : 'unknown'}${d.purchaseRate ? ` at ${d.purchaseRate}%` : ''}${d.payoffYear ? `, payoff projected ${d.payoffYear}` : ''}${d.estimatedEquity ? ` — current equity $${Math.round(d.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`} className="mh-cta-link">
           Get my full payoff plan →

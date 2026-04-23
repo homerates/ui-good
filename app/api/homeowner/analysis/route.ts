@@ -174,8 +174,10 @@ function normalizeAddr(a: string) { return a.toLowerCase().replace(/\s+/g, ' ').
 
 async function getSnapshot(address: string) {
   try {
-    const { data: prop } = await db().from('properties').select('id').eq('address_full', normalizeAddr(address)).maybeSingle();
+    const { data: prop } = await db().from('properties').select('id, latest_listing_status').eq('address_full', normalizeAddr(address)).maybeSingle();
     if (!prop) return null;
+    // Active listings bypass the 7-day cache — listing prices change daily
+    if (prop.latest_listing_status === 'FOR_SALE' || prop.latest_listing_status === 'PENDING') return null;
     const { data: snap } = await db().from('property_snapshots')
       .select('data, fetched_at').eq('property_id', prop.id).eq('snapshot_type', 'full')
       .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
@@ -221,6 +223,8 @@ type PropertyData = {
   comps: AttomComp[]; streetViewUrl: string | null; staticMapUrl: string | null;
   photoUrl: string | null;
   attomCheckedAt: string | null;
+  listingStatus: string | null;
+  listPrice: number | null;
 };
 
 const AVM_MAX = 50_000_000; // $50M residential cap — ATTOM occasionally returns garbage values
@@ -241,8 +245,8 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // 2. Check properties table for stored sale data
   const addr = normalizeAddr(address);
   // Try full ATTOM column set; gracefully degrade if any column is missing
-  const ATTOM_SEL = 'id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, apn, avm_value, avm_value_low, avm_value_high, avm_confidence, avm_date, mortgage_open_balance, mortgage_original_amount, mortgage_interest_rate, mortgage_lender, mortgage_origination_date';
-  const BASIC_SEL = 'id, latest_last_sale_price, latest_last_sale_date, state, zip, beds, baths, sqft, year_built, property_type, apn';
+  const ATTOM_SEL = 'id, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn, avm_value, avm_value_low, avm_value_high, avm_confidence, avm_date, mortgage_open_balance, mortgage_original_amount, mortgage_interest_rate, mortgage_lender, mortgage_origination_date';
+  const BASIC_SEL = 'id, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn';
   const fullRes = await db().from('properties').select(ATTOM_SEL).eq('address_full', addr).maybeSingle();
   let prop: any = fullRes.error ? null : (fullRes.data ?? null);
   // If SELECT errored (e.g. migration not yet applied), fall back to always-available columns
@@ -396,6 +400,18 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     estimatedValueHigh = Math.round(assessedFallback * 1.50);
   }
 
+  // FOR_SALE / PENDING: listing price is the confirmed market price — always beats ATTOM model
+  // property/lookup writes latest_value (Redfin AVM ≈ list price) and latest_listing_status
+  const listingStatus = (prop?.latest_listing_status as string | null) ?? null;
+  const isForSale = listingStatus === 'FOR_SALE' || listingStatus === 'PENDING';
+  const listingAvm = (isForSale && prop?.latest_value && prop.latest_value > 50_000 && prop.latest_value <= AVM_MAX)
+    ? (prop.latest_value as number) : null;
+  if (listingAvm) {
+    estimatedValue     = listingAvm;
+    estimatedValueLow  = Math.round(listingAvm * 0.97);
+    estimatedValueHigh = Math.round(listingAvm * 1.03);
+  }
+
   // 5. HUD Fair Market Rent via geo_crosswalk
   const zip = prop?.zip ?? address.match(/\b(\d{5})\b/)?.[1] ?? null;
   let rentEstimate: number | null = null;
@@ -494,6 +510,8 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     staticMapUrl,
     photoUrl,
     attomCheckedAt: process.env.ATTOM_API_KEY ? new Date().toISOString() : null,
+    listingStatus,
+    listPrice: isForSale ? estimatedValue : null,
   };
 
   // 7. Cache result (non-blocking)
