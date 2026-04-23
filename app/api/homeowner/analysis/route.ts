@@ -788,7 +788,7 @@ export async function GET(request: NextRequest) {
   }
 
   const userPlan = await getUserPlan(userId);
-  const isPro = userPlan.plan === 'pro' || userPlan.plan === 'founding';
+  const isPro = userPlan.plan === 'pro';
 
   const payload = buildAnalysis(propData, fred, homeowner, historyRes.data ?? []);
   if (!isPro) {
