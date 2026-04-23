@@ -1279,6 +1279,34 @@ function MyHomePageInner() {
         const res = await fetch(`/api/homeowner/analysis${qp}`, { cache: 'no-store' });
         const data = await res.json();
         if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
+
+        // FOR SALE / PENDING: ATTOM has no reliable listing data — always use Redfin
+        if (data.listingStatus === 'FOR_SALE' || data.listingStatus === 'PENDING') {
+          const addr = activeProperty.property_address;
+          const [lookupRes, tickerRes] = await Promise.all([
+            fetch('/api/property/lookup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ address: addr }),
+              cache: 'no-store',
+            }),
+            fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
+          ]);
+          const lookupJson = await lookupRes.json();
+          if (lookupRes.ok && lookupJson.ok && lookupJson.data) {
+            const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
+            const thirtyY = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
+            let liveRate = 6.65;
+            if (thirtyY?.value) {
+              const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
+              if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
+            }
+            setAnalysis(lookupToAnalysis(lookupJson.data, liveRate));
+            return;
+          }
+          // Redfin lookup failed — fall through to ATTOM data as last resort
+        }
+
         if (!data.estimatedValue && !data.lastSalePrice) {
           setAnalysisErr('Could not find property value data. Try pasting the Redfin link directly in chat.');
           return;
@@ -1368,11 +1396,6 @@ function MyHomePageInner() {
     setSaving(true);
     // Fire lookup (listing status) + enrich (ATTOM AVM) in parallel before saving
     void fetch('/api/property/lookup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address: newAddress.trim() }),
-    });
-    void fetch('/api/property/enrich', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: newAddress.trim() }),

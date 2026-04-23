@@ -2157,6 +2157,15 @@ export default function Page() {
                         )
                     );
                     typeOutAssistant(answerId, friendly);
+
+                    // Persist property to user's account so My Properties shows the rich Redfin card
+                    if (user?.id && d.address) {
+                        void fetch('/api/homeowner/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ address: d.address }),
+                        });
+                    }
                     } // close FOR_SALE else
                 } else {
                     // Lookup failed — surface the error as assistant text
