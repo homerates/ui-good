@@ -76,6 +76,61 @@ function stateFromAddress(address: string): string | null {
 }
 
 // ── Tavily: async fire-and-forget to find last sale data ─────────────────────
+// Parse "$1.3M", "$1,300,000", "$1.3 million" → integer
+function parseDollarAmount(raw: string): number | null {
+  const m = raw.match(/\$\s*([\d,]+(?:\.\d+)?)\s*([KkMm]?(?:illion|housand)?)?/i);
+  if (!m) return null;
+  const num = parseFloat(m[1].replace(/,/g, ''));
+  const suffix = (m[2] ?? '').toLowerCase();
+  const mult = suffix.startsWith('m') ? 1_000_000 : suffix.startsWith('k') || suffix.startsWith('t') ? 1_000 : 1;
+  const val = Math.round(num * mult);
+  return val > 50_000 && val < 50_000_000 ? val : null;
+}
+
+// Zillow/Redfin AVM cross-check via Tavily — only fires for low-confidence ATTOM results
+async function tavilyAvmSearch(address: string): Promise<number | null> {
+  const key = process.env.TAVILY_API_KEY;
+  if (!key) return null;
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 7000);
+    const res = await fetch('https://api.tavily.com/search', {
+      method: 'POST', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: key,
+        query: `"${address}" home value Zestimate "Redfin Estimate"`,
+        max_results: 5,
+        search_depth: 'basic',
+        include_answer: true,
+        include_domains: ['zillow.com', 'redfin.com', 'realtor.com', 'trulia.com'],
+      }),
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = [data.answer ?? '', ...(data.results ?? []).map((r: any) => r.content ?? '')].join(' ');
+    const estimates: number[] = [];
+    // Match "Zestimate: $X" or "Redfin Estimate $X" or "estimate of $X"
+    const patterns = [
+      /Zestimate[^$\n]{0,40}(\$[\d,]+(?:\.\d+)?[KkMm]?)/gi,
+      /Redfin\s+Estimate[^$\n]{0,40}(\$[\d,]+(?:\.\d+)?[KkMm]?)/gi,
+      /home\s+(?:value|estimate)[^$\n]{0,30}(\$[\d,]+(?:\.\d+)?[KkMm]?)/gi,
+    ];
+    for (const re of patterns) {
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text)) !== null) {
+        const v = parseDollarAmount(m[1]);
+        if (v) estimates.push(v);
+      }
+    }
+    if (!estimates.length) return null;
+    estimates.sort((a, b) => a - b);
+    // Return median to avoid outliers
+    return estimates[Math.floor(estimates.length / 2)];
+  } catch { return null; }
+}
+
 async function tavilyPropertySearch(address: string): Promise<{ lastSalePrice: number | null; lastSaleDate: string | null }> {
   const key = process.env.TAVILY_API_KEY;
   if (!key) return { lastSalePrice: null, lastSaleDate: null };
@@ -266,7 +321,23 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   }
 
   // ATTOM AVM overrides FHFA appreciation model — stored prop wins, inline is fallback
-  const attomAvm = prop?.avm_value ?? inlineAvm?.estimatedValue ?? null;
+  const attomConf = prop?.avm_confidence ?? inlineAvm?.confidence ?? null;
+  let attomAvm    = prop?.avm_value ?? inlineAvm?.estimatedValue ?? null;
+
+  // Sanity-check low-confidence ATTOM AVMs against Zillow/Redfin via Tavily.
+  // ATTOM is unreliable for luxury/private estates with sparse comps (tScore < 50).
+  if (attomAvm && attomConf !== null && attomConf < 50) {
+    const webAvm = await tavilyAvmSearch(address);
+    if (webAvm) {
+      const ratio = attomAvm / webAvm;
+      if (ratio > 1.4 || ratio < 0.7) {
+        // ATTOM diverges >40% from web consensus — blend toward web estimate
+        console.log(`[analysis] ATTOM AVM ${attomAvm} conf ${attomConf} diverges from web ${webAvm} (ratio ${ratio.toFixed(2)}) — blending`);
+        attomAvm = Math.round((attomAvm + webAvm * 2) / 3); // weight web 2:1
+      }
+    }
+  }
+
   // For properties where ATTOM has no AVM (private estates, sparse comps), use assessed value
   const assessedFallback = inlineProfile?.assessedValue ?? null;
   const avmSource: 'attom' | 'attom_assessed' | 'fhfa' =
