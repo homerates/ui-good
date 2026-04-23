@@ -223,6 +223,8 @@ type PropertyData = {
   attomCheckedAt: string | null;
 };
 
+const AVM_MAX = 50_000_000; // $50M residential cap — ATTOM occasionally returns garbage values
+
 // ── Main local property intelligence — replaces rentcastLookup ───────────────
 async function propertyLookup(address: string, record: Record<string, any>): Promise<PropertyData | null> {
   // 1. Check snapshot cache — back-fill Maps URLs dynamically (env-var-based, not stored)
@@ -355,7 +357,6 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
 
   // ATTOM AVM overrides FHFA appreciation model — stored prop wins, inline is fallback.
   // Reject values >$50M — residential AVM cap; if DB has garbage, clear it non-blocking.
-  const AVM_MAX = 50_000_000;
   const attomConf = prop?.avm_confidence ?? inlineAvm?.confidence ?? null;
   const rawAttomAvm = prop?.avm_value ?? inlineAvm?.estimatedValue ?? null;
   let attomAvm = rawAttomAvm && rawAttomAvm <= AVM_MAX ? rawAttomAvm : null;
