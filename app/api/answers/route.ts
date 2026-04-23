@@ -2403,7 +2403,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 debug: { bypass: "dscrOverride" },
                 message: typeof dscrOverride === "string" ? dscrOverride : "Answered via DSCR override.",
                 answerMarkdown: buildAnswerMarkdown(typeof dscrOverride === "string" ? dscrOverride : JSON.stringify(dscrOverride)),
-                followUp: followUpFor(topic),
+                followUp: null,
             });
         }
     } catch (e) {
@@ -4074,7 +4074,7 @@ ${uwDatabase}`;
             data_freshness: `Live (grok-3-mini + guidelines database)`,
             message: uwAnswerText,
             answerMarkdown: buildAnswerMarkdown(uwAnswerText),
-            followUp: buildUWCard({ question, answerMarkdown: uwAnswerText }).follow_up,
+            followUp: null,
             follow_up_chips: buildUWCard({ question, answerMarkdown: uwAnswerText }).follow_up_chips,
         });
     }
@@ -5265,7 +5265,7 @@ ${uwDatabase}`;
                 data_freshness: `Live (calcEngine-deterministic)`,
                 message: calcCard.answer,
                 answerMarkdown: (calcCard as any).labModules ? null : buildAnswerMarkdown(answerWithSources),
-                followUp: (calcCard as any).labModules ? null : calcCard.follow_up,
+                followUp: null,
                 follow_up_chips: calcCard.follow_up_chips,
             });
             } // end !_cmaEarlyCheck
@@ -5762,7 +5762,7 @@ Output JSON:
                 data_freshness: `Live (${XAI_MODEL}) · Tavily ${new Date().toISOString().slice(0, 10)}`,
                 message: cmaFinal.answer,
                 answerMarkdown: cmaFinal.answer,
-                followUp: cmaFinal.follow_up,
+                followUp: null,
                 follow_up_chips: cmaChips,
                 cmaCard: {
                     // ── Property identity ─────────────────────────────────────
@@ -7018,8 +7018,8 @@ Return valid JSON only:
         // Sliders from affordability income-needed path (interactiveSlider + lenderChecklist)
         interactiveSlider: (affordabilityAnswer as any)?.interactiveSlider ?? null,
         lenderChecklist: (affordabilityAnswer as any)?.lenderChecklist ?? null,
-        followUp: grokFinal?.follow_up || followUpFor(topic),
-        follow_up_chips: [], // chips removed — will reintroduce one-at-a-time with robust parsing
+        followUp: null,
+        follow_up_chips: [],
     });
 }
 
