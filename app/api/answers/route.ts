@@ -4775,6 +4775,14 @@ ${uwDatabase}`;
         let calcDebugModel = '';
         const calcAssumptions = calcDispatch.assumptions;
 
+        // Never show needs_input form cards — Grok answers in prose when inputs are missing.
+        // Needs_input cards were designed for cold zero-context questions but Grok handles those
+        // better too, and chips from existing cards should NEVER trigger a data-collection form.
+        if (typeof calcDispatch.type === 'string' && calcDispatch.type.endsWith('_needs_input')) {
+            (calcDispatch as any).type = 'no_calc_match';
+            (calcDispatch as any).params = null;
+        }
+
         try {
             if (calcDispatch.type === 'refi_20vs30' && calcDispatch.params) {
                 const result = calcRefi20vs30(calcDispatch.params as any);
