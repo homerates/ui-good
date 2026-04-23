@@ -1814,7 +1814,9 @@ export default function Page() {
         if (!q || loading) return;
 
         // Enforce simple daily limits before we send anything
-        if (!isSignedIn) {
+        // Guard with clerkLoaded: isSignedIn is undefined while Clerk hydrates,
+        // which makes !isSignedIn === true and incorrectly fires the anon wall.
+        if (clerkLoaded && !isSignedIn) {
             const allowed = bumpAnonCounterOrBlock();
             if (!allowed) {
                 setShowAuthRequired(true);
@@ -2493,7 +2495,7 @@ export default function Page() {
 
             // If the backend signals that a limit was hit, surface the right modal
             if (meta.upgradeRequired || meta.limitHit) {
-                if (!isSignedIn) {
+                if (clerkLoaded && !isSignedIn) {
                     setShowAuthRequired(true);
                 } else {
                     setShowUpgradeRequired(true);
