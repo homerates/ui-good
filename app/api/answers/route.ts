@@ -4606,16 +4606,39 @@ ${uwDatabase}`;
 
     // Helper: inject CMA chip onto any calc card.
     // Only runs when cmaAddress is present — no paste nudge on cards without CMA context.
+    // Falls back to extracting address from plain-text buying seed (e.g. my-home Run My Numbers).
     function injectCmaChip(card: any): void {
         if (!card?.follow_up_chips) return;
-        if (!paramOverrides?.cmaAddress) return;
 
-        const addr      = paramOverrides.cmaAddress as string;
+        // Synthesize cma params from question text when no paramOverrides.cmaAddress is set.
+        // Handles: "I'm looking at buying 12452 Altura, Rancho Cucamonga, CA 91739 listed at $1,325,000"
+        let po: Record<string, any> = paramOverrides ?? {};
+        if (!po.cmaAddress) {
+            const buyMatch = question.match(/(?:buying|purchase|buy)\s+(.{10,80}?)\s+(?:listed at|at\s+\$)/i);
+            if (buyMatch) {
+                const rawAddr = buyMatch[1].replace(/^(this home at |home at )/i, '').trim();
+                const parts   = rawAddr.split(',').map((s: string) => s.trim());
+                const stateM  = (parts[parts.length - 1] ?? '').match(/([A-Z]{2})\s*\d{5}/);
+                const priceM  = question.match(/listed at \$\s*([\d,]+)/i);
+                const rateM   = question.match(/([\d]+\.[\d]+)\s*%/);
+                po = {
+                    cmaAddress:  rawAddr,
+                    cmaCity:     parts.length >= 3 ? parts[parts.length - 2] : '',
+                    cmaState:    stateM?.[1] ?? '',
+                    cmaPrice:    priceM  ? Number(priceM[1].replace(/,/g, ''))  : undefined,
+                    cmaLiveRate: rateM   ? parseFloat(rateM[1])                 : undefined,
+                    cmaPhotoUrl: '',
+                };
+            }
+        }
+        if (!po.cmaAddress) return;
+
+        const addr      = po.cmaAddress as string;
         const shortAddr = addr.split(',')[0].trim();
-        const cmaPrice  = paramOverrides.cmaPrice  as number | undefined;
-        const cmaRate   = paramOverrides.cmaLiveRate as number | undefined;
-        const curPrice  = paramOverrides.purchasePrice as number | undefined;
-        const curRate   = paramOverrides.annualRatePct as number | undefined;
+        const cmaPrice  = po.cmaPrice  as number | undefined;
+        const cmaRate   = po.cmaLiveRate as number | undefined;
+        const curPrice  = (paramOverrides?.purchasePrice ?? po.cmaPrice) as number | undefined;
+        const curRate   = (paramOverrides?.annualRatePct ?? po.cmaLiveRate) as number | undefined;
 
         // Only show "Proposed Scenario" when numbers actually diverge from the original listing
         const priceDiff = !!(cmaPrice && curPrice && Math.abs(curPrice - cmaPrice) > 1000);
@@ -4642,8 +4665,8 @@ ${uwDatabase}`;
             card.answer = scenarioBlock + card.answer;
         }
 
-        const _cmaRerunSeed = `Property intelligence report: ${addr}${paramOverrides.cmaCity ? ` in ${paramOverrides.cmaCity}` : ''}`;
-        const _cmaParams = { cmaAddress: paramOverrides.cmaAddress, cmaCity: paramOverrides.cmaCity, cmaState: paramOverrides.cmaState, cmaPrice: paramOverrides.cmaPrice, cmaBeds: paramOverrides.cmaBeds, cmaBaths: paramOverrides.cmaBaths, cmaSqft: paramOverrides.cmaSqft, cmaTaxAnnual: paramOverrides.cmaTaxAnnual, cmaTaxRate: paramOverrides.cmaTaxRate, cmaLiveRate: paramOverrides.cmaLiveRate, cmaPhotoUrl: paramOverrides.cmaPhotoUrl };
+        const _cmaRerunSeed = `Property intelligence report: ${addr}${po.cmaCity ? ` in ${po.cmaCity}` : ''}`;
+        const _cmaParams = { cmaAddress: po.cmaAddress, cmaCity: po.cmaCity, cmaState: po.cmaState, cmaPrice: po.cmaPrice, cmaBeds: po.cmaBeds, cmaBaths: po.cmaBaths, cmaSqft: po.cmaSqft, cmaTaxAnnual: po.cmaTaxAnnual, cmaTaxRate: po.cmaTaxRate, cmaLiveRate: po.cmaLiveRate, cmaPhotoUrl: po.cmaPhotoUrl };
         card.follow_up_chips = card.follow_up_chips.map((chip: any) =>
             chip.paramOverrides ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } } : chip
         );
