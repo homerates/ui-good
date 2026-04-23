@@ -444,6 +444,21 @@ function CardRefi({ d, onEdit }: { d: AnalysisData; onEdit: () => void }) {
         </div>
       )}
 
+      {(d.mortgageLender || d.mortgageOriginalAmount) && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.55)', display: 'flex', flexWrap: 'wrap' as const, gap: '4px 6px', alignItems: 'center' }}>
+          <span style={{ color: 'rgba(255,255,255,0.35)', marginRight: 2 }}>Current loan on record:</span>
+          {d.mortgageOriginalAmount && (
+            <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{fmt(d.mortgageOriginalAmount)}</span>
+          )}
+          {d.mortgageLender && (
+            <span>with <span style={{ color: 'rgba(255,255,255,0.7)' }}>{d.mortgageLender}</span></span>
+          )}
+          {d.mortgageOriginationDate && (
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}>· originated {new Date(d.mortgageOriginationDate).getFullYear()}</span>
+          )}
+        </div>
+      )}
+
       {hasOpportunity ? (
         <div className="mh-highlight-box" style={{ borderColor: 'rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.05)' }}>
           <div className="mh-highlight-title" style={{ color: '#22c55e' }}>Refi opportunity</div>
