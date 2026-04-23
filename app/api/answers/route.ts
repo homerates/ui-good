@@ -92,19 +92,6 @@ function stripChips(obj: unknown): unknown {
 }
 
 function noStore(json: unknown, status = 200) {
-    // === TEMP DEBUG — remove once follow_up source confirmed ===
-    if (json && typeof json === 'object') {
-        const j = json as any;
-        const dbg = {
-            path_taken:       j.tag ?? j.path ?? 'unknown',
-            followUp_val:     Object.prototype.hasOwnProperty.call(j, 'followUp') ? j.followUp : '__not_set__',
-            grok_follow_up:   j.grok != null ? (Object.prototype.hasOwnProperty.call(j.grok, 'follow_up') ? j.grok.follow_up : '__not_set__') : '__no_grok__',
-            chips_count:      Array.isArray(j.follow_up_chips) ? j.follow_up_chips.length : '__not_set__',
-        };
-        console.log('[noStore_DBG]', JSON.stringify(dbg));
-        (j as any)._dbg = dbg;
-    }
-    // ===========================================================
     const res = NextResponse.json(stripChips(json), { status });
     res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     res.headers.set("Pragma", "no-cache");

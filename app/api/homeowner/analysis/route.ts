@@ -430,16 +430,20 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   }
 
   // FOR_SALE / PENDING: listing price is the confirmed market price — always beats ATTOM model
-  // property/lookup writes latest_value (Redfin AVM ≈ list price) and latest_listing_status
-  // If status is unknown (null), do a quick Redfin/Tavily check now so card mode is correct.
-  if (prop && !prop.latest_listing_status) {
+  // property/lookup writes latest_value (Redfin AVM ≈ list price) and latest_listing_status.
+  // Fire Tavily check when: status is null, 'UNKNOWN', or prop is null (address mismatch with DB).
+  let listingStatus: string | null = prop?.latest_listing_status ?? null;
+  if (listingStatus === 'UNKNOWN') listingStatus = null;
+  if (!listingStatus) {
     const freshStatus = await checkListingStatus(address);
     if (freshStatus) {
-      prop.latest_listing_status = freshStatus;
-      void db().from('properties').update({ latest_listing_status: freshStatus, updated_at: new Date().toISOString() }).eq('id', prop.id);
+      listingStatus = freshStatus;
+      if (prop) {
+        prop.latest_listing_status = freshStatus;
+        void db().from('properties').update({ latest_listing_status: freshStatus, updated_at: new Date().toISOString() }).eq('id', prop.id);
+      }
     }
   }
-  const listingStatus = (prop?.latest_listing_status as string | null) ?? null;
   const isForSale = listingStatus === 'FOR_SALE' || listingStatus === 'PENDING';
   const listingAvm = (isForSale && prop?.latest_value && prop.latest_value > 50_000 && prop.latest_value <= AVM_MAX)
     ? (prop.latest_value as number) : null;
