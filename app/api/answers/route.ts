@@ -2884,20 +2884,31 @@ async function handle(req: NextRequest, intentParam?: string) {
             } catch { /* silent — falls through to needs_input if no snap */ }
         }
         // ── Equity-options intercept: balance + home value known, rate not required ──
-        // The "Run My Numbers" chip sends: "Equity options for {addr}: value $X, balance $Y, equity $Z (pct%). What are my best options — HELOC, cash-out refi, or sell?"
-        // We can answer HELOC max, sell proceeds, and cash-out max without a current rate.
+        // The "Run My Numbers" chip sends: "Equity options for {addr}: value $2.35M, balance $1.61M, equity $738k (31%). What are my best options — HELOC, cash-out refi, or sell?"
+        // Values may be abbreviated ($2.35M, $738k) or full ($1,662,713) — must handle both.
         const isEquityOptions = /\b(?:heloc|cash.?out).{0,80}(?:sell|option)|sell.{0,80}(?:heloc|cash.?out)|best.*option.{0,60}(?:heloc|sell)/i.test(qFull);
-        const valueM = qFull.match(/\bvalue\s+\$?\s*([\d,]+)/i);
-        const qHomeValue = valueM
-            ? parseFloat(valueM[1].replace(/,/g, ''))
-            : homeValue;
 
-        if (isEquityOptions && balance && qHomeValue && qHomeValue > balance) {
-            const equity    = Math.round(qHomeValue - balance);
-            const equityPct = (equity / qHomeValue) * 100;
-            const helocMax  = Math.max(0, Math.round(qHomeValue * 0.85 - balance));
-            const cashOutMax = Math.max(0, Math.round(qHomeValue * 0.80 - balance));
-            const sellNet   = Math.round(equity - qHomeValue * 0.07);
+        // Parse "$2.35M" | "$1.61M" | "$738k" | "$1,662,713" — all formats the chip uses
+        const parseEqMoney = (token: string | null | undefined): number | null => {
+            if (!token) return null;
+            const m = token.match(/\$\s*([\d,]+(?:\.\d+)?)\s*([MmKk]?)/);
+            if (!m) return null;
+            const n = parseFloat(m[1].replace(/,/g, ''));
+            if (!isFinite(n) || n <= 0) return null;
+            const s = (m[2] ?? '').toUpperCase();
+            return s === 'M' ? n * 1e6 : s === 'K' ? n * 1e3 : n;
+        };
+        const eqValTok  = qFull.match(/\bvalue\s+(\$[\d,]+(?:\.\d+)?\s*[MmKk]?)/i)?.[1];
+        const eqBalTok  = qFull.match(/\bbalance\s+(\$[\d,]+(?:\.\d+)?\s*[MmKk]?)/i)?.[1];
+        const eqHomeValue = parseEqMoney(eqValTok) ?? homeValue;
+        const eqBalance   = parseEqMoney(eqBalTok) ?? balance;
+
+        if (isEquityOptions && eqBalance && eqHomeValue && eqHomeValue > eqBalance) {
+            const equity    = Math.round(eqHomeValue - eqBalance);
+            const equityPct = (equity / eqHomeValue) * 100;
+            const helocMax  = Math.max(0, Math.round(eqHomeValue * 0.85 - eqBalance));
+            const cashOutMax = Math.max(0, Math.round(eqHomeValue * 0.80 - eqBalance));
+            const sellNet   = Math.round(equity - eqHomeValue * 0.07);
 
             let verdict = '';
             if (equityPct < 15) {
@@ -2915,7 +2926,7 @@ async function handle(req: NextRequest, intentParam?: string) {
             const answerText = `## 🏠 Your Equity Options — By the Numbers${rateNote}
 
 **Your position:**
-- Home value: **${f$(qHomeValue)}** · Balance: **${f$(balance)}**
+- Home value: **${f$(eqHomeValue)}** · Balance: **${f$(eqBalance)}**
 - Equity: **${f$(equity)}** (${equityPct.toFixed(0)}% of home value)
 
 ---
@@ -2942,14 +2953,14 @@ ${verdict}
 *Share your current interest rate and I'll run the exact cash-out refi payment and break-even.*`;
 
             const equityChips = [
-                { label: `HELOC max ${f$(helocMax)} — payments, rate, draw period`, seed: `I have a home worth ${f$(qHomeValue)} and owe ${f$(balance)}. Walk me through a HELOC: max line size, typical rate today, interest-only draw period payments, and how it compares to my existing mortgage.` },
-                { label: `Cash-out refi — what rate makes it worth resetting?`, seed: `I have ${f$(equity)} equity in a ${f$(qHomeValue)} home with a ${f$(balance)} balance. At what interest rate does a cash-out refi actually make sense vs just getting a HELOC?` },
-                { label: `Sell at ${f$(qHomeValue)} — full proceeds breakdown`, seed: `If I sell my home at ${f$(qHomeValue)} with a ${f$(balance)} remaining balance, break down all selling costs (agent commission, transfer tax, title, escrow) to show my exact net proceeds.` },
+                { label: `HELOC max ${f$(helocMax)} — payments, rate, draw period`, seed: `I have a home worth ${f$(eqHomeValue)} and owe ${f$(eqBalance)}. Walk me through a HELOC: max line size, typical rate today, interest-only draw period payments, and how it compares to my existing mortgage.` },
+                { label: `Cash-out refi — what rate makes it worth resetting?`, seed: `I have ${f$(equity)} equity in a ${f$(eqHomeValue)} home with a ${f$(eqBalance)} balance. At what interest rate does a cash-out refi actually make sense vs just getting a HELOC?` },
+                { label: `Sell at ${f$(eqHomeValue)} — full proceeds breakdown`, seed: `If I sell my home at ${f$(eqHomeValue)} with a ${f$(eqBalance)} remaining balance, break down all selling costs (agent commission, transfer tax, title, escrow) to show my exact net proceeds.` },
             ];
 
             const helocCard = {
-                homeValue:   qHomeValue,
-                balance:     balance,
+                homeValue:   eqHomeValue,
+                balance:     eqBalance,
                 drawAmount:  Math.min(100_000, helocMax),
                 helocRate:   9.0,
                 cashOutRate: marketRate ?? undefined,
