@@ -1659,7 +1659,7 @@ function MyHomePageInner() {
                       <div style={{ height: 3, background: isBuyer ? 'linear-gradient(90deg,#3b82f6,#6366f1)' : 'linear-gradient(90deg,#00e87a,#00b459)' }} />
 
                       {/* Street View hero photo — satellite map as base layer; photo on top */}
-                      {!isBuyer && (analysis.streetViewUrl || analysis.staticMapUrl) && (
+                      {(analysis.streetViewUrl || analysis.staticMapUrl) && (
                         <div style={{ position: 'relative', height: 200, overflow: 'hidden', background: '#0a1628' }}>
                           {/* Satellite map — always rendered full-size as base */}
                           {analysis.staticMapUrl && (
@@ -1702,7 +1702,7 @@ function MyHomePageInner() {
                       )}
 
                       {/* Property details bar — beds/baths/sqft/yearBuilt from ATTOM */}
-                      {!isBuyer && (analysis.beds || analysis.baths || analysis.sqft || analysis.yearBuilt || analysis.lotSizeSqft) && (
+                      {(analysis.beds || analysis.baths || analysis.sqft || analysis.yearBuilt || analysis.lotSizeSqft) && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, borderBottom: '1px solid #1e293b', background: '#0a1628' }}>
                           {[
                             analysis.beds      && { label: 'Beds',       val: `${analysis.beds}` },
