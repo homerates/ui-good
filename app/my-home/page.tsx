@@ -177,7 +177,15 @@ function CardPropertyIntel({ d }: { d: AnalysisData }) {
             {d.mortgageOriginalAmount && <div className="mh-stat"><div className="mh-stat-label">Original Loan</div><div className="mh-stat-value">{fmt(d.mortgageOriginalAmount)}</div></div>}
             {d.mortgageOriginationDate && <div className="mh-stat"><div className="mh-stat-label">Originated</div><div className="mh-stat-value" style={{ fontSize: '0.82rem' }}>{new Date(d.mortgageOriginationDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div></div>}
           </div>
-          <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#334155' }}>Source: ATTOM public records</div>
+          {d.mortgageSource === 'attom' && (
+            <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#334155' }}>Source: ATTOM public records</div>
+          )}
+        </div>
+      )}
+      {(d.avmDate || d.attomCheckedAt) && (
+        <div style={{ marginTop: hasMortgage ? 10 : 14, fontSize: '0.6rem', color: '#334155' }}>
+          Data as of {new Date(d.avmDate ?? d.attomCheckedAt!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          {d.avmSource && <span style={{ marginLeft: 6, color: '#1e293b' }}>· {d.avmSource === 'attom' ? 'ATTOM AVM' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
         </div>
       )}
     </div>
@@ -196,7 +204,7 @@ function CardComps({ d }: { d: AnalysisData }) {
       </div>
       {subjectPsf && (
         <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 8, fontSize: '0.72rem', color: '#94a3b8' }}>
-          Your home: <span style={{ color: '#00e87a', fontWeight: 700 }}>${subjectPsf}/sqft</span> (ATTOM AVM ÷ living sqft)
+          Your home: <span style={{ color: '#00e87a', fontWeight: 700 }}>${subjectPsf}/sqft</span> ({d.avmSource === 'attom' ? 'ATTOM AVM' : 'est. value'} ÷ sqft)
         </div>
       )}
       <div style={{ overflowX: 'auto' }}>
@@ -265,6 +273,7 @@ function CardEquity({ d, nearbySales, onEdit }: { d: AnalysisData; nearbySales?:
           {d.appreciationPct !== null && (
             <div className="mh-stat-sub" style={{ color: d.appreciationPct >= 0 ? '#22c55e' : '#f97066' }}>
               {d.appreciationPct >= 0 ? '+' : ''}{d.appreciationPct}% since purchase
+              {d.lastSaleDate && (() => { const yr = d.lastSaleDate!.match(/\d{4}/)?.[0]; return yr ? ` (${yr})` : ''; })()}
             </div>
           )}
         </div>
@@ -544,8 +553,8 @@ function CardEconomy({ d }: { d: AnalysisData }) {
         </div>
         <div className="mh-stat">
           <div className="mh-stat-label">Fed Funds</div>
-          <div className="mh-stat-value">4.25–4.50%</div>
-          <div className="mh-stat-sub">Held steady</div>
+          <div className="mh-stat-value">~{(d.prime - 3).toFixed(2)}%</div>
+          <div className="mh-stat-sub">Implied from prime rate</div>
         </div>
         <div className="mh-stat">
           <div className="mh-stat-label">Prime Rate</div>
