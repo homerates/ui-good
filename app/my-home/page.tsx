@@ -1793,12 +1793,6 @@ function MyHomePageInner() {
 
                         {/* CTA buttons */}
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                          <a
-                            href={`/home-report?address=${encodeURIComponent(heroAddr)}`}
-                            style={{ padding: '10px 20px', borderRadius: 999, border: `1px solid ${isBuyer ? 'rgba(99,179,237,0.4)' : 'rgba(0,232,122,0.4)'}`, color: isBuyer ? '#60a5fa' : '#00e87a', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
-                          >
-                            {isBuyer ? 'Full Report ↗' : 'My Full Report ↗'}
-                          </a>
                           {isBuyer ? (
                             <a
                               href={(() => {
