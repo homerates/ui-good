@@ -1791,8 +1791,66 @@ function MyHomePageInner() {
                           </div>
                         )}
 
+                        {/* Rate Watch — homeowner view only (not LO/borrower) */}
+                        {!borrowerId && !isBuyer && (
+                          <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 10 }}>
+                            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 8 }}>Rate Watch</div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                              <div>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f1f5f9', marginBottom: 2 }}>Alert me when 30-year rates drop to:</div>
+                                <div style={{ fontSize: '0.72rem', color: '#475569' }}>
+                                  Current 30Y fixed: <span style={{ color: '#00e87a', fontWeight: 700 }}>{(analysis.liveRate ?? 6.65).toFixed(2)}%</span> · You control when to act, we just alert you.
+                                </div>
+                              </div>
+                              <SignedIn>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  <input type="number" step="0.125" min="3" max="10" value={alertRate}
+                                    onChange={e => setAlertRate(e.target.value)}
+                                    placeholder={`e.g. ${((analysis.liveRate ?? 6.65) - 1).toFixed(2)}`}
+                                    style={{ width: 80, padding: '7px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#fff', fontSize: '0.88rem', fontFamily: 'inherit' }}
+                                  />
+                                  <span style={{ color: '#475569', fontSize: '0.82rem' }}>%</span>
+                                  <button onClick={saveAlert} disabled={alertSaving || alertSaved || !alertRate}
+                                    style={{ padding: '7px 16px', borderRadius: 999, background: alertSaved ? 'rgba(0,232,122,0.15)' : '#00e87a', border: 'none', color: alertSaved ? '#00e87a' : '#07100f', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                    {alertSaved ? '✓ Alert Set' : alertSaving ? 'Saving…' : 'Set Alert'}
+                                  </button>
+                                </div>
+                              </SignedIn>
+                              <SignedOut>
+                                <SignInButton mode="modal">
+                                  <button style={{ padding: '7px 16px', borderRadius: 999, background: '#00e87a', border: 'none', color: '#07100f', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                    Sign in to set rate alert
+                                  </button>
+                                </SignInButton>
+                              </SignedOut>
+                            </div>
+                          </div>
+                        )}
+
                         {/* CTA buttons */}
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          {/* Save to My Properties — preview mode, non-buyer */}
+                          {previewAddress && !isBuyer && (
+                            <>
+                              <SignedIn>
+                                <button
+                                  onClick={async () => {
+                                    void fetch('/api/homeowner/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: previewAddress }) });
+                                    window.location.href = '/my-home';
+                                  }}
+                                  style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  Save to My Properties
+                                </button>
+                              </SignedIn>
+                              <SignedOut>
+                                <SignInButton mode="modal">
+                                  <button style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                    Sign in to save &amp; track
+                                  </button>
+                                </SignInButton>
+                              </SignedOut>
+                            </>
+                          )}
                           {isBuyer ? (
                             <a
                               href={(() => {
@@ -1973,41 +2031,6 @@ function MyHomePageInner() {
                       </>
                     )}
                   </div>
-
-                  {/* Rate Watch — inline below chip card */}
-                  {analysis && !analysisLoading && !borrowerId && (
-                    <div style={{ padding: '12px 24px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                      {!showAlertBox ? (
-                        <button
-                          onClick={() => setShowAlertBox(true)}
-                          style={{ fontSize: '0.78rem', color: isBuyer ? 'rgba(99,179,237,0.7)' : 'rgba(0,232,122,0.7)', background: 'none', border: `1px solid ${isBuyer ? 'rgba(99,179,237,0.2)' : 'rgba(0,232,122,0.2)'}`, borderRadius: 999, padding: '5px 14px', cursor: 'pointer' }}
-                        >
-                          {isBuyer ? '🔔 Alert me when rates drop before I buy' : '🔔 Set Rate Alert'}
-                        </button>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>Alert me when 30Y drops to:</span>
-                          <input
-                            type="number" step="0.125" min="3" max="10"
-                            value={alertRate}
-                            onChange={e => setAlertRate(e.target.value)}
-                            placeholder={`e.g. ${((analysis.liveRate ?? 6.65) - 1).toFixed(2)}`}
-                            style={{ width: 80, padding: '5px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#fff', fontSize: '0.85rem', fontFamily: 'inherit' }}
-                          />
-                          <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>%</span>
-                          <button
-                            onClick={saveAlert}
-                            disabled={alertSaving || alertSaved || !alertRate}
-                            style={{ padding: '5px 14px', borderRadius: 999, background: alertSaved ? 'rgba(0,232,122,0.15)' : '#00e87a', border: 'none', color: alertSaved ? '#00e87a' : '#07100f', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}
-                          >
-                            {alertSaved ? '✓ Set' : alertSaving ? '…' : 'Save'}
-                          </button>
-                          <button onClick={() => setShowAlertBox(false)} style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
-                          {alertSaved && <span style={{ fontSize: '0.75rem', color: '#00e87a' }}>We'll email you when rates hit {alertRate}%</span>}
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Refresh + chat CTA footer — only when analysis is loaded */}
                   {analysis && !analysisLoading && (
