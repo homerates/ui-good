@@ -28,6 +28,7 @@ import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
 import RefiSliderCard from '@/components/RefiSliderCard';
+import HelocSliderCard from '@/components/HelocSliderCard';
 import PropertyPreviewCard from '@/components/PropertyPreviewCard';
 import type { PropertyCardData } from '@/components/PropertyPreviewCard';
 import PropertyIntelligenceCard from '@/components/PropertyIntelligenceCard';
@@ -434,6 +435,10 @@ type ApiResponse = {
         grossYield?: number | null; capRate?: number | null; dscrRatio?: number | null;
         dscrRate?: number | null; dscrPiti?: number | null; dscrDown?: number | null;
         monthlyCashFlow?: number | null; cashOnCash?: number | null;
+    } | null;
+    helocCard?: {
+        homeValue: number; balance: number;
+        drawAmount?: number; helocRate?: number; cashOutRate?: number;
     } | null;
     proGate?: ProGatePayload | null;
     labModules?: Array<{ icon: string; label: string; tag: string; desc: string; seed: string }> | null;
@@ -2893,6 +2898,13 @@ export default function Page() {
                                                                     }}
                                                                 />
                                                             </>
+                                                        )}
+                                                        {/* HELOC slider card — equity options answers */}
+                                                        {m.meta.helocCard && !loading && typingId === null && (
+                                                            <HelocSliderCard
+                                                                {...m.meta.helocCard}
+                                                                onRunScenario={(seed) => send(seed)}
+                                                            />
                                                         )}
                                                         {/* CA Loan Limits slider card */}
                                                         {m.meta.loanLimitsSlider && !loading && typingId === null && (

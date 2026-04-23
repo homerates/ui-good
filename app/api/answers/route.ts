@@ -2784,7 +2784,10 @@ async function handle(req: NextRequest, intentParam?: string) {
         const qFull = question;
 
         // Balance — handles $1,280,000 / $1.28M / $580k / on my $X
+        // Equity-options questions ("value $X, balance $Y, equity $Z") list value before balance —
+        // check for the explicit "balance $X" label first to avoid grabbing the value amount.
         const balM =
+            qFull.match(/\bbalance\b\s*\$?\s*([\d,]+)/i) ??
             qFull.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ??
             qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*[Mm]\b/) ??
             qFull.match(/\bon\s+(?:my\s+)?\$\s*(\d+(?:\.\d+)?)\s*k?\b/i) ??
@@ -2880,6 +2883,89 @@ async function handle(req: NextRequest, intentParam?: string) {
                 }
             } catch { /* silent — falls through to needs_input if no snap */ }
         }
+        // ── Equity-options intercept: balance + home value known, rate not required ──
+        // The "Run My Numbers" chip sends: "Equity options for {addr}: value $X, balance $Y, equity $Z (pct%). What are my best options — HELOC, cash-out refi, or sell?"
+        // We can answer HELOC max, sell proceeds, and cash-out max without a current rate.
+        const isEquityOptions = /\b(?:heloc|cash.?out).{0,80}(?:sell|option)|sell.{0,80}(?:heloc|cash.?out)|best.*option.{0,60}(?:heloc|sell)/i.test(qFull);
+        const valueM = qFull.match(/\bvalue\s+\$?\s*([\d,]+)/i);
+        const qHomeValue = valueM
+            ? parseFloat(valueM[1].replace(/,/g, ''))
+            : homeValue;
+
+        if (isEquityOptions && balance && qHomeValue && qHomeValue > balance) {
+            const equity    = Math.round(qHomeValue - balance);
+            const equityPct = (equity / qHomeValue) * 100;
+            const helocMax  = Math.max(0, Math.round(qHomeValue * 0.85 - balance));
+            const cashOutMax = Math.max(0, Math.round(qHomeValue * 0.80 - balance));
+            const sellNet   = Math.round(equity - qHomeValue * 0.07);
+
+            let verdict = '';
+            if (equityPct < 15) {
+                verdict = `With only **${equityPct.toFixed(0)}% equity**, options are limited — HELOC availability is uncertain and cash-out refi may not qualify at conventional limits.`;
+            } else if (equityPct < 30) {
+                verdict = `With **${equityPct.toFixed(0)}% equity**, a HELOC gives you the most flexibility — pull what you need and only pay interest on the drawn amount. Cash-out refi makes sense only if you can also lower your rate.`;
+            } else {
+                verdict = `With **${equityPct.toFixed(0)}% equity**, you have real options. HELOC wins for flexibility; cash-out refi wins if rates are lower than yours; sell wins if you want full liquidity.`;
+            }
+
+            const rateNote = marketRate
+                ? `\n\n> 📡 **Today's 30yr market rate: ${fPct(marketRate)}** (FRED, ${fredAsOf}) — if your current rate is higher, a cash-out refi becomes more attractive.`
+                : '';
+
+            const answerText = `## 🏠 Your Equity Options — By the Numbers${rateNote}
+
+**Your position:**
+- Home value: **${f$(qHomeValue)}** · Balance: **${f$(balance)}**
+- Equity: **${f$(equity)}** (${equityPct.toFixed(0)}% of home value)
+
+---
+
+### Option 1 — HELOC
+- Max available: ${helocMax > 0 ? `**${f$(helocMax)}**` : 'not available at current LTV'} (85% LTV rule)
+- **How it works:** Variable-rate line you draw from as needed. Interest-only payments during the draw period. Doesn't touch your existing mortgage or rate.
+- **Best for:** Home improvements, one-time needs, or preserving your current mortgage rate.
+
+### Option 2 — Cash-Out Refi
+- Max cash-out: ${cashOutMax > 0 ? `**${f$(cashOutMax)}**` : 'not available at current LTV'} (80% LTV)
+- **How it works:** Replaces your mortgage entirely at a new rate and new balance. Fixed payment, but resets your amortization clock.
+- **Best for:** Large lump sum + lowering your rate at the same time. Least efficient if your current rate is already competitive.
+
+### Option 3 — Sell
+- Estimated net proceeds: **${f$(Math.max(0, sellNet))}** (after ~7% in agent, title & transfer costs)
+- **How it works:** Full equity capture at closing. Clean exit.
+- **Best for:** Maximizing liquidity, upsizing, or downsizing.
+
+---
+
+${verdict}
+
+*Share your current interest rate and I'll run the exact cash-out refi payment and break-even.*`;
+
+            const equityChips = [
+                { label: `HELOC max ${f$(helocMax)} — payments, rate, draw period`, seed: `I have a home worth ${f$(qHomeValue)} and owe ${f$(balance)}. Walk me through a HELOC: max line size, typical rate today, interest-only draw period payments, and how it compares to my existing mortgage.` },
+                { label: `Cash-out refi — what rate makes it worth resetting?`, seed: `I have ${f$(equity)} equity in a ${f$(qHomeValue)} home with a ${f$(balance)} balance. At what interest rate does a cash-out refi actually make sense vs just getting a HELOC?` },
+                { label: `Sell at ${f$(qHomeValue)} — full proceeds breakdown`, seed: `If I sell my home at ${f$(qHomeValue)} with a ${f$(balance)} remaining balance, break down all selling costs (agent commission, transfer tax, title, escrow) to show my exact net proceeds.` },
+            ];
+
+            const helocCard = {
+                homeValue:   qHomeValue,
+                balance:     balance,
+                drawAmount:  Math.min(100_000, helocMax),
+                helocRate:   9.0,
+                cashOutRate: marketRate ?? undefined,
+            };
+
+            return noStore({
+                ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
+                generatedAt, usedFRED, usedTavily, fred, topSources,
+                grok: { answer: answerText, follow_up: equityChips[0].label, follow_up_chips: equityChips, confidence: "high" },
+                debug: { bypass: "equity_options_direct", parsed: { balance, homeValue: qHomeValue, equity, equityPct: equityPct.toFixed(1) } },
+                message: answerText, answerMarkdown: buildAnswerMarkdown(answerText),
+                followUp: equityChips[0].label, follow_up_chips: equityChips,
+                helocCard,
+            });
+        }
+
         if (!balance || !currentRate) {
             const marketNote = marketRate
                 ? `\n\n> 📡 **Today's market rate: ${fPct(marketRate)}** (FRED, live ${fredAsOf})`
