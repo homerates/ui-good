@@ -2797,7 +2797,8 @@ async function handle(req: NextRequest, intentParam?: string) {
             const raw = balM[1].replace(/,/g, '');
             const n = parseFloat(raw);
             if (isFinite(n)) {
-                const mSuf = /\$\s*\d+(?:\.\d+)?\s*[Mm]\b/.test(qFull);
+                // Check matched token only — not full question (prevents $100k × $2.35M = $100B bug)
+                const mSuf = /\$\s*\d+(?:\.\d+)?\s*[Mm]\b/.test(balM[0]);
                 const kSuf = /\$\s*\d+(?:\.\d+)?\s*k\b/i.test(balM[0]);
                 balance = mSuf ? n * 1_000_000 : kSuf ? n * 1000 : n;
             }
@@ -2952,11 +2953,9 @@ ${verdict}
 
 *Share your current interest rate and I'll run the exact cash-out refi payment and break-even.*`;
 
-            const equityChips = [
-                { label: `HELOC max ${f$(helocMax)} — payments, rate, draw period`, seed: `I have a home worth ${f$(eqHomeValue)} and owe ${f$(eqBalance)}. Walk me through a HELOC: max line size, typical rate today, interest-only draw period payments, and how it compares to my existing mortgage.` },
-                { label: `Cash-out refi — what rate makes it worth resetting?`, seed: `I have ${f$(equity)} equity in a ${f$(eqHomeValue)} home with a ${f$(eqBalance)} balance. At what interest rate does a cash-out refi actually make sense vs just getting a HELOC?` },
-                { label: `Sell at ${f$(eqHomeValue)} — full proceeds breakdown`, seed: `If I sell my home at ${f$(eqHomeValue)} with a ${f$(eqBalance)} remaining balance, break down all selling costs (agent commission, transfer tax, title, escrow) to show my exact net proceeds.` },
-            ];
+            // No chips — the HELOC card is the interactive element; chips with dollar amounts
+            // confuse the refi handler's balance parser on follow-up questions.
+            const equityChips: Array<{ label: string; seed: string }> = [];
 
             const helocCard = {
                 homeValue:   eqHomeValue,
