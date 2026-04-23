@@ -187,6 +187,9 @@ async function getSnapshot(address: string) {
     // Invalidate assessed-value snapshots — CA Prop 13 values can be 5–10× below market.
     // Force a fresh ATTOM pass so we pick up the real sale price from their DB.
     if ((snap.data as any)?.avmSource === 'attom_assessed') return null;
+    // Invalidate snapshots with absurd AVM values (ATTOM sometimes returns bad data).
+    const snapAvm = (snap.data as any)?.estimatedValue;
+    if (snapAvm && snapAvm > 50_000_000) return null;
     return snap.data as PropertyData;
   } catch { return null; }
 }
@@ -286,8 +289,11 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   const stateCode = prop?.state ?? stateFromAddress(address.toUpperCase());
   const annualRate = fhfaRate(stateCode) / 100;
   const salePrice = rawSalePrice ?? null;
-  const saleDate  = rawSaleDateStr ? new Date(rawSaleDateStr) : null;
-  const yearsElapsed = saleDate ? Math.max(0, (Date.now() - saleDate.getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
+  const saleDateRaw = rawSaleDateStr ? new Date(rawSaleDateStr) : null;
+  // Reject invalid or ancient dates (pre-1900 signals corrupted data from ATTOM/import)
+  const saleDate = saleDateRaw && !isNaN(saleDateRaw.getTime()) && saleDateRaw.getFullYear() >= 1900 ? saleDateRaw : null;
+  // Cap at 50 years — FHFA compounding beyond that produces nonsensical residential AVMs
+  const yearsElapsed = saleDate ? Math.min(50, Math.max(0, (Date.now() - saleDate.getTime()) / (365.25 * 24 * 3600 * 1000))) : null;
 
   let estimatedValue: number | null = null;
   if (salePrice && yearsElapsed !== null) {
@@ -312,7 +318,9 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
       getAttomComps(address),
     ]);
     inlineProfile = profileRes.status === 'fulfilled' && (profileRes.value.beds || profileRes.value.lastSalePrice) ? profileRes.value : null;
-    inlineAvm     = avmRes.status     === 'fulfilled' && avmRes.value.estimatedValue   ? avmRes.value   : null;
+    // Reject AVM responses >$50M — ATTOM occasionally returns garbage values
+    const rawInlineAvm = avmRes.status === 'fulfilled' && avmRes.value.estimatedValue ? avmRes.value : null;
+    inlineAvm = rawInlineAvm && (rawInlineAvm.estimatedValue ?? 0) <= AVM_MAX ? rawInlineAvm : null;
     inlineMtg     = mtgRes.status     === 'fulfilled' && mtgRes.value.openBalance      ? mtgRes.value   : null;
     inlineComps   = compsRes.status   === 'fulfilled'                                  ? compsRes.value : [];
     console.log('[analysis] ATTOM results — avm:', inlineAvm?.estimatedValue, 'beds:', inlineProfile?.beds, 'mtg:', inlineMtg?.openBalance, 'comps:', inlineComps.length);
@@ -334,19 +342,28 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // If ATTOM profile has a more recent/higher sale price than DB (e.g. recent flip),
   // recalculate FHFA from it — otherwise assessed-value fallback would be used instead.
   if (inlineProfile?.lastSalePrice && inlineProfile.lastSalePrice > (salePrice ?? 0)) {
-    const pDate = inlineProfile.lastSaleDate ? new Date(inlineProfile.lastSaleDate) : null;
-    const pYrs  = pDate ? Math.max(0, (Date.now() - pDate.getTime()) / (365.25 * 24 * 3600 * 1000)) : 0;
-    const fhfaEst = Math.round(inlineProfile.lastSalePrice * Math.pow(1 + annualRate, pYrs));
-    if (fhfaEst > (estimatedValue ?? 0)) {
+    const pDateRaw = inlineProfile.lastSaleDate ? new Date(inlineProfile.lastSaleDate) : null;
+    const pDateOk  = pDateRaw && !isNaN(pDateRaw.getTime()) && pDateRaw.getFullYear() >= 1900;
+    const pYrs     = pDateOk ? Math.min(50, Math.max(0, (Date.now() - pDateRaw!.getTime()) / (365.25 * 24 * 3600 * 1000))) : 0;
+    const fhfaEst  = Math.round(inlineProfile.lastSalePrice * Math.pow(1 + annualRate, pYrs));
+    if (fhfaEst > (estimatedValue ?? 0) && fhfaEst <= AVM_MAX) {
       estimatedValue     = fhfaEst;
       estimatedValueLow  = Math.round(fhfaEst * 0.92);
       estimatedValueHigh = Math.round(fhfaEst * 1.08);
     }
   }
 
-  // ATTOM AVM overrides FHFA appreciation model — stored prop wins, inline is fallback
+  // ATTOM AVM overrides FHFA appreciation model — stored prop wins, inline is fallback.
+  // Reject values >$50M — residential AVM cap; if DB has garbage, clear it non-blocking.
+  const AVM_MAX = 50_000_000;
   const attomConf = prop?.avm_confidence ?? inlineAvm?.confidence ?? null;
-  let attomAvm    = prop?.avm_value ?? inlineAvm?.estimatedValue ?? null;
+  const rawAttomAvm = prop?.avm_value ?? inlineAvm?.estimatedValue ?? null;
+  let attomAvm = rawAttomAvm && rawAttomAvm <= AVM_MAX ? rawAttomAvm : null;
+  if (rawAttomAvm && rawAttomAvm > AVM_MAX && prop?.id) {
+    // Clear the bad value from DB so it won't be served again
+    void db().from('properties').update({ avm_value: null, avm_value_low: null, avm_value_high: null, avm_confidence: null, avm_date: null }).eq('id', prop.id);
+    console.log(`[analysis] Cleared bad ATTOM AVM ${rawAttomAvm} for property ${prop.id}`);
+  }
 
   // Sanity-check low-confidence ATTOM AVMs against Zillow/Redfin via Tavily.
   // ATTOM is unreliable for luxury/private estates with sparse comps (tScore < 50).
