@@ -1875,7 +1875,7 @@ function MyHomePageInner() {
                                   ...(a.beds    ? { cmaBeds:  String(a.beds)  } : {}),
                                   ...(a.baths   ? { cmaBaths: String(a.baths) } : {}),
                                   ...(a.sqft    ? { cmaSqft:  String(a.sqft)  } : {}),
-                                  ...(a.photoUrl || a.streetViewUrl ? { cmaPhotoUrl: a.photoUrl ?? a.streetViewUrl ?? '' } : {}),
+                                  ...(a.streetViewUrl ? { cmaPhotoUrl: a.streetViewUrl } : {}),
                                 });
                                 return `/chat?${p.toString()}`;
                               })()}
@@ -1907,7 +1907,7 @@ function MyHomePageInner() {
                                   ...(a.beds    ? { cmaBeds:  String(a.beds)  } : {}),
                                   ...(a.baths   ? { cmaBaths: String(a.baths) } : {}),
                                   ...(a.sqft    ? { cmaSqft:  String(a.sqft)  } : {}),
-                                  ...(a.photoUrl || a.streetViewUrl ? { cmaPhotoUrl: a.photoUrl ?? a.streetViewUrl ?? '' } : {}),
+                                  ...(a.streetViewUrl ? { cmaPhotoUrl: a.streetViewUrl } : {}),
                                 });
                                 return `/chat?${p.toString()}`;
                               })()}
