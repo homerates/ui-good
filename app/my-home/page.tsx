@@ -1783,9 +1783,9 @@ function MyHomePageInner() {
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
                             {[
                               { label: analysis.avmSource === 'attom' ? 'ATTOM AVM' : analysis.avmSource === 'attom_assessed' ? 'ATTOM Assessed' : 'Est. Value', value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true, missing: false },
-                              { label: 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0, missing: !analysis.estimatedEquity && !(analysis.estimatedEquity != null && analysis.estimatedEquity < 0) },
+                              { label: analysis.balanceIsEstimated ? 'Est. Equity' : 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0, missing: !analysis.estimatedEquity && !(analysis.estimatedEquity != null && analysis.estimatedEquity < 0) },
                               { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true, missing: false },
-                              { label: 'LTV Ratio',    value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100, missing: analysis.ltv === null },
+                              { label: analysis.balanceIsEstimated ? 'LTV (est.)' : 'LTV Ratio', value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100, missing: analysis.ltv === null },
                             ].map((s, i) => (
                               <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
                                 <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
@@ -1801,14 +1801,19 @@ function MyHomePageInner() {
 
                         {/* Equity bar — owner mode only */}
                         {!isBuyer && analysis.equityPct != null && analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 && (
-                          <div style={{ marginBottom: 20 }}>
+                          <div style={{ marginBottom: analysis.balanceIsEstimated ? 10 : 20 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#475569', marginBottom: 5 }}>
                               <span style={{ color: '#00e87a' }}>{`$${Math.round(analysis.estimatedEquity / 1000)}K equity (${analysis.equityPct}%)`}</span>
-                              <span>{analysis.estimatedBalance ? `$${Math.round(analysis.estimatedBalance / 1000)}K balance` : 'Balance'}</span>
+                              <span>{analysis.estimatedBalance ? `$${Math.round(analysis.estimatedBalance / 1000)}K ${analysis.balanceIsEstimated ? 'est. balance' : 'balance'}` : 'Balance'}</span>
                             </div>
                             <div style={{ height: 6, background: '#1e293b', borderRadius: 999, overflow: 'hidden' }}>
                               <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
                             </div>
+                            {analysis.balanceIsEstimated && !borrowerId && (
+                              <div style={{ marginTop: 6, marginBottom: 14, fontSize: '0.62rem', color: '#475569' }}>
+                                Equity &amp; LTV estimated assuming 20% down · <button onClick={openLoanEditor} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00e87a', fontWeight: 600, fontSize: '0.62rem', padding: 0 }}>Enter actual balance →</button>
+                              </div>
+                            )}
                           </div>
                         )}
                         {/* Underwater warning — owner mode only */}
