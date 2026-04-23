@@ -2968,10 +2968,10 @@ ${verdict}
             return noStore({
                 ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
                 generatedAt, usedFRED, usedTavily, fred, topSources,
-                grok: { answer: answerText, follow_up: equityChips[0]?.label ?? '', follow_up_chips: equityChips, confidence: "high" },
+                grok: { answer: answerText, follow_up: '', follow_up_chips: [], confidence: "high" },
                 debug: { bypass: "equity_options_direct", parsed: { balance: eqBalance, homeValue: eqHomeValue, equity, equityPct: equityPct.toFixed(1) } },
                 message: answerText, answerMarkdown: buildAnswerMarkdown(answerText),
-                followUp: equityChips[0]?.label ?? '', follow_up_chips: equityChips,
+                followUp: null, follow_up_chips: [],
                 helocCard,
             });
         }
@@ -3024,10 +3024,10 @@ To give you a real verdict (not just math), I need:
             return noStore({
                 ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
                 generatedAt, usedFRED, usedTavily, fred, topSources,
-                grok: { answer: askMsg, follow_up: contextChips[0].label, follow_up_chips: contextChips, confidence: "needs_input" },
+                grok: { answer: askMsg, follow_up: '', follow_up_chips: [], confidence: "needs_input" },
                 debug: { bypass: "refi_needs_input", refiType, parsed: { balance, currentRate, newRate, monthsLeft } },
                 message: askMsg, answerMarkdown: buildAnswerMarkdown(askMsg),
-                followUp: contextChips[0].label, follow_up_chips: contextChips,
+                followUp: null, follow_up_chips: [],
                 refiSlider: {
                     balance:      defaultBal,
                     currentRate:  defaultCurRate,
@@ -3396,7 +3396,7 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
                 parsed: { balance, currentRate, newRate: effNewRate, monthsLeft, yearsIn, closingCosts: effCosts, monthlySavings: Math.round(save), beMonths: beM ? Math.round(beM) : null, triggerRates: { yr2: trig2yr, yr3: trig3yr, yr5: trig5yr } },
             },
             message: md, answerMarkdown: buildAnswerMarkdown(md),
-            followUp: refiChips[0].label, follow_up_chips: refiChips,
+            followUp: null, follow_up_chips: [],
         });
 
     }
@@ -4075,7 +4075,7 @@ ${uwDatabase}`;
             message: uwAnswerText,
             answerMarkdown: buildAnswerMarkdown(uwAnswerText),
             followUp: null,
-            follow_up_chips: buildUWCard({ question, answerMarkdown: uwAnswerText }).follow_up_chips,
+            follow_up_chips: [],
         });
     }
     // ========== END UNDERWRITING GUIDELINES BYPASS ==========
@@ -5266,7 +5266,7 @@ ${uwDatabase}`;
                 message: calcCard.answer,
                 answerMarkdown: (calcCard as any).labModules ? null : buildAnswerMarkdown(answerWithSources),
                 followUp: null,
-                follow_up_chips: calcCard.follow_up_chips,
+                follow_up_chips: [],
             });
             } // end !_cmaEarlyCheck
         }

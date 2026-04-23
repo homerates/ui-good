@@ -2023,7 +2023,7 @@ export default function Page() {
                             answerMarkdown: friendly,
                             propertyCard: d,
                             refiSlider,
-                            follow_up_chips: refiChips,
+                            follow_up_chips: [],
                         };
 
                         setMessages((prev) =>
