@@ -2968,10 +2968,10 @@ ${verdict}
             return noStore({
                 ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
                 generatedAt, usedFRED, usedTavily, fred, topSources,
-                grok: { answer: answerText, follow_up: equityChips[0].label, follow_up_chips: equityChips, confidence: "high" },
+                grok: { answer: answerText, follow_up: equityChips[0]?.label ?? '', follow_up_chips: equityChips, confidence: "high" },
                 debug: { bypass: "equity_options_direct", parsed: { balance: eqBalance, homeValue: eqHomeValue, equity, equityPct: equityPct.toFixed(1) } },
                 message: answerText, answerMarkdown: buildAnswerMarkdown(answerText),
-                followUp: equityChips[0].label, follow_up_chips: equityChips,
+                followUp: equityChips[0]?.label ?? '', follow_up_chips: equityChips,
                 helocCard,
             });
         }
