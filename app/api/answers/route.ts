@@ -4670,7 +4670,7 @@ ${uwDatabase}`;
         card.follow_up_chips = card.follow_up_chips.map((chip: any) =>
             chip.paramOverrides ? { ...chip, paramOverrides: { ...chip.paramOverrides, ..._cmaParams } } : chip
         );
-        card.follow_up_chips.push({ label: `📍 Back to listing: ${shortAddr}`, seed: _cmaRerunSeed, paramOverrides: _cmaParams });
+        card.follow_up_chips.push({ label: `Full Property Intelligence Report`, seed: _cmaRerunSeed, paramOverrides: _cmaParams });
     }
 
     {

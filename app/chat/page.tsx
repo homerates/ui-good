@@ -1224,7 +1224,7 @@ export default function Page() {
                     cmaTaxAnnual: searchParams.get('cmaTaxAnnual') ? parseFloat(searchParams.get('cmaTaxAnnual')!) : undefined,
                     cmaTaxRate:  0.011,
                     cmaLiveRate: searchParams.get('cmaLiveRate') ? parseFloat(searchParams.get('cmaLiveRate')!) : undefined,
-                    cmaPhotoUrl: '',
+                    cmaPhotoUrl: searchParams.get('cmaPhotoUrl') ?? '',
                 };
             }
         }

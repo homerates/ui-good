@@ -1864,7 +1864,20 @@ function MyHomePageInner() {
                                 if (a.daysOnMarket != null) parts.push(`Property has been on market ${a.daysOnMarket} days.`);
                                 if (a.lastSalePrice) parts.push(`Seller originally paid $${Math.round(a.lastSalePrice).toLocaleString()}${a.lastSaleDate ? ` in ${a.lastSaleDate}` : ''}.`);
                                 parts.push('Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.');
-                                return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+                                const addrParts = (a.address ?? '').split(',').map((s: string) => s.trim());
+                                const p = new URLSearchParams({
+                                  sq: parts.join(' '),
+                                  cmaAddress: a.address ?? '',
+                                  cmaCity:    addrParts[1] ?? '',
+                                  cmaState:   (addrParts[2] ?? '').replace(/\s*\d{5}.*/, '').trim(),
+                                  cmaPrice:   String(ask ?? ''),
+                                  cmaLiveRate: String(a.liveRate.toFixed(2)),
+                                  ...(a.beds    ? { cmaBeds:  String(a.beds)  } : {}),
+                                  ...(a.baths   ? { cmaBaths: String(a.baths) } : {}),
+                                  ...(a.sqft    ? { cmaSqft:  String(a.sqft)  } : {}),
+                                  ...(a.photoUrl || a.streetViewUrl ? { cmaPhotoUrl: a.photoUrl ?? a.streetViewUrl ?? '' } : {}),
+                                });
+                                return `/chat?${p.toString()}`;
                               })()}
                               style={{ padding: '10px 20px', borderRadius: 999, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                             >
@@ -1883,7 +1896,20 @@ function MyHomePageInner() {
                                 if (a.lastSalePrice) parts.push(`Purchase price: $${Math.round(a.lastSalePrice).toLocaleString()}.`);
                                 if (a.piti) parts.push(`Current PITI: $${Math.round(a.piti).toLocaleString()}/mo.`);
                                 parts.push('Show me refinance savings, break-even, and equity options. Use these exact figures.');
-                                return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+                                const addrParts = (a.address ?? '').split(',').map((s: string) => s.trim());
+                                const p = new URLSearchParams({
+                                  sq: parts.join(' '),
+                                  cmaAddress: a.address ?? '',
+                                  cmaCity:    addrParts[1] ?? '',
+                                  cmaState:   (addrParts[2] ?? '').replace(/\s*\d{5}.*/, '').trim(),
+                                  cmaPrice:   String(a.estimatedValue ?? ''),
+                                  cmaLiveRate: String(a.liveRate.toFixed(2)),
+                                  ...(a.beds    ? { cmaBeds:  String(a.beds)  } : {}),
+                                  ...(a.baths   ? { cmaBaths: String(a.baths) } : {}),
+                                  ...(a.sqft    ? { cmaSqft:  String(a.sqft)  } : {}),
+                                  ...(a.photoUrl || a.streetViewUrl ? { cmaPhotoUrl: a.photoUrl ?? a.streetViewUrl ?? '' } : {}),
+                                });
+                                return `/chat?${p.toString()}`;
                               })()}
                               style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                             >
