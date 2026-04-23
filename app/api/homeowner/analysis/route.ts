@@ -183,6 +183,9 @@ async function getSnapshot(address: string) {
     // Invalidate only if ATTOM is configured AND this snapshot was never ATTOM-checked at all
     // (avmDate may be null for properties where ATTOM has no AVM — that's OK, still cache it)
     if (process.env.ATTOM_API_KEY && !(snap.data as any)?.attomCheckedAt) return null;
+    // Invalidate assessed-value snapshots — CA Prop 13 values can be 5–10× below market.
+    // Force a fresh ATTOM pass so we pick up the real sale price from their DB.
+    if ((snap.data as any)?.avmSource === 'attom_assessed') return null;
     return snap.data as PropertyData;
   } catch { return null; }
 }
@@ -218,9 +221,16 @@ type PropertyData = {
 
 // ── Main local property intelligence — replaces rentcastLookup ───────────────
 async function propertyLookup(address: string, record: Record<string, any>): Promise<PropertyData | null> {
-  // 1. Check snapshot cache
+  // 1. Check snapshot cache — back-fill Maps URLs dynamically (env-var-based, not stored)
   const cached = await getSnapshot(address);
-  if (cached) return cached;
+  if (cached) {
+    const mk = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
+    if (mk && !cached.streetViewUrl) {
+      cached.streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=800x300&location=${encodeURIComponent(address)}&return_error_code=true&key=${mk}`;
+      cached.staticMapUrl  = `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(address)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(address)}&key=${mk}`;
+    }
+    return cached;
+  }
 
   // 2. Check properties table for stored sale data
   const addr = normalizeAddr(address);
@@ -317,6 +327,19 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
       if (inlineComps.length > 0) {
         void db().from('property_snapshots').insert({ property_id: prop.id, snapshot_type: 'comps', source: 'attom', data: inlineComps, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), confidence: 0.95 });
       }
+    }
+  }
+
+  // If ATTOM profile has a more recent/higher sale price than DB (e.g. recent flip),
+  // recalculate FHFA from it — otherwise assessed-value fallback would be used instead.
+  if (inlineProfile?.lastSalePrice && inlineProfile.lastSalePrice > (salePrice ?? 0)) {
+    const pDate = inlineProfile.lastSaleDate ? new Date(inlineProfile.lastSaleDate) : null;
+    const pYrs  = pDate ? Math.max(0, (Date.now() - pDate.getTime()) / (365.25 * 24 * 3600 * 1000)) : 0;
+    const fhfaEst = Math.round(inlineProfile.lastSalePrice * Math.pow(1 + annualRate, pYrs));
+    if (fhfaEst > (estimatedValue ?? 0)) {
+      estimatedValue     = fhfaEst;
+      estimatedValueLow  = Math.round(fhfaEst * 0.92);
+      estimatedValueHigh = Math.round(fhfaEst * 1.08);
     }
   }
 
