@@ -2802,7 +2802,7 @@ export default function Page() {
                                                                 ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
-                                                                    : (m.meta.followUp ?? m.meta.grok?.follow_up),
+                                                                    : (m.meta.followUp ?? undefined),
                                                                 data_freshness:
                                                                     m.meta.data_freshness ??
                                                                     m.meta.fred?.asOf ??
