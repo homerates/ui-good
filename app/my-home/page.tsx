@@ -414,7 +414,8 @@ function CardHELOC({ d }: { d: AnalysisData }) {
   );
 }
 
-function CardRefi({ d, onEdit }: { d: AnalysisData; onEdit: () => void }) {
+function CardRefi({ d, onEdit, plan, isLo }: { d: AnalysisData; onEdit: () => void; plan?: string; isLo?: boolean }) {
+  const canSeeLoan = isLo || plan === 'pro' || plan === 'founding';
   const hasOpportunity = d.refiMonthlySaving > 50 && d.purchaseRate && d.purchaseRate > d.liveRate;
   return (
     <div>
@@ -444,7 +445,7 @@ function CardRefi({ d, onEdit }: { d: AnalysisData; onEdit: () => void }) {
         </div>
       )}
 
-      {(d.mortgageLender || d.mortgageOriginalAmount) && (
+      {(d.mortgageLender || d.mortgageOriginalAmount) && canSeeLoan && (
         <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.55)', display: 'flex', flexWrap: 'wrap' as const, gap: '4px 6px', alignItems: 'center' }}>
           <span style={{ color: 'rgba(255,255,255,0.35)', marginRight: 2 }}>Current loan on record:</span>
           {d.mortgageOriginalAmount && (
@@ -456,6 +457,13 @@ function CardRefi({ d, onEdit }: { d: AnalysisData; onEdit: () => void }) {
           {d.mortgageOriginationDate && (
             <span style={{ color: 'rgba(255,255,255,0.35)' }}>· originated {new Date(d.mortgageOriginationDate).getFullYear()}</span>
           )}
+        </div>
+      )}
+      {(d.mortgageLender || d.mortgageOriginalAmount) && !canSeeLoan && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '0.9rem' }}>🔒</span>
+          <span style={{ color: 'rgba(255,255,255,0.35)' }}>Loan on record available on </span>
+          <a href="/pricing" style={{ color: '#00e87a', textDecoration: 'none', fontWeight: 600 }}>Pro plan →</a>
         </div>
       )}
 
@@ -1218,6 +1226,13 @@ function MyHomePageInner() {
 
   // Nearby sales
   const [nearbySales, setNearbySales] = useState<NearbySale[]>([]);
+
+  // User plan — loan-on-record is Pro-only
+  const [userPlan, setUserPlan] = useState<string>('free');
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    fetch('/api/user/plan').then(r => r.json()).then(d => { if (d?.plan) setUserPlan(d.plan); }).catch(() => {});
+  }, [isLoaded, user]);
 
   // Derived
   const activeProperty = properties.find(p => p.id === activePropertyId)
@@ -2064,7 +2079,7 @@ function MyHomePageInner() {
                               <>
                                 {activeChip === 'equity'     && <><CardEquity d={analysis} nearbySales={nearbySales} onEdit={!borrowerId ? openLoanEditor : undefined} /><CardComps d={analysis} /><CardPropertyIntel d={analysis} /></>}
                                 {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
-                                {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} />}
+                                {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} plan={userPlan} isLo={!!analysis.isLoView} />}
                                 {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
                                 {activeChip === 'milestones' && <CardMilestones d={analysis} />}
                               </>

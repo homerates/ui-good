@@ -11,6 +11,7 @@ import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
 import { requireAdmin } from '../../../../lib/adminAuth';
+import { getUserPlan } from '../../../../lib/subscription';
 import { enrichFromAttom, getAttomAVM, getAttomMortgage, getAttomComps, type AttomComp, type AttomAVM, type AttomMortgage, type AttomProperty } from '../../../../lib/attom';
 
 function db() {
@@ -786,8 +787,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
   }
 
+  const userPlan = await getUserPlan(userId);
+  const isPro = userPlan.plan === 'pro' || userPlan.plan === 'founding';
+
+  const payload = buildAnalysis(propData, fred, homeowner, historyRes.data ?? []);
+  if (!isPro) {
+    // Loan-on-record is Pro-only — strip from consumer response
+    (payload as any).mortgageLender = null;
+    (payload as any).mortgageOriginalAmount = null;
+    (payload as any).mortgageOriginationDate = null;
+  }
+
   return NextResponse.json({
     address: homeowner.property_address,
-    ...buildAnalysis(propData, fred, homeowner, historyRes.data ?? []),
+    ...payload,
   });
 }
