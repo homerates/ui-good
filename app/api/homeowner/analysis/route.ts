@@ -132,6 +132,35 @@ async function tavilyAvmSearch(address: string): Promise<number | null> {
   } catch { return null; }
 }
 
+// Quick listing-status check via Tavily — fires only when DB has no status
+async function checkListingStatus(address: string): Promise<string | null> {
+  const key = process.env.TAVILY_API_KEY;
+  if (!key) return null;
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch('https://api.tavily.com/search', {
+      method: 'POST', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: key,
+        query: `"${address}" site:redfin.com`,
+        max_results: 3,
+        search_depth: 'basic',
+        include_answer: false,
+      }),
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = (data.results ?? []).map((r: any) => `${r.title ?? ''} ${r.content ?? ''}`).join(' ').toLowerCase();
+    if (/\bfor sale\b|\bactive listing\b/.test(text)) return 'FOR_SALE';
+    if (/\bpending\b|\bunder contract\b/.test(text)) return 'PENDING';
+    if (/\bsold\b/.test(text)) return 'SOLD';
+    return null;
+  } catch { return null; }
+}
+
 async function tavilyPropertySearch(address: string): Promise<{ lastSalePrice: number | null; lastSaleDate: string | null }> {
   const key = process.env.TAVILY_API_KEY;
   if (!key) return { lastSalePrice: null, lastSaleDate: null };
@@ -402,6 +431,14 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
 
   // FOR_SALE / PENDING: listing price is the confirmed market price — always beats ATTOM model
   // property/lookup writes latest_value (Redfin AVM ≈ list price) and latest_listing_status
+  // If status is unknown (null), do a quick Redfin/Tavily check now so card mode is correct.
+  if (prop && !prop.latest_listing_status) {
+    const freshStatus = await checkListingStatus(address);
+    if (freshStatus) {
+      prop.latest_listing_status = freshStatus;
+      void db().from('properties').update({ latest_listing_status: freshStatus, updated_at: new Date().toISOString() }).eq('id', prop.id);
+    }
+  }
   const listingStatus = (prop?.latest_listing_status as string | null) ?? null;
   const isForSale = listingStatus === 'FOR_SALE' || listingStatus === 'PENDING';
   const listingAvm = (isForSale && prop?.latest_value && prop.latest_value > 50_000 && prop.latest_value <= AVM_MAX)

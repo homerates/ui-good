@@ -1366,7 +1366,12 @@ function MyHomePageInner() {
       return;
     }
     setSaving(true);
-    // Fire Redfin enrichment in background before saving
+    // Fire lookup (listing status) + enrich (ATTOM AVM) in parallel before saving
+    void fetch('/api/property/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: newAddress.trim() }),
+    });
     void fetch('/api/property/enrich', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
