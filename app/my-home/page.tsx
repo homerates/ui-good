@@ -736,11 +736,6 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
           </div>
           <div className="mh-stat-sub">{spread != null ? `${spread > 0 ? '+' : ''}${spread}% vs ask` : ''}</div>
         </div>
-        <div className="mh-stat">
-          <div className="mh-stat-label">Seller Paid{basisYear ? ` (${basisYear})` : ''}</div>
-          <div className="mh-stat-value">{basis ? fmt(basis) : '—'}</div>
-          <div className="mh-stat-sub">{basisGain != null ? `+${basisGain}% seller gain` : ''}</div>
-        </div>
       </div>
       {d.daysOnMarket != null && (
         <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(99,179,237,0.06)', border: '1px solid rgba(99,179,237,0.15)', borderRadius: 8 }}>
@@ -757,11 +752,6 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
           {[d.beds && `${d.beds} bd`, d.baths && `${d.baths} ba`, d.sqft && `${d.sqft.toLocaleString()} sqft`].filter(Boolean).join(' · ')}
         </div>
       ) : null}
-      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
-        <a href={`/chat?sq=${encodeURIComponent(`Pricing analysis for ${d.address}: listed at ${listPrice ? fmt(listPrice) : '?'}${spread != null ? `, Redfin AVM ${avm ? fmt(avm) : '?'} (${spread > 0 ? '+' : ''}${spread}% vs ask)` : ''}${d.daysOnMarket != null ? `, ${d.daysOnMarket} days on market` : ''}${basisGain != null ? `, seller gain ${basisGain}% since purchase` : ''}. Is this home fairly priced and what should I offer?`)}`} className="mh-cta-link" style={{ color: '#93c5fd' }}>
-          Run pricing analysis in chat →
-        </a>
-      </div>
     </div>
   );
 }
@@ -930,11 +920,6 @@ function CardTrueCost({ d }: { d: AnalysisData }) {
       <div style={{ marginTop: 12, fontSize: '0.65rem', color: '#334155', lineHeight: 1.5 }}>
         Assumes 20% down, 30yr fixed, 1.1% tax, 0.5% insurance, 4.2%/yr appreciation (FHFA historical avg).
       </div>
-      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
-        <a href={`/chat?sq=${encodeURIComponent(`True cost of buying ${d.address}${askPrice ? ` at ${fmt(askPrice)}` : ''}: 20% down, ${rate.toFixed(2)}% rate. Break down total cost at 5 and 10 years including interest paid, taxes, insurance, opportunity cost vs renting, and equity built. Is this a good investment horizon?`)}`} className="mh-cta-link" style={{ color: '#93c5fd' }}>
-          Model my full ownership costs →
-        </a>
-      </div>
     </div>
   );
 }
@@ -992,11 +977,6 @@ function CardOfferSignal({ d, nearbySales }: { d: AnalysisData; nearbySales?: Ne
           ))}
         </div>
       )}
-      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
-        <a href={`/chat?sq=${encodeURIComponent(`Offer strategy for ${d.address}: ${priceReason ? priceReason + '. ' : ''}${dom != null ? `${dom} days on market. ` : ''}${d.listPrice ? `Listed at ${fmt(d.listPrice)}. ` : ''}Based on these signals, what offer price should I make, what contingencies should I include, and what's the strongest overall offer strategy?`)}`} className="mh-cta-link" style={{ color: '#93c5fd' }}>
-          Get offer strategy advice →
-        </a>
-      </div>
     </div>
   );
 }
@@ -1379,6 +1359,13 @@ function MyHomePageInner() {
 
   async function addProperty() {
     if (!newAddress.trim()) return;
+    const normalized = newAddress.trim().toLowerCase();
+    const alreadySaved = properties.some(p => p.property_address?.toLowerCase() === normalized);
+    if (alreadySaved) {
+      setNewAddress('');
+      setAddingNew(false);
+      return;
+    }
     setSaving(true);
     // Fire Redfin enrichment in background before saving
     void fetch('/api/property/enrich', {
@@ -2112,7 +2099,7 @@ function MyHomePageInner() {
                         {!borrowerId && !isBuyer && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
                         {borrowerId && <Link href="/pro/clients" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Clients</Link>}
                       </div>
-                      <Link
+                      {!isBuyer && <Link
                         href={(() => {
                           const addr = analysis?.address ?? activeProperty?.property_address ?? '';
                           const bal  = analysis?.estimatedBalance;
@@ -2150,10 +2137,9 @@ function MyHomePageInner() {
                           return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
                         })()}
                         className="mh-cta-link"
-                        style={isBuyer ? { color: '#60a5fa' } : undefined}
                       >
-                        {isBuyer ? 'Ask a buying question →' : 'Ask a mortgage question →'}
-                      </Link>
+                        Ask a mortgage question →
+                      </Link>}
                     </div>
                   )}
                 </div>

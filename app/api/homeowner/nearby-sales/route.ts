@@ -1,10 +1,13 @@
 // app/api/homeowner/nearby-sales/route.ts
-// GET ?address=... — returns 3-5 recent comparable sales near the address via Tavily
+// GET ?address=... — returns 3-8 recent comparable sales near the address.
+// Primary: ATTOM salescomps/snapshot (0.5 mi, last 2 years)
+// Fallback: Tavily/Redfin text parse
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getAttomComps, type AttomComp } from '../../../../lib/attom';
 
 interface NearbySale {
   address: string;
@@ -69,6 +72,25 @@ export async function GET(req: NextRequest) {
   const address = req.nextUrl.searchParams.get('address');
   if (!address) return NextResponse.json({ error: 'address required' }, { status: 400 });
 
+  // Primary: ATTOM salescomps (0.5 mi, last 2 years)
+  try {
+    const attomComps = await getAttomComps(address);
+    if (attomComps.length >= 1) {
+      const sales: NearbySale[] = attomComps.map((c: AttomComp) => ({
+        address:      c.address,
+        price:        c.salePrice,
+        sqft:         c.sqft,
+        beds:         c.beds,
+        baths:        c.baths,
+        date:         c.saleDate,
+        pricePerSqft: c.pricePerSqft,
+        source:       'attom',
+      }));
+      return NextResponse.json({ ok: true, sales });
+    }
+  } catch { /* fall through to Tavily */ }
+
+  // Fallback: Tavily/Redfin text parse
   const key = process.env.TAVILY_API_KEY;
   if (!key) return NextResponse.json({ ok: true, sales: [] });
 

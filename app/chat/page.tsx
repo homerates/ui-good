@@ -2998,6 +2998,7 @@ export default function Page() {
                                                                         className="follow-up-chip-btn"
                                                                         onClick={() => {
                                                                             const chipParams = (chip as any).paramOverrides ?? null;
+                                                                            if ((chip as any).url) { router.push((chip as any).url); return; }
                                                                             // inputOnly chips: fill input + focus, no API call
                                                                             if ((chip as any).inputOnly) {
                                                                                 setInput(chip.seed);
