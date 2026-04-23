@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
   const { data: existing } = await db()
     .from('properties')
     .select('id, enriched_at, latest_last_sale_price, beds, sqft, avm_value')
-    .eq('address_full', addr)
+    .ilike('address_full', addr)
     .maybeSingle();
 
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;

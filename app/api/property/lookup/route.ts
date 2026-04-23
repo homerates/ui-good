@@ -18,7 +18,7 @@ const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Normalize address for canonical lookup (lowercase, trim extra spaces)
 function normalizeAddress(addr: string): string {
-  return addr.trim().replace(/\s+/g, ' ');
+  return addr.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 // Upsert a canonical property + snapshot into Supabase and return the property id
