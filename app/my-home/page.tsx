@@ -1829,28 +1829,30 @@ function MyHomePageInner() {
 
                         {/* CTA buttons */}
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                          {/* Save to My Properties — preview mode, non-buyer */}
-                          {previewAddress && !isBuyer && (
-                            <>
-                              <SignedIn>
-                                <button
-                                  onClick={async () => {
-                                    void fetch('/api/homeowner/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: previewAddress }) });
-                                    window.location.href = '/my-home';
-                                  }}
-                                  style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                  Save to My Properties
-                                </button>
-                              </SignedIn>
-                              <SignedOut>
-                                <SignInButton mode="modal">
-                                  <button style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                    Sign in to save &amp; track
-                                  </button>
-                                </SignInButton>
-                              </SignedOut>
-                            </>
-                          )}
+                          {/* Save to My Properties — always available for any signed-in user */}
+                          <SignedIn>
+                            {!saved ? (
+                              <button
+                                onClick={async () => {
+                                  void fetch('/api/homeowner/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: heroAddr }) });
+                                  setSaved(true);
+                                }}
+                                style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                Save to My Properties
+                              </button>
+                            ) : (
+                              <span style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.2)', color: 'rgba(0,232,122,0.6)', fontWeight: 700, fontSize: '0.82rem', display: 'inline-block' }}>
+                                ✓ Saved
+                              </span>
+                            )}
+                          </SignedIn>
+                          <SignedOut>
+                            <SignInButton mode="modal">
+                              <button style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                Sign in to save &amp; track
+                              </button>
+                            </SignInButton>
+                          </SignedOut>
                           {isBuyer ? (
                             <a
                               href={(() => {
