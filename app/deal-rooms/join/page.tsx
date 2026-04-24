@@ -8,7 +8,7 @@ export default function JoinDealRoomPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const token = searchParams?.get("token") ?? null;
 
   const [status, setStatus] = React.useState<"loading"|"joining"|"error"|"done">("loading");
   const [errorMsg, setErrorMsg] = React.useState("");
