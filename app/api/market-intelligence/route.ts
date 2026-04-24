@@ -4,7 +4,7 @@
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 import { NextResponse } from 'next/server';
 
@@ -125,7 +125,7 @@ Rules: No appraisal values. No investment advice. No lending advice. Buyer educa
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
     },
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(55_000),
     body: JSON.stringify({
       model: (process.env.XAI_MODEL || 'grok-4').trim(),
       messages: [
@@ -254,8 +254,8 @@ export async function POST(req: Request) {
       providersUsed.push('grok');
       grokOk = true;
     } catch (err: any) {
-      console.error('[market-intelligence] Grok failed:', err.message);
-      // Minimal fallback from property card data
+      const errMsg: string = err.message ?? 'unknown error';
+      console.error('[market-intelligence] Grok failed:', errMsg);
       grokData = {
         headline: `AI analysis for ${property.address} — limited data available.`,
         confidence_score: 'Low',
@@ -271,7 +271,7 @@ export async function POST(req: Request) {
         comp_strategy: [],
         mortgage_angle: [],
         offer_signal: 'Needs Comp Review',
-        source_notes: ['Grok analysis failed — report generated from card data only.'],
+        source_notes: [`Grok error: ${errMsg.slice(0, 120)}`],
       };
     }
 
