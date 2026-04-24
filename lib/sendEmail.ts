@@ -791,3 +791,72 @@ export async function emailCorporateInvite({
     console.error("[sendEmail] emailCorporateInvite failed:", err);
   }
 }
+
+// ─── Deal Room invite: LO/Agent → Buyer/Team member ─────────────────────────
+
+export async function emailDealRoomInvite({
+  toEmail,
+  toName,
+  fromName,
+  role,
+  propertyAddress,
+  joinUrl,
+}: {
+  toEmail: string;
+  toName: string | null;
+  fromName: string;
+  role: string;
+  propertyAddress: string | null;
+  joinUrl: string;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const roleLabel = role === 'lo' ? 'Loan Officer' : role === 'agent' ? 'Agent' : 'Buyer';
+  const greeting = toName ? `Hi ${toName},` : 'Hi,';
+
+  const propertyLine = propertyAddress
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#1c2433;border:1px solid rgba(255,255,255,0.07);border-radius:10px;">
+        <tr><td style="padding:14px 20px;">
+          <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Property</p>
+          <p style="margin:0;font-size:14px;font-weight:600;color:#e6edf3;">${propertyAddress}</p>
+        </td></tr>
+      </table>`
+    : '';
+
+  try {
+    await resend.emails.send({
+      from: `${fromName} via HomeRates Deal Rooms <${FROM}>`,
+      to: toEmail,
+      subject: `${fromName} invited you to a Deal Room on HomeRates.ai`,
+      html: emailShell(`
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Deal Room Invite</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#e6edf3;line-height:1.2;">${greeting}</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#8b949e;line-height:1.7;">
+          <strong style="color:#e6edf3;">${fromName}</strong> has invited you to join a Deal Room on HomeRates.ai as the
+          <strong style="color:#e6edf3;">${roleLabel}</strong>.
+          Deal Rooms are a private workspace for your real estate transaction — financing scenarios, messaging, and deal tracking in one place.
+        </p>
+        ${propertyLine}
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#1c2433;border:1px solid rgba(255,255,255,0.07);border-radius:10px;">
+          <tr>
+            <td style="padding:12px 20px;border-right:1px solid rgba(255,255,255,0.06);" width="50%">
+              <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Your role</p>
+              <p style="margin:0;font-size:15px;font-weight:700;color:#e6edf3;">${roleLabel}</p>
+            </td>
+            <td style="padding:12px 20px;" width="50%">
+              <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Invited by</p>
+              <p style="margin:0;font-size:15px;font-weight:700;color:#e6edf3;">${fromName}</p>
+            </td>
+          </tr>
+        </table>
+        <a href="${joinUrl}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 20px;border-radius:999px;text-decoration:none;">
+          Join Deal Room →
+        </a>
+        <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#8b949e;">This invite link is single-use and tied to your role in this transaction.</p>
+      `, `Sent by ${fromName} via HomeRates.ai Deal Rooms. Financing scenarios shown are illustrations only — not a Loan Estimate or commitment to lend.`),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailDealRoomInvite failed:", err);
+  }
+}

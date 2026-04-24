@@ -149,6 +149,9 @@ export default function DealRoomPage() {
   const [inviteLinks,  setInviteLinks]  = React.useState<Record<string,string>>({});
   const [copiedRole,   setCopiedRole]   = React.useState<string|null>(null);
   const [inviteLoaded, setInviteLoaded] = React.useState(false);
+  const [inviteNames,  setInviteNames]  = React.useState<Record<string,string>>({});
+  const [inviteEmails, setInviteEmails] = React.useState<Record<string,string>>({});
+  const [emailSentFor, setEmailSentFor] = React.useState<Record<string,boolean>>({});
 
   // Status
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
@@ -343,12 +346,18 @@ export default function DealRoomPage() {
   }
 
   async function generateInvite(role: string) {
-    await fetch(`/api/deal-rooms/${roomId}/invite`, {
+    const name  = inviteNames[role]?.trim()  || undefined;
+    const email = inviteEmails[role]?.trim() || undefined;
+    const res = await fetch(`/api/deal-rooms/${roomId}/invite`, {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ role, display_name: name, email }),
     });
+    if (res.ok) {
+      const d = await res.json();
+      if (d.emailSent) setEmailSentFor(prev => ({ ...prev, [role]: true }));
+    }
     setInviteLoaded(false);
-    loadInvites();
+    await loadInvites();
   }
 
   function copyInvite(role: string) {
@@ -1194,32 +1203,70 @@ export default function DealRoomPage() {
                   })}
 
                   <div style={{ marginTop:20, borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:16 }}>
-                    <p style={{ fontSize:12, color:"#6b7a99", marginBottom:14 }}>Invite links</p>
+                    <p style={{ fontSize:12, color:"#6b7a99", marginBottom:14 }}>Invite team members</p>
                     {(["buyer","lo","agent"] as const).map((role) => {
                       const m      = members.find((x) => x.role === role);
                       const link   = inviteLinks[role];
                       const joined = m?.joined_at;
                       const rc     = ROLE_COLORS[role];
                       return (
-                        <div key={role} style={{ marginBottom:12 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+                        <div key={role} style={{ marginBottom:18, paddingBottom:18, borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                             <span style={{ fontSize:12, fontWeight:600, color:rc }}>{ROLE_LABELS[role]}</span>
                             {joined && <span style={{ fontSize:11, color:"#00e87a" }}>✓ Joined</span>}
                           </div>
                           {!joined && (
-                            <div style={{ display:"flex", gap:8 }}>
-                              {link
-                                ? <>
-                                    <span className="invite-url">{link}</span>
-                                    <button className="dr-ghost" style={{ flexShrink:0, fontSize:12, padding:"6px 12px" }} onClick={() => copyInvite(role)}>
-                                      {copiedRole === role ? "Copied!" : "Copy"}
+                            <>
+                              {/* Name + Email inputs */}
+                              <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                                <input
+                                  type="text"
+                                  placeholder="Name (optional)"
+                                  value={inviteNames[role] ?? ""}
+                                  onChange={e => setInviteNames(prev => ({ ...prev, [role]: e.target.value }))}
+                                  style={{ flex:1, background:"#141b28", border:"1px solid rgba(255,255,255,0.08)", borderRadius:7, padding:"7px 10px", fontSize:12, color:"#f0f4ff", outline:"none" }}
+                                />
+                                <input
+                                  type="email"
+                                  placeholder="Email to send invite"
+                                  value={inviteEmails[role] ?? ""}
+                                  onChange={e => setInviteEmails(prev => ({ ...prev, [role]: e.target.value }))}
+                                  style={{ flex:1.4, background:"#141b28", border:"1px solid rgba(255,255,255,0.08)", borderRadius:7, padding:"7px 10px", fontSize:12, color:"#f0f4ff", outline:"none" }}
+                                />
+                              </div>
+                              {/* Link row */}
+                              <div style={{ display:"flex", gap:8 }}>
+                                {link
+                                  ? <>
+                                      <span className="invite-url">{link}</span>
+                                      <button className="dr-ghost" style={{ flexShrink:0, fontSize:12, padding:"6px 12px" }} onClick={() => copyInvite(role)}>
+                                        {copiedRole === role ? "Copied!" : "Copy"}
+                                      </button>
+                                      {inviteEmails[role]?.trim() && (
+                                        <button
+                                          className="dr-ghost"
+                                          style={{ flexShrink:0, fontSize:12, padding:"6px 12px", borderColor:emailSentFor[role]?"rgba(0,232,122,0.4)":"rgba(255,255,255,0.08)", color:emailSentFor[role]?"#00e87a":"#a0aec0" }}
+                                          onClick={() => generateInvite(role)}
+                                        >
+                                          {emailSentFor[role] ? "Sent!" : "Send email"}
+                                        </button>
+                                      )}
+                                    </>
+                                  : <button
+                                      className="dr-ghost"
+                                      style={{ fontSize:12, padding:"7px 14px" }}
+                                      onClick={() => generateInvite(role)}
+                                    >
+                                      {inviteEmails[role]?.trim() ? "Generate & send invite" : "Generate link"}
                                     </button>
-                                  </>
-                                : <button className="dr-ghost" style={{ fontSize:12, padding:"7px 14px" }} onClick={() => generateInvite(role)}>
-                                    Generate link
-                                  </button>
-                              }
-                            </div>
+                                }
+                              </div>
+                              {emailSentFor[role] && (
+                                <p style={{ fontSize:11, color:"#00e87a", marginTop:5 }}>
+                                  Invite email sent to {inviteEmails[role]}
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                       );
