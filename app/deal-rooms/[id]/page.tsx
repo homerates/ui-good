@@ -95,7 +95,13 @@ export default function DealRoomPage() {
   const [scenarios, setScenarios] = React.useState<Scenario[]>([]);
   const [loading,   setLoading]   = React.useState(true);
   const [liveRate,  setLiveRate]  = React.useState<number | null>(null);
-  const [activeTab, setActiveTab] = React.useState<"property"|"financing"|"messages"|"team">("property");
+  const [activeTab, setActiveTab] = React.useState<"property"|"financing"|"ai"|"messages"|"team">("property");
+
+  // AI assistant
+  const [aiMessages,  setAiMessages]  = React.useState<{role:'user'|'assistant'; content:string}[]>([]);
+  const [aiInput,     setAiInput]     = React.useState("");
+  const [aiStreaming, setAiStreaming]  = React.useState(false);
+  const aiEndRef = React.useRef<HTMLDivElement>(null);
 
   // Messages
   const [draft,   setDraft]   = React.useState("");
@@ -159,6 +165,40 @@ export default function DealRoomPage() {
   React.useEffect(() => {
     if (activeTab === "messages") msgEndRef.current?.scrollIntoView({ behavior:"smooth" });
   }, [messages, activeTab]);
+
+  React.useEffect(() => {
+    if (activeTab === "ai") aiEndRef.current?.scrollIntoView({ behavior:"smooth" });
+  }, [aiMessages, activeTab]);
+
+  async function sendAiMessage(content: string) {
+    if (!content.trim() || aiStreaming) return;
+    const userMsg = { role: "user" as const, content: content.trim() };
+    const history = [...aiMessages, userMsg];
+    setAiMessages([...history, { role: "assistant" as const, content: "" }]);
+    setAiInput("");
+    setAiStreaming(true);
+    try {
+      const res = await fetch(`/api/deal-rooms/${roomId}/ai`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+      if (!res.ok || !res.body) {
+        setAiMessages(p => { const u=[...p]; u[u.length-1]={role:"assistant",content:"Sorry, something went wrong. Please try again."}; return u; });
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        full += decoder.decode(value, { stream: true });
+        setAiMessages(p => { const u=[...p]; u[u.length-1]={role:"assistant",content:full}; return u; });
+      }
+    } finally {
+      setAiStreaming(false);
+    }
+  }
 
   React.useEffect(() => {
     if (activeTab !== "messages") return;
@@ -379,6 +419,14 @@ export default function DealRoomPage() {
         /* ── Gap alert ── */
         .gap-alert { border-radius:10px; padding:14px 16px; margin-bottom:14px; }
 
+        /* ── AI tab ── */
+        .ai-thread { min-height:260px; max-height:440px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:4px 0 8px; }
+        .ai-msg-user { background:rgba(0,232,122,0.08); border:1px solid rgba(0,232,122,0.14); border-radius:10px; padding:10px 14px; max-width:85%; margin-left:auto; font-size:14px; line-height:1.5; }
+        .ai-msg-ai { background:#141b28; border:1px solid rgba(255,255,255,0.07); border-left:2px solid #00e87a; border-radius:10px; padding:12px 14px; font-size:14px; line-height:1.7; color:#c8d8e8; }
+        .ai-chip { background:#141b28; border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:500; color:#8fa3b8; cursor:pointer; font-family:inherit; transition:color .15s,border-color .15s,background .15s; }
+        .ai-chip:hover { color:#f0f4ff; border-color:rgba(0,232,122,0.3); background:rgba(0,232,122,0.06); }
+        @keyframes ai-pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
         /* ── Offer Score ── */
         .score-card { background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:20px; margin-bottom:14px; }
         .score-ring {
@@ -517,6 +565,9 @@ export default function DealRoomPage() {
                 </button>
                 <button className={`dr-tab${activeTab==="financing"?" active":""}`} onClick={() => setActiveTab("financing")}>
                   Financing{scenarios.length > 0 ? ` · ${scenarios.length}` : ""}
+                </button>
+                <button className={`dr-tab${activeTab==="ai"?" active":""}`} onClick={() => setActiveTab("ai")}>
+                  AI{aiMessages.length > 0 ? ` · ${Math.ceil(aiMessages.length/2)}` : ""}
                 </button>
                 <button className={`dr-tab${activeTab==="messages"?" active":""}`} onClick={() => setActiveTab("messages")}>
                   Messages{unread > 0 ? ` · ${unread}` : ""}
@@ -775,6 +826,85 @@ export default function DealRoomPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* ── AI tab ── */}
+              {activeTab === "ai" && (
+                <div className="dr-card" style={{ display:"flex", flexDirection:"column", gap:0, padding:0 }}>
+                  {/* Header */}
+                  <div style={{ padding:"14px 18px 12px", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <span style={{ fontSize:16 }}>✦</span>
+                      <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>Deal Room AI</p>
+                      <span style={{ fontSize:11, color:"#4a6e58", marginLeft:2 }}>full context · {room.property_address.split(",")[0]}</span>
+                    </div>
+                  </div>
+
+                  {/* Suggested prompts — only before first message */}
+                  {aiMessages.length === 0 && (
+                    <div style={{ padding:"16px 18px 0" }}>
+                      <p style={{ fontSize:12, color:"#6b7a99", marginBottom:10 }}>Ask anything about this deal</p>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+                        {[
+                          pd?.price && pd?.estimatedValue ? "Is this priced fairly?" : "What should we offer?",
+                          "What's our negotiating position?",
+                          "When should we lock the rate?",
+                          pd?.daysOnMarket != null ? `${pd.daysOnMarket} DOM — is that significant?` : "How's the market timing?",
+                          scenarios.length > 0 ? "Compare my saved scenarios" : "Model an offer at list price",
+                          room.target_close_date ? "Rate lock timeline for close" : "What close date should we target?",
+                        ].map((q) => (
+                          <button key={q} className="ai-chip" onClick={() => sendAiMessage(q)}>{q}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message thread */}
+                  <div className="ai-thread" style={{ padding:"12px 18px" }}>
+                    {aiMessages.map((msg, i) => (
+                      <div key={i}>
+                        {msg.role === "user" ? (
+                          <div className="ai-msg-user">{msg.content}</div>
+                        ) : (
+                          <div className="ai-msg-ai">
+                            {msg.content
+                              ? msg.content
+                              : <span style={{ display:"inline-flex", gap:4 }}>
+                                  {[0,1,2].map(j=>(
+                                    <span key={j} style={{ width:5,height:5,borderRadius:"50%",background:"#00e87a",display:"inline-block",animation:`ai-pulse 1.2s ease-in-out ${j*0.2}s infinite` }} />
+                                  ))}
+                                </span>
+                            }
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <div ref={aiEndRef} />
+                  </div>
+
+                  {/* Input */}
+                  <div style={{ padding:"10px 18px 14px", borderTop:"1px solid rgba(255,255,255,0.05)" }}>
+                    <div className="dr-compose" style={{ marginTop:0 }}>
+                      <textarea
+                        rows={1}
+                        placeholder="Ask about this deal…"
+                        value={aiInput}
+                        onChange={e => setAiInput(e.target.value)}
+                        onKeyDown={e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendAiMessage(aiInput); } }}
+                        onInput={e => { const t=e.target as HTMLTextAreaElement; t.style.height="auto"; t.style.height=t.scrollHeight+"px"; }}
+                        disabled={aiStreaming}
+                      />
+                      <button
+                        className="dr-btn"
+                        style={{ padding:"8px 16px", flexShrink:0 }}
+                        onClick={() => sendAiMessage(aiInput)}
+                        disabled={!aiInput.trim() || aiStreaming}
+                      >
+                        {aiStreaming ? "…" : "Ask"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
