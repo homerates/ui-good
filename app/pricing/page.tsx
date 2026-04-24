@@ -68,7 +68,7 @@ const PLANS = [
     features: [
       "Everything in Plus",
       "⭐ Property Intelligence Reports",
-      "⭐ Rentcast Rent AVM + cap rate",
+      "⭐ Live rent estimate + cap rate",
       "⭐ DSCR & investment cash flow",
       "Up to 10 borrowers",
       "LO dashboard",

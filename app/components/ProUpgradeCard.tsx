@@ -13,12 +13,12 @@ export type ProGatePayload = {
 
 const FEATURE_BULLETS: Record<string, string[]> = {
     cma: [
-        'Rentcast Rent AVM — live monthly rent estimate',
+        'Live rent estimate — Redfin & AI analysis',
         'Cap rate analysis (35% expense model)',
         'DSCR ratio at investor rate (rate + 1.25%)',
         'Monthly cash flow & cash-on-cash return',
         'Full Investment Intelligence Panel',
-        'Comparable sales from Tavily live data',
+        'Comps from Redfin · Tavily & AI Analysis',
     ],
 };
 
