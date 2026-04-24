@@ -444,6 +444,10 @@ export default function DealRoomPage() {
   const color     = STATUS_COLOR[room.status] ?? "#6b7a99";
   const pd        = room.property_data;
   const isCreator = room.created_by === userId;
+  const viewerMember = members.find(m => m.user_id === userId);
+  const viewerRole   = isCreator ? 'lo' : (viewerMember?.role ?? 'buyer');
+  const isLO         = viewerRole === 'lo';
+  const isAgent      = viewerRole === 'agent';
   const unread    = messages.filter(m => m.sender_role !== "system").length;
 
   // Hero PITI (list price or offer price, 10% dn, live rate, 30Y)
@@ -710,18 +714,22 @@ export default function DealRoomPage() {
                 <button className={`dr-tab${activeTab==="financing"?" active":""}`} onClick={() => setActiveTab("financing")}>
                   Financing{scenarios.length > 0 ? ` · ${scenarios.length}` : ""}
                 </button>
-                <button className={`dr-tab${activeTab==="ai"?" active":""}`} onClick={() => setActiveTab("ai")}>
-                  AI{aiMessages.length > 0 ? ` · ${Math.ceil(aiMessages.length/2)}` : ""}
-                </button>
+                {!isAgent && (
+                  <button className={`dr-tab${activeTab==="ai"?" active":""}`} onClick={() => setActiveTab("ai")}>
+                    AI{aiMessages.length > 0 ? ` · ${Math.ceil(aiMessages.length/2)}` : ""}
+                  </button>
+                )}
                 <button className={`dr-tab${activeTab==="messages"?" active":""}`} onClick={() => setActiveTab("messages")}>
                   Messages{unread > 0 ? ` · ${unread}` : ""}
                 </button>
-                <button
-                  className={`dr-tab${activeTab==="team"?" active":""}`}
-                  onClick={() => { setActiveTab("team"); loadInvites(); }}
-                >
-                  Team · {members.filter(m=>m.joined_at).length}/{members.length}
-                </button>
+                {!isAgent && (
+                  <button
+                    className={`dr-tab${activeTab==="team"?" active":""}`}
+                    onClick={() => { setActiveTab("team"); loadInvites(); }}
+                  >
+                    Team · {members.filter(m=>m.joined_at).length}/{members.length}
+                  </button>
+                )}
               </div>
 
               {/* ── Property tab ── */}
@@ -796,17 +804,91 @@ export default function DealRoomPage() {
               {/* ── Financing tab ── */}
               {activeTab === "financing" && (
                 <div>
-                  {/* Live rate strip */}
-                  <div className="fin-rate-strip">
+                  {/* Live rate strip — LO only (agents/buyers see the LO's saved scenarios, not raw rate tools) */}
+                  {isLO && <div className="fin-rate-strip">
                     <span style={{ fontSize:16 }}>📈</span>
                     {liveRate
                       ? <><strong>{liveRate.toFixed(2)}%</strong>&nbsp;30Y Fixed&nbsp;<span style={{ color:"#4a6e58", fontSize:12 }}>· FRED national avg — not a rate lock or offer</span></>
                       : <span style={{ color:"#6b7a99" }}>Loading live rate…</span>
                     }
-                  </div>
+                  </div>}
 
+                  {/* ── Agent/Buyer read-only view ── */}
+                  {!isLO && (
+                    <div>
+                      <div className="dr-card" style={{ marginBottom:14 }}>
+                        <p style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase", letterSpacing:".08em", marginBottom:14 }}>
+                          Financing Scenarios · Prepared by Loan Officer
+                        </p>
+                        {scenarios.length === 0 ? (
+                          <p style={{ fontSize:14, color:"#3a4560", textAlign:"center", padding:"24px 0" }}>
+                            No financing scenarios shared yet. Check back after your loan officer models the deal.
+                          </p>
+                        ) : (
+                          <div className="scen-list" style={{ marginTop:0 }}>
+                            {scenarios.map((s) => {
+                              const rc = ROLE_COLORS[s.created_by_role] ?? "#6b7a99";
+                              const rj = s.result_json ?? {};
+                              return (
+                                <div key={s.id} className="scen-card">
+                                  <div className="scen-card-row">
+                                    <div style={{ flex:1, minWidth:0 }}>
+                                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                                        <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>
+                                          {s.label ?? (s.offer_price ? `Offer at ${fmt(s.offer_price)}` : "Scenario")}
+                                        </p>
+                                        <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(255,255,255,0.05)", color:"#3a4560", letterSpacing:".06em" }}>EST</span>
+                                        {s.loan_type && s.loan_type !== "conventional" && (
+                                          <span style={{ fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:4, background:"rgba(167,139,250,0.1)", color:"#a78bfa", letterSpacing:".06em", textTransform:"uppercase" }}>{s.loan_type}</span>
+                                        )}
+                                      </div>
+                                      <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 12px", marginBottom:8 }}>
+                                        {s.offer_price && <span style={{ fontSize:12, color:"#6b7a99" }}>{fmt(s.offer_price)}</span>}
+                                        {s.down_pct != null && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.down_pct}% down</span>}
+                                        {s.rate && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.rate}% rate</span>}
+                                        <span style={{ fontSize:12, color:"#3a4560" }}>{timeAgo(s.created_at)}</span>
+                                      </div>
+                                      {/* Full PITI breakdown for read-only view */}
+                                      <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 14px" }}>
+                                        {rj.pi    > 0 && <span style={{ fontSize:12, color:"#8b949e" }}>P&I ${rj.pi?.toLocaleString()}</span>}
+                                        {rj.taxes > 0 && <span style={{ fontSize:12, color:"#8b949e" }}>Tax ${rj.taxes?.toLocaleString()}</span>}
+                                        {rj.ins   > 0 && <span style={{ fontSize:12, color:"#8b949e" }}>Ins ${rj.ins?.toLocaleString()}</span>}
+                                        {rj.pmi   > 0 && <span style={{ fontSize:12, color:"#fbbf24" }}>PMI ${rj.pmi?.toLocaleString()}</span>}
+                                        {rj.mip   > 0 && <span style={{ fontSize:12, color:"#fbbf24" }}>MIP ${rj.mip?.toLocaleString()}</span>}
+                                        {rj.hoa   > 0 && <span style={{ fontSize:12, color:"#8b949e" }}>HOA ${rj.hoa?.toLocaleString()}</span>}
+                                      </div>
+                                      {rj.cashToClose > 0 && (
+                                        <p style={{ fontSize:12, color:"#6b7a99", marginTop:6 }}>
+                                          Est. cash to close: <span style={{ color:"#f0f4ff", fontWeight:600 }}>${rj.cashToClose?.toLocaleString()}</span>
+                                          <span style={{ color:"#3a4560" }}> · actual costs vary</span>
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div style={{ textAlign:"right", flexShrink:0 }}>
+                                      {s.piti && (
+                                        <p style={{ fontSize:20, fontWeight:700, color:"#00e87a", fontFamily:"'Syne',sans-serif" }}>
+                                          ${s.piti.toLocaleString()}/mo
+                                        </p>
+                                      )}
+                                      <span style={{ fontSize:11, fontWeight:600, color:rc }}>{ROLE_LABELS[s.created_by_role] ?? s.created_by_role}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <p style={{ fontSize:11, color:"#3a4560", marginTop:14, lineHeight:1.5 }}>
+                          Estimates are for illustrative purposes only — not a Loan Estimate or commitment to lend under RESPA/TRID.
+                          {loNmls ? <> Prepared by {loDisplayName ?? "Loan Officer"} · NMLS #{loNmls}.</> : null}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── LO-only: PITI hero + modeler ── */}
                   {/* PITI hero */}
-                  {heroPiti ? (
+                  {isLO && heroPiti ? (
                     <div className="fin-hero">
                       <p style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>
                         Est. Payment — {room.offer_price ? "at offer price" : "at list price"} · 10% down · 30Y · <span style={{ color:"#3a4560" }}>Illustration only</span>
@@ -848,18 +930,18 @@ export default function DealRoomPage() {
                         Loan amount: {fmt(heroPiti.loan)} · {heroPiti.taxes > 0 ? "taxes from property record" : "taxes estimated at 1.2%"} · insurance at 0.3%{heroPiti.pmi > 0 ? " · PMI included (<20% down)" : ""}
                       </p>
                     </div>
-                  ) : !liveRate ? (
+                  ) : isLO && !liveRate ? (
                     <div className="dr-card" style={{ marginBottom:14 }}>
                       <p style={{ fontSize:13, color:"#6b7a99", textAlign:"center", padding:"20px 0" }}>Fetching live rate…</p>
                     </div>
-                  ) : (
+                  ) : isLO ? (
                     <div className="dr-card" style={{ marginBottom:14 }}>
                       <p style={{ fontSize:13, color:"#6b7a99", textAlign:"center", padding:"20px 0" }}>Add property data to see PITI breakdown.</p>
                     </div>
-                  )}
+                  ) : null}
 
-                  {/* Scenario modeler */}
-                  <div className="dr-card" ref={modelerRef}>
+                  {/* Scenario modeler — LO only */}
+                  {isLO && <div className="dr-card" ref={modelerRef}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                       <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>Model a Scenario</p>
                       <button
@@ -1036,10 +1118,10 @@ export default function DealRoomPage() {
                     <button className="dr-btn" style={{ width:"100%" }} onClick={saveScenario} disabled={savingScen || !modPiti}>
                       {savingScen ? "Saving…" : "Save Scenario — share with team"}
                     </button>
-                  </div>
+                  </div>}
 
-                  {/* Saved scenarios */}
-                  {scenarios.length > 0 && (
+                  {/* Saved scenarios — LO view with Load/Delete actions */}
+                  {isLO && scenarios.length > 0 && (
                     <div style={{ marginTop:14 }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                         <p style={{ fontSize:11, color:"#3a4560", textTransform:"uppercase", letterSpacing:".08em" }}>Saved Scenarios</p>
@@ -1051,7 +1133,6 @@ export default function DealRoomPage() {
                           const isOwn = s.created_by === userId;
                           return (
                             <div key={s.id} className="scen-card">
-                              {/* Top row: label + PITI */}
                               <div className="scen-card-row">
                                 <div style={{ flex:1, minWidth:0 }}>
                                   <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
@@ -1077,7 +1158,6 @@ export default function DealRoomPage() {
                                   <span style={{ fontSize:11, fontWeight:600, color:rc }}>{ROLE_LABELS[s.created_by_role] ?? s.created_by_role}</span>
                                 </div>
                               </div>
-                              {/* Action row */}
                               <div className="scen-actions">
                                 <button
                                   className="scen-btn load"
@@ -1100,7 +1180,6 @@ export default function DealRoomPage() {
                           );
                         })}
                       </div>
-                      {/* NMLS disclosure on saved scenarios */}
                       <p style={{ fontSize:11, color:"#3a4560", marginTop:10, lineHeight:1.5 }}>
                         Estimates are for illustrative purposes only. Not a commitment to lend or a Loan Estimate under RESPA/TRID.
                         {loNmls
