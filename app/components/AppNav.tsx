@@ -270,6 +270,9 @@ export default function AppNav({
           ))}
           <div className="an-drawer-divider" />
           <div className="an-drawer-label">Quick links</div>
+          <Link href="/deal-rooms" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">🤝</span>Deal Rooms
+          </Link>
           <Link href="/my-home" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
             <span className="an-drawer-icon">🏡</span>My Properties
           </Link>

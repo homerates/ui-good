@@ -69,6 +69,8 @@ const isPublicRoute = createRouteMatcher([
   "/messages(.*)",
   // Market intelligence — server-side AI keys only, no user PII; auth guard not needed
   "/api/market-intelligence(.*)",
+  // Deal room join — must be accessible before sign-in (token validates identity)
+  "/deal-rooms/join(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {

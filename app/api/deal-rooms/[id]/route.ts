@@ -1,0 +1,78 @@
+// app/api/deal-rooms/[id]/route.ts
+// GET  — full room detail (room + members + milestones + recent messages + scenarios)
+// PATCH — update status / offer_price / target_close_date
+
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { getSupabase } from '../../../../lib/supabaseServer';
+
+async function assertMember(sb: any, roomId: string, userId: string) {
+  const { data: room } = await sb
+    .from('deal_rooms')
+    .select('id, created_by')
+    .eq('id', roomId)
+    .maybeSingle();
+  if (!room) return false;
+  if (room.created_by === userId) return true;
+
+  const { data: member } = await sb
+    .from('deal_room_members')
+    .select('id')
+    .eq('deal_room_id', roomId)
+    .eq('user_id', userId)
+    .not('joined_at', 'is', null)
+    .maybeSingle();
+  return !!member;
+}
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const sb = getSupabase();
+  if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
+
+  const ok = await assertMember(sb, id, userId);
+  if (!ok) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const [roomRes, membersRes, milestonesRes, messagesRes, scenariosRes] = await Promise.all([
+    sb.from('deal_rooms').select('*').eq('id', id).single(),
+    sb.from('deal_room_members').select('*').eq('deal_room_id', id),
+    sb.from('deal_room_milestones').select('*').eq('deal_room_id', id).order('sort_order'),
+    sb.from('deal_room_messages').select('*').eq('deal_room_id', id).order('created_at').limit(200),
+    sb.from('deal_room_scenarios').select('*').eq('deal_room_id', id).order('created_at', { ascending: false }).limit(20),
+  ]);
+
+  return NextResponse.json({
+    room:       roomRes.data,
+    members:    membersRes.data ?? [],
+    milestones: milestonesRes.data ?? [],
+    messages:   messagesRes.data ?? [],
+    scenarios:  scenariosRes.data ?? [],
+    viewerUserId: userId,
+  });
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const sb = getSupabase();
+  if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
+
+  const ok = await assertMember(sb, id, userId);
+  if (!ok) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const body = await req.json();
+  const allowed = ['status', 'offer_price', 'target_close_date', 'property_data'];
+  const patch: Record<string, any> = { updated_at: new Date().toISOString() };
+  for (const k of allowed) {
+    if (k in body) patch[k] = body[k];
+  }
+
+  const { data, error } = await sb.from('deal_rooms').update(patch).eq('id', id).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ room: data });
+}
