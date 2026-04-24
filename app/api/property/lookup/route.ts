@@ -82,10 +82,14 @@ async function getCachedSnapshot(address: string): Promise<Record<string, unknow
     const addressFull = normalizeAddress(address);
     const { data: prop } = await sb
       .from('properties')
-      .select('id, enriched_at')
+      .select('id, enriched_at, latest_listing_status')
       .eq('address_full', addressFull)
       .maybeSingle();
     if (!prop?.id || !prop.enriched_at) return null;
+
+    // Always re-fetch live data for active listings — status can change daily
+    const status = prop.latest_listing_status as string | null;
+    if (!status || status === 'FOR_SALE' || status === 'PENDING') return null;
 
     const age = Date.now() - new Date(prop.enriched_at).getTime();
     if (age > SNAPSHOT_TTL_MS) return null;
@@ -198,6 +202,14 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
     const domM = t.match(/(\d+)\s+days?\s+on\s+(?:redfin|market|zillow|trulia)/i)
         ?? t.match(/days\s+on\s+(?:redfin|market)[:\s]+(\d+)/i);
     const daysOnMarket = domM ? parseInt(domM[1]) : null;
+
+    // Refine UNKNOWN: additional signals that Redfin Tavily text reliably contains for active listings
+    if (listingStatus === 'UNKNOWN') {
+        if (/\bstatus[:\s]+active\b/i.test(t)
+            || /\bfor\s+sale\b/i.test(t.slice(0, 4000))
+            || daysOnMarket !== null)
+        { listingStatus = 'FOR_SALE'; }
+    }
 
     // Last sale — multiple formats:
     //  "Sold May 2025 for $2,150,000"

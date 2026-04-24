@@ -1301,7 +1301,12 @@ function MyHomePageInner() {
               const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
               if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
             }
-            setAnalysis(lookupToAnalysis(lookupJson.data, liveRate));
+            // homeowner/analysis confirmed FOR_SALE — carry status forward if lookup returned UNKNOWN
+            const lookupData = { ...lookupJson.data };
+            if (!lookupData.listingStatus || lookupData.listingStatus === 'UNKNOWN') {
+              lookupData.listingStatus = data.listingStatus;
+            }
+            setAnalysis(lookupToAnalysis(lookupData, liveRate));
             return;
           }
           // Redfin lookup failed — fall through to ATTOM data as last resort

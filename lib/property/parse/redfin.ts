@@ -86,9 +86,12 @@ function detectRedfinStatus(html: string, blob: unknown): ListingStatus {
     if (/data-rf-test-name="abp-status"[^>]*>\s*Sold/i.test(html))       return 'SOLD';
     if (/data-rf-test-name="abp-status"[^>]*>\s*Off.Market/i.test(html)) return 'OFF_MARKET';
     if (/data-rf-test-name="abp-status"[^>]*>\s*Pending/i.test(html))    return 'PENDING';
+    if (/data-rf-test-name="abp-status"[^>]*>\s*Active/i.test(html))     return 'FOR_SALE';
     // 4. Redfin sold-banner or off-market indicators in page body
     if (/class="[^"]*sold[^"]*"[^>]*>\s*(?:This home|Sold)/i.test(html)) return 'SOLD';
     if (/off.market|not.*for.*sale|no longer.*listed/i.test(html))        return 'OFF_MARKET';
+    // 5. Fallback: JSON-LD blob has a price, no negative signal fired → likely active listing
+    if (blob && dig(blob, 'offers', 'price')) return 'FOR_SALE';
     return null;
 }
 
