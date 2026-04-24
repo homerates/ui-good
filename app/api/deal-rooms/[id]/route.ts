@@ -44,13 +44,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     sb.from('deal_room_scenarios').select('*').eq('deal_room_id', id).order('created_at', { ascending: false }).limit(20),
   ]);
 
+  // Fetch LO's NMLS + display name for compliance disclosure on estimates
+  const loMember  = (membersRes.data ?? []).find((m: any) => m.role === 'lo');
+  const loUserId  = loMember?.user_id ?? roomRes.data?.created_by ?? null;
+  let loNmls: string | null = null;
+  let loDisplayName: string | null = loMember?.display_name ?? null;
+  if (loUserId) {
+    const { data: loRow } = await sb
+      .from('loan_officers')
+      .select('nmls, display_name')
+      .eq('user_id', loUserId)
+      .maybeSingle();
+    if (loRow?.nmls)        loNmls = loRow.nmls;
+    if (loRow?.display_name && !loDisplayName) loDisplayName = loRow.display_name;
+  }
+
   return NextResponse.json({
-    room:       roomRes.data,
-    members:    membersRes.data ?? [],
-    milestones: milestonesRes.data ?? [],
-    messages:   messagesRes.data ?? [],
-    scenarios:  scenariosRes.data ?? [],
+    room:         roomRes.data,
+    members:      membersRes.data ?? [],
+    milestones:   milestonesRes.data ?? [],
+    messages:     messagesRes.data ?? [],
+    scenarios:    scenariosRes.data ?? [],
     viewerUserId: userId,
+    loNmls,
+    loDisplayName,
   });
 }
 

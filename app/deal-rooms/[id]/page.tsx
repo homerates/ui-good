@@ -128,8 +128,11 @@ export default function DealRoomPage() {
   const [messages,  setMessages]  = React.useState<Message[]>([]);
   const [scenarios, setScenarios] = React.useState<Scenario[]>([]);
   const [loading,   setLoading]   = React.useState(true);
-  const [liveRate,  setLiveRate]  = React.useState<number | null>(null);
-  const [activeTab, setActiveTab] = React.useState<"property"|"financing"|"ai"|"messages"|"team">("property");
+  const [liveRate,       setLiveRate]       = React.useState<number | null>(null);
+  const [activeTab,      setActiveTab]      = React.useState<"property"|"financing"|"ai"|"messages"|"team">("property");
+  const [loNmls,         setLoNmls]         = React.useState<string | null>(null);
+  const [loDisplayName,  setLoDisplayName]  = React.useState<string | null>(null);
+  const [discAcked,      setDiscAcked]      = React.useState(true); // start true, check localStorage after mount
 
   // AI assistant
   const [aiMessages,  setAiMessages]  = React.useState<{role:'user'|'assistant'; content:string}[]>([]);
@@ -223,6 +226,8 @@ export default function DealRoomPage() {
     setMembers(roomRes.members ?? []);
     setMessages(roomRes.messages ?? []);
     setScenarios(roomRes.scenarios ?? []);
+    if (roomRes.loNmls)        setLoNmls(roomRes.loNmls);
+    if (roomRes.loDisplayName) setLoDisplayName(roomRes.loDisplayName);
     if (fredRes.ok && fredRes.mort30Avg) setLiveRate(fredRes.mort30Avg);
     setLoading(false);
     // Kick off score in background after room loads
@@ -232,7 +237,12 @@ export default function DealRoomPage() {
   React.useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) { router.replace("/sign-in"); return; }
-    if (roomId) load();
+    if (roomId) {
+      // Show educational disclaimer banner once per room per browser
+      const key = `dr_ack_${roomId}`;
+      if (!localStorage.getItem(key)) setDiscAcked(false);
+      load();
+    }
   }, [isLoaded, isSignedIn, roomId]);
 
   React.useEffect(() => {
@@ -621,6 +631,20 @@ export default function DealRoomPage() {
         {/* ── Body ── */}
         <div className="dr-body">
 
+          {/* Educational disclaimer banner — shown once per room per browser */}
+          {!discAcked && (
+            <div style={{ background:"rgba(61,139,255,0.08)", border:"1px solid rgba(61,139,255,0.2)", borderRadius:10, padding:"12px 16px", marginBottom:20, display:"flex", alignItems:"flex-start", gap:12 }}>
+              <span style={{ fontSize:16, flexShrink:0, marginTop:1 }}>ℹ️</span>
+              <p style={{ fontSize:13, color:"#8fa3b8", lineHeight:1.6, flex:1 }}>
+                This workspace contains <strong style={{ color:"#f0f4ff" }}>educational payment estimates</strong> for planning purposes. They are not a Loan Estimate, commitment to lend, or pre-approval under RESPA/TRID. Actual rates and costs are subject to credit qualification.
+              </p>
+              <button
+                onClick={() => { localStorage.setItem(`dr_ack_${roomId}`, "1"); setDiscAcked(true); }}
+                style={{ background:"none", border:"none", color:"#6b7a99", cursor:"pointer", fontSize:16, padding:0, flexShrink:0, lineHeight:1 }}
+              >✕</button>
+            </div>
+          )}
+
           {/* Property snapshot strip */}
           {pd && (
             <div className="dr-strip">
@@ -736,7 +760,7 @@ export default function DealRoomPage() {
                   <div className="fin-rate-strip">
                     <span style={{ fontSize:16 }}>📈</span>
                     {liveRate
-                      ? <><strong>{liveRate.toFixed(2)}%</strong>&nbsp;30Y Fixed&nbsp;<span style={{ color:"#4a6e58", fontSize:12 }}>· FRED live rate</span></>
+                      ? <><strong>{liveRate.toFixed(2)}%</strong>&nbsp;30Y Fixed&nbsp;<span style={{ color:"#4a6e58", fontSize:12 }}>· FRED national avg — not a rate lock or offer</span></>
                       : <span style={{ color:"#6b7a99" }}>Loading live rate…</span>
                     }
                   </div>
@@ -745,7 +769,7 @@ export default function DealRoomPage() {
                   {heroPiti ? (
                     <div className="fin-hero">
                       <p style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>
-                        Est. PITI — {room.offer_price ? "at offer price" : "at list price"} · 10% down · 30Y
+                        Est. Payment — {room.offer_price ? "at offer price" : "at list price"} · 10% down · 30Y · <span style={{ color:"#3a4560" }}>Illustration only</span>
                       </p>
                       <p style={{ fontSize:36, fontFamily:"'Syne',sans-serif", fontWeight:700, color:"#00e87a", lineHeight:1 }}>
                         {fmtMo(heroPiti.total)}
@@ -922,6 +946,7 @@ export default function DealRoomPage() {
                     {/* Live preview */}
                     {modPiti && (
                       <div style={{ background:"rgba(0,232,122,0.05)", border:"1px solid rgba(0,232,122,0.12)", borderRadius:10, padding:"12px 14px", marginBottom:14 }}>
+                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", color:"#3a4560", textTransform:"uppercase", display:"block", marginBottom:6 }}>Estimate — not a Loan Estimate</span>
                         <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:6 }}>
                           <span style={{ fontSize:24, fontFamily:"'Syne',sans-serif", fontWeight:700, color:"#00e87a" }}>${modPiti.total.toLocaleString()}/mo</span>
                           <span style={{ fontSize:12, color:"#4a6e58" }}>total PITI</span>
@@ -945,12 +970,13 @@ export default function DealRoomPage() {
                         {(modCC > 0 || modCredit > 0) && (
                           <div style={{ borderTop:"1px solid rgba(255,255,255,0.06)", paddingTop:8, marginTop:4 }}>
                             <p style={{ fontSize:12, fontWeight:600, color:"#f0f4ff", marginBottom:3 }}>
-                              Cash to Close: <span style={{ color:"#00e87a" }}>${modPiti.cashToClose.toLocaleString()}</span>
+                              Est. Cash to Close: <span style={{ color:"#00e87a" }}>${modPiti.cashToClose.toLocaleString()}</span>
                             </p>
                             <p style={{ fontSize:11, color:"#6b7a99" }}>
                               Down ${modPiti.downPayment.toLocaleString()}
                               {modCC > 0 ? ` + Closing ${fmt(modCC)}` : ""}
                               {modCredit > 0 ? ` − Seller Credit ${fmt(modCredit)}` : ""}
+                              &nbsp;· actual costs vary
                             </p>
                           </div>
                         )}
@@ -975,16 +1001,22 @@ export default function DealRoomPage() {
                   {/* Saved scenarios */}
                   {scenarios.length > 0 && (
                     <div style={{ marginTop:14 }}>
-                      <p style={{ fontSize:11, color:"#3a4560", textTransform:"uppercase", letterSpacing:".08em", marginBottom:10 }}>Saved Scenarios</p>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                        <p style={{ fontSize:11, color:"#3a4560", textTransform:"uppercase", letterSpacing:".08em" }}>Saved Scenarios</p>
+                        <span style={{ fontSize:10, color:"#3a4560" }}>Payment estimates only</span>
+                      </div>
                       <div className="scen-list">
                         {scenarios.map((s) => {
                           const rc = ROLE_COLORS[s.created_by_role] ?? "#6b7a99";
                           return (
                             <div key={s.id} className="scen-card">
                               <div style={{ flex:1, minWidth:0 }}>
-                                <p style={{ fontSize:13, fontWeight:500, color:"#f0f4ff", marginBottom:3 }}>
-                                  {s.label ?? (s.offer_price ? `Offer at ${fmt(s.offer_price)}` : "Scenario")}
-                                </p>
+                                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                                  <p style={{ fontSize:13, fontWeight:500, color:"#f0f4ff" }}>
+                                    {s.label ?? (s.offer_price ? `Offer at ${fmt(s.offer_price)}` : "Scenario")}
+                                  </p>
+                                  <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(255,255,255,0.05)", color:"#3a4560", letterSpacing:".06em" }}>EST</span>
+                                </div>
                                 <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 12px" }}>
                                   {s.offer_price && <span style={{ fontSize:12, color:"#6b7a99" }}>{fmt(s.offer_price)}</span>}
                                   {s.down_pct    && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.down_pct}% dn</span>}
@@ -1004,6 +1036,14 @@ export default function DealRoomPage() {
                           );
                         })}
                       </div>
+                      {/* NMLS disclosure on saved scenarios */}
+                      <p style={{ fontSize:11, color:"#3a4560", marginTop:10, lineHeight:1.5 }}>
+                        Estimates are for illustrative purposes only. Not a commitment to lend or a Loan Estimate under RESPA/TRID.
+                        {loNmls
+                          ? <> Prepared by {loDisplayName ?? "Loan Officer"} · NMLS #{loNmls}.</>
+                          : <> Loan officer NMLS # not on file — update your profile.</>
+                        }
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1019,6 +1059,7 @@ export default function DealRoomPage() {
                       <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>Deal Room AI</p>
                       <span style={{ fontSize:11, color:"#4a6e58", marginLeft:2 }}>full context · {room.property_address.split(",")[0]}</span>
                     </div>
+                    <p style={{ fontSize:11, color:"#3a4560", marginTop:6 }}>AI responses are educational estimates — not financial, legal, or mortgage advice.</p>
                   </div>
 
                   {/* Suggested prompts — only before first message */}
@@ -1298,7 +1339,8 @@ export default function DealRoomPage() {
         </div>
 
         <footer className="dr-footer">
-          HomeRates.ai is an independent educational tool and is not a mortgage lender or broker.
+          HomeRates.ai is a technology platform, not a mortgage lender, broker, or financial advisor. Payment scenarios are illustrations for planning purposes and do not constitute a Loan Estimate under RESPA/TRID. Actual rates, costs, and loan terms are subject to credit qualification and may differ.
+          {loNmls && <> · {loDisplayName ?? "Loan Officer"} NMLS #{loNmls}.</>}
         </footer>
       </div>
     </>
