@@ -123,6 +123,108 @@ const BUYER_CHIPS: { id: BuyerChipId; label: string; icon: string }[] = [
   { id: 'signal',   label: 'Offer Signal',    icon: '🎯' },
 ];
 
+// ── Market Intelligence animated loader overlay ───────────────────────────────
+const LOADER_STAGES = [
+  { icon: '🔍', label: 'Searching web for listing data…',      sub: 'Tavily' },
+  { icon: '🏡', label: 'Pulling comparable sales & history…',  sub: 'Tavily' },
+  { icon: '📊', label: 'Analyzing market trends…',             sub: 'Tavily' },
+  { icon: '🧠', label: 'Running deep market reasoning…',       sub: 'Grok 4' },
+  { icon: '💡', label: 'Generating buyer intelligence…',       sub: 'Grok 4' },
+  { icon: '✨', label: 'Polishing analysis for you…',          sub: 'GPT-4o' },
+];
+
+function MarketIntelLoader() {
+  const [stageIdx, setStageIdx] = useState(0);
+  const [pulse, setPulse] = useState(true);
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setStageIdx(i => (i + 1) % LOADER_STAGES.length);
+      setPulse(false);
+      setTimeout(() => setPulse(true), 50);
+    }, 4000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const stage = LOADER_STAGES[stageIdx];
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 8999,
+      background: 'rgba(5,8,18,0.88)', backdropFilter: 'blur(8px)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0,
+      fontFamily: 'var(--font-dm-sans, system-ui, sans-serif)',
+    }}>
+      {/* Animated crystal ball */}
+      <div style={{
+        fontSize: 64, lineHeight: 1, marginBottom: 28,
+        animation: 'miOrbit 3s ease-in-out infinite',
+        filter: 'drop-shadow(0 0 24px rgba(167,139,250,0.75))',
+      }}>
+        🔮
+      </div>
+
+      {/* Stage label */}
+      <div style={{
+        fontSize: '1rem', fontWeight: 700,
+        color: 'rgba(167,139,250,0.95)',
+        letterSpacing: '0.02em', textAlign: 'center',
+        marginBottom: 8,
+        opacity: pulse ? 1 : 0,
+        transition: 'opacity 0.3s',
+        minHeight: 26,
+      }}>
+        <span style={{ marginRight: 8 }}>{stage.icon}</span>{stage.label}
+      </div>
+
+      {/* Engine badge */}
+      <div style={{
+        fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        color: 'rgba(139,92,246,0.65)',
+        marginBottom: 32,
+        opacity: pulse ? 1 : 0,
+        transition: 'opacity 0.3s 0.1s',
+      }}>
+        {stage.sub}
+      </div>
+
+      {/* Progress dots */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        {LOADER_STAGES.map((_, i) => (
+          <div key={i} style={{
+            width: i === stageIdx ? 22 : 6,
+            height: 6, borderRadius: 99,
+            background: i === stageIdx ? 'rgba(139,92,246,0.85)' : 'rgba(139,92,246,0.20)',
+            transition: 'all 0.4s ease',
+          }} />
+        ))}
+      </div>
+
+      {/* Engine row */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 32 }}>
+        {['Grok 4', 'Tavily', 'GPT-4o'].map(lbl => (
+          <span key={lbl} style={{
+            fontSize: '0.6rem', padding: '3px 9px', borderRadius: 5,
+            background: 'rgba(139,92,246,0.12)', color: 'rgba(167,139,250,0.6)',
+            fontWeight: 700, letterSpacing: '0.06em', border: '1px solid rgba(139,92,246,0.18)',
+          }}>{lbl}</span>
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes miOrbit {
+          0%   { transform: translateY(0px) rotate(-4deg); }
+          25%  { transform: translateY(-12px) rotate(2deg); }
+          50%  { transform: translateY(-6px) rotate(4deg); }
+          75%  { transform: translateY(-16px) rotate(-2deg); }
+          100% { transform: translateY(0px) rotate(-4deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ── Property share button (copies /my-home?address=... link) ──────────────────
 function PropertyShareButton({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
@@ -2400,21 +2502,7 @@ function MyHomePageInner() {
       </div>
 
       {/* Market Intelligence loading overlay */}
-      {marketIntelLoading && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 8999,
-          background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(5px)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18,
-        }}>
-          <span style={{ fontSize: 40, filter: 'drop-shadow(0 0 16px rgba(167,139,250,0.8))' }}>🔮</span>
-          <div style={{ fontSize: '0.85rem', color: 'rgba(167,139,250,0.9)', fontWeight: 600, letterSpacing: '0.04em' }}>
-            Running AI Market Analysis…
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(148,163,184,0.55)' }}>
-            Grok 4 · Tavily · GPT-4o
-          </div>
-        </div>
-      )}
+      {marketIntelLoading && <MarketIntelLoader />}
 
       {/* Market Intelligence result modal */}
       {!marketIntelLoading && marketIntelResult && (
