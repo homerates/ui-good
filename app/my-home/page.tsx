@@ -7,6 +7,7 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { ShareAnswerButton } from '../components/ShareAnswerButton';
+import MarketIntelCard from '../components/MarketIntelCard';
 
 interface HomeownerProperty {
   id: string;
@@ -713,7 +714,7 @@ function buildCMAUrl(d: AnalysisData): string {
 
 // ── Buyer Cards ───────────────────────────────────────────────────────────────
 
-function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[] }) {
+function CardMarketPosition({ d, onFeelingLucky }: { d: AnalysisData; nearbySales?: NearbySale[]; onFeelingLucky?: () => void }) {
   const listPrice = d.listPrice;
   const avm       = d.estimatedValue;
   const basis     = d.lastSalePrice;
@@ -722,31 +723,6 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
   const basisGain = (listPrice && basis && basis > 0) ? Math.round((listPrice - basis) / basis * 100) : null;
   const psf       = (listPrice && d.sqft) ? Math.round(listPrice / d.sqft) : null;
 
-  // Build deep market analysis query for the AI box
-  const aiQuery = (() => {
-    const addr = d.address ?? '';
-    const price = listPrice ?? avm ?? 0;
-    const addrParts = addr.split(',').map((s: string) => s.trim());
-    const parts = [
-      `Run a full AI market analysis on ${addr} listed at ${price ? fmt(price) : 'this price'}.`,
-      avm && listPrice && avm !== listPrice ? `Redfin AVM is ${fmt(avm)} (${spread != null ? `${spread > 0 ? '+' : ''}${spread}% vs ask` : 'vs ask'}) — is this listing fairly priced?` : '',
-      d.daysOnMarket != null ? `It has been on the market ${d.daysOnMarket} days.` : '',
-      d.beds || d.baths ? `Property: ${[d.beds && `${d.beds}bd`, d.baths && `${d.baths}ba`, d.sqft && `${d.sqft.toLocaleString()}sqft`].filter(Boolean).join('/')}.` : '',
-      'Pull live comps, assess price per sqft vs neighborhood, evaluate offer strategy, and flag any red flags or buying signals.',
-    ].filter(Boolean).join(' ');
-    const p = new URLSearchParams({
-      sq: parts,
-      cmaAddress: addr,
-      cmaCity: addrParts[1] ?? '',
-      cmaState: (addrParts[2] ?? '').replace(/\s*\d{5}.*/, '').trim(),
-      cmaPrice: String(Math.round(price)),
-      cmaLiveRate: String(d.liveRate.toFixed(2)),
-      ...(d.beds  ? { cmaBeds:  String(d.beds)  } : {}),
-      ...(d.baths ? { cmaBaths: String(d.baths) } : {}),
-      ...(d.sqft  ? { cmaSqft:  String(d.sqft)  } : {}),
-    });
-    return `/chat?${p.toString()}`;
-  })();
 
   return (
     <div className="mh-card">
@@ -765,8 +741,8 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
           <div className="mh-stat-sub">{spread != null ? `${spread > 0 ? '+' : ''}${spread}% vs ask` : ''}</div>
         </div>
         {/* AI Market Analysis — Feeling Lucky box */}
-        <a
-          href={aiQuery}
+        <button
+          onClick={onFeelingLucky}
           style={{
             flex: 1,
             minWidth: 0,
@@ -779,18 +755,17 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
             borderRadius: 10,
             background: 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(59,130,246,0.10) 100%)',
             border: '1px solid rgba(139,92,246,0.30)',
-            textDecoration: 'none',
-            cursor: 'pointer',
+            cursor: onFeelingLucky ? 'pointer' : 'default',
             transition: 'border-color 0.2s, box-shadow 0.2s',
             boxShadow: '0 0 0 0 rgba(139,92,246,0)',
           }}
           onMouseOver={e => {
-            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(139,92,246,0.65)';
-            (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 0 18px rgba(139,92,246,0.25)';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,92,246,0.65)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 18px rgba(139,92,246,0.25)';
           }}
           onMouseOut={e => {
-            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(139,92,246,0.30)';
-            (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 0 0 0 rgba(139,92,246,0)';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,92,246,0.30)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 0 rgba(139,92,246,0)';
           }}
         >
           {/* Pandora's box icon */}
@@ -806,7 +781,7 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
               <span key={lbl} style={{ fontSize: '0.5rem', padding: '1px 4px', borderRadius: 3, background: 'rgba(139,92,246,0.18)', color: 'rgba(167,139,250,0.8)', fontWeight: 700, letterSpacing: '0.03em' }}>{lbl}</span>
             ))}
           </div>
-        </a>
+        </button>
       </div>
       {d.daysOnMarket != null && (
         <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(99,179,237,0.06)', border: '1px solid rgba(99,179,237,0.15)', borderRadius: 8 }}>
@@ -1282,6 +1257,10 @@ function MyHomePageInner() {
   // Nearby sales
   const [nearbySales, setNearbySales] = useState<NearbySale[]>([]);
 
+  // Market Intelligence modal
+  const [marketIntelResult, setMarketIntelResult] = useState<any>(null);
+  const [marketIntelLoading, setMarketIntelLoading] = useState(false);
+
   // User plan — loan-on-record is Pro-only
   const [userPlan, setUserPlan] = useState<string>('free');
   useEffect(() => {
@@ -1429,6 +1408,37 @@ function MyHomePageInner() {
       setAnalysisErr('Network error — try again');
     } finally {
       setAnalysisLoading(false);
+    }
+  }
+
+  async function handleMarketIntel() {
+    if (!analysis?.address || marketIntelLoading) return;
+    setMarketIntelLoading(true);
+    try {
+      const res = await fetch('/api/market-intelligence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property: {
+            address:       analysis.address,
+            list_price:    analysis.listPrice ?? undefined,
+            redfin_avm:    analysis.estimatedValue ?? undefined,
+            beds:          analysis.beds ?? undefined,
+            baths:         analysis.baths ?? undefined,
+            sqft:          analysis.sqft ?? undefined,
+            price_per_sqft:analysis.listPrice && analysis.sqft ? Math.round(analysis.listPrice / analysis.sqft) : undefined,
+            status:        analysis.listingStatus ?? undefined,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (json.ok && json.report) {
+        setMarketIntelResult(json.report);
+      }
+    } catch {
+      // fail silently — user can retry
+    } finally {
+      setMarketIntelLoading(false);
     }
   }
 
@@ -2214,7 +2224,7 @@ function MyHomePageInner() {
                           <>
                             {isBuyer ? (
                               <>
-                                {activeBuyerChip === 'position' && <CardMarketPosition d={analysis} nearbySales={nearbySales} />}
+                                {activeBuyerChip === 'position' && <CardMarketPosition d={analysis} nearbySales={nearbySales} onFeelingLucky={handleMarketIntel} />}
                                 {activeBuyerChip === 'payment'  && <CardMyPayment      d={analysis} />}
                                 {activeBuyerChip === 'comps'    && <CardCompDelta       d={analysis} nearbySales={nearbySales} />}
                                 {activeBuyerChip === 'cost'     && <CardTrueCost        d={analysis} />}
@@ -2365,6 +2375,32 @@ function MyHomePageInner() {
           </SignedIn>
         </div>
       </div>
+
+      {/* Market Intelligence loading overlay */}
+      {marketIntelLoading && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 8999,
+          background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(5px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18,
+        }}>
+          <span style={{ fontSize: 40, filter: 'drop-shadow(0 0 16px rgba(167,139,250,0.8))' }}>🔮</span>
+          <div style={{ fontSize: '0.85rem', color: 'rgba(167,139,250,0.9)', fontWeight: 600, letterSpacing: '0.04em' }}>
+            Running AI Market Analysis…
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(148,163,184,0.55)' }}>
+            Grok 4 · Tavily · GPT-4o
+          </div>
+        </div>
+      )}
+
+      {/* Market Intelligence result modal */}
+      {!marketIntelLoading && marketIntelResult && (
+        <MarketIntelCard
+          report={marketIntelResult}
+          address={analysis?.address ?? ''}
+          onClose={() => setMarketIntelResult(null)}
+        />
+      )}
     </>
   );
 }
