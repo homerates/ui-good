@@ -110,6 +110,11 @@ export default function DealRoomPage() {
   // Status
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
 
+  // Offer Confidence Score
+  type ScoreSignal = { key:string; label:string; detail:string; points:number; max:number; status:'good'|'ok'|'warn' };
+  const [scoreData,     setScoreData]     = React.useState<{ score:number; signals:ScoreSignal[]; narrative:string; rate:number|null } | null>(null);
+  const [scoreLoading,  setScoreLoading]  = React.useState(false);
+
   // Financing / scenario modeler
   const [scenPrice,  setScenPrice]  = React.useState("");
   const [scenDown,   setScenDown]   = React.useState("10");
@@ -141,6 +146,8 @@ export default function DealRoomPage() {
     setScenarios(roomRes.scenarios ?? []);
     if (fredRes.ok && fredRes.mort30Avg) setLiveRate(fredRes.mort30Avg);
     setLoading(false);
+    // Kick off score in background after room loads
+    loadScore();
   }
 
   React.useEffect(() => {
@@ -175,6 +182,14 @@ export default function DealRoomPage() {
       setDraft("");
     }
     setSending(false);
+  }
+
+  async function loadScore() {
+    setScoreLoading(true);
+    try {
+      const res = await fetch(`/api/deal-rooms/${roomId}/score`);
+      if (res.ok) { const d = await res.json(); setScoreData(d); }
+    } finally { setScoreLoading(false); }
   }
 
   async function advanceStatus() {
@@ -364,6 +379,20 @@ export default function DealRoomPage() {
         /* ── Gap alert ── */
         .gap-alert { border-radius:10px; padding:14px 16px; margin-bottom:14px; }
 
+        /* ── Offer Score ── */
+        .score-card { background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:20px; margin-bottom:14px; }
+        .score-ring {
+          width:64px; height:64px; border-radius:50%; flex-shrink:0;
+          display:flex; align-items:center; justify-content:center;
+          font-family:'Syne',sans-serif; font-size:18px; font-weight:700;
+          border:3px solid;
+        }
+        .score-bar-track { flex:1; height:5px; background:rgba(255,255,255,0.07); border-radius:99px; overflow:hidden; }
+        .score-bar-fill  { height:100%; border-radius:99px; }
+        .score-signal { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+        .score-signal:last-child { border-bottom:none; }
+        .score-narrative { font-size:13px; color:#8fa3b8; line-height:1.65; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.05); }
+
         /* ── Financing ── */
         .fin-rate-strip {
           display:flex; align-items:center; gap:8px; padding:10px 14px;
@@ -503,6 +532,14 @@ export default function DealRoomPage() {
               {/* ── Property tab ── */}
               {activeTab === "property" && (
                 <div>
+                  {/* Offer Confidence Score */}
+                  <OfferScoreCard
+                    scoreData={scoreData}
+                    loading={scoreLoading}
+                    onLoad={loadScore}
+                    roomId={roomId}
+                  />
+
                   {pd?.price && pd?.estimatedValue && (() => {
                     const gap    = pd.price - pd.estimatedValue;
                     const gapPct = (gap / pd.estimatedValue) * 100;
@@ -843,6 +880,27 @@ export default function DealRoomPage() {
 
             {/* ── Right rail ── */}
             <div>
+              {/* Offer Confidence Score summary */}
+              {scoreData && (
+                <div
+                  className="rail-card"
+                  style={{ borderColor: scoreData.score >= 75 ? "rgba(0,232,122,0.2)" : scoreData.score >= 50 ? "rgba(251,191,36,0.2)" : "rgba(248,113,113,0.2)", cursor:"pointer" }}
+                  onClick={() => setActiveTab("property")}
+                >
+                  <span className="rail-label">Offer Score</span>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <p style={{
+                      fontSize:28, fontFamily:"'Syne',sans-serif", fontWeight:700, lineHeight:1,
+                      color: scoreData.score >= 75 ? "#00e87a" : scoreData.score >= 50 ? "#fbbf24" : "#f87171",
+                    }}>{scoreData.score}</p>
+                    <p style={{ fontSize:11, color:"#6b7a99", lineHeight:1.4 }}>out of<br/>100</p>
+                  </div>
+                  <p style={{ fontSize:11, color:"#4a6e58", marginTop:4 }}>
+                    {scoreData.score >= 75 ? "Strong position" : scoreData.score >= 50 ? "Moderate" : "Needs attention"}
+                  </p>
+                </div>
+              )}
+
               {/* PITI at a glance */}
               {heroPiti && (
                 <div className="rail-card" style={{ borderColor:"rgba(0,232,122,0.15)" }}>
@@ -934,6 +992,117 @@ export default function DealRoomPage() {
         </footer>
       </div>
     </>
+  );
+}
+
+// ── Offer Score Card ─────────────────────────────────────────────────────────
+
+type ScoreSignal = { key:string; label:string; detail:string; points:number; max:number; status:'good'|'ok'|'warn' };
+
+function OfferScoreCard({
+  scoreData, loading, onLoad, roomId,
+}: {
+  scoreData: { score:number; signals:ScoreSignal[]; narrative:string; rate:number|null } | null;
+  loading: boolean;
+  onLoad: () => void;
+  roomId: string;
+}) {
+  const statusColor = (s: ScoreSignal['status']) =>
+    s === 'good' ? '#00e87a' : s === 'ok' ? '#fbbf24' : '#f87171';
+  const statusIcon  = (s: ScoreSignal['status']) =>
+    s === 'good' ? '✓' : s === 'ok' ? '●' : '⚠';
+
+  const ringColor = scoreData
+    ? scoreData.score >= 75 ? '#00e87a' : scoreData.score >= 50 ? '#fbbf24' : '#f87171'
+    : '#3a4560';
+
+  return (
+    <div className="score-card">
+      {/* Header row */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+        <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>Offer Confidence Score</p>
+        <button
+          onClick={onLoad}
+          disabled={loading}
+          style={{ background:"none", border:"none", color:"#6b7a99", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:0 }}
+        >
+          {loading ? "Analyzing…" : scoreData ? "↻ Refresh" : "Run analysis"}
+        </button>
+      </div>
+
+      {/* Loading state */}
+      {loading && !scoreData && (
+        <div style={{ padding:"24px 0", textAlign:"center" }}>
+          <p style={{ fontSize:13, color:"#6b7a99" }}>Running AI analysis…</p>
+          <div style={{ width:"100%", height:3, background:"rgba(255,255,255,0.04)", borderRadius:99, marginTop:12, overflow:"hidden" }}>
+            <div style={{ width:"60%", height:"100%", background:"linear-gradient(90deg,transparent,#00e87a,transparent)", animation:"score-scan 1.4s ease-in-out infinite" }} />
+          </div>
+          <style>{`@keyframes score-scan { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }`}</style>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !scoreData && (
+        <div style={{ padding:"20px 0", textAlign:"center" }}>
+          <p style={{ fontSize:22, marginBottom:8 }}>🏠</p>
+          <p style={{ fontSize:13, color:"#6b7a99", marginBottom:14, lineHeight:1.5 }}>
+            Get an AI-powered confidence score for this deal — price position, market timing, financing readiness, and more.
+          </p>
+          <button
+            onClick={onLoad}
+            style={{ background:"#00e87a", color:"#080c12", border:"none", borderRadius:8, padding:"9px 20px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}
+          >
+            Analyze this deal
+          </button>
+        </div>
+      )}
+
+      {/* Score display */}
+      {scoreData && (
+        <>
+          {/* Score ring + bar */}
+          <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
+            <div className="score-ring" style={{ color:ringColor, borderColor:ringColor }}>
+              {scoreData.score}
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+                <span style={{ fontSize:15, fontWeight:600, color:ringColor, fontFamily:"'Syne',sans-serif" }}>
+                  {scoreData.score >= 75 ? "Strong Position" : scoreData.score >= 50 ? "Moderate" : scoreData.score >= 25 ? "Caution" : "Weak Position"}
+                </span>
+                <span style={{ fontSize:12, color:"#6b7a99" }}>{scoreData.score}/100</span>
+              </div>
+              <div className="score-bar-track">
+                <div className="score-bar-fill" style={{ width:`${scoreData.score}%`, background:ringColor }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Signal breakdown */}
+          <div style={{ marginBottom:4 }}>
+            {scoreData.signals.map((sig) => (
+              <div key={sig.key} className="score-signal">
+                <span style={{ fontSize:12, color:statusColor(sig.status), width:14, flexShrink:0, textAlign:"center" }}>
+                  {statusIcon(sig.status)}
+                </span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+                    <span style={{ fontSize:12, fontWeight:500, color:"#f0f4ff" }}>{sig.label}</span>
+                    <span style={{ fontSize:11, color:"#6b7a99", flexShrink:0, marginLeft:8 }}>{sig.points}/{sig.max}</span>
+                  </div>
+                  <p style={{ fontSize:11, color:"#6b7a99", marginTop:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                    {sig.detail}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* AI narrative */}
+          <p className="score-narrative">{scoreData.narrative}</p>
+        </>
+      )}
+    </div>
   );
 }
 
