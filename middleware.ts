@@ -67,6 +67,8 @@ const isPublicRoute = createRouteMatcher([
   // Making public here prevents Clerk edge middleware from redirecting email link clicks
   // when the cookie isn't immediately visible at the edge (new tab, email client, etc.)
   "/messages(.*)",
+  // Market intelligence — server-side AI keys only, no user PII; auth guard not needed
+  "/api/market-intelligence(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {
