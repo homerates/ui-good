@@ -57,27 +57,61 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric"});
 }
 
+type LoanType = 'conventional' | 'va' | 'fha' | 'jumbo';
+
+function vaFundingFeePct(downPct: number): number {
+  if (downPct >= 10) return 1.4;
+  if (downPct >= 5)  return 1.65;
+  return 2.3;
+}
+
 function calcPITI(
   price: number, downPct: number, ratePct: number, termYears: number,
-  annualTaxes: number, hoaMonthly: number
-): { pi:number; taxes:number; ins:number; pmi:number; hoa:number; total:number; loan:number } | null {
+  annualTaxes: number, hoaMonthly: number,
+  loanType: LoanType = 'conventional',
+  fundingFeePct = 0,
+  sellerCredit = 0,
+  closingCosts = 0,
+): {
+  pi:number; taxes:number; ins:number; pmi:number; mip:number; hoa:number;
+  fundingFee:number; total:number; loan:number; downPayment:number; cashToClose:number;
+} | null {
   if (!(price > 0) || !(ratePct > 0) || !(termYears > 0)) return null;
-  const loan = price * (1 - downPct / 100);
-  const r = (ratePct / 100) / 12;
-  const n = termYears * 12;
+  const downPayment = price * (downPct / 100);
+  let loan = price - downPayment;
+
+  // VA: roll funding fee into loan
+  const fundingFee = loanType === 'va' ? Math.round(loan * (fundingFeePct / 100)) : 0;
+  if (loanType === 'va') loan += fundingFee;
+
+  // FHA: roll 1.75% upfront MIP into loan
+  const fhaUpfront = loanType === 'fha' ? Math.round(loan * 0.0175) : 0;
+  if (loanType === 'fha') loan += fhaUpfront;
+
+  const r  = (ratePct / 100) / 12;
+  const n  = termYears * 12;
   const pi = loan * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+
   const taxes = annualTaxes / 12;
   const ins   = (price * 0.003) / 12;
-  const pmi   = downPct < 20 ? (loan * 0.005) / 12 : 0;
+  const pmi   = loanType === 'conventional' && downPct < 20 ? (loan * 0.005) / 12 : 0;
+  const mip   = loanType === 'fha' ? (loan * 0.0055) / 12 : 0;
   const hoa   = hoaMonthly;
+
+  const cashToClose = downPayment + closingCosts - sellerCredit;
+
   return {
-    pi:    Math.round(pi),
-    taxes: Math.round(taxes),
-    ins:   Math.round(ins),
-    pmi:   Math.round(pmi),
-    hoa:   Math.round(hoa),
-    total: Math.round(pi + taxes + ins + pmi + hoa),
-    loan:  Math.round(loan),
+    pi:          Math.round(pi),
+    taxes:       Math.round(taxes),
+    ins:         Math.round(ins),
+    pmi:         Math.round(pmi),
+    mip:         Math.round(mip),
+    hoa:         Math.round(hoa),
+    fundingFee,
+    total:       Math.round(pi + taxes + ins + pmi + mip + hoa),
+    loan:        Math.round(loan),
+    downPayment: Math.round(downPayment),
+    cashToClose: Math.round(cashToClose),
   };
 }
 
@@ -126,7 +160,15 @@ export default function DealRoomPage() {
   const [scenDown,   setScenDown]   = React.useState("10");
   const [scenTerm,   setScenTerm]   = React.useState("30");
   const [scenRate,   setScenRate]   = React.useState("");
-  const [scenLabel,  setScenLabel]  = React.useState("");
+  const [scenLabel,        setScenLabel]        = React.useState("");
+  const [scenLoanType,     setScenLoanType]     = React.useState<LoanType>("conventional");
+  const [scenFundingFee,   setScenFundingFee]   = React.useState("2.3");
+  const [scenSellerCredit, setScenSellerCredit] = React.useState("");
+  const [scenClosingCosts, setScenClosingCosts] = React.useState("");
+  const [showAdvanced,     setShowAdvanced]     = React.useState(false);
+  const [importScens,      setImportScens]      = React.useState<any[]>([]);
+  const [showImport,       setShowImport]       = React.useState(false);
+  const [importLoading,    setImportLoading]    = React.useState(false);
   const [savingScen, setSavingScen] = React.useState(false);
 
   // Seed scenario modeler defaults when room + rate load
@@ -139,6 +181,37 @@ export default function DealRoomPage() {
   React.useEffect(() => {
     if (liveRate && !scenRate) setScenRate(liveRate.toFixed(2));
   }, [liveRate]);
+
+  // Auto-update VA funding fee when loan type or down% changes
+  React.useEffect(() => {
+    if (scenLoanType === "va") {
+      const dp = parseFloat(scenDown);
+      setScenFundingFee((!isNaN(dp) ? vaFundingFeePct(dp) : 2.3).toFixed(2));
+    }
+  }, [scenLoanType, scenDown]);
+
+  async function loadImportScens() {
+    setImportLoading(true);
+    try {
+      const res = await fetch("/api/scenarios?my_referrals=1");
+      if (!res.ok) return;
+      const d = await res.json();
+      const withCards = (d.scenarios ?? []).filter((s: any) => s.card_price && s.card_rate);
+      setImportScens(withCards);
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  function applyImportedScenario(s: any) {
+    if (s.card_price)   setScenPrice(String(s.card_price));
+    if (s.card_dp_pct)  setScenDown(String(s.card_dp_pct));
+    if (s.card_rate)    setScenRate(String(s.card_rate));
+    if (s.card_term)    setScenTerm(String(s.card_term));
+    if (s.loan_type && ["conventional","va","fha","jumbo"].includes(s.loan_type))
+      setScenLoanType(s.loan_type as LoanType);
+    setShowImport(false);
+  }
 
   async function load() {
     const [roomRes, fredRes] = await Promise.all([
@@ -278,24 +351,28 @@ export default function DealRoomPage() {
 
   async function saveScenario() {
     if (savingScen) return;
-    const price = parseFloat(scenPrice.replace(/,/g, ""));
-    const down  = parseFloat(scenDown);
-    const rate  = parseFloat(scenRate);
-    const term  = parseInt(scenTerm);
+    const price  = parseFloat(scenPrice.replace(/,/g, ""));
+    const down   = parseFloat(scenDown);
+    const rate   = parseFloat(scenRate);
+    const term   = parseInt(scenTerm);
+    const ffPct  = scenLoanType === "va" ? parseFloat(scenFundingFee) || 0 : 0;
+    const credit = parseFloat(scenSellerCredit.replace(/,/g, "")) || 0;
+    const cc     = parseFloat(scenClosingCosts.replace(/,/g, "")) || 0;
     if (isNaN(price) || isNaN(down) || isNaN(rate) || isNaN(term)) return;
     const pd      = room?.property_data;
     const taxes   = pd?.annualTaxes ?? price * 0.012;
     const hoa     = pd?.hoaMonthly  ?? 0;
-    const pitiRes = calcPITI(price, down, rate, term, taxes, hoa);
+    const pitiRes = calcPITI(price, down, rate, term, taxes, hoa, scenLoanType, ffPct, credit, cc);
     if (!pitiRes) return;
     setSavingScen(true);
-    const autoLabel = scenLabel.trim() || `Offer at ${fmt(price)}, ${down}% dn`;
+    const loanLabel = scenLoanType === "conventional" ? "" : ` (${scenLoanType.toUpperCase()})`;
+    const autoLabel = scenLabel.trim() || `${fmt(price)} ${down}% dn${loanLabel}`;
     const res = await fetch(`/api/deal-rooms/${roomId}/scenarios`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         label: autoLabel, offer_price: price, down_pct: down,
-        loan_type: "conventional", rate, piti: pitiRes.total,
-        result_json: pitiRes,
+        loan_type: scenLoanType, rate, piti: pitiRes.total,
+        result_json: { ...pitiRes, sellerCredit: credit, closingCosts: cc, fundingFeePct: ffPct },
       }),
     });
     if (res.ok) {
@@ -336,10 +413,13 @@ export default function DealRoomPage() {
   const modDown   = parseFloat(scenDown);
   const modRate   = parseFloat(scenRate);
   const modTerm   = parseInt(scenTerm);
+  const modFF     = scenLoanType === "va" ? parseFloat(scenFundingFee) || 0 : 0;
+  const modCredit = parseFloat(scenSellerCredit.replace(/,/g, "")) || 0;
+  const modCC     = parseFloat(scenClosingCosts.replace(/,/g, "")) || 0;
   const modTaxes  = pd?.annualTaxes ?? (!isNaN(modNum) ? modNum * 0.012 : 0);
   const modHoa    = pd?.hoaMonthly  ?? 0;
   const modPiti   = !isNaN(modNum) && !isNaN(modDown) && !isNaN(modRate) && !isNaN(modTerm)
-    ? calcPITI(modNum, modDown, modRate, modTerm, modTaxes, modHoa) : null;
+    ? calcPITI(modNum, modDown, modRate, modTerm, modTaxes, modHoa, scenLoanType, modFF, modCredit, modCC) : null;
 
   return (
     <>
@@ -716,8 +796,56 @@ export default function DealRoomPage() {
 
                   {/* Scenario modeler */}
                   <div className="dr-card">
-                    <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff", marginBottom:14 }}>Model a Scenario</p>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                      <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>Model a Scenario</p>
+                      <button
+                        style={{ background:"none", border:"none", color:"#3d8bff", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:0 }}
+                        onClick={() => { setShowImport(!showImport); if (!importScens.length && !showImport) loadImportScens(); }}
+                      >
+                        {showImport ? "✕ Close" : "↓ Import from my scenarios"}
+                      </button>
+                    </div>
+
+                    {/* Import picker */}
+                    {showImport && (
+                      <div style={{ background:"#141b28", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:12, marginBottom:14 }}>
+                        {importLoading && <p style={{ fontSize:12, color:"#6b7a99" }}>Loading your scenarios…</p>}
+                        {!importLoading && importScens.length === 0 && (
+                          <p style={{ fontSize:12, color:"#6b7a99" }}>No scenarios with card data found. Save a scenario in the LO portal first.</p>
+                        )}
+                        {importScens.map((s: any) => (
+                          <div
+                            key={s.id}
+                            onClick={() => applyImportedScenario(s)}
+                            style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 10px", borderRadius:8, cursor:"pointer", marginBottom:4, background:"rgba(255,255,255,0.03)" }}
+                          >
+                            <div>
+                              <span style={{ fontSize:12, fontWeight:600, color:s.loan_type==="va"?"#a78bfa":s.loan_type==="fha"?"#fbbf24":"#00e87a", marginRight:8 }}>
+                                {(s.loan_type ?? "CONV").toUpperCase()}
+                              </span>
+                              <span style={{ fontSize:12, color:"#f0f4ff" }}>
+                                {s.card_price ? `$${Number(s.card_price).toLocaleString()}` : s.price_range}
+                              </span>
+                            </div>
+                            <span style={{ fontSize:12, color:"#6b7a99" }}>
+                              {s.card_dp_pct}% dn · {s.card_rate}% · ${Number(s.card_monthly ?? 0).toLocaleString()}/mo
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Row 1: Loan type + offer price */}
                     <div className="mod-row">
+                      <div>
+                        <span className="dr-lbl">Loan Type</span>
+                        <select className="dr-select" value={scenLoanType} onChange={e => setScenLoanType(e.target.value as LoanType)}>
+                          <option value="conventional">Conventional</option>
+                          <option value="va">VA</option>
+                          <option value="fha">FHA</option>
+                          <option value="jumbo">Jumbo</option>
+                        </select>
+                      </div>
                       <div>
                         <span className="dr-lbl">Offer Price ($)</span>
                         <input
@@ -727,23 +855,22 @@ export default function DealRoomPage() {
                           onChange={e => setScenPrice(e.target.value)}
                         />
                       </div>
+                    </div>
+
+                    {/* Row 2: Down + Rate */}
+                    <div className="mod-row">
                       <div>
                         <span className="dr-lbl">Down Payment (%)</span>
                         <input className="dr-input" type="number" min="0" max="100" step="0.5" value={scenDown} onChange={e => setScenDown(e.target.value)} />
                       </div>
-                    </div>
-                    <div className="mod-row">
                       <div>
                         <span className="dr-lbl">Rate (%)</span>
-                        <input
-                          className="dr-input"
-                          type="number"
-                          step="0.01"
-                          placeholder={liveRate ? liveRate.toFixed(2) : "6.75"}
-                          value={scenRate}
-                          onChange={e => setScenRate(e.target.value)}
-                        />
+                        <input className="dr-input" type="number" step="0.01" placeholder={liveRate ? liveRate.toFixed(2) : "6.75"} value={scenRate} onChange={e => setScenRate(e.target.value)} />
                       </div>
+                    </div>
+
+                    {/* Row 3: Term + VA funding fee */}
+                    <div className="mod-row">
                       <div>
                         <span className="dr-lbl">Term</span>
                         <select className="dr-select" value={scenTerm} onChange={e => setScenTerm(e.target.value)}>
@@ -753,7 +880,44 @@ export default function DealRoomPage() {
                           <option value="10">10 Year</option>
                         </select>
                       </div>
+                      {scenLoanType === "va" && (
+                        <div>
+                          <span className="dr-lbl">VA Funding Fee (%)</span>
+                          <input className="dr-input" type="number" step="0.01" value={scenFundingFee} onChange={e => setScenFundingFee(e.target.value)} />
+                        </div>
+                      )}
                     </div>
+                    {scenLoanType === "va" && (
+                      <p style={{ fontSize:11, color:"#6b7a99", marginTop:-8, marginBottom:12 }}>
+                        Auto-calculated · 0% if service-connected disability — override as needed
+                      </p>
+                    )}
+                    {scenLoanType === "fha" && (
+                      <p style={{ fontSize:11, color:"#6b7a99", marginBottom:12 }}>
+                        FHA: 1.75% upfront MIP rolled into loan · 0.55% annual MIP included in monthly
+                      </p>
+                    )}
+
+                    {/* Advanced toggle */}
+                    <button
+                      onClick={() => setShowAdvanced(!showAdvanced)}
+                      style={{ background:"none", border:"none", color:"#6b7a99", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:"0 0 12px", display:"flex", alignItems:"center", gap:4 }}
+                    >
+                      {showAdvanced ? "▾" : "▸"} Seller credit &amp; closing costs
+                    </button>
+
+                    {showAdvanced && (
+                      <div className="mod-row" style={{ marginTop:-4 }}>
+                        <div>
+                          <span className="dr-lbl">Seller Credit ($)</span>
+                          <input className="dr-input" placeholder="e.g. 15000" value={scenSellerCredit} onChange={e => setScenSellerCredit(e.target.value)} />
+                        </div>
+                        <div>
+                          <span className="dr-lbl">Est. Closing Costs ($)</span>
+                          <input className="dr-input" placeholder="e.g. 12000" value={scenClosingCosts} onChange={e => setScenClosingCosts(e.target.value)} />
+                        </div>
+                      </div>
+                    )}
 
                     {/* Live preview */}
                     {modPiti && (
@@ -761,14 +925,35 @@ export default function DealRoomPage() {
                         <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:6 }}>
                           <span style={{ fontSize:24, fontFamily:"'Syne',sans-serif", fontWeight:700, color:"#00e87a" }}>${modPiti.total.toLocaleString()}/mo</span>
                           <span style={{ fontSize:12, color:"#4a6e58" }}>total PITI</span>
+                          <span style={{ fontSize:11, fontWeight:600, padding:"2px 7px", borderRadius:99, background:"rgba(167,139,250,0.12)", color:"#a78bfa", marginLeft:4 }}>
+                            {scenLoanType.toUpperCase()}
+                          </span>
                         </div>
-                        <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 16px" }}>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 16px", marginBottom: (modPiti.fundingFee > 0 || modPiti.mip > 0 || modPiti.cashToClose !== modPiti.downPayment) ? 8 : 0 }}>
                           <span style={{ fontSize:12, color:"#6b7a99" }}>P&I ${modPiti.pi.toLocaleString()}</span>
                           <span style={{ fontSize:12, color:"#6b7a99" }}>Tax ${modPiti.taxes.toLocaleString()}</span>
                           <span style={{ fontSize:12, color:"#6b7a99" }}>Ins ${modPiti.ins.toLocaleString()}</span>
                           {modPiti.pmi > 0 && <span style={{ fontSize:12, color:"#fbbf24" }}>PMI ${modPiti.pmi.toLocaleString()}</span>}
+                          {modPiti.mip > 0 && <span style={{ fontSize:12, color:"#fbbf24" }}>MIP ${modPiti.mip.toLocaleString()}</span>}
                           {modPiti.hoa > 0 && <span style={{ fontSize:12, color:"#6b7a99" }}>HOA ${modPiti.hoa.toLocaleString()}</span>}
                         </div>
+                        {modPiti.fundingFee > 0 && (
+                          <p style={{ fontSize:11, color:"#a78bfa", marginBottom:6 }}>
+                            VA funding fee ${modPiti.fundingFee.toLocaleString()} rolled into loan · Financed amt ${modPiti.loan.toLocaleString()}
+                          </p>
+                        )}
+                        {(modCC > 0 || modCredit > 0) && (
+                          <div style={{ borderTop:"1px solid rgba(255,255,255,0.06)", paddingTop:8, marginTop:4 }}>
+                            <p style={{ fontSize:12, fontWeight:600, color:"#f0f4ff", marginBottom:3 }}>
+                              Cash to Close: <span style={{ color:"#00e87a" }}>${modPiti.cashToClose.toLocaleString()}</span>
+                            </p>
+                            <p style={{ fontSize:11, color:"#6b7a99" }}>
+                              Down ${modPiti.downPayment.toLocaleString()}
+                              {modCC > 0 ? ` + Closing ${fmt(modCC)}` : ""}
+                              {modCredit > 0 ? ` − Seller Credit ${fmt(modCredit)}` : ""}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -776,18 +961,13 @@ export default function DealRoomPage() {
                       <span className="dr-lbl">Scenario Name (optional)</span>
                       <input
                         className="dr-input"
-                        placeholder={modPiti && !isNaN(modNum) ? `Offer at ${fmt(modNum)}, ${scenDown}% dn` : "e.g. Aggressive offer, Counter offer…"}
+                        placeholder={modPiti && !isNaN(modNum) ? `${fmt(modNum)} ${scenDown}% dn (${scenLoanType.toUpperCase()})` : "e.g. VA offer with $15k seller credit…"}
                         value={scenLabel}
                         onChange={e => setScenLabel(e.target.value)}
                       />
                     </div>
 
-                    <button
-                      className="dr-btn"
-                      style={{ width:"100%" }}
-                      onClick={saveScenario}
-                      disabled={savingScen || !modPiti}
-                    >
+                    <button className="dr-btn" style={{ width:"100%" }} onClick={saveScenario} disabled={savingScen || !modPiti}>
                       {savingScen ? "Saving…" : "Save Scenario — share with team"}
                     </button>
                   </div>
