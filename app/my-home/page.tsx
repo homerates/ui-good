@@ -721,6 +721,33 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
   const spread    = (listPrice && avm) ? Math.round((avm - listPrice) / listPrice * 100) : null;
   const basisGain = (listPrice && basis && basis > 0) ? Math.round((listPrice - basis) / basis * 100) : null;
   const psf       = (listPrice && d.sqft) ? Math.round(listPrice / d.sqft) : null;
+
+  // Build deep market analysis query for the AI box
+  const aiQuery = (() => {
+    const addr = d.address ?? '';
+    const price = listPrice ?? avm ?? 0;
+    const addrParts = addr.split(',').map((s: string) => s.trim());
+    const parts = [
+      `Run a full AI market analysis on ${addr} listed at ${price ? fmt(price) : 'this price'}.`,
+      avm && listPrice && avm !== listPrice ? `Redfin AVM is ${fmt(avm)} (${spread != null ? `${spread > 0 ? '+' : ''}${spread}% vs ask` : 'vs ask'}) — is this listing fairly priced?` : '',
+      d.daysOnMarket != null ? `It has been on the market ${d.daysOnMarket} days.` : '',
+      d.beds || d.baths ? `Property: ${[d.beds && `${d.beds}bd`, d.baths && `${d.baths}ba`, d.sqft && `${d.sqft.toLocaleString()}sqft`].filter(Boolean).join('/')}.` : '',
+      'Pull live comps, assess price per sqft vs neighborhood, evaluate offer strategy, and flag any red flags or buying signals.',
+    ].filter(Boolean).join(' ');
+    const p = new URLSearchParams({
+      sq: parts,
+      cmaAddress: addr,
+      cmaCity: addrParts[1] ?? '',
+      cmaState: (addrParts[2] ?? '').replace(/\s*\d{5}.*/, '').trim(),
+      cmaPrice: String(Math.round(price)),
+      cmaLiveRate: String(d.liveRate.toFixed(2)),
+      ...(d.beds  ? { cmaBeds:  String(d.beds)  } : {}),
+      ...(d.baths ? { cmaBaths: String(d.baths) } : {}),
+      ...(d.sqft  ? { cmaSqft:  String(d.sqft)  } : {}),
+    });
+    return `/chat?${p.toString()}`;
+  })();
+
   return (
     <div className="mh-card">
       <div className="mh-card-label">Market Position</div>
@@ -737,6 +764,49 @@ function CardMarketPosition({ d }: { d: AnalysisData; nearbySales?: NearbySale[]
           </div>
           <div className="mh-stat-sub">{spread != null ? `${spread > 0 ? '+' : ''}${spread}% vs ask` : ''}</div>
         </div>
+        {/* AI Market Analysis — Feeling Lucky box */}
+        <a
+          href={aiQuery}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            padding: '14px 10px',
+            borderRadius: 10,
+            background: 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(59,130,246,0.10) 100%)',
+            border: '1px solid rgba(139,92,246,0.30)',
+            textDecoration: 'none',
+            cursor: 'pointer',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
+            boxShadow: '0 0 0 0 rgba(139,92,246,0)',
+          }}
+          onMouseOver={e => {
+            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(139,92,246,0.65)';
+            (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 0 18px rgba(139,92,246,0.25)';
+          }}
+          onMouseOut={e => {
+            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(139,92,246,0.30)';
+            (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 0 0 0 rgba(139,92,246,0)';
+          }}
+        >
+          {/* Pandora's box icon */}
+          <span style={{ fontSize: 26, lineHeight: 1, filter: 'drop-shadow(0 0 8px rgba(167,139,250,0.7))' }}>🔮</span>
+          <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(167,139,250,0.9)', textAlign: 'center', lineHeight: 1.3 }}>
+            AI Market<br />Analysis
+          </div>
+          <div style={{ fontSize: '0.58rem', color: 'rgba(139,92,246,0.7)', fontWeight: 600, textAlign: 'center' }}>
+            Feeling Lucky? ✦
+          </div>
+          <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
+            {['G', 'T', 'AI'].map(lbl => (
+              <span key={lbl} style={{ fontSize: '0.5rem', padding: '1px 4px', borderRadius: 3, background: 'rgba(139,92,246,0.18)', color: 'rgba(167,139,250,0.8)', fontWeight: 700, letterSpacing: '0.03em' }}>{lbl}</span>
+            ))}
+          </div>
+        </a>
       </div>
       {d.daysOnMarket != null && (
         <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(99,179,237,0.06)', border: '1px solid rgba(99,179,237,0.15)', borderRadius: 8 }}>
