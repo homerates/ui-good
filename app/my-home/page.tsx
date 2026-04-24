@@ -6,7 +6,6 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
-import { ShareAnswerButton } from '../components/ShareAnswerButton';
 import MarketIntelCard from '../components/MarketIntelCard';
 
 interface HomeownerProperty {
@@ -123,6 +122,38 @@ const BUYER_CHIPS: { id: BuyerChipId; label: string; icon: string }[] = [
   { id: 'cost',     label: 'True Cost',       icon: '📅' },
   { id: 'signal',   label: 'Offer Signal',    icon: '🎯' },
 ];
+
+// ── Property share button (copies /my-home?address=... link) ──────────────────
+function PropertyShareButton({ address }: { address: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleShare() {
+    const url = `${window.location.origin}/my-home?address=${encodeURIComponent(address)}`;
+    navigator.clipboard.writeText(url).catch(() => {
+      const el = document.createElement('textarea');
+      el.value = url; el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+      document.body.appendChild(el); el.focus(); el.select();
+      document.execCommand('copy'); document.body.removeChild(el);
+    });
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <button
+      onClick={handleShare}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '10px 16px', borderRadius: 999,
+        border: '1px solid rgba(148,163,184,0.5)',
+        background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(15,23,42,0.8)',
+        color: copied ? '#4ade80' : '#e2e8f0',
+        fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+        transition: 'all 0.2s', whiteSpace: 'nowrap',
+      }}
+    >
+      {copied ? '✓ Copied!' : '⇗ Share'}
+    </button>
+  );
+}
 
 // ── Estimated badge ────────────────────────────────────────────────────────────
 function EstBadge() {
@@ -2094,10 +2125,6 @@ function MyHomePageInner() {
                               rate: String(a.liveRate.toFixed(2)),
                               purpose: 'Purchase',
                             });
-                            const shareMessages = [
-                              { id: 'prop-q', role: 'user' as const, content: `What are the numbers on ${a.address} listed at $${Math.round(price).toLocaleString()}?` },
-                              { id: 'prop-a', role: 'assistant' as const, content: `**Buyer Intelligence — ${a.address}**\n\nList Price: $${Math.round(price).toLocaleString()} · ${a.beds ?? '—'}bd/${a.baths ?? '—'}ba · ${a.sqft?.toLocaleString() ?? '—'} sqft\nRedfin AVM: $${Math.round(a.estimatedValue ?? price).toLocaleString()} · Days on Market: ${a.daysOnMarket ?? '—'}\nCurrent Rate: ${a.liveRate.toFixed(2)}%`, meta: { type: 'property_card' } },
-                            ];
                             return (
                               <>
                                 <a
@@ -2106,11 +2133,7 @@ function MyHomePageInner() {
                                 >
                                   Get matched →
                                 </a>
-                                <ShareAnswerButton
-                                  question={`Buyer intelligence for ${a.address}`}
-                                  answer={shareMessages[1].content}
-                                  messages={shareMessages}
-                                />
+                                <PropertyShareButton address={a.address} />
                               </>
                             );
                           })()}
