@@ -177,16 +177,22 @@ export default function DealRoomPage() {
   const [importLoading,    setImportLoading]    = React.useState(false);
   const [savingScen, setSavingScen] = React.useState(false);
 
-  // Seed scenario modeler defaults when room + rate load
+  // Seed scenario modeler from latest saved scenario, falling back to room defaults
   React.useEffect(() => {
-    if (room && !scenPrice) {
-      const price = room.offer_price ?? room.property_data?.price;
-      if (price) setScenPrice(String(Math.round(price)));
-    }
-  }, [room]);
+    if (!room || scenPrice) return;
+    const latest = scenarios[0];
+    const price = latest?.offer_price ?? room.offer_price ?? room.property_data?.price;
+    if (price) setScenPrice(String(Math.round(price)));
+    if (latest?.down_pct != null) setScenDown(String(latest.down_pct));
+    if (latest?.loan_type && ["conventional","va","fha","jumbo"].includes(latest.loan_type))
+      setScenLoanType(latest.loan_type as LoanType);
+  }, [room, scenarios]);
   React.useEffect(() => {
-    if (liveRate && !scenRate) setScenRate(liveRate.toFixed(2));
-  }, [liveRate]);
+    if (scenRate) return;
+    const latestRate = scenarios[0]?.rate;
+    if (latestRate) { setScenRate(String(latestRate)); return; }
+    if (liveRate) setScenRate(liveRate.toFixed(2));
+  }, [liveRate, scenarios]);
 
   // Auto-update VA funding fee when loan type or down% changes
   React.useEffect(() => {
@@ -366,6 +372,25 @@ export default function DealRoomPage() {
     navigator.clipboard.writeText(link);
     setCopiedRole(role);
     setTimeout(() => setCopiedRole(null), 2000);
+  }
+
+  const modelerRef = React.useRef<HTMLDivElement>(null);
+
+  function loadScenIntoModeler(s: Scenario) {
+    if (s.offer_price) setScenPrice(String(Math.round(s.offer_price)));
+    if (s.down_pct != null) setScenDown(String(s.down_pct));
+    if (s.rate) setScenRate(String(s.rate));
+    if (s.loan_type && ["conventional","va","fha","jumbo"].includes(s.loan_type ?? ""))
+      setScenLoanType(s.loan_type as LoanType);
+    setScenLabel("");
+    setScenSellerCredit(s.result_json?.sellerCredit ? String(s.result_json.sellerCredit) : "");
+    setScenClosingCosts(s.result_json?.closingCosts  ? String(s.result_json.closingCosts)  : "");
+    modelerRef.current?.scrollIntoView({ behavior:"smooth", block:"start" });
+  }
+
+  async function deleteScenario(scenId: string) {
+    await fetch(`/api/deal-rooms/${roomId}/scenarios?scenario_id=${scenId}`, { method:"DELETE" });
+    setScenarios(p => p.filter(s => s.id !== scenId));
   }
 
   async function saveScenario() {
@@ -570,9 +595,15 @@ export default function DealRoomPage() {
         .scen-list { display:flex; flex-direction:column; gap:8px; margin-top:14px; }
         .scen-card {
           background:#141b28; border:1px solid rgba(255,255,255,0.07);
-          border-radius:10px; padding:14px 16px;
-          display:flex; align-items:center; justify-content:space-between; gap:12px;
+          border-radius:10px; padding:12px 14px;
+          display:flex; flex-direction:column; gap:8px;
         }
+        .scen-card-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .scen-actions { display:flex; gap:6px; }
+        .scen-btn { background:transparent; border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; color:#6b7a99; transition:color .12s, border-color .12s; }
+        .scen-btn:hover { color:#f0f4ff; border-color:rgba(255,255,255,0.2); }
+        .scen-btn.load:hover { color:#00e87a; border-color:rgba(0,232,122,0.35); }
+        .scen-btn.del:hover { color:#f87171; border-color:rgba(248,113,113,0.35); }
 
         /* ── Messages ── */
         .dr-thread { min-height:280px; max-height:460px; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
@@ -828,7 +859,7 @@ export default function DealRoomPage() {
                   )}
 
                   {/* Scenario modeler */}
-                  <div className="dr-card">
+                  <div className="dr-card" ref={modelerRef}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                       <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>Model a Scenario</p>
                       <button
@@ -1017,29 +1048,53 @@ export default function DealRoomPage() {
                       <div className="scen-list">
                         {scenarios.map((s) => {
                           const rc = ROLE_COLORS[s.created_by_role] ?? "#6b7a99";
+                          const isOwn = s.created_by === userId;
                           return (
                             <div key={s.id} className="scen-card">
-                              <div style={{ flex:1, minWidth:0 }}>
-                                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
-                                  <p style={{ fontSize:13, fontWeight:500, color:"#f0f4ff" }}>
-                                    {s.label ?? (s.offer_price ? `Offer at ${fmt(s.offer_price)}` : "Scenario")}
-                                  </p>
-                                  <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(255,255,255,0.05)", color:"#3a4560", letterSpacing:".06em" }}>EST</span>
+                              {/* Top row: label + PITI */}
+                              <div className="scen-card-row">
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                                    <p style={{ fontSize:13, fontWeight:500, color:"#f0f4ff" }}>
+                                      {s.label ?? (s.offer_price ? `Offer at ${fmt(s.offer_price)}` : "Scenario")}
+                                    </p>
+                                    <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(255,255,255,0.05)", color:"#3a4560", letterSpacing:".06em" }}>EST</span>
+                                  </div>
+                                  <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 12px" }}>
+                                    {s.offer_price && <span style={{ fontSize:12, color:"#6b7a99" }}>{fmt(s.offer_price)}</span>}
+                                    {s.down_pct != null && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.down_pct}% dn</span>}
+                                    {s.rate        && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.rate}%</span>}
+                                    {s.loan_type && s.loan_type !== "conventional" && <span style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase" }}>{s.loan_type}</span>}
+                                    <span style={{ fontSize:12, color:"#3a4560" }}>{timeAgo(s.created_at)}</span>
+                                  </div>
                                 </div>
-                                <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 12px" }}>
-                                  {s.offer_price && <span style={{ fontSize:12, color:"#6b7a99" }}>{fmt(s.offer_price)}</span>}
-                                  {s.down_pct    && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.down_pct}% dn</span>}
-                                  {s.rate        && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.rate}%</span>}
-                                  <span style={{ fontSize:12, color:"#3a4560" }}>{timeAgo(s.created_at)}</span>
+                                <div style={{ textAlign:"right", flexShrink:0 }}>
+                                  {s.piti && (
+                                    <p style={{ fontSize:16, fontWeight:700, color:"#00e87a", fontFamily:"'Syne',sans-serif" }}>
+                                      ${s.piti.toLocaleString()}/mo
+                                    </p>
+                                  )}
+                                  <span style={{ fontSize:11, fontWeight:600, color:rc }}>{ROLE_LABELS[s.created_by_role] ?? s.created_by_role}</span>
                                 </div>
                               </div>
-                              <div style={{ textAlign:"right", flexShrink:0 }}>
-                                {s.piti && (
-                                  <p style={{ fontSize:16, fontWeight:700, color:"#00e87a", fontFamily:"'Syne',sans-serif" }}>
-                                    ${s.piti.toLocaleString()}/mo
-                                  </p>
+                              {/* Action row */}
+                              <div className="scen-actions">
+                                <button
+                                  className="scen-btn load"
+                                  onClick={() => loadScenIntoModeler(s)}
+                                  title="Load these numbers into the modeler above"
+                                >
+                                  ↑ Load into modeler
+                                </button>
+                                {isOwn && (
+                                  <button
+                                    className="scen-btn del"
+                                    onClick={() => deleteScenario(s.id)}
+                                    title="Delete this scenario"
+                                  >
+                                    Delete
+                                  </button>
                                 )}
-                                <span style={{ fontSize:11, fontWeight:600, color:rc }}>{ROLE_LABELS[s.created_by_role] ?? s.created_by_role}</span>
                               </div>
                             </div>
                           );

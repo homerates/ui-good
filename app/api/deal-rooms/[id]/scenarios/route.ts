@@ -1,6 +1,7 @@
 // app/api/deal-rooms/[id]/scenarios/route.ts
-// GET  — list saved offer scenarios for a room
-// POST — save a new scenario (any room member)
+// GET    — list saved offer scenarios for a room
+// POST   — save a new scenario (any room member)
+// DELETE — remove a scenario (creator only) · ?scenario_id=xxx
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
@@ -86,4 +87,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .eq('id', id);
 
   return NextResponse.json({ scenario: data }, { status: 201 });
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const sb = getSupabase();
+  if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
+
+  const url = new URL(req.url);
+  const scenarioId = url.searchParams.get('scenario_id');
+  if (!scenarioId) return NextResponse.json({ error: 'scenario_id required' }, { status: 400 });
+
+  const { data: scen } = await sb
+    .from('deal_room_scenarios')
+    .select('created_by')
+    .eq('id', scenarioId)
+    .eq('deal_room_id', id)
+    .maybeSingle();
+
+  if (!scen) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (scen.created_by !== userId) return NextResponse.json({ error: 'Only the scenario creator can delete it' }, { status: 403 });
+
+  await sb.from('deal_room_scenarios').delete().eq('id', scenarioId);
+  return new NextResponse(null, { status: 204 });
 }
