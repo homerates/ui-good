@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
+import { ShareAnswerButton } from '../components/ShareAnswerButton';
 
 interface HomeownerProperty {
   id: string;
@@ -1995,6 +1996,36 @@ function MyHomePageInner() {
                           >
                             Full Analysis ↓
                           </a>
+                          {isBuyer && (() => {
+                            const a = analysis!;
+                            const price = a.listPrice ?? a.estimatedValue ?? 0;
+                            const matchP = new URLSearchParams({
+                              from: 'scenario', lt: 'purchase',
+                              price: String(Math.round(price)),
+                              dp: '20',
+                              rate: String(a.liveRate.toFixed(2)),
+                              purpose: 'Purchase',
+                            });
+                            const shareMessages = [
+                              { id: 'prop-q', role: 'user' as const, content: `What are the numbers on ${a.address} listed at $${Math.round(price).toLocaleString()}?` },
+                              { id: 'prop-a', role: 'assistant' as const, content: `**Buyer Intelligence — ${a.address}**\n\nList Price: $${Math.round(price).toLocaleString()} · ${a.beds ?? '—'}bd/${a.baths ?? '—'}ba · ${a.sqft?.toLocaleString() ?? '—'} sqft\nRedfin AVM: $${Math.round(a.estimatedValue ?? price).toLocaleString()} · Days on Market: ${a.daysOnMarket ?? '—'}\nCurrent Rate: ${a.liveRate.toFixed(2)}%`, meta: { type: 'property_card' } },
+                            ];
+                            return (
+                              <>
+                                <a
+                                  href={`/connect/post?${matchP.toString()}`}
+                                  style={{ padding: '10px 18px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block', whiteSpace: 'nowrap' }}
+                                >
+                                  Get matched →
+                                </a>
+                                <ShareAnswerButton
+                                  question={`Buyer intelligence for ${a.address}`}
+                                  answer={shareMessages[1].content}
+                                  messages={shareMessages}
+                                />
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
