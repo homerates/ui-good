@@ -375,24 +375,47 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ responses: data ?? [] });
   }
 
-  // Short-circuit: LO fetching only their private referred scenarios
+  // Short-circuit: LO fetching scenarios to import into Deal Room
+  // Includes: (1) borrower scenarios privately referred to this LO, and
+  //           (2) scenarios the LO posted themselves (borrower_id = userId)
   if (myReferrals) {
-    const { data: refs } = await sb
-      .from("scenario_briefs")
-      .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term, visibility, referred_pro_id")
-      .eq("referred_pro_id", userId)
-      .eq("visibility", "private")
-      .eq("status", "active")
-      .order("created_at", { ascending: false });
+    const SCEN_SELECT = "id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, needs_professional, response_count, max_responses, closes_at, created_at, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term, visibility, referred_pro_id";
 
-    const refIds = (refs ?? []).map(s => s.id);
+    const [{ data: refs }, { data: ownPosts }] = await Promise.all([
+      // Borrower scenarios referred privately to this LO
+      sb.from("scenario_briefs")
+        .select(SCEN_SELECT)
+        .eq("referred_pro_id", userId)
+        .eq("visibility", "private")
+        .eq("status", "active")
+        .order("created_at", { ascending: false }),
+      // Scenarios the LO posted directly (on behalf of their borrowers)
+      sb.from("scenario_briefs")
+        .select(SCEN_SELECT)
+        .eq("borrower_id", userId)
+        .eq("status", "active")
+        .not("card_price", "is", null)
+        .not("card_rate", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
+
+    // Merge, deduplicate by id, referred scenarios first
+    const seen = new Set<string>();
+    const all = [...(refs ?? []), ...(ownPosts ?? [])].filter(s => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+
+    const allIds = all.map(s => s.id);
     let respondedRefIds: string[] = [];
-    if (refIds.length > 0) {
-      const { data: myR } = await sb.from("scenario_responses").select("scenario_id").eq("lo_id", userId).in("scenario_id", refIds);
+    if (allIds.length > 0) {
+      const { data: myR } = await sb.from("scenario_responses").select("scenario_id").eq("lo_id", userId).in("scenario_id", allIds);
       respondedRefIds = (myR ?? []).map(r => r.scenario_id);
     }
     return NextResponse.json({
-      scenarios: (refs ?? []).map(s => ({ ...s, already_responded: respondedRefIds.includes(s.id) })),
+      scenarios: all.map(s => ({ ...s, already_responded: respondedRefIds.includes(s.id) })),
     });
   }
 
