@@ -1428,6 +1428,11 @@ export default function Page() {
     // snapshot into active thread
     useEffect(() => {
         if (!activeId) return;
+        // Don't clobber an existing thread's messages with the WelcomeScreen placeholder.
+        // This fires when activeId changes (before the new thread's messages load),
+        // which would overwrite threads[id] with [{content:'New chat...'}].
+        const INITIAL_MSG = 'New chat. What do you want to figure out?';
+        if (messages.length === 1 && messages[0]?.content === INITIAL_MSG) return;
 
         setThreads((prev) => {
             const base = prev && typeof prev === 'object' ? prev : {};
@@ -1497,13 +1502,18 @@ export default function Page() {
     // history select
     async function onSelectHistory(id: string) {
         setActiveId(id);
-        const thread = threads[id];
-        if (Array.isArray(thread) && thread.length) {
-            setMessages(thread);
-            setShowLibrary(false);
-            return;
-        }
-        // Not in local state — fetch from DB
+        setShowLibrary(false);
+
+        // Show cached thread immediately as a preview — but only if it has real content
+        // (not the initial placeholder that the snapshot effect may have written when
+        // activeId changed before the actual thread messages were loaded).
+        const INITIAL_MSG = 'New chat. What do you want to figure out?';
+        const cached = threads[id];
+        const hasRealCache = Array.isArray(cached) && cached.length > 0 &&
+            !(cached.length === 1 && (cached[0] as any)?.content === INITIAL_MSG);
+        if (hasRealCache) setMessages(cached);
+
+        // Always fetch from DB to get the authoritative snapshot
         try {
             const res = await fetch(`/api/chat-threads?chat_id=${id}`);
             if (res.ok) {
@@ -1512,21 +1522,23 @@ export default function Page() {
                 if (Array.isArray(row?.messages) && row.messages.length) {
                     setThreads(prev => ({ ...prev, [id]: row.messages }));
                     setMessages(row.messages);
-                    setShowLibrary(false);
                     return;
                 }
             }
         } catch (e) {
             console.warn('[onSelectHistory] DB fetch failed:', e);
         }
-        setMessages([
-            {
-                id: uid(),
-                role: 'assistant',
-                content: 'Restored chat (no snapshot found). Start typing to continue.',
-            },
-        ]);
-        setShowLibrary(false);
+
+        // Nothing in DB — keep cached version if we already showed it, otherwise show fallback
+        if (!hasRealCache) {
+            setMessages([
+                {
+                    id: uid(),
+                    role: 'assistant',
+                    content: 'Restored chat (no snapshot found). Start typing to continue.',
+                },
+            ]);
+        }
     }
 
     const handleProjectAction = React.useCallback(
