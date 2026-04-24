@@ -39,6 +39,7 @@ export default function DealRoomsPage() {
 
   const [rooms,      setRooms]      = React.useState<Room[]>([]);
   const [loading,    setLoading]    = React.useState(true);
+  const [plan,       setPlan]       = React.useState<string | null>(null);
   const [showNew,    setShowNew]    = React.useState(false);
   const [newAddress, setNewAddress] = React.useState("");
   const [newClose,   setNewClose]   = React.useState("");
@@ -47,11 +48,13 @@ export default function DealRoomsPage() {
   React.useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) { router.replace("/sign-in"); return; }
-    fetch("/api/deal-rooms")
-      .then((r) => r.json())
-      .then((d) => setRooms(d.rooms ?? []))
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/deal-rooms").then((r) => r.json()).then((d) => setRooms(d.rooms ?? [])),
+      fetch("/api/user/plan").then((r) => r.json()).then((d) => { if (d?.plan) setPlan(d.plan); }),
+    ]).finally(() => setLoading(false));
   }, [isLoaded, isSignedIn, router]);
+
+  const isPro = plan === "pro" || plan === "founding";
 
   async function createRoom() {
     if (!newAddress.trim() || submitting) return;
@@ -107,7 +110,7 @@ export default function DealRoomsPage() {
             AI workspace for every transaction — property, team, and financing in one place
           </p>
         </div>
-        {!showNew && (
+        {!showNew && isPro && (
           <button className="dr-btn" style={{ flexShrink:0, marginTop:4 }} onClick={() => setShowNew(true)}>
             + New Room
           </button>
@@ -115,7 +118,7 @@ export default function DealRoomsPage() {
       </div>
 
       {/* New room panel */}
-      {showNew && (
+      {showNew && isPro && (
         <div className="dr-new">
           <p style={{ fontSize:14, fontWeight:500, marginBottom:18, color:"#f0f4ff" }}>New Deal Room</p>
           <div style={{ marginBottom:14 }}>
@@ -140,8 +143,27 @@ export default function DealRoomsPage() {
       {/* Loading */}
       {loading && <p style={{ color:"#6b7a99", fontSize:14, textAlign:"center", padding:"60px 0" }}>Loading…</p>}
 
+      {/* Pro gate */}
+      {!loading && !isPro && (
+        <div style={{ background:"#0e1420", border:"1px solid rgba(251,191,36,0.2)", borderRadius:12, padding:28, textAlign:"center" }}>
+          <div style={{ fontSize:32, marginBottom:14 }}>⭐</div>
+          <p style={{ fontFamily:"'Syne',sans-serif", fontSize:18, fontWeight:700, color:"#f0f4ff", margin:"0 0 8px" }}>
+            Deal Rooms is a Pro feature
+          </p>
+          <p style={{ fontSize:14, color:"#6b7a99", margin:"0 0 24px", lineHeight:1.6 }}>
+            Create AI-powered transaction workspaces for your deals — property intelligence, live financing, team messaging, and invite links for your buyer, agent, or loan officer.
+          </p>
+          <a
+            href="/pricing"
+            style={{ display:"inline-block", background:"#00e87a", color:"#080c12", borderRadius:8, padding:"11px 24px", fontSize:14, fontWeight:700, textDecoration:"none" }}
+          >
+            Upgrade to Pro →
+          </a>
+        </div>
+      )}
+
       {/* Empty */}
-      {!loading && rooms.length === 0 && !showNew && (
+      {!loading && isPro && rooms.length === 0 && !showNew && (
         <div style={{ textAlign:"center", padding:"72px 0" }}>
           <div style={{ fontSize:32, marginBottom:14 }}>🏠</div>
           <p style={{ fontSize:16, fontWeight:500, color:"#f0f4ff", margin:"0 0 6px" }}>No deal rooms yet</p>
@@ -153,7 +175,7 @@ export default function DealRoomsPage() {
       )}
 
       {/* Active */}
-      {!loading && active.length > 0 && (
+      {!loading && isPro && active.length > 0 && (
         <div style={{ marginBottom:32 }}>
           <p className="dr-sec">Active</p>
           {active.map((r) => <RoomCard key={r.id} room={r} onClick={() => router.push(`/deal-rooms/${r.id}`)} />)}
@@ -161,7 +183,7 @@ export default function DealRoomsPage() {
       )}
 
       {/* Closed */}
-      {!loading && closed.length > 0 && (
+      {!loading && isPro && closed.length > 0 && (
         <div>
           <p className="dr-sec">Closed / Cancelled</p>
           {closed.map((r) => <RoomCard key={r.id} room={r} onClick={() => router.push(`/deal-rooms/${r.id}`)} />)}
