@@ -1302,7 +1302,9 @@ function MyHomePageInner() {
               if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
             }
             // homeowner/analysis confirmed FOR_SALE — carry status forward if lookup returned UNKNOWN
-            const lookupData = { ...lookupJson.data };
+            // Always pin address to the saved property address — prevents Tavily finding
+            // a wrong Redfin URL from contaminating the displayed card
+            const lookupData = { ...lookupJson.data, address: addr };
             if (!lookupData.listingStatus || lookupData.listingStatus === 'UNKNOWN') {
               lookupData.listingStatus = data.listingStatus;
             }
@@ -1350,7 +1352,8 @@ function MyHomePageInner() {
         const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
         if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
       }
-      setAnalysis(lookupToAnalysis(lookupJson.data, liveRate));
+      // Pin address to what the user queried — prevents a wrong Redfin URL match from showing a different property
+      setAnalysis(lookupToAnalysis({ ...lookupJson.data, address: lookupAddress }, liveRate));
     } catch {
       setAnalysisErr('Network error — try again');
     } finally {
