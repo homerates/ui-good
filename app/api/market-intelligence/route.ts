@@ -127,7 +127,7 @@ Rules: No appraisal values. No investment advice. No lending advice. Buyer educa
     },
     signal: AbortSignal.timeout(30_000),
     body: JSON.stringify({
-      model: 'grok-4',
+      model: (process.env.XAI_MODEL || 'grok-4').trim(),
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -136,7 +136,10 @@ Rules: No appraisal values. No investment advice. No lending advice. Buyer educa
     }),
   });
 
-  if (!res.ok) throw new Error(`Grok API error: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Grok API error: ${res.status} — ${errBody.slice(0, 200)}`);
+  }
   const data = await res.json();
   const content: string = data.choices?.[0]?.message?.content ?? '';
   const match = content.match(/\{[\s\S]*\}/);

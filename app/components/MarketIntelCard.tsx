@@ -159,14 +159,17 @@ export default function MarketIntelCard({ report, address, onClose }: Props) {
         {/* Body */}
         <div style={{ padding: '0 20px 24px' }}>
 
-          {/* Price Gap Alert */}
+          {/* Price Gap Alert
+               gapPct = (list - avm) / avm * 100
+               positive → listed ABOVE AVM (overpriced, red for buyer)
+               negative → listed BELOW AVM (potential value, green for buyer) */}
           {gapPct != null && (
             <div style={{
               marginTop: 18,
               padding: '12px 16px',
               borderRadius: 10,
-              background: gapPct > 0 ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-              border: `1px solid ${gapPct > 0 ? 'rgba(34,197,94,0.20)' : 'rgba(239,68,68,0.20)'}`,
+              background: gapPct > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)',
+              border: `1px solid ${gapPct > 0 ? 'rgba(239,68,68,0.20)' : 'rgba(34,197,94,0.20)'}`,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <div>
@@ -175,21 +178,19 @@ export default function MarketIntelCard({ report, address, onClose }: Props) {
                   </div>
                   <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                     {listPrice && <div><div style={{ fontSize: '0.58rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>List Price</div><div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#93c5fd' }}>{fmt(listPrice)}</div></div>}
-                    {avm && <div><div style={{ fontSize: '0.58rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Redfin AVM</div><div style={{ fontSize: '1.05rem', fontWeight: 700, color: gapPct > 0 ? '#4ade80' : '#f87171' }}>{fmt(avm)}</div></div>}
+                    {avm && <div><div style={{ fontSize: '0.58rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Redfin AVM</div><div style={{ fontSize: '1.05rem', fontWeight: 700, color: gapPct > 0 ? '#f87171' : '#4ade80' }}>{fmt(avm)}</div></div>}
                   </div>
                 </div>
                 <div style={{
                   padding: '8px 12px', borderRadius: 8, textAlign: 'center', flexShrink: 0,
-                  background: gapPct > 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                  background: gapPct > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
                 }}>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: gapPct > 0 ? '#4ade80' : '#f87171', lineHeight: 1 }}>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: gapPct > 0 ? '#f87171' : '#4ade80', lineHeight: 1 }}>
                     {gapPct > 0 ? '+' : ''}{gapPct}%
                   </div>
-                  {gapAmt != null && (
-                    <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
-                      {gapPct > 0 ? 'AVM above ask' : 'AVM below ask'}
-                    </div>
-                  )}
+                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                    {gapPct > 0 ? 'listed above AVM' : 'listed below AVM'}
+                  </div>
                 </div>
               </div>
             </div>
