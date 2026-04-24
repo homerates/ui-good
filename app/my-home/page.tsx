@@ -1898,20 +1898,28 @@ function MyHomePageInner() {
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                           {/* Save to My Properties — always available for any signed-in user */}
                           <SignedIn>
-                            {!saved ? (
-                              <button
-                                onClick={async () => {
-                                  void fetch('/api/homeowner/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: heroAddr }) });
-                                  setSaved(true);
-                                }}
-                                style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                Save to My Properties
-                              </button>
-                            ) : (
-                              <span style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.2)', color: 'rgba(0,232,122,0.6)', fontWeight: 700, fontSize: '0.82rem', display: 'inline-block' }}>
-                                ✓ Saved
-                              </span>
-                            )}
+                            {(() => {
+                              const addrKey = heroAddr.split(',')[0].toLowerCase().trim();
+                              const isAlreadySaved = properties.some(p =>
+                                p.property_address?.toLowerCase().trim() === heroAddr.toLowerCase().trim() ||
+                                p.property_address?.toLowerCase().trim().startsWith(addrKey)
+                              );
+                              return isAlreadySaved ? (
+                                <span style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.2)', color: 'rgba(0,232,122,0.6)', fontWeight: 700, fontSize: '0.82rem', display: 'inline-block' }}>
+                                  ✓ Saved
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={async () => {
+                                    const res = await fetch('/api/homeowner/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: heroAddr }) });
+                                    const json = await res.json();
+                                    if (json.property) setProperties(prev => [...prev, json.property]);
+                                  }}
+                                  style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  Save to My Properties
+                                </button>
+                              );
+                            })()}
                           </SignedIn>
                           <SignedOut>
                             <SignInButton mode="modal">
