@@ -210,6 +210,9 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const [compOpen, setCompOpen] = useState(false);
     const [vaultDone, setVaultDone] = useState(false);
 
+    const isDirty = income !== props.annualIncome || debts !== props.monthlyDebts ||
+        Math.abs(rate - props.rate) > 0.001 || term !== props.term;
+
     const { user } = useUser();
     const router   = useRouter();
 
@@ -242,6 +245,11 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
             });
             setVaultDone(true);
         } catch { /* non-fatal */ }
+    }
+
+    function buildSeed(): string {
+        const debtsStr = debts > 0 ? ` with $${debts.toLocaleString()}/mo in existing debts` : '';
+        return `Affordability for ${fmtK(income)}/yr income${debtsStr} at ${rate.toFixed(3)}% — ${term} year fixed`;
     }
 
     return (
@@ -431,12 +439,6 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 )}
             </div>
 
-            {/* ── Live Rates assumption ── */}
-            <div className="afc-rate-note">
-                <span className="afc-bulb">💡</span>
-                <p><strong>Assumption:</strong> Rate assumed at <strong>{rate.toFixed(2)}%</strong>. Actual rate depends on credit score, lender, and lock timing. Use the slider below to model different rates.</p>
-            </div>
-
             {/* ── Affordability Explorer (white bg — KEEP) ── */}
             <div className="afc-explorer">
                 <div className="afc-exp-title">Affordability Explorer</div>
@@ -509,6 +511,12 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
 
                 {/* Actions */}
                 <div className="afc-exp-actions">
+                    {props.onRunScenario && isDirty && (
+                        <button type="button" className="afc-btn-rerun"
+                            onClick={() => props.onRunScenario!(buildSeed())}>
+                            Run adjusted scenario →
+                        </button>
+                    )}
                     <button type="button" className="afc-btn-vault" onClick={handleVault}>
                         <StarIcon />
                         <span>{vaultDone ? '✓ Saved' : 'My Vault'}</span>
@@ -532,6 +540,12 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 <p>
                     <strong>Educational estimates only.</strong> These figures are for planning purposes and are not a Loan Estimate, pre-approval, or commitment to lend under RESPA/TRID. Monthly payment estimates include principal &amp; interest, estimated property tax ({(props.taxRate * 100).toFixed(1)}% annual), homeowner&apos;s insurance ({(props.insRate * 100).toFixed(1)}% annual), and applicable MIP or PMI where shown. Closing costs estimated at 2.5–3% of purchase price. Actual terms depend on creditworthiness, property type, and lender. Rate sourced from FRED 30-Year Fixed Mortgage Average — not a rate lock or offer.
                 </p>
+            </div>
+
+            {/* ── Rate assumption (FRED) — bottom of card ── */}
+            <div className="afc-rate-note">
+                <span className="afc-bulb">💡</span>
+                <p><strong>Assumption:</strong> Rate assumed at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live). Actual rate depends on credit score, lender, and lock timing. Use the slider above to model different rates.</p>
             </div>
 
             {/* ── Styles ── */}
@@ -795,6 +809,14 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 .afc-exp-stat-val { font-size: 14px; font-weight: 700; color: #0d1117; }
 
                 .afc-exp-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+                .afc-btn-rerun {
+                    background: #111827; color: #f9fafb;
+                    border: none; border-radius: 8px;
+                    padding: 10px 18px; font-size: 13px; font-weight: 700;
+                    cursor: pointer; font-family: inherit; flex-shrink: 0;
+                    transition: background .15s;
+                }
+                .afc-btn-rerun:hover { background: #1f2937; }
                 .afc-btn-vault {
                     display: flex; align-items: center; gap: 6px;
                     background: #00e87a; color: #07100f;

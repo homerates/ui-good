@@ -2807,6 +2807,8 @@ export default function Page() {
                                                 // If this is a Grok-style answer with markdown, use GrokCard
                                                 m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
                                                     <>
+                                                        {/* Suppress GrokCard entirely for affordability — the AffordabilitySliderCard renders all content */}
+                                                        {!m.meta.affordabilitySlider && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -2814,14 +2816,11 @@ export default function Page() {
                                                                 grok: m.meta.follow_up_chips?.length
                                                                     ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                     : m.meta.grok,
-                                                                // Suppress full answer text when affordability card renders — card shows all data
-                                                                answerMarkdown: m.meta.affordabilitySlider
-                                                                    ? ''
-                                                                    : sanitizeMarkdown(
-                                                                        (typeof m.content === 'string' && m.content.length > 0)
-                                                                            ? m.content
-                                                                            : (m.meta.answerMarkdown ?? '')
-                                                                    ),
+                                                                answerMarkdown: sanitizeMarkdown(
+                                                                    (typeof m.content === 'string' && m.content.length > 0)
+                                                                        ? m.content
+                                                                        : (m.meta.answerMarkdown ?? '')
+                                                                ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
                                                                     : (m.meta.followUp ?? undefined),
@@ -2838,6 +2837,7 @@ export default function Page() {
                                                             }}
                                                             onSaveToVault={saveToVault}
                                                         />
+                                                        )}
                                                         {/* Admin debug panel — shows raw JSON + math fields */}
                                                         {isAdmin && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
