@@ -3082,7 +3082,7 @@ export default function Page() {
 
                                             {m.role === 'assistant' &&
                                                 m.meta &&
-                                                !m.meta.affordabilitySlider &&
+                                                (!m.meta.affordabilitySlider || typingId === null) &&
                                                 typeof m.content === 'string' &&
                                                 m.content.trim().length > 40 && (
                                                     <div
