@@ -86,6 +86,13 @@ export async function POST(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
 
+  // Hard gate: only Pro or Founding plan users can create Deal Rooms
+  const { data: userRow } = await sb.from('users').select('plan').eq('id', userId).maybeSingle();
+  const plan = userRow?.plan ?? 'free';
+  if (!['pro', 'founding'].includes(plan)) {
+    return NextResponse.json({ error: 'Pro or Founding plan required to create Deal Rooms' }, { status: 403 });
+  }
+
   const body = await req.json();
   const { property_address, property_data, target_close_date } = body;
   if (!property_address) return NextResponse.json({ error: 'property_address required' }, { status: 400 });

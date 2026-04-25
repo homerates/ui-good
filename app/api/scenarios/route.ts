@@ -355,13 +355,20 @@ export async function GET(req: NextRequest) {
   const myReferrals = url.searchParams.get("my_referrals") === "1";
 
   // Derive responder_type from DB — never trust the client-supplied param
-  const [loDbRow, agentDbRow] = await Promise.all([
+  const [loDbRow, agentDbRow, planRow] = await Promise.all([
     sb.from("loan_officers").select("user_id").eq("user_id", userId).maybeSingle(),
     sb.from("agents").select("user_id").eq("user_id", userId).maybeSingle(),
+    sb.from("users").select("plan").eq("id", userId).maybeSingle(),
   ]);
   const responder_type = loDbRow.data ? "lo" : agentDbRow.data ? "agent" : null;
   if (!responder_type) {
     return NextResponse.json({ error: "Professional account required", scenarios: [] }, { status: 403 });
+  }
+
+  // Hard gate: Pro or Founding plan required to access the borrower board
+  const userPlan = planRow.data?.plan ?? "free";
+  if (!["pro", "founding"].includes(userPlan)) {
+    return NextResponse.json({ error: "Pro plan required to access the borrower board", scenarios: [] }, { status: 403 });
   }
 
   // My responses history — LO's own submitted responses with joined scenario data
