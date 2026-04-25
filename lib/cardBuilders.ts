@@ -76,6 +76,14 @@ export interface BuiltCard {
         county?: string;
         countyLimit?: number;
     };
+    incomeQualifySlider?: {
+        price: number;
+        downPct: number;
+        rate: number;
+        term: number;
+        taxRate: number;
+        insRate: number;
+    };
     affordabilitySlider?: {
         annualIncome: number;
         monthlyDebts: number;

@@ -5277,6 +5277,7 @@ ${uwDatabase}`;
                 },
                 interactiveSlider: calcCard.interactiveSlider ?? null,
                 convHBSlider: (calcCard as any).convHBSlider ?? null,
+                incomeQualifySlider: (calcCard as any).incomeQualifySlider ?? null,
                 affordabilitySlider: calcCard.affordabilitySlider ?? null,
                 dscrSlider: calcCard.dscrSlider ?? null,
                 refiSlider: calcCard.refiSlider ?? null,
@@ -6118,6 +6119,8 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                 const debtNote = monthlyDebt > 0
                     ? `\n> 💡 Includes **$${monthlyDebt.toLocaleString()}/mo** in other debts added to housing payment.`
                     : '';
+                const iqTaxRate = snapshotJson?.convHBSlider?.taxRate ?? snapshotJson?.interactiveSlider?.taxRate ?? 0.012;
+                const iqInsRate = snapshotJson?.convHBSlider?.insRate ?? snapshotJson?.interactiveSlider?.insRate ?? 0.005;
                 affordabilityAnswer = {
                     answer: `## 💰 Income to Qualify — ${scenarioDesc.charAt(0).toUpperCase() + scenarioDesc.slice(1)}\n\n${scenarioHeader}${debtNote}\n\n---\n\n## 📊 DTI Qualification Table\n\n| DTI threshold | Monthly income needed | Annual income needed |\n|---|---|---|\n| **43%** (standard max) | $${Math.round(totalMonthly / 0.43).toLocaleString()} | **$${Math.round((totalMonthly / 0.43) * 12).toLocaleString()}** |\n| **36%** (conservative) | $${Math.round(totalMonthly / 0.36).toLocaleString()} | **$${Math.round((totalMonthly / 0.36) * 12).toLocaleString()}** |\n| **28%** (front-end only) | $${Math.round(totalMonthly / 0.28).toLocaleString()} | **$${Math.round((totalMonthly / 0.28) * 12).toLocaleString()}** |\n\n---\n\n## 🏠 Payment Breakdown\n\n| Component | Amount |\n|---|---|\n| Monthly PITI | $${piti.toLocaleString()} |${monthlyDebt > 0 ? `\n| Other debts | $${monthlyDebt.toLocaleString()} |\n| **Total obligations** | **$${totalMonthly.toLocaleString()}** |` : ''}\n| Min income @ 43% DTI | $${Math.round(totalMonthly / 0.43).toLocaleString()}/mo |\n\n> Each additional $500/mo in debts adds ~**$${Math.round((500 / 0.43) * 12).toLocaleString()}**/yr to the income requirement.`,
                     next_step: monthlyDebt > 0 ? 'Compare against your actual income — if DTI is tight, consider paying down debts before applying.' : 'Share your monthly debts for a more precise income requirement.',
@@ -6128,6 +6131,14 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                         { label: 'What income do I need to afford this home?', seed: `I want to buy a ${siPrice ? `$${Math.round(Number(siPrice)).toLocaleString()}` : 'this'} home — what annual income and savings do I need to qualify comfortably?` },
                     ],
                     confidence: '1.00 (calculated from prior scenario snapshot)',
+                    incomeQualifySlider: siPrice ? {
+                        price: Math.round(Number(siPrice)),
+                        downPct: siDown ?? 20,
+                        rate: siRate ?? (fred?.mort30Avg ?? 6.5),
+                        term: siTerm ?? 30,
+                        taxRate: iqTaxRate,
+                        insRate: iqInsRate,
+                    } : null,
                 };
             } else {
                 // Income-needed with price in question — compute locally, no snapshot required
@@ -6187,14 +6198,15 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                             insRate: insRateDecimal,
                             loanType: 'jumbo' as const,
                         } : null,
-                        convHBSlider: !isJumboLoan ? {
+                        convHBSlider: null,
+                        incomeQualifySlider: {
                             price: incomeForPrice,
                             downPct,
                             rate,
                             term: 30,
                             taxRate: taxRateDecimal,
                             insRate: insRateDecimal,
-                        } : null,
+                        },
                         lenderChecklist: {
                             loanType: (isJumboLoan ? 'jumbo' : 'conventional') as 'jumbo' | 'conventional',
                             pdfType: 'conventional' as const,
@@ -7054,9 +7066,10 @@ Return valid JSON only:
         answerMarkdown: finalMarkdown,
         ...(hoPropertyCard && { propertyCard: hoPropertyCard }),
         ...(hoRefiSlider   && { refiSlider: hoRefiSlider }),
-        // Sliders from affordability income-needed path (interactiveSlider + lenderChecklist + convHBSlider)
+        // Sliders from affordability income-needed path
         interactiveSlider: (affordabilityAnswer as any)?.interactiveSlider ?? null,
         convHBSlider: (affordabilityAnswer as any)?.convHBSlider ?? null,
+        incomeQualifySlider: (affordabilityAnswer as any)?.incomeQualifySlider ?? null,
         lenderChecklist: (affordabilityAnswer as any)?.lenderChecklist ?? null,
         followUp: null,
         follow_up_chips: [],

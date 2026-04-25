@@ -26,6 +26,7 @@ import WelcomeScreen from '@/components/WelcomeScreen';
 import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import ConvHBSliderCard from '@/components/ConvHBSliderCard';
+import IncomeQualifySliderCard from '@/components/IncomeQualifySliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
 import RefiSliderCard from '@/components/RefiSliderCard';
@@ -377,6 +378,10 @@ type ApiResponse = {
     convHBSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; county?: string; countyLimit?: number;
+    } | null;
+    incomeQualifySlider?: {
+        price: number; downPct: number; rate: number; term: number;
+        taxRate: number; insRate: number;
     } | null;
     affordabilitySlider?: {
         annualIncome: number; monthlyDebts: number; savings: number;
@@ -2550,9 +2555,17 @@ export default function Page() {
                         : `$${Math.round(sl.price / 1000)}k`;
                     return `Here's your conventional payment breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
                 })()
+                : meta.incomeQualifySlider
+                ? (() => {
+                    const sl = meta.incomeQualifySlider as { price: number; downPct: number; rate: number };
+                    const prK = sl.price >= 1000000
+                        ? `$${(sl.price / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1000)}k`;
+                    return `Here's the minimum income to qualify for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
+                })()
                 : friendly;
             // Short constructed sentences use slow tick (3 chars/tick) so typewriter is visible
-            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider) ? 3 : 24);
+            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider) ? 3 : 24);
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
@@ -2840,7 +2853,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -2850,7 +2863,7 @@ export default function Page() {
                                                                     : m.meta.grok,
                                                                 // For slider cards during typing: only show m.content (the friendly summary),
                                                                 // never m.meta.answerMarkdown (which contains the old full tables).
-                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider)
+                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider)
                                                                     ? sanitizeMarkdown(typeof m.content === 'string' ? m.content : '')
                                                                     : sanitizeMarkdown(
                                                                         (typeof m.content === 'string' && m.content.length > 0)
@@ -2859,7 +2872,7 @@ export default function Page() {
                                                                     ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
-                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider) ? undefined : (m.meta.followUp ?? undefined)),
+                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider) ? undefined : (m.meta.followUp ?? undefined)),
                                                                 data_freshness:
                                                                     m.meta.data_freshness ??
                                                                     m.meta.fred?.asOf ??
@@ -2915,6 +2928,17 @@ export default function Page() {
                                                         {m.meta.convHBSlider && !loading && typingId === null && (
                                                             <ConvHBSliderCard
                                                                 {...m.meta.convHBSlider}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Income Qualify slider card */}
+                                                        {m.meta.incomeQualifySlider && !loading && typingId === null && (
+                                                            <IncomeQualifySliderCard
+                                                                {...m.meta.incomeQualifySlider}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
@@ -3011,7 +3035,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* Lender checklist card — suppressed when affordabilitySlider is present (new card covers the same data) */}
-                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !m.meta.convHBSlider && !loading && typingId === null && (
+                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <LenderChecklistCard data={m.meta.lenderChecklist} />
                                                         )}
                                                         {/* HomeRates Lab — clickable module grid */}
@@ -3120,7 +3144,7 @@ export default function Page() {
 
                                             {m.role === 'assistant' &&
                                                 m.meta &&
-                                                ((!m.meta.affordabilitySlider && !m.meta.convHBSlider) || typingId === null) &&
+                                                ((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider) || typingId === null) &&
                                                 typeof m.content === 'string' &&
                                                 m.content.trim().length > 40 && (
                                                     <div
