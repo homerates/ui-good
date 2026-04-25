@@ -142,7 +142,7 @@ function Tile({ icon, label, value }: { icon: React.ReactNode; label: string; va
     );
 }
 
-function KVRow({ k, v, green, red, total, section }: { k: string; v: string; green?: boolean; red?: boolean; total?: boolean; section?: boolean }) {
+function KVRow({ k, v, green, red, total, section }: { k: string; v?: string; green?: boolean; red?: boolean; total?: boolean; section?: boolean }) {
     if (section) return <div className="chb-kv-s">{k}</div>;
     return (
         <div className={`chb-kv${total ? ' chb-kv--total' : ''}`}>
@@ -533,11 +533,14 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                         </svg>
                         {vaultDone ? 'Saved ✓' : 'My Vault'}
                     </button>
-                    <PdfDownloadButton pdfType="conventional" scenario={{
-                        price, downPct, rate, term: termYrs,
-                        taxRate: props.taxRate, insRate: props.insRate,
-                        loanType: 'conventional',
-                    }} />
+                    <PdfDownloadButton
+                        type="conventional"
+                        getParams={() => ({
+                            price, downPct, rate, termYears: termYrs,
+                            taxRate: props.taxRate, insRate: props.insRate,
+                            loanType: 'conventional',
+                        })}
+                    />
                     <button className="chb-btn-match" onClick={() => router.push(getMatchedUrl())}>
                         Get Matched →
                     </button>
