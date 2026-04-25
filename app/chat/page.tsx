@@ -1762,7 +1762,7 @@ export default function Page() {
 
     // === Typewriter helper for a "streaming" feel ===
     const typeOutAssistant = React.useCallback(
-        (id: string, full: string) => {
+        (id: string, full: string, charsPerTick = 24) => {
             if (!full) return;
 
             // Mark this message as actively typing — hides chips until done
@@ -1781,7 +1781,7 @@ export default function Page() {
             let index = 0;
 
             const step = () => {
-                index += 24; // chars per tick; tweak for speed
+                index += charsPerTick;
                 if (index >= total) {
                     // Final update with full string — then clear typing state
                     setMessages((prev) =>
@@ -2538,7 +2538,8 @@ export default function Page() {
                     return `Based on your ${incK}/yr income and ${savK} in savings, here are your affordability options across 3 programs.`;
                 })()
                 : friendly;
-            typeOutAssistant(answerId, fullText);
+            // Affordability uses a short sentence (~80 chars) — slow tick so it's visible
+            typeOutAssistant(answerId, fullText, meta.affordabilitySlider ? 3 : 24);
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
