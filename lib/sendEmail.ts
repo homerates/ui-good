@@ -792,6 +792,89 @@ export async function emailCorporateInvite({
   }
 }
 
+// ─── Deal Room activity notification ────────────────────────────────────────
+
+export async function emailDealRoomActivity({
+  toEmail,
+  toName,
+  fromName,
+  event,
+  propertyAddress,
+  roomUrl,
+  preview,
+}: {
+  toEmail:         string;
+  toName:          string | null;
+  fromName:        string;
+  event:           'message' | 'scenario' | 'stage';
+  propertyAddress: string | null;
+  roomUrl:         string;
+  preview?:        string | null;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const greeting  = toName ? `Hi ${toName},` : 'Hi,';
+  const shortAddr = propertyAddress ? propertyAddress.split(',')[0] : 'your deal';
+  const addrLine  = propertyAddress
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;background:#1c2433;border:1px solid rgba(255,255,255,0.07);border-radius:10px;">
+        <tr><td style="padding:12px 18px;">
+          <p style="margin:0 0 2px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Deal Room</p>
+          <p style="margin:0;font-size:14px;font-weight:600;color:#e6edf3;">${propertyAddress}</p>
+        </td></tr>
+      </table>`
+    : '';
+
+  let subject = '';
+  let badge   = '';
+  let headline = '';
+  let body    = '';
+
+  if (event === 'message') {
+    subject  = `New message in your Deal Room — ${shortAddr}`;
+    badge    = 'New Message';
+    headline = `${fromName} sent a message`;
+    body     = preview
+      ? `<div style="background:#1c2433;border-left:3px solid #00e87a;border-radius:0 8px 8px 0;padding:12px 16px;margin:0 0 24px;font-size:14px;color:#e6edf3;line-height:1.6;">${preview.slice(0,200)}${preview.length>200?'…':''}</div>`
+      : '';
+  } else if (event === 'scenario') {
+    subject  = `New financing scenario saved — ${shortAddr}`;
+    badge    = 'New Scenario';
+    headline = `${fromName} saved a financing scenario`;
+    body     = preview
+      ? `<p style="margin:0 0 20px;font-size:14px;color:#8b949e;">Scenario: <strong style="color:#e6edf3;">${preview}</strong></p>`
+      : '<p style="margin:0 0 20px;font-size:14px;color:#8b949e;">A new financing scenario has been shared with the team.</p>';
+  } else {
+    subject  = `Deal Room advanced to ${preview} — ${shortAddr}`;
+    badge    = 'Stage Update';
+    headline = `${fromName} advanced the deal to ${preview}`;
+    body     = `<p style="margin:0 0 20px;font-size:14px;color:#8b949e;">The deal stage has been updated. Log in to review the latest status and next steps.</p>`;
+  }
+
+  try {
+    await resend.emails.send({
+      from:    `HomeRates Deal Rooms <${FROM}>`,
+      to:      toEmail,
+      subject,
+      html: emailShell(`
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">${badge}</p>
+        <p style="margin:0 0 20px;font-size:20px;font-weight:800;color:#e6edf3;line-height:1.2;">${greeting}</p>
+        <p style="margin:0 0 20px;font-size:15px;color:#8b949e;">${headline}</p>
+        ${addrLine}
+        ${body}
+        <a href="${roomUrl}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 20px;border-radius:999px;text-decoration:none;">
+          Open Deal Room →
+        </a>
+        <p style="margin:14px 0 0;text-align:center;font-size:12px;color:#8b949e;">
+          You received this because you're a member of this deal room on HomeRates.ai.
+        </p>
+      `, 'HomeRates.ai · Deal Room notifications are transactional and cannot be unsubscribed per-room.'),
+    });
+  } catch (err) {
+    console.error('[sendEmail] emailDealRoomActivity failed:', err);
+  }
+}
+
 // ─── Deal Room invite: LO/Agent → Buyer/Team member ─────────────────────────
 
 export async function emailDealRoomInvite({

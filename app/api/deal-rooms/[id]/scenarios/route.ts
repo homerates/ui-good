@@ -4,8 +4,11 @@
 // DELETE — remove a scenario (creator only) · ?scenario_id=xxx
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../../../lib/supabaseServer';
+import { emailDealRoomActivity } from '../../../../../lib/sendEmail';
+
+const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
 
 async function getMemberRole(sb: any, roomId: string, userId: string): Promise<{ role: string; status: string } | null> {
   const { data: room } = await sb
@@ -84,10 +87,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await sb
+  const { data: roomRow } = await sb
     .from('deal_rooms')
     .update({ updated_at: new Date().toISOString() })
-    .eq('id', id);
+    .eq('id', id)
+    .select('property_address')
+    .single();
+
+  // Fire-and-forget: notify all other members with an email on file
+  let saverName = 'Your Loan Officer';
+  try {
+    const clerk = await clerkClient();
+    const clerkUser = await clerk.users.getUser(userId);
+    saverName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || saverName;
+  } catch { /* non-fatal */ }
+
+  const { data: memberRows } = await sb
+    .from('deal_room_members')
+    .select('email, display_name')
+    .eq('deal_room_id', id)
+    .not('email', 'is', null)
+    .neq('user_id', userId);
+  if (memberRows?.length) {
+    const roomUrl = `${BASE}/deal-rooms/${id}`;
+    for (const m of memberRows) {
+      emailDealRoomActivity({
+        toEmail: m.email!, toName: m.display_name ?? null,
+        fromName: saverName, event: 'scenario',
+        propertyAddress: roomRow?.property_address ?? null,
+        roomUrl, preview: label ?? null,
+      }).catch(() => {});
+    }
+  }
 
   return NextResponse.json({ scenario: data }, { status: 201 });
 }

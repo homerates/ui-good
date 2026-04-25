@@ -3,7 +3,7 @@
 // POST — create a new deal room
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../lib/supabaseServer';
 
 const DEFAULT_MILESTONES = [
@@ -134,13 +134,27 @@ export async function POST(req: NextRequest) {
     }))
   );
 
-  // Add creator as a member slot (role already resolved above)
+  // Add creator as a member slot — store their Clerk email so they receive notifications
+  let creatorEmail: string | null = null;
+  let creatorDisplayName: string | null = null;
+  try {
+    const clerk = await clerkClient();
+    const clerkUser = await clerk.users.getUser(userId);
+    creatorEmail = clerkUser.emailAddresses[0]?.emailAddress ?? null;
+    creatorDisplayName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || null;
+    if (!creatorDisplayName) {
+      const { data: loRow } = await sb.from('loan_officers').select('display_name').eq('user_id', userId).maybeSingle();
+      creatorDisplayName = loRow?.display_name ?? null;
+    }
+  } catch { /* non-fatal */ }
 
   await sb.from('deal_room_members').insert({
-    deal_room_id: room.id,
-    user_id: userId,
-    role: creatorRole,
-    joined_at: new Date().toISOString(),
+    deal_room_id:  room.id,
+    user_id:       userId,
+    role:          creatorRole,
+    joined_at:     new Date().toISOString(),
+    email:         creatorEmail,
+    display_name:  creatorDisplayName,
   });
 
   return NextResponse.json({ room }, { status: 201 });

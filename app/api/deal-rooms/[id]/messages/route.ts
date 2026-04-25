@@ -5,6 +5,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../../../lib/supabaseServer';
+import { emailDealRoomActivity } from '../../../../../lib/sendEmail';
+
+const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
 
 async function getRoomMembership(sb: any, roomId: string, userId: string) {
   const { data: room } = await sb
@@ -99,7 +102,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Touch room updated_at so it floats to top of list
-  await sb.from('deal_rooms').update({ updated_at: new Date().toISOString() }).eq('id', id);
+  const { data: roomRow } = await sb.from('deal_rooms').update({ updated_at: new Date().toISOString() }).eq('id', id).select('property_address').single();
+
+  // Fire-and-forget: notify all other members who have an email on file
+  const { data: memberRows } = await sb
+    .from('deal_room_members')
+    .select('email, display_name')
+    .eq('deal_room_id', id)
+    .not('email', 'is', null)
+    .neq('user_id', userId);
+  if (memberRows?.length) {
+    const roomUrl = `${BASE}/deal-rooms/${id}`;
+    const propertyAddress = roomRow?.property_address ?? null;
+    for (const m of memberRows) {
+      emailDealRoomActivity({
+        toEmail: m.email!, toName: m.display_name ?? null,
+        fromName: senderName, event: 'message',
+        propertyAddress, roomUrl, preview: content.trim(),
+      }).catch(() => {});
+    }
+  }
 
   return NextResponse.json({ message: msg });
 }
