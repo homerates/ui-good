@@ -5,6 +5,8 @@
 // with live-calc drawers, side-by-side comparison, rate/term explorer, and disclosures.
 
 import React, { useState, useMemo } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
 
 export interface AffordabilitySliderParams {
@@ -204,10 +206,14 @@ function KV({ k, v, green, total }: { k: string; v: string; green?: boolean; tot
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function AffordabilitySliderCard(props: AffordabilitySliderParams) {
-    const [rate, setRate]     = useState(props.rate);
-    const [term, setTerm]     = useState(props.term);
+    const [rate, setRate]         = useState(props.rate);
+    const [term, setTerm]         = useState(props.term);
     const [openCard, setOpenCard] = useState<'fha' | 'conv3' | 'conv20' | null>('conv3');
     const [compOpen, setCompOpen] = useState(false);
+    const [vaultDone, setVaultDone] = useState(false);
+
+    const { user } = useUser();
+    const router   = useRouter();
 
     const { fha, conv3, conv20 } = useMemo(() => ({
         fha:    calcProgram(props.annualIncome, props.monthlyDebts, 3.5, rate, term, props.taxRate, props.insRate, 'fha',          props.savings),
@@ -222,8 +228,22 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
         setOpenCard(prev => prev === id ? null : id);
     }
 
-    function buildVaultSeed() {
-        return `Save affordability scenario: $${(props.annualIncome / 1000).toFixed(0)}k income, ${fmt$(ref?.maxPrice ?? 0)} max home, ${rate.toFixed(3)}% rate, ${term}yr term`;
+    async function handleVault() {
+        if (!user) { router.push('/sign-up'); return; }
+        try {
+            await fetch('/api/library', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: `Affordability: ${fmtK(props.annualIncome)}/yr income at ${rate.toFixed(2)}%`,
+                    answer: conv3
+                        ? `Max Home (Conv 3%): ${fmt$(conv3.maxPrice)} · Payment: ${fmt$(conv3.total)}/mo · Cash Needed: ${fmt$(conv3.totalCash)}`
+                        : `Affordability analysis at ${rate.toFixed(2)}%`,
+                    tool_id: 'vault_save_affordability',
+                }),
+            });
+            setVaultDone(true);
+        } catch { /* non-fatal */ }
     }
 
     return (
@@ -382,7 +402,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
 
             {/* ── Side-by-side comparison toggle ── */}
             <div className="afc-comp-wrap">
-                <button className={`afc-comp-toggle${compOpen ? ' afc-comp-toggle--open' : ''}`} onClick={() => setCompOpen(p => !p)}>
+                <button type="button" className={`afc-comp-toggle${compOpen ? ' afc-comp-toggle--open' : ''}`} onClick={() => setCompOpen(p => !p)}>
                     <span>⊞ &nbsp;Side-by-side comparison</span>
                     <ChevronDown />
                 </button>
@@ -442,7 +462,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 <div className="afc-exp-term-label">Loan Term</div>
                 <div className="afc-terms">
                     {([15, 20, 30] as const).map(t => (
-                        <button key={t}
+                        <button type="button" key={t}
                             className={`afc-term${term === t ? ' afc-term--on' : ''}`}
                             onClick={() => setTerm(t)}
                         >{t}yr</button>
@@ -479,12 +499,10 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
 
                 {/* Actions */}
                 <div className="afc-exp-actions">
-                    {props.onRunScenario && (
-                        <button className="afc-btn-vault" onClick={() => props.onRunScenario!(buildVaultSeed())}>
-                            <StarIcon />
-                            <span>My Vault</span>
-                        </button>
-                    )}
+                    <button type="button" className="afc-btn-vault" onClick={handleVault}>
+                        <StarIcon />
+                        <span>{vaultDone ? '✓ Saved' : 'My Vault'}</span>
+                    </button>
                     <PdfDownloadButton
                         type="affordability"
                         getParams={() => ({
@@ -493,11 +511,9 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                             taxRate: props.taxRate, insRate: props.insRate, loanType: 'conventional',
                         })}
                     />
-                    {props.onRunScenario && (
-                        <button className="afc-btn-match" onClick={() => props.onRunScenario!('Find me a loan officer for a conventional loan')}>
-                            Get matched →
-                        </button>
-                    )}
+                    <button type="button" className="afc-btn-match" onClick={() => router.push('/professionals')}>
+                        Get matched →
+                    </button>
                 </div>
             </div>
 
@@ -514,7 +530,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     background: #0d1117;
                     border: 1px solid rgba(255,255,255,0.08);
                     border-radius: 16px;
-                    overflow: hidden;
+                    overflow: clip;
                     margin-top: 14px;
                     font-family: system-ui, -apple-system, sans-serif;
                     color: #f0f4ff;
@@ -753,7 +769,8 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 .afc-range {
                     -webkit-appearance: none; appearance: none;
                     width: 100%; height: 6px; border-radius: 9999px;
-                    outline: none; cursor: pointer; display: block; margin-bottom: 4px;
+                    outline: none; cursor: pointer; display: block;
+                    margin: 10px 0 6px;
                 }
                 .afc-range::-webkit-slider-thumb {
                     -webkit-appearance: none; appearance: none;

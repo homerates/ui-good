@@ -2958,8 +2958,8 @@ export default function Page() {
                                                                 onRunScenario={(seed) => send(seed)}
                                                             />
                                                         )}
-                                                        {/* Lender checklist card */}
-                                                        {m.meta.lenderChecklist && !loading && typingId === null && (
+                                                        {/* Lender checklist card — suppressed when affordabilitySlider is present (new card covers the same data) */}
+                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !loading && typingId === null && (
                                                             <LenderChecklistCard data={m.meta.lenderChecklist} />
                                                         )}
                                                         {/* HomeRates Lab — clickable module grid */}
