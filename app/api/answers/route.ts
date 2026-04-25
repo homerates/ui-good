@@ -5276,6 +5276,7 @@ ${uwDatabase}`;
                     confidence: calcCard.confidence,
                 },
                 interactiveSlider: calcCard.interactiveSlider ?? null,
+                convHBSlider: (calcCard as any).convHBSlider ?? null,
                 affordabilitySlider: calcCard.affordabilitySlider ?? null,
                 dscrSlider: calcCard.dscrSlider ?? null,
                 refiSlider: calcCard.refiSlider ?? null,
@@ -6177,15 +6178,23 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                             ];
                         })(),
                         confidence: '1.00 (calculated — no LLM)',
-                        interactiveSlider: {
+                        interactiveSlider: isJumboLoan ? {
                             price: incomeForPrice,
                             downPct,
                             rate,
                             term: 30,
                             taxRate: taxRateDecimal,
                             insRate: insRateDecimal,
-                            loanType: isJumboLoan ? 'jumbo' : 'conventional',
-                        },
+                            loanType: 'jumbo' as const,
+                        } : null,
+                        convHBSlider: !isJumboLoan ? {
+                            price: incomeForPrice,
+                            downPct,
+                            rate,
+                            term: 30,
+                            taxRate: taxRateDecimal,
+                            insRate: insRateDecimal,
+                        } : null,
                         lenderChecklist: {
                             loanType: (isJumboLoan ? 'jumbo' : 'conventional') as 'jumbo' | 'conventional',
                             pdfType: 'conventional' as const,
@@ -7045,8 +7054,9 @@ Return valid JSON only:
         answerMarkdown: finalMarkdown,
         ...(hoPropertyCard && { propertyCard: hoPropertyCard }),
         ...(hoRefiSlider   && { refiSlider: hoRefiSlider }),
-        // Sliders from affordability income-needed path (interactiveSlider + lenderChecklist)
+        // Sliders from affordability income-needed path (interactiveSlider + lenderChecklist + convHBSlider)
         interactiveSlider: (affordabilityAnswer as any)?.interactiveSlider ?? null,
+        convHBSlider: (affordabilityAnswer as any)?.convHBSlider ?? null,
         lenderChecklist: (affordabilityAnswer as any)?.lenderChecklist ?? null,
         followUp: null,
         follow_up_chips: [],
