@@ -175,7 +175,8 @@ export default function DealRoomPage() {
   const [importScens,      setImportScens]      = React.useState<any[]>([]);
   const [showImport,       setShowImport]       = React.useState(false);
   const [importLoading,    setImportLoading]    = React.useState(false);
-  const [savingScen, setSavingScen] = React.useState(false);
+  const [savingScen,    setSavingScen]    = React.useState(false);
+  const [loadedScenId,  setLoadedScenId]  = React.useState<string|null>(null);
 
   // Seed scenario modeler from latest saved scenario, falling back to room defaults
   React.useEffect(() => {
@@ -385,6 +386,7 @@ export default function DealRoomPage() {
     setScenLabel("");
     setScenSellerCredit(s.result_json?.sellerCredit ? String(s.result_json.sellerCredit) : "");
     setScenClosingCosts(s.result_json?.closingCosts  ? String(s.result_json.closingCosts)  : "");
+    setLoadedScenId(s.id);
     modelerRef.current?.scrollIntoView({ behavior:"smooth", block:"start" });
   }
 
@@ -449,12 +451,6 @@ export default function DealRoomPage() {
   const isLO         = viewerRole === 'lo';
   const isAgent      = viewerRole === 'agent';
   const unread    = messages.filter(m => m.sender_role !== "system").length;
-
-  // Hero PITI (list price or offer price, 10% dn, live rate, 30Y)
-  const heroPrice = room.offer_price ?? pd?.price ?? null;
-  const heroTaxes = pd?.annualTaxes ?? (heroPrice ? heroPrice * 0.012 : 0);
-  const heroHoa   = pd?.hoaMonthly ?? 0;
-  const heroPiti  = liveRate && heroPrice ? calcPITI(heroPrice, 10, liveRate, 30, heroTaxes, heroHoa) : null;
 
   // Modeler live preview
   const modNum    = parseFloat(scenPrice.replace(/,/g, ""));
@@ -887,56 +883,52 @@ export default function DealRoomPage() {
                   )}
 
                   {/* ── LO-only: PITI hero + modeler ── */}
-                  {/* PITI hero */}
-                  {isLO && heroPiti ? (
+                  {/* PITI hero — reflects active modeler values */}
+                  {isLO && modPiti ? (
                     <div className="fin-hero">
                       <p style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>
-                        Est. Payment — {room.offer_price ? "at offer price" : "at list price"} · 10% down · 30Y · <span style={{ color:"#3a4560" }}>Illustration only</span>
+                        Est. Payment — {scenDown}% dn · {scenTerm}Y · {scenRate}% · <span style={{ color:"#3a4560" }}>Illustration only</span>
                       </p>
                       <p style={{ fontSize:36, fontFamily:"'Syne',sans-serif", fontWeight:700, color:"#00e87a", lineHeight:1 }}>
-                        {fmtMo(heroPiti.total)}
+                        {fmtMo(modPiti.total)}
                       </p>
                       <div className="fin-breakdown">
                         <div className="fin-cell">
                           <p className="fin-cell-label">P&amp;I</p>
-                          <p className="fin-cell-value">${heroPiti.pi.toLocaleString()}</p>
+                          <p className="fin-cell-value">${modPiti.pi.toLocaleString()}</p>
                         </div>
                         <div className="fin-cell">
                           <p className="fin-cell-label">Property Tax</p>
-                          <p className="fin-cell-value">${heroPiti.taxes.toLocaleString()}</p>
+                          <p className="fin-cell-value">${modPiti.taxes.toLocaleString()}</p>
                         </div>
                         <div className="fin-cell">
                           <p className="fin-cell-label">Insurance</p>
-                          <p className="fin-cell-value">${heroPiti.ins.toLocaleString()}</p>
+                          <p className="fin-cell-value">${modPiti.ins.toLocaleString()}</p>
                         </div>
-                        {heroPiti.pmi > 0 && (
+                        {modPiti.pmi > 0 && (
                           <div className="fin-cell">
                             <p className="fin-cell-label">PMI</p>
-                            <p className="fin-cell-value">${heroPiti.pmi.toLocaleString()}</p>
+                            <p className="fin-cell-value">${modPiti.pmi.toLocaleString()}</p>
                           </div>
                         )}
-                        {heroPiti.hoa > 0 && (
+                        {modPiti.hoa > 0 && (
                           <div className="fin-cell">
                             <p className="fin-cell-label">HOA</p>
-                            <p className="fin-cell-value">${heroPiti.hoa.toLocaleString()}</p>
+                            <p className="fin-cell-value">${modPiti.hoa.toLocaleString()}</p>
                           </div>
                         )}
                         <div className="fin-cell" style={{ background:"rgba(0,232,122,0.08)", border:"1px solid rgba(0,232,122,0.15)" }}>
                           <p className="fin-cell-label" style={{ color:"#00e87a" }}>Total PITI</p>
-                          <p className="fin-cell-value" style={{ color:"#00e87a" }}>${heroPiti.total.toLocaleString()}</p>
+                          <p className="fin-cell-value" style={{ color:"#00e87a" }}>${modPiti.total.toLocaleString()}</p>
                         </div>
                       </div>
                       <p style={{ fontSize:11, color:"#3a4560", marginTop:12 }}>
-                        Loan amount: {fmt(heroPiti.loan)} · {heroPiti.taxes > 0 ? "taxes from property record" : "taxes estimated at 1.2%"} · insurance at 0.3%{heroPiti.pmi > 0 ? " · PMI included (<20% down)" : ""}
+                        Loan amount: {fmt(modPiti.loan)} · {modPiti.taxes > 0 ? "taxes from property record" : "taxes estimated at 1.2%"} · insurance at 0.3%{modPiti.pmi > 0 ? " · PMI included (<20% down)" : ""}
                       </p>
-                    </div>
-                  ) : isLO && !liveRate ? (
-                    <div className="dr-card" style={{ marginBottom:14 }}>
-                      <p style={{ fontSize:13, color:"#6b7a99", textAlign:"center", padding:"20px 0" }}>Fetching live rate…</p>
                     </div>
                   ) : isLO ? (
                     <div className="dr-card" style={{ marginBottom:14 }}>
-                      <p style={{ fontSize:13, color:"#6b7a99", textAlign:"center", padding:"20px 0" }}>Add property data to see PITI breakdown.</p>
+                      <p style={{ fontSize:13, color:"#6b7a99", textAlign:"center", padding:"20px 0" }}>Enter price, rate, and down payment below to see the PITI preview.</p>
                     </div>
                   ) : null}
 
@@ -985,7 +977,7 @@ export default function DealRoomPage() {
                     <div className="mod-row">
                       <div>
                         <span className="dr-lbl">Loan Type</span>
-                        <select className="dr-select" value={scenLoanType} onChange={e => setScenLoanType(e.target.value as LoanType)}>
+                        <select className="dr-select" value={scenLoanType} onChange={e => { setScenLoanType(e.target.value as LoanType); setLoadedScenId(null); }}>
                           <option value="conventional">Conventional</option>
                           <option value="va">VA</option>
                           <option value="fha">FHA</option>
@@ -998,7 +990,7 @@ export default function DealRoomPage() {
                           className="dr-input"
                           placeholder={pd?.price ? String(Math.round(pd.price)) : "750000"}
                           value={scenPrice}
-                          onChange={e => setScenPrice(e.target.value)}
+                          onChange={e => { setScenPrice(e.target.value); setLoadedScenId(null); }}
                         />
                       </div>
                     </div>
@@ -1007,11 +999,11 @@ export default function DealRoomPage() {
                     <div className="mod-row">
                       <div>
                         <span className="dr-lbl">Down Payment (%)</span>
-                        <input className="dr-input" type="number" min="0" max="100" step="0.5" value={scenDown} onChange={e => setScenDown(e.target.value)} />
+                        <input className="dr-input" type="number" min="0" max="100" step="0.5" value={scenDown} onChange={e => { setScenDown(e.target.value); setLoadedScenId(null); }} />
                       </div>
                       <div>
                         <span className="dr-lbl">Rate (%)</span>
-                        <input className="dr-input" type="number" step="0.01" placeholder={liveRate ? liveRate.toFixed(2) : "6.75"} value={scenRate} onChange={e => setScenRate(e.target.value)} />
+                        <input className="dr-input" type="number" step="0.01" placeholder={liveRate ? liveRate.toFixed(2) : "6.75"} value={scenRate} onChange={e => { setScenRate(e.target.value); setLoadedScenId(null); }} />
                       </div>
                     </div>
 
@@ -1019,7 +1011,7 @@ export default function DealRoomPage() {
                     <div className="mod-row">
                       <div>
                         <span className="dr-lbl">Term</span>
-                        <select className="dr-select" value={scenTerm} onChange={e => setScenTerm(e.target.value)}>
+                        <select className="dr-select" value={scenTerm} onChange={e => { setScenTerm(e.target.value); setLoadedScenId(null); }}>
                           <option value="30">30 Year</option>
                           <option value="15">15 Year</option>
                           <option value="20">20 Year</option>
@@ -1158,7 +1150,10 @@ export default function DealRoomPage() {
                                   <span style={{ fontSize:11, fontWeight:600, color:rc }}>{ROLE_LABELS[s.created_by_role] ?? s.created_by_role}</span>
                                 </div>
                               </div>
-                              <div className="scen-actions">
+                              <div className="scen-actions" style={{ alignItems:"center" }}>
+                                {loadedScenId === s.id && (
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#00e87a", letterSpacing:".06em", marginRight:4 }}>● In modeler</span>
+                                )}
                                 <button
                                   className="scen-btn load"
                                   onClick={() => loadScenIntoModeler(s)}
@@ -1433,15 +1428,15 @@ export default function DealRoomPage() {
                 </div>
               )}
 
-              {/* PITI at a glance */}
-              {heroPiti && (
+              {/* PITI at a glance — mirrors active modeler */}
+              {modPiti && (
                 <div className="rail-card" style={{ borderColor:"rgba(0,232,122,0.15)" }}>
                   <span className="rail-label">Est. PITI / mo</span>
                   <p style={{ fontSize:22, fontFamily:"'Syne',sans-serif", fontWeight:700, color:"#00e87a", lineHeight:1, marginBottom:4 }}>
-                    ${heroPiti.total.toLocaleString()}
+                    ${modPiti.total.toLocaleString()}
                   </p>
                   <p style={{ fontSize:11, color:"#4a6e58" }}>
-                    10% dn · 30Y · {liveRate?.toFixed(2)}%
+                    {scenDown}% dn · {scenTerm}Y · {scenRate}%
                   </p>
                 </div>
               )}

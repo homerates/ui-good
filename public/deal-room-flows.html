@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deal Rooms — User Flow Charts</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #e6edf3;
+    padding: 40px 24px 80px;
+  }
+  h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #e6edf3;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #8b949e;
+    margin-bottom: 48px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1100px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .flow-card {
+    background: #161b22;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .flow-header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .role-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .flow-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #e6edf3;
+  }
+  .flow-subtitle {
+    font-size: 12px;
+    color: #8b949e;
+    margin-top: 2px;
+  }
+  .flow-body {
+    padding: 20px 16px;
+  }
+  .mermaid svg {
+    max-width: 100%;
+    height: auto;
+  }
+  .legend {
+    max-width: 1400px;
+    margin: 36px auto 0;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #8b949e;
+  }
+  .legend-swatch {
+    width: 28px;
+    height: 10px;
+    border-radius: 4px;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div style="max-width:1400px;margin:0 auto 40px;">
+  <h1>Deal Rooms — User Flow Charts</h1>
+  <p class="subtitle">Step-by-step journey for each role · HomeRates.ai</p>
+</div>
+
+<div class="grid">
+
+  <!-- LO -->
+  <div class="flow-card">
+    <div class="flow-header">
+      <div class="role-dot" style="background:#00e87a;"></div>
+      <div>
+        <div class="flow-title">Loan Officer <span class="badge" style="background:rgba(0,232,122,0.15);color:#00e87a;">Creator</span></div>
+        <div class="flow-subtitle">Creates and manages the Deal Room</div>
+      </div>
+    </div>
+    <div class="flow-body">
+      <div class="mermaid">
+%%{init:{'theme':'dark','themeVariables':{'primaryColor':'#1c2433','primaryTextColor':'#e6edf3','primaryBorderColor':'rgba(255,255,255,0.1)','lineColor':'#3d8bff','secondaryColor':'#0d1117','tertiaryColor':'#161b22','nodeBorder':'rgba(255,255,255,0.12)','clusterBkg':'#161b22','titleColor':'#e6edf3','edgeLabelBackground':'#161b22','nodeTextColor':'#e6edf3'}}}%%
+flowchart TD
+    A([🚀 LO logs in]) --> B{Pro or\nFounding plan?}
+    B -- No --> C([Upgrade required])
+    B -- Yes --> D[Dashboard → Deal Rooms]
+    D --> E[Click + New Room]
+    E --> F[Enter property address\nGoogle Places autocomplete]
+    F --> G[[Auto-fetch: AVM · DOM\nTaxes · HOA · Last Sale]]
+    G --> H([Room created ✓\n5 tabs available])
+    H --> I[TEAM TAB\nInvite members]
+    I --> J[Enter Name + Email\nper role]
+    J --> K[Generate & send invite\nor copy link]
+    K --> L[[Branded email fired\nfrom LO name]]
+    H --> M[FINANCING TAB\nScenario modeler]
+    M --> N{Import existing\nscenario?}
+    N -- Yes --> O[Pick referred\nborrower scenario]
+    O --> P[Apply numbers\nto modeler]
+    N -- No --> P2[Enter price · down%\nrate · loan type]
+    P --> Q[Save scenario\nto Deal Room]
+    P2 --> Q
+    H --> R[PROPERTY TAB\nOffer strategy]
+    R --> S[View AVM gap\n+ Offer Score 0-100]
+    S --> T[Set offer price\n+ deal stage]
+    H --> U[MESSAGES TAB\nGroup chat]
+    H --> V[AI TAB\nDeal-aware assistant]
+      </div>
+    </div>
+  </div>
+
+  <!-- Buyer -->
+  <div class="flow-card">
+    <div class="flow-header">
+      <div class="role-dot" style="background:#3d8bff;"></div>
+      <div>
+        <div class="flow-title">Buyer <span class="badge" style="background:rgba(61,139,255,0.15);color:#3d8bff;">Invited</span></div>
+        <div class="flow-subtitle">Receives invite, joins, views deal</div>
+      </div>
+    </div>
+    <div class="flow-body">
+      <div class="mermaid">
+%%{init:{'theme':'dark','themeVariables':{'primaryColor':'#1c2433','primaryTextColor':'#e6edf3','primaryBorderColor':'rgba(255,255,255,0.1)','lineColor':'#3d8bff','secondaryColor':'#0d1117','tertiaryColor':'#161b22','nodeBorder':'rgba(255,255,255,0.12)','clusterBkg':'#161b22','titleColor':'#e6edf3','edgeLabelBackground':'#161b22','nodeTextColor':'#e6edf3'}}}%%
+flowchart TD
+    A([📧 Receives invite email\nfrom LO via HomeRates]) --> B[Clicks Join Deal Room →]
+    B --> C{Signed in to\nHomeRates?}
+    C -- No --> D[Redirected to sign-in\nwith return URL saved]
+    D --> E[Create account\nor sign in]
+    E --> F[Auto-returned to\njoin URL]
+    C -- Yes --> F
+    F --> G[[Join page:\nVerifying invite token...]]
+    G --> H{Token valid?}
+    H -- No --> I([Error: Invalid\ninvite link])
+    H -- Yes --> J[[joined_at stamped\non member record]]
+    J --> K([✓ You're in!\nRedirecting...])
+    K --> L[Room loads]
+    L --> M[[One-time disclaimer\nbanner shown]]
+    M --> N[PROPERTY TAB\nDefault view]
+    N --> O[See: AVM · beds/baths\nDOM · taxes · HOA]
+    O --> P[See: Offer Confidence\nScore 0–100]
+    L --> Q[FINANCING TAB\nView LO scenarios]
+    Q --> R[See PITI breakdown\nwith EST + NMLS badge]
+    L --> S[MESSAGES TAB\nChat with LO + Agent]
+    L --> T[AI TAB\nAsk deal questions]
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent -->
+  <div class="flow-card">
+    <div class="flow-header">
+      <div class="role-dot" style="background:#a78bfa;"></div>
+      <div>
+        <div class="flow-title">Agent <span class="badge" style="background:rgba(167,139,250,0.15);color:#a78bfa;">Invited</span></div>
+        <div class="flow-subtitle">Receives invite, tracks deal progress</div>
+      </div>
+    </div>
+    <div class="flow-body">
+      <div class="mermaid">
+%%{init:{'theme':'dark','themeVariables':{'primaryColor':'#1c2433','primaryTextColor':'#e6edf3','primaryBorderColor':'rgba(255,255,255,0.1)','lineColor':'#a78bfa','secondaryColor':'#0d1117','tertiaryColor':'#161b22','nodeBorder':'rgba(255,255,255,0.12)','clusterBkg':'#161b22','titleColor':'#e6edf3','edgeLabelBackground':'#161b22','nodeTextColor':'#e6edf3'}}}%%
+flowchart TD
+    A([📧 Receives invite email\nfrom LO via HomeRates]) --> B[Clicks Join Deal Room →]
+    B --> C{Signed in to\nHomeRates?}
+    C -- No --> D[Redirected to sign-in\nwith return URL saved]
+    D --> E[Create account\nor sign in]
+    E --> F[Auto-returned to\njoin URL]
+    C -- Yes --> F
+    F --> G[[Join page:\nVerifying invite token...]]
+    G --> H{Token valid?}
+    H -- No --> I([Error: Invalid\ninvite link])
+    H -- Yes --> J[[joined_at stamped\non member record]]
+    J --> K([✓ You're in!\nRedirecting...])
+    K --> L[Room loads]
+    L --> M[PROPERTY TAB\nDeal overview]
+    M --> N[See: property data\nAVM · DOM · taxes]
+    N --> O[See: Offer Score\n+ deal stage pipeline]
+    O --> P{Stage update\nneeded?}
+    P -- Yes --> Q[LO updates stage\nAgent sees in real-time]
+    P -- No --> R[Monitor progress]
+    L --> S[FINANCING TAB\nReview LO scenarios]
+    S --> T[See PITI + cash\nto close estimates]
+    L --> U[MESSAGES TAB\nCoordinate with team]
+    L --> V[AI TAB\nMarket + deal Q&A]
+    L --> W[RIGHT RAIL\nLive at-a-glance]
+    W --> X[Team status · PITI\nOffer Score · Stage]
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#00e87a;"></div>
+    LO — room creator, Pro/Founding plan required
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#3d8bff;"></div>
+    Buyer — joins via invite link or email, free account OK
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#a78bfa;"></div>
+    Agent — joins via invite link or email, free account OK
+  </div>
+  <div class="legend-item" style="margin-left:auto;">
+    <span style="font-size:11px;color:#4a5568;">HomeRates.ai · Deal Rooms</span>
+  </div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    flowchart: { curve: 'basis', htmlLabels: true },
+    themeVariables: {
+      fontSize: '13px',
+    }
+  });
+</script>
+</body>
+</html>
