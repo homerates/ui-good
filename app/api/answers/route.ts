@@ -5175,7 +5175,8 @@ ${uwDatabase}`;
                 });
                 calcDebugModel = 'calcEngine-loan-limits';
 
-            } else if (calcDispatch.type === 'conventional' && calcDispatch.params) {
+            } else if (calcDispatch.type === 'conventional' && calcDispatch.params &&
+                !/how much income|what income|what salary|income.*(?:need|qualify|required?)|(?:need|qualify).{0,20}income/i.test(question)) {
                 const result = calcConventional(calcDispatch.params as any);
                 calcCard = buildConventionalCard(result, calcAssumptions, fredRateForCard);
                 calcDebugModel = 'calcEngine-conventional';
@@ -6161,8 +6162,10 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                 })();
 
                 if (isIncomeQuery && incomeForPrice && incomeForPrice >= 100_000) {
-                    const rate = fred?.mort30Avg ?? 6.5;
-                    const downPct = /10\s*%\s*down/i.test(question) ? 10 : /5\s*%\s*down/i.test(question) ? 5 : 20;
+                    const _rateMatch = question.match(/(?:at|rate)\s*([\d]+\.[\d]+)\s*%/i) ?? question.match(/([\d]+\.[\d]+)\s*%/i);
+                    const rate = _rateMatch ? parseFloat(_rateMatch[1]) : (fred?.mort30Avg ?? 6.5);
+                    const _downMatch = question.match(/(\d+(?:\.\d+)?)\s*%\s*down/i);
+                    const downPct = _downMatch ? parseFloat(_downMatch[1]) : (/10\s*%\s*down/i.test(question) ? 10 : /5\s*%\s*down/i.test(question) ? 5 : 20);
                     const taxRate = (snapshotJson?.interactiveSlider?.taxRate ?? snapshotJson?.scenario_inputs?.taxRate ?? 0.011) * 100;
                     // Scale insurance with price: 0.5% annually for jumbo, capped floor at $1,200/yr
                     const annualIns = Math.max(1200, Math.round(incomeForPrice * 0.005));
