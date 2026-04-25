@@ -83,6 +83,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!ok) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await req.json();
+
+  // share_financials is buyer-only — verify role before allowing
+  if ('share_financials' in body) {
+    const { data: memberRow } = await sb
+      .from('deal_room_members')
+      .select('role')
+      .eq('deal_room_id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (memberRow?.role !== 'buyer') {
+      return NextResponse.json({ error: 'Only the buyer can update financial sharing permission' }, { status: 403 });
+    }
+    const { data, error } = await sb
+      .from('deal_rooms')
+      .update({ share_financials: !!body.share_financials, updated_at: new Date().toISOString() })
+      .eq('id', id).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ room: data });
+  }
+
   const allowed = ['status', 'offer_price', 'target_close_date', 'property_data'];
   const patch: Record<string, any> = { updated_at: new Date().toISOString() };
   for (const k of allowed) {

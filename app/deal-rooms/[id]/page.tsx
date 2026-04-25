@@ -12,6 +12,7 @@ type Room = {
   id: string; property_address: string; status: string;
   offer_price: number | null; target_close_date: string | null;
   property_data: any; created_by: string; updated_at: string;
+  share_financials?: boolean;
 };
 type Member = {
   id: string; role: string; user_id: string | null;
@@ -178,6 +179,17 @@ export default function DealRoomPage() {
   const [savingScen,    setSavingScen]    = React.useState(false);
   const [loadedScenId,  setLoadedScenId]  = React.useState<string|null>(null);
 
+  // Financial sharing permission (buyer-controlled)
+  const [shareFinancials, setShareFinancials] = React.useState(false);
+  const [togglingShare,   setTogglingShare]   = React.useState(false);
+
+  // Rate alert form (in messages tab)
+  const [showAlertForm, setShowAlertForm] = React.useState(false);
+  const [alertTarget,   setAlertTarget]   = React.useState("");
+  const [alertEmail,    setAlertEmail]    = React.useState("");
+  const [savingAlert,   setSavingAlert]   = React.useState(false);
+  const [alertSaved,    setAlertSaved]    = React.useState(false);
+
   // Seed scenario modeler from latest saved scenario, falling back to room defaults
   React.useEffect(() => {
     if (!room || scenPrice) return;
@@ -206,6 +218,43 @@ export default function DealRoomPage() {
       setScenFundingFee((!isNaN(dp) ? vaFundingFeePct(dp) : 2.3).toFixed(2));
     }
   }, [scenLoanType, scenDown]);
+
+  // Seed share_financials from room data
+  React.useEffect(() => {
+    if (room) setShareFinancials(room.share_financials ?? false);
+  }, [room]);
+
+  async function toggleShareFinancials() {
+    if (togglingShare) return;
+    setTogglingShare(true);
+    const next = !shareFinancials;
+    const res = await fetch(`/api/deal-rooms/${roomId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ share_financials: next }),
+    });
+    if (res.ok) setShareFinancials(next);
+    setTogglingShare(false);
+  }
+
+  async function saveRateAlert() {
+    if (savingAlert || !alertTarget || !alertEmail) return;
+    setSavingAlert(true);
+    const threshold = parseFloat(alertTarget);
+    if (isNaN(threshold)) { setSavingAlert(false); return; }
+    const scenLabel = scenarios[0]
+      ? `${room?.property_address?.split(",")[0] ?? "Deal Room"} — rate drops to ${threshold}%`
+      : `Rate alert — drops to ${threshold}%`;
+    await fetch("/api/alerts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "rate", label: scenLabel, email: alertEmail,
+        params: { threshold, direction: "below" },
+      }),
+    });
+    setSavingAlert(false);
+    setAlertSaved(true);
+    setTimeout(() => { setAlertSaved(false); setShowAlertForm(false); }, 2500);
+  }
 
   async function loadImportScens() {
     setImportLoading(true);
@@ -806,7 +855,57 @@ export default function DealRoomPage() {
               {/* ── Financing tab ── */}
               {activeTab === "financing" && (
                 <div>
-                  {/* Live rate strip — LO only (agents/buyers see the LO's saved scenarios, not raw rate tools) */}
+
+                  {/* ── Financial Sharing Permission Banner — visible to ALL roles ── */}
+                  <div style={{
+                    background: shareFinancials ? "rgba(0,232,122,0.06)" : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${shareFinancials ? "rgba(0,232,122,0.2)" : "rgba(255,255,255,0.08)"}`,
+                    borderRadius: 10, padding: "12px 16px", marginBottom: 14,
+                    display: "flex", alignItems: "center", gap: 12,
+                  }}>
+                    {/* Radio dot */}
+                    <div style={{
+                      width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+                      border: `2px solid ${shareFinancials ? "#00e87a" : "#3a4560"}`,
+                      background: shareFinancials ? "rgba(0,232,122,0.15)" : "transparent",
+                      boxShadow: shareFinancials ? "0 0 8px rgba(0,232,122,0.35)" : "none",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all .2s",
+                    }}>
+                      {shareFinancials && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#00e87a" }} />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: shareFinancials ? "#00e87a" : "#6b7a99", marginBottom: 2 }}>
+                        {shareFinancials ? "Buyer authorized — financing shared with agent" : "Financing not shared with agent — awaiting buyer authorization"}
+                      </p>
+                      <p style={{ fontSize: 11, color: "#3a4560", lineHeight: 1.4 }}>
+                        {shareFinancials
+                          ? "Buyer has permitted the LO to share financing scenarios with the agent."
+                          : viewerRole === "buyer"
+                            ? "Tap Authorize below to let the agent see your financing scenarios in this deal room."
+                            : "The buyer must authorize sharing before financing scenarios are visible to the agent."}
+                      </p>
+                    </div>
+                    {/* Only the buyer sees the toggle */}
+                    {viewerRole === "buyer" && (
+                      <button
+                        onClick={toggleShareFinancials}
+                        disabled={togglingShare}
+                        style={{
+                          background: shareFinancials ? "rgba(248,113,113,0.08)" : "rgba(0,232,122,0.1)",
+                          border: `1px solid ${shareFinancials ? "rgba(248,113,113,0.3)" : "rgba(0,232,122,0.3)"}`,
+                          color: shareFinancials ? "#f87171" : "#00e87a",
+                          borderRadius: 7, padding: "6px 14px", fontSize: 12, fontWeight: 700,
+                          cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+                          transition: "all .15s",
+                        }}
+                      >
+                        {togglingShare ? "…" : shareFinancials ? "Revoke" : "Authorize"}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Live rate strip — LO only */}
                   {isLO && <div className="fin-rate-strip">
                     <span style={{ fontSize:16 }}>📈</span>
                     {liveRate
@@ -815,8 +914,20 @@ export default function DealRoomPage() {
                     }
                   </div>}
 
-                  {/* ── Agent/Buyer read-only view ── */}
-                  {!isLO && (
+                  {/* ── Agent locked view (permission not granted) ── */}
+                  {isAgent && !shareFinancials && (
+                    <div className="dr-card" style={{ textAlign:"center", padding:"32px 20px" }}>
+                      <div style={{ fontSize:28, marginBottom:12 }}>🔒</div>
+                      <p style={{ fontSize:14, fontWeight:600, color:"#f0f4ff", marginBottom:6 }}>Financing not shared yet</p>
+                      <p style={{ fontSize:13, color:"#6b7a99", lineHeight:1.6 }}>
+                        The buyer hasn&apos;t authorized sharing of financing scenarios with the agent.<br />
+                        They can enable this in the Financing tab.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ── Agent/Buyer read-only view (only when agent has permission or viewer is buyer) ── */}
+                  {!isLO && (!isAgent || shareFinancials) && (
                     <div>
                       <div className="dr-card" style={{ marginBottom:14 }}>
                         <p style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase", letterSpacing:".08em", marginBottom:14 }}>
@@ -1276,6 +1387,91 @@ export default function DealRoomPage() {
               {/* ── Messages tab ── */}
               {activeTab === "messages" && (
                 <div>
+
+                  {/* ── Rate Monitor Alert Strip ── */}
+                  {(liveRate || scenarios.length > 0) && (
+                    <div style={{ background:"#0e1420", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, padding:"12px 16px", marginBottom:12 }}>
+                      <p style={{ fontSize:10, color:"#3a4560", textTransform:"uppercase", letterSpacing:".08em", marginBottom:8 }}>Rate Monitor</p>
+                      <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
+                        {liveRate && (
+                          <div>
+                            <span style={{ fontSize:11, color:"#6b7a99" }}>30Y FRED&nbsp;</span>
+                            <span style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>{liveRate.toFixed(2)}%</span>
+                          </div>
+                        )}
+                        {scenarios[0]?.rate && (
+                          <div>
+                            <span style={{ fontSize:11, color:"#6b7a99" }}>Latest scenario&nbsp;</span>
+                            <span style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>{scenarios[0].rate}%</span>
+                          </div>
+                        )}
+                        {liveRate && scenarios[0]?.rate && (() => {
+                          const delta = liveRate - Number(scenarios[0].rate);
+                          const col = delta <= -0.1 ? "#00e87a" : delta >= 0.1 ? "#f87171" : "#fbbf24";
+                          const arrow = delta <= -0.1 ? "▼" : delta >= 0.1 ? "▲" : "≈";
+                          const sign = delta > 0 ? "+" : "";
+                          return (
+                            <span style={{ fontSize:12, fontWeight:600, color:col }}>
+                              {arrow} {sign}{delta.toFixed(2)}% since scenario
+                            </span>
+                          );
+                        })()}
+                        {!showAlertForm && (
+                          <button
+                            onClick={() => setShowAlertForm(true)}
+                            style={{ marginLeft:"auto", background:"transparent", border:"1px solid rgba(255,255,255,0.08)", borderRadius:6, padding:"4px 10px", fontSize:11, color:"#6b7a99", cursor:"pointer", fontFamily:"inherit" }}
+                          >
+                            Set Rate Alert
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Alert form */}
+                      {showAlertForm && (
+                        <div style={{ marginTop:10, borderTop:"1px solid rgba(255,255,255,0.06)", paddingTop:10 }}>
+                          <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-end" }}>
+                            <div>
+                              <span style={{ fontSize:10, color:"#6b7a99", display:"block", marginBottom:4 }}>Alert when rate drops below (%)</span>
+                              <input
+                                type="number" step="0.01"
+                                placeholder={liveRate ? (liveRate - 0.25).toFixed(2) : "6.50"}
+                                value={alertTarget}
+                                onChange={e => setAlertTarget(e.target.value)}
+                                style={{ background:"#141b28", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, color:"#f0f4ff", fontSize:13, padding:"7px 10px", width:90, outline:"none", fontFamily:"inherit" }}
+                              />
+                            </div>
+                            <div style={{ flex:1, minWidth:140 }}>
+                              <span style={{ fontSize:10, color:"#6b7a99", display:"block", marginBottom:4 }}>Notify email</span>
+                              <input
+                                type="email"
+                                placeholder="you@email.com"
+                                value={alertEmail}
+                                onChange={e => setAlertEmail(e.target.value)}
+                                style={{ background:"#141b28", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, color:"#f0f4ff", fontSize:13, padding:"7px 10px", width:"100%", outline:"none", fontFamily:"inherit" }}
+                              />
+                            </div>
+                            <button
+                              onClick={saveRateAlert}
+                              disabled={savingAlert || !alertTarget || !alertEmail}
+                              style={{ background:alertSaved?"#00e87a":"#00e87a", color:"#080c12", border:"none", borderRadius:6, padding:"7px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", opacity:(savingAlert||!alertTarget||!alertEmail)?0.5:1 }}
+                            >
+                              {savingAlert ? "…" : alertSaved ? "✓ Alert set!" : "Set Alert"}
+                            </button>
+                            <button
+                              onClick={() => setShowAlertForm(false)}
+                              style={{ background:"transparent", border:"none", color:"#6b7a99", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:"7px 6px" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <p style={{ fontSize:11, color:"#3a4560", marginTop:8 }}>
+                            You&apos;ll receive an email when the 30Y FRED rate drops to your target. Checked daily.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="dr-card" style={{ padding:0 }}>
                     <div className="dr-thread">
                       {messages.length === 0 && (
