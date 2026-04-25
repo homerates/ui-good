@@ -195,8 +195,12 @@ export default function DealRoomPage() {
     if (liveRate) setScenRate(liveRate.toFixed(2));
   }, [liveRate, scenarios]);
 
-  // Auto-update VA funding fee when loan type or down% changes
+  // Suppresses the auto-recalc effect when loading a saved scenario (which carries its own fee)
+  const skipFeeRecalcRef = React.useRef(false);
+
+  // Auto-update VA funding fee when loan type or down% changes — skipped during scenario load
   React.useEffect(() => {
+    if (skipFeeRecalcRef.current) { skipFeeRecalcRef.current = false; return; }
     if (scenLoanType === "va") {
       const dp = parseFloat(scenDown);
       setScenFundingFee((!isNaN(dp) ? vaFundingFeePct(dp) : 2.3).toFixed(2));
@@ -378,11 +382,13 @@ export default function DealRoomPage() {
   const modelerRef = React.useRef<HTMLDivElement>(null);
 
   function loadScenIntoModeler(s: Scenario) {
+    skipFeeRecalcRef.current = true; // prevent auto-recalc from overwriting saved fee
     if (s.offer_price) setScenPrice(String(Math.round(s.offer_price)));
     if (s.down_pct != null) setScenDown(String(s.down_pct));
     if (s.rate) setScenRate(String(s.rate));
     if (s.loan_type && ["conventional","va","fha","jumbo"].includes(s.loan_type ?? ""))
       setScenLoanType(s.loan_type as LoanType);
+    if (s.result_json?.fundingFeePct != null) setScenFundingFee(String(s.result_json.fundingFeePct));
     setScenLabel("");
     setScenSellerCredit(s.result_json?.sellerCredit ? String(s.result_json.sellerCredit) : "");
     setScenClosingCosts(s.result_json?.closingCosts  ? String(s.result_json.closingCosts)  : "");
