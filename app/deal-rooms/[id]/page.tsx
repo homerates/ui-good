@@ -897,8 +897,8 @@ export default function DealRoomPage() {
                             : "The buyer must authorize sharing before financing scenarios are visible to the agent."}
                       </p>
                     </div>
-                    {/* Only the buyer sees the toggle */}
-                    {viewerRole === "buyer" && (
+                    {/* Only the buyer sees the toggle, and only when room is active */}
+                    {viewerRole === "buyer" && !isRoomLocked && (
                       <button
                         onClick={toggleShareFinancials}
                         disabled={togglingShare}
@@ -1060,8 +1060,8 @@ export default function DealRoomPage() {
                     </div>
                   ) : null}
 
-                  {/* Scenario modeler — LO only */}
-                  {isLO && <div className="dr-card" ref={modelerRef}>
+                  {/* Scenario modeler — LO only, hidden when room is locked */}
+                  {isLO && !isRoomLocked && <div className="dr-card" ref={modelerRef}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                       <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>Model a Scenario</p>
                       <button
