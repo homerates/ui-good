@@ -511,7 +511,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                             taxRate: props.taxRate, insRate: props.insRate, loanType: 'conventional',
                         })}
                     />
-                    <button type="button" className="afc-btn-match" onClick={() => router.push('/professionals')}>
+                    <button type="button" className="afc-btn-match" onClick={() => router.push('/connect/post')}>
                         Get matched →
                     </button>
                 </div>
@@ -758,9 +758,10 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     padding: 16px 18px;
                     background: #fff;
                     color: #0d1117;
+                    overflow: visible;
                 }
                 .afc-exp-title { font-size: 13px; font-weight: 700; color: #0d1117; margin-bottom: 14px; }
-                .afc-exp-row { margin-bottom: 4px; }
+                .afc-exp-row { margin-bottom: 4px; overflow: visible; }
                 .afc-exp-label {
                     display: flex; justify-content: space-between; align-items: center;
                     font-size: 13px; font-weight: 600; color: #0d1117; margin-bottom: 8px;

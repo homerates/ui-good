@@ -2814,13 +2814,14 @@ export default function Page() {
                                                                 grok: m.meta.follow_up_chips?.length
                                                                     ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                     : m.meta.grok,
-                                                                answerMarkdown: sanitizeMarkdown(
-                                                                    // Use m.content while typewriter is animating (non-empty),
-                                                                    // fall back to m.meta.answerMarkdown once typing completes
-                                                                    (typeof m.content === 'string' && m.content.length > 0)
-                                                                        ? m.content
-                                                                        : (m.meta.answerMarkdown ?? '')
-                                                                ),
+                                                                // Suppress full answer text when affordability card renders — card shows all data
+                                                                answerMarkdown: m.meta.affordabilitySlider
+                                                                    ? ''
+                                                                    : sanitizeMarkdown(
+                                                                        (typeof m.content === 'string' && m.content.length > 0)
+                                                                            ? m.content
+                                                                            : (m.meta.answerMarkdown ?? '')
+                                                                    ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
                                                                     : (m.meta.followUp ?? undefined),
