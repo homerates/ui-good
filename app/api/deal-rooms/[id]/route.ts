@@ -82,6 +82,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const ok = await assertMember(sb, id, userId);
   if (!ok) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const { data: roomMeta } = await sb.from('deal_rooms').select('status').eq('id', id).maybeSingle();
+  if (roomMeta?.status === 'closed' || roomMeta?.status === 'cancelled') {
+    return NextResponse.json({ error: 'This deal room is closed and read-only' }, { status: 423 });
+  }
+
   const body = await req.json();
 
   // share_financials is buyer-only — verify role before allowing

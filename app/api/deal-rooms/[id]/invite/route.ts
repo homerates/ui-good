@@ -8,8 +8,9 @@ import { getSupabase } from '../../../../../lib/supabaseServer';
 import { emailDealRoomInvite } from '../../../../../lib/sendEmail';
 
 async function assertCreator(sb: any, roomId: string, userId: string) {
-  const { data } = await sb.from('deal_rooms').select('created_by').eq('id', roomId).maybeSingle();
-  return data?.created_by === userId;
+  const { data } = await sb.from('deal_rooms').select('created_by, status').eq('id', roomId).maybeSingle();
+  if (!data) return { isCreator: false, status: null };
+  return { isCreator: data.created_by === userId, status: data.status as string };
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -40,8 +41,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
 
-  const isCreator = await assertCreator(sb, id, userId);
+  const { isCreator, status: roomStatus } = await assertCreator(sb, id, userId);
   if (!isCreator) return NextResponse.json({ error: 'Only the room creator can manage invites' }, { status: 403 });
+  if (roomStatus === 'closed' || roomStatus === 'cancelled') {
+    return NextResponse.json({ error: 'This deal room is closed and read-only' }, { status: 423 });
+  }
 
   const body = await req.json();
   const { role, display_name, email } = body as {

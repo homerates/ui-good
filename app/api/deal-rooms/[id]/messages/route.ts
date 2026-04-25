@@ -9,18 +9,17 @@ import { getSupabase } from '../../../../../lib/supabaseServer';
 async function getRoomMembership(sb: any, roomId: string, userId: string) {
   const { data: room } = await sb
     .from('deal_rooms')
-    .select('id, created_by')
+    .select('id, created_by, status')
     .eq('id', roomId)
     .maybeSingle();
   if (!room) return null;
 
   if (room.created_by === userId) {
-    // Determine creator role
     const [loRes, agentRes] = await Promise.all([
       sb.from('loan_officers').select('id').eq('user_id', userId).maybeSingle(),
       sb.from('agents').select('id').eq('user_id', userId).maybeSingle(),
     ]);
-    return { role: loRes.data ? 'lo' : agentRes.data ? 'agent' : 'lo' };
+    return { role: loRes.data ? 'lo' : agentRes.data ? 'agent' : 'lo', status: room.status };
   }
 
   const { data: member } = await sb
@@ -30,7 +29,8 @@ async function getRoomMembership(sb: any, roomId: string, userId: string) {
     .eq('user_id', userId)
     .not('joined_at', 'is', null)
     .maybeSingle();
-  return member ?? null;
+  if (!member) return null;
+  return { ...member, status: room.status };
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -69,6 +69,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const membership = await getRoomMembership(sb, id, userId);
   if (!membership) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (membership.status === 'closed' || membership.status === 'cancelled') {
+    return NextResponse.json({ error: 'This deal room is closed and read-only' }, { status: 423 });
+  }
 
   const { content } = await req.json();
   if (!content?.trim()) return NextResponse.json({ error: 'content required' }, { status: 400 });

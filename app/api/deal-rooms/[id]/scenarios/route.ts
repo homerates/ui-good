@@ -7,10 +7,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../../../lib/supabaseServer';
 
-async function getMemberRole(sb: any, roomId: string, userId: string): Promise<string | null> {
+async function getMemberRole(sb: any, roomId: string, userId: string): Promise<{ role: string; status: string } | null> {
   const { data: room } = await sb
     .from('deal_rooms')
-    .select('id, created_by')
+    .select('id, created_by, status')
     .eq('id', roomId)
     .maybeSingle();
   if (!room) return null;
@@ -22,9 +22,9 @@ async function getMemberRole(sb: any, roomId: string, userId: string): Promise<s
     .eq('user_id', userId)
     .maybeSingle();
 
-  if (m?.role) return m.role;
-  if (room.created_by === userId) return 'lo';
-  return null;
+  const role = m?.role ?? (room.created_by === userId ? 'lo' : null);
+  if (!role) return null;
+  return { role, status: room.status };
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -35,8 +35,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
 
-  const role = await getMemberRole(sb, id, userId);
-  if (!role) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const membership = await getMemberRole(sb, id, userId);
+  if (!membership) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const { data } = await sb
     .from('deal_room_scenarios')
@@ -56,8 +56,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
 
-  const role = await getMemberRole(sb, id, userId);
-  if (!role) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const membership = await getMemberRole(sb, id, userId);
+  if (!membership) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (membership.status === 'closed' || membership.status === 'cancelled') {
+    return NextResponse.json({ error: 'This deal room is closed and read-only' }, { status: 423 });
+  }
 
   const body = await req.json();
   const { label, offer_price, down_pct, loan_type, rate, piti, result_json } = body;
@@ -67,7 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .insert({
       deal_room_id:    id,
       created_by:      userId,
-      created_by_role: role,
+      created_by_role: membership.role,
       label:           label ?? null,
       offer_price:     offer_price ?? null,
       down_pct:        down_pct ?? null,
@@ -100,6 +103,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const url = new URL(req.url);
   const scenarioId = url.searchParams.get('scenario_id');
   if (!scenarioId) return NextResponse.json({ error: 'scenario_id required' }, { status: 400 });
+
+  const membership = await getMemberRole(sb, id, userId);
+  if (!membership) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (membership.status === 'closed' || membership.status === 'cancelled') {
+    return NextResponse.json({ error: 'This deal room is closed and read-only' }, { status: 423 });
+  }
 
   const { data: scen } = await sb
     .from('deal_room_scenarios')

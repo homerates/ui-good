@@ -505,6 +505,7 @@ export default function DealRoomPage() {
   const viewerRole   = isCreator ? 'lo' : (viewerMember?.role ?? 'buyer');
   const isLO         = viewerRole === 'lo';
   const isAgent      = viewerRole === 'agent';
+  const isRoomLocked = room.status === 'closed' || room.status === 'cancelled';
   const unread    = messages.filter(m => m.sender_role !== "system").length;
 
   // Modeler live preview
@@ -705,7 +706,7 @@ export default function DealRoomPage() {
               style={{ background:"none", border:"none", color:"#6b7a99", cursor:"pointer", fontSize:18, flexShrink:0, padding:"2px 0", lineHeight:1 }}
             >←</button>
             <span className="dr-header-addr">{room.property_address}</span>
-            {isCreator ? (
+            {isCreator && !isRoomLocked ? (
               <button
                 className="dr-status-chip"
                 style={{ color, background:`${color}18`, borderColor:`${color}40` }}
@@ -737,6 +738,16 @@ export default function DealRoomPage() {
                 onClick={() => { localStorage.setItem(`dr_ack_${roomId}`, "1"); setDiscAcked(true); }}
                 style={{ background:"none", border:"none", color:"#6b7a99", cursor:"pointer", fontSize:16, padding:0, flexShrink:0, lineHeight:1 }}
               >✕</button>
+            </div>
+          )}
+
+          {/* Read-only banner for closed/cancelled rooms */}
+          {isRoomLocked && (
+            <div style={{ background:"rgba(107,122,153,0.08)", border:"1px solid rgba(107,122,153,0.2)", borderRadius:10, padding:"12px 16px", marginBottom:20, display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:16, flexShrink:0 }}>🔒</span>
+              <p style={{ fontSize:13, color:"#8fa3b8", lineHeight:1.5, flex:1 }}>
+                <strong style={{ color:"#f0f4ff" }}>This deal room is {room.status}.</strong> It&apos;s now read-only — messages, invites, and scenario changes are disabled. Open a new room for a new transaction.
+              </p>
             </div>
           )}
 
@@ -1224,9 +1235,15 @@ export default function DealRoomPage() {
                       />
                     </div>
 
-                    <button className="dr-btn" style={{ width:"100%" }} onClick={saveScenario} disabled={savingScen || !modPiti}>
-                      {savingScen ? "Saving…" : "Save Scenario — share with team"}
-                    </button>
+                    {isRoomLocked ? (
+                      <div style={{ background:"rgba(107,122,153,0.05)", border:"1px solid rgba(107,122,153,0.12)", borderRadius:8, padding:"10px 14px", textAlign:"center" }}>
+                        <p style={{ fontSize:12, color:"#3a4560" }}>Scenario saving is disabled — this room is {room.status}.</p>
+                      </div>
+                    ) : (
+                      <button className="dr-btn" style={{ width:"100%" }} onClick={saveScenario} disabled={savingScen || !modPiti}>
+                        {savingScen ? "Saving…" : "Save Scenario — share with team"}
+                      </button>
+                    )}
                   </div>}
 
                   {/* Saved scenarios — LO view with Load/Delete actions */}
@@ -1267,27 +1284,29 @@ export default function DealRoomPage() {
                                   <span style={{ fontSize:11, fontWeight:600, color:rc }}>{ROLE_LABELS[s.created_by_role] ?? s.created_by_role}</span>
                                 </div>
                               </div>
-                              <div className="scen-actions" style={{ alignItems:"center" }}>
-                                {loadedScenId === s.id && (
-                                  <span style={{ fontSize:10, fontWeight:700, color:"#00e87a", letterSpacing:".06em", marginRight:4 }}>● In modeler</span>
-                                )}
-                                <button
-                                  className="scen-btn load"
-                                  onClick={() => loadScenIntoModeler(s)}
-                                  title="Load these numbers into the modeler above"
-                                >
-                                  ↑ Load into modeler
-                                </button>
-                                {isOwn && (
+                              {!isRoomLocked && (
+                                <div className="scen-actions" style={{ alignItems:"center" }}>
+                                  {loadedScenId === s.id && (
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#00e87a", letterSpacing:".06em", marginRight:4 }}>● In modeler</span>
+                                  )}
                                   <button
-                                    className="scen-btn del"
-                                    onClick={() => deleteScenario(s.id)}
-                                    title="Delete this scenario"
+                                    className="scen-btn load"
+                                    onClick={() => loadScenIntoModeler(s)}
+                                    title="Load these numbers into the modeler above"
                                   >
-                                    Delete
+                                    ↑ Load into modeler
                                   </button>
-                                )}
-                              </div>
+                                  {isOwn && (
+                                    <button
+                                      className="scen-btn del"
+                                      onClick={() => deleteScenario(s.id)}
+                                      title="Delete this scenario"
+                                    >
+                                      Delete
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1501,19 +1520,25 @@ export default function DealRoomPage() {
                       <div ref={msgEndRef} />
                     </div>
                   </div>
-                  <div className="dr-compose">
-                    <textarea
-                      rows={1}
-                      placeholder="Message the team…"
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onKeyDown={(e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                      onInput={(e) => { const t=e.target as HTMLTextAreaElement; t.style.height="auto"; t.style.height=t.scrollHeight+"px"; }}
-                    />
-                    <button className="dr-btn" style={{ padding:"8px 16px", flexShrink:0 }} onClick={sendMessage} disabled={!draft.trim()||sending}>
-                      {sending ? "…" : "Send"}
-                    </button>
-                  </div>
+                  {isRoomLocked ? (
+                    <div style={{ background:"rgba(107,122,153,0.05)", border:"1px solid rgba(107,122,153,0.12)", borderRadius:10, padding:"12px 14px", marginTop:10, textAlign:"center" }}>
+                      <p style={{ fontSize:13, color:"#3a4560" }}>Messaging is disabled — this room is {room.status}.</p>
+                    </div>
+                  ) : (
+                    <div className="dr-compose">
+                      <textarea
+                        rows={1}
+                        placeholder="Message the team…"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                        onInput={(e) => { const t=e.target as HTMLTextAreaElement; t.style.height="auto"; t.style.height=t.scrollHeight+"px"; }}
+                      />
+                      <button className="dr-btn" style={{ padding:"8px 16px", flexShrink:0 }} onClick={sendMessage} disabled={!draft.trim()||sending}>
+                        {sending ? "…" : "Send"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1533,7 +1558,12 @@ export default function DealRoomPage() {
                     );
                   })}
 
-                  <div style={{ marginTop:20, borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:16 }}>
+                  {isRoomLocked && (
+                    <div style={{ background:"rgba(107,122,153,0.05)", border:"1px solid rgba(107,122,153,0.12)", borderRadius:8, padding:"10px 14px", marginTop:16, textAlign:"center" }}>
+                      <p style={{ fontSize:12, color:"#3a4560" }}>Invites are disabled — this room is {room.status}.</p>
+                    </div>
+                  )}
+                  {!isRoomLocked && <div style={{ marginTop:20, borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:16 }}>
                     <p style={{ fontSize:12, color:"#6b7a99", marginBottom:14 }}>Invite team members</p>
                     {(["buyer","lo","agent"] as const).map((role) => {
                       const m      = members.find((x) => x.role === role);
@@ -1602,7 +1632,7 @@ export default function DealRoomPage() {
                         </div>
                       );
                     })}
-                  </div>
+                  </div>}
                 </div>
               )}
             </div>
@@ -1656,7 +1686,7 @@ export default function DealRoomPage() {
                     </div>
                   );
                 })}
-                {isCreator && (
+                {isCreator && !isRoomLocked && (
                   <button
                     className="dr-ghost"
                     style={{ marginTop:8, width:"100%", fontSize:12, padding:"7px 0" }}
