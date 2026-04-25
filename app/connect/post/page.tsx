@@ -34,6 +34,15 @@ function priceToRange(price: number): string {
   return "$1.5M+";
 }
 
+function incomeToRange(income: number): string {
+  if (income < 60000)  return "Under $60k";
+  if (income < 80000)  return "$60k–$80k";
+  if (income < 100000) return "$80k–$100k";
+  if (income < 150000) return "$100k–$150k";
+  if (income < 200000) return "$150k–$200k";
+  return "$200k+";
+}
+
 function fmt$(n: number) { return `$${Math.round(n).toLocaleString()}`; }
 
 // ── Inner component uses useSearchParams (needs Suspense boundary) ─────────
@@ -60,6 +69,7 @@ function PostScenarioContent() {
   const scTerm      = Number(searchParams?.get("term") ?? 30);
   const scPurpose   = searchParams?.get("purpose") ?? "Purchase";
   const scInvest    = searchParams?.get("invest") === "1";
+  const scIncome    = Number(searchParams?.get("income") ?? 0);
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -127,6 +137,7 @@ function PostScenarioContent() {
       scRate > 0 ? `${scRate}% rate` : null,
       scTerm ? `${scTerm}yr` : null,
       scMonthly > 0 ? `$${Math.round(scMonthly).toLocaleString()}/mo est. PITI` : null,
+      scIncome > 0 ? `$${Math.round(scIncome / 1000)}k/yr income` : null,
     ].filter(Boolean).join(' · ');
 
     setForm(prev => ({
@@ -134,6 +145,7 @@ function PostScenarioContent() {
       loan_type:        normLoanType,
       loan_purpose:     PURPOSES.includes(scPurpose) ? scPurpose : prev.loan_purpose,
       price_range:      scPrice > 0 ? priceToRange(scPrice) : prev.price_range,
+      income_range:     scIncome > 0 ? incomeToRange(scIncome) : prev.income_range,
       // VA: always 0% default (entitlement calc may require more, but lender match uses benefit); else use card dp
       down_payment_pct: isVALoan ? "0" : (scDp > 0 ? String(scDp) : prev.down_payment_pct),
       notes:            noteParts,

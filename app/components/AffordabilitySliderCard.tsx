@@ -544,7 +544,23 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                             taxRate: props.taxRate, insRate: props.insRate, loanType: 'conventional',
                         })}
                     />
-                    <button type="button" className="afc-btn-match" onClick={() => router.push('/connect/post')}>
+                    <button type="button" className="afc-btn-match" onClick={() => {
+                        const ref = conv3;
+                        const params = new URLSearchParams({
+                            from: 'scenario',
+                            lt: 'Conventional',
+                            purpose: 'Purchase',
+                            ...(ref ? {
+                                price: String(Math.round(ref.maxPrice)),
+                                dp: '3',
+                                monthly: String(Math.round(ref.total)),
+                            } : {}),
+                            rate: String(parseFloat(rate.toFixed(3))),
+                            term: String(term),
+                            income: String(Math.round(income)),
+                        });
+                        router.push('/connect/post?' + params.toString());
+                    }}>
                         Get matched →
                     </button>
                 </div>

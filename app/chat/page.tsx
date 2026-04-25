@@ -2807,8 +2807,8 @@ export default function Page() {
                                                 // If this is a Grok-style answer with markdown, use GrokCard
                                                 m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
                                                     <>
-                                                        {/* GrokCard: always for non-affordability; for affordability only during streaming (typewriter effect) */}
-                                                        {(!m.meta.affordabilitySlider || typingId === m.id) && (
+                                                        {/* GrokCard: suppressed once affordability card is ready — card contains all data */}
+                                                        {!m.meta.affordabilitySlider && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
