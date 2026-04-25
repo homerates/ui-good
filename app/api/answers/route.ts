@@ -6022,7 +6022,9 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
         const affordParams = extractAffordabilityParams(question);
 
         // If it's a follow-up (debt change OR "use current rates"), merge prior context
-        if (affordFollowUp.isFollowUp && priorAffordContext?.annualIncome && !affordParams.hasInfo) {
+        // Income-needed queries ("what income do I need for X home?") are reverse calculations —
+        // never inject prior income context, they must reach the income-needed path below
+        if (affordFollowUp.isFollowUp && priorAffordContext?.annualIncome && !affordParams.hasInfo && !isIncomeNeededQuery) {
             affordParams.annualIncome = priorAffordContext.annualIncome;
             const derivedFallback = priorAffordContext.annualIncome
                 ? Math.round((priorAffordContext.annualIncome / 12) * 0.43 / 0.006 * 0.9 * 0.10)
