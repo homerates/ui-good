@@ -25,6 +25,7 @@ import {
 import WelcomeScreen from '@/components/WelcomeScreen';
 import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
+import ConvHBSliderCard from '@/components/ConvHBSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
 import RefiSliderCard from '@/components/RefiSliderCard';
@@ -372,6 +373,10 @@ type ApiResponse = {
     interactiveSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; loanType: 'conventional' | 'fha' | 'jumbo' | 'va';
+    } | null;
+    convHBSlider?: {
+        price: number; downPct: number; rate: number; term: number;
+        taxRate: number; insRate: number; county?: string; countyLimit?: number;
     } | null;
     affordabilitySlider?: {
         annualIncome: number; monthlyDebts: number; savings: number;
@@ -2537,9 +2542,17 @@ export default function Page() {
                         : `$${sl.savings.toLocaleString()}`;
                     return `Based on your ${incK}/yr income and ${savK} in savings, here are your affordability options across 3 programs.`;
                 })()
+                : meta.convHBSlider
+                ? (() => {
+                    const sl = meta.convHBSlider as { price: number; downPct: number; rate: number };
+                    const prK = sl.price >= 1000000
+                        ? `$${(sl.price / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1000)}k`;
+                    return `Here's your conventional payment breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
+                })()
                 : friendly;
-            // Affordability uses a short sentence (~80 chars) — slow tick so it's visible
-            typeOutAssistant(answerId, fullText, meta.affordabilitySlider ? 3 : 24);
+            // Short constructed sentences use slow tick (3 chars/tick) so typewriter is visible
+            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider) ? 3 : 24);
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
@@ -2827,7 +2840,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {(!m.meta.affordabilitySlider || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -2835,9 +2848,9 @@ export default function Page() {
                                                                 grok: m.meta.follow_up_chips?.length
                                                                     ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                     : m.meta.grok,
-                                                                // For affordability during typing: only show m.content (the friendly summary),
+                                                                // For slider cards during typing: only show m.content (the friendly summary),
                                                                 // never m.meta.answerMarkdown (which contains the old full tables).
-                                                                answerMarkdown: m.meta.affordabilitySlider
+                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider)
                                                                     ? sanitizeMarkdown(typeof m.content === 'string' ? m.content : '')
                                                                     : sanitizeMarkdown(
                                                                         (typeof m.content === 'string' && m.content.length > 0)
@@ -2846,7 +2859,7 @@ export default function Page() {
                                                                     ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
-                                                                    : (m.meta.affordabilitySlider ? undefined : (m.meta.followUp ?? undefined)),
+                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider) ? undefined : (m.meta.followUp ?? undefined)),
                                                                 data_freshness:
                                                                     m.meta.data_freshness ??
                                                                     m.meta.fred?.asOf ??
@@ -2898,7 +2911,18 @@ export default function Page() {
                                                                 />
                                                             </>
                                                         )}
-                                                        {/* Interactive slider card — conventional + FHA calc answers */}
+                                                        {/* Conventional / High Balance slider card */}
+                                                        {m.meta.convHBSlider && !loading && typingId === null && (
+                                                            <ConvHBSliderCard
+                                                                {...m.meta.convHBSlider}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Interactive slider card — FHA · VA · Jumbo · Buydown answers */}
                                                         {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
@@ -2987,7 +3011,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* Lender checklist card — suppressed when affordabilitySlider is present (new card covers the same data) */}
-                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !loading && typingId === null && (
+                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !m.meta.convHBSlider && !loading && typingId === null && (
                                                             <LenderChecklistCard data={m.meta.lenderChecklist} />
                                                         )}
                                                         {/* HomeRates Lab — clickable module grid */}
@@ -3096,7 +3120,7 @@ export default function Page() {
 
                                             {m.role === 'assistant' &&
                                                 m.meta &&
-                                                (!m.meta.affordabilitySlider || typingId === null) &&
+                                                ((!m.meta.affordabilitySlider && !m.meta.convHBSlider) || typingId === null) &&
                                                 typeof m.content === 'string' &&
                                                 m.content.trim().length > 40 && (
                                                     <div

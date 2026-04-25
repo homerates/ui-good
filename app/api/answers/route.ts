@@ -4286,6 +4286,21 @@ ${uwDatabase}`;
         } else if ((paramOverrides as any).loanLimitsCounty != null || isLoanLimitsQuestion(question)) {
             (calcDispatch as any).type = 'loan_limits';
             (calcDispatch as any).params = null;
+        } else if ((paramOverrides as any).isConvHB === true && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            // ConvHBSliderCard "Run adjusted scenario" — stays conventional even for HB loan amounts
+            (calcDispatch as any).type = 'conventional';
+            (calcDispatch as any).params = {
+                purchasePrice:  paramOverrides.purchasePrice,
+                downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20,
+                annualRatePct:  paramOverrides.annualRatePct,
+            };
+            const _chbCK: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _chbLM: Record<string, string> = {
+                annualRatePct:  `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _chbCK.filter(k => _chbLM[k]).map(k => _chbLM[k]);
         } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
             // isDSCR flag without rent → context-aware needs_input card, not conventional
             (calcDispatch as any).type = 'dscr_needs_input';
@@ -4618,6 +4633,21 @@ ${uwDatabase}`;
         } else if ((paramOverrides as any).loanLimitsCounty != null || isLoanLimitsQuestion(question)) {
             (calcDispatch as any).type = 'loan_limits';
             (calcDispatch as any).params = null;
+        } else if ((paramOverrides as any).isConvHB === true && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            // ConvHBSliderCard "Run adjusted scenario" — stays conventional even for HB loan amounts
+            (calcDispatch as any).type = 'conventional';
+            (calcDispatch as any).params = {
+                purchasePrice:  paramOverrides.purchasePrice,
+                downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20,
+                annualRatePct:  paramOverrides.annualRatePct,
+            };
+            const _chbCK: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _chbLM: Record<string, string> = {
+                annualRatePct:  `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+            };
+            (calcDispatch as any).assumptions = _chbCK.filter(k => _chbLM[k]).map(k => _chbLM[k]);
         } else if ((paramOverrides as any).isDSCR && paramOverrides.grossMonthlyRent == null) {
             // isDSCR flag without rent → context-aware needs_input card, not conventional
             (calcDispatch as any).type = 'dscr_needs_input';

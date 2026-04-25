@@ -66,6 +66,16 @@ export interface BuiltCard {
         buydownType?: '2/1' | '1/0' | '3/2/1' | 'none';
         sellerCredit?: number;
     };
+    convHBSlider?: {
+        price: number;
+        downPct: number;
+        rate: number;
+        term: number;
+        taxRate: number;
+        insRate: number;
+        county?: string;
+        countyLimit?: number;
+    };
     affordabilitySlider?: {
         annualIncome: number;
         monthlyDebts: number;
@@ -277,14 +287,13 @@ ${dtiSection}${incomeSection}
             computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly },
             monthly_payment: r.totalMonthly,
         },
-        interactiveSlider: {
+        convHBSlider: {
             price: r.purchasePrice,
             downPct: r.downPaymentPct,
             rate: r.annualRatePct,
             term: r.termYears,
             taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
             insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
-            loanType: 'conventional',
         },
         lenderChecklist: {
             loanType: 'conventional',
