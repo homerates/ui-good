@@ -309,8 +309,12 @@ export default function DealRoomPage() {
   }, [isLoaded, isSignedIn, roomId]);
 
   React.useEffect(() => {
-    if (activeTab === "messages") msgEndRef.current?.scrollIntoView({ behavior:"smooth" });
-  }, [messages, activeTab]);
+    if (activeTab === "messages") {
+      msgEndRef.current?.scrollIntoView({ behavior:"smooth" });
+      // Mark messages as read so the nav badge clears
+      fetch(`/api/deal-rooms/${roomId}/read`, { method: "POST" }).catch(() => {});
+    }
+  }, [messages, activeTab, roomId]);
 
   React.useEffect(() => {
     if (activeTab === "ai") aiEndRef.current?.scrollIntoView({ behavior:"smooth" });

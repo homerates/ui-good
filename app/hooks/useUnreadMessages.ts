@@ -16,10 +16,13 @@ export function useUnreadMessages(): number {
 
     async function poll() {
       try {
-        const res = await fetch("/api/messages/unread");
-        if (!res.ok) return;
-        const data = await res.json();
-        setTotal(data.total ?? 0);
+        const [msgRes, drRes] = await Promise.all([
+          fetch("/api/messages/unread"),
+          fetch("/api/deal-rooms/unread"),
+        ]);
+        const msgData = msgRes.ok ? await msgRes.json() : { total: 0 };
+        const drData  = drRes.ok  ? await drRes.json()  : { total: 0 };
+        setTotal((msgData.total ?? 0) + (drData.total ?? 0));
       } catch { /* ignore */ }
     }
 

@@ -110,7 +110,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .select('email, display_name')
     .eq('deal_room_id', id)
     .not('email', 'is', null)
-    .neq('user_id', userId);
+    .or(`user_id.neq.${userId},user_id.is.null`);
   if (memberRows?.length) {
     const roomUrl = `${BASE}/deal-rooms/${id}`;
     const propertyAddress = roomRow?.property_address ?? null;
