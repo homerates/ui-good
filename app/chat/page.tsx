@@ -2523,8 +2523,21 @@ export default function Page() {
                 }
             }
 
-            // Type out the actual answer text into the existing assistant bubble
-            const fullText = friendly;
+            // Type out the actual answer text into the existing assistant bubble.
+            // For affordability cards: use a short constructed summary so the typewriter
+            // shows a brief sentence, not the full Grok answer with tables.
+            const fullText = meta.affordabilitySlider
+                ? (() => {
+                    const sl = meta.affordabilitySlider as { annualIncome: number; savings: number; rate: number };
+                    const incK = sl.annualIncome >= 1000
+                        ? `$${Math.round(sl.annualIncome / 1000)}k`
+                        : `$${sl.annualIncome.toLocaleString()}`;
+                    const savK = sl.savings >= 1000
+                        ? `$${Math.round(sl.savings / 1000)}k`
+                        : `$${sl.savings.toLocaleString()}`;
+                    return `Based on your ${incK}/yr income and ${savK} in savings, here are your affordability options across 3 programs.`;
+                })()
+                : friendly;
             typeOutAssistant(answerId, fullText);
 
             // Save which route we used for this thread
