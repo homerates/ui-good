@@ -536,7 +536,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     <PdfDownloadButton
                         type="conventional"
                         getParams={() => ({
-                            price, downPct, rate, termYears: termYrs,
+                            price, downPct, rate, term: termYrs,
                             taxRate: props.taxRate, insRate: props.insRate,
                             loanType: 'conventional',
                         })}
@@ -562,6 +562,24 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     Share this answer
                 </button>
             </div>
+
+            {/* Follow-up chip */}
+            {props.onRunScenario && (
+                <div className="chb-followup-row">
+                    <button
+                        className="chb-followup-chip"
+                        onClick={() => {
+                            const prStr = price >= 1_000_000
+                                ? `$${(price / 1_000_000).toFixed(2)}M`
+                                : `$${Math.round(price / 1000)}k`;
+                            const seed = `What income do I need to qualify for a ${prStr} home with ${downPct}% down at ${rate.toFixed(2)}%?`;
+                            props.onRunScenario!(seed, {});
+                        }}
+                    >
+                        What income do I need to qualify? →
+                    </button>
+                </div>
+            )}
 
             {/* Rate note */}
             <div className="chb-rate-note">
@@ -715,6 +733,11 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-share-row { display:flex; justify-content:flex-end; padding:0 12px 10px; }
                 .chb-btn-share { display:flex; align-items:center; gap:6px; background:transparent; border:1.5px solid rgba(255,255,255,0.08); border-radius:8px; padding:7px 14px; font-size:12px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .chb-btn-share:hover { border-color:rgba(255,255,255,0.18); color:#f0f4ff; }
+
+                /* follow-up chip */
+                .chb-followup-row { display:flex; padding:0 12px 10px; }
+                .chb-followup-chip { background:rgba(0,232,122,0.06); border:1.5px solid rgba(0,232,122,0.2); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:#00e87a; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
+                .chb-followup-chip:hover { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.4); }
 
                 /* rate note */
                 .chb-rate-note { margin:0 12px 12px; background:rgba(0,232,122,0.04); border:1px solid rgba(0,232,122,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }
