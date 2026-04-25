@@ -2807,8 +2807,8 @@ export default function Page() {
                                                 // If this is a Grok-style answer with markdown, use GrokCard
                                                 m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
                                                     <>
-                                                        {/* Suppress GrokCard entirely for affordability — the AffordabilitySliderCard renders all content */}
-                                                        {!m.meta.affordabilitySlider && (
+                                                        {/* GrokCard: always for non-affordability; for affordability only during streaming (typewriter effect) */}
+                                                        {(!m.meta.affordabilitySlider || typingId === m.id) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -2891,7 +2891,11 @@ export default function Page() {
                                                         {m.meta.affordabilitySlider && !loading && typingId === null && (
                                                             <AffordabilitySliderCard
                                                                 {...m.meta.affordabilitySlider}
-                                                                onRunScenario={(seed) => send(seed)}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
                                                             />
                                                         )}
                                                         {/* DSCR slider card — investment property answers */}

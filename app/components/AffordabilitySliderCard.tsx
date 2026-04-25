@@ -20,7 +20,7 @@ export interface AffordabilitySliderParams {
     taxRate: number;
     insRate: number;
     loanType: 'conventional' | 'fha';  // kept for backward compat
-    onRunScenario?: (seed: string) => void;
+    onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
 }
 
 // ── Math ──────────────────────────────────────────────────────────────────────
@@ -250,6 +250,21 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     function buildSeed(): string {
         const debtsStr = debts > 0 ? ` with $${debts.toLocaleString()}/mo in existing debts` : '';
         return `Affordability for ${fmtK(income)}/yr income${debtsStr} at ${rate.toFixed(3)}% — ${term} year fixed`;
+    }
+
+    function getRunOverrides(): Record<string, any> {
+        const changedKeys: string[] = [];
+        if (income !== props.annualIncome) changedKeys.push('annualIncome');
+        if (debts !== props.monthlyDebts) changedKeys.push('monthlyDebts');
+        if (Math.abs(rate - props.rate) > 0.001) changedKeys.push('annualRatePct');
+        if (term !== props.term) changedKeys.push('term');
+        return {
+            annualIncome: income,
+            savings: props.savings,
+            monthlyDebts: debts,
+            annualRatePct: rate,
+            changedKeys,
+        };
     }
 
     return (
@@ -513,7 +528,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 <div className="afc-exp-actions">
                     {props.onRunScenario && isDirty && (
                         <button type="button" className="afc-btn-rerun"
-                            onClick={() => props.onRunScenario!(buildSeed())}>
+                            onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
                             Run adjusted scenario →
                         </button>
                     )}
