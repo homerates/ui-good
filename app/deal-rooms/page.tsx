@@ -143,26 +143,35 @@ export default function DealRoomsPage() {
       {/* Loading */}
       {loading && <p style={{ color:"#6b7a99", fontSize:14, textAlign:"center", padding:"60px 0" }}>Loading…</p>}
 
-      {/* Pro gate */}
-      {!loading && !isPro && (
-        <div style={{ background:"#0e1420", border:"1px solid rgba(251,191,36,0.2)", borderRadius:12, padding:28, textAlign:"center" }}>
-          <div style={{ fontSize:32, marginBottom:14 }}>⭐</div>
-          <p style={{ fontFamily:"'Syne',sans-serif", fontSize:18, fontWeight:700, color:"#f0f4ff", margin:"0 0 8px" }}>
-            Deal Rooms is a Pro feature
-          </p>
-          <p style={{ fontSize:14, color:"#6b7a99", margin:"0 0 24px", lineHeight:1.6 }}>
-            Create AI-powered transaction workspaces for your deals — property intelligence, live financing, team messaging, and invite links for your buyer, agent, or loan officer.
-          </p>
-          <a
-            href="/pricing"
-            style={{ display:"inline-block", background:"#00e87a", color:"#080c12", borderRadius:8, padding:"11px 24px", fontSize:14, fontWeight:700, textDecoration:"none" }}
-          >
-            Upgrade to Pro →
-          </a>
+      {/* Free account with invited rooms — show their rooms, no upgrade prompt */}
+      {!loading && !isPro && rooms.length > 0 && (
+        <div>
+          <div style={{ background:"rgba(61,139,255,0.06)", border:"1px solid rgba(61,139,255,0.15)", borderRadius:10, padding:"12px 16px", marginBottom:24, fontSize:13, color:"#8fa3b8", lineHeight:1.6 }}>
+            You were invited into {rooms.length === 1 ? "this deal room" : "these deal rooms"} by your loan officer. To create your own rooms, you&apos;ll need a Pro account.
+          </div>
+          {active.map((r) => <RoomCard key={r.id} room={r} onClick={() => router.push(`/deal-rooms/${r.id}`)} />)}
+          {closed.length > 0 && (
+            <>
+              <p className="dr-sec" style={{ marginTop:24 }}>Closed / Cancelled</p>
+              {closed.map((r) => <RoomCard key={r.id} room={r} onClick={() => router.push(`/deal-rooms/${r.id}`)} />)}
+            </>
+          )}
         </div>
       )}
 
-      {/* Empty */}
+      {/* Free account with no rooms — informational, not an upgrade push */}
+      {!loading && !isPro && rooms.length === 0 && (
+        <div style={{ textAlign:"center", padding:"72px 0" }}>
+          <div style={{ fontSize:32, marginBottom:14 }}>🏠</div>
+          <p style={{ fontSize:16, fontWeight:500, color:"#f0f4ff", margin:"0 0 8px" }}>No deal rooms yet</p>
+          <p style={{ fontSize:14, color:"#6b7a99", margin:"0 0 0", lineHeight:1.7 }}>
+            Deal rooms are created by your loan officer.<br />
+            You&apos;ll receive an invite link when your LO opens a room for your transaction.
+          </p>
+        </div>
+      )}
+
+      {/* Pro empty state */}
       {!loading && isPro && rooms.length === 0 && !showNew && (
         <div style={{ textAlign:"center", padding:"72px 0" }}>
           <div style={{ fontSize:32, marginBottom:14 }}>🏠</div>
@@ -174,7 +183,7 @@ export default function DealRoomsPage() {
         </div>
       )}
 
-      {/* Active */}
+      {/* Pro active rooms */}
       {!loading && isPro && active.length > 0 && (
         <div style={{ marginBottom:32 }}>
           <p className="dr-sec">Active</p>
@@ -182,7 +191,7 @@ export default function DealRoomsPage() {
         </div>
       )}
 
-      {/* Closed */}
+      {/* Pro closed rooms */}
       {!loading && isPro && closed.length > 0 && (
         <div>
           <p className="dr-sec">Closed / Cancelled</p>
