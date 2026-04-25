@@ -2807,8 +2807,13 @@ export default function Page() {
                                                 // If this is a Grok-style answer with markdown, use GrokCard
                                                 m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
                                                     <>
-                                                        {/* GrokCard: suppressed once affordability card is ready — card contains all data */}
-                                                        {!m.meta.affordabilitySlider && (
+                                                        {/* GrokCard:
+                                                            - For non-affordability: always shown
+                                                            - For affordability while typing: shown with m.content only
+                                                              (gives typewriter effect without flashing old table content)
+                                                            - For affordability after typing: suppressed (card takes over)
+                                                        */}
+                                                        {(!m.meta.affordabilitySlider || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -2816,14 +2821,18 @@ export default function Page() {
                                                                 grok: m.meta.follow_up_chips?.length
                                                                     ? { ...m.meta.grok, follow_up: undefined, followUp: undefined }
                                                                     : m.meta.grok,
-                                                                answerMarkdown: sanitizeMarkdown(
-                                                                    (typeof m.content === 'string' && m.content.length > 0)
-                                                                        ? m.content
-                                                                        : (m.meta.answerMarkdown ?? '')
-                                                                ),
+                                                                // For affordability during typing: only show m.content (the friendly summary),
+                                                                // never m.meta.answerMarkdown (which contains the old full tables).
+                                                                answerMarkdown: m.meta.affordabilitySlider
+                                                                    ? sanitizeMarkdown(typeof m.content === 'string' ? m.content : '')
+                                                                    : sanitizeMarkdown(
+                                                                        (typeof m.content === 'string' && m.content.length > 0)
+                                                                            ? m.content
+                                                                            : (m.meta.answerMarkdown ?? '')
+                                                                    ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
-                                                                    : (m.meta.followUp ?? undefined),
+                                                                    : (m.meta.affordabilitySlider ? undefined : (m.meta.followUp ?? undefined)),
                                                                 data_freshness:
                                                                     m.meta.data_freshness ??
                                                                     m.meta.fred?.asOf ??
@@ -3073,6 +3082,7 @@ export default function Page() {
 
                                             {m.role === 'assistant' &&
                                                 m.meta &&
+                                                !m.meta.affordabilitySlider &&
                                                 typeof m.content === 'string' &&
                                                 m.content.trim().length > 40 && (
                                                     <div
