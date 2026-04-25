@@ -8,6 +8,7 @@ import React, { useState, useMemo } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
+import SliderField from './SliderField';
 
 export interface AffordabilitySliderParams {
     annualIncome: number;
@@ -100,11 +101,6 @@ function fmtK(n: number) {
     if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
     if (n >= 100_000)   return `$${Math.round(n / 1_000)}k`;
     return fmt$(n);
-}
-
-function sliderTrack(val: number, min: number, max: number): React.CSSProperties {
-    const pct = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
-    return { background: `linear-gradient(to right,#00e87a 0%,#00e87a ${pct}%,#e2e8f0 ${pct}%,#e2e8f0 100%)` };
 }
 
 // ── Icons ───────────────────────────────────────────────────────────────────
@@ -206,6 +202,8 @@ function KV({ k, v, green, total }: { k: string; v: string; green?: boolean; tot
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function AffordabilitySliderCard(props: AffordabilitySliderParams) {
+    const [income, setIncome]     = useState(props.annualIncome);
+    const [debts, setDebts]       = useState(props.monthlyDebts);
     const [rate, setRate]         = useState(props.rate);
     const [term, setTerm]         = useState(props.term);
     const [openCard, setOpenCard] = useState<'fha' | 'conv3' | 'conv20' | null>('conv3');
@@ -216,10 +214,10 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const router   = useRouter();
 
     const { fha, conv3, conv20 } = useMemo(() => ({
-        fha:    calcProgram(props.annualIncome, props.monthlyDebts, 3.5, rate, term, props.taxRate, props.insRate, 'fha',          props.savings),
-        conv3:  calcProgram(props.annualIncome, props.monthlyDebts, 3,   rate, term, props.taxRate, props.insRate, 'conventional', props.savings),
-        conv20: calcProgram(props.annualIncome, props.monthlyDebts, 20,  rate, term, props.taxRate, props.insRate, 'conventional', props.savings),
-    }), [rate, term, props.annualIncome, props.monthlyDebts, props.taxRate, props.insRate, props.savings]);
+        fha:    calcProgram(income, debts, 3.5, rate, term, props.taxRate, props.insRate, 'fha',          props.savings),
+        conv3:  calcProgram(income, debts, 3,   rate, term, props.taxRate, props.insRate, 'conventional', props.savings),
+        conv20: calcProgram(income, debts, 20,  rate, term, props.taxRate, props.insRate, 'conventional', props.savings),
+    }), [income, debts, rate, term, props.taxRate, props.insRate, props.savings]);
 
     // Explorer stats based on Conv 3% (the "best fit" recommendation)
     const ref = conv3;
@@ -235,7 +233,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    question: `Affordability: ${fmtK(props.annualIncome)}/yr income at ${rate.toFixed(2)}%`,
+                    question: `Affordability: ${fmtK(income)}/yr income at ${rate.toFixed(2)}%`,
                     answer: conv3
                         ? `Max Home (Conv 3%): ${fmt$(conv3.maxPrice)} · Payment: ${fmt$(conv3.total)}/mo · Cash Needed: ${fmt$(conv3.totalCash)}`
                         : `Affordability analysis at ${rate.toFixed(2)}%`,
@@ -274,7 +272,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                         <svg viewBox="0 0 24 24" fill="none" stroke="#00e87a" strokeWidth="1.8" width="16" height="16">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
                         </svg>
-                    } label="Income" value={fmtK(props.annualIncome) + '/yr'} />
+                    } label="Income" value={fmtK(income) + '/yr'} />
                     <Tile icon={
                         <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.8" width="16" height="16">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75"/>
@@ -443,20 +441,32 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
             <div className="afc-explorer">
                 <div className="afc-exp-title">Affordability Explorer</div>
 
-                {/* Rate slider */}
-                <div className="afc-exp-row">
-                    <div className="afc-exp-label">
-                        <span>Interest Rate</span>
-                        <span className="afc-exp-val">{rate.toFixed(2)}%</span>
-                    </div>
-                    <input
-                        type="range" className="afc-range"
-                        min={3} max={12} step={0.125} value={rate}
-                        style={sliderTrack(rate, 3, 12)}
-                        onChange={e => setRate(parseFloat(e.target.value))}
-                    />
-                    <div className="afc-minmax"><span>3%</span><span>12%</span></div>
-                </div>
+                <SliderField
+                    label="Annual Income" value={income}
+                    min={30000} max={500000} step={1000}
+                    onChange={setIncome}
+                    format={v => fmtK(v) + '/yr'}
+                    minLabel="$30k" maxLabel="$500k"
+                    trackColor="#00e87a" theme="light"
+                />
+
+                <SliderField
+                    label="Monthly Debts" value={debts}
+                    min={0} max={5000} step={50}
+                    onChange={setDebts}
+                    format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
+                    minLabel="$0" maxLabel="$5k/mo"
+                    trackColor="#00e87a" theme="light"
+                />
+
+                <SliderField
+                    label="Interest Rate" value={rate}
+                    min={3} max={12} step={0.125}
+                    onChange={setRate}
+                    format={v => parseFloat(v.toFixed(3)) + '%'}
+                    minLabel="3%" maxLabel="12%"
+                    trackColor="#00e87a" theme="light"
+                />
 
                 {/* Term buttons */}
                 <div className="afc-exp-term-label">Loan Term</div>
@@ -761,34 +771,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     overflow: visible;
                 }
                 .afc-exp-title { font-size: 13px; font-weight: 700; color: #0d1117; margin-bottom: 14px; }
-                .afc-exp-row { margin-bottom: 4px; overflow: visible; }
-                .afc-exp-label {
-                    display: flex; justify-content: space-between; align-items: center;
-                    font-size: 13px; font-weight: 600; color: #0d1117; margin-bottom: 8px;
-                }
-                .afc-exp-val { color: #059669; font-weight: 800; }
-                .afc-range {
-                    -webkit-appearance: none; appearance: none;
-                    width: 100%; height: 6px; border-radius: 9999px;
-                    outline: none; cursor: pointer; display: block;
-                    margin: 10px 0 6px;
-                }
-                .afc-range::-webkit-slider-thumb {
-                    -webkit-appearance: none; appearance: none;
-                    width: 22px; height: 22px; border-radius: 50%;
-                    background: #00e87a; border: 3px solid #fff;
-                    box-shadow: 0 0 0 1.5px #00e87a, 0 2px 6px rgba(0,232,122,.3);
-                    cursor: pointer;
-                }
-                .afc-range::-moz-range-thumb {
-                    width: 22px; height: 22px; border-radius: 50%;
-                    background: #00e87a; border: 3px solid #fff; cursor: pointer;
-                }
-                .afc-minmax {
-                    display: flex; justify-content: space-between;
-                    font-size: 11px; color: #999; margin-bottom: 14px;
-                }
-                .afc-exp-term-label { font-size: 13px; font-weight: 600; color: #0d1117; margin-bottom: 8px; }
+                .afc-exp-term-label { font-size: 13px; font-weight: 600; color: #0d1117; margin: 14px 0 8px; }
                 .afc-terms { display: flex; gap: 8px; margin-bottom: 16px; }
                 .afc-term {
                     flex: 1; padding: 10px 0; border-radius: 8px;
