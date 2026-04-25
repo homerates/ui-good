@@ -45,7 +45,8 @@ function DTIRow({ label, pct, annual, active }: { label: string; pct: string; an
         <div className={`iq-dti-row${active ? ' iq-dti-row--active' : ''}`}>
             <div className="iq-dti-pct">{pct}</div>
             <div className="iq-dti-label">{label}</div>
-            <div className={`iq-dti-val${active ? ' iq-dti-val--green' : ''}`}>{fmt$(annual)}/yr</div>
+            <div className={`iq-dti-val${active ? ' iq-dti-val--blue' : ''}`}>{fmt$(annual)}/yr</div>
+            {active && <div className="iq-dti-badge">Standard</div>}
         </div>
     );
 }
@@ -145,7 +146,21 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     {fmt$(income43)}<span className="iq-hero-yr">/yr</span>
                 </div>
                 <div className="iq-hero-sub">
-                    Based on {fmt$(Math.round(piti))}/mo PITI{monthlyDebt > 0 ? ` + ${fmt$(monthlyDebt)}/mo debts` : ''}
+                    Based on {fmt$(Math.round(piti))}/mo PITI{monthlyDebt > 0 ? ` + ${fmt$(monthlyDebt)}/mo debts` : ' — no other debts entered'}
+                </div>
+                <div className="iq-hero-grid">
+                    <div className="iq-hero-stat">
+                        <div className="iq-hero-sl">Monthly PITI</div>
+                        <div className="iq-hero-sv">{fmt$(Math.round(piti))}</div>
+                    </div>
+                    <div className="iq-hero-stat">
+                        <div className="iq-hero-sl">Loan Amount</div>
+                        <div className="iq-hero-sv">{fmt$(Math.round(loanAmt))}</div>
+                    </div>
+                    <div className="iq-hero-stat">
+                        <div className="iq-hero-sl">Loan-to-Value</div>
+                        <div className="iq-hero-sv">{ltv.toFixed(1)}%</div>
+                    </div>
                 </div>
             </div>
 
@@ -338,26 +353,34 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-header-sub { font-size:11px; color:#6b7a99; margin-top:2px; }
 
                 /* hero */
-                .iq-hero { padding:16px 16px 0; text-align:center; }
-                .iq-hero-label { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#6b7a99; margin-bottom:6px; }
-                .iq-hero-amount { font-size:44px; font-weight:800; color:#3d8bff; letter-spacing:-2px; line-height:1; }
-                .iq-hero-yr { font-size:18px; font-weight:600; color:#6b7a99; letter-spacing:0; }
-                .iq-hero-sub { font-size:12px; color:#8fa3b8; margin-top:6px; padding-bottom:16px; }
+                .iq-hero { margin:0 12px 12px; background:#0a111d; border:1px solid rgba(61,139,255,0.2); border-radius:14px; padding:20px 20px 16px; text-align:center; }
+                .iq-hero-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#4b6080; margin-bottom:8px; }
+                .iq-hero-amount { font-size:48px; font-weight:800; color:#3d8bff; letter-spacing:-2.5px; line-height:1; }
+                .iq-hero-yr { font-size:20px; font-weight:600; color:#4b6080; letter-spacing:0; }
+                .iq-hero-sub { font-size:12px; color:#8fa3b8; margin-top:8px; }
+                .iq-hero-grid { display:grid; grid-template-columns:repeat(3,1fr); margin-top:14px; border-top:1px solid rgba(255,255,255,0.06); padding-top:12px; }
+                .iq-hero-stat { text-align:center; padding:0 8px; border-right:1px solid rgba(255,255,255,0.06); }
+                .iq-hero-stat:last-child { border-right:none; }
+                .iq-hero-sl { font-size:9px; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:4px; }
+                .iq-hero-sv { font-size:13px; font-weight:700; color:#f0f4ff; }
 
                 /* debt section */
-                .iq-debt-section { padding:0 16px 4px; border-top:1px solid rgba(255,255,255,0.05); }
-                .iq-debt-hint { font-size:11px; color:#6b7a99; margin-top:-4px; padding-bottom:8px; line-height:1.4; }
+                .iq-debt-section { padding:14px 16px 8px; border-top:1px solid rgba(255,255,255,0.05); }
+                .iq-debt-hint { font-size:11px; color:#4b6080; margin-top:6px; padding-bottom:4px; line-height:1.4; }
 
                 /* DTI grid */
                 .iq-dti-section { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); }
                 .iq-dti-head { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#6b7a99; margin-bottom:8px; }
                 .iq-dti-grid { display:flex; flex-direction:column; gap:4px; }
-                .iq-dti-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); }
-                .iq-dti-row--active { background:rgba(61,139,255,0.06); border-color:rgba(61,139,255,0.2); }
-                .iq-dti-pct { font-size:13px; font-weight:700; color:#f0f4ff; min-width:34px; }
-                .iq-dti-label { font-size:11px; color:#8fa3b8; flex:1; }
-                .iq-dti-val { font-size:13px; font-weight:700; color:#94a3b8; }
-                .iq-dti-val--green { color:#3d8bff; }
+                .iq-dti-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:9px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); }
+                .iq-dti-row--active { background:rgba(61,139,255,0.06); border-color:rgba(61,139,255,0.22); }
+                .iq-dti-pct { font-size:13px; font-weight:800; color:#f0f4ff; min-width:34px; }
+                .iq-dti-row--active .iq-dti-pct { color:#3d8bff; }
+                .iq-dti-label { font-size:11px; color:#6b7a99; flex:1; }
+                .iq-dti-row--active .iq-dti-label { color:#8fa3b8; }
+                .iq-dti-val { font-size:13px; font-weight:700; color:#6b7a99; }
+                .iq-dti-val--blue { color:#3d8bff; font-size:14px; }
+                .iq-dti-badge { font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:2px 8px; border-radius:20px; background:rgba(61,139,255,0.12); color:#3d8bff; border:1px solid rgba(61,139,255,0.25); flex-shrink:0; }
 
                 /* explorer */
                 .iq-exp { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.015); }
