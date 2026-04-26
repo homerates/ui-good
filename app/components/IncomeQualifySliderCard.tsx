@@ -404,14 +404,24 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
             {/* Action buttons */}
             <div className="iq-actions">
-                {props.onRunScenario && (
-                    <button
-                        className="iq-btn-qualify"
-                        onClick={() => props.onRunScenario!(buildQualifySeed(), {})}
-                    >
-                        I qualify — check my scenario →
-                    </button>
-                )}
+                <button
+                    className="iq-btn-property"
+                    onClick={() => {
+                        const lt = isJumbo ? 'jumbo' : isFHA ? 'fha' : 'conventional';
+                        const p = new URLSearchParams({
+                            price:   String(Math.round(price)),
+                            dp:      String(downPct),
+                            rate:    rate.toFixed(3),
+                            term:    String(termYrs),
+                            lt,
+                            taxRate: props.taxRate.toFixed(5),
+                            insRate: props.insRate.toFixed(5),
+                        });
+                        router.push(`/check-property?${p.toString()}`);
+                    }}
+                >
+                    Check a property →
+                </button>
                 <button className="iq-btn-vault" onClick={handleVault}>
                     <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                         <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd"/>
@@ -548,8 +558,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
                 /* actions */
                 .iq-actions { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); flex-wrap:wrap; }
-                .iq-btn-qualify { background:rgba(61,139,255,0.1); color:#3d8bff; border:1.5px solid rgba(61,139,255,0.3); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .iq-btn-qualify:hover { background:rgba(61,139,255,0.18); border-color:rgba(61,139,255,0.5); }
+                .iq-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .iq-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
                 .iq-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .iq-btn-vault:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
                 .iq-btn-match { margin-left:auto; background:#00e87a; color:#07100f; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
@@ -578,8 +588,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq--fha .iq-dp-chip.active { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.35); color:#f59e0b; }
                 .iq--fha .iq-term--on { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.35); color:#f59e0b; }
                 .iq--fha .iq-kv-v--green { color:#f59e0b; }
-                .iq--fha .iq-btn-qualify { background:rgba(245,158,11,0.1); color:#f59e0b; border-color:rgba(245,158,11,0.3); }
-                .iq--fha .iq-btn-qualify:hover { background:rgba(245,158,11,0.18); border-color:rgba(245,158,11,0.5); }
+                .iq--fha .iq-btn-property { background:rgba(245,158,11,0.08); color:#f59e0b; border-color:rgba(245,158,11,0.25); }
+                .iq--fha .iq-btn-property:hover { background:rgba(245,158,11,0.15); border-color:rgba(245,158,11,0.45); }
                 .iq--fha .iq-btn-match { background:#f59e0b; color:#1c0f00; }
                 .iq--fha .iq-rate-note { background:rgba(245,158,11,0.04); border-color:rgba(245,158,11,0.12); }
 
@@ -615,8 +625,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq--jumbo .iq-dp-chip.active { background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.35); color:#8b5cf6; }
                 .iq--jumbo .iq-term--on { background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.35); color:#8b5cf6; }
                 .iq--jumbo .iq-kv-v--green { color:#8b5cf6; }
-                .iq--jumbo .iq-btn-qualify { background:rgba(139,92,246,0.1); color:#8b5cf6; border-color:rgba(139,92,246,0.3); }
-                .iq--jumbo .iq-btn-qualify:hover { background:rgba(139,92,246,0.18); border-color:rgba(139,92,246,0.5); }
+                .iq--jumbo .iq-btn-property { background:rgba(139,92,246,0.08); color:#8b5cf6; border-color:rgba(139,92,246,0.25); }
+                .iq--jumbo .iq-btn-property:hover { background:rgba(139,92,246,0.15); border-color:rgba(139,92,246,0.45); }
                 .iq--jumbo .iq-btn-match { background:#8b5cf6; color:#fff; }
                 .iq--jumbo .iq-rate-note { background:rgba(139,92,246,0.04); border-color:rgba(139,92,246,0.12); }
 
