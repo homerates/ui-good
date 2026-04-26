@@ -358,8 +358,13 @@ function extractMortgageParams(question: string, fredMort30Avg?: number): {
 function isAffordabilityQuestion(question: string): boolean {
     const text = question.toLowerCase();
 
-    // Never steal FHA-specific questions
-    if (/\bfha\b/i.test(text)) return false;
+    // Never steal FHA-specific questions — EXCEPT income-needed queries which need the reverse-calc path
+    const _isFHAIncomeNeeded = /\bfha\b/i.test(text) && (
+        /(?:what|how much)\s+income.{0,30}(?:need|qualify|required)/i.test(text) ||
+        /(?:what|how much)\s+salary.{0,30}(?:need|qualify|required)/i.test(text) ||
+        /income.{0,20}(?:need|required).{0,20}(?:qualify|home|house|mortgage)/i.test(text)
+    );
+    if (/\bfha\b/i.test(text) && !_isFHAIncomeNeeded) return false;
 
     const triggers = [
         /what can i afford/i,
@@ -6018,7 +6023,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
         /where\s*(is|are)\s*(rate|rates|the\s*10|mortgage)/i.test(question) ||
         /what\s*.{0,20}(10|ten).{0,20}(note|treasury|yield)/i.test(question);
 
-    if (!isHomeownerAnalysisQuery && !hasFHAWithPrice && !isPureRateInfo && (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
+    if (!isHomeownerAnalysisQuery && !hasFHAWithPrice && !isPureRateInfo && (isAffordabilityQuestion(question) || isIncomeNeededQuery || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
         console.log('[Affordability] Detected affordability question');
 
         // Income-needed queries are reverse calculations — force hasInfo:false so they always

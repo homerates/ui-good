@@ -772,6 +772,13 @@ export function dispatch(
 
     // ── 3. FHA ──
     if (isFHAQuestion(q) && !isLoanLimitsQuestion(q)) {
+        // Income-needed queries ("what income do I need for FHA?") — reverse-calc lives in route.ts
+        // affordability path; must NOT be handled by the FHA payment calc here.
+        const _isIncomeNeeded = /(?:what|how much)\s+income.{0,30}(?:need|qualify|required)/i.test(q) ||
+            /(?:what|how much)\s+salary.{0,30}(?:need|qualify|required)/i.test(q) ||
+            /income.{0,20}(?:need|required).{0,20}(?:qualify|home|house|mortgage)/i.test(q);
+        if (_isIncomeNeeded) return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+
         // MIP duration knowledge question — no calc needed
         if (isMIPKnowledgeQuestion(q)) {
             return { type: 'mip_duration_knowledge', params: null, confidence: 1.0, assumptions: [] };
