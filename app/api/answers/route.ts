@@ -6144,6 +6144,9 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                         term: siTerm ?? 30,
                         taxRate: iqTaxRate,
                         insRate: iqInsRate,
+                        loanType: snapshotLoanType?.includes('jumbo') ? 'jumbo' as const
+                            : snapshotLoanType?.includes('fha') ? 'fha' as const
+                            : 'conventional' as const,
                     } : null,
                 };
             } else {
@@ -6227,7 +6230,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                             term: 30,
                             taxRate: taxRateDecimal,
                             insRate: insRateDecimal,
-                            loanType: isFHAIncomeQuery ? 'fha' as const : 'conventional' as const,
+                            loanType: isJumboLoan ? 'jumbo' as const : isFHAIncomeQuery ? 'fha' as const : 'conventional' as const,
                         },
                         lenderChecklist: {
                             loanType: (isJumboLoan ? 'jumbo' : 'conventional') as 'jumbo' | 'conventional',

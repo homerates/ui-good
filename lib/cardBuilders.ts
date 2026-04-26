@@ -83,7 +83,7 @@ export interface BuiltCard {
         term: number;
         taxRate: number;
         insRate: number;
-        loanType?: 'conventional' | 'fha';
+        loanType?: 'conventional' | 'fha' | 'jumbo';
     };
     fhaSlider?: {
         price: number;

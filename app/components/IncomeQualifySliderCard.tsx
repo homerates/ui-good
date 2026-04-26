@@ -36,7 +36,7 @@ export interface IncomeQualifySliderParams {
     term: number;
     taxRate: number;
     insRate: number;
-    loanType?: 'conventional' | 'fha';
+    loanType?: 'conventional' | 'fha' | 'jumbo';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
 }
 
@@ -80,7 +80,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
     // ── Derived values ──────────────────────────────────────────────────────
 
-    const isFHA     = props.loanType === 'fha';
+    const isFHA    = props.loanType === 'fha';
+    const isJumbo  = props.loanType === 'jumbo';
 
     const downAmt   = price * downPct / 100;
     const baseLoan  = price - downAmt;
@@ -90,20 +91,28 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const pi        = calcPI(loanAmt, rate, termYrs);
     const tax       = (price * props.taxRate) / 12;
     const ins       = (price * props.insRate) / 12;
-    const pmi       = !isFHA && ltv > 80 ? (baseLoan * 0.008) / 12 : 0;
+    const pmi       = (!isFHA && !isJumbo && ltv > 80) ? (baseLoan * 0.008) / 12 : 0;
     const monthlyMIP = isFHA ? Math.round((baseLoan * (ltv > 90 ? 0.0055 : 0.0050)) / 12) : 0;
     const piti      = pi + tax + ins + pmi + monthlyMIP;
     const totalMo   = piti + monthlyDebt;
 
     const income43  = Math.round((totalMo / 0.43) * 12);
     const income36  = Math.round((totalMo / 0.36) * 12);
+    const income38  = Math.round((totalMo / 0.38) * 12);
     const income28  = Math.round((totalMo / 0.28) * 12);
 
-    const DP_CHIPS  = isFHA ? [3.5, 5, 10] : [3, 5, 10, 20];
+    const reserves6mo  = Math.round(piti * 6);
+    const reserves12mo = Math.round(piti * 12);
+
+    const DP_CHIPS  = isJumbo ? [20, 25, 30, 40] : isFHA ? [3.5, 5, 10] : [3, 5, 10, 20];
+    const minDown   = isJumbo ? 20 : isFHA ? 3.5 : 3;
+    const priceMax  = isJumbo ? 15_000_000 : 3_000_000;
+    const priceStep = isJumbo ? 25_000 : 5_000;
 
     function getMatchedUrl() {
+        const lt = isJumbo ? 'Jumbo' : isFHA ? 'FHA' : 'Conventional';
         const p = new URLSearchParams({
-            from: 'income', lt: isFHA ? 'FHA' : 'Conventional', purpose: 'Purchase',
+            from: 'income', lt, purpose: 'Purchase',
             price: String(Math.round(price)),
             dp: String(downPct),
             monthly: String(Math.round(piti)),
@@ -134,17 +143,18 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
             ? `$${(price / 1_000_000).toFixed(2)}M`
             : `$${Math.round(price / 1000)}k`;
         const incStr = fmt$(income43);
-        return isFHA
-            ? `I make ${incStr} per year — do I qualify for a ${prStr} FHA loan with ${downPct}% down at ${rate.toFixed(2)}%?`
-            : `I make ${incStr} per year — do I qualify for a ${prStr} home with ${downPct}% down at ${rate.toFixed(2)}%?`;
+        if (isJumbo)  return `I make ${incStr} per year — can I qualify for a ${prStr} jumbo loan with ${downPct}% down at ${rate.toFixed(2)}%?`;
+        if (isFHA)    return `I make ${incStr} per year — do I qualify for a ${prStr} FHA loan with ${downPct}% down at ${rate.toFixed(2)}%?`;
+        return `I make ${incStr} per year — do I qualify for a ${prStr} home with ${downPct}% down at ${rate.toFixed(2)}%?`;
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
 
     const TERMS = isFHA ? ([15, 30] as const) : ([15, 20, 30] as const);
+    const rootCls = `iq${isFHA ? ' iq--fha' : isJumbo ? ' iq--jumbo' : ''}`;
 
     return (
-        <div className={`iq${isFHA ? ' iq--fha' : ''}`}>
+        <div className={rootCls}>
 
             {/* Topbar */}
             <div className="iq-topbar">
@@ -163,8 +173,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     </svg>
                 </div>
                 <div>
-                    <div className="iq-header-title">Income to Qualify{isFHA ? ' — FHA' : ''}</div>
-                    <div className="iq-header-sub">{fmtK(price)} · {downPct}% down · {rate.toFixed(2)}% · {termYrs}yr {isFHA ? 'FHA' : 'fixed'}</div>
+                    <div className="iq-header-title">Income to Qualify{isFHA ? ' — FHA' : isJumbo ? ' — Jumbo' : ''}</div>
+                    <div className="iq-header-sub">{fmtK(price)} · {downPct}% down · {rate.toFixed(2)}% · {termYrs}yr {isFHA ? 'FHA' : isJumbo ? 'jumbo fixed' : 'fixed'}</div>
                 </div>
             </div>
 
@@ -177,6 +187,11 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 <div className="iq-hero-sub">
                     Based on {fmt$(Math.round(piti))}/mo {isFHA ? 'PITI + MIP' : 'PITI'}{monthlyDebt > 0 ? ` + ${fmt$(monthlyDebt)}/mo debts` : ' — no other debts entered'}
                 </div>
+                {isJumbo && (
+                    <div className="iq-hero-jumbo-note">
+                        Jumbo lenders typically require 38–43% back-end DTI · 20%+ down · strong reserves
+                    </div>
+                )}
                 <div className="iq-hero-grid">
                     <div className="iq-hero-stat">
                         <div className="iq-hero-sl">Monthly PITI</div>
@@ -240,11 +255,46 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
             <div className="iq-dti-section">
                 <div className="iq-dti-head">Required Income by DTI Threshold</div>
                 <div className="iq-dti-grid">
-                    <DTIRow pct="43%" label="Standard max (Fannie/Freddie)" annual={income43} active />
-                    <DTIRow pct="36%" label="Conservative (strong file)" annual={income36} />
-                    <DTIRow pct="28%" label="Front-end only (housing only)" annual={income28} />
+                    {isJumbo ? (
+                        <>
+                            <DTIRow pct="43%" label="Max (some jumbo lenders)" annual={income43} />
+                            <DTIRow pct="38%" label="Typical jumbo cap" annual={income38} active />
+                            <DTIRow pct="36%" label="Conservative / large loan" annual={income36} />
+                        </>
+                    ) : (
+                        <>
+                            <DTIRow pct="43%" label="Standard max (Fannie/Freddie)" annual={income43} active />
+                            <DTIRow pct="36%" label="Conservative (strong file)" annual={income36} />
+                            <DTIRow pct="28%" label="Front-end only (housing only)" annual={income28} />
+                        </>
+                    )}
                 </div>
             </div>
+
+            {/* Jumbo reserves callout */}
+            {isJumbo && (
+                <div className="iq-reserves">
+                    <div className="iq-reserves-head">
+                        <span className="iq-reserves-icon">🏦</span>
+                        <span className="iq-reserves-title">Jumbo Reserve Requirements</span>
+                    </div>
+                    <div className="iq-reserves-grid">
+                        <div className="iq-reserves-item">
+                            <div className="iq-reserves-label">6-Month Reserves</div>
+                            <div className="iq-reserves-val">{fmtK(reserves6mo)}</div>
+                            <div className="iq-reserves-note">Required for most jumbo loans ≤ {fmtK(2_000_000)}</div>
+                        </div>
+                        <div className="iq-reserves-item iq-reserves-item--hi">
+                            <div className="iq-reserves-label">12-Month Reserves</div>
+                            <div className="iq-reserves-val iq-reserves-val--hi">{fmtK(reserves12mo)}</div>
+                            <div className="iq-reserves-note">Common for loans &gt; {fmtK(2_000_000)}</div>
+                        </div>
+                    </div>
+                    <div className="iq-reserves-footer">
+                        Reserves must be liquid — checking, savings, or verified investment accounts. Retirement accounts typically counted at 60%.
+                    </div>
+                </div>
+            )}
 
             {/* Explorer — sliders */}
             <div className="iq-exp">
@@ -254,22 +304,22 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 <SliderField
                     label="Home Price"
                     value={price}
-                    min={100000} max={3000000} step={5000}
+                    min={100000} max={priceMax} step={priceStep}
                     onChange={setPrice}
                     format={v => fmtK(v)}
-                    minLabel="$100k" maxLabel="$3M"
-                    trackColor="#00e87a" theme="light"
+                    minLabel="$100k" maxLabel={isJumbo ? '$15M' : '$3M'}
+                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="light"
                 />
 
                 {/* Down Payment */}
                 <SliderField
                     label="Down Payment"
                     value={downPct}
-                    min={isFHA ? 3.5 : 3} max={50} step={isFHA ? 0.5 : 1}
-                    onChange={setDownPct}
+                    min={minDown} max={50} step={isFHA ? 0.5 : 1}
+                    onChange={v => setDownPct(Math.max(minDown, v))}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
-                    minLabel="3%" maxLabel="50%"
-                    trackColor="#00e87a" theme="light"
+                    minLabel={`${minDown}%`} maxLabel="50%"
+                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="light"
                 />
                 <div className="iq-dp-chips">
                     {DP_CHIPS.map(pct => (
@@ -289,7 +339,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     onChange={setRate}
                     format={v => parseFloat(v.toFixed(3)) + '%'}
                     minLabel="3%" maxLabel="12%"
-                    trackColor="#00e87a" theme="light"
+                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="light"
                 />
 
                 {/* Loan Term */}
@@ -386,9 +436,11 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 <span className="iq-bulb">💡</span>
                 <p>
                     <strong>Assumption:</strong> Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live).
-                    {isFHA
-                        ? ' DTI thresholds per HUD/FHA guidelines. FHA MIP per HUD 2024 Mortgagee Letter (0.55%/yr LTV > 90%, 0.50%/yr ≤ 90%). UFMIP 1.75% financed. Actual rate depends on credit score and lender.'
-                        : ' DTI thresholds per Fannie Mae/Freddie Mac guidelines. Actual qualification depends on credit score, loan program, and lender overlays.'
+                    {isJumbo
+                        ? ' Jumbo lenders typically require 38–43% back-end DTI, 720+ credit score, and 20%+ down. Rates for qualified borrowers (720+ FICO, 20%+ down) can price at par or below conforming. Actual qualification depends on lender guidelines and asset verification.'
+                        : isFHA
+                            ? ' DTI thresholds per HUD/FHA guidelines. FHA MIP per HUD 2024 Mortgagee Letter (0.55%/yr LTV > 90%, 0.50%/yr ≤ 90%). UFMIP 1.75% financed. Actual rate depends on credit score and lender.'
+                            : ' DTI thresholds per Fannie Mae/Freddie Mac guidelines. Actual qualification depends on credit score, loan program, and lender overlays.'
                     }
                 </p>
             </div>
@@ -396,10 +448,12 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
             {/* Disclosures */}
             <div className="iq-disc">
                 <p>
-                    <strong>Educational estimates only.</strong> Income requirements are calculated using standard 43% back-end DTI.
-                    {isFHA
-                        ? ` FHA UFMIP of 1.75% is financed into the loan. Monthly MIP calculated on base loan per HUD Mortgagee Letter guidelines. MIP duration: life-of-loan with <10% down; 11 years with ≥10% down.`
-                        : ` Fannie Mae DU guidelines. Monthly payment includes P&I, estimated property tax (${(props.taxRate * 100).toFixed(1)}% annual), homeowner's insurance (${(props.insRate * 100).toFixed(1)}% annual), and PMI where LTV exceeds 80%.`
+                    <strong>Educational estimates only.</strong> Income requirements are calculated using {isJumbo ? '38% typical jumbo' : 'standard 43%'} back-end DTI.
+                    {isJumbo
+                        ? ` Jumbo loans are portfolio products — guidelines vary by lender. Reserve requirements, asset verification, and income documentation standards are more rigorous than conforming. Monthly payment includes P&I, estimated property tax (${(props.taxRate * 100).toFixed(2)}% annual), and homeowner's insurance (${(props.insRate * 100).toFixed(1)}% annual).`
+                        : isFHA
+                            ? ` FHA UFMIP of 1.75% is financed into the loan. Monthly MIP calculated on base loan per HUD Mortgagee Letter guidelines. MIP duration: life-of-loan with <10% down; 11 years with ≥10% down.`
+                            : ` Fannie Mae DU guidelines. Monthly payment includes P&I, estimated property tax (${(props.taxRate * 100).toFixed(1)}% annual), homeowner's insurance (${(props.insRate * 100).toFixed(1)}% annual), and PMI where LTV exceeds 80%.`
                     } These figures are not a pre-approval or commitment to lend.
                 </p>
             </div>
@@ -528,6 +582,43 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq--fha .iq-btn-qualify:hover { background:rgba(245,158,11,0.18); border-color:rgba(245,158,11,0.5); }
                 .iq--fha .iq-btn-match { background:#f59e0b; color:#1c0f00; }
                 .iq--fha .iq-rate-note { background:rgba(245,158,11,0.04); border-color:rgba(245,158,11,0.12); }
+
+                /* Jumbo hero note */
+                .iq-hero-jumbo-note { margin-top:8px; font-size:11px; color:#7c5cbf; font-style:italic; }
+
+                /* Jumbo reserves callout */
+                .iq-reserves { margin:0 12px 12px; border-radius:12px; overflow:hidden; border:1px solid rgba(139,92,246,0.2); }
+                .iq-reserves-head { display:flex; align-items:center; gap:8px; padding:9px 14px; background:rgba(139,92,246,0.06); border-bottom:1px solid rgba(139,92,246,0.12); }
+                .iq-reserves-icon { font-size:14px; }
+                .iq-reserves-title { font-size:11px; font-weight:700; color:#8b5cf6; letter-spacing:.04em; }
+                .iq-reserves-grid { display:grid; grid-template-columns:1fr 1fr; }
+                .iq-reserves-item { padding:10px 14px; border-right:1px solid rgba(255,255,255,0.05); }
+                .iq-reserves-item:last-child { border-right:none; }
+                .iq-reserves-item--hi { background:rgba(139,92,246,0.04); }
+                .iq-reserves-label { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#6b7a99; margin-bottom:4px; }
+                .iq-reserves-val { font-size:18px; font-weight:800; color:#c4cfe0; letter-spacing:-0.5px; }
+                .iq-reserves-val--hi { color:#8b5cf6; }
+                .iq-reserves-note { font-size:10px; color:#4b6080; margin-top:3px; line-height:1.4; }
+                .iq-reserves-footer { padding:8px 14px; font-size:10px; color:#4b6080; line-height:1.5; border-top:1px solid rgba(255,255,255,0.04); }
+
+                /* Jumbo purple theme overrides */
+                .iq--jumbo .iq-dot { background:#8b5cf6; }
+                .iq--jumbo .iq-header-icon { background:rgba(139,92,246,0.12); border-color:rgba(139,92,246,0.2); color:#8b5cf6; }
+                .iq--jumbo .iq-hero { background:#0d0e1a; border-color:rgba(139,92,246,0.2); }
+                .iq--jumbo .iq-hero-label { color:#3d2f6b; }
+                .iq--jumbo .iq-hero-amount { color:#8b5cf6; }
+                .iq--jumbo .iq-hero-yr { color:#5b4a9b; }
+                .iq--jumbo .iq-dti-row--active { background:rgba(139,92,246,0.06); border-color:rgba(139,92,246,0.22); }
+                .iq--jumbo .iq-dti-row--active .iq-dti-pct { color:#8b5cf6; }
+                .iq--jumbo .iq-dti-badge { background:rgba(139,92,246,0.12); color:#8b5cf6; border-color:rgba(139,92,246,0.25); }
+                .iq--jumbo .iq-dti-val--blue { color:#8b5cf6; }
+                .iq--jumbo .iq-dp-chip.active { background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.35); color:#8b5cf6; }
+                .iq--jumbo .iq-term--on { background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.35); color:#8b5cf6; }
+                .iq--jumbo .iq-kv-v--green { color:#8b5cf6; }
+                .iq--jumbo .iq-btn-qualify { background:rgba(139,92,246,0.1); color:#8b5cf6; border-color:rgba(139,92,246,0.3); }
+                .iq--jumbo .iq-btn-qualify:hover { background:rgba(139,92,246,0.18); border-color:rgba(139,92,246,0.5); }
+                .iq--jumbo .iq-btn-match { background:#8b5cf6; color:#fff; }
+                .iq--jumbo .iq-rate-note { background:rgba(139,92,246,0.04); border-color:rgba(139,92,246,0.12); }
 
                 /* FHA MIP callout */
                 .iq-fha-callout { margin:0 12px 12px; border-radius:12px; overflow:hidden; border:1px solid rgba(245,158,11,0.18); }

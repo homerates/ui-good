@@ -383,7 +383,7 @@ type ApiResponse = {
     } | null;
     incomeQualifySlider?: {
         price: number; downPct: number; rate: number; term: number;
-        taxRate: number; insRate: number; loanType?: 'conventional' | 'fha';
+        taxRate: number; insRate: number; loanType?: 'conventional' | 'fha' | 'jumbo';
     } | null;
     fhaSlider?: {
         price: number; downPct: number; rate: number; term: number;
