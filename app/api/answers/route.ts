@@ -5287,6 +5287,7 @@ ${uwDatabase}`;
                     confidence: calcCard.confidence,
                 },
                 interactiveSlider: calcCard.interactiveSlider ?? null,
+                jumboSlider: (calcCard as any).jumboSlider ?? null,
                 convHBSlider: (calcCard as any).convHBSlider ?? null,
                 incomeQualifySlider: (calcCard as any).incomeQualifySlider ?? null,
                 fhaSlider: (calcCard as any).fhaSlider ?? null,
@@ -6228,15 +6229,8 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                             ];
                         })(),
                         confidence: '1.00 (calculated — no LLM)',
-                        interactiveSlider: isJumboLoan ? {
-                            price: incomeForPrice,
-                            downPct,
-                            rate,
-                            term: 30,
-                            taxRate: taxRateDecimal,
-                            insRate: insRateDecimal,
-                            loanType: 'jumbo' as const,
-                        } : null,
+                        interactiveSlider: null,
+                        jumboSlider: null,
                         convHBSlider: null,
                         incomeQualifySlider: {
                             price: incomeForPrice,
