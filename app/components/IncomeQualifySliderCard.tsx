@@ -103,7 +103,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
     function getMatchedUrl() {
         const p = new URLSearchParams({
-            from: 'income', lt: 'Conventional', purpose: 'Purchase',
+            from: 'income', lt: isFHA ? 'FHA' : 'Conventional', purpose: 'Purchase',
             price: String(Math.round(price)),
             dp: String(downPct),
             monthly: String(Math.round(piti)),
@@ -134,13 +134,17 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
             ? `$${(price / 1_000_000).toFixed(2)}M`
             : `$${Math.round(price / 1000)}k`;
         const incStr = fmt$(income43);
-        return `I make ${incStr} per year — do I qualify for a ${prStr} home with ${downPct}% down at ${rate.toFixed(2)}%?`;
+        return isFHA
+            ? `I make ${incStr} per year — do I qualify for a ${prStr} FHA loan with ${downPct}% down at ${rate.toFixed(2)}%?`
+            : `I make ${incStr} per year — do I qualify for a ${prStr} home with ${downPct}% down at ${rate.toFixed(2)}%?`;
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
 
+    const TERMS = isFHA ? ([15, 30] as const) : ([15, 20, 30] as const);
+
     return (
-        <div className="iq">
+        <div className={`iq${isFHA ? ' iq--fha' : ''}`}>
 
             {/* Topbar */}
             <div className="iq-topbar">
@@ -159,8 +163,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     </svg>
                 </div>
                 <div>
-                    <div className="iq-header-title">Income to Qualify</div>
-                    <div className="iq-header-sub">{fmtK(price)} · {downPct}% down · {rate.toFixed(2)}% · {termYrs}yr fixed</div>
+                    <div className="iq-header-title">Income to Qualify{isFHA ? ' — FHA' : ''}</div>
+                    <div className="iq-header-sub">{fmtK(price)} · {downPct}% down · {rate.toFixed(2)}% · {termYrs}yr {isFHA ? 'FHA' : 'fixed'}</div>
                 </div>
             </div>
 
@@ -188,6 +192,33 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     </div>
                 </div>
             </div>
+
+            {/* FHA MIP callout — only when FHA */}
+            {isFHA && (
+                <div className="iq-fha-callout">
+                    <div className="iq-fha-callout-head">
+                        <span className="iq-fha-callout-icon">🛡️</span>
+                        <span className="iq-fha-callout-title">FHA Mortgage Insurance (MIP) raises your income floor</span>
+                    </div>
+                    <div className="iq-fha-callout-rows">
+                        <div className="iq-fha-callout-row">
+                            <span>Upfront MIP (UFMIP · 1.75% financed)</span>
+                            <span className="iq-fha-callout-val">{fmt$(ufmip)} added to loan</span>
+                        </div>
+                        <div className="iq-fha-callout-divider" />
+                        <div className="iq-fha-callout-row">
+                            <span>Monthly MIP ({ltv > 90 ? '0.55' : '0.50'}%/yr on base loan)</span>
+                            <span className="iq-fha-callout-val">{fmt$(monthlyMIP)}/mo</span>
+                        </div>
+                    </div>
+                    <div className={`iq-fha-callout-dur${downPct >= 10 ? ' good' : ' warn'}`}>
+                        {downPct >= 10
+                            ? `✅ With ${downPct}% down, MIP cancels after 11 years — income floor drops by ${fmt$(Math.round((monthlyMIP / 0.43) * 12))}/yr at that point.`
+                            : `⚠️ With ${downPct}% down, MIP runs for the life of the loan — adds ${fmt$(Math.round((monthlyMIP / 0.43) * 12))}/yr to your income requirement permanently.`
+                        }
+                    </div>
+                </div>
+            )}
 
             {/* Monthly debt slider */}
             <div className="iq-debt-section">
@@ -264,7 +295,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 {/* Loan Term */}
                 <div className="iq-exp-term-label">Loan Term</div>
                 <div className="iq-terms">
-                    {([15, 20, 30] as const).map(yr => (
+                    {TERMS.map(yr => (
                         <button
                             key={yr}
                             className={`iq-term${termYrs === yr ? ' iq-term--on' : ''}`}
@@ -288,9 +319,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         <div className="iq-exp-stat-val">{fmt$(Math.round(piti))}/mo</div>
                     </div>
                     <div className="iq-exp-stat">
-                        <div className="iq-exp-stat-label">Monthly PMI</div>
-                        <div className="iq-exp-stat-val" style={{ color: pmi > 0 ? '#f59e0b' : '#94a3b8' }}>
-                            {pmi > 0 ? fmt$(pmi) + '/mo' : 'None'}
+                        <div className="iq-exp-stat-label">{isFHA ? 'Monthly MIP' : 'Monthly PMI'}</div>
+                        <div className="iq-exp-stat-val" style={{ color: (isFHA ? monthlyMIP : pmi) > 0 ? '#f59e0b' : '#94a3b8' }}>
+                            {isFHA ? (monthlyMIP > 0 ? fmt$(monthlyMIP) + '/mo' : 'None') : (pmi > 0 ? fmt$(pmi) + '/mo' : 'None')}
                         </div>
                     </div>
                 </div>
@@ -338,11 +369,11 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     {vaultDone ? 'Saved ✓' : 'My Vault'}
                 </button>
                 <PdfDownloadButton
-                    type="conventional"
+                    type={isFHA ? 'fha' : 'conventional'}
                     getParams={() => ({
                         price, downPct, rate, term: termYrs,
                         taxRate: props.taxRate, insRate: props.insRate,
-                        loanType: 'conventional',
+                        loanType: isFHA ? 'fha' : 'conventional',
                     })}
                 />
                 <button className="iq-btn-match" onClick={() => router.push(getMatchedUrl())}>
@@ -355,17 +386,21 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 <span className="iq-bulb">💡</span>
                 <p>
                     <strong>Assumption:</strong> Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live).
-                    DTI thresholds per Fannie Mae/Freddie Mac guidelines. Actual qualification depends on credit score, loan program, and lender overlays.
+                    {isFHA
+                        ? ' DTI thresholds per HUD/FHA guidelines. FHA MIP per HUD 2024 Mortgagee Letter (0.55%/yr LTV > 90%, 0.50%/yr ≤ 90%). UFMIP 1.75% financed. Actual rate depends on credit score and lender.'
+                        : ' DTI thresholds per Fannie Mae/Freddie Mac guidelines. Actual qualification depends on credit score, loan program, and lender overlays.'
+                    }
                 </p>
             </div>
 
             {/* Disclosures */}
             <div className="iq-disc">
                 <p>
-                    <strong>Educational estimates only.</strong> Income requirements are calculated using standard 43% back-end DTI
-                    (Fannie Mae DU guidelines). Actual lender requirements may vary. These figures are not a pre-approval or commitment
-                    to lend. Monthly payment includes P&amp;I, estimated property tax ({(props.taxRate * 100).toFixed(1)}% annual),
-                    homeowner&apos;s insurance ({(props.insRate * 100).toFixed(1)}% annual), and PMI where LTV exceeds 80%.
+                    <strong>Educational estimates only.</strong> Income requirements are calculated using standard 43% back-end DTI.
+                    {isFHA
+                        ? ` FHA UFMIP of 1.75% is financed into the loan. Monthly MIP calculated on base loan per HUD Mortgagee Letter guidelines. MIP duration: life-of-loan with <10% down; 11 years with ≥10% down.`
+                        : ` Fannie Mae DU guidelines. Monthly payment includes P&I, estimated property tax (${(props.taxRate * 100).toFixed(1)}% annual), homeowner's insurance (${(props.insRate * 100).toFixed(1)}% annual), and PMI where LTV exceeds 80%.`
+                    } These figures are not a pre-approval or commitment to lend.
                 </p>
             </div>
 
@@ -474,6 +509,38 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 /* disclosures */
                 .iq-disc { padding:0 16px 16px; }
                 .iq-disc p { font-size:10px; color:#3a4560; line-height:1.5; }
+
+                /* FHA amber theme overrides */
+                .iq--fha .iq-dot { background:#f59e0b; }
+                .iq--fha .iq-header-icon { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.2); color:#f59e0b; }
+                .iq--fha .iq-hero { background:#0e1420; border-color:rgba(245,158,11,0.2); }
+                .iq--fha .iq-hero-label { color:#4a3510; }
+                .iq--fha .iq-hero-amount { color:#f59e0b; }
+                .iq--fha .iq-hero-yr { color:#6b5a1e; }
+                .iq--fha .iq-dti-row--active { background:rgba(245,158,11,0.06); border-color:rgba(245,158,11,0.22); }
+                .iq--fha .iq-dti-row--active .iq-dti-pct { color:#f59e0b; }
+                .iq--fha .iq-dti-badge { background:rgba(245,158,11,0.12); color:#f59e0b; border-color:rgba(245,158,11,0.25); }
+                .iq--fha .iq-dti-val--blue { color:#f59e0b; }
+                .iq--fha .iq-dp-chip.active { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.35); color:#f59e0b; }
+                .iq--fha .iq-term--on { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.35); color:#f59e0b; }
+                .iq--fha .iq-kv-v--green { color:#f59e0b; }
+                .iq--fha .iq-btn-qualify { background:rgba(245,158,11,0.1); color:#f59e0b; border-color:rgba(245,158,11,0.3); }
+                .iq--fha .iq-btn-qualify:hover { background:rgba(245,158,11,0.18); border-color:rgba(245,158,11,0.5); }
+                .iq--fha .iq-btn-match { background:#f59e0b; color:#1c0f00; }
+                .iq--fha .iq-rate-note { background:rgba(245,158,11,0.04); border-color:rgba(245,158,11,0.12); }
+
+                /* FHA MIP callout */
+                .iq-fha-callout { margin:0 12px 12px; border-radius:12px; overflow:hidden; border:1px solid rgba(245,158,11,0.18); }
+                .iq-fha-callout-head { display:flex; align-items:center; gap:8px; padding:9px 14px; background:rgba(245,158,11,0.06); border-bottom:1px solid rgba(245,158,11,0.12); }
+                .iq-fha-callout-icon { font-size:14px; }
+                .iq-fha-callout-title { font-size:11px; font-weight:700; color:#f59e0b; letter-spacing:.04em; }
+                .iq-fha-callout-rows { padding:8px 14px 6px; display:flex; flex-direction:column; gap:6px; }
+                .iq-fha-callout-row { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:12px; color:#8fa3b8; }
+                .iq-fha-callout-val { font-size:12px; font-weight:700; color:#f59e0b; white-space:nowrap; }
+                .iq-fha-callout-divider { height:1px; background:rgba(255,255,255,0.05); margin:0; }
+                .iq-fha-callout-dur { margin:6px 14px 10px; border-radius:8px; padding:8px 12px; font-size:11px; line-height:1.5; }
+                .iq-fha-callout-dur.warn { background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); color:#fca5a5; }
+                .iq-fha-callout-dur.good { background:rgba(0,232,122,0.05); border:1px solid rgba(0,232,122,0.15); color:#86efac; }
 
                 @media (max-width: 480px) {
                     .iq-hero-amount { font-size:34px; }
