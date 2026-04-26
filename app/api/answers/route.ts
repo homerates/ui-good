@@ -6005,6 +6005,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
         /(?:what|how much)\s+salary.{0,30}(?:need|qualify|required)/i.test(question) ||
         /income.{0,20}(?:need|required).{0,20}(?:qualify|home|house|mortgage)/i.test(question) ||
         /do i qualify|can i qualify/i.test(question);
+    const isFHAIncomeQuery = isIncomeNeededQuery && /\bfha\b/i.test(question);
     const hasSpecificHomePrice = hasNonIncomePrice &&
         /\b(?:home|house|property|purchase|payment on|on a)\b/i.test(question) &&
         !isIncomeNeededQuery;  // income-needed queries have a home price but must use affordability
@@ -6170,20 +6171,40 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                     const _rateMatch = question.match(/(?:at|rate)\s*([\d]+\.[\d]+)\s*%/i) ?? question.match(/([\d]+\.[\d]+)\s*%/i);
                     const rate = _rateMatch ? parseFloat(_rateMatch[1]) : (fred?.mort30Avg ?? 6.5);
                     const _downMatch = question.match(/(\d+(?:\.\d+)?)\s*%\s*down/i);
-                    const downPct = _downMatch ? parseFloat(_downMatch[1]) : (/10\s*%\s*down/i.test(question) ? 10 : /5\s*%\s*down/i.test(question) ? 5 : 20);
+                    // FHA default: 3.5% down; conventional default: 20%
+                    const downPct = _downMatch ? parseFloat(_downMatch[1]) : (isFHAIncomeQuery ? 3.5 : (/10\s*%\s*down/i.test(question) ? 10 : /5\s*%\s*down/i.test(question) ? 5 : 20));
                     const taxRate = (snapshotJson?.interactiveSlider?.taxRate ?? snapshotJson?.scenario_inputs?.taxRate ?? 0.011) * 100;
                     // Scale insurance with price: 0.5% annually for jumbo, capped floor at $1,200/yr
                     const annualIns = Math.max(1200, Math.round(incomeForPrice * 0.005));
                     const conv = calcConventional({ purchasePrice: incomeForPrice, downPaymentPct: downPct, annualRatePct: rate, termYears: 30, propertyTaxRate: taxRate, annualInsurance: annualIns });
-                    const piti = Math.round(conv.monthlyPI + conv.monthlyTax + conv.monthlyInsurance + (conv.monthlyPMI ?? 0));
+
+                    // For FHA: recompute PITI with UFMIP financed + monthly MIP (replaces PMI)
+                    let piti = Math.round(conv.monthlyPI + conv.monthlyTax + conv.monthlyInsurance + (conv.monthlyPMI ?? 0));
+                    let fhaMIPLine = '';
+                    if (isFHAIncomeQuery) {
+                        const fhaBaseLoan = incomeForPrice * (1 - downPct / 100);
+                        const fhaUFMIP = fhaBaseLoan * 0.0175;
+                        const fhaFinanced = fhaBaseLoan + fhaUFMIP;
+                        const fhaLTV = (fhaBaseLoan / incomeForPrice) * 100;
+                        const fhaMIPRate = fhaLTV > 90 ? 0.0055 : 0.0050;
+                        const fhaMonthlyMIP = Math.round((fhaBaseLoan * fhaMIPRate) / 12);
+                        const fhaR = rate / 100 / 12;
+                        const fhaN = 30 * 12;
+                        const fhaPI = (fhaFinanced * fhaR * Math.pow(1 + fhaR, fhaN)) / (Math.pow(1 + fhaR, fhaN) - 1);
+                        piti = Math.round(fhaPI + fhaMonthlyMIP + conv.monthlyTax + conv.monthlyInsurance);
+                        fhaMIPLine = `| Monthly MIP (${(fhaMIPRate * 100).toFixed(2)}%/yr) | $${fhaMonthlyMIP.toLocaleString()}/mo |\n`;
+                    }
                     const priceFmt = incomeForPrice >= 1_000_000 ? `$${(incomeForPrice / 1_000_000).toFixed(incomeForPrice % 1_000_000 === 0 ? 0 : 2).replace(/\.?0+$/, '')}M` : `$${Math.round(incomeForPrice / 1000)}k`;
                     const downAmt = Math.round(incomeForPrice * downPct / 100);
-                    console.log('[Affordability] Income-needed reverse calc for', priceFmt, 'PITI:', piti);
-                    const isJumboLoan = incomeForPrice * (1 - downPct / 100) > CONF_STANDARD;
+                    console.log('[Affordability] Income-needed reverse calc for', priceFmt, isFHAIncomeQuery ? '(FHA)' : '(Conv)', 'PITI:', piti);
+                    const isJumboLoan = !isFHAIncomeQuery && incomeForPrice * (1 - downPct / 100) > CONF_STANDARD;
                     const taxRateDecimal = taxRate / 100;
                     const insRateDecimal = annualIns / incomeForPrice;
+                    const loanLabel = isFHAIncomeQuery ? 'FHA' : 'Conventional';
+                    const pitiLabel = isFHAIncomeQuery ? 'PITI + MIP' : 'Total PITI';
+                    const pmiLine = !isFHAIncomeQuery && conv.monthlyPMI ? `| PMI (~0.8%/yr) | $${Math.round(conv.monthlyPMI).toLocaleString()}/mo |\n` : '';
                     affordabilityAnswer = {
-                        answer: `## 💰 Income to Qualify — ${priceFmt} Home\n\n**${priceFmt} purchase · ${downPct}% down ($${downAmt.toLocaleString()}) · ${rate}% · 30yr fixed**\n\n---\n\n## 📊 Required Income by DTI Threshold\n\n| DTI threshold | Monthly income needed | **Annual income needed** |\n|---|---|---|\n| **43%** (standard max) | $${Math.round(piti / 0.43).toLocaleString()} | **$${Math.round((piti / 0.43) * 12).toLocaleString()}** |\n| **36%** (conservative) | $${Math.round(piti / 0.36).toLocaleString()} | **$${Math.round((piti / 0.36) * 12).toLocaleString()}** |\n| **28%** (front-end only) | $${Math.round(piti / 0.28).toLocaleString()} | **$${Math.round((piti / 0.28) * 12).toLocaleString()}** |\n\n---\n\n## 🏠 Payment Breakdown (${downPct}% down)\n\n| Component | Amount |\n|---|---|\n| Principal & Interest | $${Math.round(conv.monthlyPI).toLocaleString()}/mo |\n| Property Tax (est.) | $${Math.round(conv.monthlyTax).toLocaleString()}/mo |\n| Insurance | $${Math.round(conv.monthlyInsurance).toLocaleString()}/mo |\n${conv.monthlyPMI ? `| PMI (~0.8%/yr) | $${Math.round(conv.monthlyPMI).toLocaleString()}/mo |\n` : ''}| **Total PITI** | **$${piti.toLocaleString()}/mo** |\n\n> 💡 Each $500/mo in other debts adds ~**$${Math.round((500 / 0.43) * 12).toLocaleString()}**/yr to the income requirement.\n\n> Jumbo loans (>${priceFmt}) may require 35–38% DTI and 12+ months reserves — confirm with your lender.`,
+                        answer: `## 💰 Income to Qualify — ${priceFmt} ${loanLabel}\n\n**${priceFmt} purchase · ${downPct}% down ($${downAmt.toLocaleString()}) · ${rate}% · 30yr fixed${isFHAIncomeQuery ? ' · FHA' : ''}**\n\n---\n\n## 📊 Required Income by DTI Threshold\n\n| DTI threshold | Monthly income needed | **Annual income needed** |\n|---|---|---|\n| **43%** (standard max) | $${Math.round(piti / 0.43).toLocaleString()} | **$${Math.round((piti / 0.43) * 12).toLocaleString()}** |\n| **36%** (conservative) | $${Math.round(piti / 0.36).toLocaleString()} | **$${Math.round((piti / 0.36) * 12).toLocaleString()}** |\n| **28%** (front-end only) | $${Math.round(piti / 0.28).toLocaleString()} | **$${Math.round((piti / 0.28) * 12).toLocaleString()}** |\n\n---\n\n## 🏠 Payment Breakdown (${downPct}% down)\n\n| Component | Amount |\n|---|---|\n| Principal & Interest | $${Math.round(conv.monthlyPI).toLocaleString()}/mo |\n${fhaMIPLine}${pmiLine}| Property Tax (est.) | $${Math.round(conv.monthlyTax).toLocaleString()}/mo |\n| Insurance | $${Math.round(conv.monthlyInsurance).toLocaleString()}/mo |\n| **${pitiLabel}** | **$${piti.toLocaleString()}/mo** |\n\n> 💡 Each $500/mo in other debts adds ~**$${Math.round((500 / 0.43) * 12).toLocaleString()}**/yr to the income requirement.${isFHAIncomeQuery ? '\n\n> FHA MIP runs for the life of the loan with <10% down, adding to your income requirement permanently.' : ''}`,
                         next_step: 'Add your monthly debts for a precise income requirement.',
                         follow_up: 'What are your monthly debt payments?',
                         follow_up_chips: (() => {
@@ -6214,6 +6235,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                             term: 30,
                             taxRate: taxRateDecimal,
                             insRate: insRateDecimal,
+                            loanType: isFHAIncomeQuery ? 'fha' as const : 'conventional' as const,
                         },
                         lenderChecklist: {
                             loanType: (isJumboLoan ? 'jumbo' : 'conventional') as 'jumbo' | 'conventional',

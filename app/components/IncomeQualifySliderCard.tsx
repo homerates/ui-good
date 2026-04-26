@@ -36,6 +36,7 @@ export interface IncomeQualifySliderParams {
     term: number;
     taxRate: number;
     insRate: number;
+    loanType?: 'conventional' | 'fha';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
 }
 
@@ -79,21 +80,26 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
     // ── Derived values ──────────────────────────────────────────────────────
 
+    const isFHA     = props.loanType === 'fha';
+
     const downAmt   = price * downPct / 100;
-    const loanAmt   = price - downAmt;
-    const ltv       = (loanAmt / price) * 100;
+    const baseLoan  = price - downAmt;
+    const ufmip     = isFHA ? Math.round(baseLoan * 0.0175) : 0;
+    const loanAmt   = baseLoan + ufmip;           // financed amount (UFMIP rolled in for FHA)
+    const ltv       = (baseLoan / price) * 100;
     const pi        = calcPI(loanAmt, rate, termYrs);
     const tax       = (price * props.taxRate) / 12;
     const ins       = (price * props.insRate) / 12;
-    const pmi       = ltv > 80 ? (loanAmt * 0.008) / 12 : 0;
-    const piti      = pi + tax + ins + pmi;
+    const pmi       = !isFHA && ltv > 80 ? (baseLoan * 0.008) / 12 : 0;
+    const monthlyMIP = isFHA ? Math.round((baseLoan * (ltv > 90 ? 0.0055 : 0.0050)) / 12) : 0;
+    const piti      = pi + tax + ins + pmi + monthlyMIP;
     const totalMo   = piti + monthlyDebt;
 
     const income43  = Math.round((totalMo / 0.43) * 12);
     const income36  = Math.round((totalMo / 0.36) * 12);
     const income28  = Math.round((totalMo / 0.28) * 12);
 
-    const DP_CHIPS = [3, 5, 10, 20];
+    const DP_CHIPS  = isFHA ? [3.5, 5, 10] : [3, 5, 10, 20];
 
     function getMatchedUrl() {
         const p = new URLSearchParams({
@@ -165,7 +171,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     {fmt$(income43)}<span className="iq-hero-yr">/yr</span>
                 </div>
                 <div className="iq-hero-sub">
-                    Based on {fmt$(Math.round(piti))}/mo PITI{monthlyDebt > 0 ? ` + ${fmt$(monthlyDebt)}/mo debts` : ' — no other debts entered'}
+                    Based on {fmt$(Math.round(piti))}/mo {isFHA ? 'PITI + MIP' : 'PITI'}{monthlyDebt > 0 ? ` + ${fmt$(monthlyDebt)}/mo debts` : ' — no other debts entered'}
                 </div>
                 <div className="iq-hero-grid">
                     <div className="iq-hero-stat">
@@ -228,7 +234,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 <SliderField
                     label="Down Payment"
                     value={downPct}
-                    min={3} max={50} step={1}
+                    min={isFHA ? 3.5 : 3} max={50} step={isFHA ? 0.5 : 1}
                     onChange={setDownPct}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel="3%" maxLabel="50%"
@@ -302,7 +308,10 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         <KVRow k="Principal &amp; Interest" v={fmt$(pi)} />
                         <KVRow k="Property Taxes" v={fmt$(tax)} />
                         <KVRow k="Home Insurance" v={fmt$(ins)} />
-                        <KVRow k="PMI" v={pmi > 0 ? fmt$(pmi) : 'None (≥20% down)'} />
+                        {isFHA
+                            ? <KVRow k={`Monthly MIP (${ltv > 90 ? '0.55' : '0.50'}%/yr)`} v={fmt$(monthlyMIP)} />
+                            : <KVRow k="PMI" v={pmi > 0 ? fmt$(pmi) : 'None (≥20% down)'} />
+                        }
                         {monthlyDebt > 0 && <KVRow k="Other Monthly Debts" v={fmt$(monthlyDebt)} />}
                         <KVRow k="Total Monthly Obligations" v={fmt$(Math.round(totalMo))} total />
                         <KVRow k="Income Required" section />
