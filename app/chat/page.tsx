@@ -3057,7 +3057,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* Jumbo affordability card */}
-                                                        {m.meta.jumboAffordabilitySlider && !loading && typingId === null && (
+                                                        {m.meta.jumboAffordabilitySlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <JumboAffordabilitySliderCard
                                                                 {...m.meta.jumboAffordabilitySlider}
                                                                 onRunScenario={(seed, sliderParams) => {

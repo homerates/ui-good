@@ -5017,18 +5017,6 @@ ${uwDatabase}`;
                 calcCard = buildJumboCard(result, calcAssumptions, fredRateForCard);
                 calcDebugModel = 'calcEngine-jumbo';
                 injectCmaChip(calcCard);
-                // Also attach the jumbo affordability slider so the interactive zone card shows alongside the calc
-                const _jp2 = calcDispatch.params as any;
-                calcCard.jumboAffordabilitySlider = {
-                    price:             _jp2.purchasePrice,
-                    downPct:           _jp2.downPaymentPct ?? 20,
-                    baseRate:          _jp2.annualRatePct ?? fred?.mort30Avg ?? 6.75,
-                    countyLimit:       NATIONAL_CONFORMING_BASELINE.units1,
-                    nationalBaseline:  NATIONAL_CONFORMING_BASELINE.units1,
-                    county:            undefined,
-                    taxRate:           _jp2.propertyTaxRate ?? 0.011,
-                    insRate:           0.003,
-                };
 
             } else if (calcDispatch.type === 'jumbo_needs_input') {
                 calcCard = buildVANeedsInputCard(fredRateForCard); // reuse needs-input pattern — jumbo-specific card optional later

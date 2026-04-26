@@ -3573,16 +3573,7 @@ export function buildJumboAffordabilityCard(params: {
             computed_financials: { loan_amount: loanAmount, total_monthly: totalMonthly, income_needed_43: incomeNeeded43, total_cash: totalCash },
             monthly_payment: Math.round(totalMonthly),
         },
-        jumboAffordabilitySlider: {
-            price,
-            downPct,
-            baseRate,
-            countyLimit,
-            nationalBaseline,
-            county,
-            taxRate,
-            insRate,
-        },
+        jumboAffordabilitySlider: null,
         lenderChecklist: {
             loanType: 'jumbo',
             price,
