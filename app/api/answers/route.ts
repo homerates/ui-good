@@ -6009,7 +6009,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
     const hasSpecificHomePrice = hasNonIncomePrice &&
         /\b(?:home|house|property|purchase|payment on|on a)\b/i.test(question) &&
         !isIncomeNeededQuery;  // income-needed queries have a home price but must use affordability
-    const hasFHAWithPrice = /\bfha\b/i.test(question) ? true : hasSpecificHomePrice;
+    const hasFHAWithPrice = (/\bfha\b/i.test(question) && !isIncomeNeededQuery) ? true : hasSpecificHomePrice;
 
     const isPureRateInfo =
         /\b(30|15|20)\s*[- ]?year\s*(fixed|mortgage|rate|loan)?/i.test(question) ||
