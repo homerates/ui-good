@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
+import PdfDownloadButton from './PdfDownloadButton';
 
 // ── Math ─────────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [monthlyDebt, setMonthlyDebt] = useState(0);
     const [bkdOpen,     setBkdOpen]     = useState(true);
 
+    const [vaultDone, setVaultDone] = useState(false);
+
     const { user } = useUser();
     const router   = useRouter();
 
@@ -102,6 +105,22 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
             term: String(termYrs),
         });
         return `/connect/post?${p.toString()}`;
+    }
+
+    async function handleVault() {
+        if (!user) { router.push('/sign-up'); return; }
+        try {
+            await fetch('/api/library', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: `Income to qualify: ${fmtK(price)} · ${downPct}% down · ${rate.toFixed(2)}%`,
+                    answer: `Min. income @ 43% DTI: ${fmt$(income43)}/yr · PITI: ${fmt$(Math.round(piti))}/mo`,
+                    tool_id: 'vault_save_income_qualify',
+                }),
+            });
+            setVaultDone(true);
+        } catch { /* non-fatal */ }
     }
 
     function buildQualifySeed() {
@@ -303,6 +322,20 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         I qualify — check my scenario →
                     </button>
                 )}
+                <button className="iq-btn-vault" onClick={handleVault}>
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
+                        <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd"/>
+                    </svg>
+                    {vaultDone ? 'Saved ✓' : 'My Vault'}
+                </button>
+                <PdfDownloadButton
+                    type="conventional"
+                    getParams={() => ({
+                        price, downPct, rate, term: termYrs,
+                        taxRate: props.taxRate, insRate: props.insRate,
+                        loanType: 'conventional',
+                    })}
+                />
                 <button className="iq-btn-match" onClick={() => router.push(getMatchedUrl())}>
                     Get Matched →
                 </button>
@@ -419,6 +452,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-actions { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); flex-wrap:wrap; }
                 .iq-btn-qualify { background:rgba(61,139,255,0.1); color:#3d8bff; border:1.5px solid rgba(61,139,255,0.3); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .iq-btn-qualify:hover { background:rgba(61,139,255,0.18); border-color:rgba(61,139,255,0.5); }
+                .iq-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .iq-btn-vault:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
                 .iq-btn-match { margin-left:auto; background:#00e87a; color:#07100f; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .iq-btn-match:hover { opacity:.88; }
 
