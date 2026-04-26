@@ -5279,6 +5279,7 @@ ${uwDatabase}`;
                 interactiveSlider: calcCard.interactiveSlider ?? null,
                 convHBSlider: (calcCard as any).convHBSlider ?? null,
                 incomeQualifySlider: (calcCard as any).incomeQualifySlider ?? null,
+                fhaSlider: (calcCard as any).fhaSlider ?? null,
                 affordabilitySlider: calcCard.affordabilitySlider ?? null,
                 dscrSlider: calcCard.dscrSlider ?? null,
                 refiSlider: calcCard.refiSlider ?? null,
@@ -6300,7 +6301,15 @@ What's your situation?`,
                     { label: `What if I put 10% down instead?`, seed: `Show me FHA with 10% down on a $${fmtPriceK(priceK)} home — I make $${incK}k/year and have $${savK}k saved` },
                     { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${fmtPriceK(priceK)} home with FHA 3.5% down?` },
                 ],
-                confidence: "1.00 (calculated using FHA guidelines)"
+                confidence: "1.00 (calculated using FHA guidelines)",
+                fhaSlider: {
+                    price: rPrice,
+                    downPct: rFHAParams.downPaymentPct || 3.5,
+                    rate: rFHAParams.interestRate || fred?.mort30Avg || 6.5,
+                    term: 30,
+                    taxRate: rResult.purchasePrice > 0 ? (rResult.monthlyTax * 12) / rResult.purchasePrice : 0.012,
+                    insRate: rResult.purchasePrice > 0 ? (rResult.monthlyInsurance * 12) / rResult.purchasePrice : 0.005,
+                },
             };
             console.log('[Mortgage->FHA] Reroute successful, fhaAnswer set');
         } catch (e: any) {
@@ -7077,6 +7086,7 @@ Return valid JSON only:
         interactiveSlider: (affordabilityAnswer as any)?.interactiveSlider ?? null,
         convHBSlider: (affordabilityAnswer as any)?.convHBSlider ?? null,
         incomeQualifySlider: (affordabilityAnswer as any)?.incomeQualifySlider ?? null,
+        fhaSlider: (fhaAnswer as any)?.fhaSlider ?? null,
         lenderChecklist: (affordabilityAnswer as any)?.lenderChecklist ?? null,
         followUp: null,
         follow_up_chips: [],

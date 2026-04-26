@@ -27,6 +27,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import ConvHBSliderCard from '@/components/ConvHBSliderCard';
 import IncomeQualifySliderCard from '@/components/IncomeQualifySliderCard';
+import FhaSliderCard from '@/components/FhaSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
 import RefiSliderCard from '@/components/RefiSliderCard';
@@ -380,6 +381,10 @@ type ApiResponse = {
         taxRate: number; insRate: number; county?: string; countyLimit?: number;
     } | null;
     incomeQualifySlider?: {
+        price: number; downPct: number; rate: number; term: number;
+        taxRate: number; insRate: number;
+    } | null;
+    fhaSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number;
     } | null;
@@ -2563,9 +2568,17 @@ export default function Page() {
                         : `$${Math.round(sl.price / 1000)}k`;
                     return `Here's the minimum income to qualify for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
                 })()
+                : meta.fhaSlider
+                ? (() => {
+                    const sl = meta.fhaSlider as { price: number; downPct: number; rate: number };
+                    const prK = sl.price >= 1000000
+                        ? `$${(sl.price / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1000)}k`;
+                    return `Here's your FHA payment breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
+                })()
                 : friendly;
             // Short constructed sentences use slow tick (3 chars/tick) so typewriter is visible
-            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider) ? 3 : 24);
+            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider) ? 3 : 24);
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
@@ -2853,7 +2866,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -2863,7 +2876,7 @@ export default function Page() {
                                                                     : m.meta.grok,
                                                                 // For slider cards during typing: only show m.content (the friendly summary),
                                                                 // never m.meta.answerMarkdown (which contains the old full tables).
-                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider)
+                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider)
                                                                     ? sanitizeMarkdown(typeof m.content === 'string' ? m.content : '')
                                                                     : sanitizeMarkdown(
                                                                         (typeof m.content === 'string' && m.content.length > 0)
@@ -2872,7 +2885,7 @@ export default function Page() {
                                                                     ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
-                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider) ? undefined : (m.meta.followUp ?? undefined)),
+                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider) ? undefined : (m.meta.followUp ?? undefined)),
                                                                 data_freshness:
                                                                     m.meta.data_freshness ??
                                                                     m.meta.fred?.asOf ??
@@ -2946,8 +2959,19 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
+                                                        {/* FHA slider card */}
+                                                        {m.meta.fhaSlider && !loading && typingId === null && (
+                                                            <FhaSliderCard
+                                                                {...m.meta.fhaSlider}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
                                                         {/* Interactive slider card — FHA · VA · Jumbo · Buydown answers */}
-                                                        {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !loading && typingId === null && (
+                                                        {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 onRunScenario={(seed, sliderParams) => {
@@ -3035,7 +3059,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* Lender checklist card — suppressed when affordabilitySlider is present (new card covers the same data) */}
-                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !loading && typingId === null && (
+                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !loading && typingId === null && (
                                                             <LenderChecklistCard data={m.meta.lenderChecklist} />
                                                         )}
                                                         {/* HomeRates Lab — clickable module grid */}
@@ -3144,7 +3168,7 @@ export default function Page() {
 
                                             {m.role === 'assistant' &&
                                                 m.meta &&
-                                                ((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider) || typingId === null) &&
+                                                ((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider) || typingId === null) &&
                                                 typeof m.content === 'string' &&
                                                 m.content.trim().length > 40 && (
                                                     <div
