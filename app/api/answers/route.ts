@@ -4414,12 +4414,17 @@ ${uwDatabase}`;
             };
         } else if (snapshotLoanType === 'calcEngine-fha' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
+            const _isFHAIncomeQuery = /(?:what|how much)\s+income.{0,30}(?:need|qualify|required)|(?:what|how much)\s+salary.{0,30}(?:need|qualify|required)|income.{0,20}(?:need|required).{0,20}(?:qualify|home|house|mortgage)/i.test(question);
+            if (_isFHAIncomeQuery) {
+                (calcDispatch as any).type = 'no_calc_match';
+            } else {
             (calcDispatch as any).type = 'fha';
             (calcDispatch as any).params = {
                 purchasePrice: fuPrice ?? si.price ?? si.purchasePrice,
                 downPaymentPct: fuDown ?? si.down_payment_pct ?? 3.5,
                 annualRatePct: fuRate ?? si.rate_used_pct ?? 6.5,
             };
+            }
         } else if (snapshotLoanType === 'calcEngine-conventional' && snapshotJson?.scenario_inputs) {
             const si = snapshotJson.scenario_inputs;
             const isIncomeQuery = /how much income|what income do i need|what salary|income.*(?:need|qualify|required)|do i qualify|what income.*with.*(?:debts?|payment|car|student)/i.test(question);
