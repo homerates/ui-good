@@ -72,6 +72,9 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     const { user } = useUser();
     const router   = useRouter();
 
+    const isDirty = price !== props.price || downPct !== props.downPct ||
+        Math.abs(rate - props.rate) > 0.001 || termYrs !== props.term;
+
     // ── Derived values ──────────────────────────────────────────────────────
 
     const downAmt    = price * downPct / 100;
@@ -112,6 +115,17 @@ export default function FhaSliderCard(props: FhaSliderParams) {
             });
             setVaultDone(true);
         } catch { /* non-fatal */ }
+    }
+
+    function buildSeed() {
+        const prStr = price >= 1_000_000
+            ? `$${(price / 1_000_000).toFixed(2)}M`
+            : `$${Math.round(price / 1000)}k`;
+        return `FHA loan on a ${prStr} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed`;
+    }
+
+    function getRunOverrides(): Record<string, any> {
+        return { isFHA: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate };
     }
 
     function getMatchedUrl() {
@@ -283,7 +297,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onChange={setPrice}
                     format={v => fmtK(v)}
                     minLabel="$50k" maxLabel="$900k"
-                    trackColor="#f59e0b" theme="light"
+                    trackColor="#f59e0b" theme="dark"
                 />
 
                 <SliderField
@@ -293,7 +307,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onChange={setDownPct}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel="3.5%" maxLabel="30%"
-                    trackColor="#f59e0b" theme="light"
+                    trackColor="#f59e0b" theme="dark"
                 />
                 <div className="fha-dp-chips">
                     {DP_CHIPS.map(pct => (
@@ -315,7 +329,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onChange={setRate}
                     format={v => parseFloat(v.toFixed(3)) + '%'}
                     minLabel="3%" maxLabel="12%"
-                    trackColor="#f59e0b" theme="light"
+                    trackColor="#f59e0b" theme="dark"
                 />
 
                 <div className="fha-exp-term-label">Loan Term</div>
@@ -350,6 +364,11 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
                 {/* Actions */}
                 <div className="fha-exp-actions">
+                    {isDirty && props.onRunScenario && (
+                        <button className="fha-btn-rerun" onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
+                            Run adjusted scenario →
+                        </button>
+                    )}
                     <button className="fha-btn-vault" onClick={handleVault}>
                         <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                             <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
@@ -509,6 +528,8 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
                 /* actions */
                 .fha-exp-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+                .fha-btn-rerun { background:#111827; color:#f9fafb; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }
+                .fha-btn-rerun:hover { background:#1f2937; }
                 .fha-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .fha-btn-vault:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
                 .fha-btn-match { margin-left:auto; background:#f59e0b; color:#1c0f00; border:none; border-radius:8px; padding:10px 22px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
