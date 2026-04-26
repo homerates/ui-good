@@ -86,17 +86,17 @@ const CLOSING_PCT: Record<string, number> = { jumbo: 0.020, fha: 0.030, conventi
 // ── Inner page (needs useSearchParams) ───────────────────────────────────────
 
 function CheckPropertyInner() {
-    const sp     = useSearchParams();
+    const sp     = useSearchParams()!;
     const router = useRouter();
 
     const sc: Scenario = {
-        price:   Number(sp.get('price') ?? 0) || 500_000,
-        dp:      Number(sp.get('dp')    ?? 0) || 20,
-        rate:    Number(sp.get('rate')  ?? 0) || 6.5,
-        term:    Number(sp.get('term')  ?? 0) || 30,
-        lt:      (sp.get('lt') as Scenario['lt']) || 'conventional',
-        taxRate: Number(sp.get('taxRate') ?? 0) || 0.011,
-        insRate: Number(sp.get('insRate') ?? 0) || 0.003,
+        price:   Number(sp?.get('price') ?? 0) || 500_000,
+        dp:      Number(sp?.get('dp')    ?? 0) || 20,
+        rate:    Number(sp?.get('rate')  ?? 0) || 6.5,
+        term:    Number(sp?.get('term')  ?? 0) || 30,
+        lt:      (sp?.get('lt') as Scenario['lt']) || 'conventional',
+        taxRate: Number(sp?.get('taxRate') ?? 0) || 0.011,
+        insRate: Number(sp?.get('insRate') ?? 0) || 0.003,
     };
 
     const theme = THEME[sc.lt];
