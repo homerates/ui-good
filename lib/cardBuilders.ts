@@ -93,6 +93,14 @@ export interface BuiltCard {
         taxRate: number;
         insRate: number;
     };
+    jumboSlider?: {
+        price:   number;
+        downPct: number;
+        rate:    number;
+        term:    number;
+        taxRate: number;
+        insRate: number;
+    } | null;
     affordabilitySlider?: {
         annualIncome: number;
         monthlyDebts: number;
@@ -3217,14 +3225,13 @@ ${dtiSection}
             computed_financials: { monthly_pi: r.monthlyPI, monthly_pitia: r.totalMonthly, loan_amount: r.loanAmount },
             monthly_payment: r.totalMonthly,
         },
-        interactiveSlider: {
-            price: r.purchasePrice,
+        jumboSlider: {
+            price:   r.purchasePrice,
             downPct: r.downPaymentPct,
-            rate: r.annualRatePct,
-            term: r.termYears,
-            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
+            rate:    r.annualRatePct,
+            term:    r.termYears,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.011,
             insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
-            loanType: 'jumbo' as const,
         },
         lenderChecklist: {
             loanType: 'jumbo',

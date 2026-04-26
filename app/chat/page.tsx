@@ -40,6 +40,7 @@ import ProUpgradeCard from '@/components/ProUpgradeCard';
 import type { ProGatePayload } from '@/components/ProUpgradeCard';
 import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
 import JumboAffordabilitySliderCard from '@/components/JumboAffordabilitySliderCard';
+import JumboSliderCard from '@/components/JumboSliderCard';
 import LenderChecklistCard from '@/components/LenderChecklistCard';
 import ScenarioComparisonCard from '@/components/ScenarioComparisonCard';
 import AlertBell from '@/components/AlertBell';
@@ -409,6 +410,10 @@ type ApiResponse = {
     jumboAffordabilitySlider?: {
         price: number; downPct: number; baseRate: number;
         countyLimit: number; nationalBaseline: number; county?: string;
+        taxRate: number; insRate: number;
+    } | null;
+    jumboSlider?: {
+        price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number;
     } | null;
     lenderChecklist?: {
@@ -2866,7 +2871,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -2876,7 +2881,7 @@ export default function Page() {
                                                                     : m.meta.grok,
                                                                 // For slider cards during typing: only show m.content (the friendly summary),
                                                                 // never m.meta.answerMarkdown (which contains the old full tables).
-                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider)
+                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider)
                                                                     ? sanitizeMarkdown(typeof m.content === 'string' ? m.content : '')
                                                                     : sanitizeMarkdown(
                                                                         (typeof m.content === 'string' && m.content.length > 0)
@@ -2885,7 +2890,7 @@ export default function Page() {
                                                                     ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
-                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider) ? undefined : (m.meta.followUp ?? undefined)),
+                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider) ? undefined : (m.meta.followUp ?? undefined)),
                                                                 data_freshness:
                                                                     m.meta.data_freshness ??
                                                                     m.meta.fred?.asOf ??
@@ -2970,8 +2975,19 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Interactive slider card — FHA · VA · Jumbo · Buydown answers */}
-                                                        {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !loading && typingId === null && (
+                                                        {/* Jumbo purchase payment slider card */}
+                                                        {m.meta.jumboSlider && !loading && typingId === null && (
+                                                            <JumboSliderCard
+                                                                {...m.meta.jumboSlider}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Interactive slider card — VA · Buydown answers */}
+                                                        {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 onRunScenario={(seed, sliderParams) => {
@@ -3059,7 +3075,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* Lender checklist card — suppressed when affordabilitySlider is present (new card covers the same data) */}
-                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !loading && typingId === null && (
+                                                        {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <LenderChecklistCard data={m.meta.lenderChecklist} />
                                                         )}
                                                         {/* HomeRates Lab — clickable module grid */}
@@ -3168,7 +3184,7 @@ export default function Page() {
 
                                             {m.role === 'assistant' &&
                                                 m.meta &&
-                                                ((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider) || typingId === null) &&
+                                                ((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider) || typingId === null) &&
                                                 typeof m.content === 'string' &&
                                                 m.content.trim().length > 40 && (
                                                     <div
