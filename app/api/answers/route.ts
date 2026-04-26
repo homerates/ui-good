@@ -6019,7 +6019,9 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
     if (!isHomeownerAnalysisQuery && !hasFHAWithPrice && !isPureRateInfo && (isAffordabilityQuestion(question) || (affordFollowUp.isFollowUp && (priorAffordContext?.annualIncome || affordFollowUp.useCurrentRate)))) {
         console.log('[Affordability] Detected affordability question');
 
-        const affordParams = extractAffordabilityParams(question);
+        // Income-needed queries are reverse calculations — force hasInfo:false so they always
+        // reach the income-needed path below, regardless of what extractAffordabilityParams returns
+        const affordParams = isIncomeNeededQuery ? ({ hasInfo: false } as any) : extractAffordabilityParams(question);
 
         // If it's a follow-up (debt change OR "use current rates"), merge prior context
         // Income-needed queries ("what income do I need for X home?") are reverse calculations —
@@ -6047,7 +6049,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
             console.log('[Affordability] priorAffordContext:', priorAffordContext);
         }
 
-        if (affordParams.hasInfo) {
+        if (affordParams.hasInfo && !isIncomeNeededQuery) {
             // User provided income and savings - generate scenarios
             console.log('[Affordability] Generating scenarios:', affordParams);
 
