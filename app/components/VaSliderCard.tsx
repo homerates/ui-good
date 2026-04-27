@@ -257,7 +257,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onChange={setPrice}
                     format={v => fmtK(v)}
                     minLabel="$100k" maxLabel="$3M"
-                    trackColor="#14b8a6" theme="light"
+                    trackColor="#14b8a6" theme="dark"
                 />
 
                 <SliderField
@@ -267,7 +267,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onChange={setDownPct}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel="0%" maxLabel="50%"
-                    trackColor="#14b8a6" theme="light"
+                    trackColor="#14b8a6" theme="dark"
                 />
                 <div className="va-dp-chips">
                     {DP_CHIPS.map(pct => (
@@ -286,7 +286,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onChange={setRate}
                     format={v => parseFloat(v.toFixed(3)) + '%'}
                     minLabel="3%" maxLabel="12%"
-                    trackColor="#14b8a6" theme="light"
+                    trackColor="#14b8a6" theme="dark"
                 />
 
                 <div className="va-exp-term-label">Loan Term</div>
