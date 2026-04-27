@@ -214,7 +214,7 @@ function CheckPropertyInner() {
             from: 'check-property', lt: theme.label, purpose: 'Purchase',
             price: String(Math.round(sc.price)),
             dp:    String(sc.dp),
-            monthly: String(Math.round(realPITI)),
+            monthly: String(Math.round(actualPITI)),
             rate:  String(sc.rate),
             term:  String(sc.term),
             ...(resolved ? { address: resolved } : {}),
