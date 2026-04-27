@@ -68,8 +68,9 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
     const [term]                  = useState(props.term ?? 30);
     const [vacancy,  setVacancy]  = useState(Math.round(props.vacancyRate * 100));
     const [mgmtPct,  setMgmtPct]  = useState(0);
-    const [bkdOpen,  setBkdOpen]  = useState(true);
-    const [vaultDone, setVaultDone] = useState(false);
+    const [bkdOpen,     setBkdOpen]     = useState(true);
+    const [rentReveal,  setRentReveal]  = useState(false);
+    const [vaultDone,   setVaultDone]   = useState(false);
 
     const { user } = useUser();
     const router   = useRouter();
@@ -396,20 +397,38 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
             </div>
 
             {/* ⑦ Follow-up chips */}
-            {props.onRunScenario && (
-                <div className="dsc-followup-row">
-                    <button
-                        className="dsc-followup-chip"
-                        onClick={() => props.onRunScenario!(`What rent does this ${fmtK(price)} property need to qualify at 1.25x DSCR with ${downPct}% down at ${fmtRate(rate)}?`, {})}
-                    >
-                        What rent do I need to qualify? →
-                    </button>
-                    <button
-                        className="dsc-followup-chip dsc-followup-chip--property"
-                        onClick={() => router.push(getCheckPropertyUrl())}
-                    >
-                        Check a property →
-                    </button>
+            <div className="dsc-followup-row">
+                <button
+                    className={`dsc-followup-chip${rentReveal ? ' dsc-followup-chip--active' : ''}`}
+                    onClick={() => setRentReveal(o => !o)}
+                >
+                    What rent do I need to qualify? →
+                </button>
+                <button
+                    className="dsc-followup-chip dsc-followup-chip--property"
+                    onClick={() => router.push(getCheckPropertyUrl())}
+                >
+                    Check a property →
+                </button>
+            </div>
+
+            {/* Inline rent-threshold reveal — no AI round-trip needed */}
+            {rentReveal && (
+                <div className="dsc-rent-reveal">
+                    <div className="dsc-rent-reveal-head">Rent Thresholds at Current PITIA ({fmt$(Math.round(calc.pitia))}/mo)</div>
+                    <div className="dsc-rent-reveal-rows">
+                        <div className="dsc-rent-row">
+                            <span className="dsc-rent-row-label">Break-even (1.0x DSCR)</span>
+                            <span className="dsc-rent-row-val" style={{ color: '#ff8c42' }}>{fmt$(calc.rentFor100)}/mo</span>
+                        </div>
+                        <div className="dsc-rent-row">
+                            <span className="dsc-rent-row-label">Most lenders require (1.25x)</span>
+                            <span className="dsc-rent-row-val" style={{ color: ACCENT }}>{fmt$(calc.rentFor125)}/mo</span>
+                        </div>
+                        <div className="dsc-rent-row-note">
+                            Your rent is {fmt$(Math.round(rent))}/mo — {rent >= calc.rentFor125 ? `${fmt$(Math.round(rent - calc.rentFor125))} above the 1.25x threshold ✓` : `${fmt$(Math.round(calc.rentFor125 - rent))} short of 1.25x`}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -549,8 +568,18 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 .dsc-followup-row { display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 10px; }
                 .dsc-followup-chip { background:rgba(0,232,122,0.06); border:1.5px solid rgba(0,232,122,0.2); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:${ACCENT}; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .dsc-followup-chip:hover { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.4); }
+                .dsc-followup-chip--active { background:rgba(0,232,122,0.14); border-color:rgba(0,232,122,0.5); }
                 .dsc-followup-chip--property { background:rgba(99,102,241,0.06); border-color:rgba(99,102,241,0.2); color:#818cf8; }
                 .dsc-followup-chip--property:hover { background:rgba(99,102,241,0.12); border-color:rgba(99,102,241,0.4); }
+
+                /* rent reveal */
+                .dsc-rent-reveal { margin:0 12px 12px; background:rgba(0,232,122,0.05); border:1px solid rgba(0,232,122,0.18); border-radius:12px; overflow:hidden; }
+                .dsc-rent-reveal-head { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#1a6635; padding:8px 14px; background:rgba(0,232,122,0.06); border-bottom:1px solid rgba(0,232,122,0.12); }
+                .dsc-rent-reveal-rows { padding:10px 14px; display:flex; flex-direction:column; gap:8px; }
+                .dsc-rent-row { display:flex; justify-content:space-between; align-items:center; }
+                .dsc-rent-row-label { font-size:12px; color:#8fa3b8; }
+                .dsc-rent-row-val { font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; }
+                .dsc-rent-row-note { font-size:11px; color:#4b6080; padding-top:6px; border-top:1px solid rgba(255,255,255,0.05); }
 
                 /* note */
                 .dsc-note { margin:0 12px 12px; background:rgba(0,232,122,0.04); border:1px solid rgba(0,232,122,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }

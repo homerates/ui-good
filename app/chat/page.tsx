@@ -3003,7 +3003,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* Interactive slider card — Buydown answers (VA now handled by VaSliderCard) */}
-                                                        {m.meta.interactiveSlider && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {m.meta.interactiveSlider && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && m.meta.interactiveSlider.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 onRunScenario={(seed, sliderParams) => {
