@@ -3029,7 +3029,13 @@ export default function Page() {
                                                         {m.meta.dscrSlider && !loading && typingId === null && (
                                                             <DSCRSliderCard
                                                                 {...m.meta.dscrSlider}
-                                                                onRunScenario={(seed) => send(seed)}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    if (overrides && Object.keys(overrides).length > 0) {
+                                                                        pendingParamOverridesRef.current = overrides;
+                                                                        setPendingParamOverrides(overrides);
+                                                                    }
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
                                                             />
                                                         )}
                                                         {/* Refi slider card — refinance answers */}

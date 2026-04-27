@@ -1,29 +1,17 @@
 'use client';
 
-// app/components/DSCRSliderCard.tsx
-// DSCR investment property analyzer
-// Shows both DSCR (lender qualification) AND cash flow (investor view) — clearly distinct
-// DSCR = Effective Rent ÷ PITIA    Cash Flow = Effective Rent - PITIA - Maintenance - Mgmt
-
 import React, { useState, useMemo } from 'react';
-import PdfDownloadButton from './PdfDownloadButton';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
+import PdfDownloadButton from './PdfDownloadButton';
 
-export interface DSCRSliderParams {
-    price: number;
-    rent: number;
-    downPct: number;
-    rate: number;
-    term?: number;          // default 30 — DSCR loans are always 30yr fixed
-    vacancyRate: number;   // 0–1 decimal (e.g. 0.05 = 5%)
-    taxRate: number;       // annual % of price as decimal
-    insRate: number;       // annual % of price as decimal
-    onRunScenario?: (seed: string) => void;
-}
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-const MAINT_RATE = 0.01;   // 1% of price annually — shown in cash flow, NOT in DSCR calc
-const VACANCY_OPTIONS = [0, 5, 8, 10];
-const MGMT_OPTIONS    = [0, 8];
+const MAINT_RATE      = 0.01;
+const VACANCY_OPTIONS = [0, 5, 8, 10] as const;
+const MGMT_OPTIONS    = [0, 8] as const;
+const ACCENT          = '#00e87a';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -34,209 +22,285 @@ function calcPI(principal: number, annualRate: number, termYears: number): numbe
     return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
 }
 
+// ── Formatting ────────────────────────────────────────────────────────────────
+
 function fmt$(n: number) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.abs(n));
+}
+function fmtK(n: number) {
+    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+    if (n >= 100_000)   return `$${Math.round(n / 1_000)}k`;
+    return fmt$(n);
 }
 function fmtSigned(n: number) {
     return (n >= 0 ? '+' : '−') + fmt$(n);
 }
 function fmtRate(r: number) { return parseFloat(r.toFixed(3)) + '%'; }
 
-function trackStyle(val: number, min: number, max: number): React.CSSProperties {
-    const pct = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
-    return { background: `linear-gradient(to right,#00e87a 0%,#00e87a ${pct}%,rgba(255,255,255,0.08) ${pct}%,rgba(255,255,255,0.08) 100%)` };
+// ── DSCR status ───────────────────────────────────────────────────────────────
+
+function dscrStatus(dscr: number): { label: string; icon: string; color: string; bg: string; border: string } {
+    if (dscr >= 1.5)  return { label: 'Excellent  ≥1.5x',        icon: '✓', color: ACCENT,    bg: 'rgba(0,232,122,0.07)',  border: 'rgba(0,232,122,0.22)'  };
+    if (dscr >= 1.25) return { label: 'Qualifies  ≥1.25x',       icon: '✓', color: ACCENT,    bg: 'rgba(0,232,122,0.05)',  border: 'rgba(0,232,122,0.18)'  };
+    if (dscr >= 1.0)  return { label: 'Borderline  1.0–1.24x',   icon: '⚠', color: '#ff8c42', bg: 'rgba(255,140,66,0.07)', border: 'rgba(255,140,66,0.22)' };
+    return                    { label: 'Does Not Qualify  <1.0x', icon: '✗', color: '#ff5f5f', bg: 'rgba(255,95,95,0.07)',  border: 'rgba(255,95,95,0.22)'  };
 }
 
-function dscrInfo(dscr: number): { label: string; color: string; bg: string; border: string } {
-    if (dscr >= 1.5)  return { label: 'Excellent  ≥1.5x',         color: '#00e87a', bg: 'rgba(0,232,122,0.08)',  border: 'rgba(0,232,122,0.25)'  };
-    if (dscr >= 1.25) return { label: 'Qualifies  ≥1.25x',        color: '#00e87a', bg: 'rgba(0,232,122,0.05)',  border: 'rgba(0,232,122,0.18)'  };
-    if (dscr >= 1.0)  return { label: 'Borderline  1.0–1.24x',    color: '#ff8c42', bg: 'rgba(255,140,66,0.08)', border: 'rgba(255,140,66,0.25)' };
-    return                    { label: 'Does Not Qualify  <1.0x', color: '#ff5f5f', bg: 'rgba(255,95,95,0.08)',  border: 'rgba(255,95,95,0.25)'  };
+// ── Interface ─────────────────────────────────────────────────────────────────
+
+export interface DSCRSliderParams {
+    price:       number;
+    rent:        number;
+    downPct:     number;
+    rate:        number;
+    term?:       number;
+    vacancyRate: number;   // 0–1 decimal (e.g. 0.05 = 5%)
+    taxRate:     number;
+    insRate:     number;
+    onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function DSCRSliderCard(props: DSCRSliderParams) {
-    const [price, setPrice]       = useState(props.price);
-    const [rent, setRent]         = useState(props.rent);
-    const [downPct, setDownPct]   = useState(props.downPct);
-    const [rate, setRate]         = useState(props.rate);
-    const [term]                  = useState(props.term ?? 30);   // 30yr fixed — term toggle can be added later
-    const [vacancy, setVacancy]   = useState(Math.round(props.vacancyRate * 100)); // store as integer %
-    const [mgmtPct, setMgmtPct]   = useState(0);
+    const [price,    setPrice]    = useState(props.price);
+    const [rent,     setRent]     = useState(props.rent);
+    const [downPct,  setDownPct]  = useState(props.downPct);
+    const [rate,     setRate]     = useState(props.rate);
+    const [term]                  = useState(props.term ?? 30);
+    const [vacancy,  setVacancy]  = useState(Math.round(props.vacancyRate * 100));
+    const [mgmtPct,  setMgmtPct]  = useState(0);
+    const [bkdOpen,  setBkdOpen]  = useState(true);
+    const [vaultDone, setVaultDone] = useState(false);
 
-    const calc = useMemo(() => {
-        const vacRate = vacancy / 100;
-        const mgmtRate = mgmtPct / 100;
-
-        const downAmt      = price * downPct / 100;
-        const loanAmt      = price - downAmt;
-        const ltv          = (loanAmt / price) * 100;
-        const pi           = calcPI(loanAmt, rate, term);
-        const tax          = (price * props.taxRate) / 12;
-        const ins          = (price * props.insRate) / 12;
-        const pitia        = pi + tax + ins;
-
-        const effectiveRent = rent * (1 - vacRate);
-        const dscr          = pitia > 0 ? effectiveRent / pitia : 0;
-
-        const maint        = (price * MAINT_RATE) / 12;
-        const mgmt         = rent * mgmtRate;
-        const cashFlow     = effectiveRent - pitia - maint - mgmt;
-        const annualCF     = cashFlow * 12;
-
-        // What rent is needed for thresholds?
-        const rentFor100   = pitia > 0 ? Math.ceil(pitia / (1 - vacRate)) : 0;
-        const rentFor125   = pitia > 0 ? Math.ceil(pitia * 1.25 / (1 - vacRate)) : 0;
-
-        const totalInterest = Math.max(0, pi * term * 12 - loanAmt);
-
-        return { downAmt, loanAmt, ltv, pi, tax, ins, pitia, effectiveRent, dscr, maint, mgmt, cashFlow, annualCF, rentFor100, rentFor125, totalInterest };
-    }, [price, rent, downPct, rate, term, vacancy, mgmtPct, props.taxRate, props.insRate]);
-
-    const status = dscrInfo(calc.dscr);
-
-    // Ratio bar: PITIA as % of effective rent (inverted — if DSCR=1.41, PITIA=71% of rent)
-    const pitiaPct  = calc.effectiveRent > 0 ? Math.min(100, (calc.pitia  / calc.effectiveRent) * 100) : 100;
-    // Threshold marker position: 1.25x means PITIA is 80% of rent (1/1.25)
-    const threshPct = 100 / 1.25; // = 80%
+    const { user } = useUser();
+    const router   = useRouter();
 
     const isDirty = price !== props.price || rent !== props.rent || downPct !== props.downPct ||
         Math.abs(rate - props.rate) > 0.001 || vacancy !== Math.round(props.vacancyRate * 100);
 
+    // ── Derived ────────────────────────────────────────────────────────────────
+
+    const calc = useMemo(() => {
+        const vacRate     = vacancy / 100;
+        const mgmtRate    = mgmtPct / 100;
+        const downAmt     = price * downPct / 100;
+        const loanAmt     = price - downAmt;
+        const ltv         = (loanAmt / price) * 100;
+        const pi          = calcPI(loanAmt, rate, term);
+        const tax         = (price * props.taxRate) / 12;
+        const ins         = (price * props.insRate) / 12;
+        const pitia       = pi + tax + ins;
+        const effectiveRent = rent * (1 - vacRate);
+        const dscr        = pitia > 0 ? effectiveRent / pitia : 0;
+        const maint       = (price * MAINT_RATE) / 12;
+        const mgmt        = rent * mgmtRate;
+        const cashFlow    = effectiveRent - pitia - maint - mgmt;
+        const annualCF    = cashFlow * 12;
+        const rentFor100  = pitia > 0 ? Math.ceil(pitia / (1 - vacRate)) : 0;
+        const rentFor125  = pitia > 0 ? Math.ceil(pitia * 1.25 / (1 - vacRate)) : 0;
+        const totalInterest = Math.max(0, pi * term * 12 - loanAmt);
+        const grossYield  = price > 0 ? (rent * 12 / price) * 100 : 0;
+        const capRate     = price > 0 ? ((rent * 12 - (tax + ins + maint) * 12) / price) * 100 : 0;
+        return { downAmt, loanAmt, ltv, pi, tax, ins, pitia, effectiveRent, dscr, maint, mgmt, cashFlow, annualCF, rentFor100, rentFor125, totalInterest, grossYield, capRate };
+    }, [price, rent, downPct, rate, term, vacancy, mgmtPct, props.taxRate, props.insRate]);
+
+    const status    = dscrStatus(calc.dscr);
+    const pitiaPct  = calc.effectiveRent > 0 ? Math.min(100, (calc.pitia / calc.effectiveRent) * 100) : 100;
+    const threshPct = 100 / 1.25; // = 80%
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
     function buildSeed(): string {
         const vacClause = vacancy > 0 ? ` with ${vacancy}% vacancy` : '';
-        return `DSCR loan on a $${price.toLocaleString()} investment property, $${rent.toLocaleString()}/mo rent, ${downPct}% down at ${fmtRate(rate)}${vacClause}`;
+        return `DSCR loan on a ${fmtK(price)} investment property, ${fmtK(rent)}/mo rent, ${downPct}% down at ${fmtRate(rate)}${vacClause}`;
     }
+
+    function getRunOverrides() {
+        return { purchasePrice: price, monthlyRent: rent, downPaymentPct: downPct, annualRatePct: rate, vacancyRate: vacancy / 100, loanType: 'dscr' };
+    }
+
+    function getCheckPropertyUrl() {
+        const p = new URLSearchParams({
+            price:   String(Math.round(price)),
+            dp:      String(downPct),
+            rate:    rate.toFixed(3),
+            term:    String(term),
+            lt:      'dscr',
+            taxRate: props.taxRate.toFixed(5),
+            insRate: props.insRate.toFixed(5),
+            rent:    String(Math.round(rent)),
+        });
+        return `/check-property?${p.toString()}`;
+    }
+
+    function getMatchedUrl() {
+        const p = new URLSearchParams({
+            from: 'dscr', lt: 'DSCR', purpose: 'Investment',
+            price: String(Math.round(price)),
+            dp: String(downPct),
+            monthly: String(Math.round(calc.pitia)),
+            rate: String(rate),
+            term: String(term),
+        });
+        return `/connect/post?${p.toString()}`;
+    }
+
+    async function handleVault() {
+        if (!user) { router.push('/sign-up'); return; }
+        try {
+            await fetch('/api/library', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: `DSCR investment: ${fmtK(price)} · ${fmtK(rent)}/mo rent · ${downPct}% down · ${rate.toFixed(2)}%`,
+                    answer: `DSCR: ${calc.dscr.toFixed(2)}x · Cash Flow: ${fmtSigned(calc.cashFlow)}/mo · PITIA: ${fmt$(Math.round(calc.pitia))}/mo`,
+                    tool_id: 'vault_save_dscr',
+                }),
+            });
+            setVaultDone(true);
+        } catch { /* non-fatal */ }
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
         <div className="dsc">
 
-            {/* ── Header ── */}
-            <div className="dsc__hdr">
-                <span className="dsc__hdr-label">DSCR Investment Analyzer</span>
-                <span className="dsc__hdr-sub">Lender ratio · Cash flow · Thresholds</span>
+            {/* Topbar */}
+            <div className="dsc-topbar">
+                <div className="dsc-topbar-l">
+                    <div className="dsc-dot" />
+                    <span className="dsc-tl">AI Analysis</span>
+                </div>
+                <span className="dsc-tr">Live · CalcEngine-Deterministic</span>
             </div>
 
-            {/* ── Hero ── */}
-            <div className="dsc__hero" style={{ background: status.bg, borderBottom: `1px solid ${status.border}` }}>
-                <div className="dsc__hero-top">
-                    {/* DSCR big number */}
+            {/* Header */}
+            <div className="dsc-header">
+                <div className="dsc-header-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                    </svg>
+                </div>
+                <div>
+                    <div className="dsc-header-title">DSCR Investment Analyzer</div>
+                    <div className="dsc-header-sub">{fmtK(price)} · {fmtK(rent)}/mo rent · {downPct}% down · {rate.toFixed(2)}% · {term}yr fixed</div>
+                </div>
+            </div>
+
+            {/* Hero */}
+            <div className="dsc-hero" style={{ background: status.bg, borderColor: status.border }}>
+                <div className="dsc-hero-top">
                     <div>
-                        <div className="dsc__dscr-num" style={{ color: status.color }}>
-                            {calc.dscr.toFixed(2)}<span className="dsc__dscr-x">x</span>
+                        <div className="dsc-dscr-label">DSCR Ratio</div>
+                        <div className="dsc-dscr-num" style={{ color: status.color }}>
+                            {calc.dscr.toFixed(2)}<span className="dsc-dscr-x">x</span>
                         </div>
-                        <div className="dsc__status" style={{ color: status.color }}>
-                            {calc.dscr >= 1.25 ? '✓' : calc.dscr >= 1.0 ? '⚠' : '✗'} {status.label}
+                        <div className="dsc-status" style={{ color: status.color }}>
+                            {status.icon} {status.label}
                         </div>
-                        <div className="dsc__formula">
-                            {fmt$(calc.effectiveRent)} rent ÷ {fmt$(calc.pitia)} PITIA
+                        <div className="dsc-formula">
+                            {fmt$(Math.round(calc.effectiveRent))} rent ÷ {fmt$(Math.round(calc.pitia))} PITIA
                         </div>
                     </div>
 
-                    {/* Cash flow */}
-                    <div className="dsc__cf-box">
-                        <div className="dsc__cf-label">Monthly Cash Flow</div>
-                        <div className="dsc__cf-val" style={{ color: calc.cashFlow >= 0 ? '#059669' : '#dc2626' }}>
+                    <div className="dsc-cf-box">
+                        <div className="dsc-cf-label">Monthly Cash Flow</div>
+                        <div className="dsc-cf-val" style={{ color: calc.cashFlow >= 0 ? ACCENT : '#ff5f5f' }}>
                             {fmtSigned(calc.cashFlow)}/mo
                         </div>
-                        <div className="dsc__cf-annual" style={{ color: calc.annualCF >= 0 ? '#059669' : '#dc2626' }}>
+                        <div className="dsc-cf-annual" style={{ color: calc.cashFlow >= 0 ? ACCENT : '#ff5f5f' }}>
                             {fmtSigned(calc.annualCF)}/yr
                         </div>
-                        <div className="dsc__cf-note">after PITIA + maint{mgmtPct > 0 ? ' + mgmt' : ''}</div>
+                        <div className="dsc-cf-note">after PITIA + maint{mgmtPct > 0 ? ' + mgmt' : ''}</div>
                     </div>
                 </div>
 
-                {/* Ratio bar — visual DSCR */}
-                <div className="dsc__ratio-wrap">
-                    <div className="dsc__ratio-bar">
-                        {/* Rent = full width (green) */}
-                        <div className="dsc__ratio-rent" />
-                        {/* PITIA overlay */}
-                        <div className="dsc__ratio-pitia" style={{ width: `${pitiaPct}%` }} />
-                        {/* 1.25x threshold marker */}
-                        <div className="dsc__ratio-marker" style={{ left: `${threshPct}%` }}>
-                            <div className="dsc__ratio-marker-line" />
-                            <div className="dsc__ratio-marker-label">1.25x</div>
+                {/* Ratio bar */}
+                <div className="dsc-ratio-wrap">
+                    <div className="dsc-ratio-bar">
+                        <div className="dsc-ratio-rent" />
+                        <div className="dsc-ratio-pitia" style={{ width: `${pitiaPct}%` }} />
+                        <div className="dsc-ratio-marker" style={{ left: `${threshPct}%` }}>
+                            <div className="dsc-ratio-marker-line" />
+                            <div className="dsc-ratio-marker-label">1.25x</div>
                         </div>
                     </div>
-                    <div className="dsc__ratio-legend">
-                        <span><span className="dsc__dot" style={{ background: '#10b981' }} />Effective Rent {fmt$(calc.effectiveRent)}</span>
-                        <span><span className="dsc__dot" style={{ background: '#3b82f6' }} />PITIA {fmt$(calc.pitia)}</span>
+                    <div className="dsc-ratio-legend">
+                        <span><span className="dsc-dot-sm" style={{ background: ACCENT }} />Effective Rent {fmt$(Math.round(calc.effectiveRent))}</span>
+                        <span><span className="dsc-dot-sm" style={{ background: '#3b82f6' }} />PITIA {fmt$(Math.round(calc.pitia))}</span>
                     </div>
                 </div>
 
                 {/* Threshold hints */}
                 {calc.dscr < 1.25 && (
-                    <div className="dsc__thresh">
+                    <div className="dsc-thresh">
                         {calc.dscr < 1.0 && <span>Rent for 1.0x: <strong>{fmt$(calc.rentFor100)}/mo</strong></span>}
                         <span>Rent for 1.25x: <strong>{fmt$(calc.rentFor125)}/mo</strong></span>
                     </div>
                 )}
             </div>
 
-            {/* ── Sliders ── */}
-            <div className="dsc__sliders">
+            {/* Sliders */}
+            <div className="dsc-exp">
+                <div className="dsc-exp-head">Investment Explorer</div>
 
-                {/* Purchase Price */}
                 <SliderField
                     label="Purchase Price" value={price}
-                    min={100000} max={2000000} step={5000}
+                    min={100000} max={3000000} step={5000}
                     onChange={setPrice}
-                    format={v => `$${v.toLocaleString()}`}
-                    minLabel="$100k" maxLabel="$2M"
-                    trackColor="#00e87a" theme="light"
+                    format={v => fmtK(v)}
+                    minLabel="$100k" maxLabel="$3M"
+                    trackColor={ACCENT} theme="dark"
                 />
 
-                {/* Monthly Rent */}
                 <SliderField
-                    label="Monthly Rent" value={rent}
-                    min={500} max={15000} step={50}
+                    label="Monthly Gross Rent" value={rent}
+                    min={500} max={20000} step={50}
                     onChange={setRent}
-                    format={v => `$${v.toLocaleString()}/mo`}
-                    minLabel="$500" maxLabel="$15k"
-                    trackColor="#00e87a" theme="light"
+                    format={v => `${fmtK(v)}/mo`}
+                    minLabel="$500" maxLabel="$20k"
+                    trackColor={ACCENT} theme="dark"
                 />
 
-                {/* Down Payment */}
                 <SliderField
                     label="Down Payment" value={downPct}
                     min={15} max={40} step={1}
                     onChange={setDownPct}
-                    format={v => `${v}% · $${Math.round(price * v / 100).toLocaleString()}`}
+                    format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel="15%" maxLabel="40%"
-                    trackColor="#00e87a" theme="light"
+                    trackColor={ACCENT} theme="dark"
                 />
 
-                {/* Interest Rate */}
                 <SliderField
                     label="Interest Rate" value={rate}
-                    min={5} max={12} step={0.125}
+                    min={5} max={13} step={0.125}
                     onChange={setRate}
                     format={fmtRate}
-                    minLabel="5%" maxLabel="12%"
-                    trackColor="#00e87a" theme="light"
+                    minLabel="5%" maxLabel="13%"
+                    trackColor={ACCENT} theme="dark"
                 />
 
                 {/* Vacancy + Management toggles */}
-                <div className="dsc__toggles">
-                    <div className="dsc__toggle-group">
-                        <span className="dsc__toggle-label">Vacancy</span>
-                        <div className="dsc__toggle-btns">
+                <div className="dsc-toggles">
+                    <div className="dsc-toggle-group">
+                        <span className="dsc-toggle-label">Vacancy</span>
+                        <div className="dsc-toggle-btns">
                             {VACANCY_OPTIONS.map(v => (
                                 <button key={v}
-                                    className={`dsc__toggle-btn${vacancy === v ? ' dsc__toggle-btn--on' : ''}`}
+                                    className={`dsc-toggle-btn${vacancy === v ? ' dsc-toggle-btn--on' : ''}`}
                                     onClick={() => setVacancy(v)}
                                 >{v}%</button>
                             ))}
                         </div>
                     </div>
-                    <div className="dsc__toggle-group">
-                        <span className="dsc__toggle-label">Management</span>
-                        <div className="dsc__toggle-btns">
+                    <div className="dsc-toggle-group">
+                        <span className="dsc-toggle-label">Mgmt</span>
+                        <div className="dsc-toggle-btns">
                             {MGMT_OPTIONS.map(m => (
                                 <button key={m}
-                                    className={`dsc__toggle-btn${mgmtPct === m ? ' dsc__toggle-btn--on' : ''}`}
+                                    className={`dsc-toggle-btn${mgmtPct === m ? ' dsc-toggle-btn--on' : ''}`}
                                     onClick={() => setMgmtPct(m)}
                                 >{m === 0 ? 'None' : `${m}%`}</button>
                             ))}
@@ -244,409 +308,235 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     </div>
                 </div>
 
-                {/* Fixed assumptions note */}
-                <div className="dsc__assumptions">
-                    Assumptions: Tax {(props.taxRate * 100).toFixed(1)}%/yr · Insurance {(props.insRate * 100).toFixed(1)}%/yr · Maintenance 1%/yr (cash flow only, not DSCR)
-                </div>
-
-            </div>
-
-            {/* ── Footer ── */}
-            <div className="dsc__foot">
-                <div className="dsc__foot-stats">
-                    <div className="dsc__stat">
-                        <span className="dsc__stat-label">Loan Amount</span>
-                        <span className="dsc__stat-val">${Math.round(calc.loanAmt).toLocaleString()}</span>
+                {/* Stats bar */}
+                <div className="dsc-exp-stats">
+                    <div className="dsc-exp-stat">
+                        <div className="dsc-exp-stat-label">Loan Amount</div>
+                        <div className="dsc-exp-stat-val">{fmtK(calc.loanAmt)}</div>
                     </div>
-                    <div className="dsc__stat">
-                        <span className="dsc__stat-label">LTV</span>
-                        <span className="dsc__stat-val">{calc.ltv.toFixed(1)}%</span>
+                    <div className="dsc-exp-stat">
+                        <div className="dsc-exp-stat-label">LTV</div>
+                        <div className="dsc-exp-stat-val">{calc.ltv.toFixed(1)}%</div>
                     </div>
-                    <div className="dsc__stat">
-                        <span className="dsc__stat-label">Total Interest (30yr)</span>
-                        <span className="dsc__stat-val">${Math.round(calc.totalInterest).toLocaleString()}</span>
+                    <div className="dsc-exp-stat">
+                        <div className="dsc-exp-stat-label">Gross Yield</div>
+                        <div className="dsc-exp-stat-val" style={{ color: ACCENT }}>{calc.grossYield.toFixed(1)}%</div>
                     </div>
-                    <div className="dsc__stat">
-                        <span className="dsc__stat-label">Gross Yield</span>
-                        <span className="dsc__stat-val">{price > 0 ? ((rent * 12 / price) * 100).toFixed(1) : '—'}%</span>
+                    <div className="dsc-exp-stat">
+                        <div className="dsc-exp-stat-label">Cap Rate</div>
+                        <div className="dsc-exp-stat-val">{calc.capRate.toFixed(1)}%</div>
                     </div>
                 </div>
-                <div className="dsc__actions">
-                    {props.onRunScenario && isDirty && (
-                        <button className="dsc__rerun" onClick={() => props.onRunScenario!(buildSeed())}>
+
+                {/* Actions */}
+                <div className="dsc-exp-actions">
+                    {isDirty && props.onRunScenario && (
+                        <button className="dsc-btn-rerun" onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
                             Run adjusted scenario →
                         </button>
                     )}
+                    <button className="dsc-btn-vault" onClick={handleVault}>
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
+                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd"/>
+                        </svg>
+                        {vaultDone ? 'Saved ✓' : 'My Vault'}
+                    </button>
                     <PdfDownloadButton
                         type="dscr"
                         getParams={() => ({ price, rent, downPct, rate, vacancyRate: vacancy / 100, taxRate: props.taxRate, insRate: props.insRate, mgmtPct })}
                     />
+                    <button className="dsc-btn-match" onClick={() => router.push(getMatchedUrl())}>
+                        Get Matched →
+                    </button>
                 </div>
+            </div>
+
+            {/* Breakdown toggle */}
+            <div className="dsc-bkd">
+                <button className="dsc-bkd-toggle" onClick={() => setBkdOpen(o => !o)}>
+                    <span className="dsc-bkd-label">⊞ &nbsp;Full investment breakdown</span>
+                    <span className={`dsc-bkd-chev${bkdOpen ? ' open' : ''}`}>▴</span>
+                </button>
+                {bkdOpen && (
+                    <div className="dsc-bkd-body">
+                        <div className="dsc-kv-s">Monthly PITIA</div>
+                        <div className="dsc-kv"><span className="dsc-kv-k">Principal &amp; Interest</span><span className="dsc-kv-v">{fmt$(Math.round(calc.pi))}</span></div>
+                        <div className="dsc-kv"><span className="dsc-kv-k">Property Taxes</span><span className="dsc-kv-v">{fmt$(Math.round(calc.tax))}</span></div>
+                        <div className="dsc-kv"><span className="dsc-kv-k">Insurance</span><span className="dsc-kv-v">{fmt$(Math.round(calc.ins))}</span></div>
+                        <div className="dsc-kv dsc-kv--total"><span className="dsc-kv-k">Total PITIA</span><span className="dsc-kv-v">{fmt$(Math.round(calc.pitia))}</span></div>
+                        <div className="dsc-kv-s">Cash Flow (after PITIA)</div>
+                        <div className="dsc-kv"><span className="dsc-kv-k">Gross Rent</span><span className="dsc-kv-v">{fmt$(Math.round(rent))}</span></div>
+                        {vacancy > 0 && <div className="dsc-kv"><span className="dsc-kv-k">Vacancy ({vacancy}%)</span><span className="dsc-kv-v" style={{ color: '#ff5f5f' }}>−{fmt$(Math.round(rent * vacancy / 100))}</span></div>}
+                        <div className="dsc-kv"><span className="dsc-kv-k">Effective Rent</span><span className="dsc-kv-v">{fmt$(Math.round(calc.effectiveRent))}</span></div>
+                        <div className="dsc-kv"><span className="dsc-kv-k">Maintenance (1%/yr)</span><span className="dsc-kv-v" style={{ color: '#ff5f5f' }}>−{fmt$(Math.round(calc.maint))}</span></div>
+                        {mgmtPct > 0 && <div className="dsc-kv"><span className="dsc-kv-k">Property Mgmt ({mgmtPct}%)</span><span className="dsc-kv-v" style={{ color: '#ff5f5f' }}>−{fmt$(Math.round(calc.mgmt))}</span></div>}
+                        <div className="dsc-kv dsc-kv--total"><span className="dsc-kv-k">Net Monthly Cash Flow</span><span className="dsc-kv-v" style={{ color: calc.cashFlow >= 0 ? ACCENT : '#ff5f5f' }}>{fmtSigned(calc.cashFlow)}</span></div>
+                        <div className="dsc-kv-s">Annual</div>
+                        <div className="dsc-kv"><span className="dsc-kv-k">Annual Cash Flow</span><span className="dsc-kv-v" style={{ color: calc.annualCF >= 0 ? ACCENT : '#ff5f5f' }}>{fmtSigned(calc.annualCF)}</span></div>
+                        <div className="dsc-kv"><span className="dsc-kv-k">Total Interest (30yr)</span><span className="dsc-kv-v">{fmt$(Math.round(calc.totalInterest))}</span></div>
+                    </div>
+                )}
+            </div>
+
+            {/* Follow-up chips */}
+            {props.onRunScenario && (
+                <div className="dsc-followup-row">
+                    <button
+                        className="dsc-followup-chip"
+                        onClick={() => props.onRunScenario!(`What rent does this ${fmtK(price)} property need to qualify at 1.25x DSCR with ${downPct}% down at ${fmtRate(rate)}?`, {})}
+                    >
+                        What rent do I need to qualify? →
+                    </button>
+                    <button
+                        className="dsc-followup-chip dsc-followup-chip--property"
+                        onClick={() => router.push(getCheckPropertyUrl())}
+                    >
+                        Check a property →
+                    </button>
+                </div>
+            )}
+
+            {/* Note */}
+            <div className="dsc-note">
+                <span className="dsc-bulb">💡</span>
+                <p>
+                    <strong>DSCR = Effective Rent ÷ PITIA.</strong> Most lenders require ≥1.25x.
+                    No personal income verification — qualification is based on the property&apos;s rental income alone.
+                    Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr, live). DSCR loans typically run 0.5–1.5% above conventional.
+                    Maintenance ({(MAINT_RATE * 100).toFixed(0)}%/yr) is excluded from DSCR calculation but included in cash flow.
+                </p>
+            </div>
+
+            {/* Disclosures */}
+            <div className="dsc-disc">
+                <p>
+                    <strong>Educational estimates only.</strong> Tax {(props.taxRate * 100).toFixed(2)}%/yr · Insurance {(props.insRate * 100).toFixed(2)}%/yr · Maintenance 1%/yr (cash flow only, not DSCR).
+                    DSCR thresholds vary by lender (1.0x–1.25x typical). Actual terms depend on credit, property type, and lender overlays.
+                    These figures are not a pre-approval or commitment to lend.
+                </p>
             </div>
 
             {/* ── Styles ── */}
             <style>{`
                 .dsc {
-                    border: 1px solid #e2e8f0;
+                    background: #0d1117;
+                    border: 1px solid rgba(255,255,255,0.08);
                     border-radius: 16px;
-                    overflow: hidden;
-                    background: #fff;
+                    overflow: clip;
                     margin-top: 14px;
                     font-family: system-ui, -apple-system, sans-serif;
-                    color: #0f172a;
+                    color: #f0f4ff;
                 }
-                .dsc__hdr {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 12px 18px;
-                    border-bottom: 1px solid #f1f5f9;
-                }
-                .dsc__hdr-label {
-                    font-size: 11px;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    letter-spacing: .08em;
-                    color: #94a3b8;
-                }
-                .dsc__hdr-sub {
-                    font-size: 10px;
-                    color: #cbd5e1;
-                    font-weight: 500;
-                }
-                /* Hero */
-                .dsc__hero {
-                    padding: 18px 18px 14px;
-                }
-                .dsc__hero-top {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    gap: 12px;
-                    flex-wrap: wrap;
-                    margin-bottom: 16px;
-                }
-                .dsc__dscr-num {
-                    font-size: clamp(2.4rem, 6vw, 3rem);
-                    font-weight: 800;
-                    letter-spacing: -.05em;
-                    font-variant-numeric: tabular-nums;
-                    line-height: 1;
-                    margin-bottom: 4px;
-                }
-                .dsc__dscr-x {
-                    font-size: 1.4rem;
-                    font-weight: 700;
-                    letter-spacing: 0;
-                }
-                .dsc__status {
-                    font-size: 13px;
-                    font-weight: 700;
-                    margin-bottom: 4px;
-                }
-                .dsc__formula {
-                    font-size: 11px;
-                    color: #64748b;
-                    font-variant-numeric: tabular-nums;
-                }
-                /* Cash flow box */
-                .dsc__cf-box {
-                    background: rgba(255,255,255,.7);
-                    border: 1px solid rgba(0,0,0,.07);
-                    border-radius: 10px;
-                    padding: 10px 14px;
-                    text-align: right;
-                    flex-shrink: 0;
-                }
-                .dsc__cf-label {
-                    font-size: 10px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: .06em;
-                    color: #94a3b8;
-                    margin-bottom: 3px;
-                }
-                .dsc__cf-val {
-                    font-size: 1.3rem;
-                    font-weight: 800;
-                    font-variant-numeric: tabular-nums;
-                    letter-spacing: -.02em;
-                    line-height: 1;
-                }
-                .dsc__cf-annual {
-                    font-size: 12px;
-                    font-weight: 700;
-                    font-variant-numeric: tabular-nums;
-                    margin-top: 2px;
-                }
-                .dsc__cf-note {
-                    font-size: 9px;
-                    color: #94a3b8;
-                    margin-top: 3px;
-                }
-                /* Ratio bar */
-                .dsc__ratio-wrap {
-                    margin-bottom: 10px;
-                }
-                .dsc__ratio-bar {
-                    position: relative;
-                    height: 14px;
-                    border-radius: 9999px;
-                    overflow: visible;
-                    margin-bottom: 8px;
-                    background: #e2e8f0;
-                }
-                .dsc__ratio-rent {
-                    position: absolute;
-                    inset: 0;
-                    background: #10b981;
-                    border-radius: 9999px;
-                    opacity: .25;
-                }
-                .dsc__ratio-pitia {
-                    position: absolute;
-                    top: 0; left: 0; bottom: 0;
-                    background: #3b82f6;
-                    border-radius: 9999px;
-                    transition: width .2s ease;
-                    opacity: .75;
-                }
-                .dsc__ratio-marker {
-                    position: absolute;
-                    top: -4px;
-                    bottom: -4px;
-                    transform: translateX(-50%);
-                }
-                .dsc__ratio-marker-line {
-                    width: 2px;
-                    height: 100%;
-                    background: #f59e0b;
-                    border-radius: 1px;
-                    margin: 0 auto;
-                }
-                .dsc__ratio-marker-label {
-                    position: absolute;
-                    top: -18px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    font-size: 9px;
-                    font-weight: 700;
-                    color: #d97706;
-                    white-space: nowrap;
-                    background: #fffbeb;
-                    padding: 1px 4px;
-                    border-radius: 4px;
-                }
-                .dsc__ratio-legend {
-                    display: flex;
-                    gap: 16px;
-                    font-size: 11px;
-                    color: #64748b;
-                }
-                .dsc__ratio-legend span {
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                }
-                .dsc__dot {
-                    display: inline-block;
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    flex-shrink: 0;
-                }
-                /* Threshold hints */
-                .dsc__thresh {
-                    display: flex;
-                    gap: 16px;
-                    flex-wrap: wrap;
-                    font-size: 11px;
-                    color: #64748b;
-                    margin-top: 8px;
-                    padding-top: 8px;
-                    border-top: 1px solid rgba(0,0,0,.06);
-                }
-                /* Sliders */
-                .dsc__sliders {
-                    padding: 16px 18px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    border-top: 1px solid #e2e8f0;
-                }
-                .dsc__row {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                }
-                .dsc__row-hdr {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .dsc__row-name {
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: #374151;
-                }
-                .dsc__row-val {
-                    font-size: 13px;
-                    font-weight: 700;
-                    color: #0f172a;
-                    font-variant-numeric: tabular-nums;
-                }
-                .dsc__minmax {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 10px;
-                    color: #94a3b8;
-                    font-weight: 500;
-                }
-                .dsc__range {
-                    -webkit-appearance: none;
-                    appearance: none;
-                    width: 100%;
-                    height: 6px;
-                    border-radius: 9999px;
-                    outline: none;
-                    cursor: pointer;
-                }
-                .dsc__range::-webkit-slider-thumb {
-                    -webkit-appearance: none;
-                    width: 22px;
-                    height: 22px;
-                    border-radius: 50%;
-                    background: #10b981;
-                    border: 3px solid #fff;
-                    box-shadow: 0 0 0 1.5px #10b981, 0 2px 6px rgba(16,185,129,.3);
-                    cursor: pointer;
-                    transition: box-shadow .15s;
-                }
-                .dsc__range::-webkit-slider-thumb:hover {
-                    box-shadow: 0 0 0 3px rgba(16,185,129,.25), 0 3px 10px rgba(16,185,129,.4);
-                }
-                .dsc__range::-moz-range-thumb {
-                    width: 22px;
-                    height: 22px;
-                    border-radius: 50%;
-                    background: #10b981;
-                    border: 3px solid #fff;
-                    box-shadow: 0 0 0 1.5px #10b981;
-                    cursor: pointer;
-                }
-                /* Vacancy + management toggles */
-                .dsc__toggles {
-                    display: flex;
-                    gap: 16px;
-                    flex-wrap: wrap;
-                }
-                .dsc__toggle-group {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                    flex: 1;
-                    min-width: 140px;
-                }
-                .dsc__toggle-label {
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: #374151;
-                }
-                .dsc__toggle-btns {
-                    display: flex;
-                    gap: 6px;
-                }
-                .dsc__toggle-btn {
-                    flex: 1;
-                    padding: 6px 0;
-                    border: 1.5px solid #e2e8f0;
-                    border-radius: 8px;
-                    font-size: 12px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    color: #64748b;
-                    background: #fff;
-                    transition: all .15s;
-                }
-                .dsc__toggle-btn--on {
-                    border-color: #10b981;
-                    color: #065f46;
-                    background: #f0fdf4;
-                }
-                .dsc__toggle-btn:hover:not(.dsc__toggle-btn--on) {
-                    border-color: #94a3b8;
-                    color: #374151;
-                }
-                /* Assumptions */
-                .dsc__assumptions {
-                    font-size: 10px;
-                    color: #94a3b8;
-                    line-height: 1.5;
-                    padding: 8px 12px;
-                    background: #f8fafc;
-                    border-radius: 8px;
-                    border: 1px solid #e2e8f0;
-                }
-                /* Footer */
-                .dsc__foot {
-                    padding: 12px 18px;
-                    background: #f8fafc;
-                    border-top: 1px solid #e2e8f0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 12px;
-                    flex-wrap: wrap;
-                }
-                .dsc__foot-stats {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 8px 24px;
-                }
-                .dsc__stat {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 2px;
-                }
-                .dsc__stat-label {
-                    font-size: 10px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: .06em;
-                    color: #94a3b8;
-                }
-                .dsc__stat-val {
-                    font-size: 13px;
-                    font-weight: 700;
-                    color: #0f172a;
-                    font-variant-numeric: tabular-nums;
-                }
-                .dsc__actions {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    margin-top: 4px;
-                }
-                .dsc__rerun {
-                    padding: 8px 16px;
-                    background: #0f172a;
-                    color: #fff;
-                    border: none;
-                    border-radius: 9999px;
-                    font-size: 12px;
-                    font-weight: 700;
-                    cursor: pointer;
-                    white-space: nowrap;
-                    transition: background .15s, transform .1s;
-                    letter-spacing: .01em;
-                }
-                .dsc__rerun:hover { background: #1e293b; }
-                .dsc__rerun:active { transform: scale(.97); }
+
+                /* topbar */
+                .dsc-topbar { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.02); }
+                .dsc-topbar-l { display:flex; align-items:center; gap:6px; }
+                .dsc-dot { width:7px; height:7px; border-radius:50%; background:${ACCENT}; }
+                .dsc-tl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#6b7a99; }
+                .dsc-tr { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#3a4560; }
+
+                /* header */
+                .dsc-header { display:flex; align-items:center; gap:12px; padding:16px 16px 12px; }
+                .dsc-header-icon { width:36px; height:36px; border-radius:10px; background:rgba(0,232,122,0.1); border:1px solid rgba(0,232,122,0.2); display:flex; align-items:center; justify-content:center; color:${ACCENT}; flex-shrink:0; }
+                .dsc-header-title { font-size:15px; font-weight:700; color:#f0f4ff; }
+                .dsc-header-sub { font-size:11px; color:#6b7a99; margin-top:2px; }
+
+                /* hero */
+                .dsc-hero { margin:0 12px 12px; border:1px solid; border-radius:14px; padding:20px 20px 16px; }
+                .dsc-hero-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+                .dsc-dscr-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#3a4560; margin-bottom:6px; }
+                .dsc-dscr-num { font-size:clamp(2.8rem,7vw,3.6rem); font-weight:800; letter-spacing:-.05em; line-height:1; font-variant-numeric:tabular-nums; }
+                .dsc-dscr-x { font-size:1.6rem; font-weight:700; letter-spacing:0; }
+                .dsc-status { font-size:13px; font-weight:700; margin:5px 0 3px; }
+                .dsc-formula { font-size:11px; color:#4b6080; font-variant-numeric:tabular-nums; }
+
+                /* cash flow box */
+                .dsc-cf-box { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:12px 16px; text-align:right; flex-shrink:0; }
+                .dsc-cf-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:#3a4560; margin-bottom:4px; }
+                .dsc-cf-val { font-size:1.4rem; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.02em; line-height:1; }
+                .dsc-cf-annual { font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:3px; }
+                .dsc-cf-note { font-size:9px; color:#3a4560; margin-top:4px; }
+
+                /* ratio bar */
+                .dsc-ratio-wrap { margin-bottom:10px; }
+                .dsc-ratio-bar { position:relative; height:14px; border-radius:9999px; overflow:visible; margin-bottom:8px; background:rgba(255,255,255,0.08); }
+                .dsc-ratio-rent { position:absolute; inset:0; background:${ACCENT}; border-radius:9999px; opacity:.2; }
+                .dsc-ratio-pitia { position:absolute; top:0; left:0; bottom:0; background:#3b82f6; border-radius:9999px; transition:width .2s ease; opacity:.7; }
+                .dsc-ratio-marker { position:absolute; top:-4px; bottom:-4px; transform:translateX(-50%); }
+                .dsc-ratio-marker-line { width:2px; height:100%; background:#f59e0b; border-radius:1px; margin:0 auto; }
+                .dsc-ratio-marker-label { position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:700; color:#d97706; white-space:nowrap; background:rgba(245,158,11,0.12); padding:1px 5px; border-radius:4px; }
+                .dsc-ratio-legend { display:flex; gap:16px; font-size:11px; color:#4b6080; }
+                .dsc-ratio-legend span { display:flex; align-items:center; gap:5px; }
+                .dsc-dot-sm { display:inline-block; width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+                /* threshold hints */
+                .dsc-thresh { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:#4b6080; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06); }
+                .dsc-thresh strong { color:#f0f4ff; }
+
+                /* explorer */
+                .dsc-exp { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.015); }
+                .dsc-exp-head { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#6b7a99; margin-bottom:12px; }
+
+                /* toggles */
+                .dsc-toggles { display:flex; gap:16px; flex-wrap:wrap; margin-top:2px; }
+                .dsc-toggle-group { display:flex; flex-direction:column; gap:6px; flex:1; min-width:130px; }
+                .dsc-toggle-label { font-size:12px; font-weight:600; color:#c4cfe0; }
+                .dsc-toggle-btns { display:flex; gap:6px; }
+                .dsc-toggle-btn { flex:1; padding:6px 0; background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:12px; font-weight:600; color:#8fa3b8; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .dsc-toggle-btn--on { background:rgba(0,232,122,0.08); border-color:rgba(0,232,122,0.3); color:${ACCENT}; }
+                .dsc-toggle-btn:hover:not(.dsc-toggle-btn--on) { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
+
+                /* stats bar */
+                .dsc-exp-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:14px; }
+                .dsc-exp-stat { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px; text-align:center; }
+                .dsc-exp-stat-label { font-size:10px; color:#6b7a99; margin-bottom:3px; }
+                .dsc-exp-stat-val { font-size:12px; font-weight:700; color:#c4cfe0; }
+
+                /* actions */
+                .dsc-exp-actions { display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
+                .dsc-btn-rerun { background:rgba(0,232,122,0.08); color:${ACCENT}; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .dsc-btn-rerun:hover { background:rgba(0,232,122,0.15); }
+                .dsc-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .dsc-btn-vault:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
+                .dsc-btn-match { margin-left:auto; background:${ACCENT}; color:#00150a; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
+                .dsc-btn-match:hover { opacity:.88; }
+
+                /* breakdown */
+                .dsc-bkd { border-top:1px solid rgba(255,255,255,0.05); }
+                .dsc-bkd-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:transparent; border:none; cursor:pointer; font-family:inherit; }
+                .dsc-bkd-label { font-size:12px; font-weight:600; color:#8fa3b8; }
+                .dsc-bkd-chev { font-size:10px; color:#8fa3b8; transition:transform .2s; display:inline-block; transform:rotate(180deg); }
+                .dsc-bkd-chev.open { transform:rotate(0deg); }
+                .dsc-bkd-body { padding:0 16px 12px; }
+                .dsc-kv { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+                .dsc-kv--total { padding-top:8px; border-top:1px solid rgba(255,255,255,0.12); border-bottom:none; }
+                .dsc-kv-k { font-size:12px; color:#8fa3b8; }
+                .dsc-kv-v { font-size:12px; font-weight:600; color:#c4cfe0; }
+                .dsc-kv--total .dsc-kv-k { font-weight:700; color:#c4cfe0; font-size:13px; }
+                .dsc-kv--total .dsc-kv-v { font-weight:800; color:#f0f4ff; font-size:13px; }
+                .dsc-kv-s { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6b7a99; padding:10px 0 4px; }
+
+                /* follow-up chips */
+                .dsc-followup-row { display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 10px; }
+                .dsc-followup-chip { background:rgba(0,232,122,0.06); border:1.5px solid rgba(0,232,122,0.2); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:${ACCENT}; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .dsc-followup-chip:hover { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.4); }
+                .dsc-followup-chip--property { background:rgba(99,102,241,0.06); border-color:rgba(99,102,241,0.2); color:#818cf8; }
+                .dsc-followup-chip--property:hover { background:rgba(99,102,241,0.12); border-color:rgba(99,102,241,0.4); }
+
+                /* note */
+                .dsc-note { margin:0 12px 12px; background:rgba(0,232,122,0.04); border:1px solid rgba(0,232,122,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }
+                .dsc-bulb { font-size:16px; flex-shrink:0; margin-top:1px; }
+                .dsc-note p { font-size:12px; color:#8fa3b8; line-height:1.5; }
+                .dsc-note strong { color:#f0f4ff; }
+
+                /* disclosures */
+                .dsc-disc { padding:0 16px 16px; }
+                .dsc-disc p { font-size:10px; color:#3a4560; line-height:1.5; }
 
                 @media (max-width: 480px) {
-                    .dsc__dscr-num { font-size: 2.2rem; }
-                    .dsc__cf-box { text-align: left; }
+                    .dsc-dscr-num { font-size:2.4rem; }
+                    .dsc-exp-stats { grid-template-columns:repeat(2,1fr); }
+                    .dsc-cf-box { text-align:left; }
                 }
             `}</style>
         </div>
