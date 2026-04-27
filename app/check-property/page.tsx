@@ -39,13 +39,14 @@ function pct(n: number, decimals = 1) { return `${n.toFixed(decimals)}%`; }
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Scenario {
-    price:   number;
-    dp:      number;
-    rate:    number;
-    term:    number;
-    lt:      'conventional' | 'fha' | 'jumbo' | 'va' | 'dscr';
-    taxRate: number;
-    insRate: number;
+    price:       number;
+    dp:          number;
+    rate:        number;
+    term:        number;
+    lt:          'conventional' | 'fha' | 'jumbo' | 'va' | 'dscr';
+    taxRate:     number;
+    insRate:     number;
+    monthlyDebt: number;
 }
 
 interface PropData {
@@ -98,9 +99,10 @@ function CheckPropertyInner() {
         dp:      sp?.get('dp') != null ? Number(sp.get('dp')) : 20,
         rate:    Number(sp?.get('rate')  ?? 0) || 6.5,
         term:    Number(sp?.get('term')  ?? 0) || 30,
-        lt:      (sp?.get('lt') as Scenario['lt']) || 'conventional',
-        taxRate: Number(sp?.get('taxRate') ?? 0) || 0.011,
-        insRate: Number(sp?.get('insRate') ?? 0) || 0.003,
+        lt:          (sp?.get('lt') as Scenario['lt']) || 'conventional',
+        taxRate:     Number(sp?.get('taxRate') ?? 0) || 0.011,
+        insRate:     Number(sp?.get('insRate') ?? 0) || 0.003,
+        monthlyDebt: Number(sp?.get('monthlyDebt') ?? 0) || 0,
     };
 
     const theme = THEME[sc.lt];
@@ -154,16 +156,18 @@ function CheckPropertyInner() {
     const actualPI      = calcPI(actualLoanAmt, sc.rate, sc.term);
     const actualPITI    = actualPI + realMonthTax + actualIns + hoaMonthly;
 
-    const realIncome43 = Math.round((actualPITI / 0.43) * 12);
-    const realIncome41 = Math.round((actualPITI / 0.41) * 12);
-    const realIncome38 = Math.round((actualPITI / 0.38) * 12);
+    const realIncome43 = Math.round(((actualPITI + sc.monthlyDebt) / 0.43) * 12);
+    const realIncome41 = Math.round(((actualPITI + sc.monthlyDebt) / 0.41) * 12);
+    const realIncome38 = Math.round(((actualPITI + sc.monthlyDebt) / 0.38) * 12);
 
     // ── Gap analysis (scenario vs this property) ─────────────────────────────
 
     const pitiGap      = actualPITI - scenPITI;   // +ve = more expensive than scenario
     const dtiPct       = sc.lt === 'jumbo' ? 0.38 : sc.lt === 'va' ? 0.41 : 0.43;
-    const scenIncome   = Math.round((scenPITI  / dtiPct) * 12);
-    const actualIncome = Math.round((actualPITI / dtiPct) * 12);
+    const scenTotalMo  = scenPITI  + sc.monthlyDebt;
+    const actualTotalMo = actualPITI + sc.monthlyDebt;
+    const scenIncome   = Math.round((scenTotalMo  / dtiPct) * 12);
+    const actualIncome = Math.round((actualTotalMo / dtiPct) * 12);
     const incomeGap    = actualIncome - scenIncome;
     const downGap      = (actualPrice - sc.price) * sc.dp / 100;   // extra down needed
 

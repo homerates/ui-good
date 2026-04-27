@@ -459,6 +459,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                             lt,
                             taxRate: props.taxRate.toFixed(5),
                             insRate: props.insRate.toFixed(5),
+                            ...(monthlyDebt > 0 ? { monthlyDebt: String(Math.round(monthlyDebt)) } : {}),
                         });
                         router.push(`/check-property?${p.toString()}`);
                     }}
