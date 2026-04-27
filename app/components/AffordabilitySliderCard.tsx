@@ -566,6 +566,30 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 </div>
             </div>
 
+            {/* ── Follow-up chips ── */}
+            {conv3 && (
+                <div className="afc-followup-row">
+                    <button
+                        type="button"
+                        className="afc-followup-chip"
+                        onClick={() => {
+                            const p = new URLSearchParams({
+                                price:   String(Math.round(conv3!.maxPrice)),
+                                dp:      '3',
+                                rate:    rate.toFixed(3),
+                                term:    String(term),
+                                lt:      'conventional',
+                                taxRate: props.taxRate.toFixed(5),
+                                insRate: props.insRate.toFixed(5),
+                            });
+                            router.push(`/check-property?${p.toString()}`);
+                        }}
+                    >
+                        Check a property →
+                    </button>
+                </div>
+            )}
+
             {/* ── Disclosures ── */}
             <div className="afc-disc">
                 <p>
@@ -866,6 +890,24 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     transition: opacity .15s;
                 }
                 .afc-btn-match:hover { opacity: .88; }
+
+                /* follow-up chips */
+                .afc-followup-row {
+                    display: flex; gap: 8px; flex-wrap: wrap;
+                    padding: 4px 16px 16px;
+                }
+                .afc-followup-chip {
+                    background: transparent;
+                    border: 1px solid rgba(0,232,122,0.35);
+                    border-radius: 20px; padding: 6px 14px;
+                    font-size: 13px; font-weight: 500;
+                    color: #00e87a; cursor: pointer;
+                    transition: background 0.15s, border-color 0.15s;
+                }
+                .afc-followup-chip:hover {
+                    background: rgba(0,232,122,0.10);
+                    border-color: rgba(0,232,122,0.65);
+                }
 
                 /* disclosures */
                 .afc-disc {

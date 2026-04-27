@@ -140,6 +140,20 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         } catch { /* non-fatal */ }
     }
 
+    const isDirty = price !== props.price || downPct !== props.downPct ||
+        Math.abs(rate - props.rate) > 0.001 || termYrs !== props.term || monthlyDebt > 0;
+
+    function getRunOverrides(): Record<string, any> {
+        const lt = isJumbo ? 'jumbo' : isFHA ? 'fha' : isVA ? 'va' : 'conventional';
+        return {
+            purchasePrice: price,
+            downPaymentPct: downPct,
+            annualRatePct: rate,
+            monthlyDebts: monthlyDebt,
+            loanType: lt,
+        };
+    }
+
     function buildQualifySeed() {
         const prStr = price >= 1_000_000
             ? `$${(price / 1_000_000).toFixed(2)}M`
@@ -418,6 +432,14 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
             {/* Action buttons */}
             <div className="iq-actions">
+                {isDirty && props.onRunScenario && (
+                    <button
+                        className="iq-btn-rerun"
+                        onClick={() => props.onRunScenario!(buildQualifySeed(), getRunOverrides())}
+                    >
+                        Run adjusted scenario →
+                    </button>
+                )}
                 <button
                     className="iq-btn-property"
                     onClick={() => {
@@ -576,6 +598,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
                 /* actions */
                 .iq-actions { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); flex-wrap:wrap; }
+                .iq-btn-rerun { background:transparent; color:#f0f4ff; border:1.5px solid rgba(255,255,255,0.2); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .iq-btn-rerun:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.35); }
                 .iq-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .iq-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
                 .iq-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }

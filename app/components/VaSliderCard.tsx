@@ -152,7 +152,8 @@ export default function VaSliderCard(props: VaSliderParams) {
             downPaymentPct: downPct,
             annualRatePct: rate,
             termYears: termYrs,
-            vaFundingFeePct: ffPct,
+            vaFundingFeeExempt: ffTier === 'exempt',
+            customFundingFeePct: ffTier !== 'exempt' ? ffPct : undefined,
             loanType: 'va',
         };
     }
