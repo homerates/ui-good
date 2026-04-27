@@ -4724,7 +4724,8 @@ ${uwDatabase}`;
             return null;
         })();
 
-        if (_jAffordKeywords && (_jIsJumboKeyword || _jHighPriceMatch != null)) {
+        const _jIsIncomeNeeded = /what income do i need|income.*to qualify|income needed/i.test(question);
+        if (_jAffordKeywords && (_jIsJumboKeyword || _jHighPriceMatch != null) && !_jIsIncomeNeeded) {
             // Also try to parse down payment % from question: "25% down", "25 percent down", "25% down payment"
             const _jDownMatch = question.match(/(\d{1,2})\s*%\s*(?:down(?:\s*payment)?|dp)\b/i)
                              ?? question.match(/(\d{1,2})\s*percent\s+down/i);
@@ -5017,6 +5018,21 @@ ${uwDatabase}`;
                 calcCard = buildJumboCard(result, calcAssumptions, fredRateForCard);
                 calcDebugModel = 'calcEngine-jumbo';
                 injectCmaChip(calcCard);
+                // When the jumbo query is asking for income qualification, swap jumboSlider → incomeQualifySlider
+                const _isJumboIncomeQuery = /what income do i need|income.*to qualify|income needed.*qualify/i.test(question);
+                if (_isJumboIncomeQuery) {
+                    const _jr = calcDispatch.params as any;
+                    (calcCard as any).jumboSlider = null;
+                    (calcCard as any).incomeQualifySlider = {
+                        price:    _jr.purchasePrice,
+                        downPct:  _jr.downPaymentPct ?? 20,
+                        rate:     _jr.annualRatePct  ?? (fred?.mort30Avg ?? 6.75),
+                        term:     30,
+                        taxRate:  _jr.propertyTaxRate ?? 0.011,
+                        insRate:  0.003,
+                        loanType: 'jumbo' as const,
+                    };
+                }
 
             } else if (calcDispatch.type === 'jumbo_needs_input') {
                 calcCard = buildVANeedsInputCard(fredRateForCard); // reuse needs-input pattern — jumbo-specific card optional later
