@@ -1,4 +1,4 @@
-﻿// ==== WEB-FIRST + GROK + SUPABASE (UI-SAFE): app/api/answers/route.ts ====
+// ==== WEB-FIRST + GROK + SUPABASE (UI-SAFE): app/api/answers/route.ts ====
 export const runtime = "nodejs"; // v2
 export const dynamic = "force-dynamic";
 
@@ -4274,6 +4274,24 @@ ${uwDatabase}`;
             }
             (calcDispatch as any)._isIncomeQualify = true;
             (calcDispatch as any)._iqLoanType = _iqLT;
+        } else if ((paramOverrides as any).loanType === 'dscr' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            // DscrSliderCard "Run adjusted scenario" — loanType:'dscr' must route back to DSCR, not jumbo/conventional
+            (calcDispatch as any).type = 'dscr';
+            (calcDispatch as any).params = {
+                purchasePrice:    paramOverrides.purchasePrice,
+                grossMonthlyRent: (paramOverrides as any).monthlyRent ?? (paramOverrides as any).grossMonthlyRent ?? 0,
+                downPaymentPct:   paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 25,
+                annualRatePct:    paramOverrides.annualRatePct,
+                vacancyRate:      (paramOverrides as any).vacancyRate ?? 0,
+            };
+            const _dscrCK: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _dscrLM: Record<string, string> = {
+                annualRatePct:  `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+                monthlyRent:    `rent updated to $${(paramOverrides as any).monthlyRent?.toLocaleString()}/mo`,
+            };
+            (calcDispatch as any).assumptions = _dscrCK.filter(k => _dscrLM[k]).map(k => _dscrLM[k]);
         } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'va';
             (calcDispatch as any).params = {
@@ -4645,6 +4663,24 @@ ${uwDatabase}`;
             }
             (calcDispatch as any)._isIncomeQualify = true;
             (calcDispatch as any)._iqLoanType = _iqLT;
+        } else if ((paramOverrides as any).loanType === 'dscr' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            // DscrSliderCard "Run adjusted scenario" — loanType:'dscr' must route back to DSCR, not jumbo/conventional
+            (calcDispatch as any).type = 'dscr';
+            (calcDispatch as any).params = {
+                purchasePrice:    paramOverrides.purchasePrice,
+                grossMonthlyRent: (paramOverrides as any).monthlyRent ?? (paramOverrides as any).grossMonthlyRent ?? 0,
+                downPaymentPct:   paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 25,
+                annualRatePct:    paramOverrides.annualRatePct,
+                vacancyRate:      (paramOverrides as any).vacancyRate ?? 0,
+            };
+            const _dscrCK: string[] = (paramOverrides as any).changedKeys ?? [];
+            const _dscrLM: Record<string, string> = {
+                annualRatePct:  `rate updated to ${paramOverrides.annualRatePct}%`,
+                downPaymentPct: `down payment updated to ${paramOverrides.downPaymentPct}%`,
+                purchasePrice:  `price updated to $${paramOverrides.purchasePrice?.toLocaleString()}`,
+                monthlyRent:    `rent updated to $${(paramOverrides as any).monthlyRent?.toLocaleString()}/mo`,
+            };
+            (calcDispatch as any).assumptions = _dscrCK.filter(k => _dscrLM[k]).map(k => _dscrLM[k]);
         } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'va';
             (calcDispatch as any).params = {
