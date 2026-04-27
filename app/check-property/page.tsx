@@ -2,7 +2,9 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import AppNav from '@/components/AppNav';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -203,7 +205,28 @@ function CheckPropertyInner() {
     }
 
     return (
-        <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px 60px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+        <>
+        <style>{`
+            body:has(.ps-root){display:block!important;height:auto!important;overflow:visible!important;}
+            html:has(.ps-root){height:auto!important;overflow:visible!important;}
+            body:has(.ps-root) .app-footer{display:none!important;}
+            .ps-root{min-height:100vh;width:100%;background:#080c12;color:#f0f4ff;font-family:system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;align-items:center;overflow-x:hidden;box-sizing:border-box;}
+            .ps-root *{box-sizing:border-box;}
+            .cp-header{position:sticky;top:0;z-index:50;width:100%;background:rgba(8,12,18,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);}
+            .cp-header-inner{max-width:720px;margin:0 auto;padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+            .cp-logo{height:24px;width:auto;display:block;}
+            .cp-body{width:100%;max-width:720px;padding:24px 20px 80px;}
+        `}</style>
+        <div className="ps-root">
+            <header className="cp-header">
+                <div className="cp-header-inner">
+                    <Link href="/">
+                        <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" className="cp-logo" />
+                    </Link>
+                    <AppNav drawerOnly />
+                </div>
+            </header>
+        <div className="cp-body">
 
             {/* ── Page title ─────────────────────────────────────────────── */}
             <div style={{ marginBottom: 24 }}>
@@ -487,6 +510,8 @@ function CheckPropertyInner() {
                 </div>
             )}
         </div>
+        </div>
+        </>
     );
 }
 
