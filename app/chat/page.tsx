@@ -1,4 +1,4 @@
-﻿// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
+// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
 // <HR-GUARD> Home chat = borrower mode only. Do NOT reintroduce Borrower/Public, Intent, or "Loan (optional)" controls.
 // ==== REPLACE ENTIRE FILE: app/page.tsx ====
 'use client';
@@ -376,7 +376,7 @@ type ApiResponse = {
     topSources?: Array<{ title: string; url: string }>;
     interactiveSlider?: {
         price: number; downPct: number; rate: number; term: number;
-        taxRate: number; insRate: number; loanType: 'conventional' | 'fha' | 'jumbo' | 'va';
+        taxRate: number; insRate: number; loanType: 'conventional' | 'fha' | 'jumbo' | 'va' | 'dscr';
     } | null;
     convHBSlider?: {
         price: number; downPct: number; rate: number; term: number;
