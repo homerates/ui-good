@@ -41,6 +41,7 @@ import type { ProGatePayload } from '@/components/ProUpgradeCard';
 import LoanLimitsSliderCard from '@/components/LoanLimitsSliderCard';
 import JumboAffordabilitySliderCard from '@/components/JumboAffordabilitySliderCard';
 import JumboSliderCard from '@/components/JumboSliderCard';
+import VaSliderCard from '@/components/VaSliderCard';
 import LenderChecklistCard from '@/components/LenderChecklistCard';
 import ScenarioComparisonCard from '@/components/ScenarioComparisonCard';
 import AlertBell from '@/components/AlertBell';
@@ -383,7 +384,11 @@ type ApiResponse = {
     } | null;
     incomeQualifySlider?: {
         price: number; downPct: number; rate: number; term: number;
-        taxRate: number; insRate: number; loanType?: 'conventional' | 'fha' | 'jumbo';
+        taxRate: number; insRate: number; loanType?: 'conventional' | 'fha' | 'jumbo' | 'va';
+    } | null;
+    vaSlider?: {
+        price: number; downPct: number; rate: number; term: number;
+        taxRate: number; insRate: number; vaFundingFeePct: number;
     } | null;
     fhaSlider?: {
         price: number; downPct: number; rate: number; term: number;
@@ -2986,8 +2991,19 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Interactive slider card — VA · Buydown answers */}
-                                                        {m.meta.interactiveSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {/* VA purchase slider card */}
+                                                        {m.meta.vaSlider && !loading && typingId === null && (
+                                                            <VaSliderCard
+                                                                {...m.meta.vaSlider}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Interactive slider card — Buydown answers (VA now handled by VaSliderCard) */}
+                                                        {m.meta.interactiveSlider && !m.meta.vaSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 onRunScenario={(seed, sliderParams) => {

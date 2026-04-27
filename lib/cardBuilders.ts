@@ -151,6 +151,15 @@ export interface BuiltCard {
         taxRate: number;
         insRate: number;
     } | null;
+    vaSlider?: {
+        price: number;
+        downPct: number;
+        rate: number;
+        term: number;
+        taxRate: number;
+        insRate: number;
+        vaFundingFeePct: number;
+    } | null;
     scenarioComparisonCard?: {
         tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
         price: number;
@@ -2867,6 +2876,15 @@ ${countySection}${buydownSection}${dtiSection}
             loanType:        'va' as const,
             vaFundingFeePct: r.isExempt ? 0 : r.fundingFeePct,
             buydownType:     'none' as const,
+        },
+        vaSlider: {
+            price:          r.purchasePrice,
+            downPct:        r.downPaymentPct,
+            rate:           r.originalRatePct,
+            term:           r.termYears,
+            taxRate:        r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
+            insRate:        r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            vaFundingFeePct: r.isExempt ? 0 : r.fundingFeePct,
         },
         lenderChecklist: {
             loanType: 'va',

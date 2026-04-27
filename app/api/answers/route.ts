@@ -5000,6 +5000,22 @@ ${uwDatabase}`;
                 calcCard = buildVACard(result, calcAssumptions, fredRateForCard, vaCountyData);
                 calcDebugModel = 'calcEngine-va';
                 injectCmaChip(calcCard);
+                // When the VA query is asking for income qualification, swap vaSlider → incomeQualifySlider
+                const _isVAIncomeQuery = /what income do i need|income.*to qualify|income needed.*qualify/i.test(question);
+                if (_isVAIncomeQuery) {
+                    const _vr = calcDispatch.params as any;
+                    (calcCard as any).vaSlider = null;
+                    (calcCard as any).interactiveSlider = null;
+                    (calcCard as any).incomeQualifySlider = {
+                        price:   _vr.purchasePrice,
+                        downPct: _vr.downPaymentPct ?? 0,
+                        rate:    _vr.annualRatePct  ?? (fred?.mort30Avg ?? 6.75),
+                        term:    30,
+                        taxRate: _vr.propertyTaxRate ?? 0.011,
+                        insRate: 0.003,
+                        loanType: 'va' as const,
+                    };
+                }
 
             } else if (calcDispatch.type === 'va_needs_input') {
                 calcCard = buildVANeedsInputCard(fredRateForCard);
@@ -5290,7 +5306,8 @@ ${uwDatabase}`;
                     follow_up_chips: calcCard.follow_up_chips,
                     confidence: calcCard.confidence,
                 },
-                interactiveSlider: calcCard.interactiveSlider ?? null,
+                interactiveSlider: (calcCard as any).vaSlider ? null : (calcCard.interactiveSlider ?? null),
+                vaSlider: (calcCard as any).vaSlider ?? null,
                 jumboSlider: (calcCard as any).jumboSlider ?? null,
                 convHBSlider: (calcCard as any).convHBSlider ?? null,
                 incomeQualifySlider: (calcCard as any).incomeQualifySlider ?? null,
@@ -6021,6 +6038,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
         /income.{0,20}(?:need|required).{0,20}(?:qualify|home|house|mortgage)/i.test(question) ||
         /do i qualify|can i qualify/i.test(question);
     const isFHAIncomeQuery = isIncomeNeededQuery && /\bfha\b/i.test(question);
+    const isVAIncomeQuery  = isIncomeNeededQuery && /\bva\b|\bveteran|department of veterans/i.test(question);
     const hasSpecificHomePrice = hasNonIncomePrice &&
         /\b(?:home|house|property|purchase|payment on|on a)\b/i.test(question) &&
         !isIncomeNeededQuery;  // income-needed queries have a home price but must use affordability
@@ -6162,6 +6180,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                         insRate: iqInsRate,
                         loanType: snapshotLoanType?.includes('jumbo') ? 'jumbo' as const
                             : snapshotLoanType?.includes('fha') ? 'fha' as const
+                            : snapshotLoanType?.includes('va') ? 'va' as const
                             : 'conventional' as const,
                     } : null,
                 };
@@ -6246,7 +6265,7 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                             term: 30,
                             taxRate: taxRateDecimal,
                             insRate: insRateDecimal,
-                            loanType: isJumboLoan ? 'jumbo' as const : isFHAIncomeQuery ? 'fha' as const : 'conventional' as const,
+                            loanType: isJumboLoan ? 'jumbo' as const : isFHAIncomeQuery ? 'fha' as const : isVAIncomeQuery ? 'va' as const : 'conventional' as const,
                         },
                         lenderChecklist: {
                             loanType: (isJumboLoan ? 'jumbo' : 'conventional') as 'jumbo' | 'conventional',
