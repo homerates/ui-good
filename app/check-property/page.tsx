@@ -95,7 +95,7 @@ function CheckPropertyInner() {
 
     const sc: Scenario = {
         price:   Number(sp?.get('price') ?? 0) || 500_000,
-        dp:      Number(sp?.get('dp')    ?? 0) || 20,
+        dp:      sp?.get('dp') != null ? Number(sp.get('dp')) : 20,
         rate:    Number(sp?.get('rate')  ?? 0) || 6.5,
         term:    Number(sp?.get('term')  ?? 0) || 30,
         lt:      (sp?.get('lt') as Scenario['lt']) || 'conventional',
