@@ -146,11 +146,12 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     function getRunOverrides(): Record<string, any> {
         const lt = isJumbo ? 'jumbo' : isFHA ? 'fha' : isVA ? 'va' : 'conventional';
         return {
-            purchasePrice: price,
-            downPaymentPct: downPct,
-            annualRatePct: rate,
-            monthlyDebts: monthlyDebt,
-            loanType: lt,
+            purchasePrice:   price,
+            downPaymentPct:  downPct,
+            annualRatePct:   rate,
+            monthlyDebts:    monthlyDebt,
+            loanType:        lt,
+            isIncomeQualify: true,
         };
     }
 

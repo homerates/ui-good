@@ -1,4 +1,4 @@
-// ==== WEB-FIRST + GROK + SUPABASE (UI-SAFE): app/api/answers/route.ts ====
+﻿// ==== WEB-FIRST + GROK + SUPABASE (UI-SAFE): app/api/answers/route.ts ====
 export const runtime = "nodejs"; // v2
 export const dynamic = "force-dynamic";
 
@@ -4255,6 +4255,25 @@ ${uwDatabase}`;
                 ...(_bdIsVA ? ['VA loan — no down payment required'] : []),
                 ...((paramOverrides as any).sellerCredit > 0 ? [`seller credit $${Number((paramOverrides as any).sellerCredit).toLocaleString()}`] : []),
             ];
+        } else if ((paramOverrides as any).isIncomeQualify === true && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            // IncomeQualifySliderCard "Run adjusted scenario" — route to correct CalcEngine, then swap to incomeQualifySlider in post-processing
+            const _iqLT = ((paramOverrides as any).loanType ?? 'conventional') as string;
+            const _iqDown = (paramOverrides.downPaymentPct ?? (_iqLT === 'va' ? 0 : _iqLT === 'fha' ? 3.5 : 20)) as number;
+            if (_iqLT === 'va') {
+                (calcDispatch as any).type = 'va';
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct, fundingFeeExempt: !!(paramOverrides as any).vaFundingFeeExempt, customFundingFeePct: (paramOverrides as any).customFundingFeePct ?? undefined };
+            } else if (_iqLT === 'fha') {
+                (calcDispatch as any).type = 'fha';
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct };
+            } else if (_iqLT === 'jumbo') {
+                (calcDispatch as any).type = 'jumbo';
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: Math.max(20, _iqDown), annualRatePct: paramOverrides.annualRatePct, termYears: 30 };
+            } else {
+                (calcDispatch as any).type = 'conventional';
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct };
+            }
+            (calcDispatch as any)._isIncomeQualify = true;
+            (calcDispatch as any)._iqLoanType = _iqLT;
         } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'va';
             (calcDispatch as any).params = {
@@ -4607,6 +4626,25 @@ ${uwDatabase}`;
                 ...(_bdIsVA ? ['VA loan — no down payment required'] : []),
                 ...((paramOverrides as any).sellerCredit > 0 ? [`seller credit $${Number((paramOverrides as any).sellerCredit).toLocaleString()}`] : []),
             ];
+        } else if ((paramOverrides as any).isIncomeQualify === true && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
+            // IncomeQualifySliderCard "Run adjusted scenario" — route to correct CalcEngine, then swap to incomeQualifySlider in post-processing
+            const _iqLT = ((paramOverrides as any).loanType ?? 'conventional') as string;
+            const _iqDown = (paramOverrides.downPaymentPct ?? (_iqLT === 'va' ? 0 : _iqLT === 'fha' ? 3.5 : 20)) as number;
+            if (_iqLT === 'va') {
+                (calcDispatch as any).type = 'va';
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct, fundingFeeExempt: !!(paramOverrides as any).vaFundingFeeExempt, customFundingFeePct: (paramOverrides as any).customFundingFeePct ?? undefined };
+            } else if (_iqLT === 'fha') {
+                (calcDispatch as any).type = 'fha';
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct };
+            } else if (_iqLT === 'jumbo') {
+                (calcDispatch as any).type = 'jumbo';
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: Math.max(20, _iqDown), annualRatePct: paramOverrides.annualRatePct, termYears: 30 };
+            } else {
+                (calcDispatch as any).type = 'conventional';
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct };
+            }
+            (calcDispatch as any)._isIncomeQualify = true;
+            (calcDispatch as any)._iqLoanType = _iqLT;
         } else if ((paramOverrides as any).loanType === 'va' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
             (calcDispatch as any).type = 'va';
             (calcDispatch as any).params = {
@@ -4874,6 +4912,12 @@ ${uwDatabase}`;
                 calcCard = buildFHACard(result, calcAssumptions, undefined, fredRateForCard);
                 calcDebugModel = 'calcEngine-fha';
                 injectCmaChip(calcCard);
+                if ((calcDispatch as any)._isIncomeQualify) {
+                    const _fqpo = paramOverrides as any;
+                    (calcCard as any).fhaSlider = null;
+                    (calcCard as any).interactiveSlider = null;
+                    (calcCard as any).incomeQualifySlider = { price: _fqpo.purchasePrice, downPct: _fqpo.downPaymentPct ?? 3.5, rate: _fqpo.annualRatePct ?? (fred?.mort30Avg ?? 6.75), term: 30, taxRate: 0.011, insRate: 0.003, loanType: 'fha' as const };
+                }
 
             } else if (calcDispatch.type === 'mip_duration_knowledge') {
                 calcCard = buildMIPDurationCard(conversationHistory ?? '');
@@ -5001,9 +5045,10 @@ ${uwDatabase}`;
                 calcDebugModel = 'calcEngine-va';
                 injectCmaChip(calcCard);
                 // When the VA query is asking for income qualification, swap vaSlider → incomeQualifySlider
-                const _isVAIncomeQuery = /what income do i need|income.*to qualify|income needed.*qualify/i.test(question);
+                const _isVAIncomeQuery = /what income do i need|income.*to qualify|income needed.*qualify/i.test(question)
+                    || !!(calcDispatch as any)._isIncomeQualify;
                 if (_isVAIncomeQuery) {
-                    const _vr = calcDispatch.params as any;
+                    const _vr = (calcDispatch as any)._isIncomeQualify ? (paramOverrides as any) : calcDispatch.params as any;
                     (calcCard as any).vaSlider = null;
                     (calcCard as any).interactiveSlider = null;
                     (calcCard as any).incomeQualifySlider = {
@@ -5035,7 +5080,8 @@ ${uwDatabase}`;
                 calcDebugModel = 'calcEngine-jumbo';
                 injectCmaChip(calcCard);
                 // When the jumbo query is asking for income qualification, swap jumboSlider → incomeQualifySlider
-                const _isJumboIncomeQuery = /what income do i need|income.*to qualify|income needed.*qualify/i.test(question);
+                const _isJumboIncomeQuery = /what income do i need|income.*to qualify|income needed.*qualify/i.test(question)
+                    || !!(calcDispatch as any)._isIncomeQualify;
                 if (_isJumboIncomeQuery) {
                     const _jr = calcDispatch.params as any;
                     (calcCard as any).jumboSlider = null;
@@ -5206,11 +5252,19 @@ ${uwDatabase}`;
                 calcDebugModel = 'calcEngine-loan-limits';
 
             } else if (calcDispatch.type === 'conventional' && calcDispatch.params &&
-                !/how much income|what income|what salary|income.*(?:need|qualify|required?)|(?:need|qualify).{0,20}income/i.test(question)) {
+                (!!/how much income|what income|what salary|income.*(?:need|qualify|required?)|(?:need|qualify).{0,20}income/i.test(question)
+                    ? !!(calcDispatch as any)._isIncomeQualify  // only allow if explicitly flagged
+                    : true)) {
                 const result = calcConventional(calcDispatch.params as any);
                 calcCard = buildConventionalCard(result, calcAssumptions, fredRateForCard);
                 calcDebugModel = 'calcEngine-conventional';
                 injectCmaChip(calcCard);
+                if ((calcDispatch as any)._isIncomeQualify) {
+                    const _cqpo = paramOverrides as any;
+                    (calcCard as any).convHBSlider = null;
+                    (calcCard as any).interactiveSlider = null;
+                    (calcCard as any).incomeQualifySlider = { price: _cqpo.purchasePrice, downPct: _cqpo.downPaymentPct ?? 20, rate: _cqpo.annualRatePct ?? (fred?.mort30Avg ?? 6.75), term: 30, taxRate: 0.011, insRate: 0.003, loanType: 'conventional' as const };
+                }
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
                 const result = calcAffordability(calcDispatch.params as any);
