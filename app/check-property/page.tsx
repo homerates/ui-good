@@ -272,7 +272,7 @@ function CheckPropertyInner() {
                         Your Scenario · {theme.label}
                     </div>
                     <div style={{ fontSize: 13, color: '#c4cfe0', fontWeight: 600 }}>
-                        Budget scenario: {fmtK(sc.price)} · {sc.dp}% down · {sc.rate.toFixed(2)}% · {sc.term}yr · {fmt$(Math.round(scenPITI))}/mo
+                        Budget scenario: {fmtK(sc.price)} · {sc.dp}% down · {sc.rate.toFixed(2)}% · {sc.term}yr · {fmt$(Math.round(scenPITI))}/mo PITI{sc.monthlyDebt > 0 ? ` · +${fmt$(Math.round(sc.monthlyDebt))}/mo debts` : ''}
                     </div>
                 </div>
                 <button
@@ -405,12 +405,16 @@ function CheckPropertyInner() {
                                         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 4 }}>Your Budget Scenario</div>
                                         <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(sc.price)}</div>
                                         <div style={{ fontSize: 12, color: '#6b7a99', marginTop: 3 }}>{fmt$(Math.round(scenPITI))}/mo PITI</div>
+                                        {sc.monthlyDebt > 0 && <div style={{ fontSize: 11, color: '#6b7a99', marginTop: 1 }}>+ {fmt$(Math.round(sc.monthlyDebt))}/mo other debts</div>}
+                                        {sc.monthlyDebt > 0 && <div style={{ fontSize: 11, color: '#8899bb', marginTop: 1, fontWeight: 600 }}>{fmt$(Math.round(scenTotalMo))}/mo total obligations</div>}
                                         <div style={{ fontSize: 11, color: '#3a4560', marginTop: 2 }}>Income needed: {fmt$(scenIncome)}/yr</div>
                                     </div>
                                     <div style={{ background: statusBg, border: `1px solid ${statusBdr}`, borderRadius: 10, padding: '12px 14px' }}>
                                         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: statusColor, marginBottom: 4 }}>This Property</div>
                                         <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(actualPrice)}</div>
                                         <div style={{ fontSize: 12, color: '#6b7a99', marginTop: 3 }}>{fmt$(Math.round(actualPITI))}/mo PITI</div>
+                                        {sc.monthlyDebt > 0 && <div style={{ fontSize: 11, color: '#6b7a99', marginTop: 1 }}>+ {fmt$(Math.round(sc.monthlyDebt))}/mo other debts</div>}
+                                        {sc.monthlyDebt > 0 && <div style={{ fontSize: 11, color: '#8899bb', marginTop: 1, fontWeight: 600 }}>{fmt$(Math.round(actualTotalMo))}/mo total obligations</div>}
                                         <div style={{ fontSize: 11, color: '#3a4560', marginTop: 2 }}>Income needed: {fmt$(actualIncome)}/yr</div>
                                     </div>
                                 </div>
