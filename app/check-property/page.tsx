@@ -130,49 +130,65 @@ function CheckPropertyInner() {
         finally  { setLoading(false); }
     }
 
-    // ── Derived scenario numbers (estimated, before real data) ───────────────
+    // ── Scenario numbers (from URL — the budget they analysed) ───────────────
 
-    const loanAmt   = sc.price * (1 - sc.dp / 100);
-    const estPI     = calcPI(loanAmt, sc.rate, sc.term);
-    const estTax    = (sc.price * sc.taxRate) / 12;
-    const estIns    = (sc.price * sc.insRate) / 12;
-    const estPITI   = estPI + estTax + estIns;
+    const scenLoanAmt = sc.price * (1 - sc.dp / 100);
+    const scenPI      = calcPI(scenLoanAmt, sc.rate, sc.term);
+    const scenTax     = (sc.price * sc.taxRate) / 12;
+    const scenIns     = (sc.price * sc.insRate) / 12;
+    const scenPITI    = scenPI + scenTax + scenIns;
 
-    // ── Real numbers (after property data loaded) ────────────────────────────
+    // ── Actual property numbers (recalculated on the real listing price) ──────
 
     const listPrice    = propData?.price ?? sc.price;
+    const actualPrice  = propData ? listPrice : sc.price;   // switches to real price after lookup
     const avm          = propData?.estimatedValue ?? null;
-    const realAnnTax   = propData?.annualTaxes ?? (propData?.taxRateEffective ? sc.price * propData.taxRateEffective : null);
-    const realMonthTax = realAnnTax ? realAnnTax / 12 : estTax;
+
+    const realAnnTax   = propData?.annualTaxes ?? (propData?.taxRateEffective ? actualPrice * propData.taxRateEffective : null);
+    const realMonthTax = realAnnTax ? realAnnTax / 12 : (actualPrice * sc.taxRate) / 12;
     const hoaMonthly   = propData?.hoaMonthly ?? 0;
-    const realPITI     = estPI + realMonthTax + estIns + hoaMonthly;
-    const realIncome43 = Math.round((realPITI / 0.43) * 12);
-    const realIncome41 = Math.round((realPITI / 0.41) * 12);
-    const realIncome38 = Math.round((realPITI / 0.38) * 12);
+    const actualIns    = (actualPrice * sc.insRate) / 12;
 
-    // ── Cash to close ────────────────────────────────────────────────────────
+    const actualLoanAmt = actualPrice * (1 - sc.dp / 100);
+    const actualPI      = calcPI(actualLoanAmt, sc.rate, sc.term);
+    const actualPITI    = actualPI + realMonthTax + actualIns + hoaMonthly;
 
-    const downAmt      = sc.price * sc.dp / 100;
-    const closingPct   = CLOSING_PCT[sc.lt];
-    const closingAmt   = Math.round(sc.price * closingPct);
-    const prepaidEscrow = Math.round((realMonthTax + estIns) * 3);
-    const reserves6mo  = Math.round(realPITI * 6);
-    const reserves12mo = Math.round(realPITI * 12);
-    const totalClose   = downAmt + closingAmt + prepaidEscrow;
-    const totalLiquid  = totalClose + (sc.lt === 'jumbo' ? reserves6mo : sc.lt === 'va' ? Math.round(realPITI * 2) : 0);
+    const realIncome43 = Math.round((actualPITI / 0.43) * 12);
+    const realIncome41 = Math.round((actualPITI / 0.41) * 12);
+    const realIncome38 = Math.round((actualPITI / 0.38) * 12);
 
-    // ── 5yr / 10yr ownership cost ────────────────────────────────────────────
+    // ── Gap analysis (scenario vs this property) ─────────────────────────────
+
+    const pitiGap      = actualPITI - scenPITI;   // +ve = more expensive than scenario
+    const dtiPct       = sc.lt === 'jumbo' ? 0.38 : sc.lt === 'va' ? 0.41 : 0.43;
+    const scenIncome   = Math.round((scenPITI  / dtiPct) * 12);
+    const actualIncome = Math.round((actualPITI / dtiPct) * 12);
+    const incomeGap    = actualIncome - scenIncome;
+    const downGap      = (actualPrice - sc.price) * sc.dp / 100;   // extra down needed
+
+    // ── Cash to close (on actual property price) ─────────────────────────────
+
+    const downAmt       = actualPrice * sc.dp / 100;
+    const closingPct    = CLOSING_PCT[sc.lt];
+    const closingAmt    = Math.round(actualPrice * closingPct);
+    const prepaidEscrow = Math.round((realMonthTax + actualIns) * 3);
+    const reserves6mo   = Math.round(actualPITI * 6);
+    const reserves12mo  = Math.round(actualPITI * 12);
+    const totalClose    = downAmt + closingAmt + prepaidEscrow;
+    const totalLiquid   = totalClose + (sc.lt === 'jumbo' ? reserves6mo : sc.lt === 'va' ? Math.round(actualPITI * 2) : 0);
+
+    // ── 5yr / 10yr ownership cost (on actual property price) ─────────────────
 
     function ownershipCost(years: number) {
-        const months   = years * 12;
-        const balAfter = loanBalanceAfter(loanAmt, sc.rate, sc.term * 12, months);
-        const equityBuilt = loanAmt - balAfter;
-        const piPaid  = estPI * months;
-        const taxPaid = realMonthTax * months;
-        const insPaid = estIns * months;
-        const hoaPaid = hoaMonthly * months;
-        const totalPaid = downAmt + piPaid + taxPaid + insPaid + hoaPaid + closingAmt;
-        const netCost   = totalPaid - equityBuilt;
+        const months      = years * 12;
+        const balAfter    = loanBalanceAfter(actualLoanAmt, sc.rate, sc.term * 12, months);
+        const equityBuilt = actualLoanAmt - balAfter;
+        const piPaid      = actualPI * months;
+        const taxPaid     = realMonthTax * months;
+        const insPaid     = actualIns * months;
+        const hoaPaid     = hoaMonthly * months;
+        const totalPaid   = downAmt + piPaid + taxPaid + insPaid + hoaPaid + closingAmt;
+        const netCost     = totalPaid - equityBuilt;
         return { equityBuilt, piPaid, taxPaid, insPaid, hoaPaid, totalPaid, netCost, months };
     }
 
@@ -251,7 +267,7 @@ function CheckPropertyInner() {
                         Your Scenario · {theme.label}
                     </div>
                     <div style={{ fontSize: 13, color: '#c4cfe0', fontWeight: 600 }}>
-                        {fmtK(sc.price)} · {sc.dp}% down · {sc.rate.toFixed(2)}% · {sc.term}yr · Est. {fmt$(Math.round(estPITI))}/mo
+                        Budget scenario: {fmtK(sc.price)} · {sc.dp}% down · {sc.rate.toFixed(2)}% · {sc.term}yr · {fmt$(Math.round(scenPITI))}/mo
                     </div>
                 </div>
                 <button
@@ -326,7 +342,7 @@ function CheckPropertyInner() {
                             {propData.baths   && <StatTile label="Baths"     value={String(propData.baths)} />}
                             {propData.sqft    && <StatTile label="Sq Ft"     value={propData.sqft.toLocaleString()} />}
                             {propData.yearBuilt && <StatTile label="Year Built" value={String(propData.yearBuilt)} />}
-                            {propData.sqft    && <StatTile label="$/sq ft"   value={`$${Math.round(sc.price / propData.sqft)}`} />}
+                            {propData.sqft    && <StatTile label="$/sq ft"   value={`$${Math.round(actualPrice / propData.sqft)}`} />}
                             {propData.listingStatus && <StatTile label="Status" value={propData.listingStatus.replace('_', ' ')} />}
                         </div>
                         {avm && (
@@ -356,40 +372,114 @@ function CheckPropertyInner() {
                         {propData.lastSalePrice && (
                             <div style={{ marginTop: 8, fontSize: 12, color: '#4b6080' }}>
                                 Last sold: {propData.lastSaleDate ?? '—'}  for {fmtK(propData.lastSalePrice)}
-                                {propData.lastSalePrice ? ` · ${pct(((sc.price - propData.lastSalePrice) / propData.lastSalePrice) * 100, 1)} ${sc.price >= propData.lastSalePrice ? 'appreciation' : 'discount vs last sale'}` : ''}
+                                {propData.lastSalePrice ? ` · ${pct(((actualPrice - propData.lastSalePrice) / propData.lastSalePrice) * 100, 1)} ${actualPrice >= propData.lastSalePrice ? 'appreciation' : 'discount vs last sale'}` : ''}
                             </div>
                         )}
                     </Section>
 
-                    {/* ② Real numbers */}
-                    <Section title="Your Real Numbers" icon="📊" accent={theme.accent}>
+                    {/* ② Gap analysis — scenario vs this property */}
+                    {(() => {
+                        const canAfford  = pitiGap <= 0;
+                        const priceDiff  = actualPrice - sc.price;
+                        const statusColor = canAfford ? '#00e87a' : '#f59e0b';
+                        const statusBg    = canAfford ? 'rgba(0,232,122,0.06)' : 'rgba(245,158,11,0.06)';
+                        const statusBdr   = canAfford ? 'rgba(0,232,122,0.2)' : 'rgba(245,158,11,0.2)';
+                        const dtiLabel    = sc.lt === 'jumbo' ? '38%' : sc.lt === 'va' ? '41%' : '43%';
+                        return (
+                            <div style={{ background: '#0d1117', border: `1px solid rgba(255,255,255,0.07)`, borderRadius: 14, padding: '18px 18px 16px', marginBottom: 14 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                                    <span style={{ fontSize: 16 }}>{canAfford ? '✅' : '⚠️'}</span>
+                                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: statusColor }}>
+                                        {canAfford ? 'This Property Fits Your Scenario' : 'Gap Analysis — What More You Need'}
+                                    </span>
+                                </div>
+
+                                {/* Price comparison bar */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '12px 14px' }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 4 }}>Your Budget Scenario</div>
+                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(sc.price)}</div>
+                                        <div style={{ fontSize: 12, color: '#6b7a99', marginTop: 3 }}>{fmt$(Math.round(scenPITI))}/mo PITI</div>
+                                        <div style={{ fontSize: 11, color: '#3a4560', marginTop: 2 }}>Income needed: {fmt$(scenIncome)}/yr</div>
+                                    </div>
+                                    <div style={{ background: statusBg, border: `1px solid ${statusBdr}`, borderRadius: 10, padding: '12px 14px' }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: statusColor, marginBottom: 4 }}>This Property</div>
+                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(actualPrice)}</div>
+                                        <div style={{ fontSize: 12, color: '#6b7a99', marginTop: 3 }}>{fmt$(Math.round(actualPITI))}/mo PITI</div>
+                                        <div style={{ fontSize: 11, color: '#3a4560', marginTop: 2 }}>Income needed: {fmt$(actualIncome)}/yr</div>
+                                    </div>
+                                </div>
+
+                                {/* Gap rows */}
+                                <div style={{ background: statusBg, border: `1px solid ${statusBdr}`, borderRadius: 10, padding: '12px 14px' }}>
+                                    {!canAfford ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            <GapRow
+                                                label="Monthly payment gap"
+                                                val={`+ ${fmt$(Math.round(pitiGap))}/mo more`}
+                                                color={statusColor}
+                                                note={`Your scenario: ${fmt$(Math.round(scenPITI))}/mo → This property: ${fmt$(Math.round(actualPITI))}/mo`}
+                                            />
+                                            <GapRow
+                                                label={`Additional income needed (${dtiLabel} DTI)`}
+                                                val={`+ ${fmt$(Math.round(incomeGap))}/yr more`}
+                                                color={statusColor}
+                                                note={`${fmt$(scenIncome)}/yr qualifies your scenario → ${fmt$(actualIncome)}/yr needed here`}
+                                            />
+                                            {downGap > 0 && (
+                                                <GapRow
+                                                    label={`Additional down payment (${sc.dp}%)`}
+                                                    val={`+ ${fmtK(Math.round(downGap))}`}
+                                                    color={statusColor}
+                                                    note={`${fmtK(Math.round(sc.price * sc.dp / 100))} for scenario → ${fmtK(Math.round(actualPrice * sc.dp / 100))} for this property`}
+                                                />
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            <GapRow
+                                                label="Monthly payment surplus"
+                                                val={`${fmt$(Math.round(Math.abs(pitiGap)))}/mo under budget`}
+                                                color="#00e87a"
+                                                note={`Your scenario allows ${fmt$(Math.round(scenPITI))}/mo — this property costs ${fmt$(Math.round(actualPITI))}/mo`}
+                                            />
+                                            {priceDiff < 0 && (
+                                                <GapRow
+                                                    label="Price under your budget"
+                                                    val={fmtK(Math.abs(priceDiff)) + ' cheaper'}
+                                                    color="#00e87a"
+                                                    note={`Budget was ${fmtK(sc.price)} — this listing is ${fmtK(actualPrice)}`}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* ③ Real numbers */}
+                    <Section title={`This Property's Real Numbers — ${fmtK(actualPrice)}`} icon="📊" accent={theme.accent}>
                         <div style={{ background: theme.accentFaint, border: `1px solid ${theme.accentBorder}`, borderRadius: 12, padding: '16px 18px', marginBottom: 12 }}>
                             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: theme.accent, marginBottom: 6 }}>
                                 Updated PITI — with real tax data
                             </div>
                             <div style={{ fontSize: 36, fontWeight: 800, color: theme.accent, letterSpacing: '-1px' }}>
-                                {fmt$(Math.round(realPITI))}<span style={{ fontSize: 16, fontWeight: 600, color: '#6b7a99' }}>/mo</span>
+                                {fmt$(Math.round(actualPITI))}<span style={{ fontSize: 16, fontWeight: 600, color: '#6b7a99' }}>/mo</span>
                             </div>
                             {realAnnTax && (
                                 <div style={{ fontSize: 12, color: '#8fa3b8', marginTop: 6 }}>
                                     Real annual tax: {fmt$(Math.round(realAnnTax))} ({propData.taxSource ?? 'estimate'})
-                                    {realAnnTax !== sc.price * sc.taxRate && (
-                                        <span style={{ color: Math.abs(realAnnTax - sc.price * sc.taxRate) > 500 ? '#f59e0b' : '#6b7a99', marginLeft: 8 }}>
-                                            {realAnnTax > sc.price * sc.taxRate
-                                                ? `▲ ${fmt$(Math.round(realAnnTax - sc.price * sc.taxRate))}/yr above estimate`
-                                                : `▼ ${fmt$(Math.round(sc.price * sc.taxRate - realAnnTax))}/yr below estimate`}
-                                        </span>
-                                    )}
                                 </div>
                             )}
                         </div>
                         <KVGrid>
-                            <KV k="Principal & Interest" v={fmt$(Math.round(estPI))} />
+                            <KV k="Principal & Interest" v={fmt$(Math.round(actualPI))} />
                             <KV k={`Property Tax ${realAnnTax ? '(actual)' : '(est.)'}`} v={fmt$(Math.round(realMonthTax)) + '/mo'} highlight={!!realAnnTax} />
-                            <KV k="Homeowner's Insurance" v={fmt$(Math.round(estIns)) + '/mo'} />
+                            <KV k="Homeowner's Insurance" v={fmt$(Math.round(actualIns)) + '/mo'} />
                             {sc.lt === 'va' && <KV k="PMI" v="None — VA benefit" highlight />}
                             {hoaMonthly > 0 && <KV k="HOA (detected)" v={fmt$(hoaMonthly) + '/mo'} />}
-                            <KV k="Total PITI" v={fmt$(Math.round(realPITI)) + '/mo'} total />
+                            <KV k="Total PITI" v={fmt$(Math.round(actualPITI)) + '/mo'} total />
                         </KVGrid>
                         <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                             <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '10px 12px' }}>
@@ -398,12 +488,12 @@ function CheckPropertyInner() {
                             </div>
                             <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '10px 12px' }}>
                                 <div style={{ fontSize: 10, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 3 }}>Income @ 36% DTI</div>
-                                <div style={{ fontSize: 16, fontWeight: 800, color: '#c4cfe0' }}>{fmt$(Math.round((realPITI / 0.36) * 12))}<span style={{ fontSize: 11, fontWeight: 600, color: '#4b6080' }}>/yr</span></div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: '#c4cfe0' }}>{fmt$(Math.round((actualPITI / 0.36) * 12))}<span style={{ fontSize: 11, fontWeight: 600, color: '#4b6080' }}>/yr</span></div>
                             </div>
                         </div>
                     </Section>
 
-                    {/* ③ Cash to close */}
+                    {/* ④ Cash to close */}
                     <Section title="Cash to Close — Day 1" icon="💰">
                         <div style={{ background: '#0a111d', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
                             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#00a854', marginBottom: 4 }}>Total Cash Needed at Closing</div>
@@ -464,9 +554,9 @@ function CheckPropertyInner() {
                             ))}
                         </div>
                         <KVGrid>
-                            <KV k="Interest paid (5yr)" v={fmtK(Math.round(oc5.piPaid - (loanAmt - loanBalanceAfter(loanAmt, sc.rate, sc.term * 12, 60))))} />
+                            <KV k="Interest paid (5yr)" v={fmtK(Math.round(oc5.piPaid - (actualLoanAmt - loanBalanceAfter(actualLoanAmt, sc.rate, sc.term * 12, 60))))} />
                             <KV k="Tax paid (5yr)" v={fmtK(Math.round(oc5.taxPaid))} />
-                            <KV k="Interest paid (10yr)" v={fmtK(Math.round(oc10.piPaid - (loanAmt - loanBalanceAfter(loanAmt, sc.rate, sc.term * 12, 120))))} />
+                            <KV k="Interest paid (10yr)" v={fmtK(Math.round(oc10.piPaid - (actualLoanAmt - loanBalanceAfter(actualLoanAmt, sc.rate, sc.term * 12, 120))))} />
                             <KV k="Tax paid (10yr)" v={fmtK(Math.round(oc10.taxPaid))} />
                         </KVGrid>
                         <div style={{ marginTop: 10, fontSize: 11, color: '#3a4560', lineHeight: 1.5 }}>
@@ -543,6 +633,18 @@ function StatTile({ label, value }: { label: string; value: string }) {
 
 function KVGrid({ children }: { children: React.ReactNode }) {
     return <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{children}</div>;
+}
+
+function GapRow({ label, val, color, note }: { label: string; val: string; color: string; note?: string }) {
+    return (
+        <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: '#8fa3b8' }}>{label}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color, whiteSpace: 'nowrap' }}>{val}</span>
+            </div>
+            {note && <div style={{ fontSize: 11, color: '#4b6080', marginTop: 2 }}>{note}</div>}
+        </div>
+    );
 }
 
 function KV({ k, v, total, highlight }: { k: string; v: string; total?: boolean; highlight?: boolean }) {
