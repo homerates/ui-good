@@ -43,7 +43,7 @@ interface Scenario {
     dp:      number;
     rate:    number;
     term:    number;
-    lt:      'conventional' | 'fha' | 'jumbo' | 'va';
+    lt:      'conventional' | 'fha' | 'jumbo' | 'va' | 'dscr';
     taxRate: number;
     insRate: number;
 }
@@ -80,11 +80,12 @@ const THEME = {
     fha:          { accent: '#f59e0b', accentFaint: 'rgba(245,158,11,0.12)',  accentBorder: 'rgba(245,158,11,0.25)',  label: 'FHA',          ctaTextColor: '#1c0f00' },
     conventional: { accent: '#3d8bff', accentFaint: 'rgba(61,139,255,0.12)',  accentBorder: 'rgba(61,139,255,0.25)',  label: 'Conventional', ctaTextColor: '#fff' },
     va:           { accent: '#14b8a6', accentFaint: 'rgba(20,184,166,0.12)',  accentBorder: 'rgba(20,184,166,0.25)',  label: 'VA',           ctaTextColor: '#071513' },
+    dscr:         { accent: '#00e87a', accentFaint: 'rgba(0,232,122,0.10)',   accentBorder: 'rgba(0,232,122,0.22)',   label: 'DSCR',         ctaTextColor: '#001a0e' },
 };
 
 // ── Closing cost rates by loan type ───────────────────────────────────────────
 
-const CLOSING_PCT: Record<string, number> = { jumbo: 0.020, fha: 0.030, conventional: 0.025, va: 0.025 };
+const CLOSING_PCT: Record<string, number> = { jumbo: 0.020, fha: 0.030, conventional: 0.025, va: 0.025, dscr: 0.025 };
 
 // ── Inner page (needs useSearchParams) ───────────────────────────────────────
 
