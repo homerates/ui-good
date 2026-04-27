@@ -43,7 +43,7 @@ interface Scenario {
     dp:      number;
     rate:    number;
     term:    number;
-    lt:      'conventional' | 'fha' | 'jumbo';
+    lt:      'conventional' | 'fha' | 'jumbo' | 'va';
     taxRate: number;
     insRate: number;
 }
@@ -76,14 +76,15 @@ interface PropData {
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
 const THEME = {
-    jumbo:        { accent: '#8b5cf6', accentFaint: 'rgba(139,92,246,0.12)', accentBorder: 'rgba(139,92,246,0.25)', label: 'Jumbo' },
-    fha:          { accent: '#f59e0b', accentFaint: 'rgba(245,158,11,0.12)',  accentBorder: 'rgba(245,158,11,0.25)',  label: 'FHA' },
-    conventional: { accent: '#3d8bff', accentFaint: 'rgba(61,139,255,0.12)',  accentBorder: 'rgba(61,139,255,0.25)',  label: 'Conventional' },
+    jumbo:        { accent: '#8b5cf6', accentFaint: 'rgba(139,92,246,0.12)', accentBorder: 'rgba(139,92,246,0.25)', label: 'Jumbo',        ctaTextColor: '#fff' },
+    fha:          { accent: '#f59e0b', accentFaint: 'rgba(245,158,11,0.12)',  accentBorder: 'rgba(245,158,11,0.25)',  label: 'FHA',          ctaTextColor: '#1c0f00' },
+    conventional: { accent: '#3d8bff', accentFaint: 'rgba(61,139,255,0.12)',  accentBorder: 'rgba(61,139,255,0.25)',  label: 'Conventional', ctaTextColor: '#fff' },
+    va:           { accent: '#14b8a6', accentFaint: 'rgba(20,184,166,0.12)',  accentBorder: 'rgba(20,184,166,0.25)',  label: 'VA',           ctaTextColor: '#071513' },
 };
 
 // ── Closing cost rates by loan type ───────────────────────────────────────────
 
-const CLOSING_PCT: Record<string, number> = { jumbo: 0.020, fha: 0.030, conventional: 0.025 };
+const CLOSING_PCT: Record<string, number> = { jumbo: 0.020, fha: 0.030, conventional: 0.025, va: 0.025 };
 
 // ── Inner page (needs useSearchParams) ───────────────────────────────────────
 
@@ -146,6 +147,7 @@ function CheckPropertyInner() {
     const hoaMonthly   = propData?.hoaMonthly ?? 0;
     const realPITI     = estPI + realMonthTax + estIns + hoaMonthly;
     const realIncome43 = Math.round((realPITI / 0.43) * 12);
+    const realIncome41 = Math.round((realPITI / 0.41) * 12);
     const realIncome38 = Math.round((realPITI / 0.38) * 12);
 
     // ── Cash to close ────────────────────────────────────────────────────────
@@ -157,7 +159,7 @@ function CheckPropertyInner() {
     const reserves6mo  = Math.round(realPITI * 6);
     const reserves12mo = Math.round(realPITI * 12);
     const totalClose   = downAmt + closingAmt + prepaidEscrow;
-    const totalLiquid  = totalClose + (sc.lt === 'jumbo' ? reserves6mo : 0);
+    const totalLiquid  = totalClose + (sc.lt === 'jumbo' ? reserves6mo : sc.lt === 'va' ? Math.round(realPITI * 2) : 0);
 
     // ── 5yr / 10yr ownership cost ────────────────────────────────────────────
 
@@ -385,13 +387,14 @@ function CheckPropertyInner() {
                             <KV k="Principal & Interest" v={fmt$(Math.round(estPI))} />
                             <KV k={`Property Tax ${realAnnTax ? '(actual)' : '(est.)'}`} v={fmt$(Math.round(realMonthTax)) + '/mo'} highlight={!!realAnnTax} />
                             <KV k="Homeowner's Insurance" v={fmt$(Math.round(estIns)) + '/mo'} />
+                            {sc.lt === 'va' && <KV k="PMI" v="None — VA benefit" highlight />}
                             {hoaMonthly > 0 && <KV k="HOA (detected)" v={fmt$(hoaMonthly) + '/mo'} />}
                             <KV k="Total PITI" v={fmt$(Math.round(realPITI)) + '/mo'} total />
                         </KVGrid>
                         <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                             <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '10px 12px' }}>
-                                <div style={{ fontSize: 10, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 3 }}>Income @ {sc.lt === 'jumbo' ? '38%' : '43%'} DTI</div>
-                                <div style={{ fontSize: 16, fontWeight: 800, color: theme.accent }}>{fmt$(sc.lt === 'jumbo' ? realIncome38 : realIncome43)}<span style={{ fontSize: 11, fontWeight: 600, color: '#4b6080' }}>/yr</span></div>
+                                <div style={{ fontSize: 10, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 3 }}>Income @ {sc.lt === 'jumbo' ? '38%' : sc.lt === 'va' ? '41%' : '43%'} DTI</div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: theme.accent }}>{fmt$(sc.lt === 'jumbo' ? realIncome38 : sc.lt === 'va' ? realIncome41 : realIncome43)}<span style={{ fontSize: 11, fontWeight: 600, color: '#4b6080' }}>/yr</span></div>
                             </div>
                             <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '10px 12px' }}>
                                 <div style={{ fontSize: 10, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 3 }}>Income @ 36% DTI</div>
@@ -488,7 +491,7 @@ function CheckPropertyInner() {
                         <a
                             href={getMatchedUrl()}
                             style={{
-                                display: 'inline-block', background: theme.accent, color: sc.lt === 'conventional' ? '#fff' : sc.lt === 'jumbo' ? '#fff' : '#1c0f00',
+                                display: 'inline-block', background: theme.accent, color: theme.ctaTextColor,
                                 borderRadius: 10, padding: '13px 28px', fontSize: 14, fontWeight: 700,
                                 textDecoration: 'none', letterSpacing: '.02em',
                             }}
