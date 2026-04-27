@@ -73,7 +73,15 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [monthlyDebt, setMonthlyDebt] = useState(0);
     const [bkdOpen,     setBkdOpen]     = useState(true);
 
-    const [vaultDone, setVaultDone] = useState(false);
+    const [vaultDone,    setVaultDone]    = useState(false);
+    const [appliedBadge, setAppliedBadge] = useState(false);
+
+    // Committed baseline — updated locally when "Run adjusted scenario" is clicked
+    const [commitPrice, setCommitPrice] = useState(props.price);
+    const [commitDown,  setCommitDown]  = useState(props.downPct);
+    const [commitRate,  setCommitRate]  = useState(props.rate);
+    const [commitTerm,  setCommitTerm]  = useState(props.term);
+    const [commitDebt,  setCommitDebt]  = useState(0);
 
     const { user } = useUser();
     const router   = useRouter();
@@ -140,19 +148,17 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         } catch { /* non-fatal */ }
     }
 
-    const isDirty = price !== props.price || downPct !== props.downPct ||
-        Math.abs(rate - props.rate) > 0.001 || termYrs !== props.term || monthlyDebt > 0;
+    const isDirty = price !== commitPrice || downPct !== commitDown ||
+        Math.abs(rate - commitRate) > 0.001 || termYrs !== commitTerm || monthlyDebt !== commitDebt;
 
-    function getRunOverrides(): Record<string, any> {
-        const lt = isJumbo ? 'jumbo' : isFHA ? 'fha' : isVA ? 'va' : 'conventional';
-        return {
-            purchasePrice:   price,
-            downPaymentPct:  downPct,
-            annualRatePct:   rate,
-            monthlyDebts:    monthlyDebt,
-            loanType:        lt,
-            isIncomeQualify: true,
-        };
+    function handleCommit() {
+        setCommitPrice(price);
+        setCommitDown(downPct);
+        setCommitRate(rate);
+        setCommitTerm(termYrs);
+        setCommitDebt(monthlyDebt);
+        setAppliedBadge(true);
+        setTimeout(() => setAppliedBadge(false), 1800);
     }
 
     function buildQualifySeed() {
@@ -433,13 +439,13 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
             {/* Action buttons */}
             <div className="iq-actions">
-                {isDirty && props.onRunScenario && (
-                    <button
-                        className="iq-btn-rerun"
-                        onClick={() => props.onRunScenario!(buildQualifySeed(), getRunOverrides())}
-                    >
+                {isDirty && (
+                    <button className="iq-btn-rerun" onClick={handleCommit}>
                         Run adjusted scenario →
                     </button>
+                )}
+                {appliedBadge && !isDirty && (
+                    <span className="iq-applied-badge">✓ Applied</span>
                 )}
                 <button
                     className="iq-btn-property"
@@ -601,6 +607,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-actions { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); flex-wrap:wrap; }
                 .iq-btn-rerun { background:transparent; color:#f0f4ff; border:1.5px solid rgba(255,255,255,0.2); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .iq-btn-rerun:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.35); }
+                .iq-applied-badge { font-size:13px; font-weight:600; color:#00e87a; padding:0 4px; align-self:center; }
                 .iq-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .iq-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
                 .iq-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
