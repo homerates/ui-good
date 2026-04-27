@@ -252,7 +252,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     onChange={setMonthlyDebt}
                     format={v => v === 0 ? 'No other debts' : `${fmt$(v)}/mo`}
                     minLabel="$0" maxLabel="$3,000"
-                    trackColor="#3d8bff" theme="light"
+                    trackColor="#3d8bff" theme="dark"
                 />
                 <div className="iq-debt-hint">
                     Car loan, student loans, credit cards, etc. — adds {monthlyDebt > 0 ? `${fmt$(Math.round((monthlyDebt / 0.43) * 12))} to annual income requirement` : 'nothing until you enter a value'}
@@ -322,7 +322,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     onChange={setPrice}
                     format={v => fmtK(v)}
                     minLabel="$100k" maxLabel={isJumbo ? '$15M' : '$3M'}
-                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="light"
+                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="dark"
                 />
 
                 {/* Down Payment */}
@@ -333,7 +333,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     onChange={v => setDownPct(Math.max(minDown, v))}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel={`${minDown}%`} maxLabel="50%"
-                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="light"
+                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="dark"
                 />
                 <div className="iq-dp-chips">
                     {DP_CHIPS.map(pct => (
@@ -353,7 +353,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     onChange={setRate}
                     format={v => parseFloat(v.toFixed(3)) + '%'}
                     minLabel="3%" maxLabel="12%"
-                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="light"
+                    trackColor={isJumbo ? '#8b5cf6' : '#00e87a'} theme="dark"
                 />
 
                 {/* Loan Term */}
