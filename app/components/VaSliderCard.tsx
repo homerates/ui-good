@@ -425,6 +425,15 @@ export default function VaSliderCard(props: VaSliderParams) {
                     >
                         Check a property →
                     </button>
+                    <button
+                        className="va-followup-chip"
+                        onClick={() => {
+                            const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
+                            props.onRunScenario!(`How does VA compare to conventional on a ${prStr} home — which costs less overall?`, {});
+                        }}
+                    >
+                        Compare VA vs conventional →
+                    </button>
                 </div>
             )}
 

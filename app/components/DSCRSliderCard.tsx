@@ -410,6 +410,17 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 >
                     Check a property →
                 </button>
+                {props.onRunScenario && (
+                    <button
+                        className="dsc-followup-chip"
+                        onClick={() => props.onRunScenario!(
+                            `How do I qualify for a DSCR loan on a $${Math.round(price / 1000)}k investment property — what do lenders look for?`,
+                            {}
+                        )}
+                    >
+                        How do I qualify for a DSCR loan? →
+                    </button>
+                )}
             </div>
 
             {/* Inline rent-threshold reveal — no AI round-trip needed */}

@@ -399,6 +399,15 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                         What income do I need to qualify for this FHA loan? →
                     </button>
                     <button
+                        className="fha-followup-chip"
+                        onClick={() => props.onRunScenario!(
+                            `When can I drop FHA MIP on a $${Math.round(price).toLocaleString()} home with ${downPct}% down?`,
+                            {}
+                        )}
+                    >
+                        When can I drop MIP? →
+                    </button>
+                    <button
                         className="fha-followup-chip fha-followup-chip--property"
                         onClick={() => {
                             const p = new URLSearchParams({

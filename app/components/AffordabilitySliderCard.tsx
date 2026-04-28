@@ -587,6 +587,20 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     >
                         Check a property →
                     </button>
+                    {props.onRunScenario && (
+                        <button
+                            type="button"
+                            className="afc-followup-chip"
+                            onClick={() => {
+                                const prStr = conv3!.maxPrice >= 1_000_000
+                                    ? `$${(conv3!.maxPrice / 1_000_000).toFixed(1)}M`
+                                    : `$${Math.round(conv3!.maxPrice / 1000)}k`;
+                                props.onRunScenario!(`What's my monthly payment on a ${prStr} home with 20% down at ${rate.toFixed(2)}%?`, {});
+                            }}
+                        >
+                            What's my monthly payment at this price? →
+                        </button>
+                    )}
                 </div>
             )}
 

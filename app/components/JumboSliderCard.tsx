@@ -525,6 +525,15 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                     >
                         Check a property →
                     </button>
+                    <button
+                        className="jbs-followup-chip"
+                        onClick={() => props.onRunScenario!(
+                            `How much in liquid reserves do I need for a $${Math.round(price / 1000)}k jumbo loan?`,
+                            {}
+                        )}
+                    >
+                        How much in reserves do I need? →
+                    </button>
                 </div>
             )}
 

@@ -579,6 +579,15 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                         What income do I need to qualify? →
                     </button>
                     <button
+                        className="chb-followup-chip"
+                        onClick={() => {
+                            const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
+                            props.onRunScenario!(`Compare 15-year vs 30-year payment on a ${prStr} home with ${downPct}% down at current rates`, {});
+                        }}
+                    >
+                        Compare 15yr vs 30yr →
+                    </button>
+                    <button
                         className="chb-followup-chip chb-followup-chip--property"
                         onClick={() => {
                             const p = new URLSearchParams({
