@@ -7168,6 +7168,27 @@ Return valid JSON only:
         propertyValue: homeownerSnapshot.estimatedValue ?? undefined,
     } : null;
 
+    const hoRefiIntelligenceCard = homeownerSnapshot?.estimatedBalance && homeownerSnapshot?.purchaseRate ? (() => {
+        const addr = homeownerSnapshot.address as string;
+        const addrParts = addr ? addr.split(',') : [];
+        const stateZipMatch = addr?.match(/,\s*([A-Z]{2})\s+(\d{5})/);
+        return {
+            balance:         homeownerSnapshot.estimatedBalance,
+            currentRate:     homeownerSnapshot.purchaseRate,
+            newRate:         homeownerSnapshot.liveRate,
+            termMonths:      homeownerSnapshot.remainingMonths ?? 305,
+            closingCosts:    Math.round(homeownerSnapshot.estimatedBalance * 0.01),
+            remainingMonths: homeownerSnapshot.remainingMonths ?? 305,
+            propertyValue:   homeownerSnapshot.estimatedValue ?? undefined,
+            address:         addrParts[0]?.trim() ?? addr,
+            city:            addrParts[1]?.trim() ?? undefined,
+            state:           stateZipMatch?.[1] ?? undefined,
+            zip:             stateZipMatch?.[2] ?? addr?.match(/\b(\d{5})\b/)?.[1] ?? undefined,
+            fredDate:        fred?.asOf ?? undefined,
+            sofr:            fred?.sofr ?? undefined,
+        };
+    })() : null;
+
     const hoPropertyCard = homeownerSnapshot ? {
         source:           'web_lookup',
         url:              '',
@@ -7238,8 +7259,9 @@ Return valid JSON only:
             : "Legacy stack",
         message,
         answerMarkdown: finalMarkdown,
-        ...(hoPropertyCard && { propertyCard: hoPropertyCard }),
-        ...(hoRefiSlider   && { refiSlider: hoRefiSlider }),
+        ...(hoPropertyCard          && { propertyCard: hoPropertyCard }),
+        ...(hoRefiSlider            && { refiSlider: hoRefiSlider }),
+        ...(hoRefiIntelligenceCard  && { refiIntelligenceCard: hoRefiIntelligenceCard }),
         // Sliders from affordability income-needed path
         interactiveSlider: (affordabilityAnswer as any)?.interactiveSlider ?? null,
         convHBSlider: (affordabilityAnswer as any)?.convHBSlider ?? null,
