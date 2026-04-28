@@ -197,7 +197,7 @@ async function tavilyPropertySearch(address: string): Promise<{ lastSalePrice: n
 }
 
 // ── property_snapshots cache helpers ─────────────────────────────────────────
-const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SNAPSHOT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — AVM data is stable; 7 days caused drift
 
 function normalizeAddr(a: string) { return a.toLowerCase().replace(/\s+/g, ' ').trim(); }
 
@@ -212,9 +212,10 @@ async function getSnapshot(address: string) {
       .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
     if (!snap) return null;
     if (snap.fetched_at && Date.now() - new Date(snap.fetched_at).getTime() > SNAPSHOT_TTL_MS) return null;
-    // Invalidate only if ATTOM is configured AND this snapshot was never ATTOM-checked at all
-    // (avmDate may be null for properties where ATTOM has no AVM — that's OK, still cache it)
-    if (process.env.ATTOM_API_KEY && !(snap.data as any)?.attomCheckedAt) return null;
+    // Invalidate only if ATTOM is configured AND this snapshot was never ATTOM-checked AND
+    // the snapshot is not from an FHFA model (FHFA snapshots are valid without ATTOM check).
+    const snapSrc = (snap.data as any)?.avmSource;
+    if (process.env.ATTOM_API_KEY && !(snap.data as any)?.attomCheckedAt && snapSrc !== 'fhfa') return null;
     // Invalidate assessed-value snapshots — CA Prop 13 values can be 5–10× below market.
     // Force a fresh ATTOM pass so we pick up the real sale price from their DB.
     if ((snap.data as any)?.avmSource === 'attom_assessed') return null;
@@ -557,6 +558,19 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
 
   // 7. Cache result (non-blocking)
   void saveSnapshot(address, result);
+
+  // Persist FHFA-computed AVM to properties table so future cache misses return
+  // the same anchored value instead of recomputing from a changing yearsElapsed.
+  if (avmSource === 'fhfa' && estimatedValue && prop?.id && !prop.avm_value) {
+    void db().from('properties').update({
+      avm_value:      estimatedValue,
+      avm_value_low:  estimatedValueLow,
+      avm_value_high: estimatedValueHigh,
+      avm_date:       new Date().toISOString().slice(0, 10),
+      updated_at:     new Date().toISOString(),
+    }).eq('id', prop.id);
+  }
+
   return result;
 }
 
