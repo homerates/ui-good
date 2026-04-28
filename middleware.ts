@@ -11,6 +11,8 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
  * - Sitemap + robots (Google must be able to fetch these)
  */
 const isPublicRoute = createRouteMatcher([
+  // Clerk proxy — must be public or middleware creates a circular dependency
+  "/clerk-proxy(.*)",
   // Core app
   "/",
   "/chat",
