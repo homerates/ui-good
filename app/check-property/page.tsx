@@ -254,13 +254,13 @@ function CheckPropertyInner() {
             {/* ── Page title ─────────────────────────────────────────────── */}
             <div style={{ marginBottom: 24 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 6 }}>
-                    Property Discovery
+                    Property Match
                 </div>
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#f0f4ff', letterSpacing: '-0.5px' }}>
-                    Run your numbers on a specific property
+                    Does this property fit your price range?
                 </h1>
                 <p style={{ margin: '6px 0 0', fontSize: 13, color: '#6b7a99', lineHeight: 1.5 }}>
-                    Drop in an address or Redfin/Zillow link. We pull the real tax data and show you the full picture — before you talk to anyone.
+                    Paste any address or Redfin/Zillow link below and hit <strong style={{ color: '#c4cfe0' }}>Run Numbers</strong> — we pull real tax data and show you exactly where you stand.
                 </p>
             </div>
 
@@ -269,7 +269,7 @@ function CheckPropertyInner() {
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: theme.accent, marginBottom: 2 }}>
-                        Your Scenario · {theme.label}
+                        Your Price Range · {theme.label}
                     </div>
                     <div style={{ fontSize: 13, color: '#c4cfe0', fontWeight: 600 }}>
                         Budget scenario: {fmtK(sc.price)} · {sc.dp}% down · {sc.rate.toFixed(2)}% · {sc.term}yr · {fmt$(Math.round(scenPITI))}/mo PITI{sc.monthlyDebt > 0 ? ` · +${fmt$(Math.round(sc.monthlyDebt))}/mo debts` : ''}
@@ -382,87 +382,135 @@ function CheckPropertyInner() {
                         )}
                     </Section>
 
-                    {/* ② Gap analysis — scenario vs this property */}
+                    {/* ② Gap analysis — 3-column comparison */}
                     {(() => {
-                        const canAfford  = pitiGap <= 0;
-                        const priceDiff  = actualPrice - sc.price;
+                        const canAfford   = pitiGap <= 0;
                         const statusColor = canAfford ? '#00e87a' : '#f59e0b';
                         const statusBg    = canAfford ? 'rgba(0,232,122,0.06)' : 'rgba(245,158,11,0.06)';
                         const statusBdr   = canAfford ? 'rgba(0,232,122,0.2)' : 'rgba(245,158,11,0.2)';
                         const dtiLabel    = sc.lt === 'jumbo' ? '38%' : sc.lt === 'va' ? '41%' : '43%';
+
+                        // Positive = within budget (green), Negative = over budget (red)
+                        const priceDelta  = sc.price - actualPrice;
+                        const pitiDelta   = scenTotalMo - actualTotalMo;
+                        const incomeDelta = scenIncome - actualIncome;
+
+                        const fc  = (d: number) => d >= 0 ? '#00e87a' : '#f87171';
+                        const fbg = (d: number) => d >= 0 ? 'rgba(0,232,122,0.08)' : 'rgba(248,113,113,0.08)';
+
+                        const colHdr = (label: string, last = false) => ({
+                            padding: '8px 12px', background: '#060a10',
+                            borderRight: last ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                        });
+                        const col = (last = false, bg = '#0a0f1a') => ({
+                            padding: '12px 12px', background: bg,
+                            borderRight: last ? 'none' : '1px solid rgba(255,255,255,0.05)',
+                            borderTop: '1px solid rgba(255,255,255,0.05)',
+                        });
+
                         return (
-                            <div style={{ background: '#0d1117', border: `1px solid rgba(255,255,255,0.07)`, borderRadius: 14, padding: '18px 18px 16px', marginBottom: 14 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                            <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px 18px 16px', marginBottom: 14 }}>
+                                {/* Header */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                                     <span style={{ fontSize: 16 }}>{canAfford ? '✅' : '⚠️'}</span>
                                     <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: statusColor }}>
-                                        {canAfford ? 'This Property Fits Your Scenario' : 'Gap Analysis — What More You Need'}
+                                        {canAfford ? 'This Property Fits Your Price Range' : 'Gap Analysis — How This Property Compares'}
                                     </span>
                                 </div>
+                                <div style={{ fontSize: 12, color: '#4b6080', marginBottom: 14 }}>
+                                    {canAfford ? 'This listing falls within your budget scenario.' : "Here's what changes if you buy this specific property."}
+                                </div>
 
-                                {/* Price comparison bar */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-                                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '12px 14px' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 4 }}>Your Budget Scenario</div>
-                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(sc.price)}</div>
-                                        <div style={{ fontSize: 12, color: '#6b7a99', marginTop: 3 }}>{fmt$(Math.round(scenPITI))}/mo PITI</div>
-                                        {sc.monthlyDebt > 0 && <div style={{ fontSize: 11, color: '#6b7a99', marginTop: 1 }}>+ {fmt$(Math.round(sc.monthlyDebt))}/mo other debts</div>}
-                                        {sc.monthlyDebt > 0 && <div style={{ fontSize: 11, color: '#8899bb', marginTop: 1, fontWeight: 600 }}>{fmt$(Math.round(scenTotalMo))}/mo total obligations</div>}
-                                        <div style={{ fontSize: 11, color: '#3a4560', marginTop: 2 }}>Income needed: {fmt$(scenIncome)}/yr</div>
+                                {/* 3-column grid */}
+                                <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden', marginBottom: sc.monthlyDebt > 0 || Math.abs(downGap) > 500 ? 10 : 0 }}>
+                                    {/* Column headers */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+                                        <div style={colHdr('Your Affordability')}>
+                                            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#4b6080' }}>Your Affordability</div>
+                                        </div>
+                                        <div style={colHdr('This Property')}>
+                                            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#4b6080' }}>This Property</div>
+                                        </div>
+                                        <div style={colHdr('Fit Check', true)}>
+                                            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#4b6080' }}>Fit Check</div>
+                                        </div>
                                     </div>
-                                    <div style={{ background: statusBg, border: `1px solid ${statusBdr}`, borderRadius: 10, padding: '12px 14px' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: statusColor, marginBottom: 4 }}>This Property</div>
-                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(actualPrice)}</div>
-                                        <div style={{ fontSize: 12, color: '#6b7a99', marginTop: 3 }}>{fmt$(Math.round(actualPITI))}/mo PITI</div>
-                                        {sc.monthlyDebt > 0 && <div style={{ fontSize: 11, color: '#6b7a99', marginTop: 1 }}>+ {fmt$(Math.round(sc.monthlyDebt))}/mo other debts</div>}
-                                        {sc.monthlyDebt > 0 && <div style={{ fontSize: 11, color: '#8899bb', marginTop: 1, fontWeight: 600 }}>{fmt$(Math.round(actualTotalMo))}/mo total obligations</div>}
-                                        <div style={{ fontSize: 11, color: '#3a4560', marginTop: 2 }}>Income needed: {fmt$(actualIncome)}/yr</div>
+
+                                    {/* Row 1: Price */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+                                        <div style={col()}>
+                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Your Budget</div>
+                                            <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(sc.price)}</div>
+                                        </div>
+                                        <div style={col()}>
+                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Listed At</div>
+                                            <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(actualPrice)}</div>
+                                        </div>
+                                        <div style={{ ...col(true, fbg(priceDelta)) }}>
+                                            <div style={{ fontSize: 9, color: fc(priceDelta), textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4, opacity: 0.7 }}>Price Gap</div>
+                                            <div style={{ fontSize: 18, fontWeight: 800, color: fc(priceDelta) }}>{fmtK(Math.abs(priceDelta))}</div>
+                                            <div style={{ fontSize: 10, color: fc(priceDelta), marginTop: 2, opacity: 0.85 }}>{priceDelta >= 0 ? '↓ under your budget' : '↑ over your budget'}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 2: Monthly payment */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+                                        <div style={col()}>
+                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Monthly Payment</div>
+                                            <div style={{ fontSize: 18, fontWeight: 800, color: '#f0f4ff' }}>{fmt$(Math.round(scenTotalMo))}<span style={{ fontSize: 11, color: '#4b6080', fontWeight: 400 }}>/mo</span></div>
+                                            <div style={{ fontSize: 10, color: '#4b6080', marginTop: 2 }}>{sc.monthlyDebt > 0 ? 'PITI + other debts' : 'PITI'}</div>
+                                        </div>
+                                        <div style={col()}>
+                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Monthly Payment</div>
+                                            <div style={{ fontSize: 18, fontWeight: 800, color: '#f0f4ff' }}>{fmt$(Math.round(actualTotalMo))}<span style={{ fontSize: 11, color: '#4b6080', fontWeight: 400 }}>/mo</span></div>
+                                            <div style={{ fontSize: 10, color: '#4b6080', marginTop: 2 }}>{sc.monthlyDebt > 0 ? 'PITI + other debts' : 'PITI'}</div>
+                                        </div>
+                                        <div style={{ ...col(true, fbg(pitiDelta)) }}>
+                                            <div style={{ fontSize: 9, color: fc(pitiDelta), textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4, opacity: 0.7 }}>Monthly Gap</div>
+                                            <div style={{ fontSize: 18, fontWeight: 800, color: fc(pitiDelta) }}>{fmt$(Math.abs(Math.round(pitiDelta)))}<span style={{ fontSize: 11, fontWeight: 400 }}>/mo</span></div>
+                                            <div style={{ fontSize: 10, color: fc(pitiDelta), marginTop: 2, opacity: 0.85 }}>{pitiDelta >= 0 ? '↓ within your budget' : '↑ more per month'}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 3: Income to qualify */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+                                        <div style={col()}>
+                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Income to Qualify</div>
+                                            <div style={{ fontSize: 16, fontWeight: 800, color: '#f0f4ff' }}>{fmt$(scenIncome)}<span style={{ fontSize: 11, color: '#4b6080', fontWeight: 400 }}>/yr</span></div>
+                                            <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2 }}>at {dtiLabel} DTI</div>
+                                        </div>
+                                        <div style={col()}>
+                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Income to Qualify</div>
+                                            <div style={{ fontSize: 16, fontWeight: 800, color: '#f0f4ff' }}>{fmt$(actualIncome)}<span style={{ fontSize: 11, color: '#4b6080', fontWeight: 400 }}>/yr</span></div>
+                                            <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2 }}>at {dtiLabel} DTI</div>
+                                        </div>
+                                        <div style={{ ...col(true, fbg(incomeDelta)) }}>
+                                            <div style={{ fontSize: 9, color: fc(incomeDelta), textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4, opacity: 0.7 }}>Income Gap</div>
+                                            <div style={{ fontSize: 16, fontWeight: 800, color: fc(incomeDelta) }}>{fmt$(Math.abs(Math.round(incomeDelta)))}<span style={{ fontSize: 11, fontWeight: 400 }}>/yr</span></div>
+                                            <div style={{ fontSize: 10, color: fc(incomeDelta), marginTop: 2, opacity: 0.85 }}>{incomeDelta >= 0 ? '↓ income surplus' : '↑ more income needed'}</div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Gap rows */}
-                                <div style={{ background: statusBg, border: `1px solid ${statusBdr}`, borderRadius: 10, padding: '12px 14px' }}>
-                                    {!canAfford ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            <GapRow
-                                                label="Monthly payment gap"
-                                                val={`+ ${fmt$(Math.round(pitiGap))}/mo more`}
-                                                color={statusColor}
-                                                note={`Your scenario: ${fmt$(Math.round(scenPITI))}/mo → This property: ${fmt$(Math.round(actualPITI))}/mo`}
-                                            />
-                                            <GapRow
-                                                label={`Additional income needed (${dtiLabel} DTI)`}
-                                                val={`+ ${fmt$(Math.round(incomeGap))}/yr more`}
-                                                color={statusColor}
-                                                note={`${fmt$(scenIncome)}/yr qualifies your scenario → ${fmt$(actualIncome)}/yr needed here`}
-                                            />
-                                            {downGap > 0 && (
-                                                <GapRow
-                                                    label={`Additional down payment (${sc.dp}%)`}
-                                                    val={`+ ${fmtK(Math.round(downGap))}`}
-                                                    color={statusColor}
-                                                    note={`${fmtK(Math.round(sc.price * sc.dp / 100))} for scenario → ${fmtK(Math.round(actualPrice * sc.dp / 100))} for this property`}
-                                                />
-                                            )}
+                                {/* Down payment delta — only if meaningful */}
+                                {Math.abs(downGap) > 500 && (
+                                    <div style={{ background: statusBg, border: `1px solid ${statusBdr}`, borderRadius: 9, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: '#6b7a99' }}>Down payment at {sc.dp}%</div>
+                                            <div style={{ fontSize: 12, color: '#c4cfe0', marginTop: 2 }}>
+                                                {fmtK(Math.round(sc.price * sc.dp / 100))} on your scenario → {fmtK(Math.round(actualPrice * sc.dp / 100))} on this property
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            <GapRow
-                                                label="Monthly payment surplus"
-                                                val={`${fmt$(Math.round(Math.abs(pitiGap)))}/mo under budget`}
-                                                color="#00e87a"
-                                                note={`Your scenario allows ${fmt$(Math.round(scenPITI))}/mo — this property costs ${fmt$(Math.round(actualPITI))}/mo`}
-                                            />
-                                            {priceDiff < 0 && (
-                                                <GapRow
-                                                    label="Price under your budget"
-                                                    val={fmtK(Math.abs(priceDiff)) + ' cheaper'}
-                                                    color="#00e87a"
-                                                    note={`Budget was ${fmtK(sc.price)} — this listing is ${fmtK(actualPrice)}`}
-                                                />
-                                            )}
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontSize: 16, fontWeight: 800, color: downGap > 0 ? '#f87171' : '#00e87a' }}>
+                                                {fmtK(Math.abs(Math.round(downGap)))}
+                                            </div>
+                                            <div style={{ fontSize: 10, color: downGap > 0 ? '#f87171' : '#00e87a' }}>
+                                                {downGap > 0 ? '↑ more down needed' : '↓ less down needed'}
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         );
                     })()}
@@ -478,13 +526,13 @@ function CheckPropertyInner() {
                             </div>
                             {realAnnTax && (
                                 <div style={{ fontSize: 12, color: '#8fa3b8', marginTop: 6 }}>
-                                    Real annual tax: {fmt$(Math.round(realAnnTax))} ({propData.taxSource ?? 'estimate'})
+                                    Est. taxes: {fmt$(Math.round(realAnnTax))}/yr
                                 </div>
                             )}
                         </div>
                         <KVGrid>
                             <KV k="Principal & Interest" v={fmt$(Math.round(actualPI))} />
-                            <KV k={`Property Tax ${realAnnTax ? '(actual)' : '(est.)'}`} v={fmt$(Math.round(realMonthTax)) + '/mo'} highlight={!!realAnnTax} />
+                            <KV k="Est. Property Tax" v={fmt$(Math.round(realMonthTax)) + '/mo'} highlight={!!realAnnTax} />
                             <KV k="Homeowner's Insurance" v={fmt$(Math.round(actualIns)) + '/mo'} />
                             {sc.lt === 'va' && <KV k="PMI" v="None — VA benefit" highlight />}
                             {hoaMonthly > 0 && <KV k="HOA (detected)" v={fmt$(hoaMonthly) + '/mo'} />}
