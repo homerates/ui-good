@@ -13,6 +13,8 @@ import { fetchPropertyData } from '@/property/fetch';
 import { lookupTaxRate }     from '@/property/taxTable';
 import { getSupabase }       from '../../../../lib/supabaseServer';
 
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
+
 // Cache TTL: 7 days for property snapshots
 const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -353,9 +355,75 @@ function parsePropertyFromText(text: string): BasicFields {
     return { price, beds, baths, sqft, address, city, state, zip };
 }
 
+// ── GPT-4o structured extraction ────────────────────────────────────────────
+
+interface GPT4oPropertyFields {
+    beds?: number | null;
+    baths?: number | null;
+    sqft?: number | null;
+    yearBuilt?: number | null;
+    estimatedValue?: number | null;
+    lastSalePrice?: number | null;
+    lastSaleDate?: string | null;
+    listingStatus?: 'FOR_SALE' | 'OFF_MARKET' | 'PENDING' | 'SOLD' | 'UNKNOWN' | null;
+    listPrice?: number | null;
+    hoaMonthly?: number | null;
+    propertyType?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip?: string | null;
+    taxAssessedValue?: number | null;
+}
+
+async function gpt4oExtract(text: string, url: string): Promise<GPT4oPropertyFields | null> {
+    if (!OPENAI_API_KEY || text.length < 100) return null;
+    try {
+        const snippet = text.slice(0, 12_000);
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
+            body: JSON.stringify({
+                model: 'gpt-4o',
+                temperature: 0,
+                max_tokens: 400,
+                response_format: { type: 'json_object' },
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a real estate data extractor. Extract structured property fields from listing page text. Return only JSON. Use null for missing fields. Numeric fields must be numbers, not strings. Dates must be "Month YYYY" format (e.g. "May 2023"). listingStatus must be one of: FOR_SALE, OFF_MARKET, PENDING, SOLD, UNKNOWN. Fields: beds, baths, sqft, yearBuilt, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType, address, city, state (2-letter), zip, taxAssessedValue`,
+                    },
+                    { role: 'user', content: `URL: ${url}\n\nPage text:\n${snippet}` },
+                ],
+            }),
+            signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        const raw = json?.choices?.[0]?.message?.content;
+        if (!raw) return null;
+        return JSON.parse(raw) as GPT4oPropertyFields;
+    } catch {
+        return null;
+    }
+}
+
+// Merge GPT-4o fields into a data object — only fills nulls, never overwrites
+function mergeGpt4o(base: Record<string, unknown>, gpt: GPT4oPropertyFields | null): Record<string, unknown> {
+    if (!gpt) return base;
+    const out = { ...base };
+    for (const [k, v] of Object.entries(gpt)) {
+        if (v != null && (out[k] == null || out[k] === undefined)) {
+            out[k] = v;
+        }
+    }
+    return out;
+}
+
 // ── Tavily extract helper ───────────────────────────────────────────────────
 
 async function tavilyExtract(url: string): Promise<string | null> {
+
     const key = process.env.TAVILY_API_KEY;
     if (!key) return null;
     try {
@@ -399,15 +467,17 @@ async function broadSearchFallback(address: string): Promise<Record<string, unkn
         const reResults: any[] = (data.results ?? []).filter((r: any) => RE_DOMAINS.test(r.url ?? ''));
         if (reResults.length === 0) return null;
         // Extract full page content from the first real-estate result
-        const text = await tavilyExtract(reResults[0].url);
+        const firstUrl = reResults[0].url;
+        const text = await tavilyExtract(firstUrl);
         if (!text || text.length < 200) return null;
         const tp  = parsePropertyFromText(text);
         const ext = parseExtended(text, tp.price, tp.sqft);
         if (!tp.price && !ext.lastSalePrice && !ext.estimatedValue) return null;
-        const { rate } = lookupTaxRate(tp.state ?? '', null);
-        return {
+        const gpt = await gpt4oExtract(text, firstUrl);
+        const { rate } = lookupTaxRate((gpt?.state ?? tp.state) ?? '', null);
+        const base: Record<string, unknown> = {
             source:           'web_search',
-            url:              reResults[0].url,
+            url:              firstUrl,
             parsedBy:         'tavily_fallback',
             parseWarnings:    ['Data sourced from web search — may be less precise than a direct listing'],
             price:            tp.price,
@@ -424,6 +494,7 @@ async function broadSearchFallback(address: string): Promise<Record<string, unkn
             photoUrl:         null,
             ...ext,
         };
+        return mergeGpt4o(base, gpt);
     } catch {
         return null;
     }
@@ -462,33 +533,32 @@ async function handleUrl(rawUrl: string) {
             const tp  = parsePropertyFromText(text);
             const ext = parseExtended(text, tp.price, tp.sqft);
             if (tp.price || tp.address) {
-                const { rate } = lookupTaxRate(tp.state ?? '', null);
+                const gpt = await gpt4oExtract(text, url);
+                const { rate } = lookupTaxRate((gpt?.state ?? tp.state) ?? '', null);
                 const siteLabel = /realtor\.com/i.test(url) ? 'realtor'
                                 : /trulia\.com/i.test(url)  ? 'unknown'
                                 : 'unknown';
-                return NextResponse.json({
-                    ok: true,
-                    data: {
-                        source:          siteLabel,
-                        url,
-                        parsedBy:        'partial' as const,
-                        parseWarnings:   ['Listing site blocked direct access — data extracted via Tavily'],
-                        price:           tp.price,
-                        address:         tp.address,
-                        city:            tp.city,
-                        state:           tp.state,
-                        zip:             tp.zip,
-                        county:          null,
-                        beds:            (tp.beds  != null && tp.beds  <= 20) ? tp.beds  : null,
-                        baths:           (tp.baths != null && tp.baths <= 20) ? tp.baths : null,
-                        sqft:            tp.sqft,
-                        annualTaxes:     (tp.price && rate) ? Math.round(tp.price * rate) : null,
-                        taxRateEffective: rate,
-                        taxSource:       'table' as const,
-                        photoUrl:        null,
-                        ...ext,
-                    },
-                });
+                const baseData: Record<string, unknown> = {
+                    source:           siteLabel,
+                    url,
+                    parsedBy:         'partial',
+                    parseWarnings:    ['Listing site blocked direct access — data extracted via Tavily + GPT-4o'],
+                    price:            tp.price,
+                    address:          tp.address,
+                    city:             tp.city,
+                    state:            tp.state,
+                    zip:              tp.zip,
+                    county:           null,
+                    beds:             (tp.beds  != null && tp.beds  <= 20) ? tp.beds  : null,
+                    baths:            (tp.baths != null && tp.baths <= 20) ? tp.baths : null,
+                    sqft:             tp.sqft,
+                    annualTaxes:      (tp.price && rate) ? Math.round(tp.price * rate) : null,
+                    taxRateEffective: rate,
+                    taxSource:        'table',
+                    photoUrl:         null,
+                    ...ext,
+                };
+                return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
             }
         }
         const err = base && !base.ok ? base : null;
@@ -508,30 +578,30 @@ async function handleUrl(rawUrl: string) {
     // Only use Tavily-parsed status when the scraper couldn't determine it.
     if (d.listingStatus) ext.listingStatus = d.listingStatus;
 
-    return NextResponse.json({
-        ok: true,
-        data: {
-            // Base PropertyData fields
-            source:           d.source,
-            url,
-            parsedBy:         d.parsedBy,
-            parseWarnings:    d.parseWarnings,
-            price:            d.price,
-            address:          d.address,
-            city:             d.city,
-            state:            d.state,
-            zip:              d.zip,
-            beds:             d.beds,
-            baths:            d.baths,
-            sqft:             d.sqft,
-            annualTaxes:      d.annualTaxes,
-            taxRateEffective: d.taxRateEffective,
-            taxSource:        d.taxSource,
-            photoUrl:         d.photoUrl,
-            // Extended fields
-            ...ext,
-        },
-    });
+    // GPT-4o fills any gaps left by the regex parsers (beds/baths/sqft/yearBuilt/HOA etc.)
+    const gpt = text ? await gpt4oExtract(text, url) : null;
+
+    const baseData: Record<string, unknown> = {
+        source:           d.source,
+        url,
+        parsedBy:         d.parsedBy,
+        parseWarnings:    d.parseWarnings,
+        price:            d.price,
+        address:          d.address,
+        city:             d.city,
+        state:            d.state,
+        zip:              d.zip,
+        beds:             d.beds,
+        baths:            d.baths,
+        sqft:             d.sqft,
+        annualTaxes:      d.annualTaxes,
+        taxRateEffective: d.taxRateEffective,
+        taxSource:        d.taxSource,
+        photoUrl:         d.photoUrl,
+        ...ext,
+    };
+
+    return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
 }
 
 // ── Tavily search → find Redfin URL for an address ─────────────────────────
