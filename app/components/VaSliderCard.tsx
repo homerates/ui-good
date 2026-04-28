@@ -399,43 +399,26 @@ export default function VaSliderCard(props: VaSliderParams) {
                 </div>
             </div>
 
-            {/* Follow-up chips */}
-            {props.onRunScenario && (
-                <div className="va-followup-row">
-                    <button
-                        className="va-followup-chip"
-                        onClick={() => props.onRunScenario!(buildIncomeSeed(), {})}
-                    >
-                        What income do I need to qualify for this VA loan? →
-                    </button>
-                    <button
-                        className="va-followup-chip va-followup-chip--property"
-                        onClick={() => {
-                            const p = new URLSearchParams({
-                                price:   String(Math.round(price)),
-                                dp:      String(downPct),
-                                rate:    rate.toFixed(3),
-                                term:    String(termYrs),
-                                lt:      'va',
-                                taxRate: props.taxRate.toFixed(5),
-                                insRate: props.insRate.toFixed(5),
-                            });
-                            router.push(`/check-property?${p.toString()}`);
-                        }}
-                    >
-                        Check a property →
-                    </button>
-                    <button
-                        className="va-followup-chip"
-                        onClick={() => {
-                            const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
-                            props.onRunScenario!(`How does VA compare to conventional on a ${prStr} home — which costs less overall?`, {});
-                        }}
-                    >
-                        Compare VA vs conventional →
-                    </button>
-                </div>
-            )}
+            {/* Check a property */}
+            <div className="va-property-row">
+                <button
+                    className="va-btn-property"
+                    onClick={() => {
+                        const p = new URLSearchParams({
+                            price:   String(Math.round(price)),
+                            dp:      String(downPct),
+                            rate:    rate.toFixed(3),
+                            term:    String(termYrs),
+                            lt:      'va',
+                            taxRate: props.taxRate.toFixed(5),
+                            insRate: props.insRate.toFixed(5),
+                        });
+                        router.push(`/check-property?${p.toString()}`);
+                    }}
+                >
+                    Check a property →
+                </button>
+            </div>
 
             {/* Rate note */}
             <div className="va-rate-note">
@@ -568,12 +551,10 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-residual-row:last-child { border-bottom:none; }
                 .va-residual-row--note { color:#3a4560; font-size:11px; font-style:italic; justify-content:flex-start; }
 
-                /* follow-up chips */
-                .va-followup-row { display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 10px; }
-                .va-followup-chip { background:rgba(20,184,166,0.06); border:1.5px solid rgba(20,184,166,0.2); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:#14b8a6; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .va-followup-chip:hover { background:rgba(20,184,166,0.12); border-color:rgba(20,184,166,0.4); }
-                .va-followup-chip--property { background:rgba(0,232,122,0.06); border-color:rgba(0,232,122,0.2); color:#00e87a; }
-                .va-followup-chip--property:hover { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.4); }
+                /* check a property */
+                .va-property-row { padding:0 12px 10px; }
+                .va-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .va-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
 
                 /* rate note */
                 .va-rate-note { margin:0 12px 12px; background:rgba(20,184,166,0.04); border:1px solid rgba(20,184,166,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }

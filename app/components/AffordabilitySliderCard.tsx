@@ -566,12 +566,12 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 </div>
             </div>
 
-            {/* ── Follow-up chips ── */}
+            {/* Check a property */}
             {conv3 && (
-                <div className="afc-followup-row">
+                <div className="afc-property-row">
                     <button
                         type="button"
-                        className="afc-followup-chip"
+                        className="afc-btn-property"
                         onClick={() => {
                             const p = new URLSearchParams({
                                 price:   String(Math.round(conv3!.maxPrice)),
@@ -587,20 +587,6 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     >
                         Check a property →
                     </button>
-                    {props.onRunScenario && (
-                        <button
-                            type="button"
-                            className="afc-followup-chip"
-                            onClick={() => {
-                                const prStr = conv3!.maxPrice >= 1_000_000
-                                    ? `$${(conv3!.maxPrice / 1_000_000).toFixed(1)}M`
-                                    : `$${Math.round(conv3!.maxPrice / 1000)}k`;
-                                props.onRunScenario!(`What's my monthly payment on a ${prStr} home with 20% down at ${rate.toFixed(2)}%?`, {});
-                            }}
-                        >
-                            What's my monthly payment at this price? →
-                        </button>
-                    )}
                 </div>
             )}
 
@@ -905,23 +891,10 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 }
                 .afc-btn-match:hover { opacity: .88; }
 
-                /* follow-up chips */
-                .afc-followup-row {
-                    display: flex; gap: 8px; flex-wrap: wrap;
-                    padding: 4px 16px 16px;
-                }
-                .afc-followup-chip {
-                    background: transparent;
-                    border: 1px solid rgba(0,232,122,0.35);
-                    border-radius: 20px; padding: 6px 14px;
-                    font-size: 13px; font-weight: 500;
-                    color: #00e87a; cursor: pointer;
-                    transition: background 0.15s, border-color 0.15s;
-                }
-                .afc-followup-chip:hover {
-                    background: rgba(0,232,122,0.10);
-                    border-color: rgba(0,232,122,0.65);
-                }
+                /* check a property */
+                .afc-property-row { padding:0 12px 10px; }
+                .afc-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .afc-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
 
                 /* disclosures */
                 .afc-disc {

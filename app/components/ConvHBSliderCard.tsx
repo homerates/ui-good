@@ -563,49 +563,26 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 </button>
             </div>
 
-            {/* Follow-up chips */}
-            {props.onRunScenario && (
-                <div className="chb-followup-row">
-                    <button
-                        className="chb-followup-chip"
-                        onClick={() => {
-                            const prStr = price >= 1_000_000
-                                ? `$${(price / 1_000_000).toFixed(2)}M`
-                                : `$${Math.round(price / 1000)}k`;
-                            const seed = `What income do I need to qualify for a ${prStr} home with ${downPct}% down at ${rate.toFixed(2)}%?`;
-                            props.onRunScenario!(seed, {});
-                        }}
-                    >
-                        What income do I need to qualify? →
-                    </button>
-                    <button
-                        className="chb-followup-chip"
-                        onClick={() => {
-                            const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
-                            props.onRunScenario!(`Compare 15-year vs 30-year payment on a ${prStr} home with ${downPct}% down at current rates`, {});
-                        }}
-                    >
-                        Compare 15yr vs 30yr →
-                    </button>
-                    <button
-                        className="chb-followup-chip chb-followup-chip--property"
-                        onClick={() => {
-                            const p = new URLSearchParams({
-                                price:   String(Math.round(price)),
-                                dp:      String(downPct),
-                                rate:    rate.toFixed(3),
-                                term:    String(termYrs),
-                                lt:      'conventional',
-                                taxRate: props.taxRate.toFixed(5),
-                                insRate: props.insRate.toFixed(5),
-                            });
-                            router.push(`/check-property?${p.toString()}`);
-                        }}
-                    >
-                        Check a property →
-                    </button>
-                </div>
-            )}
+            {/* Check a property */}
+            <div className="chb-property-row">
+                <button
+                    className="chb-btn-property"
+                    onClick={() => {
+                        const p = new URLSearchParams({
+                            price:   String(Math.round(price)),
+                            dp:      String(downPct),
+                            rate:    rate.toFixed(3),
+                            term:    String(termYrs),
+                            lt:      'conventional',
+                            taxRate: props.taxRate.toFixed(5),
+                            insRate: props.insRate.toFixed(5),
+                        });
+                        router.push(`/check-property?${p.toString()}`);
+                    }}
+                >
+                    Check a property →
+                </button>
+            </div>
 
             {/* Rate note */}
             <div className="chb-rate-note">
@@ -761,11 +738,10 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-btn-share:hover { border-color:rgba(255,255,255,0.18); color:#f0f4ff; }
 
                 /* follow-up chip */
-                .chb-followup-row { display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 10px; }
-                .chb-followup-chip { background:rgba(0,232,122,0.06); border:1.5px solid rgba(0,232,122,0.2); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:#00e87a; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
-                .chb-followup-chip:hover { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.4); }
-                .chb-followup-chip--property { background:rgba(61,139,255,0.06); border-color:rgba(61,139,255,0.2); color:#3d8bff; }
-                .chb-followup-chip--property:hover { background:rgba(61,139,255,0.12); border-color:rgba(61,139,255,0.4); }
+                /* check a property */
+                .chb-property-row { padding:0 12px 10px; }
+                .chb-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .chb-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
 
                 /* rate note */
                 .chb-rate-note { margin:0 12px 12px; background:rgba(0,232,122,0.04); border:1px solid rgba(0,232,122,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }

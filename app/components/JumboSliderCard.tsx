@@ -499,43 +499,26 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 </div>
             </div>
 
-            {/* Follow-up chips */}
-            {props.onRunScenario && (
-                <div className="jbs-followup-row">
-                    <button
-                        className="jbs-followup-chip"
-                        onClick={() => props.onRunScenario!(buildIncomeSeed(), {})}
-                    >
-                        What income do I need to qualify for this jumbo loan? →
-                    </button>
-                    <button
-                        className="jbs-followup-chip jbs-followup-chip--property"
-                        onClick={() => {
-                            const p = new URLSearchParams({
-                                price:   String(Math.round(price)),
-                                dp:      String(downPct),
-                                rate:    effRate.toFixed(3),
-                                term:    String(termYrs),
-                                lt:      'jumbo',
-                                taxRate: props.taxRate.toFixed(5),
-                                insRate: props.insRate.toFixed(5),
-                            });
-                            router.push(`/check-property?${p.toString()}`);
-                        }}
-                    >
-                        Check a property →
-                    </button>
-                    <button
-                        className="jbs-followup-chip"
-                        onClick={() => props.onRunScenario!(
-                            `How much in liquid reserves do I need for a $${Math.round(price / 1000)}k jumbo loan?`,
-                            {}
-                        )}
-                    >
-                        How much in reserves do I need? →
-                    </button>
-                </div>
-            )}
+            {/* Check a property */}
+            <div className="jbs-property-row">
+                <button
+                    className="jbs-btn-property"
+                    onClick={() => {
+                        const p = new URLSearchParams({
+                            price:   String(Math.round(price)),
+                            dp:      String(downPct),
+                            rate:    effRate.toFixed(3),
+                            term:    String(termYrs),
+                            lt:      'jumbo',
+                            taxRate: props.taxRate.toFixed(5),
+                            insRate: props.insRate.toFixed(5),
+                        });
+                        router.push(`/check-property?${p.toString()}`);
+                    }}
+                >
+                    Check a property →
+                </button>
+            </div>
 
             {/* Rate note */}
             <div className="jbs-rate-note">
@@ -701,12 +684,10 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 .jbs-btn-match { margin-left:auto; background:#8b5cf6; color:#fff; border:none; border-radius:8px; padding:10px 22px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .jbs-btn-match:hover { opacity:.88; }
 
-                /* follow-up chip */
-                .jbs-followup-row { display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 10px; }
-                .jbs-followup-chip { background:rgba(139,92,246,0.06); border:1.5px solid rgba(139,92,246,0.2); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:#8b5cf6; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .jbs-followup-chip:hover { background:rgba(139,92,246,0.12); border-color:rgba(139,92,246,0.4); }
-                .jbs-followup-chip--property { background:rgba(0,232,122,0.06); border-color:rgba(0,232,122,0.2); color:#00e87a; }
-                .jbs-followup-chip--property:hover { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.4); }
+                /* check a property */
+                .jbs-property-row { padding:0 12px 10px; }
+                .jbs-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .jbs-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
 
                 /* rate note */
                 .jbs-rate-note { margin:0 12px 12px; background:rgba(139,92,246,0.04); border:1px solid rgba(139,92,246,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }

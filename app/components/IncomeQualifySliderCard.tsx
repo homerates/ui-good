@@ -485,42 +485,6 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 </button>
             </div>
 
-            {/* Follow-up chips */}
-            {props.onRunScenario && (
-                <div className="iq-followup-row">
-                    {!isVA && (
-                        <button
-                            className="iq-followup-chip"
-                            onClick={() => {
-                                const lt2 = isFHA ? 'conventional' : 'fha';
-                                const dp2 = isFHA ? 20 : 3.5;
-                                const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
-                                props.onRunScenario!(
-                                    `What income do I need for a ${prStr} ${lt2.toUpperCase()} loan with ${dp2}% down at ${rate.toFixed(2)}%?`,
-                                    { isIncomeQualify: true, purchasePrice: price, downPaymentPct: dp2, annualRatePct: rate, loanType: lt2 }
-                                );
-                            }}
-                        >
-                            {isFHA ? 'Try conventional — 20% down →' : 'Try FHA — 3.5% down →'}
-                        </button>
-                    )}
-                    {isVA && (
-                        <button
-                            className="iq-followup-chip"
-                            onClick={() => {
-                                const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
-                                props.onRunScenario!(
-                                    `What income do I need for a ${prStr} conventional loan with 20% down at ${rate.toFixed(2)}%?`,
-                                    { isIncomeQualify: true, purchasePrice: price, downPaymentPct: 20, annualRatePct: rate, loanType: 'conventional' }
-                                );
-                            }}
-                        >
-                            Compare with conventional →
-                        </button>
-                    )}
-                </div>
-            )}
-
             {/* Rate note */}
             <div className="iq-rate-note">
                 <span className="iq-bulb">💡</span>
@@ -653,12 +617,6 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-btn-match:hover { opacity:.88; }
 
                 /* follow-up chips */
-                .iq-followup-row { display:flex; flex-wrap:wrap; gap:8px; padding:0 16px 12px; }
-                .iq-followup-chip { background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.12); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:#8fa3b8; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
-                .iq-followup-chip:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
-                .iq--fha .iq-followup-chip:hover { border-color:rgba(245,158,11,0.35); color:#f59e0b; }
-                .iq--jumbo .iq-followup-chip:hover { border-color:rgba(139,92,246,0.35); color:#8b5cf6; }
-                .iq--va .iq-followup-chip:hover { border-color:rgba(20,184,166,0.35); color:#14b8a6; }
 
                 /* rate note */
                 .iq-rate-note { margin:0 12px 12px; background:rgba(61,139,255,0.04); border:1px solid rgba(61,139,255,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }

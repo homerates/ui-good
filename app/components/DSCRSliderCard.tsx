@@ -396,31 +396,14 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 )}
             </div>
 
-            {/* ⑦ Follow-up chips */}
-            <div className="dsc-followup-row">
+            {/* Check a property */}
+            <div className="dsc-property-row">
                 <button
-                    className={`dsc-followup-chip${rentReveal ? ' dsc-followup-chip--active' : ''}`}
-                    onClick={() => setRentReveal(o => !o)}
-                >
-                    What rent do I need to qualify? →
-                </button>
-                <button
-                    className="dsc-followup-chip dsc-followup-chip--property"
+                    className="dsc-btn-property"
                     onClick={() => router.push(getCheckPropertyUrl())}
                 >
                     Check a property →
                 </button>
-                {props.onRunScenario && (
-                    <button
-                        className="dsc-followup-chip"
-                        onClick={() => props.onRunScenario!(
-                            `How do I qualify for a DSCR loan on a $${Math.round(price / 1000)}k investment property — what do lenders look for?`,
-                            {}
-                        )}
-                    >
-                        How do I qualify for a DSCR loan? →
-                    </button>
-                )}
             </div>
 
             {/* Inline rent-threshold reveal — no AI round-trip needed */}
@@ -575,13 +558,10 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 .dsc-kv--total .dsc-kv-v { font-weight:800; color:#f0f4ff; font-size:13px; }
                 .dsc-kv-s { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6b7a99; padding:10px 0 4px; }
 
-                /* follow-up chips */
-                .dsc-followup-row { display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 10px; }
-                .dsc-followup-chip { background:rgba(0,232,122,0.06); border:1.5px solid rgba(0,232,122,0.2); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:${ACCENT}; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .dsc-followup-chip:hover { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.4); }
-                .dsc-followup-chip--active { background:rgba(0,232,122,0.14); border-color:rgba(0,232,122,0.5); }
-                .dsc-followup-chip--property { background:rgba(99,102,241,0.06); border-color:rgba(99,102,241,0.2); color:#818cf8; }
-                .dsc-followup-chip--property:hover { background:rgba(99,102,241,0.12); border-color:rgba(99,102,241,0.4); }
+                /* check a property */
+                .dsc-property-row { padding:0 12px 10px; }
+                .dsc-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .dsc-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
 
                 /* rent reveal */
                 .dsc-rent-reveal { margin:0 12px 12px; background:rgba(0,232,122,0.05); border:1px solid rgba(0,232,122,0.18); border-radius:12px; overflow:hidden; }

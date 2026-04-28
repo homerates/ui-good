@@ -389,43 +389,26 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 </div>
             </div>
 
-            {/* Follow-up chips */}
-            {props.onRunScenario && (
-                <div className="fha-followup-row">
-                    <button
-                        className="fha-followup-chip"
-                        onClick={() => props.onRunScenario!(buildIncomeSeed(), {})}
-                    >
-                        What income do I need to qualify for this FHA loan? →
-                    </button>
-                    <button
-                        className="fha-followup-chip"
-                        onClick={() => props.onRunScenario!(
-                            `When can I drop FHA MIP on a $${Math.round(price).toLocaleString()} home with ${downPct}% down?`,
-                            {}
-                        )}
-                    >
-                        When can I drop MIP? →
-                    </button>
-                    <button
-                        className="fha-followup-chip fha-followup-chip--property"
-                        onClick={() => {
-                            const p = new URLSearchParams({
-                                price:   String(Math.round(price)),
-                                dp:      String(downPct),
-                                rate:    rate.toFixed(3),
-                                term:    String(termYrs),
-                                lt:      'fha',
-                                taxRate: props.taxRate.toFixed(5),
-                                insRate: props.insRate.toFixed(5),
-                            });
-                            router.push(`/check-property?${p.toString()}`);
-                        }}
-                    >
-                        Check a property →
-                    </button>
-                </div>
-            )}
+            {/* Check a property */}
+            <div className="fha-property-row">
+                <button
+                    className="fha-btn-property"
+                    onClick={() => {
+                        const p = new URLSearchParams({
+                            price:   String(Math.round(price)),
+                            dp:      String(downPct),
+                            rate:    rate.toFixed(3),
+                            term:    String(termYrs),
+                            lt:      'fha',
+                            taxRate: props.taxRate.toFixed(5),
+                            insRate: props.insRate.toFixed(5),
+                        });
+                        router.push(`/check-property?${p.toString()}`);
+                    }}
+                >
+                    Check a property →
+                </button>
+            </div>
 
             {/* Rate note */}
             <div className="fha-rate-note">
@@ -561,12 +544,10 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-btn-match { margin-left:auto; background:#f59e0b; color:#1c0f00; border:none; border-radius:8px; padding:10px 22px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .fha-btn-match:hover { opacity:.88; }
 
-                /* follow-up chip */
-                .fha-followup-row { display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 10px; }
-                .fha-followup-chip { background:rgba(245,158,11,0.06); border:1.5px solid rgba(245,158,11,0.2); border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; color:#f59e0b; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .fha-followup-chip:hover { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.4); }
-                .fha-followup-chip--property { background:rgba(0,232,122,0.06); border-color:rgba(0,232,122,0.2); color:#00e87a; }
-                .fha-followup-chip--property:hover { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.4); }
+                /* check a property */
+                .fha-property-row { padding:0 12px 10px; }
+                .fha-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .fha-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
 
                 /* rate note */
                 .fha-rate-note { margin:0 12px 12px; background:rgba(245,158,11,0.04); border:1px solid rgba(245,158,11,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }
