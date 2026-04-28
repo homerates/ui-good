@@ -413,7 +413,7 @@ export function calcConventional(input: ConventionalInput): ConventionalResult {
     const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mPMI = monthlyPMI(loanAmount, ltv);
     const mHOA = hoaMonthly;
-    const total = mPI + mTax + mIns + mPMI + mHOA;
+    const total = Math.round(mPI) + Math.round(mTax) + Math.round(mIns) + Math.round(mPMI) + Math.round(mHOA);
 
     const totInt = totalInterest(loanAmount, annualRatePct, termMo);
     const totPay = mPI * termMo;
@@ -493,7 +493,7 @@ export function calcFHA(input: FHAInput): FHAResult {
     const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
     const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mHOA = hoaMonthly;
-    const total = mPI + mMIP + mTax + mIns + mHOA;
+    const total = Math.round(mPI) + Math.round(mMIP) + Math.round(mTax) + Math.round(mIns) + Math.round(mHOA);
 
     const totInt = totalInterest(totalLoan, annualRatePct, termMo);
     const totPay = mPI * termMo;
@@ -1028,7 +1028,7 @@ export function calcAffordabilityScenario(
     const mMI = isFHA
         ? Math.round(baseLoan * FHA_MIP_RATE / 12)
         : (downPct < 20 ? Math.round(baseLoan * PMI_RATE_STD / 12) : 0);
-    const total = mPI + mTax + mIns + mMI;
+    const total = Math.round(mPI) + Math.round(mTax) + Math.round(mIns) + Math.round(mMI);
 
     const frontEndDTI = Math.round((total / monthlyIncome) * 1000) / 10;
     const backEndDTI = Math.round(((total + monthlyDebts) / monthlyIncome) * 1000) / 10;
@@ -1289,7 +1289,7 @@ export function calcVA(input: VAInput): VAResult {
     const mTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
     const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mHOA = hoaMonthly;
-    const total = mPI + mTax + mIns + mHOA; // no PMI
+    const total = Math.round(mPI) + Math.round(mTax) + Math.round(mIns) + Math.round(mHOA); // no PMI; sum rounded to match display
 
     const totInt = totalInterest(totalLoanAmount, effectiveRate, termMo);
     const totPay = mPI * termMo;
@@ -1523,7 +1523,7 @@ export function calcJumbo(input: JumboInput): JumboResult {
     const mIns = (annualInsurance ?? Math.round(purchasePrice * INS_RATE_DEFAULT)) / 12;
     const mHOA = hoaMonthly;
     // No PMI — jumbo requires 20%+ down
-    const total = mPI + mTax + mIns + mHOA;
+    const total = Math.round(mPI) + Math.round(mTax) + Math.round(mIns) + Math.round(mHOA);
 
     const totInt = totalInterest(loanAmount, annualRatePct, termMo);
     const totPay = mPI * termMo;
