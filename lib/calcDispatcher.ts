@@ -823,10 +823,14 @@ export function dispatch(
         if (!price || !rent) {
             return { type: 'dscr_needs_input', params: null, confidence: 0, assumptions: [] };
         }
-        const rate = extractRate(q) ?? fallbackRate;
+        const _dscrExtractedRate = extractRate(q);
+        const _dscrFallback = fredRate != null
+            ? parseFloat((fredRate + 0.5).toFixed(2))
+            : parseFloat((fallbackRate + 0.5).toFixed(2));
+        const rate = _dscrExtractedRate ?? _dscrFallback;
         const downPct = extractDownPct(q) ?? 25;
         const taxRate = extractTaxRate(q);
-        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        if (_dscrExtractedRate == null) assumptions.push(`rate ${rate}% (FRED 30yr avg + 0.5% DSCR premium)`);
         if (downPct === 25) assumptions.push('down payment assumed 25% (DSCR standard)');
 
         return {
@@ -964,7 +968,8 @@ export function dispatch(
         if (!price) {
             return { type: 'jumbo_needs_input', params: null, confidence: 0, assumptions: [] };
         }
-        const rate    = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
+        const _jumboExtractedRate = extractRate(q) ?? pullFromHistory(hist, extractRate);
+        const rate    = _jumboExtractedRate ?? fallbackRate;
         const downPct = Math.max(20, extractDownPct(q) ?? 20);
         const loanAmt = price * (1 - downPct / 100);
         // If the actual loan amount falls within conforming limits, treat as conventional
@@ -972,7 +977,7 @@ export function dispatch(
         if (loanAmt <= 832_750) {
             // fall through to conventional path
         } else {
-            if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+            if (_jumboExtractedRate == null) assumptions.push(`rate assumed ${rate}% (FRED 30yr avg)`);
             if (downPct === 20) assumptions.push('down payment assumed 20% (jumbo minimum)');
 
             return {

@@ -2219,8 +2219,8 @@ export function buildLabCard(): BuiltCard {
         { icon: '🏠', label: 'Home Purchase',   tag: 'Conventional',     desc: '$832,750 · 10% down · 6.5%',              seed: 'Conventional loan $832,750 home 10% down at 6.5%' },
         { icon: '📋', label: 'FHA Loan',         tag: 'Gov-backed',       desc: '$541,287 · 3.5% down · 6.25%',             seed: 'FHA loan $541,287 home 3.5% down at 6.25%' },
         { icon: '🎖️', label: 'VA Loan',          tag: '$0 down · no PMI', desc: '$650,000 · 0% down · 6.75%',               seed: 'VA loan $650,000 home 0% down at 6.75%' },
-        { icon: '💎', label: 'Jumbo Loan',        tag: 'Above conforming', desc: '$1.4M · 20% down · 7.25%',                 seed: 'Jumbo loan $1,400,000 home 20% down at 7.25%' },
-        { icon: '📐', label: 'Rental Property',  tag: 'DSCR · No income', desc: '$750k · 25% down · rent $4,800/mo',        seed: 'DSCR loan $750,000 rental property 25% down 7.25% rate rent $4,800/mo' },
+        { icon: '💎', label: 'Jumbo Loan',        tag: 'Above conforming', desc: '$1.4M · 20% down · live rate',              seed: 'Jumbo loan $1,400,000 home 20% down' },
+        { icon: '📐', label: 'Rental Property',  tag: 'DSCR · No income', desc: '$750k · 25% down · rent $4,800/mo',        seed: 'DSCR loan $750,000 rental property 25% down rent $4,800/mo' },
         { icon: '🔁', label: 'Refinance',         tag: 'Rate & term',      desc: '$750k balance · 7.75% → 6.75%',           seed: 'Refinance $750,000 balance from 7.75% down to 6.75%' },
         { icon: '💰', label: 'Affordability',     tag: 'Income-based',     desc: '$200k income · $100k savings',             seed: 'How much home can I afford on $200,000 income $100,000 savings' },
     ];
