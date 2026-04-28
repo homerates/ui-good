@@ -3379,6 +3379,17 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
                 termMonths: monthsLeft,
                 closingCosts: effCosts,
             },
+            refiIntelligenceCard: {
+                balance,
+                currentRate,
+                newRate: effNewRate,
+                termMonths: monthsLeft,
+                closingCosts: effCosts,
+                remainingMonths: monthsLeft,
+                ...(homeValue != null && { propertyValue: homeValue }),
+                ...(fred?.asOf && { fredDate: fred.asOf }),
+                ...(fred?.sofr != null && { sofr: fred.sofr }),
+            },
             lenderChecklist: (() => {
                 const r = effNewRate / 100 / 12;
                 const n = monthsLeft;
@@ -4924,7 +4935,11 @@ ${uwDatabase}`;
                 const _refiEstimatedValue = Math.round((calcDispatch.params as any).currentBalance / 0.8);
                 calcCard = buildRefiCard(result, calcAssumptions, fredRateForCard,
                     (calcDispatch.params as any).isFHAtoConv ? 'fha_to_conv' : undefined,
-                    _refiEstimatedValue);
+                    _refiEstimatedValue,
+                    {
+                        fredDate: fred?.asOf ?? undefined,
+                        sofr: fred?.sofr ?? undefined,
+                    });
                 calcDebugModel = 'calcEngine-refi';
 
             } else if (calcDispatch.type === 'refi_needs_input') {
@@ -5405,6 +5420,7 @@ ${uwDatabase}`;
                 affordabilitySlider: calcCard.affordabilitySlider ?? null,
                 dscrSlider: calcCard.dscrSlider ?? null,
                 refiSlider: calcCard.refiSlider ?? null,
+                refiIntelligenceCard: calcCard.refiIntelligenceCard ?? null,
                 loanLimitsSlider: calcCard.loanLimitsSlider ?? null,
                 jumboAffordabilitySlider: calcCard.jumboAffordabilitySlider ?? null,
                 lenderChecklist: calcCard.lenderChecklist ?? null,

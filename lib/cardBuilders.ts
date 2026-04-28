@@ -129,6 +129,22 @@ export interface BuiltCard {
         closingCosts: number;
         propertyValue?: number;
     };
+    refiIntelligenceCard?: {
+        balance: number;
+        currentRate: number;
+        newRate: number;
+        termMonths?: number;
+        closingCosts?: number;
+        remainingMonths?: number;
+        address?: string;
+        city?: string;
+        state?: string;
+        zip?: string;
+        propertyValue?: number;
+        origRateLabel?: string;
+        fredDate?: string;
+        sofr?: number;
+    } | null;
     loanLimitsSlider?: {
         county: string;
         state?: string;
@@ -693,6 +709,15 @@ export function buildRefiCard(
     fredRateStr?: string,
     refiType?: string,
     propertyValue?: number,
+    ctx?: {
+        fredDate?: string;
+        sofr?: number;
+        address?: string;
+        city?: string;
+        state?: string;
+        zip?: string;
+        origRateLabel?: string;
+    },
 ): BuiltCard {
     const verdictEmoji = {
         strong: '✅',
@@ -881,6 +906,22 @@ ${mipSection}${resetSection}${waitSection}
             termMonths: r.refiTermMonths,
             closingCosts: r.closingCosts,
             ...(propertyValue != null && { propertyValue }),
+        },
+        refiIntelligenceCard: {
+            balance: r.currentBalance,
+            currentRate: r.currentRatePct,
+            newRate: r.newRatePct,
+            termMonths: r.refiTermMonths,
+            closingCosts: r.closingCosts,
+            remainingMonths: r.remainingMonths,
+            ...(propertyValue != null && { propertyValue }),
+            ...(ctx?.address    && { address: ctx.address }),
+            ...(ctx?.city       && { city: ctx.city }),
+            ...(ctx?.state      && { state: ctx.state }),
+            ...(ctx?.zip        && { zip: ctx.zip }),
+            ...(ctx?.origRateLabel && { origRateLabel: ctx.origRateLabel }),
+            ...(ctx?.fredDate   && { fredDate: ctx.fredDate }),
+            ...(ctx?.sofr != null && { sofr: ctx.sofr }),
         },
         lenderChecklist: {
             loanType: 'conventional' as const,
