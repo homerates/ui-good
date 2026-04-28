@@ -389,6 +389,24 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 </div>
             </div>
 
+            {/* Income qualify chip */}
+            {props.onRunScenario && (
+                <div className="fha-followup-row">
+                    <button
+                        className="fha-followup-chip"
+                        onClick={() => {
+                            const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
+                            props.onRunScenario!(
+                                `What income do I need to qualify for a ${prStr} FHA loan with ${downPct}% down at ${rate.toFixed(2)}%?`,
+                                { isIncomeQualify: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'fha' }
+                            );
+                        }}
+                    >
+                        What income do I need to qualify? →
+                    </button>
+                </div>
+            )}
+
             {/* Check a property */}
             <div className="fha-property-row">
                 <button
@@ -545,6 +563,9 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-btn-match:hover { opacity:.88; }
 
                 /* check a property */
+                .fha-followup-row { padding:0 12px 4px; }
+                .fha-followup-chip { background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.12); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .fha-followup-chip:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
                 .fha-property-row { padding:0 12px 10px; }
                 .fha-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .fha-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }

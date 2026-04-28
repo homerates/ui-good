@@ -399,6 +399,24 @@ export default function VaSliderCard(props: VaSliderParams) {
                 </div>
             </div>
 
+            {/* Income qualify chip */}
+            {props.onRunScenario && (
+                <div className="va-followup-row">
+                    <button
+                        className="va-followup-chip"
+                        onClick={() => {
+                            const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
+                            props.onRunScenario!(
+                                `What income do I need to qualify for a ${prStr} VA loan with ${downPct}% down at ${rate.toFixed(2)}%?`,
+                                { isIncomeQualify: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'va' }
+                            );
+                        }}
+                    >
+                        What income do I need to qualify? →
+                    </button>
+                </div>
+            )}
+
             {/* Check a property */}
             <div className="va-property-row">
                 <button
@@ -552,6 +570,9 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-residual-row--note { color:#3a4560; font-size:11px; font-style:italic; justify-content:flex-start; }
 
                 /* check a property */
+                .va-followup-row { padding:0 12px 4px; }
+                .va-followup-chip { background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.12); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .va-followup-chip:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
                 .va-property-row { padding:0 12px 10px; }
                 .va-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .va-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }

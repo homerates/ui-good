@@ -563,6 +563,24 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 </button>
             </div>
 
+            {/* Income qualify chip */}
+            {props.onRunScenario && (
+                <div className="chb-followup-row">
+                    <button
+                        className="chb-followup-chip"
+                        onClick={() => {
+                            const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
+                            props.onRunScenario!(
+                                `What income do I need to qualify for a ${prStr} conventional loan with ${downPct}% down at ${rate.toFixed(2)}%?`,
+                                { isIncomeQualify: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'conventional' }
+                            );
+                        }}
+                    >
+                        What income do I need to qualify? →
+                    </button>
+                </div>
+            )}
+
             {/* Check a property */}
             <div className="chb-property-row">
                 <button
@@ -739,6 +757,9 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
                 /* follow-up chip */
                 /* check a property */
+                .chb-followup-row { padding:0 12px 4px; }
+                .chb-followup-chip { background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.12); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .chb-followup-chip:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
                 .chb-property-row { padding:0 12px 10px; }
                 .chb-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .chb-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
