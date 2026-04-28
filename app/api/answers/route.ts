@@ -2789,14 +2789,16 @@ async function handle(req: NextRequest, intentParam?: string) {
         const qFull = question;
 
         // Balance — handles $1,280,000 / $1.28M / $580k / on my $X
-        // Equity-options questions ("value $X, balance $Y, equity $Z") list value before balance —
-        // check for the explicit "balance $X" label first to avoid grabbing the value amount.
+        // Priority: explicit "$Xk balance" / "$XM balance" patterns FIRST so they beat
+        // comma-separated amounts like closing-cost figures ("closing costs $15,000").
         const balM =
-            qFull.match(/\bbalance\b\s*\$?\s*([\d,]+)/i) ??
-            qFull.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ??
-            qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*[Mm]\b/) ??
-            qFull.match(/\bon\s+(?:my\s+)?\$\s*(\d+(?:\.\d+)?)\s*k?\b/i) ??
-            qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*k\b/i);
+            qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*[Mm]\s*(?:balance|loan|mortgage)\b/i) ??   // $1.2M balance
+            qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*k\s*(?:balance|loan|mortgage)\b/i) ??       // $750k balance
+            qFull.match(/\bbalance\b\s*\$?\s*([\d,]+)/i) ??                                  // balance $750,000
+            qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*[Mm]\b/) ??                                 // $1.2M (no label)
+            qFull.match(/\$\s*(\d+(?:\.\d+)?)\s*k\b/i) ??                                   // $750k (no label)
+            qFull.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ??                                      // $750,000 (comma-separated — last resort)
+            qFull.match(/\bon\s+(?:my\s+)?\$\s*(\d+(?:\.\d+)?)\s*k?\b/i);                  // on my $750k
         let balance: number | null = null;
         if (balM) {
             const raw = balM[1].replace(/,/g, '');
@@ -3304,6 +3306,9 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
             chip3,
             chip4,
         ];
+
+        // Always append "Analyse My Property" chip — navigates to /my-home
+        refiChips.push({ label: `Analyse My Property`, seed: ``, url: `/my-home` } as any);
 
         // Override chips for special refi types
         if (isFHAtoConv) {

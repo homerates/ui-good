@@ -340,7 +340,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                     <div style={{ fontSize:12, fontWeight:700, color:C.text, textShadow:'0 1px 6px rgba(0,0,0,0.8)' }}>{addrLine1}</div>
                     <div style={{ fontSize:10, color:'rgba(107,122,153,0.9)', marginTop:2, textShadow:'0 1px 4px rgba(0,0,0,0.8)' }}>{addrLine2}</div>
                 </div>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.06em', textTransform:'uppercase', padding:'3px 9px', borderRadius:20, background:'rgba(59,130,246,0.15)', color:C.blue, border:'1px solid rgba(59,130,246,0.3)', backdropFilter:'blur(4px)', pointerEvents:'all' }}>My Property</div>
+                <a href="/my-home" style={{ fontSize:9, fontWeight:700, letterSpacing:'.06em', textTransform:'uppercase', padding:'3px 9px', borderRadius:20, background:'rgba(59,130,246,0.15)', color:C.blue, border:'1px solid rgba(59,130,246,0.3)', backdropFilter:'blur(4px)', pointerEvents:'all', textDecoration:'none', cursor:'pointer' }}>Analyse Property →</a>
             </div>
         </div>
 
