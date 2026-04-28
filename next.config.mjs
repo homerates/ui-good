@@ -9,9 +9,19 @@ const nextConfig = {
     return config;
   },
 
-  // 👇 Add this block to disable ESLint during builds
   eslint: {
     ignoreDuringBuilds: true,
+  },
+
+  // Proxy all Clerk traffic through homerates.ai so corporate/financial network
+  // firewalls never see clerk.homerates.ai — browsers only talk to our own domain.
+  async rewrites() {
+    return [
+      {
+        source: '/clerk-proxy/:path*',
+        destination: 'https://clerk.homerates.ai/:path*',
+      },
+    ];
   },
 };
 

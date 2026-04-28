@@ -73,7 +73,7 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider proxyUrl="https://homerates.ai/clerk-proxy">
       <html lang="en" suppressHydrationWarning>
         {/* Anti-flash: set theme BEFORE paint so there's no white flash on dark mode */}
         <head>
