@@ -38,7 +38,7 @@ function fmt$(n: number) {
 
 function fmtM(n: number) {
     if (n >= 10_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000_000)  return `$${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`;
+    if (n >= 1_000_000)  return `$${(n / 1_000_000).toFixed(3).replace(/\.?0+$/, '')}M`;
     if (n >= 100_000)    return `$${Math.round(n / 1_000)}k`;
     return fmt$(n);
 }

@@ -32,7 +32,7 @@ function fmt$(n: number) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 }
 function fmtK(n: number) {
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(3).replace(/\.?0+$/, '')}M`;
     if (n >= 100_000)   return `$${Math.round(n / 1_000)}k`;
     return fmt$(n);
 }
