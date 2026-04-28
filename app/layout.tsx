@@ -4,7 +4,6 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { Syne, DM_Mono, DM_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
-import { headers } from "next/headers";
 import LegalLinks from "./components/LegalLinks";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -72,11 +71,9 @@ export const metadata = {
 // Force SSR on the root so Clerk is never statically exported
 export const dynamic = "force-dynamic";
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const host = (await headers()).get('host') ?? 'homerates.ai';
-  const clerkProxyUrl = `https://${host}/clerk-proxy`;
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider proxyUrl={clerkProxyUrl}>
+    <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         {/* Anti-flash: set theme BEFORE paint so there's no white flash on dark mode */}
         <head>
