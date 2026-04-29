@@ -2932,7 +2932,7 @@ export default function Page() {
                                                         {m.meta.cmaCard && !loading && typingId === null && (
                                                             <>
                                                                 <PropertyIntelligenceCard
-                                                                    data={m.meta.cmaCard as CMACardData}
+                                                                    data={{ ...(m.meta.cmaCard as CMACardData), onRunScenario: (seed) => { setTimeout(() => send(seed), 50); } }}
                                                                     onSaveToVault={user ? async () => {
                                                                         const cma = (m as Extract<ChatMsg, { role: 'assistant' }>).meta?.cmaCard as CMACardData;
                                                                         await fetch('/api/library', {
