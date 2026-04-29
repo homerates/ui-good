@@ -227,16 +227,16 @@ export default function VACalculatorPage() {
 
                     <div className="seed-chips" style={{ marginTop: 20 }}>
                         <span className="seed-label">Ask the AI instead:</span>
-                        <a href="/chat?sq=VA+loan+on+a+%24650%2C000+home+%E2%80%94+first+use%2C+no+down+payment%2C+show+full+breakdown" className="seed-chip">
+                        <a href="/chat?sq=VA+loan+on+a+%24650%2C000+home+%E2%80%94+first+use%2C+no+down+payment%2C+show+full+breakdown&from=%2Fva-calculator&fromLabel=VA+Calculator" className="seed-chip" target="_blank" rel="noopener noreferrer">
                             First use · $650k · $0 down
                         </a>
-                        <a href="/chat?sq=I+still+have+a+VA+loan+with+a+%24400%2C000+balance.+I+want+to+buy+a+%24700%2C000+home+%E2%80%94+what+down+payment+do+I+need%3F" className="seed-chip">
+                        <a href="/chat?sq=I+still+have+a+VA+loan+with+a+%24400%2C000+balance.+I+want+to+buy+a+%24700%2C000+home+%E2%80%94+what+down+payment+do+I+need%3F&from=%2Fva-calculator&fromLabel=VA+Calculator" className="seed-chip" target="_blank" rel="noopener noreferrer">
                             Subsequent use · $700k · prior $400k
                         </a>
-                        <a href="/chat?sq=VA+loan+on+a+%241%2C200%2C000+home+in+San+Luis+Obispo+%E2%80%94+is+this+VA+Jumbo%3F" className="seed-chip">
+                        <a href="/chat?sq=VA+loan+on+a+%241%2C200%2C000+home+in+San+Luis+Obispo+%E2%80%94+is+this+VA+Jumbo%3F&from=%2Fva-calculator&fromLabel=VA+Calculator" className="seed-chip" target="_blank" rel="noopener noreferrer">
                             VA Jumbo · SLO · $1.2M
                         </a>
-                        <a href="/chat?sq=VA+loan+second+use+%E2%80%94+prior+balance+%24350k%2C+buying+%24550k+home+in+California" className="seed-chip">
+                        <a href="/chat?sq=VA+loan+second+use+%E2%80%94+prior+balance+%24350k%2C+buying+%24550k+home+in+California&from=%2Fva-calculator&fromLabel=VA+Calculator" className="seed-chip" target="_blank" rel="noopener noreferrer">
                             Subsequent use · CA · $550k
                         </a>
                     </div>
@@ -322,7 +322,7 @@ export default function VACalculatorPage() {
                 <section className="cta-section">
                     <h2>Want a full analysis with scenarios?</h2>
                     <p>The HomeRates.ai chat engine handles VA entitlement, subsequent use, county limits, and VA Jumbo in one conversation.</p>
-                    <a href="/chat?sq=I+have+an+active+VA+loan+with+a+%24350%2C000+balance+and+want+to+buy+a+%24650%2C000+home+%E2%80%94+what+do+I+need+for+a+down+payment%3F" className="cta-button">
+                    <a href="/chat?sq=I+have+an+active+VA+loan+with+a+%24350%2C000+balance+and+want+to+buy+a+%24650%2C000+home+%E2%80%94+what+do+I+need+for+a+down+payment%3F&from=%2Fva-calculator&fromLabel=VA+Calculator" className="cta-button" target="_blank" rel="noopener noreferrer">
                         Calculate my VA entitlement →
                     </a>
                     <p className="cta-sub">Free · No login required · Results in seconds</p>

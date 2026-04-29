@@ -274,23 +274,23 @@ export default function AffordabilityCalculatorPage() {
                     {/* Quick-start seed chips */}
                     <div className="seed-chips">
                         <span className="seed-label">Try an example:</span>
-                        <a href="/chat?sq=I+make+%2475k+and+have+%2425k+saved" className="seed-chip">
+                        <a href="/chat?sq=I+make+%2475k+and+have+%2425k+saved&from=%2Faffordability-calculator&fromLabel=Affordability+Calculator" className="seed-chip" target="_blank" rel="noopener noreferrer">
                             $75k income, $25k saved
                         </a>
-                        <a href="/chat?sq=I+make+%2495k+and+have+%2440k+saved" className="seed-chip">
+                        <a href="/chat?sq=I+make+%2495k+and+have+%2440k+saved&from=%2Faffordability-calculator&fromLabel=Affordability+Calculator" className="seed-chip" target="_blank" rel="noopener noreferrer">
                             $95k income, $40k saved
                         </a>
-                        <a href="/chat?sq=I+make+%24120k%2C+%2450k+saved%2C+%24400+car+payment" className="seed-chip">
+                        <a href="/chat?sq=I+make+%24120k%2C+%2450k+saved%2C+%24400+car+payment&from=%2Faffordability-calculator&fromLabel=Affordability+Calculator" className="seed-chip" target="_blank" rel="noopener noreferrer">
                             $120k income, $400/mo car
                         </a>
-                        <a href="/chat?sq=I+make+%24150k+and+have+%2480k+saved" className="seed-chip">
+                        <a href="/chat?sq=I+make+%24150k+and+have+%2480k+saved&from=%2Faffordability-calculator&fromLabel=Affordability+Calculator" className="seed-chip" target="_blank" rel="noopener noreferrer">
                             $150k income, $80k saved
                         </a>
                     </div>
 
                     {/* CTA — links to live chat with question pre-fired */}
                     <div className="cta-block">
-                        <a href="/chat?sq=I+make+%2495k+and+have+%2440k+saved" className="cta-button">
+                        <a href="/chat?sq=I+make+%2495k+and+have+%2440k+saved&from=%2Faffordability-calculator&fromLabel=Affordability+Calculator" className="cta-button" target="_blank" rel="noopener noreferrer">
                             Calculate my affordability →
                         </a>
                         <p className="cta-sub">Free · No login required · Result in seconds</p>

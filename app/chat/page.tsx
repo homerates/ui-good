@@ -2831,6 +2831,48 @@ export default function Page() {
                     </div>
                 </div>
 
+                {/* ── Back bar — shown when chat was opened from another page ── */}
+                {(() => {
+                    const fromUrl  = searchParams?.get('from');
+                    const rawLabel = searchParams?.get('fromLabel');
+                    if (!fromUrl) return null;
+                    const labelMap: Record<string, string> = {
+                        '/':                          'Home',
+                        '/my-home':                   'My Properties',
+                        '/homeowner':                 'Home Value',
+                        '/check-property':            'Property Search',
+                        '/affordability-calculator':  'Affordability Calculator',
+                        '/refinance-calculator':      'Refi Calculator',
+                        '/fha-calculator':            'FHA Calculator',
+                        '/dscr-calculator':           'DSCR Calculator',
+                        '/va-calculator':             'VA Calculator',
+                        '/loan-limits':               'Loan Limits',
+                        '/knowledge-hub':             'Knowledge Hub',
+                        '/market-news':               'Market News',
+                    };
+                    const label = rawLabel ?? labelMap[fromUrl.split('?')[0]] ?? 'Back';
+                    return (
+                        <div style={{
+                            background: 'rgba(0,0,0,0.3)',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            padding: '7px 20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            fontSize: 12,
+                            flexShrink: 0,
+                        }}>
+                            <a
+                                href={fromUrl}
+                                style={{ color: '#7ee3ff', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}
+                            >
+                                ← {label}
+                            </a>
+                            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11 }}>· tab still open</span>
+                        </div>
+                    );
+                })()}
+
                 <div
                     ref={scrollRef}
                     className="scroll"

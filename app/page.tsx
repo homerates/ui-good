@@ -14,7 +14,11 @@ export default function LandingPage() {
 
   function goChat(q: string) {
     if (!q.trim()) return;
-    router.push('/chat?sq=' + encodeURIComponent(q.trim()));
+    window.open(
+      '/chat?sq=' + encodeURIComponent(q.trim()) + '&from=%2F&fromLabel=Home',
+      '_blank',
+      'noopener,noreferrer',
+    );
   }
 
   function handleCmdSubmit(e: React.FormEvent) {

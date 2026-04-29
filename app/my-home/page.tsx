@@ -375,9 +375,11 @@ function CardComps({ d }: { d: AnalysisData }) {
             if (avgPrice) parts.push(`Average comp sale price: $${Math.round(avgPrice / 1000)}K.`);
             if (d.estimatedValue) parts.push(`ATTOM AVM for subject: $${Math.round(d.estimatedValue / 1000)}K.`);
             parts.push('Run a full CMA analysis with AI. Are comps supporting the AVM value? What price range is defensible?');
-            return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+            return `/chat?sq=${encodeURIComponent(parts.join(' '))}&from=%2Fmy-home&fromLabel=My+Properties`;
           })()}
           className="mh-cta-link"
+          target="_blank"
+          rel="noopener noreferrer"
           style={{ color: '#93c5fd' }}
         >
           Run AI CMA in chat →
@@ -488,7 +490,7 @@ function CardEquity({ d, nearbySales, onEdit }: { d: AnalysisData; nearbySales?:
         </div>
       )}
       <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`Equity options for ${d.address}: value ${d.estimatedValue ? fmt(d.estimatedValue) : '?'}, balance ${d.estimatedBalance ? fmt(d.estimatedBalance) : '?'}, equity ${d.estimatedEquity ? fmt(d.estimatedEquity) : '?'} (${d.equityPct ?? '?'}%). What are my best options — HELOC, cash-out refi, or sell?`)}`} className="mh-cta-link">
+        <Link href={`/chat?sq=${encodeURIComponent(`Equity options for ${d.address}: value ${d.estimatedValue ? fmt(d.estimatedValue) : '?'}, balance ${d.estimatedBalance ? fmt(d.estimatedBalance) : '?'}, equity ${d.estimatedEquity ? fmt(d.estimatedEquity) : '?'} (${d.equityPct ?? '?'}%). What are my best options — HELOC, cash-out refi, or sell?`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
           Explore my equity options →
         </Link>
       </div>
@@ -550,7 +552,7 @@ function CardHELOC({ d }: { d: AnalysisData }) {
         </Link>
       </div>
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`HELOC vs cash-out refi analysis for ${d.address}: I have ${d.helocMax ? '$' + Math.round(d.helocMax).toLocaleString() : 'equity'} available at ~${d.helocRate?.toFixed(2) ?? '7.75'}% HELOC rate. Compare accessing equity via HELOC vs cash-out refi at today's ${d.liveRate.toFixed(2)}% rate. Show payments, costs, and break-even.`)}`} className="mh-cta-link">
+        <Link href={`/chat?sq=${encodeURIComponent(`HELOC vs cash-out refi analysis for ${d.address}: I have ${d.helocMax ? '$' + Math.round(d.helocMax).toLocaleString() : 'equity'} available at ~${d.helocRate?.toFixed(2) ?? '7.75'}% HELOC rate. Compare accessing equity via HELOC vs cash-out refi at today's ${d.liveRate.toFixed(2)}% rate. Show payments, costs, and break-even.`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
           Compare HELOC vs cash-out refi →
         </Link>
       </div>
@@ -640,9 +642,11 @@ function CardRefi({ d, onEdit, plan, isLo }: { d: AnalysisData; onEdit: () => vo
               const q = rawBal
                 ? `I have a $${Math.round(rawBal).toLocaleString('en-US')} balance${balNote} at ${effectiveRate.toFixed(2)}%${rateNote}, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`
                 : `I have a mortgage at ${effectiveRate.toFixed(2)}%${rateNote}, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? What is the break-even point?`;
-              return `/chat?sq=${encodeURIComponent(q)}`;
+              return `/chat?sq=${encodeURIComponent(q)}&from=%2Fmy-home&fromLabel=My+Properties`;
             })()}
             className="mh-cta-link"
+            target="_blank"
+            rel="noopener noreferrer"
             style={{ display: 'inline-block', marginTop: 14 }}
           >
             Run detailed refi analysis →
@@ -729,7 +733,7 @@ function CardEconomy({ d }: { d: AnalysisData }) {
         </div>
       )}
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`I own ${d.address}. Market rate is ${d.liveRate.toFixed(2)}% and my rate is ${d.purchaseRate?.toFixed(2) ?? 'unknown'}%. How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC rate, and overall equity strategy?`)}`} className="mh-cta-link">
+        <Link href={`/chat?sq=${encodeURIComponent(`I own ${d.address}. Market rate is ${d.liveRate.toFixed(2)}% and my rate is ${d.purchaseRate?.toFixed(2) ?? 'unknown'}%. How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC rate, and overall equity strategy?`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
           How do rates affect my options? →
         </Link>
       </div>
@@ -786,7 +790,7 @@ function CardMilestones({ d }: { d: AnalysisData }) {
       ))}
       <div className="mh-footnote" style={{ marginTop: 16 }}>Milestones based on ATTOM AVM or FHFA model, FRED live rates, and 4.2% national avg. appreciation.</div>
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${d.address}: mortgage balance $${d.estimatedBalance ? Math.round(d.estimatedBalance).toLocaleString() : 'unknown'}${d.purchaseRate ? ` at ${d.purchaseRate}%` : ''}${d.payoffYear ? `, payoff projected ${d.payoffYear}` : ''}${d.estimatedEquity ? ` — current equity $${Math.round(d.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`} className="mh-cta-link">
+        <Link href={`/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${d.address}: mortgage balance $${d.estimatedBalance ? Math.round(d.estimatedBalance).toLocaleString() : 'unknown'}${d.purchaseRate ? ` at ${d.purchaseRate}%` : ''}${d.payoffYear ? `, payoff projected ${d.payoffYear}` : ''}${d.estimatedEquity ? ` — current equity $${Math.round(d.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
           Get my full payoff plan →
         </Link>
       </div>
@@ -2177,8 +2181,10 @@ function MyHomePageInner() {
                                 const a = analysis;
                                 const effectiveRate = a.savedOverrides?.actual_rate ?? a.purchaseRate;
                                 const sq = `Run homeowner analysis for ${a.address}: balance $${Math.round(a.estimatedBalance ?? 0).toLocaleString()}, rate ${effectiveRate ?? a.liveRate}%, home value $${Math.round(a.estimatedValue ?? 0).toLocaleString()}. Show me refi savings, break-even, and equity options.`;
-                                return `/chat?${new URLSearchParams({ sq }).toString()}`;
+                                return `/chat?${new URLSearchParams({ sq }).toString()}&from=%2Fmy-home&fromLabel=My+Properties`;
                               })()}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                             >
                               Run My Numbers →
@@ -2359,7 +2365,7 @@ function MyHomePageInner() {
                         {borrowerId && <Link href="/pro/clients" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Clients</Link>}
                       </div>
                       {!isBuyer && <Link
-                        href={(() => {
+                        href={`${(() => {
                           const addr = analysis?.address ?? activeProperty?.property_address ?? '';
                           const bal  = analysis?.estimatedBalance;
                           const live = analysis?.liveRate ?? 6.99;
@@ -2394,8 +2400,10 @@ function MyHomePageInner() {
                             return `/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${addr}: mortgage balance $${analysis?.estimatedBalance ? Math.round(analysis.estimatedBalance).toLocaleString() : 'unknown'}${analysis?.purchaseRate ? ` at ${analysis.purchaseRate}%` : ''}${analysis?.payoffYear ? `, payoff projected ${analysis.payoffYear}` : ''}${analysis?.estimatedEquity ? ` — current equity $${Math.round(analysis.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`;
                           }
                           return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
-                        })()}
+                        })()}&from=%2Fmy-home&fromLabel=My+Properties`}
                         className="mh-cta-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
                         Ask a mortgage question →
                       </Link>}
