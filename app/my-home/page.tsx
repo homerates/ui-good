@@ -2168,9 +2168,13 @@ function MyHomePageInner() {
                                   ...(a.baths   ? { cmaBaths: String(a.baths) } : {}),
                                   ...(a.sqft    ? { cmaSqft:  String(a.sqft)  } : {}),
                                   ...(a.streetViewUrl ? { cmaPhotoUrl: a.streetViewUrl } : {}),
+                                  from: '/my-home',
+                                  fromLabel: 'My Properties',
                                 });
                                 return `/chat?${p.toString()}`;
                               })()}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               style={{ padding: '10px 20px', borderRadius: 999, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                             >
                               Run My Numbers →

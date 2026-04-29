@@ -500,8 +500,11 @@ export default function ReportPage() {
                                     if (origPrice) parts.push(`Purchase price: $${Math.round(origPrice).toLocaleString()}.`);
                                     if (piti) parts.push(`Current PITI: $${Math.round(piti).toLocaleString()}/mo.`);
                                     parts.push('Use these exact figures — do not substitute estimates or benchmarks.');
-                                    return `/chat?sq=${encodeURIComponent(parts.join(' '))}`;
+                                    const fromPath = token ? `/report/${token}` : '/report';
+                                    return `/chat?sq=${encodeURIComponent(parts.join(' '))}&from=${encodeURIComponent(fromPath)}&fromLabel=My+Report`;
                                 })()}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 style={{ padding: '12px 28px', borderRadius: 999, background: GREEN, color: '#07100f', fontWeight: 800, fontSize: '0.9rem', textDecoration: 'none', display: 'inline-block' }}
                             >
                                 Run My Numbers →

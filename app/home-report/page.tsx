@@ -472,7 +472,9 @@ function HomeReportInner() {
               {/* ── CTA STRIP ── */}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
                 {runSeed && (
-                  <a href={`/chat?sq=${encodeURIComponent(runSeed)}`}
+                  <a href={`/chat?sq=${encodeURIComponent(runSeed)}&from=%2Fhome-report&fromLabel=Property+Report`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{ padding: '12px 24px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.88rem', textDecoration: 'none', display: 'inline-block' }}>
                     Run My Numbers →
                   </a>
