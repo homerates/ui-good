@@ -4,7 +4,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getShareImageForType, detectShareType } from "@/lib/shareImages";
+import { getShareImageForType, detectShareType } from "../../lib/shareImages";
 
 export const dynamic = "force-dynamic";
 
