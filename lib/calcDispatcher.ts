@@ -154,19 +154,19 @@ function extractPrice(text: string): number | undefined {
     const mMatch = text.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[mM]\b/);
     if (mMatch) {
         const v = parseFloat(mMatch[1].replace(/,/g, '')) * 1_000_000;
-        if (v >= 500_000 && v <= 20_000_000) return v;
+        if (v >= 500_000 && v <= 50_000_000) return v;
     }
     // "1.5 million" / "2 million"
     const millionMatch = text.match(/([\d,]+(?:\.\d+)?)\s*million/i);
     if (millionMatch) {
         const v = parseFloat(millionMatch[1].replace(/,/g, '')) * 1_000_000;
-        if (v >= 500_000 && v <= 20_000_000) return v;
+        if (v >= 500_000 && v <= 50_000_000) return v;
     }
-    // Full number: $515,000 or $1,200,000
+    // Full number: $515,000 or $14,595,000
     const fullMatch = text.match(/\$\s*([\d,]{6,})/);
     if (fullMatch) {
         const v = parseFloat(fullMatch[1].replace(/,/g, ''));
-        if (v >= 50000 && v <= 10000000) return v;
+        if (v >= 50000 && v <= 50_000_000) return v;
     }
     // Bare $Xk — try this FIRST before context match to avoid grabbing rent amounts
     // e.g. "$450k investment property, $3,200/mo rent" — must return 450000 not 3200000
@@ -181,7 +181,7 @@ function extractPrice(text: string): number | undefined {
     });
     if (best) {
         const v = parseFloat(best[1].replace(/,/g, '')) * 1000;
-        if (v >= 50000 && v <= 10000000) return v;
+        if (v >= 50000 && v <= 50_000_000) return v;
     }
     // Context-anchored fallback: "$500k home", "purchase price $500k", "$500K property"
     // [^$\n]{0,40} — tightly bounded, never spans past rent/mo signals
@@ -190,7 +190,7 @@ function extractPrice(text: string): number | undefined {
     if (ctxMatch) {
         const v = parseFloat(ctxMatch[1].replace(/,/g, ''));
         const val = v < 10000 ? v * 1000 : v;
-        if (val >= 50000 && val <= 10000000) return val;
+        if (val >= 50000 && val <= 50_000_000) return val;
     }
     return undefined;
 }
