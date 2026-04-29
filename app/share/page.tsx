@@ -4,6 +4,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getShareImageForType, detectShareType } from "@/lib/shareImages";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ export async function generateMetadata(props: {
         ? `${question.slice(0, 80)}${question.length > 80 ? "…" : ""} — HomeRates.ai`
         : "Shared mortgage answer — HomeRates.ai";
 
+    const ogImage = getShareImageForType(detectShareType(question));
+
     return {
         title,
         description: "Real mortgage math, live rates — shared from HomeRates.ai.",
@@ -31,13 +34,13 @@ export async function generateMetadata(props: {
             title,
             description: "Real mortgage math, live rates — no sales pitch.",
             siteName: "HomeRates.ai",
-            images: [{ url: "/assets/og-card.png", width: 1200, height: 627, alt: "HomeRates.ai" }],
+            images: [{ url: ogImage, width: 1200, height: 630, alt: "HomeRates.ai" }],
         },
         twitter: {
             card: "summary_large_image",
             title,
             description: "Real mortgage math, live rates — no sales pitch.",
-            images: ["/assets/og-card.png"],
+            images: [ogImage],
         },
     };
 }

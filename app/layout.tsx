@@ -45,9 +45,9 @@ export const metadata = {
       "Ask anything about buying a home, refinancing, or investing. Real math. Live rates. No sales pitch.",
     images: [
       {
-        url: "/assets/og-card.png",
+        url: "/assets/share/og/homerates-brand-default-og-1200x630-v1.png",
         width: 1200,
-        height: 627,
+        height: 630,
         alt: "HomeRates.ai — Mortgage AI Intelligence",
       },
     ],
@@ -57,7 +57,7 @@ export const metadata = {
     title: "HomeRates.ai — Mortgage AI Chat",
     description:
       "Real mortgage math, live rates, no sales pitch. Ask anything about buying, refinancing, or investing.",
-    images: ["/assets/og-card.png"],
+    images: ["/assets/share/og/homerates-brand-default-og-1200x630-v1.png"],
     creator: "@homerates_ai",
   },
   verification: {
