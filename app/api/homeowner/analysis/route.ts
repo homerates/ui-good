@@ -204,6 +204,7 @@ interface LivePropertyFields {
   lastSalePrice?: number | null; lastSaleDate?: string | null;
   listingStatus?: string | null; listPrice?: number | null;
   hoaMonthly?: number | null; propertyType?: string | null;
+  address?: string | null;
 }
 
 async function findRedfinUrlForAddr(address: string): Promise<string | null> {
