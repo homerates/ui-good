@@ -173,7 +173,8 @@ async function tavilyPropertySearch(address: string): Promise<{ lastSalePrice: n
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: key,
-        query: `"${address}" sold price last sale public records`,
+        // Use street + ZIP only — city aliases (Newbury Park↔Thousand Oaks, etc.) break exact-city queries
+        query: `"${address.split(',')[0].trim()}" "${address.match(/\b\d{5}\b/)?.[0] ?? address}" last sold price date public records`,
         max_results: 3,
         search_depth: 'basic',
         include_answer: true,
@@ -451,7 +452,8 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
         .ilike('address_full', `${streetPrefix}%`)
         .ilike('address_full', `%${zipMatch[1]}%`)
         .limit(3);
-      prop = zipRows?.[0] ?? null;
+      // Prefer rows that already have sale data over empty/stub rows
+      prop = zipRows?.find((r: any) => r.latest_last_sale_price) ?? zipRows?.[0] ?? null;
     }
   }
 
@@ -588,6 +590,11 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     purchaseRate     = historicalRate(saleDate.getFullYear());
     estimatedBalance = Math.round(remainingBalance(salePrice, 0.20, purchaseRate, elapsed));
     estimatedEquity  = Math.round((estimatedValue ?? salePrice) - estimatedBalance);
+  } else if (estimatedValue && !salePrice) {
+    // No purchase data from any source — rough 75% LTV estimate so equity/LTV are never blank.
+    // UI should treat this as low-confidence (balanceIsEstimated = true already covers this).
+    estimatedBalance = Math.round(estimatedValue * 0.75);
+    estimatedEquity  = Math.round(estimatedValue * 0.25);
   }
 
   const mortgageSource: 'estimated' | null = 'estimated';
