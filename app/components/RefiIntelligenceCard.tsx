@@ -837,13 +837,6 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                 </div>
             </div>
 
-            {/* Action bar */}
-            <div style={{ padding:'12px 14px 14px', display:'flex', gap:8, flexWrap:'wrap', borderTop:'1px solid rgba(255,255,255,0.05)' }}>
-                <button style={{ flex:1, background:'rgba(255,255,255,0.04)', color:'#8b949e', fontSize:12, fontWeight:700, border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:'11px 14px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}
-                    onClick={() => onRunScenario?.(`Get matched with a loan officer for refinancing ${addrLine1}`)}>🤝 Get Matched</button>
-                <button style={{ flex:1, background:'rgba(255,255,255,0.04)', color:'#8b949e', fontSize:12, fontWeight:700, border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:'11px 14px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}
-                    onClick={() => onRunScenario?.(buildSeed('cashout'))}>💰 Cash-Out Options</button>
-            </div>
             </>
         )}
         </div>
