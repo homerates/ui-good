@@ -409,7 +409,7 @@ async function saveSnapshot(address: string, data: PropertyData) {
     const addr  = normalizeAddr(address);
     const state = stateFromAddress(address.toUpperCase()) ?? null;
     const zip   = address.match(/\b(\d{5})\b/)?.[1] ?? null;
-    const newConfidence = data.avmSource === 'redfin' ? 0.90 : 0.75;
+    const newConfidence = data.avmSource === 'redfin_estimate' ? 0.90 : 0.75;
 
     const { data: prop } = await db().from('properties')
       .upsert({ address_full: addr, state, zip, updated_at: new Date().toISOString() }, { onConflict: 'address_full' })
