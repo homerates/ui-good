@@ -439,6 +439,21 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
       return stored === addrNoComma;
     }) ?? null;
   }
+  // ZIP+street fallback: Google Places aliases city names (e.g. Newbury Park→Thousand Oaks,
+  // Coto De Caza→Trabuco Canyon) — same ZIP, different city string breaks the city-aware match above.
+  // Match on house# + street name + ZIP only, ignoring city entirely.
+  if (!prop) {
+    const addrNoComma = addr.replace(/,\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    const zipMatch = addrNoComma.match(/\b(\d{5})\b/);
+    const streetPrefix = addrNoComma.split(' ').slice(0, 2).join(' '); // "1024 knollwood"
+    if (zipMatch && streetPrefix.length > 3) {
+      const { data: zipRows } = await db().from('properties').select(PROP_SEL)
+        .ilike('address_full', `${streetPrefix}%`)
+        .ilike('address_full', `%${zipMatch[1]}%`)
+        .limit(3);
+      prop = zipRows?.[0] ?? null;
+    }
+  }
 
   // 3. Resolve last sale data (DB → LO override → Redfin+GPT-4o → Tavily text search)
   let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;

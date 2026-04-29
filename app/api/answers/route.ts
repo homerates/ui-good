@@ -7236,7 +7236,7 @@ Return valid JSON only:
         const val   = homeownerSnapshot.estimatedValue;
         const live  = homeownerSnapshot.liveRate;
         return [
-            { label: `← Back to Property Intelligence`, url: `/my-home`, seed: `` },
+            { label: `← Back to Property Intelligence`, url: `/my-home?address=${encodeURIComponent(addr)}`, seed: `` },
             { label: `15-year refi — payoff timeline?`, seed: `15-year refi at ${live}% on $${Math.round(bal/1000)}k balance`, paramOverrides: { currentBalance: bal, currentRatePct: cur, newRatePct: live } },
             { label: `Cash-out equity — what changes?`, seed: `Cash-out refi from ${short}` },
             { label: `Full Property Intelligence Report`, seed: `Property intelligence report: ${addr}`, paramOverrides: { cmaAddress: addr, cmaCity: homeownerSnapshot.address?.split(',')[1]?.trim() ?? '', cmaState: homeownerSnapshot.address?.match(/,\s*([A-Z]{2})\s/)?.[1] ?? '', cmaPrice: homeownerSnapshot.estimatedValue ?? homeownerSnapshot.lastSalePrice, cmaBeds: homeownerSnapshot.beds, cmaBaths: homeownerSnapshot.baths, cmaSqft: homeownerSnapshot.sqft, cmaTaxAnnual: Math.round((homeownerSnapshot.estimatedValue ?? 0) * 0.011), cmaTaxRate: 0.011, cmaLiveRate: live, cmaPhotoUrl: '' } },
