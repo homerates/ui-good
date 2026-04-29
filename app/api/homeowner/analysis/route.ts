@@ -273,7 +273,11 @@ async function gpt4oLiveExtract(text: string, url: string): Promise<LiveProperty
 
 // Full live lookup: Redfin direct scrape + Tavily extract + GPT-4o (same pipeline as /api/property/lookup)
 async function liveRedfinLookup(address: string): Promise<LivePropertyFields | null> {
-  const url = await findRedfinUrlForAddr(address);
+  // If address is already a Redfin URL (e.g. stored by LO/consumer), use it directly —
+  // no Tavily search needed, avoids wrong-page results.
+  const url = /^https?:\/\/.*redfin\.com/i.test(address)
+    ? address
+    : await findRedfinUrlForAddr(address);
   if (!url) return null;
 
   // Run Redfin direct scrape and Tavily extract in parallel — same as handleUrl() in property/lookup
@@ -390,21 +394,39 @@ type PropertyData = {
 
 const AVM_MAX = 50_000_000; // $50M residential cap
 
+// Parse a clean street address from a Redfin URL slug so DB keys are always
+// human-readable, never URLs.  e.g.:
+// redfin.com/CA/Trabuco-Canyon/8-Peachtree-92679/home/5019838
+//   → "8 Peachtree, Trabuco Canyon, CA 92679"
+function parseAddressFromRedfinUrl(url: string): string | null {
+  const m = url.match(/redfin\.com\/([A-Z]{2})\/([^/]+)\/(.+?)-(\d{5})(?:\/|$)/i);
+  if (m) return `${m[3].replace(/-/g, ' ')}, ${m[2].replace(/-/g, ' ')}, ${m[1].toUpperCase()} ${m[4]}`;
+  const m2 = url.match(/redfin\.com\/([A-Z]{2})\/([^/]+)\/(\d[^/]+)(?:\/home\/\d+)?/i);
+  if (!m2) return null;
+  return `${m2[3].replace(/-/g, ' ')}, ${m2[2].replace(/-/g, ' ')}, ${m2[1].toUpperCase()}`;
+}
+
 // ── Main local property intelligence — replaces rentcastLookup ───────────────
 async function propertyLookup(address: string, record: Record<string, any>): Promise<PropertyData | null> {
+  // Normalize URL-format addresses (LO/consumer pasted a Redfin URL as property address).
+  // Resolve to a clean street address immediately so all DB keys are human-readable,
+  // snapshots are found on repeat lookups, and URLs never leak into the UI.
+  const isRedfinUrl = /^https?:\/\/.*redfin\.com/i.test(address);
+  const resolvedAddress = isRedfinUrl ? (parseAddressFromRedfinUrl(address) ?? address) : address;
+
   // 1. Check snapshot cache — back-fill Maps URLs dynamically (env-var-based, not stored)
-  const cached = await getSnapshot(address);
+  const cached = await getSnapshot(resolvedAddress);
   if (cached) {
     const mk = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
     if (mk && !cached.streetViewUrl) {
-      cached.streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=800x300&location=${encodeURIComponent(address)}&return_error_code=true&key=${mk}`;
-      cached.staticMapUrl  = `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(address)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(address)}&key=${mk}`;
+      cached.streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=800x300&location=${encodeURIComponent(resolvedAddress)}&return_error_code=true&key=${mk}`;
+      cached.staticMapUrl  = `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(resolvedAddress)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(resolvedAddress)}&key=${mk}`;
     }
     return cached;
   }
 
   // 2. Check properties table for stored sale data
-  const addr = normalizeAddr(address);
+  const addr = normalizeAddr(resolvedAddress);
   const PROP_SEL = 'id, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn';
   let prop: any = (await db().from('properties').select(PROP_SEL).ilike('address_full', addr).maybeSingle()).data ?? null;
   // Fuzzy fallback: addresses from URL params lack commas (Google Places adds them)
@@ -425,6 +447,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // Run live Redfin lookup whenever we have missing key fields — same pipeline as /api/property/lookup
   // Guard: if the LO has prepared this profile with actual_* data, live-scraped financials must NOT
   // override it. Live lookup still runs for structural data (beds/baths/sqft) and photo.
+  // Pass original address: if it was a Redfin URL, liveRedfinLookup will use it directly (no Tavily search needed).
   const hasLoFinancials = !!(record.actual_purchase_price || record.actual_value || record.actual_balance || record.actual_rate);
   const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft;
   const liveData = needsLive ? await liveRedfinLookup(address) : null;
@@ -475,7 +498,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   }
 
   // 4. FHFA AVM: lastSalePrice × (1 + annualRate)^yearsElapsed
-  const stateCode = prop?.state ?? stateFromAddress(address.toUpperCase());
+  const stateCode = prop?.state ?? stateFromAddress(resolvedAddress.toUpperCase());
   const annualRate = fhfaRate(stateCode) / 100;
   const salePrice = rawSalePrice ?? null;
   const saleDateRaw = rawSaleDateStr ? new Date(rawSaleDateStr) : null;
@@ -512,7 +535,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let listingStatus: string | null = prop?.latest_listing_status ?? null;
   if (listingStatus === 'UNKNOWN') listingStatus = null;
   if (!listingStatus) {
-    const freshStatus = await checkListingStatus(address);
+    const freshStatus = await checkListingStatus(resolvedAddress);
     if (freshStatus) {
       listingStatus = freshStatus;
       if (prop) {
@@ -531,7 +554,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   }
 
   // 5. HUD Fair Market Rent via geo_crosswalk
-  const zip = prop?.zip ?? address.match(/\b(\d{5})\b/)?.[1] ?? null;
+  const zip = prop?.zip ?? resolvedAddress.match(/\b(\d{5})\b/)?.[1] ?? null;
   let rentEstimate: number | null = null;
   if (zip) {
     try {
@@ -564,10 +587,10 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // 9. Street View + satellite map URLs
   const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
   const streetViewUrl = mapsKey
-    ? `https://maps.googleapis.com/maps/api/streetview?size=800x300&location=${encodeURIComponent(address)}&return_error_code=true&key=${mapsKey}`
+    ? `https://maps.googleapis.com/maps/api/streetview?size=800x300&location=${encodeURIComponent(resolvedAddress)}&return_error_code=true&key=${mapsKey}`
     : null;
   const staticMapUrl = mapsKey
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(address)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(address)}&key=${mapsKey}`
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(resolvedAddress)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(resolvedAddress)}&key=${mapsKey}`
     : null;
 
   // 10. Property photo — live Redfin scrape (og:image) wins; snapshot is fallback only
@@ -613,8 +636,8 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     listPrice: isForSale ? estimatedValue : null,
   };
 
-  // 7. Cache result (non-blocking)
-  void saveSnapshot(address, result);
+  // 7. Cache result (non-blocking) — always keyed by resolved street address, never by URL
+  void saveSnapshot(resolvedAddress, result);
 
   return result;
 }
