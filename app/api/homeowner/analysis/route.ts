@@ -335,9 +335,12 @@ async function getSnapshot(address: string) {
       .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
     if (!snap) return null;
     if (snap.fetched_at && Date.now() - new Date(snap.fetched_at).getTime() > SNAPSHOT_TTL_MS) return null;
-    // Invalidate snapshots with absurd AVM values
-    const snapAvm = (snap.data as any)?.estimatedValue;
+    const snapAvm       = (snap.data as any)?.estimatedValue as number | null;
+    const snapSalePrice = (snap.data as any)?.lastSalePrice  as number | null;
+    // Evict absurdly high AVMs
     if (snapAvm && snapAvm > 50_000_000) return null;
+    // Evict AVMs clearly below the known sale price — symptom of a wrong-page GPT-4o extraction
+    if (snapAvm && snapSalePrice && snapAvm < snapSalePrice * 0.60) return null;
     return snap.data as PropertyData;
   } catch { return null; }
 }
@@ -380,7 +383,7 @@ type PropertyData = {
   avmSource: 'redfin' | 'fhfa' | null; avmConfidence: number | null; avmDate: string | null;
   mortgageSource: 'estimated' | null; mortgageLender: null; mortgageOriginalAmount: null; mortgageOriginationDate: null;
   comps: Record<string, unknown>[]; streetViewUrl: string | null; staticMapUrl: string | null;
-  photoUrl: string | null;
+  photoUrl: string | null; address: string | null;
   listingStatus: string | null;
   listPrice: number | null;
 };
@@ -605,6 +608,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     streetViewUrl,
     staticMapUrl,
     photoUrl,
+    address: liveData?.address ?? null,
     listingStatus,
     listPrice: isForSale ? estimatedValue : null,
   };
@@ -755,10 +759,12 @@ export async function GET(request: NextRequest) {
     ]);
     if (!propData) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
 
+    const reportAddr = /^https?:\/\//i.test(bor.property_address)
+      ? (propData.address ?? bor.property_address) : bor.property_address;
     return NextResponse.json({
       ...buildAnalysis(propData, fred, bor, []),
       borrowerName: bor.name,
-      address: bor.property_address,
+      address: reportAddr,
     });
   }
 
@@ -840,10 +846,12 @@ export async function GET(request: NextRequest) {
 
     if (!propData) return NextResponse.json({ error: 'Could not retrieve property data' }, { status: 422 });
 
+    const loAddr = /^https?:\/\//i.test(borrower.property_address)
+      ? (propData.address ?? borrower.property_address) : borrower.property_address;
     return NextResponse.json({
       ...buildAnalysis(propData, fred, borrower, historyRes.data ?? []),
       borrowerName: borrower.name,
-      address: borrower.property_address,
+      address: loAddr,
       isLoView: true,
     });
   }
@@ -930,8 +938,10 @@ export async function GET(request: NextRequest) {
     (payload as any).mortgageOriginationDate = null;
   }
 
+  const consumerAddr = /^https?:\/\//i.test(homeowner.property_address)
+    ? (propData.address ?? homeowner.property_address) : homeowner.property_address;
   return NextResponse.json({
-    address: homeowner.property_address,
+    address: consumerAddr,
     ...payload,
   });
 }

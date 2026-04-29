@@ -500,6 +500,24 @@ async function broadSearchFallback(address: string): Promise<Record<string, unkn
     }
 }
 
+// Parse a human-readable address from a Redfin URL slug when the HTML scraper
+// returns null — prevents the raw URL from being shown as the property address.
+// e.g. redfin.com/CA/Trabuco-Canyon/8-Peachtree-92679/home/5019838
+//   → "8 Peachtree, Trabuco Canyon, CA 92679"
+function addressFromRedfinUrl(url: string): string | null {
+    // Slug ends with -ZIPCODE before /home/
+    const m = url.match(/redfin\.com\/([A-Z]{2})\/([^/]+)\/(.+?)-(\d{5})(?:\/|$)/i);
+    if (m) {
+        const street = m[3].replace(/-/g, ' ');
+        const city   = m[2].replace(/-/g, ' ');
+        return `${street}, ${city}, ${m[1].toUpperCase()} ${m[4]}`;
+    }
+    // Fallback: no zip in slug (less common)
+    const m2 = url.match(/redfin\.com\/([A-Z]{2})\/([^/]+)\/(\d[^/]+)(?:\/home\/\d+)?/i);
+    if (!m2) return null;
+    return `${m2[3].replace(/-/g, ' ')}, ${m2[2].replace(/-/g, ' ')}, ${m2[1].toUpperCase()}`;
+}
+
 // ── Main handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
@@ -587,7 +605,7 @@ async function handleUrl(rawUrl: string) {
         parsedBy:         d.parsedBy,
         parseWarnings:    d.parseWarnings,
         price:            d.price,
-        address:          d.address,
+        address:          d.address ?? (/redfin\.com/i.test(url) ? addressFromRedfinUrl(url) : null),
         city:             d.city,
         state:            d.state,
         zip:              d.zip,
