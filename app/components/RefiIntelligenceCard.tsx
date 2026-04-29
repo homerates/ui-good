@@ -427,12 +427,6 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                 ))}
             </div>
 
-            {/* Actions */}
-            <div style={{ padding:'14px 16px 16px', display:'flex', gap:8 }}>
-                <button className="ri-s-btn-secondary" onClick={() => onRunScenario?.(`Get matched with a loan officer for refinancing ${addrLine1}`)}>🤝 Get Matched</button>
-                <button className="ri-s-btn-secondary" onClick={() => onRunScenario?.(buildSeed('cashout'))}>💰 Cash-Out</button>
-            </div>
-
             {/* Deep dive trigger */}
             <div className="ri-deepdive-trigger" onClick={() => setMode('deep')}>
                 <div style={{ display:'flex', alignItems:'center', gap:9 }}>
