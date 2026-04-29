@@ -201,8 +201,13 @@ async function tavilyPropertySearch(address: string): Promise<{ lastSalePrice: n
 // ── Live Redfin+Tavily+GPT-4o lookup (same pipeline as /api/property/lookup) ──
 
 interface LivePropertyFields {
-  beds?: number | null; baths?: number | null; sqft?: number | null;
-  yearBuilt?: number | null; estimatedValue?: number | null;
+  beds?: number | null; baths?: number | null; sqft?: number | null; lotSqft?: number | null;
+  yearBuilt?: number | null;
+  // CRITICAL DISTINCTION: these two must never be confused.
+  // redfinEstimate = current Redfin AVM (today's value, shown in "Redfin Estimate" section)
+  // estimatedValue = alias for redfinEstimate after merge (what the home is worth NOW)
+  // lastSalePrice  = historical sold price (what it sold for, with a sold date)
+  redfinEstimate?: number | null; estimatedValue?: number | null;
   lastSalePrice?: number | null; lastSaleDate?: string | null;
   listingStatus?: string | null; listPrice?: number | null;
   hoaMonthly?: number | null; propertyType?: string | null;
@@ -259,7 +264,15 @@ async function gpt4oLiveExtract(text: string, url: string): Promise<LiveProperty
         model: 'gpt-4o', temperature: 0, max_tokens: 400,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: `Extract real estate property fields from listing page text. Return only JSON, null for missing values, numbers not strings, dates as "Month YYYY". listingStatus: FOR_SALE|OFF_MARKET|PENDING|SOLD|UNKNOWN. Fields: beds, baths, sqft, yearBuilt, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType` },
+          { role: 'system', content: `Extract real estate property fields from this Redfin page. Return only JSON. Use null for missing fields. Numbers not strings. Dates as "Month YYYY".
+
+CRITICAL — Redfin pages show TWO dollar amounts that must NOT be confused:
+- lastSalePrice: the HISTORICAL sold/sale price labeled "Sold Price" or appearing next to "SOLD ON [date]". This is a past transaction amount.
+- redfinEstimate: the CURRENT Redfin Estimate AVM in its own "Redfin Estimate" section showing what the home is worth TODAY. This is a different, usually higher number than the sold price.
+
+listingStatus: determine from page signals — SOLD if "SOLD ON [date]" or "Sold Price" present, FOR_SALE if active listing, OFF_MARKET if no active listing, PENDING if under contract.
+
+Fields: beds, baths, sqft, yearBuilt, lotSqft, lastSalePrice, lastSaleDate, redfinEstimate, listingStatus, listPrice, hoaMonthly, propertyType` },
           { role: 'user', content: `URL: ${url}\n\n${text.slice(0, 12_000)}` },
         ],
       }),
@@ -293,24 +306,65 @@ async function liveRedfinLookup(address: string): Promise<LivePropertyFields | n
   // Need at least one source to have data
   if (!redfin && (!text || text.length < 200)) return null;
 
-  // GPT-4o fills gaps in whatever the direct scraper missed
+  // ── Pass 1: Deterministic regex extraction from Redfin page text ─────────────
+  // Mirrors the ExtendedFields parser in /api/property/lookup — critical fields
+  // are read directly from the page structure, not inferred by AI.
+  // This ensures listingStatus, redfinEstimate, and lastSalePrice are always
+  // sourced from Redfin's explicit text signals before GPT-4o is consulted.
+  const rx = text ? (() => {
+    const t = text;
+
+    // Listing status — read from Redfin page signals (strongest first to avoid false positives)
+    let listingStatus: string | null = null;
+    if (/sold\s+(?:on\s+)?\w+\s+\d{1,2},?\s+\d{4}/i.test(t) || /\$[\d,]+\s+sold\s+price/i.test(t))
+      listingStatus = 'SOLD';
+    else if (/off[\s-]?market/i.test(t) || /no\s+longer\s+(?:for\s+sale|listed)/i.test(t))
+      listingStatus = 'OFF_MARKET';
+    else if (/(?:^|\n|\.)\s*(?:this\s+home\s+is\s+for\s+sale|listed\s+for\s+sale|active\s+listing)/i.test(t)
+          || /\bfor\s+sale\b/i.test(t.slice(0, 3000)))
+      listingStatus = 'FOR_SALE';
+    else if (/\bpending\b/i.test(t))
+      listingStatus = 'PENDING';
+
+    // Redfin Estimate — the CURRENT AVM, labeled "Redfin Estimate" on the page
+    const reM = t.match(/redfin\s+estimate[:\s\n]*\$?([\d,]+)/i);
+    const redfinEstimate = reM ? parseInt(reM[1].replace(/,/g, '')) : null;
+
+    // Sold price + date — historical transaction, NOT the current AVM
+    const soldDateM  = t.match(/sold\s+on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
+    const soldPriceM = t.match(/\$([\d,]+)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+)/i);
+    const lastSaleDate = soldDateM ? (() => {
+      const d = new Date(soldDateM[1]);
+      return isNaN(d.getTime()) ? soldDateM[1] : d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    })() : null;
+    const lastSalePrice = soldPriceM ? parseInt(soldPriceM[1].replace(/,/g, '')) : null;
+
+    return { listingStatus, redfinEstimate, lastSaleDate, lastSalePrice };
+  })() : { listingStatus: null, redfinEstimate: null, lastSaleDate: null, lastSalePrice: null };
+
+  // ── Pass 2: GPT-4o fills only fields still null after the regex pass ──────────
   const gpt = text && text.length > 200 ? await gpt4oLiveExtract(text, url) : null;
 
-  // Merge: Redfin structured data wins, GPT-4o fills nulls
+  // Merge: Redfin scraper (structured) > regex pre-pass (deterministic) > GPT-4o (AI gap-fill)
   const merged: LivePropertyFields = {
-    beds:          redfin?.beds          ?? gpt?.beds          ?? null,
-    baths:         redfin?.baths         ?? gpt?.baths         ?? null,
-    sqft:          redfin?.sqft          ?? gpt?.sqft          ?? null,
-    yearBuilt:     gpt?.yearBuilt        ?? null,
-    estimatedValue: gpt?.estimatedValue  ?? null,  // Redfin estimate comes via GPT-4o extraction
-    lastSalePrice: gpt?.lastSalePrice    ?? null,
-    lastSaleDate:  gpt?.lastSaleDate     ?? null,
-    listingStatus: (redfin?.listingStatus ?? gpt?.listingStatus) ?? null,
-    listPrice:     redfin?.price         ?? gpt?.listPrice      ?? null,
-    hoaMonthly:    gpt?.hoaMonthly       ?? null,
-    propertyType:  gpt?.propertyType     ?? null,
-    address:       redfin?.address       ?? gpt?.address        ?? null,
-    photoUrl:      redfin?.photoUrl      ?? null,
+    beds:           redfin?.beds           ?? gpt?.beds          ?? null,
+    baths:          redfin?.baths          ?? gpt?.baths         ?? null,
+    sqft:           redfin?.sqft           ?? gpt?.sqft          ?? null,
+    lotSqft:        gpt?.lotSqft           ?? null,
+    yearBuilt:      gpt?.yearBuilt         ?? null,
+    // AVM: use the Redfin Estimate (current value), NOT the sold price
+    redfinEstimate: rx.redfinEstimate      ?? gpt?.redfinEstimate ?? null,
+    estimatedValue: rx.redfinEstimate      ?? gpt?.redfinEstimate ?? null,
+    // Historical sale — regex-parsed from Redfin page text (deterministic)
+    lastSalePrice:  rx.lastSalePrice       ?? gpt?.lastSalePrice  ?? null,
+    lastSaleDate:   rx.lastSaleDate        ?? gpt?.lastSaleDate   ?? null,
+    // Status: Redfin scraper structured data > regex > GPT-4o
+    listingStatus:  redfin?.listingStatus  ?? rx.listingStatus    ?? gpt?.listingStatus ?? null,
+    listPrice:      redfin?.price          ?? gpt?.listPrice      ?? null,
+    hoaMonthly:     gpt?.hoaMonthly        ?? null,
+    propertyType:   gpt?.propertyType      ?? null,
+    address:        redfin?.address        ?? gpt?.address        ?? null,
+    photoUrl:       redfin?.photoUrl       ?? null,
   };
 
   // Verify house number matches — reject if we got the wrong listing page
@@ -385,7 +439,7 @@ type PropertyData = {
   lastSaleDate: string | null; lastSalePrice: number | null; rentEstimate: number | null;
   beds: number | null; baths: number | null; sqft: number | null;
   yearBuilt: number | null; propertyType: string | null; lotSizeSqft: number | null; apn: string | null;
-  avmSource: 'redfin' | 'fhfa' | null; avmConfidence: number | null; avmDate: string | null;
+  avmSource: 'redfin_estimate' | 'fhfa' | 'ai_estimate' | null; avmConfidence: number | null; avmDate: string | null;
   mortgageSource: 'estimated' | null; mortgageLender: null; mortgageOriginalAmount: null; mortgageOriginationDate: null;
   comps: Record<string, unknown>[]; streetViewUrl: string | null; staticMapUrl: string | null;
   photoUrl: string | null; parsedAddress: string | null;
@@ -542,7 +596,12 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   const liveAvm = (rawLiveAvm && salePrice && rawLiveAvm < salePrice * 0.75)
     ? (() => { console.log(`[analysis] liveAvm ${rawLiveAvm} < salePrice ${salePrice} × 0.75 — discarding (wrong page)`); return null; })()
     : rawLiveAvm;
-  const avmSource: 'redfin' | 'fhfa' = liveAvm ? 'redfin' : 'fhfa';
+  // avmSource tracks which data tier produced the estimate for UI color-coding:
+  // redfin_estimate = scraped directly from Redfin's "Redfin Estimate" section (highest confidence)
+  // fhfa            = derived from FHFA appreciation model on lastSalePrice (model estimate)
+  // ai_estimate     = Tavily/GPT-4o gap-fill or 75% LTV fallback (lowest confidence, show amber)
+  const avmSource: 'redfin_estimate' | 'fhfa' | 'ai_estimate' =
+    liveAvm ? 'redfin_estimate' : (estimatedValue ? 'fhfa' : 'ai_estimate');
   if (liveAvm) {
     estimatedValue     = liveAvm;
     estimatedValueLow  = Math.round(liveAvm * 0.93);

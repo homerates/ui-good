@@ -361,7 +361,12 @@ interface GPT4oPropertyFields {
     beds?: number | null;
     baths?: number | null;
     sqft?: number | null;
+    lotSqft?: number | null;
     yearBuilt?: number | null;
+    // redfinEstimate: CURRENT Redfin Estimate AVM (today's value, "Redfin Estimate" section)
+    // estimatedValue: alias — only for backwards-compat with existing consumers
+    // lastSalePrice:  HISTORICAL sold price (past transaction, different number)
+    redfinEstimate?: number | null;
     estimatedValue?: number | null;
     lastSalePrice?: number | null;
     lastSaleDate?: string | null;
@@ -391,7 +396,16 @@ async function gpt4oExtract(text: string, url: string): Promise<GPT4oPropertyFie
                 messages: [
                     {
                         role: 'system',
-                        content: `You are a real estate data extractor. Extract structured property fields from listing page text. Return only JSON. Use null for missing fields. Numeric fields must be numbers, not strings. Dates must be "Month YYYY" format (e.g. "May 2023"). listingStatus must be one of: FOR_SALE, OFF_MARKET, PENDING, SOLD, UNKNOWN. Fields: beds, baths, sqft, yearBuilt, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType, address, city, state (2-letter), zip, taxAssessedValue`,
+                        content: `Extract real estate property fields from this Redfin page. Return only JSON. Use null for missing fields. Numbers not strings. Dates as "Month YYYY".
+
+CRITICAL — Redfin pages show TWO dollar amounts that must NOT be confused:
+- lastSalePrice: the HISTORICAL sold/sale price labeled "Sold Price" or next to "SOLD ON [date]". Past transaction.
+- redfinEstimate: the CURRENT Redfin Estimate AVM in its own "Redfin Estimate" section. Today's value, usually higher than sold price on rising markets.
+- estimatedValue: same as redfinEstimate (alias for compatibility).
+
+listingStatus: SOLD if "SOLD ON [date]" or "Sold Price" present, FOR_SALE if active listing, OFF_MARKET if no active listing, PENDING if under contract, UNKNOWN otherwise.
+
+Fields: beds, baths, sqft, lotSqft, yearBuilt, redfinEstimate, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType, address, city, state (2-letter), zip, taxAssessedValue`,
                     },
                     { role: 'user', content: `URL: ${url}\n\nPage text:\n${snippet}` },
                 ],
@@ -408,10 +422,16 @@ async function gpt4oExtract(text: string, url: string): Promise<GPT4oPropertyFie
     }
 }
 
-// Merge GPT-4o fields into a data object — only fills nulls, never overwrites
+// Merge GPT-4o fields into a data object — only fills nulls, never overwrites.
+// Special case: GPT's redfinEstimate maps to estimatedValue (the regex parser already
+// correctly extracts estimatedValue from Redfin text, so GPT only fills it as a backup).
 function mergeGpt4o(base: Record<string, unknown>, gpt: GPT4oPropertyFields | null): Record<string, unknown> {
     if (!gpt) return base;
     const out = { ...base };
+    // Bridge: if regex missed estimatedValue but GPT found redfinEstimate, use it
+    if (out.estimatedValue == null && gpt.redfinEstimate != null) {
+        out.estimatedValue = gpt.redfinEstimate;
+    }
     for (const [k, v] of Object.entries(gpt)) {
         if (v != null && (out[k] == null || out[k] === undefined)) {
             out[k] = v;
