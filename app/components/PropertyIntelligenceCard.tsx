@@ -391,18 +391,39 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
             </div>
 
             {/* ── CTA buttons ── */}
+            {/* Run My Numbers — primary CTA, always present on for-sale CMA card */}
+            <div style={{ padding: '0 16px 8px' }}>
+                <button
+                    onClick={() => data.onRunScenario?.(`Run my numbers for ${data.address} — purchase price ${fmt$(data.price, true)}, what are my monthly payments, income needed, and loan options?`)}
+                    style={{
+                        width: '100%',
+                        padding: '13px 0',
+                        borderRadius: 999,
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #00e87a 0%, #00c96a 100%)',
+                        color: '#000',
+                        fontWeight: 800,
+                        fontSize: 14,
+                        cursor: 'pointer',
+                        letterSpacing: '0.02em',
+                        boxShadow: '0 2px 12px rgba(0,232,122,0.25)',
+                    }}
+                >
+                    🔢 Run My Numbers →
+                </button>
+            </div>
             <div style={{ padding: '0 16px 6px', display: 'flex', gap: 10 }}>
                 <button
                     onClick={() => data.onRunScenario?.(`Get matched with a lender for ${data.address} at ${fmt$(data.price, true)}`)}
                     style={{
                         flex: 1,
-                        padding: '11px 0',
+                        padding: '10px 0',
                         borderRadius: 999,
-                        border: 'none',
-                        background: '#00e87a',
-                        color: '#000',
+                        border: '1px solid rgba(0,232,122,0.35)',
+                        background: 'transparent',
+                        color: '#00e87a',
                         fontWeight: 700,
-                        fontSize: 13,
+                        fontSize: 12,
                         cursor: 'pointer',
                         letterSpacing: '0.01em',
                     }}
@@ -413,13 +434,13 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
                     onClick={() => data.onRunScenario?.(`What income do I need to qualify for ${data.address}? Price ${fmt$(data.price, true)}, 20% down, ${data.rate}% rate.`)}
                     style={{
                         flex: 1,
-                        padding: '11px 0',
+                        padding: '10px 0',
                         borderRadius: 999,
                         border: '1px solid rgba(126,227,255,0.3)',
                         background: 'transparent',
                         color: '#7ee3ff',
                         fontWeight: 600,
-                        fontSize: 13,
+                        fontSize: 12,
                         cursor: 'pointer',
                     }}
                 >
@@ -438,7 +459,7 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
                         background: 'rgba(255,255,255,0.04)',
                         color: 'rgba(255,255,255,0.6)',
                         fontWeight: 600,
-                        fontSize: 13,
+                        fontSize: 12,
                         textDecoration: 'none',
                         letterSpacing: '0.01em',
                     }}
