@@ -275,7 +275,21 @@ async function liveRedfinLookup(address: string): Promise<LivePropertyFields | n
   if (!url) return null;
   const text = await extractRedfinText(url);
   if (!text || text.length < 200) return null;
-  return gpt4oLiveExtract(text, url);
+  const data = await gpt4oLiveExtract(text, url);
+  if (!data) return null;
+
+  // Verify the extracted address belongs to the queried property.
+  // If GPT-4o returns a different house number we got the wrong page.
+  if (data.address) {
+    const queryNum = address.trim().match(/^(\d+)/)?.[1];
+    const liveNum  = data.address.trim().match(/^(\d+)/)?.[1];
+    if (queryNum && liveNum && queryNum !== liveNum) {
+      console.log(`[liveRedfinLookup] Address mismatch: queried "${address}", got "${data.address}" — discarding`);
+      return null;
+    }
+  }
+
+  return data;
 }
 
 // ── property_snapshots cache helpers ─────────────────────────────────────────
@@ -427,8 +441,13 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
 
   // AVM priority: GPT-4o/Redfin from live lookup → FHFA appreciation model
-  const liveAvm = (liveData?.estimatedValue && liveData.estimatedValue > 50_000 && liveData.estimatedValue <= AVM_MAX)
+  // Sanity check: liveAvm must exceed 75% of the known sale price — a property can't be worth
+  // less than it sold for (especially in CA). Values below this floor signal a wrong/stale page.
+  const rawLiveAvm = (liveData?.estimatedValue && liveData.estimatedValue > 50_000 && liveData.estimatedValue <= AVM_MAX)
     ? liveData.estimatedValue : null;
+  const liveAvm = (rawLiveAvm && salePrice && rawLiveAvm < salePrice * 0.75)
+    ? (() => { console.log(`[analysis] liveAvm ${rawLiveAvm} < salePrice ${salePrice} × 0.75 — discarding (wrong page)`); return null; })()
+    : rawLiveAvm;
   const avmSource: 'redfin' | 'fhfa' = liveAvm ? 'redfin' : 'fhfa';
   if (liveAvm) {
     estimatedValue     = liveAvm;
