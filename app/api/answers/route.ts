@@ -2968,8 +2968,10 @@ ${verdict}
                 homeValue:   eqHomeValue,
                 balance:     eqBalance,
                 drawAmount:  Math.min(100_000, helocMax),
-                helocRate:   9.0,
+                helocRate:   fred?.sofr ? parseFloat((fred.sofr + 3.0).toFixed(2)) : 8.5,
                 cashOutRate: marketRate ?? undefined,
+                sofr:        fred?.sofr ?? undefined,
+                address:     (body as any)?.paramOverrides?.cmaAddress ?? undefined,
             };
 
             return noStore({

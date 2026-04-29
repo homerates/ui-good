@@ -427,6 +427,15 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                 ))}
             </div>
 
+            {/* HELOC explore button */}
+            {calc.helocMax && calc.helocMax > 0 && (
+                <div style={{ padding:'0 16px 12px' }}>
+                    <button className="ri-s-btn-heloc" style={{ width:'100%' }} onClick={() => onRunScenario?.(buildSeed('heloc'))}>
+                        🏦 Explore HELOC — {fmt$(calc.helocMax, true)} available →
+                    </button>
+                </div>
+            )}
+
             {/* Deep dive trigger */}
             <div className="ri-deepdive-trigger" onClick={() => setMode('deep')}>
                 <div style={{ display:'flex', alignItems:'center', gap:9 }}>

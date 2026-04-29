@@ -471,6 +471,7 @@ type ApiResponse = {
     helocCard?: {
         homeValue: number; balance: number;
         drawAmount?: number; helocRate?: number; cashOutRate?: number;
+        sofr?: number; address?: string;
     } | null;
     proGate?: ProGatePayload | null;
     labModules?: Array<{ icon: string; label: string; tag: string; desc: string; seed: string }> | null;
@@ -2883,7 +2884,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.helocCard) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -2893,7 +2894,7 @@ export default function Page() {
                                                                     : m.meta.grok,
                                                                 // For slider cards during typing: only show m.content (the friendly summary),
                                                                 // never m.meta.answerMarkdown (which contains the old full tables).
-                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.vaSlider || m.meta.refiIntelligenceCard)
+                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.vaSlider || m.meta.refiIntelligenceCard || m.meta.helocCard)
                                                                     ? sanitizeMarkdown(typeof m.content === 'string' ? m.content : '')
                                                                     : sanitizeMarkdown(
                                                                         (typeof m.content === 'string' && m.content.length > 0)
@@ -2902,7 +2903,7 @@ export default function Page() {
                                                                     ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
-                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.vaSlider || m.meta.refiIntelligenceCard) ? undefined : (m.meta.followUp ?? undefined)),
+                                                                    : ((m.meta.affordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.vaSlider || m.meta.refiIntelligenceCard || m.meta.helocCard) ? undefined : (m.meta.followUp ?? undefined)),
                                                                 data_freshness:
                                                                     m.meta.data_freshness ??
                                                                     m.meta.fred?.asOf ??
