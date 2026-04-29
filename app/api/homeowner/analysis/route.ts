@@ -488,7 +488,9 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
         ...(liveData.sqft   && !prop?.sqft        && { sqft:          liveData.sqft }),
         ...(liveData.yearBuilt  && !prop?.year_built    && { year_built:    liveData.yearBuilt }),
         ...(liveData.propertyType && !prop?.property_type && { property_type: liveData.propertyType }),
-        ...(!hasLoFinancials && liveData.listingStatus && { latest_listing_status: liveData.listingStatus }),
+        // Only write SOLD/OFF_MARKET from homeowner route — never write FOR_SALE/PENDING
+        // (buyer-flow status changes must not corrupt the homeowner card).
+        ...(!hasLoFinancials && liveData.listingStatus && liveData.listingStatus !== 'FOR_SALE' && liveData.listingStatus !== 'PENDING' && { latest_listing_status: liveData.listingStatus }),
         ...(liveData.listPrice     && { latest_value:          liveData.listPrice }),      // market state — always update
         ...(!prop?.enrichment_source && { enrichment_source: 'redfin_via_tavily' }),
         updated_at: new Date().toISOString(),
@@ -545,23 +547,14 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     estimatedValueHigh = Math.round(liveAvm * 1.07);
   }
 
-  // FOR_SALE / PENDING: listing price always wins over any AVM model
-  // Fire Tavily check when: status is null, 'UNKNOWN', or prop is null (address mismatch with DB).
+  // Homeowner analysis never treats the property as FOR_SALE:
+  // - checkListingStatus() is a buyer-flow tool; calling it here writes FOR_SALE to the DB
+  //   and flips the card to Buyer Intelligence even for the owner's own home.
+  // - If the property happens to be listed, the list price must NOT replace the AVM;
+  //   the owner cares about market value, not their own ask price.
   let listingStatus: string | null = prop?.latest_listing_status ?? null;
   if (listingStatus === 'UNKNOWN') listingStatus = null;
-  // When LO has prepared actual financial data for this profile, skip live listing status check.
-  // The property is the borrower's primary residence — not an active listing.
-  if (!listingStatus && !hasLoFinancials) {
-    const freshStatus = await checkListingStatus(resolvedAddress);
-    if (freshStatus) {
-      listingStatus = freshStatus;
-      if (prop) {
-        prop.latest_listing_status = freshStatus;
-        void db().from('properties').update({ latest_listing_status: freshStatus, updated_at: new Date().toISOString() }).eq('id', prop.id);
-      }
-    }
-  }
-  const isForSale = listingStatus === 'FOR_SALE' || listingStatus === 'PENDING';
+  const isForSale = false; // always homeowner context — never buyer context
   const listingAvm = (isForSale && prop?.latest_value && prop.latest_value > 50_000 && prop.latest_value <= AVM_MAX)
     ? (prop.latest_value as number) : null;
   if (listingAvm) {
