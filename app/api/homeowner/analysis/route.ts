@@ -473,7 +473,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
         ...(liveData.sqft   && !prop?.sqft        && { sqft:          liveData.sqft }),
         ...(liveData.yearBuilt  && !prop?.year_built    && { year_built:    liveData.yearBuilt }),
         ...(liveData.propertyType && !prop?.property_type && { property_type: liveData.propertyType }),
-        ...(liveData.listingStatus && { latest_listing_status: liveData.listingStatus }), // market state — always update
+        ...(!hasLoFinancials && liveData.listingStatus && { latest_listing_status: liveData.listingStatus }),
         ...(liveData.listPrice     && { latest_value:          liveData.listPrice }),      // market state — always update
         ...(!prop?.enrichment_source && { enrichment_source: 'redfin_via_tavily' }),
         updated_at: new Date().toISOString(),
@@ -534,7 +534,9 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // Fire Tavily check when: status is null, 'UNKNOWN', or prop is null (address mismatch with DB).
   let listingStatus: string | null = prop?.latest_listing_status ?? null;
   if (listingStatus === 'UNKNOWN') listingStatus = null;
-  if (!listingStatus) {
+  // When LO has prepared actual financial data for this profile, skip live listing status check.
+  // The property is the borrower's primary residence — not an active listing.
+  if (!listingStatus && !hasLoFinancials) {
     const freshStatus = await checkListingStatus(resolvedAddress);
     if (freshStatus) {
       listingStatus = freshStatus;

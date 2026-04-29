@@ -428,15 +428,9 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
             </div>
 
             {/* Actions */}
-            <div style={{ padding:'14px 16px 16px', display:'flex', flexDirection:'column', gap:8 }}>
-                <button className="ri-s-btn-primary" onClick={() => onRunScenario?.(buildSeed('rate_term'))}>
-                    🔁 Run Full Refi Analysis →
-                </button>
-                <div style={{ display:'flex', gap:8 }}>
-                    <button className="ri-s-btn-heloc" onClick={() => onRunScenario?.(buildSeed('heloc'))}>🏦 Explore HELOC</button>
-                    <button className="ri-s-btn-secondary" onClick={() => onRunScenario?.(`Get matched with a loan officer for refinancing ${addrLine1}`)}>🤝 Get Matched</button>
-                    <button className="ri-s-btn-secondary" onClick={() => onRunScenario?.(buildSeed('cashout'))}>💰 Cash-Out</button>
-                </div>
+            <div style={{ padding:'14px 16px 16px', display:'flex', gap:8 }}>
+                <button className="ri-s-btn-secondary" onClick={() => onRunScenario?.(`Get matched with a loan officer for refinancing ${addrLine1}`)}>🤝 Get Matched</button>
+                <button className="ri-s-btn-secondary" onClick={() => onRunScenario?.(buildSeed('cashout'))}>💰 Cash-Out</button>
             </div>
 
             {/* Deep dive trigger */}
@@ -706,7 +700,6 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                         )}
                         <div style={{ display:'flex', gap:8, padding:'10px 14px', flexWrap:'wrap' }}>
                             <button className="ri-scen-chip" onClick={() => onRunScenario?.(buildSeed('cashout'))}>Full cash-out analysis →</button>
-                            <button className="ri-scen-chip" onClick={() => onRunScenario?.(buildSeed('heloc'))}>vs HELOC →</button>
                         </div>
                     </div>
                 )}
@@ -852,12 +845,10 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
 
             {/* Action bar */}
             <div style={{ padding:'12px 14px 14px', display:'flex', gap:8, flexWrap:'wrap', borderTop:'1px solid rgba(255,255,255,0.05)' }}>
-                <button style={{ flex:1, minWidth:160, background:C.green, color:'#07100f', fontSize:13, fontWeight:800, border:'none', borderRadius:10, padding:'12px 16px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
-                    onClick={() => onRunScenario?.(buildSeed('rate_term'))}>🔁 Run Full Analysis →</button>
-                <button style={{ flex:1, background:'rgba(99,179,237,0.08)', color:'#63b3ed', fontSize:12, fontWeight:700, border:'1px solid rgba(99,179,237,0.18)', borderRadius:10, padding:'11px 14px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}
-                    onClick={() => onRunScenario?.(buildSeed('heloc'))}>🏦 Explore HELOC →</button>
                 <button style={{ flex:1, background:'rgba(255,255,255,0.04)', color:'#8b949e', fontSize:12, fontWeight:700, border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:'11px 14px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}
                     onClick={() => onRunScenario?.(`Get matched with a loan officer for refinancing ${addrLine1}`)}>🤝 Get Matched</button>
+                <button style={{ flex:1, background:'rgba(255,255,255,0.04)', color:'#8b949e', fontSize:12, fontWeight:700, border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:'11px 14px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}
+                    onClick={() => onRunScenario?.(buildSeed('cashout'))}>💰 Cash-Out Options</button>
             </div>
             </>
         )}

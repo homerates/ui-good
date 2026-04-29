@@ -2175,29 +2175,9 @@ function MyHomePageInner() {
                             <a
                               href={(() => {
                                 const a = analysis;
-                                const parts: string[] = [`I own this home at ${a.address} and want to refinance or review my options.`];
-                                if (a.estimatedBalance) parts.push(`Loan balance: $${Math.round(a.estimatedBalance).toLocaleString()}${a.balanceIsEstimated ? ' (estimated)' : ' (on file)'}.`);
                                 const effectiveRate = a.savedOverrides?.actual_rate ?? a.purchaseRate;
-                                if (effectiveRate) parts.push(`Current mortgage rate: ${effectiveRate}%${a.rateIsEstimated ? ' (estimated from purchase year)' : ' (on file)'}.`);
-                                if (a.estimatedValue) parts.push(`Home value: $${Math.round(a.estimatedValue).toLocaleString()}.`);
-                                if (a.estimatedEquity) parts.push(`Equity: $${Math.round(a.estimatedEquity).toLocaleString()} (${a.equityPct}%).`);
-                                if (a.lastSalePrice) parts.push(`Purchase price: $${Math.round(a.lastSalePrice).toLocaleString()}.`);
-                                if (a.piti) parts.push(`Current PITI: $${Math.round(a.piti).toLocaleString()}/mo.`);
-                                parts.push('Show me refinance savings, break-even, and equity options. Use these exact figures.');
-                                const addrParts = (a.address ?? '').split(',').map((s: string) => s.trim());
-                                const p = new URLSearchParams({
-                                  sq: parts.join(' '),
-                                  cmaAddress: a.address ?? '',
-                                  cmaCity:    addrParts[1] ?? '',
-                                  cmaState:   (addrParts[2] ?? '').replace(/\s*\d{5}.*/, '').trim(),
-                                  cmaPrice:   String(a.estimatedValue ?? ''),
-                                  cmaLiveRate: String(a.liveRate.toFixed(2)),
-                                  ...(a.beds    ? { cmaBeds:  String(a.beds)  } : {}),
-                                  ...(a.baths   ? { cmaBaths: String(a.baths) } : {}),
-                                  ...(a.sqft    ? { cmaSqft:  String(a.sqft)  } : {}),
-                                  ...(a.streetViewUrl ? { cmaPhotoUrl: a.streetViewUrl } : {}),
-                                });
-                                return `/chat?${p.toString()}`;
+                                const sq = `Run homeowner analysis for ${a.address}: balance $${Math.round(a.estimatedBalance ?? 0).toLocaleString()}, rate ${effectiveRate ?? a.liveRate}%, home value $${Math.round(a.estimatedValue ?? 0).toLocaleString()}. Show me refi savings, break-even, and equity options.`;
+                                return `/chat?${new URLSearchParams({ sq }).toString()}`;
                               })()}
                               style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                             >
