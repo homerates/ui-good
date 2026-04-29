@@ -205,7 +205,7 @@ interface LivePropertyFields {
   lastSalePrice?: number | null; lastSaleDate?: string | null;
   listingStatus?: string | null; listPrice?: number | null;
   hoaMonthly?: number | null; propertyType?: string | null;
-  address?: string | null;
+  address?: string | null; photoUrl?: string | null;
 }
 
 async function findRedfinUrlForAddr(address: string): Promise<string | null> {
@@ -305,6 +305,7 @@ async function liveRedfinLookup(address: string): Promise<LivePropertyFields | n
     hoaMonthly:    gpt?.hoaMonthly       ?? null,
     propertyType:  gpt?.propertyType     ?? null,
     address:       redfin?.address       ?? gpt?.address        ?? null,
+    photoUrl:      redfin?.photoUrl      ?? null,
   };
 
   // Verify house number matches — reject if we got the wrong listing page
@@ -406,11 +407,15 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let rawSaleDateStr: string | null = prop?.latest_last_sale_date ?? null;
 
   // Run live Redfin lookup whenever we have missing key fields — same pipeline as /api/property/lookup
+  // Guard: if the LO has prepared this profile with actual_* data, live-scraped financials must NOT
+  // override it. Live lookup still runs for structural data (beds/baths/sqft) and photo.
+  const hasLoFinancials = !!(record.actual_purchase_price || record.actual_value || record.actual_balance || record.actual_rate);
   const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft;
-  const liveData = (!record.actual_purchase_price && needsLive) ? await liveRedfinLookup(address) : null;
+  const liveData = needsLive ? await liveRedfinLookup(address) : null;
 
   if (liveData) {
-    if (!rawSalePrice && liveData.lastSalePrice) {
+    // Only use liveData sale price when LO hasn't entered actual_purchase_price
+    if (!rawSalePrice && !record.actual_purchase_price && liveData.lastSalePrice) {
       rawSalePrice = liveData.lastSalePrice;
       if (liveData.lastSaleDate) rawSaleDateStr = liveData.lastSaleDate;
     }
@@ -467,9 +472,10 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
 
   // AVM priority: GPT-4o/Redfin from live lookup → FHFA appreciation model
+  // Guard: if LO entered actual_value, skip live AVM entirely — LO data wins.
   // Sanity check: liveAvm must exceed 75% of the known sale price — a property can't be worth
   // less than it sold for (especially in CA). Values below this floor signal a wrong/stale page.
-  const rawLiveAvm = (liveData?.estimatedValue && liveData.estimatedValue > 50_000 && liveData.estimatedValue <= AVM_MAX)
+  const rawLiveAvm = (!hasLoFinancials && liveData?.estimatedValue && liveData.estimatedValue > 50_000 && liveData.estimatedValue <= AVM_MAX)
     ? liveData.estimatedValue : null;
   const liveAvm = (rawLiveAvm && salePrice && rawLiveAvm < salePrice * 0.75)
     ? (() => { console.log(`[analysis] liveAvm ${rawLiveAvm} < salePrice ${salePrice} × 0.75 — discarding (wrong page)`); return null; })()
@@ -544,9 +550,10 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(address)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(address)}&key=${mapsKey}`
     : null;
 
-  // 10. Property photo — pull from most recent 'full' snapshot (scraped from Redfin)
-  let photoUrl: string | null = null;
-  if (prop?.id) {
+  // 10. Property photo — live Redfin scrape (og:image) wins; snapshot is fallback only
+  let photoUrl: string | null = (typeof liveData?.photoUrl === 'string' && liveData.photoUrl.startsWith('http'))
+    ? liveData.photoUrl : null;
+  if (!photoUrl && prop?.id) {
     try {
       const { data: photoSnap } = await db().from('property_snapshots')
         .select('data').eq('property_id', prop.id).eq('snapshot_type', 'full')
