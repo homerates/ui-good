@@ -347,14 +347,27 @@ async function saveSnapshot(address: string, data: PropertyData) {
     const addr  = normalizeAddr(address);
     const state = stateFromAddress(address.toUpperCase()) ?? null;
     const zip   = address.match(/\b(\d{5})\b/)?.[1] ?? null;
-    // Don't overwrite enrichment_source — preserve ATTOM enrichment if present
+    const newConfidence = data.avmSource === 'redfin' ? 0.90 : 0.75;
+
     const { data: prop } = await db().from('properties')
       .upsert({ address_full: addr, state, zip, updated_at: new Date().toISOString() }, { onConflict: 'address_full' })
       .select('id').single();
     if (!prop) return;
+
+    // Source hierarchy rule: don't overwrite a snapshot that has higher confidence.
+    // A consumer-triggered FHFA scrape (0.75) must not displace a Redfin-verified
+    // snapshot (0.90) that a previous user already produced for this address.
+    const { data: existing } = await db().from('property_snapshots')
+      .select('confidence').eq('property_id', prop.id).eq('snapshot_type', 'full')
+      .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
+    const existingConfidence = (existing?.confidence as number) ?? 0;
+    if (newConfidence < existingConfidence) return; // lower-trust source — skip
+
     const expiresAt = new Date(Date.now() + SNAPSHOT_TTL_MS).toISOString();
-    const confidence = data.avmSource === 'redfin' ? 0.90 : 0.75;
-    await db().from('property_snapshots').insert({ property_id: prop.id, snapshot_type: 'full', source: data.avmSource ?? 'internal', data, expires_at: expiresAt, confidence });
+    await db().from('property_snapshots').insert({
+      property_id: prop.id, snapshot_type: 'full',
+      source: data.avmSource ?? 'internal', data, expires_at: expiresAt, confidence: newConfidence,
+    });
   } catch { /* non-blocking */ }
 }
 
@@ -419,20 +432,24 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
       rawSalePrice = liveData.lastSalePrice;
       if (liveData.lastSaleDate) rawSaleDateStr = liveData.lastSaleDate;
     }
-    // Persist enriched fields from Redfin to properties table
+    // Persist enriched fields from Redfin to properties table.
+    // Source hierarchy rule: only write a field if it is currently null in the DB.
+    // A live consumer scrape must never overwrite data that was already confirmed
+    // by a more-trusted source (Redfin direct, LO-entered, etc.).
+    // Exception: listingStatus and listPrice are market state — they always update.
     if (prop?.id || rawSalePrice) {
       void db().from('properties').upsert({
         address_full: addr,
-        ...(rawSalePrice         && { latest_last_sale_price: rawSalePrice }),
-        ...(rawSaleDateStr       && { latest_last_sale_date:  rawSaleDateStr }),
-        ...(liveData.beds        && { beds: liveData.beds }),
-        ...(liveData.baths       && { baths: liveData.baths }),
-        ...(liveData.sqft        && { sqft: liveData.sqft }),
-        ...(liveData.yearBuilt   && { year_built: liveData.yearBuilt }),
-        ...(liveData.propertyType && { property_type: liveData.propertyType }),
-        ...(liveData.listingStatus && { latest_listing_status: liveData.listingStatus }),
-        ...(liveData.listPrice   && { latest_value: liveData.listPrice }),
-        enrichment_source: 'redfin_via_tavily',
+        ...(rawSalePrice    && !prop?.latest_last_sale_price && { latest_last_sale_price: rawSalePrice }),
+        ...(rawSaleDateStr  && !prop?.latest_last_sale_date  && { latest_last_sale_date:  rawSaleDateStr }),
+        ...(liveData.beds   && !prop?.beds        && { beds:          liveData.beds }),
+        ...(liveData.baths  && !prop?.baths       && { baths:         liveData.baths }),
+        ...(liveData.sqft   && !prop?.sqft        && { sqft:          liveData.sqft }),
+        ...(liveData.yearBuilt  && !prop?.year_built    && { year_built:    liveData.yearBuilt }),
+        ...(liveData.propertyType && !prop?.property_type && { property_type: liveData.propertyType }),
+        ...(liveData.listingStatus && { latest_listing_status: liveData.listingStatus }), // market state — always update
+        ...(liveData.listPrice     && { latest_value:          liveData.listPrice }),      // market state — always update
+        ...(!prop?.enrichment_source && { enrichment_source: 'redfin_via_tavily' }),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'address_full' });
     }
