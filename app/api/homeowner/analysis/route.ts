@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
 import { requireAdmin } from '../../../../lib/adminAuth';
 import { getUserPlan } from '../../../../lib/subscription';
+import { fetchPropertyData } from '@/property/fetch';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
@@ -270,27 +271,51 @@ async function gpt4oLiveExtract(text: string, url: string): Promise<LiveProperty
   } catch { return null; }
 }
 
-// Full live lookup: find Redfin URL → extract page → GPT-4o parse
+// Full live lookup: Redfin direct scrape + Tavily extract + GPT-4o (same pipeline as /api/property/lookup)
 async function liveRedfinLookup(address: string): Promise<LivePropertyFields | null> {
   const url = await findRedfinUrlForAddr(address);
   if (!url) return null;
-  const text = await extractRedfinText(url);
-  if (!text || text.length < 200) return null;
-  const data = await gpt4oLiveExtract(text, url);
-  if (!data) return null;
 
-  // Verify the extracted address belongs to the queried property.
-  // If GPT-4o returns a different house number we got the wrong page.
-  if (data.address) {
-    const queryNum = address.trim().match(/^(\d+)/)?.[1];
-    const liveNum  = data.address.trim().match(/^(\d+)/)?.[1];
-    if (queryNum && liveNum && queryNum !== liveNum) {
-      console.log(`[liveRedfinLookup] Address mismatch: queried "${address}", got "${data.address}" — discarding`);
-      return null;
-    }
+  // Run Redfin direct scrape and Tavily extract in parallel — same as handleUrl() in property/lookup
+  const [redfinRes, tavilyText] = await Promise.allSettled([
+    fetchPropertyData(url),
+    extractRedfinText(url),
+  ]);
+
+  const redfin = redfinRes.status === 'fulfilled' && redfinRes.value.ok ? redfinRes.value.data : null;
+  const text   = tavilyText.status === 'fulfilled' ? tavilyText.value : null;
+
+  // Need at least one source to have data
+  if (!redfin && (!text || text.length < 200)) return null;
+
+  // GPT-4o fills gaps in whatever the direct scraper missed
+  const gpt = text && text.length > 200 ? await gpt4oLiveExtract(text, url) : null;
+
+  // Merge: Redfin structured data wins, GPT-4o fills nulls
+  const merged: LivePropertyFields = {
+    beds:          redfin?.beds          ?? gpt?.beds          ?? null,
+    baths:         redfin?.baths         ?? gpt?.baths         ?? null,
+    sqft:          redfin?.sqft          ?? gpt?.sqft          ?? null,
+    yearBuilt:     gpt?.yearBuilt        ?? null,
+    estimatedValue: gpt?.estimatedValue  ?? null,  // Redfin estimate comes via GPT-4o extraction
+    lastSalePrice: gpt?.lastSalePrice    ?? null,
+    lastSaleDate:  gpt?.lastSaleDate     ?? null,
+    listingStatus: (redfin?.listingStatus ?? gpt?.listingStatus) ?? null,
+    listPrice:     redfin?.price         ?? gpt?.listPrice      ?? null,
+    hoaMonthly:    gpt?.hoaMonthly       ?? null,
+    propertyType:  gpt?.propertyType     ?? null,
+    address:       redfin?.address       ?? gpt?.address        ?? null,
+  };
+
+  // Verify house number matches — reject if we got the wrong listing page
+  const queryNum  = address.trim().match(/^(\d+)/)?.[1];
+  const mergedNum = (merged.address ?? '').trim().match(/^(\d+)/)?.[1];
+  if (queryNum && mergedNum && queryNum !== mergedNum) {
+    console.log(`[liveRedfinLookup] House number mismatch: queried "${address}", got "${merged.address}" — discarding`);
+    return null;
   }
 
-  return data;
+  return merged;
 }
 
 // ── property_snapshots cache helpers ─────────────────────────────────────────
