@@ -466,7 +466,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // override it. Live lookup still runs for structural data (beds/baths/sqft) and photo.
   // Pass original address: if it was a Redfin URL, liveRedfinLookup will use it directly (no Tavily search needed).
   const hasLoFinancials = !!(record.actual_purchase_price || record.actual_value || record.actual_balance || record.actual_rate);
-  const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft;
+  const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft || !prop?.latest_value;
   const liveData = needsLive ? await liveRedfinLookup(address) : null;
 
   if (liveData) {
