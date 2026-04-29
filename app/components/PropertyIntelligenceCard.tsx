@@ -394,7 +394,9 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
             {/* Run My Numbers — primary CTA, always present on for-sale CMA card */}
             <div style={{ padding: '0 16px 8px' }}>
                 <button
-                    onClick={() => data.onRunScenario?.(`Run my numbers for ${data.address} — purchase price ${fmt$(data.price, true)}, what are my monthly payments, income needed, and loan options?`)}
+                    onClick={() => data.onRunScenario?.(
+                        `${data.loanAmt > 832_750 ? 'Jumbo loan' : 'Conventional loan'} on ${data.address} at ${fmt$(data.price, false)}, 20% down, 30yr fixed — show me monthly payment, PITI breakdown, and full loan analysis.`
+                    )}
                     style={{
                         width: '100%',
                         padding: '13px 0',
