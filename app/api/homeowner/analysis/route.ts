@@ -1,7 +1,7 @@
 // app/api/homeowner/analysis/route.ts
 // GET — full property intelligence for the signed-in homeowner
-// Sources: property_snapshots cache → properties table → FHFA AVM model → Tavily fallback
-// No external paid AVM APIs — all data from public sources + LO overrides
+// Sources: property_snapshots cache → Redfin+Tavily+GPT-4o → FHFA AVM model
+// Same data pipeline as /api/property/lookup for consistency
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +13,8 @@ import { getFredSnapshot } from '@/lib/fred';
 import { requireAdmin } from '../../../../lib/adminAuth';
 import { getUserPlan } from '../../../../lib/subscription';
 import { enrichFromAttom, getAttomAVM, getAttomMortgage, getAttomComps, type AttomComp, type AttomAVM, type AttomMortgage, type AttomProperty } from '../../../../lib/attom';
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
 function db() {
   return createClient(
@@ -196,6 +198,88 @@ async function tavilyPropertySearch(address: string): Promise<{ lastSalePrice: n
   } catch { return { lastSalePrice: null, lastSaleDate: null }; }
 }
 
+// ── Live Redfin+Tavily+GPT-4o lookup (same pipeline as /api/property/lookup) ──
+
+interface LivePropertyFields {
+  beds?: number | null; baths?: number | null; sqft?: number | null;
+  yearBuilt?: number | null; estimatedValue?: number | null;
+  lastSalePrice?: number | null; lastSaleDate?: string | null;
+  listingStatus?: string | null; listPrice?: number | null;
+  hoaMonthly?: number | null; propertyType?: string | null;
+}
+
+async function findRedfinUrlForAddr(address: string): Promise<string | null> {
+  const key = process.env.TAVILY_API_KEY;
+  if (!key) return null;
+  const clean = address.replace(/,?\s*USA\s*$/i, '').replace(/,?\s*United States\s*$/i, '').trim();
+  const short  = clean.replace(/,\s*\d{5}(-\d{4})?/, '').trim();
+  const trySearch = async (q: string): Promise<string | null> => {
+    try {
+      const res = await fetch('https://api.tavily.com/search', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(8_000),
+        body: JSON.stringify({ api_key: key, query: q, max_results: 3, search_depth: 'basic', include_answer: false }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      for (const r of (data.results ?? [])) {
+        const url: string = r.url ?? '';
+        if (/redfin\.com\/.*\/home\/\d+/i.test(url)) return url;
+        if (/redfin\.com\/[A-Z]{2}\/[^/]+\/[^/]+-\d+\//.test(url)) return url;
+      }
+    } catch { /* ignore */ }
+    return null;
+  };
+  return (await trySearch(`"${clean}" site:redfin.com`)) ?? (short !== clean ? await trySearch(`${short} redfin site:redfin.com`) : null);
+}
+
+async function extractRedfinText(url: string): Promise<string | null> {
+  const key = process.env.TAVILY_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch('https://api.tavily.com/extract', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: key, urls: [url] }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json?.results?.[0]?.raw_content as string) ?? null;
+  } catch { return null; }
+}
+
+async function gpt4oLiveExtract(text: string, url: string): Promise<LivePropertyFields | null> {
+  if (!OPENAI_API_KEY || text.length < 100) return null;
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
+      body: JSON.stringify({
+        model: 'gpt-4o', temperature: 0, max_tokens: 400,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: `Extract real estate property fields from listing page text. Return only JSON, null for missing values, numbers not strings, dates as "Month YYYY". listingStatus: FOR_SALE|OFF_MARKET|PENDING|SOLD|UNKNOWN. Fields: beds, baths, sqft, yearBuilt, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType` },
+          { role: 'user', content: `URL: ${url}\n\n${text.slice(0, 12_000)}` },
+        ],
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const raw = json?.choices?.[0]?.message?.content;
+    return raw ? (JSON.parse(raw) as LivePropertyFields) : null;
+  } catch { return null; }
+}
+
+// Full live lookup: find Redfin URL → extract page → GPT-4o parse
+async function liveRedfinLookup(address: string): Promise<LivePropertyFields | null> {
+  const url = await findRedfinUrlForAddr(address);
+  if (!url) return null;
+  const text = await extractRedfinText(url);
+  if (!text || text.length < 200) return null;
+  return gpt4oLiveExtract(text, url);
+}
+
 // ── property_snapshots cache helpers ─────────────────────────────────────────
 const SNAPSHOT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — AVM data is stable; 7 days caused drift
 
@@ -300,16 +384,43 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     }
   }
 
-  // 3. Resolve last sale data (DB → LO override → Tavily)
+  // 3. Resolve last sale data (DB → LO override → Redfin+GPT-4o → Tavily text search)
   let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;
   let rawSaleDateStr: string | null = prop?.latest_last_sale_date ?? null;
 
-  // If we have no sale data in DB, fire Tavily as fallback
+  // Run live Redfin lookup whenever we have missing key fields — same pipeline as /api/property/lookup
+  const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft;
+  const liveData = (!record.actual_purchase_price && needsLive) ? await liveRedfinLookup(address) : null;
+
+  if (liveData) {
+    if (!rawSalePrice && liveData.lastSalePrice) {
+      rawSalePrice = liveData.lastSalePrice;
+      if (liveData.lastSaleDate) rawSaleDateStr = liveData.lastSaleDate;
+    }
+    // Persist enriched fields from Redfin to properties table
+    if (prop?.id || rawSalePrice) {
+      void db().from('properties').upsert({
+        address_full: addr,
+        ...(rawSalePrice         && { latest_last_sale_price: rawSalePrice }),
+        ...(rawSaleDateStr       && { latest_last_sale_date:  rawSaleDateStr }),
+        ...(liveData.beds        && { beds: liveData.beds }),
+        ...(liveData.baths       && { baths: liveData.baths }),
+        ...(liveData.sqft        && { sqft: liveData.sqft }),
+        ...(liveData.yearBuilt   && { year_built: liveData.yearBuilt }),
+        ...(liveData.propertyType && { property_type: liveData.propertyType }),
+        ...(liveData.listingStatus && { latest_listing_status: liveData.listingStatus }),
+        ...(liveData.listPrice   && { latest_value: liveData.listPrice }),
+        enrichment_source: 'redfin_via_tavily',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'address_full' });
+    }
+  }
+
+  // Fallback: if liveData still didn't get sale data, try basic Tavily text search
   if (!rawSalePrice && !record.actual_purchase_price) {
     const tv = await tavilyPropertySearch(address);
     rawSalePrice = tv.lastSalePrice;
     if (tv.lastSaleDate) rawSaleDateStr = tv.lastSaleDate;
-    // Persist to properties table for next time
     if (rawSalePrice) {
       void db().from('properties').upsert({
         address_full: addr,
@@ -389,30 +500,34 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     }
   }
 
-  // ATTOM AVM overrides FHFA appreciation model — stored prop wins, inline is fallback.
-  // Reject values >$50M — residential AVM cap; if DB has garbage, clear it non-blocking.
+  // ATTOM AVM — only read prop.avm_value when ATTOM is actually configured.
+  // Without ATTOM key, prop.avm_value may contain a previously-anchored FHFA value
+  // (written by a prior session bug) which should not be served as an ATTOM AVM.
   const attomConf = prop?.avm_confidence ?? inlineAvm?.confidence ?? null;
-  const rawAttomAvm = prop?.avm_value ?? inlineAvm?.estimatedValue ?? null;
+  const rawAttomAvm = process.env.ATTOM_API_KEY
+    ? (prop?.avm_value ?? inlineAvm?.estimatedValue ?? null)
+    : (inlineAvm?.estimatedValue ?? null);
   let attomAvm = rawAttomAvm && rawAttomAvm <= AVM_MAX ? rawAttomAvm : null;
   if (rawAttomAvm && rawAttomAvm > AVM_MAX && prop?.id) {
-    // Clear the bad value from DB so it won't be served again
     void db().from('properties').update({ avm_value: null, avm_value_low: null, avm_value_high: null, avm_confidence: null, avm_date: null }).eq('id', prop.id);
     console.log(`[analysis] Cleared bad ATTOM AVM ${rawAttomAvm} for property ${prop.id}`);
   }
 
   // Sanity-check low-confidence ATTOM AVMs against Zillow/Redfin via Tavily.
-  // ATTOM is unreliable for luxury/private estates with sparse comps (tScore < 50).
   if (attomAvm && attomConf !== null && attomConf < 50) {
     const webAvm = await tavilyAvmSearch(address);
     if (webAvm) {
       const ratio = attomAvm / webAvm;
       if (ratio > 1.4 || ratio < 0.7) {
-        // ATTOM diverges >40% from web consensus — blend toward web estimate
         console.log(`[analysis] ATTOM AVM ${attomAvm} conf ${attomConf} diverges from web ${webAvm} (ratio ${ratio.toFixed(2)}) — blending`);
-        attomAvm = Math.round((attomAvm + webAvm * 2) / 3); // weight web 2:1
+        attomAvm = Math.round((attomAvm + webAvm * 2) / 3);
       }
     }
   }
+
+  // If GPT-4o live lookup returned an AVM and ATTOM is absent, use it — more accurate than FHFA
+  const liveAvm = (!attomAvm && liveData?.estimatedValue && liveData.estimatedValue > 50_000 && liveData.estimatedValue <= AVM_MAX)
+    ? liveData.estimatedValue : null;
 
   // For properties where ATTOM has no AVM (private estates, sparse comps), use assessed value
   const assessedFallback = inlineProfile?.assessedValue ?? null;
@@ -422,9 +537,12 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     estimatedValue     = attomAvm;
     estimatedValueLow  = prop?.avm_value_low  ?? inlineAvm?.estimatedValueLow  ?? Math.round(attomAvm * 0.92);
     estimatedValueHigh = prop?.avm_value_high ?? inlineAvm?.estimatedValueHigh ?? Math.round(attomAvm * 1.08);
+  } else if (liveAvm) {
+    // GPT-4o extracted AVM from Redfin listing — prefer over FHFA model
+    estimatedValue     = liveAvm;
+    estimatedValueLow  = Math.round(liveAvm * 0.93);
+    estimatedValueHigh = Math.round(liveAvm * 1.07);
   } else if (assessedFallback && !estimatedValue) {
-    // CA Prop 13 means assessed values can be far below market for older homes.
-    // Use 1.25× as a conservative floor — better than blank, clearly labelled in UI.
     estimatedValue     = Math.round(assessedFallback * 1.25);
     estimatedValueLow  = Math.round(assessedFallback);
     estimatedValueHigh = Math.round(assessedFallback * 1.50);
@@ -533,11 +651,11 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     lastSaleDate: lastSaleDate ?? (inlineProfile?.lastSaleDate ?? null),
     lastSalePrice: salePrice ?? inlineProfile?.lastSalePrice ?? null,
     rentEstimate,
-    beds: prop?.beds ?? inlineProfile?.beds ?? null,
-    baths: prop?.baths ?? inlineProfile?.baths ?? null,
-    sqft: prop?.sqft ?? inlineProfile?.sqft ?? null,
-    yearBuilt: prop?.year_built ?? inlineProfile?.yearBuilt ?? null,
-    propertyType: prop?.property_type ?? inlineProfile?.propertyType ?? null,
+    beds: prop?.beds ?? inlineProfile?.beds ?? liveData?.beds ?? null,
+    baths: prop?.baths ?? inlineProfile?.baths ?? liveData?.baths ?? null,
+    sqft: prop?.sqft ?? inlineProfile?.sqft ?? liveData?.sqft ?? null,
+    yearBuilt: prop?.year_built ?? inlineProfile?.yearBuilt ?? liveData?.yearBuilt ?? null,
+    propertyType: prop?.property_type ?? inlineProfile?.propertyType ?? liveData?.propertyType ?? null,
     lotSizeSqft: prop?.lot_size_sqft ?? inlineProfile?.lotSizeSqft ?? null,
     apn: prop?.apn ?? inlineProfile?.apn ?? null,
     avmSource,
@@ -558,18 +676,6 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
 
   // 7. Cache result (non-blocking)
   void saveSnapshot(address, result);
-
-  // Persist FHFA-computed AVM to properties table so future cache misses return
-  // the same anchored value instead of recomputing from a changing yearsElapsed.
-  if (avmSource === 'fhfa' && estimatedValue && prop?.id && !prop.avm_value) {
-    void db().from('properties').update({
-      avm_value:      estimatedValue,
-      avm_value_low:  estimatedValueLow,
-      avm_value_high: estimatedValueHigh,
-      avm_date:       new Date().toISOString().slice(0, 10),
-      updated_at:     new Date().toISOString(),
-    }).eq('id', prop.id);
-  }
 
   return result;
 }
