@@ -2594,9 +2594,17 @@ export default function Page() {
                         : `$${Math.round(sl.price / 1000)}k`;
                     return `Here's your FHA payment breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
                 })()
+                : meta.jumboSlider
+                ? (() => {
+                    const sl = meta.jumboSlider as { price: number; downPct: number; rate: number };
+                    const prK = sl.price >= 1000000
+                        ? `$${(sl.price / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1000)}k`;
+                    return `Here's your jumbo loan breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
+                })()
                 : friendly;
             // Short constructed sentences use slow tick (3 chars/tick) so typewriter is visible
-            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider) ? 3 : 24);
+            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider || meta.jumboSlider) ? 3 : 24);
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
