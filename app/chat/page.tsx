@@ -2602,9 +2602,58 @@ export default function Page() {
                         : `$${Math.round(sl.price / 1000)}k`;
                     return `Here's your jumbo loan breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
                 })()
+                : meta.dscrSlider
+                ? (() => {
+                    const sl = meta.dscrSlider as { price: number; downPct: number; rate: number };
+                    const prK = sl.price >= 1000000
+                        ? `$${(sl.price / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1000)}k`;
+                    return `Here's your DSCR investment analysis for a ${prK} property at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
+                })()
+                : meta.vaSlider
+                ? (() => {
+                    const sl = meta.vaSlider as { price: number; downPct: number; rate: number };
+                    const prK = sl.price >= 1000000
+                        ? `$${(sl.price / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1000)}k`;
+                    return `Here's your VA loan breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
+                })()
+                : meta.refiIntelligenceCard
+                ? (() => {
+                    const sl = meta.refiIntelligenceCard as { balance: number; currentRate: number; newRate: number };
+                    const refiRate = parseFloat((sl.newRate + 0.125).toFixed(3));
+                    const balK = sl.balance >= 1000000
+                        ? `$${(sl.balance / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.balance / 1000)}k`;
+                    return `Here's your refi analysis — dropping from ${sl.currentRate.toFixed(2)}% to ${refiRate.toFixed(2)}% on a ${balK} balance.`;
+                })()
+                : meta.refiSlider
+                ? (() => {
+                    const sl = meta.refiSlider as { balance: number; currentRate: number; newRate: number };
+                    const balK = sl.balance >= 1000000
+                        ? `$${(sl.balance / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.balance / 1000)}k`;
+                    return `Here's your refi breakdown — dropping from ${sl.currentRate.toFixed(2)}% to ${sl.newRate.toFixed(2)}% on a ${balK} balance.`;
+                })()
+                : meta.loanLimitsSlider
+                ? (() => {
+                    const sl = meta.loanLimitsSlider as { price: number; baseRate: number };
+                    const prK = sl.price >= 1000000
+                        ? `$${(sl.price / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1000)}k`;
+                    return `Here's your loan limit breakdown for a ${prK} home at ${sl.baseRate.toFixed(2)}%.`;
+                })()
+                : meta.jumboAffordabilitySlider
+                ? (() => {
+                    const sl = meta.jumboAffordabilitySlider as { price: number; downPct: number; baseRate: number };
+                    const prK = sl.price >= 1000000
+                        ? `$${(sl.price / 1000000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1000)}k`;
+                    return `Here's your jumbo affordability breakdown for a ${prK} home at ${sl.baseRate.toFixed(2)}% — ${sl.downPct}% down.`;
+                })()
                 : friendly;
             // Short constructed sentences use slow tick (3 chars/tick) so typewriter is visible
-            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider || meta.jumboSlider) ? 3 : 24);
+            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider || meta.jumboSlider || meta.dscrSlider || meta.vaSlider || meta.refiIntelligenceCard || meta.refiSlider || meta.loanLimitsSlider || meta.jumboAffordabilitySlider) ? 3 : 24);
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
@@ -2934,7 +2983,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.helocCard) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
