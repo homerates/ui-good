@@ -537,8 +537,8 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 .dsc-exp-actions { display:flex; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap; }
                 .dsc-btn-rerun { background:rgba(0,232,122,0.08); color:${ACCENT}; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .dsc-btn-rerun:hover { background:rgba(0,232,122,0.15); }
-                .dsc-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .dsc-btn-vault:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
+                .dsc-btn-vault { display:flex; align-items:center; gap:6px; background:#00e87a; color:#07100f; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; transition:opacity .15s; }
+                .dsc-btn-vault:hover { opacity:.88; }
                 .dsc-btn-match { margin-left:auto; background:${ACCENT}; color:#00150a; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .dsc-btn-match:hover { opacity:.88; }
 

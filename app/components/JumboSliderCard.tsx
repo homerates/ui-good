@@ -697,8 +697,8 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 .jbs-exp-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
                 .jbs-btn-rerun { background:#111827; color:#f9fafb; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }
                 .jbs-btn-rerun:hover { background:#1f2937; }
-                .jbs-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .jbs-btn-vault:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
+                .jbs-btn-vault { display:flex; align-items:center; gap:6px; background:#00e87a; color:#07100f; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; transition:opacity .15s; }
+                .jbs-btn-vault:hover { opacity:.88; }
                 .jbs-btn-match { margin-left:auto; background:#8b5cf6; color:#fff; border:none; border-radius:8px; padding:10px 22px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .jbs-btn-match:hover { opacity:.88; }
 

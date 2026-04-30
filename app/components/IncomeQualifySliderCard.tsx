@@ -611,8 +611,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-applied-badge { font-size:13px; font-weight:600; color:#00e87a; padding:0 4px; align-self:center; }
                 .iq-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .iq-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
-                .iq-btn-vault { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .iq-btn-vault:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
+                .iq-btn-vault { display:flex; align-items:center; gap:6px; background:#00e87a; color:#07100f; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; transition:opacity .15s; }
+                .iq-btn-vault:hover { opacity:.88; }
                 .iq-btn-match { margin-left:auto; background:#00e87a; color:#07100f; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .iq-btn-match:hover { opacity:.88; }
 
