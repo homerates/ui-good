@@ -52,6 +52,14 @@ function fmtRate(r: number): string {
 // ── Bar width helper — scale against 9% max ───────────────────────────────────
 function barW(rate: number): string { return `${Math.min(100, (rate / 9) * 100).toFixed(1)}%`; }
 
+// ── Date formatter — "2026-03-21" → "Mar 21, 2026" ───────────────────────────
+function fmtFredDate(d?: string | null): string {
+    if (!d) return '30yr avg';
+    const dt = new Date(d + 'T00:00:00');
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 // ── Verdict ────────────────────────────────────────────────────────────────────
 function refiVerdict(rateDelta: number, beMonths: number | null): { emoji: string; text: string; color: string } {
     if (rateDelta >= 0.75 && beMonths !== null && beMonths <= 30) {
@@ -90,7 +98,8 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
     // ── Derived calculations ──────────────────────────────────────────────────
     const calc = useMemo(() => {
         const oldPI     = calcPI(balance, currentRate, remainingMonths ?? 360);
-        const newPI30   = calcPI(balance, newRate, termMonths);
+        const refiRate  = parseFloat((newRate + 0.125).toFixed(3));
+        const newPI30   = calcPI(balance, refiRate, termMonths);
         const savings   = oldPI - newPI30;
 
         const beMonths: number | null =
@@ -134,11 +143,12 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
         const access75 = propertyValue ? Math.max(0, Math.round(propertyValue * 0.75 - balance)) : null;
         const access70 = propertyValue ? Math.round(propertyValue * 0.70 - balance) : null;
 
-        const rateDelta  = parseFloat((currentRate - newRate).toFixed(3));
+        const rateDelta  = parseFloat((currentRate - refiRate).toFixed(3));
         const verdict    = refiVerdict(rateDelta, beMonths);
         const fwdRate    = parseFloat((newRate - 0.48).toFixed(2));
 
         return {
+            refiRate,
             oldPI: Math.round(oldPI), newPI30: Math.round(newPI30),
             savings: Math.round(savings), beMonths, net5yr, net10yr,
             oldTotalInt, newTotalInt30, intSaved30,
@@ -155,13 +165,13 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
     // ── Address formatting ────────────────────────────────────────────────────
     const shortAddr  = address ? address.split(',')[0] : null;
     const addrLine1  = shortAddr ?? 'Your Property';
-    const addrLine2  = [city, state, zip].filter(Boolean).join(', ') || 'Saved Property';
+    const addrLine2  = [city, state, zip].filter(Boolean).join(', ');
 
     function buildSeed(type: string): string {
         if (type === '15yr') return `Refi ${fmt$(balance, true)} balance from ${fmtRate(currentRate)} to ${fmtRate(calc.rate15)} — 15yr fixed, closing costs ${fmt$(closingCosts)}`;
         if (type === 'cashout') return `Cash-out refinance ${fmt$(calc.maxCashLoan ?? balance, true)} at ${fmtRate(calc.cashOutRate)} — 30yr fixed`;
         if (type === 'heloc') return `HELOC on ${addrLine1} — property value ${fmt$(propertyValue ?? 0, true)}, balance ${fmt$(balance, true)}, max line ${fmt$(calc.helocMax ?? 0, true)}`;
-        return `Refi ${fmt$(balance, true)} balance from ${fmtRate(currentRate)} to ${fmtRate(newRate)} — 30yr fixed, closing costs ${fmt$(closingCosts)}`;
+        return `Refi ${fmt$(balance, true)} balance from ${fmtRate(currentRate)} to ${fmtRate(calc.refiRate)} — 30yr fixed, closing costs ${fmt$(closingCosts)}`;
     }
 
     // ── Token colors ──────────────────────────────────────────────────────────
@@ -335,7 +345,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
             </div>
 
             {/* Address overlay */}
-            <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'8px 14px', display:'flex', alignItems:'flex-end', justifyContent:'space-between', pointerEvents:'none' }}>
+            <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'20px 14px 8px', display:'flex', alignItems:'flex-end', justifyContent:'space-between', pointerEvents:'none', background:'linear-gradient(to bottom, transparent, rgba(13,17,23,0.95) 55%)' }}>
                 <div>
                     <div style={{ fontSize:12, fontWeight:700, color:C.text, textShadow:'0 1px 6px rgba(0,0,0,0.8)' }}>{addrLine1}</div>
                     <div style={{ fontSize:10, color:'rgba(107,122,153,0.9)', marginTop:2, textShadow:'0 1px 4px rgba(0,0,0,0.8)' }}>{addrLine2}</div>
@@ -369,7 +379,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
             <div style={{ padding:'28px 24px 20px', display:'flex', alignItems:'center', justifyContent:'center', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ textAlign:'center', flex:1 }}>
                     <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:C.dim, marginBottom:8 }}>Your Rate{origRateLabel ? ` · ${origRateLabel}` : ''}</div>
-                    <div style={{ fontSize:52, fontWeight:800, lineHeight:1, letterSpacing:'-.02em', color:C.red }}>{fmtRate(currentRate)}</div>
+                    <div style={{ fontSize:'clamp(26px, 8vw, 46px)', fontWeight:800, lineHeight:1, letterSpacing:'-.02em', color:C.red }}>{fmtRate(currentRate)}</div>
                     <div style={{ fontSize:10, color:C.muted, marginTop:6 }}>At close</div>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'0 14px', flexShrink:0 }}>
@@ -379,9 +389,9 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                     </div>
                 </div>
                 <div style={{ textAlign:'center', flex:1 }}>
-                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:C.dim, marginBottom:8 }}>Today · FRED Live</div>
-                    <div style={{ fontSize:52, fontWeight:800, lineHeight:1, letterSpacing:'-.02em', color:C.green }}>{fmtRate(newRate)}</div>
-                    <div style={{ fontSize:10, color:C.muted, marginTop:6 }}>{fredDate ?? '30yr avg'}</div>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:C.dim, marginBottom:8 }}>Refi Rate · FRED + 0.125%</div>
+                    <div style={{ fontSize:'clamp(26px, 8vw, 46px)', fontWeight:800, lineHeight:1, letterSpacing:'-.02em', color:C.green }}>{fmtRate(calc.refiRate)}</div>
+                    <div style={{ fontSize:10, color:C.muted, marginTop:6 }}>{fmtFredDate(fredDate)}</div>
                 </div>
             </div>
 
@@ -394,9 +404,9 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
             {/* Savings hero */}
             <div style={{ padding:'28px 24px 20px', textAlign:'center', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ fontSize:10, fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:C.dim, marginBottom:10 }}>Estimated Monthly Savings</div>
-                <div style={{ fontSize:64, fontWeight:800, color:C.green, lineHeight:1, letterSpacing:'-.03em' }}>
+                <div style={{ fontSize:'clamp(32px, 11vw, 56px)', fontWeight:800, color:C.green, lineHeight:1, letterSpacing:'-.03em' }}>
                     {calc.savings > 0 ? fmt$(calc.savings) : '—'}
-                    <span style={{ fontSize:22, fontWeight:700, color:'rgba(0,232,122,0.6)' }}>/mo</span>
+                    <span style={{ fontSize:'clamp(14px, 4vw, 20px)', fontWeight:700, color:'rgba(0,232,122,0.6)' }}>/mo</span>
                 </div>
                 <div style={{ fontSize:12, color:C.muted, marginTop:10, lineHeight:1.6 }}>
                     Based on {fmt$(balance, true)} balance · {calc.rateDelta > 0 ? calc.rateDelta.toFixed(3) : '0'}% rate drop<br/>
@@ -485,7 +495,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                         <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:12, fontWeight:700, color:C.text }}>
                             <div className="ri-live-dot"/>Rate Environment
                         </div>
-                        <div style={{ fontSize:10, color:C.dim, fontWeight:600 }}>FRED · 30yr avg{fredDate ? ` · ${fredDate}` : ''}</div>
+                        <div style={{ fontSize:10, color:C.dim, fontWeight:600 }}>FRED · 30yr avg{fredDate ? ` · ${fmtFredDate(fredDate)}` : ''}</div>
                     </div>
                     {/* Delta */}
                     <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
@@ -500,8 +510,8 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                             </div>
                         </div>
                         <div style={{ textAlign:'center', flex:1 }}>
-                            <div style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', color:C.dim, marginBottom:4 }}>Today (FRED Live)</div>
-                            <div style={{ fontSize:20, fontWeight:800, color:C.green }}>{fmtRate(newRate)}</div>
+                            <div style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', color:C.dim, marginBottom:4 }}>Refi Rate (FRED+0.125%)</div>
+                            <div style={{ fontSize:20, fontWeight:800, color:C.green }}>{fmtRate(calc.refiRate)}</div>
                         </div>
                     </div>
                     {/* Rate timeline bars */}
@@ -565,7 +575,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
                             {[
                                 { side:'Before', color:C.red,   pi:calc.oldPI,  rate:currentRate, note:'Current P&I' },
-                                { side:'After',  color:C.green, pi:calc.newPI30, rate:newRate,    note:`${termMonths/12}yr at ${fmtRate(newRate)}` },
+                                { side:'After',  color:C.green, pi:calc.newPI30, rate:calc.refiRate,    note:`${termMonths/12}yr at ${fmtRate(calc.refiRate)}` },
                             ].map(({ side, color, pi, rate, note }) => (
                                 <div key={side} style={{ padding:'12px 14px', borderRight: side==='Before' ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
                                     <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', color, marginBottom:10 }}>{side}</div>
