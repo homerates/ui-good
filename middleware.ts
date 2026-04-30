@@ -69,6 +69,8 @@ const isPublicRoute = createRouteMatcher([
   // Making public here prevents Clerk edge middleware from redirecting email link clicks
   // when the cookie isn't immediately visible at the edge (new tab, email client, etc.)
   "/messages(.*)",
+  // OG image generation — must be public so Twitter/LinkedIn crawlers can fetch card images
+  "/api/og(.*)",
   // Market intelligence — server-side AI keys only, no user PII; auth guard not needed
   "/api/market-intelligence(.*)",
   // Deal room join — must be accessible before sign-in (token validates identity)
