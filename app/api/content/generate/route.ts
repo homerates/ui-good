@@ -235,5 +235,5 @@ export async function POST(req: NextRequest) {
   // Ping IndexNow — notifies Bing, Yandex, and participating engines immediately
   pingIndexNow(`https://${SITE_HOST}/${seed.category}/${slug}`);
 
-  return NextResponse.json({ ok: true, slug, id: data?.id, title, category: seed.category });
+  return NextResponse.json({ ok: true, slug, id: data?.id, title, excerpt: article.excerpt, category: seed.category });
 }

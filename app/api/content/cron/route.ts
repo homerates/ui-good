@@ -8,6 +8,7 @@ export const maxDuration = 300;
 
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { postArticleTweet } from '@/twitter';
 
 const APP_URL     = process.env.NEXT_PUBLIC_APP_URL ?? 'https://chat.homerates.ai';
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -71,6 +72,13 @@ export async function GET(req: Request) {
       } else if (json.ok) {
         results.published++;
         results.articles.push(json.slug);
+        // Post to X — non-blocking, never fails the cron
+        postArticleTweet({
+          title:    json.title,
+          excerpt:  json.excerpt ?? '',
+          slug:     json.slug,
+          category: json.category,
+        }).catch(e => console.error('[ContentCron] Twitter post error:', e.message));
       } else {
         results.failed++;
         console.error('[ContentCron] failed:', json.error);
