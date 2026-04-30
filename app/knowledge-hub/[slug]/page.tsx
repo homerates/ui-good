@@ -65,7 +65,7 @@ export async function generateMetadata({
       type: 'article',
       images: [{ url: `https://chat.homerates.ai/api/og?title=${encodeURIComponent(article.title)}&cat=knowledge-hub`, width: 1200, height: 630 }],
     },
-    twitter: { card: 'summary_large_image', title: article.title, description: article.excerpt, images: [`https://chat.homerates.ai/api/og?title=${encodeURIComponent(article.title)}&cat=knowledge-hub`] },
+    twitter: { card: 'summary_large_image', title: article.title, description: article.excerpt },
   };
 }
 
