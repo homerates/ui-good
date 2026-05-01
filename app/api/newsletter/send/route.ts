@@ -50,45 +50,45 @@ function buildEmail(opts: {
     .map(
       (a) => `
       <tr><td style="padding:0 0 20px;">
-        <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#00a854;">${a.category ?? "Market"}</p>
-        <a href="${BASE}/knowledge-hub/${a.slug}" style="display:block;margin:0 0 6px;font-size:15px;font-weight:700;color:#1a2332;text-decoration:none;line-height:1.3;">${a.title}</a>
-        <p style="margin:0 0 8px;font-size:13px;color:#4a5568;line-height:1.6;">${a.excerpt}</p>
-        <a href="${BASE}/knowledge-hub/${a.slug}" style="font-size:12px;color:#00a854;font-weight:600;text-decoration:none;">Read article →</a>
+        <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#00e87a;">${a.category ?? "Market"}</p>
+        <a href="${BASE}/knowledge-hub/${a.slug}" style="display:block;margin:0 0 6px;font-size:15px;font-weight:700;color:#e6edf3;text-decoration:none;line-height:1.3;">${a.title}</a>
+        <p style="margin:0 0 8px;font-size:13px;color:#8b949e;line-height:1.6;">${a.excerpt}</p>
+        <a href="${BASE}/knowledge-hub/${a.slug}" style="font-size:12px;color:#00e87a;font-weight:600;text-decoration:none;">Read article →</a>
       </td></tr>`,
     )
     .join("");
 
   const body = `
     <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#00e87a;">Weekly Market Update</p>
-    <h1 style="margin:0 0 24px;font-size:22px;font-weight:800;color:#1a2332;line-height:1.2;">This Week in Mortgage Markets</h1>
-    <p style="margin:0 0 24px;font-size:13px;color:#6b7280;line-height:1.5;">${weekLabel()}</p>
+    <h1 style="margin:0 0 24px;font-size:22px;font-weight:800;color:#e6edf3;line-height:1.2;">This Week in Mortgage Markets</h1>
+    <p style="margin:0 0 24px;font-size:13px;color:#8b949e;line-height:1.5;">${weekLabel()}</p>
 
     <!-- Rate snapshot -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;background:#f0faf5;border-radius:12px;overflow:hidden;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;background:#1c2433;border:1px solid #2a3444;border-radius:12px;overflow:hidden;">
       <tr>
         <td style="padding:20px 24px;">
-          <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#00a854;">Current Rate</p>
-          <p style="margin:0;font-size:32px;font-weight:800;color:#1a2332;letter-spacing:-0.02em;">${rateStr}</p>
-          <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">30-Year Fixed Avg · Source: FRED / Freddie Mac</p>
+          <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8b949e;">Current Rate</p>
+          <p style="margin:0;font-size:32px;font-weight:800;color:#00e87a;letter-spacing:-0.02em;">${rateStr}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#8b949e;">30-Year Fixed Avg · Source: FRED / Freddie Mac</p>
         </td>
         <td style="padding:20px 24px;text-align:right;vertical-align:middle;">
-          <a href="${BASE}" style="display:inline-block;padding:10px 20px;background:#00e87a;color:#0a0e14;font-size:13px;font-weight:700;border-radius:999px;text-decoration:none;">View Live Rates →</a>
+          <a href="${BASE}" style="display:inline-block;padding:10px 20px;background:#00e87a;color:#07100f;font-size:13px;font-weight:700;border-radius:999px;text-decoration:none;">View Live Rates →</a>
         </td>
       </tr>
     </table>
 
     <!-- Articles -->
     ${articles.length > 0 ? `
-    <p style="margin:0 0 16px;font-size:13px;font-weight:700;color:#1a2332;">This week's reads</p>
+    <p style="margin:0 0 16px;font-size:13px;font-weight:700;color:#e6edf3;">This week's reads</p>
     <table width="100%" cellpadding="0" cellspacing="0">
       ${articleRows}
     </table>` : ""}
 
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
       <tr>
-        <td style="padding:20px 24px;background:#f8f9fb;border-radius:12px;text-align:center;">
-          <p style="margin:0 0 12px;font-size:13px;color:#4a5568;">Get matched with top loan officers instantly.</p>
-          <a href="${BASE}" style="display:inline-block;padding:12px 28px;background:#1a2332;color:#ffffff;font-size:13px;font-weight:700;border-radius:999px;text-decoration:none;">Explore HomeRates.ai →</a>
+        <td style="padding:20px 24px;background:#1c2433;border:1px solid #2a3444;border-radius:12px;text-align:center;">
+          <p style="margin:0 0 12px;font-size:13px;color:#8b949e;">Get matched with top loan officers instantly.</p>
+          <a href="${BASE}" style="display:inline-block;padding:12px 28px;background:#00e87a;color:#07100f;font-size:13px;font-weight:700;border-radius:999px;text-decoration:none;">Explore HomeRates.ai →</a>
         </td>
       </tr>
     </table>
