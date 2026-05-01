@@ -64,14 +64,14 @@ function buildEmail(opts: {
     <p style="margin:0 0 24px;font-size:13px;color:#8b949e;line-height:1.5;">${weekLabel()}</p>
 
     <!-- Rate snapshot -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;background:#1c2433;border:1px solid #2a3444;border-radius:12px;overflow:hidden;">
+    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#1c2433" style="margin-bottom:28px;background-color:#1c2433;border:1px solid #2a3444;border-radius:12px;overflow:hidden;">
       <tr>
-        <td style="padding:20px 24px;">
+        <td bgcolor="#1c2433" style="background-color:#1c2433;padding:20px 24px;">
           <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8b949e;">Current Rate</p>
           <p style="margin:0;font-size:32px;font-weight:800;color:#00e87a;letter-spacing:-0.02em;">${rateStr}</p>
           <p style="margin:4px 0 0;font-size:12px;color:#8b949e;">30-Year Fixed Avg · Source: FRED / Freddie Mac</p>
         </td>
-        <td style="padding:20px 24px;text-align:right;vertical-align:middle;">
+        <td bgcolor="#1c2433" style="background-color:#1c2433;padding:20px 24px;text-align:right;vertical-align:middle;">
           <a href="${BASE}" style="display:inline-block;padding:10px 20px;background:#00e87a;color:#07100f;font-size:13px;font-weight:700;border-radius:999px;text-decoration:none;">View Live Rates →</a>
         </td>
       </tr>
@@ -84,9 +84,9 @@ function buildEmail(opts: {
       ${articleRows}
     </table>` : ""}
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#1c2433" style="margin-top:8px;background-color:#1c2433;border:1px solid #2a3444;border-radius:12px;">
       <tr>
-        <td style="padding:20px 24px;background:#1c2433;border:1px solid #2a3444;border-radius:12px;text-align:center;">
+        <td bgcolor="#1c2433" style="background-color:#1c2433;padding:20px 24px;text-align:center;">
           <p style="margin:0 0 12px;font-size:13px;color:#8b949e;">Get matched with top loan officers instantly.</p>
           <a href="${BASE}" style="display:inline-block;padding:12px 28px;background:#00e87a;color:#07100f;font-size:13px;font-weight:700;border-radius:999px;text-decoration:none;">Explore HomeRates.ai →</a>
         </td>

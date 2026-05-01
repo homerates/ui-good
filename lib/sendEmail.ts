@@ -36,18 +36,18 @@ export function emailShell(
     ? `<br><a href="${unsubscribeUrl}" style="color:${_TXT2};">Unsubscribe</a> · ${PHYSICAL_ADDRESS}`
     : `<br>${PHYSICAL_ADDRESS}`;
 
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:${_BG};font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:${_BG};padding:32px 16px;">
-<tr><td align="center">
-<table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:${_CARD};border-radius:16px;overflow:hidden;border:1px solid ${_BORDER};">
-<tr><td style="background:${_BG};padding:22px 32px;border-bottom:1px solid ${_BORDER};">
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
+<body style="margin:0;padding:0;background-color:${_BG};font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="${_BG}" style="background-color:${_BG};padding:32px 16px;">
+<tr><td bgcolor="${_BG}" align="center" style="background-color:${_BG};">
+<table width="520" cellpadding="0" cellspacing="0" bgcolor="${_CARD}" style="max-width:520px;width:100%;background-color:${_CARD};border-radius:16px;overflow:hidden;border:1px solid ${_BORDER};">
+<tr><td bgcolor="${_BG}" style="background-color:${_BG};padding:22px 32px;border-bottom:1px solid ${_BORDER};">
 <img src="${BASE}/assets/homerates-email-logo.png" alt="HomeRates.ai" style="height:32px;display:block;" onerror="this.style.display='none'">
 </td></tr>
-<tr><td style="background:${_CARD};padding:32px;color:${_TXT};">
+<tr><td bgcolor="${_CARD}" style="background-color:${_CARD};padding:32px;color:${_TXT};">
 ${bodyHtml}
 </td></tr>
-<tr><td style="background:${_BG};padding:20px 32px;border-top:1px solid ${_BORDER};border-radius:0 0 16px 16px;">
+<tr><td bgcolor="${_BG}" style="background-color:${_BG};padding:20px 32px;border-top:1px solid ${_BORDER};border-radius:0 0 16px 16px;">
 <p style="margin:0;font-size:11px;color:${_TXT2};line-height:1.6;">${footerText}${unsubLine}</p>
 </td></tr>
 </table>

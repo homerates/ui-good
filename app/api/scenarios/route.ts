@@ -33,28 +33,31 @@ function scenarioAlertHtml(opts: {
     ? `A borrower you referred just posted a scenario and is waiting for your response.`
     : `A new borrower scenario matching your state just posted to the board.`;
 
+  const CARD = '#1c2433';
+  const SEP  = '#2a3444';
+
   const row = (label: string, value: string) =>
     `<tr>
-      <td style="padding:10px 0;border-bottom:1px solid #2a3444">
+      <td bgcolor="${CARD}" style="background-color:${CARD};padding:10px 0;border-bottom:1px solid ${SEP}">
         <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#8b949e;margin-bottom:3px">${label}</span>
         <span style="font-size:15px;font-weight:600;color:#e6edf3">${value}</span>
       </td>
     </tr>`;
 
   return emailShell(`
-    <span style="display:inline-block;background:${tagBg};color:${tagColor};font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em">${tagText}</span>
+    <span style="display:inline-block;background-color:${tagBg};color:${tagColor};font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em">${tagText}</span>
     <div style="font-size:22px;font-weight:700;color:#e6edf3;margin-top:14px">Hi ${opts.loName},</div>
     <div style="font-size:14px;color:#8b949e;margin-top:6px;margin-bottom:24px;line-height:1.5">${greeting}</div>
 
-    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#1c2433" style="background:#1c2433;border:1px solid #2a3444;border-radius:12px;margin-bottom:24px">
-      <tr><td style="padding:4px 20px 0">
-        <table width="100%" cellpadding="0" cellspacing="0">
+    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="${CARD}" style="background-color:${CARD};border:1px solid ${SEP};border-radius:12px;margin-bottom:24px">
+      <tr><td bgcolor="${CARD}" style="background-color:${CARD};padding:4px 20px 0">
+        <table width="100%" cellpadding="0" cellspacing="0" bgcolor="${CARD}" style="background-color:${CARD};">
           ${row("Loan type",   opts.loanType)}
           ${row("Price range", opts.priceRange)}
           ${row("Credit",      opts.creditTier)}
           ${row("State",       opts.state)}
           <tr>
-            <td style="padding:10px 0">
+            <td bgcolor="${CARD}" style="background-color:${CARD};padding:10px 0">
               <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#8b949e;margin-bottom:3px">Timeline</span>
               <span style="font-size:15px;font-weight:600;color:#e6edf3">${opts.timeline}</span>
             </td>
