@@ -2745,7 +2745,11 @@ async function handle(req: NextRequest, intentParam?: string) {
     // Refi guardrail: ask for inputs only if missing; otherwise compute locally (no Grok)
     const _po = (body as any)?.paramOverrides;
     const _hasRefiCalcParams = (_po?.newRatePct != null && _po?.currentBalance != null) || (_po?.rate20yr != null && _po?.rate30yr != null);
-    if (module === "refi" && !_hasRefiCalcParams) {
+    // Informational refi questions ("what is refinancing", "how does refinancing work") should fall
+    // through to the UW guidelines bypass — not the refi advisor which demands balance/rate inputs.
+    const _isRefiInfoQuestion = /\b(?:what\s+is|what\s+are|what\s+does|explain|how\s+does|how\s+do|tell\s+me\s+about|walk\s+me\s+through|difference\s+between)\b.{0,60}\brefina?n/i.test(question)
+        && !/\b(?:balance|current\s+rate|my\s+rate|interest\s+rate|payoff|breakeven|worth\s+it|should\s+i\s+refi|cash\s*out|\$\s*[\d,]+)\b/i.test(question);
+    if (module === "refi" && !_hasRefiCalcParams && !_isRefiInfoQuestion) {
         // ============================================================
         // SMART REFI ADVISOR v2 — AI-powered decision engine
         // Not a calculator. A verdict.
