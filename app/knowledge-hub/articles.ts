@@ -10,6 +10,61 @@ export interface Article {
 
 export const knowledgeHubArticles: Article[] = [
   {
+    slug: 'the-shift-is-here',
+    title: 'The Shift Is Here: From Searching to Asking — Welcome to HomeRates.AI',
+    excerpt: 'Consumers no longer search the old way. They ask. HomeRates.AI is built for this new reality — delivering real-time mortgage intelligence in a private, conversational experience.',
+    category: 'Getting Started',
+    readTime: '3 min read',
+    date: 'April 30, 2026',
+    body: `
+## From Searching to Asking
+
+Consumers no longer search the old way.
+
+They ask.
+
+Every day, homebuyers, homeowners, and investors turn to AI with their questions — then bring those insights into conversations with professionals. The behavior has already changed. HomeRates.AI is built for this new reality.
+
+We deliver real-time mortgage intelligence in a private, conversational experience. Rates, scenarios, market context, and personalized possibilities — all in one place. No forms. No hidden handoffs. Just clarity that helps you move forward with confidence.
+
+---
+
+## Our Statement of Intent
+
+HomeRates.AI exists to lead the evolution of mortgage intelligence.
+
+We combine fresh market data with intelligent conversation so everyday people and licensed professionals can make better decisions together.
+
+- **For homebuyers and homeowners:** Ask once, understand deeply, decide confidently.
+- **For investors:** Explore opportunities with current, unbiased context.
+- **For real estate and mortgage professionals:** Meet your clients where they already are — informed and ready for strategic discussion.
+
+Your conversations stay private. Your data stays in your control. The power of asking now has a dedicated, trustworthy home in the mortgage world.
+
+---
+
+## What the Market Looks Like Right Now
+
+The Freddie Mac 30-year fixed-rate mortgage averaged **6.23%** in the most recent weekly survey. Daily marketplace figures range roughly 6.12%–6.39%, depending on credit, location, loan type, and timing.
+
+These headline numbers are useful, but they're only the beginning of the story. Your actual options depend on many personal and local factors. That's where intelligent conversation becomes powerful.
+
+---
+
+## Why This Matters Now
+
+The housing market is dynamic. Consumer expectations have shifted. Old gated quote systems and static rate tables no longer serve the way people naturally seek information.
+
+HomeRates.AI closes that gap — turning natural questions into clear, actionable intelligence without friction or pressure.
+
+---
+
+Ready to experience the shift? Ask your first question at HomeRates.AI. No email required. No strings attached.
+
+**The future of mortgage decisions is conversational. Welcome to HomeRates.AI.**
+`,
+  },
+  {
     slug: 'mortgage-roadmap',
     title: 'The Mortgage Roadmap: From Pre-Approval to Closing',
     excerpt: 'A step-by-step guide to the mortgage process — what happens, in what order, and what to expect at each stage.',
