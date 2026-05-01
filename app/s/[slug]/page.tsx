@@ -60,6 +60,7 @@ export async function generateMetadata({
       description: 'View a live mortgage scenario with real rates and real math — powered by HomeRates.ai.',
       images: [ogImage],
     },
+    robots: { index: false, follow: false },
   };
 }
 

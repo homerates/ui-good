@@ -22,7 +22,6 @@ export default function robots(): MetadataRoute.Robots {
           "/my-home/",
           "/probe/",
           "/library/",
-          "/s/",
           "/share/",
         ],
       },
