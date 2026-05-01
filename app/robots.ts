@@ -27,6 +27,8 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
       // ── AI / LLM crawlers — explicitly welcome ─────────────────────
+      { userAgent: "Twitterbot",        allow: "/" },
+      { userAgent: "facebookexternalhit", allow: "/" },
       { userAgent: "GPTBot",          allow: "/" },
       { userAgent: "ChatGPT-User",    allow: "/" },
       { userAgent: "ClaudeBot",       allow: "/" },
