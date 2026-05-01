@@ -24,27 +24,46 @@ export function ShareAnswerButton({
     const [showModal, setShowModal] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [copied, setCopied] = React.useState(false);
+    // Pre-generated URL so clipboard write has no async gap (iOS gesture chain requirement)
+    const [readyUrl, setReadyUrl] = React.useState<string | null>(null);
 
-    async function createShareUrl(): Promise<string> {
-        const res = await fetch('/api/share', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages }),
-        });
-        const data = await res.json();
-        if (!data.ok || !data.url) throw new Error(data.error || 'Failed to create share link');
-        return data.url as string;
+    async function openModal() {
+        setShowModal(true);
+        setReadyUrl(null);
+        try {
+            const res = await fetch('/api/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages }),
+            });
+            const data = await res.json();
+            if (data.ok && data.url) setReadyUrl(data.url as string);
+        } catch (e) {
+            console.error('[ShareAnswerButton] Pre-generate failed:', e);
+        }
     }
 
     async function handleShare(method: 'link' | 'email', email?: string): Promise<void> {
         setLoading(true);
 
         try {
-            const shareUrl = await createShareUrl();
-
             if (method === 'link') {
-                let didCopy = false;
+                const shareUrl = readyUrl;
+                if (!shareUrl) throw new Error('Link not ready yet');
 
+                // On mobile prefer native share sheet — avoids iOS clipboard gesture restrictions
+                if (typeof navigator.share === 'function') {
+                    setShowModal(false);
+                    try {
+                        await navigator.share({ url: shareUrl, title: 'HomeRates.ai — Mortgage Intelligence' });
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                    } catch { /* user cancelled */ }
+                    return;
+                }
+
+                // Desktop: clipboard write — URL already in hand, no async gap
+                let didCopy = false;
                 try {
                     await navigator.clipboard.writeText(shareUrl);
                     didCopy = true;
@@ -63,20 +82,10 @@ export function ShareAnswerButton({
                     } catch { /* falls through */ }
                 }
 
-                if (!didCopy && typeof navigator.share === 'function') {
-                    setShowModal(false);
-                    try {
-                        await navigator.share({ url: shareUrl, title: 'HomeRates.ai' });
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                    } catch { /* user cancelled */ }
-                    return;
-                }
-
                 setCopied(didCopy);
                 if (didCopy) setTimeout(() => setCopied(false), 2000);
+
             } else if (method === 'email' && email) {
-                // Email is sent by the API directly
                 await fetch('/api/share', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -97,7 +106,18 @@ export function ShareAnswerButton({
     async function handleSocialShare(platform: 'linkedin' | 'instagram'): Promise<void> {
         setLoading(true);
         try {
-            const shareUrl = await createShareUrl();
+            // Use pre-generated URL if available, otherwise fetch now
+            let shareUrl = readyUrl;
+            if (!shareUrl) {
+                const res = await fetch('/api/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages }),
+                });
+                const data = await res.json();
+                if (!data.ok || !data.url) throw new Error(data.error || 'Failed to create share link');
+                shareUrl = data.url as string;
+            }
             const isMobile = window.innerWidth < 768;
 
             if (platform === 'linkedin') {
@@ -155,7 +175,7 @@ export function ShareAnswerButton({
         <>
             <button
                 type="button"
-                onClick={() => setShowModal(true)}
+                onClick={openModal}
                 disabled={loading}
                 style={{
                     display: 'inline-flex',
