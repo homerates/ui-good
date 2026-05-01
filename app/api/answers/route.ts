@@ -4040,7 +4040,7 @@ ${uwDatabase}`;
                     'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
                 },
                 body: JSON.stringify({
-                    model: 'grok-4-1-fast-non-reasoning',
+                    model: XAI_MODEL,
                     messages: [
                         { role: 'system', content: uwSystemPrompt },
                         { role: 'user', content: question },
@@ -4094,7 +4094,7 @@ ${uwDatabase}`;
                 parseMode: "direct",
                 repaired: false,
             },
-            data_freshness: `Live (grok-3-mini + guidelines database)`,
+            data_freshness: `Live (${XAI_MODEL} + guidelines database)`,
             message: uwAnswerText,
             answerMarkdown: buildAnswerMarkdown(uwAnswerText),
             followUp: null,
