@@ -129,16 +129,15 @@ export default function Sidebar(props: SidebarProps) {
   //
   // Desktop behavior is unchanged.
 
+  const isMobile = () =>
+    typeof window !== 'undefined' && window.innerWidth < 1024;
+
   const autoWrap = React.useCallback(
     (fn?: (...args: any[]) => void) =>
       (...args: any[]) => {
-        // Run the original action first
+        // Close sidebar first on mobile so it doesn't race with state updates
+        if (isMobile()) onToggle();
         fn?.(...args);
-
-        // Auto-close on mobile only
-        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-          onToggle();
-        }
       },
     [onToggle]
   );
@@ -151,10 +150,8 @@ export default function Sidebar(props: SidebarProps) {
   const onSettings = autoWrap(rawOnSettings);
   const onLabSeed = props.onLabSeed
     ? (seed: string) => {
+        if (isMobile()) onToggle();
         props.onLabSeed!(seed);
-        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-          onToggle();
-        }
       }
     : undefined;
   const onPriceCheck = rawOnPriceCheck ? autoWrap(rawOnPriceCheck) : undefined;
@@ -169,38 +166,30 @@ export default function Sidebar(props: SidebarProps) {
   // Chat selection: also auto-close on mobile so answers are visible
   const onSelectHistory = React.useCallback(
     (chatId: string) => {
+      if (isMobile()) onToggle();
       rawOnSelectHistory(chatId);
-
-      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-        onToggle();
-      }
     },
     [rawOnSelectHistory, onToggle]
   );
 
   // Ask Underwriting click handler
   const handleAskUnderwritingClick = React.useCallback(() => {
+    if (isMobile()) onToggle();
     if (rawOnAskUnderwriting) {
       rawOnAskUnderwriting();
     } else if (onKnowledgeTool) {
       onKnowledgeTool('ask-underwriting');
-    }
-
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-      onToggle();
     }
   }, [rawOnAskUnderwriting, onKnowledgeTool, onToggle]);
 
   // Mortgage Solutions knowledge tool click
   const handleKnowledgeClick = React.useCallback(
     (tool: KnowledgeToolId) => {
+      if (isMobile()) onToggle();
       if (onKnowledgeTool) {
         onKnowledgeTool(tool);
       }
 
-      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-        onToggle();
-      }
     },
     [onKnowledgeTool, onToggle]
   );
@@ -276,12 +265,8 @@ export default function Sidebar(props: SidebarProps) {
     (project: any) => {
       if (!project || !project.id) return;
 
+      if (isMobile()) onToggle();
       setActiveProjectId((prev) => (prev === project.id ? null : project.id));
-
-      // When a project is selected on mobile, also close the drawer
-      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-        onToggle();
-      }
     },
     [onToggle]
   );
