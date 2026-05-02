@@ -149,6 +149,14 @@ export default function Sidebar(props: SidebarProps) {
   const onLibrary = autoWrap(rawOnLibrary);
   const onNewProject = autoWrap(rawOnNewProject);
   const onSettings = autoWrap(rawOnSettings);
+  const onLabSeed = props.onLabSeed
+    ? (seed: string) => {
+        props.onLabSeed!(seed);
+        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+          onToggle();
+        }
+      }
+    : undefined;
   const onPriceCheck = rawOnPriceCheck ? autoWrap(rawOnPriceCheck) : undefined;
   const onAboutHomeRates = rawOnAboutHomeRates
     ? autoWrap(rawOnAboutHomeRates)
@@ -377,7 +385,7 @@ export default function Sidebar(props: SidebarProps) {
             <button
               className="btn sidebar-tool-btn"
               type="button"
-              onClick={() => props.onLabSeed?.('Show me the HomeRates Lab')}
+              onClick={() => onLabSeed?.('Show me the HomeRates Lab')}
             >
               <span className="sidebar-tool-icon">🧪</span>
               HomeRates Lab
