@@ -2458,16 +2458,23 @@ async function handle(req: NextRequest, intentParam?: string) {
     if (needsWebSearch) {
         let tavQuery: string;
         if (isAddressQuery) {
-            tavQuery = `${question} home value recent sales comparable homes neighborhood market 2026 -youtube -forum -reddit`;
+            // Address queries — always US context (US addresses only on this platform)
+            tavQuery = `${question} United States home value recent sales comparable homes neighborhood market 2026 -youtube -forum -reddit`;
         } else if (isResearchQuery) {
-            // Research / entity lookup — use question verbatim, no mortgage restriction
-            tavQuery = `${question} -youtube -reddit -quora -forum`;
+            // Research / entity lookup — verbatim question, no mortgage restriction, but add US context if relevant
+            const researchHasMortgageContext = /\b(mortgage|housing|hud|fannie|freddie|fha|va\s+loan|usda|lender|homeowner)\b/i.test(question);
+            tavQuery = researchHasMortgageContext
+                ? `${question} United States -youtube -reddit -quora -forum`
+                : `${question} -youtube -reddit -quora -forum`;
         } else if (module === "underwriting" || module === "qualify") {
-            tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
+            // Already scoped to US regulatory sites
+            tavQuery = `${question} United States conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
         } else if (module === "rate") {
-            tavQuery = `${question} 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:freddiemac.com OR site:nerdwallet.com OR site:forbes.com -yahoo -aol -forum -blog -reddit`;
+            // US mortgage rate sources only
+            tavQuery = `${question} United States 2025 mortgage rates site:bankrate.com OR site:mortgagenewsdaily.com OR site:freddiemac.com OR site:nerdwallet.com OR site:forbes.com -yahoo -aol -forum -blog -reddit`;
         } else {
-            tavQuery = `${question} 2025 mortgage -yahoo -aol -forum -blog -reddit`;
+            // General mortgage — enforce US context
+            tavQuery = `${question} United States 2025 mortgage -yahoo -aol -forum -blog -reddit`;
         }
 
         tav = await askTavily(req, tavQuery, {
@@ -2477,7 +2484,7 @@ async function handle(req: NextRequest, intentParam?: string) {
 
         // Fallback relax — skip for research queries (mortgage suffix would corrupt results)
         if (!isResearchQuery && (!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
-            const fallbackQuery = `${question} mortgage 2025`;
+            const fallbackQuery = `${question} United States mortgage 2025`;
             tav = await askTavily(req, fallbackQuery, { depth: "advanced", max: 8 });
         }
     }
@@ -7010,6 +7017,7 @@ What's your scenario?`,
 ${specialistPrefix}
 
 You are HomeRates.ai. Calm, precise, data-first. Never sell. Never hype.
+US-ONLY: All mortgage, rate, housing, and lending data must be United States-specific. Ignore or explicitly discard any figures, guidelines, or programs from other countries (UK, Canada, Australia, etc.) even if they appear in search results. When in doubt, label context as US and cite US sources only.
 If lender guideline context is provided, treat it as primary for that lender.
 
 Date: ${today}
