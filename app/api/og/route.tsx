@@ -7,12 +7,17 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
-const BG = "https://chat.homerates.ai/assets/share/og/homerates-brand-default-og-1200x630-v1.png";
+const BG   = "https://chat.homerates.ai/assets/share/og/homerates-brand-default-og-1200x630-v1.png";
+const LOGO = "https://chat.homerates.ai/assets/homerates-logo-horizontal.png";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const title = searchParams.get("title") ?? "HomeRates.ai";
   const cat   = searchParams.get("cat")   ?? "";
+
+  // Fetch logo as base64 so it renders reliably in the Edge runtime
+  const logoData = await fetch(LOGO).then(r => r.arrayBuffer());
+  const logoB64  = `data:image/png;base64,${Buffer.from(logoData).toString("base64")}`;
 
   const catLabel =
     cat === "market-news"   ? "MARKET NEWS"    :
@@ -39,33 +44,11 @@ export async function GET(req: NextRequest) {
         }} />
 
         {/* Logo — top left */}
-        <div style={{
-          position: "absolute",
-          top: 44,
-          left: 54,
-          display: "flex",
-          alignItems: "center",
-          gap: 11,
-        }}>
-          <div style={{
-            width: 36,
-            height: 36,
-            background: "#00e87a",
-            borderRadius: 9,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 20,
-            fontWeight: 800,
-            color: "#080c12",
-          }}>H</div>
-          <span style={{
-            color: "#f0f4ff",
-            fontSize: 20,
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-          }}>HomeRates.ai</span>
-        </div>
+        <img
+          src={logoB64}
+          height={48}
+          style={{ position: "absolute", top: 40, left: 54, objectFit: "contain" }}
+        />
 
         {/* "FIRST AI MORTGAGE INTELLIGENCE PLATFORM" pill — keep exactly as branded card */}
         <div style={{
