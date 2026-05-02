@@ -1,5 +1,5 @@
 // app/api/og/route.tsx
-// Dynamic OG image — branded card background, dynamic headline overlay
+// Dynamic OG image — pre-composited base (logo + dashboard) + pill + dynamic title
 // Usage: /api/og?title=Article+Title&cat=market-news
 
 import { ImageResponse } from "next/og";
@@ -7,17 +7,12 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
-const BG   = "https://chat.homerates.ai/assets/share/og/homerates-brand-default-og-1200x630-v1.png";
-const LOGO = "https://chat.homerates.ai/assets/homerates-logo-horizontal.png";
+const BASE = "https://chat.homerates.ai/assets/share/og/homerates-og-base.png";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const title = searchParams.get("title") ?? "HomeRates.ai";
   const cat   = searchParams.get("cat")   ?? "";
-
-  // Fetch logo as base64 so it renders reliably in the Edge runtime
-  const logoData = await fetch(LOGO).then(r => r.arrayBuffer());
-  const logoB64  = `data:image/png;base64,${Buffer.from(logoData).toString("base64")}`;
 
   const catLabel =
     cat === "market-news"   ? "MARKET NEWS"    :
@@ -26,31 +21,18 @@ export async function GET(req: NextRequest) {
 
   const fontSize = title.length > 55 ? 40 : title.length > 38 ? 46 : 52;
 
+  // Fetch base as buffer so it renders reliably at the edge
+  const baseData = await fetch(BASE).then(r => r.arrayBuffer());
+  const baseB64  = `data:image/png;base64,${Buffer.from(baseData).toString("base64")}`;
+
   return new ImageResponse(
     (
       <div style={{ width: 1200, height: 630, display: "flex", position: "relative" }}>
 
-        {/* Branded card — preserves right-side dashboard graphics */}
-        <img src={BG} width={1200} height={630} style={{ position: "absolute", top: 0, left: 0 }} />
+        {/* Pre-composited base: branded card + dark left overlay + logo */}
+        <img src={baseB64} width={1200} height={630} style={{ position: "absolute", top: 0, left: 0 }} />
 
-        {/* Left-panel overlay — masks original static headline, fades into dashboard */}
-        <div style={{
-          position: "absolute",
-          top: 0, left: 0,
-          width: 640,
-          height: 630,
-          background: "linear-gradient(to right, #080c12 0%, #080c12 68%, transparent 100%)",
-          display: "flex",
-        }} />
-
-        {/* Logo — top left */}
-        <img
-          src={logoB64}
-          height={48}
-          style={{ position: "absolute", top: 40, left: 54, objectFit: "contain" }}
-        />
-
-        {/* "FIRST AI MORTGAGE INTELLIGENCE PLATFORM" pill — keep exactly as branded card */}
+        {/* "FIRST AI MORTGAGE INTELLIGENCE PLATFORM" pill */}
         <div style={{
           position: "absolute",
           top: 220,
@@ -74,7 +56,7 @@ export async function GET(req: NextRequest) {
           </div>
         </div>
 
-        {/* Dynamic article headline — replaces "Your mortgage, understood." */}
+        {/* Dynamic article headline */}
         <div style={{
           position: "absolute",
           top: 278,
