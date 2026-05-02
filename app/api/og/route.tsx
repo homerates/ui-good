@@ -1,120 +1,136 @@
 // app/api/og/route.tsx
-// Dynamic OG image for articles — 1200x630 branded card with title overlay
-// Usage: /api/og?title=Article+Title&cat=knowledge-hub
+// Dynamic OG image — branded card background, dynamic headline overlay
+// Usage: /api/og?title=Article+Title&cat=market-news
 
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
+const BG = "https://chat.homerates.ai/assets/share/og/homerates-brand-default-og-1200x630-v1.png";
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const title = searchParams.get("title") ?? "HomeRates.ai";
-  const cat = searchParams.get("cat") ?? "";
+  const cat   = searchParams.get("cat")   ?? "";
 
   const catLabel =
-    cat === "market-news" ? "MARKET NEWS" :
+    cat === "market-news"   ? "MARKET NEWS"    :
     cat === "knowledge-hub" ? "MORTGAGE GUIDE" :
     "HOMERATES.AI";
 
+  const fontSize = title.length > 55 ? 40 : title.length > 38 ? 46 : 52;
+
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: 1200,
-          height: 630,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "flex-end",
-          padding: "64px 72px",
-          background: "#080c12",
-          fontFamily: "system-ui, -apple-system, sans-serif",
-        }}
-      >
-        {/* Green accent bar */}
+      <div style={{ width: 1200, height: 630, display: "flex", position: "relative" }}>
+
+        {/* Branded card — preserves right-side dashboard graphics */}
+        <img src={BG} width={1200} height={630} style={{ position: "absolute", top: 0, left: 0 }} />
+
+        {/* Left-panel overlay — masks original static headline, fades into dashboard */}
         <div style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 6,
-          background: "#00e87a",
+          top: 0, left: 0,
+          width: 640,
+          height: 630,
+          background: "linear-gradient(to right, #080c12 0%, #080c12 68%, transparent 100%)",
           display: "flex",
         }} />
 
-        {/* Logo area */}
+        {/* Logo — top left */}
         <div style={{
           position: "absolute",
-          top: 48,
-          left: 72,
+          top: 44,
+          left: 54,
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 11,
         }}>
           <div style={{
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             background: "#00e87a",
-            borderRadius: 8,
+            borderRadius: 9,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 18,
-            fontWeight: 700,
+            fontSize: 20,
+            fontWeight: 800,
             color: "#080c12",
           }}>H</div>
-          <span style={{ color: "#f0f4ff", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>
-            HomeRates.ai
-          </span>
+          <span style={{
+            color: "#f0f4ff",
+            fontSize: 20,
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+          }}>HomeRates.ai</span>
         </div>
 
-        {/* Category tag */}
+        {/* "FIRST AI MORTGAGE INTELLIGENCE PLATFORM" pill — keep exactly as branded card */}
         <div style={{
+          position: "absolute",
+          top: 220,
+          left: 54,
           display: "flex",
-          marginBottom: 20,
         }}>
           <div style={{
-            background: "rgba(0,232,122,0.15)",
+            background: "rgba(0,232,122,0.12)",
+            border: "1px solid rgba(0,232,122,0.4)",
             color: "#00e87a",
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: 700,
-            letterSpacing: "0.1em",
-            padding: "6px 16px",
+            letterSpacing: "0.09em",
+            padding: "7px 16px",
             borderRadius: 999,
-            border: "1px solid rgba(0,232,122,0.3)",
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+          }}>
+            ✦ FIRST AI MORTGAGE INTELLIGENCE PLATFORM
+          </div>
+        </div>
+
+        {/* Dynamic article headline — replaces "Your mortgage, understood." */}
+        <div style={{
+          position: "absolute",
+          top: 278,
+          left: 54,
+          right: 590,
+          color: "#ffffff",
+          fontSize,
+          fontWeight: 800,
+          lineHeight: 1.18,
+          letterSpacing: "-0.025em",
+          display: "flex",
+          flexWrap: "wrap",
+        }}>
+          {title}
+        </div>
+
+        {/* Category tag — bottom left */}
+        <div style={{
+          position: "absolute",
+          bottom: 44,
+          left: 54,
+          display: "flex",
+        }}>
+          <div style={{
+            background: "rgba(255,255,255,0.07)",
+            color: "rgba(200,214,230,0.7)",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            padding: "5px 14px",
+            borderRadius: 999,
+            display: "flex",
           }}>
             {catLabel}
           </div>
         </div>
 
-        {/* Title */}
-        <div style={{
-          color: "#f0f4ff",
-          fontSize: title.length > 60 ? 46 : 56,
-          fontWeight: 800,
-          lineHeight: 1.15,
-          letterSpacing: "-0.03em",
-          maxWidth: 960,
-        }}>
-          {title}
-        </div>
-
-        {/* Bottom domain */}
-        <div style={{
-          position: "absolute",
-          bottom: 48,
-          right: 72,
-          color: "rgba(143,163,184,0.5)",
-          fontSize: 16,
-          fontWeight: 500,
-        }}>
-          chat.homerates.ai
-        </div>
       </div>
     ),
-    {
-      width: 1200,
-      height: 630,
-    }
+    { width: 1200, height: 630 },
   );
 }
