@@ -19,9 +19,9 @@ const overlay = Buffer.from(`
   <rect width="${W}" height="${H}" fill="url(#g)"/>
 </svg>`);
 
-// Resize logo to height 46px, preserve aspect ratio
+// Resize logo to height 104px (transparent background — blends naturally)
 const logo = await sharp('public/assets/homerates-logo-horizontal.png')
-  .resize({ height: 69, fit: 'contain', background: { r: 8, g: 12, b: 18, alpha: 1 } })
+  .resize({ height: 104, fit: 'contain' })
   .png()
   .toBuffer({ resolveWithObject: true });
 

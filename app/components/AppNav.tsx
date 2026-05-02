@@ -50,7 +50,7 @@ function ensureStyles() {
 
     /* Logo zone */
     .an-logo { justify-self: start; }
-    .an-logo img { height: 26px; display: block; }
+    .an-logo img { height: 39px; display: block; }
 
     /* Desktop links — true center column */
     .an-links {
