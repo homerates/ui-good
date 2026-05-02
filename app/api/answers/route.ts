@@ -2431,9 +2431,16 @@ async function handle(req: NextRequest, intentParam?: string) {
     // e.g. "1984 Lake Sherwood Dr" / "CMA for 1984 Lake Sherwood Dr, CA" / "What's 123 Main St worth"
     const isAddressQuery = /\b\d{1,5}\s+\w.{0,80}\b(dr|drive|st|street|ave|avenue|blvd|boulevard|ln|lane|way|rd|road|ct|court|pl|place|cir|circle|ter|terrace|pkwy|parkway|hwy|highway|loop|trail|run|path)\b/i.test(question);
 
+    // Research / entity-lookup queries — any "research X", "look up X", or X.org/X.com mention
+    const isResearchQuery =
+        /\b(research|look\s+up|lookup|search\s+for|find\s+out\s+about|background\s+on|profile\s+of|investigate)\b.{0,80}(\w|\.|\.org|\.com|\.net|\.gov|\.io|\.ai)/i.test(question) ||
+        /\b\w{2,}\.(?:org|com|net|gov|io|ai|edu)\b/i.test(question);
+
     const needsWebSearch = (
         // Street address — always fetch comps + market context
         isAddressQuery ||
+        // Research / entity lookup — always needs live web data
+        isResearchQuery ||
         // Location-specific market questions
         /\b(price|prices|market|median|inventory|homes?\s+in|buying\s+in|selling\s+in)\b.{0,40}\b(in|near|around)\b/i.test(question) ||
         /\b(austin|dallas|houston|miami|phoenix|denver|seattle|chicago|atlanta|boston|nashville|tampa|orlando|charlotte|las\s+vegas|los\s+angeles|san\s+diego|san\s+francisco|bay\s+area|new\s+york|new\s+jersey|virginia|maryland|colorado|florida|texas|california|georgia|arizona|washington)\b/i.test(question) ||
@@ -2452,6 +2459,9 @@ async function handle(req: NextRequest, intentParam?: string) {
         let tavQuery: string;
         if (isAddressQuery) {
             tavQuery = `${question} home value recent sales comparable homes neighborhood market 2026 -youtube -forum -reddit`;
+        } else if (isResearchQuery) {
+            // Research / entity lookup — use question verbatim, no mortgage restriction
+            tavQuery = `${question} -youtube -reddit -quora -forum`;
         } else if (module === "underwriting" || module === "qualify") {
             tavQuery = `${question} 2025 conventional mortgage guidelines site:singlefamily.fanniemae.com OR site:fanniemae.com OR site:freddiemac.com OR site:hud.gov OR site:benefits.va.gov OR site:va.gov OR site:cfpb.gov OR site:consumerfinance.gov -yahoo -aol -forum -blog -reddit -studylib -quizlet`;
         } else if (module === "rate") {
@@ -2461,12 +2471,12 @@ async function handle(req: NextRequest, intentParam?: string) {
         }
 
         tav = await askTavily(req, tavQuery, {
-            depth: module === "underwriting" || module === "qualify" ? "advanced" : "basic",
-            max: 6,
+            depth: (module === "underwriting" || module === "qualify" || isResearchQuery) ? "advanced" : "basic",
+            max: isResearchQuery ? 8 : 6,
         });
 
-        // Fallback relax
-        if ((!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
+        // Fallback relax — skip for research queries (mortgage suffix would corrupt results)
+        if (!isResearchQuery && (!tav.answer || tav.answer.trim().length < 80) && tav.results.length < 2) {
             const fallbackQuery = `${question} mortgage 2025`;
             tav = await askTavily(req, fallbackQuery, { depth: "advanced", max: 8 });
         }
@@ -7027,12 +7037,12 @@ ABSOLUTE RULES:
 - If a calc result is provided, your ONLY job is to explain it in plain language, not recompute it.
 - When user does NOT specify a rate, use the FRED 30Y fixed average rate shown above. Do NOT use rates from "Latest signals" unless user asks for current market rates.
 - Markdown only inside the "answer" field. Never output HTML.
-- Keep total length around 180–350 words unless asked for more.
+- ${isResearchQuery ? 'For research/lookup questions: write a comprehensive, detailed answer — 400–700 words. Use ## section headings. Cover what it is, what it does, key facts, and relevance to housing/mortgage if applicable. If web search results are provided above, synthesize them into a clear structured summary. Do NOT say information does not exist if web results were found — use what you have.' : module === 'homeowner_payoff' ? 'Keep total length 300–500 words.' : 'Keep total length around 180–350 words unless asked for more.'}
 - HOMEOWNER TONE: Never volunteer foreclosure, bankruptcy (Ch.7/11/13), deed-in-lieu, or short sale unless the user explicitly asks about those options by name. When a homeowner has negative equity, stay constructive — focus on appreciation over time, payment consistency, lender communication, and patience. Lead with what the homeowner CAN do, not worst-case exits.
 
 Return valid JSON only:
 {
-  "answer": "${module === 'homeowner_payoff' ? 'IMPORTANT: Use ## markdown headings (not **bold**) for each section. Structure: ## Strategy Comparison (then table), ## Current Baseline, ## Extra Monthly Payments, ## 15-Year Refi, ## Biweekly Payments, ## Equity Trajectory. Each section is a ## heading followed by 1-2 sentences of explanation.' : 'Use sections: **Summary**, **Key Numbers**, **Comparison Table** (at least one markdown table), **What This Means For You**.'}",
+  "answer": "${isResearchQuery ? 'RESEARCH FORMAT: Write a comprehensive ## section-based answer. Use clear headings like ## Overview, ## What They Do, ## Key Facts, ## Relevance to Housing/Mortgage (if applicable), ## Bottom Line. Synthesize all web search results above. Be thorough — this is a research request.' : module === 'homeowner_payoff' ? 'IMPORTANT: Use ## markdown headings (not **bold**) for each section. Structure: ## Strategy Comparison (then table), ## Current Baseline, ## Extra Monthly Payments, ## 15-Year Refi, ## Biweekly Payments, ## Equity Trajectory. Each section is a ## heading followed by 1-2 sentences of explanation.' : 'Use sections: **Summary**, **Key Numbers**, **Comparison Table** (at least one markdown table), **What This Means For You**.'}",
   "next_step": "1–2 concrete actions.",
   "follow_up": "One sharp follow-up question.",
   "confidence": "0.00–1.00 numeric score plus a short reason."
