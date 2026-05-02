@@ -21,7 +21,7 @@ const overlay = Buffer.from(`
 
 // Resize logo to height 46px, preserve aspect ratio
 const logo = await sharp('public/assets/homerates-logo-horizontal.png')
-  .resize({ height: 46, fit: 'contain', background: { r: 8, g: 12, b: 18, alpha: 1 } })
+  .resize({ height: 69, fit: 'contain', background: { r: 8, g: 12, b: 18, alpha: 1 } })
   .png()
   .toBuffer({ resolveWithObject: true });
 
