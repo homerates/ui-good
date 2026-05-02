@@ -115,7 +115,7 @@ export default function ClaimPage() {
       <div className="cl-root">
         <nav className="cl-nav">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <Link href="/" className="cl-logo"><img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" /></Link>
+          <Link href="/" className="cl-logo"><img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" /></Link>
           <AppNav drawerOnly />
         </nav>
 

@@ -19,7 +19,7 @@ export default function ForProsPage() {
         {/* ── NAV ── */}
         <nav className="fp-nav">
           <Link href="/" className="fp-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="fp-nav-links">
             <Link href="/connect" className="fp-nav-link">For Borrowers</Link>

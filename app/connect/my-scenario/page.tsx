@@ -155,7 +155,7 @@ export default function MyScenarioPage() {
 
         <nav className="ms-nav">
           <Link href="/connect" className="ms-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="ms-nav-actions">
             <Link href="/chat" className="ms-nav-btn">AI Chat</Link>

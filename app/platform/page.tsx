@@ -161,7 +161,7 @@ export default function PlatformPage() {
           <div className="ph-header-inner">
             <Link href="/" className="ph-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.AI" className="ph-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="ph-logo" />
             </Link>
             <nav className="ph-nav-links">
               <Link href="/about" className="ph-nav-link">About</Link>

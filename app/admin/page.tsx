@@ -359,7 +359,7 @@ export default function AdminDashboard() {
         <nav className="adm-nav">
           <Link href="/" className="adm-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="adm-nav-links">
             <Link href="/admin" className="adm-nav-link active">Dashboard</Link>

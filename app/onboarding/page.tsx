@@ -168,7 +168,7 @@ export default function OnboardingPage() {
             <div className="ob-root">
               <nav className="ob-nav">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+                <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
               </nav>
             <main className="ob-body">
                 {successBorrowerId ? (

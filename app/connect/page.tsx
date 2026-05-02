@@ -40,7 +40,7 @@ export default async function ConnectPage() {
         {/* ── NAV ── */}
         <nav className="cn-nav">
           <Link href="/" className="cn-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="cn-nav-links">
             <Link href="/for-pros" className="cn-nav-link">For Professionals</Link>

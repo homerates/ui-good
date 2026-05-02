@@ -580,7 +580,7 @@ export default function ComparePage() {
           <div className="cp-header-inner">
             <Link href="/" className="cp-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.AI" className="cp-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="cp-logo" />
             </Link>
             <span className="cp-header-title">LO Comparison Tools</span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

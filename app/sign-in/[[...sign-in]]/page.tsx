@@ -7,7 +7,7 @@ export default function Page() {
       <div className="auth-shell-header">
         <Link href="/">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" className="auth-shell-logo" />
+          <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="auth-shell-logo" />
         </Link>
       </div>
 

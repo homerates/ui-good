@@ -93,7 +93,7 @@ export default function ProfessionalsNewPage() {
         <div className="pn-root">
           <nav className="pn-nav">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <Link href="/" className="pn-logo"><img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" /></Link>
+            <Link href="/" className="pn-logo"><img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" /></Link>
             <AppNav drawerOnly />
           </nav>
           <div className="pn-shell">
@@ -174,7 +174,7 @@ export default function ProfessionalsNewPage() {
       <div className="pn-root">
         <nav className="pn-nav">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <Link href="/" className="pn-logo"><img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" /></Link>
+          <Link href="/" className="pn-logo"><img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" /></Link>
           <AppNav drawerOnly />
         </nav>
 

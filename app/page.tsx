@@ -868,7 +868,7 @@ export default function LandingPage() {
         {/* NAV */}
         <nav className="lp-nav">
           <Link href="/" className="lp-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <ul className="lp-nav-links">
             <li><Link href="/chat">How it works</Link></li>
@@ -917,7 +917,7 @@ export default function LandingPage() {
         <div className={`lp-mobile-menu${mobileMenuOpen ? ' lp-menu-open' : ''}`}>
           <div className="lp-mobile-menu-head">
             <Link href="/" className="lp-nav-logo" onClick={() => setMobileMenuOpen(false)}>
-              <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
             </Link>
             <button className="lp-mobile-menu-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">✕</button>
           </div>

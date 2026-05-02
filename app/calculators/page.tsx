@@ -151,7 +151,7 @@ export default function CalculatorsPage() {
                 <nav className="calc-nav">
                     <Link href="/" className="calc-logo">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+                        <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
                     </Link>
                     <div />
                     <div className="calc-nav-cta">

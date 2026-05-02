@@ -375,7 +375,7 @@ export default async function KnowledgeHubPage() {
         {/* NAV */}
         <nav className="kh-nav">
           <Link href="/" className="kh-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <ul className="kh-nav-links">
             <li><Link href="/chat">Calculator</Link></li>

@@ -113,7 +113,7 @@ export default function WelcomePage() {
           <nav className="wl-nav">
             <Link href="/" className="wl-nav-logo">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
             </Link>
           </nav>
           <div className="wl-container">
@@ -176,7 +176,7 @@ export default function WelcomePage() {
         <nav className="wl-nav">
           <Link href="/" className="wl-nav-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
         </nav>
 

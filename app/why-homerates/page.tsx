@@ -345,7 +345,7 @@ export default function WhyHomeRates() {
                 {/* NAV */}
                 <nav className="whr-nav">
                     <Link href="/" className="whr-nav-logo">
-                        <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+                        <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
                     </Link>
                     <Link href="/" className="whr-nav-cta">
                         Try it free →

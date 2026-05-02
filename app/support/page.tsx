@@ -298,7 +298,7 @@ export default function SupportPage() {
       <div className="sup-root">
         <nav className="sup-nav">
           <Link href="/" className="sup-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <Link href="/" className="sup-nav-back">← Home</Link>
           <AppNav drawerOnly />

@@ -240,7 +240,7 @@ export default async function DashboardPage() {
       }}>
         <Link href="/" style={{ display: "flex", alignItems: "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style={{ height: 26 }} />
+          <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 26 }} />
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <Link href="/chat" style={{ fontSize: "0.85rem", color: "#8fa3b8", textDecoration: "none" }}>← Back to chat</Link>

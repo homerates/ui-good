@@ -430,7 +430,7 @@ export default async function MarketNewsPage() {
         {/* NAV */}
         <nav className="mn-nav">
           <Link href="/" className="mn-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <ul className="mn-nav-links">
             <li><Link href="/chat">Calculator</Link></li>

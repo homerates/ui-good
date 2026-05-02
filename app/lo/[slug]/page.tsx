@@ -140,7 +140,7 @@ export default async function LoProfilePage({ params }: { params: Promise<{ slug
         <nav className="lo-nav">
           <Link href="/" className="lo-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <Link href="/chat" className="lo-try">Try HomeRates.ai →</Link>
         </nav>

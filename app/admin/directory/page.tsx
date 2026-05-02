@@ -278,7 +278,7 @@ export default function AdminDirectory() {
         <nav className="addir-nav">
           <Link href="/" className="addir-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="addir-nav-links">
             <Link href="/admin" className="addir-nav-link">Dashboard</Link>

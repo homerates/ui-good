@@ -244,7 +244,7 @@ function CheckPropertyInner() {
             <header className="cp-header">
                 <div className="cp-header-inner">
                     <Link href="/">
-                        <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" className="cp-logo" />
+                        <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="cp-logo" />
                     </Link>
                     <AppNav drawerOnly />
                 </div>

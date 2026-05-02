@@ -377,7 +377,7 @@ export default async function KnowledgeHubArticle({
         {/* NAV */}
         <nav className="kha-nav">
           <Link href="/" className="kha-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Link href="/knowledge-hub" className="kha-nav-back">← Knowledge Hub</Link>

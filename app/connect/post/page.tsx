@@ -243,7 +243,7 @@ function PostScenarioContent() {
 
         <nav className="post-nav">
           <Link href="/connect" className="post-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Usage badge — shown once quota loads and limit is finite */}

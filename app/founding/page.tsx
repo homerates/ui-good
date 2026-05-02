@@ -154,7 +154,7 @@ export default function FoundingPage() {
         <nav className="f-nav">
           <Link href="/" className="f-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <Link href="/chat" className="f-nav-link">Try the platform →</Link>
         </nav>

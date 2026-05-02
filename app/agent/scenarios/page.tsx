@@ -185,7 +185,7 @@ export default function AgentScenariosPage() {
         <nav className="ag-nav">
           <Link href="/dashboard" className="ag-nav-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <AppNav drawerOnly />
         </nav>
@@ -209,7 +209,7 @@ export default function AgentScenariosPage() {
         <nav className="ag-nav">
           <Link href="/dashboard" className="ag-nav-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="ag-nav-links">
             <Link href="/dashboard" className="ag-nav-link">Dashboard</Link>

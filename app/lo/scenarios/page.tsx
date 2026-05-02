@@ -304,7 +304,7 @@ export default function LOScenariosPage() {
       <div className="los-root">
         <nav className="los-nav">
           <Link href="/" className="los-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <Link href="/sign-in" className="los-nav-link" style={{ marginLeft: "auto" }}>Sign in →</Link>
         </nav>
@@ -393,7 +393,7 @@ export default function LOScenariosPage() {
       <div className="los-root">
         <nav className="los-nav">
           <Link href="/lo/dashboard" className="los-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style={{ height: 28 }} />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 28 }} />
           </Link>
           <AppNav drawerOnly />
         </nav>
@@ -416,7 +416,7 @@ export default function LOScenariosPage() {
 
         <nav className="los-nav">
           <Link href="/lo/dashboard" className="los-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="los-nav-links">
             <Link href="/lo/dashboard" className="los-nav-link">Dashboard</Link>

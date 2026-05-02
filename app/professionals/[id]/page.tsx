@@ -154,7 +154,7 @@ export default function ProProfilePage() {
         <nav className="pp-nav">
           <Link href="/" className="pp-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="pp-nav-right">
             <Link href="/chat" className="pp-try-link">Try free →</Link>

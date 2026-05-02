@@ -1724,7 +1724,7 @@ function MyHomePageInner() {
       <div className="mh-root">
         <nav className="mh-nav">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <Link href="/" className="mh-logo"><img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" /></Link>
+          <Link href="/" className="mh-logo"><img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" /></Link>
           <AppNav drawerOnly />
         </nav>
 

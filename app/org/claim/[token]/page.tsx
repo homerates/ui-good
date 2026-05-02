@@ -91,7 +91,7 @@ export default function OrgClaimPage({ params }: { params: Promise<{ token: stri
         <header className="oc-header">
           <Link href="/" className="oc-logo-link">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" className="oc-logo" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="oc-logo" />
           </Link>
         </header>
 

@@ -248,7 +248,7 @@ export default function AppNav({
         <div className="an-drawer-head">
           <Link href="/" className="an-drawer-logo" onClick={() => setDrawerOpen(false)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <button className="an-close" onClick={() => setDrawerOpen(false)} aria-label="Close menu">✕</button>
         </div>
@@ -351,7 +351,7 @@ export default function AppNav({
         ) : (
           <Link href="/" className="an-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
         )}
 

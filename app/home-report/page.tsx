@@ -191,7 +191,7 @@ function HomeReportInner() {
         <div className="hr-nav">
           <Link href="/">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style={{ height: 26 }} />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 26 }} />
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', opacity: 0.7 }}>Home Intelligence Report</span>

@@ -240,7 +240,7 @@ export default function AdminWaitlistPage() {
         <nav className="wl-nav">
           <Link href="/" className="wl-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div className="wl-nav-links">
             <Link href="/admin" className="wl-nav-link">Dashboard</Link>

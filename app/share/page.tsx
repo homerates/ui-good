@@ -78,7 +78,7 @@ export default async function SharePage(props: {
                 <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                        src="/assets/HomeRates-Logo Green.png"
+                        src="/assets/homerates-logo-horizontal.png"
                         alt="HomeRates.ai"
                         style={{ height: 28, width: "auto" }}
                     />

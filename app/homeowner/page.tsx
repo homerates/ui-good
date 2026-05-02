@@ -356,7 +356,7 @@ export default function HomeownerPage() {
         {/* NAV */}
         <nav className="ho-nav">
           <Link href="/" className="ho-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <ul className="ho-nav-links">
             <li><Link href="/chat">Mortgage Calculator</Link></li>

@@ -361,7 +361,7 @@ export default async function MarketNewsArticle({
       <div className="mna-root">
         <nav className="mna-nav">
           <Link href="/" className="mna-nav-logo">
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Link href="/market-news" className="mna-nav-back">← Market News</Link>

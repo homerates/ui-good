@@ -194,7 +194,7 @@ export default function ConventionalLoanCalculatorPage() {
             {/* ── LOGO NAV ── */}
             <nav className="calc-nav">
                 <Link href="/" className="calc-nav-logo">
-                    <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+                    <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
                 </Link>
                 <Link href="/chat" className="calc-nav-cta">Try the AI →</Link>
             </nav>

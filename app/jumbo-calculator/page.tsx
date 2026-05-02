@@ -172,7 +172,7 @@ export default function JumboCalculatorPage() {
                         <Link href="/" className="jc-logo-link">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                                src="/assets/HomeRates-Logo Green.png"
+                                src="/assets/homerates-logo-horizontal.png"
                                 alt="HomeRates.ai"
                                 className="jc-logo"
                             />

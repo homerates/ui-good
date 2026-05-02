@@ -702,7 +702,7 @@ export default function DealRoomPage() {
           <div className="dr-header-inner">
             <Link href="/" style={{ flexShrink:0, display:"flex", alignItems:"center" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" className="dr-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="dr-logo" />
             </Link>
             <div className="dr-header-sep" />
             <button

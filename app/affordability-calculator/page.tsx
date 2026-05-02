@@ -220,7 +220,7 @@ export default function AffordabilityCalculatorPage() {
             {/* ── LOGO NAV ── */}
             <nav className="ac-nav">
                 <Link href="/" className="ac-nav-logo">
-                    <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+                    <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
                 </Link>
                 <Link href="/chat" className="ac-nav-cta">Try the AI →</Link>
             </nav>

@@ -2858,7 +2858,7 @@ export default function Page() {
                         {/* Logo zone — fixed 256px, centered above sidebar */}
                         <div className="header-logo-zone">
                             <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-                                <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" style={{ height: 30, width: 'auto', display: 'block' }} />
+                                <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 30, width: 'auto', display: 'block' }} />
                             </a>
                         </div>
 

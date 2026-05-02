@@ -191,7 +191,7 @@ export default function ProfessionalsPage() {
         <nav className="pd-nav">
           <Link href="/" className="pd-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/HomeRates-Logo Green.png" alt="HomeRates.ai" />
+            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <AppNav drawerOnly />
         </nav>
