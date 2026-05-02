@@ -11,6 +11,10 @@ import { isAdminId } from "../../../../lib/adminAuth";
 import { Resend } from "resend";
 import { emailShell } from "../../../../lib/sendEmail";
 
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
