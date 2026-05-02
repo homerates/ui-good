@@ -35,6 +35,9 @@ export const metadata = {
   ],
   authors: [{ name: "HomeRates.ai", url: BASE_URL }],
   creator: "HomeRates.ai",
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
