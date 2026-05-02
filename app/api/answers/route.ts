@@ -4123,7 +4123,7 @@ ${uwDatabase}`;
                 parseMode: "direct",
                 repaired: false,
             },
-            data_freshness: `Live (${XAI_MODEL} + guidelines database)`,
+            data_freshness: `Live · Underwriting Guidelines`,
             message: uwAnswerText,
             answerMarkdown: buildAnswerMarkdown(uwAnswerText),
             followUp: null,
@@ -5967,7 +5967,7 @@ Output JSON:
                 fred,
                 grok: { ...cmaFinal, follow_up: null },
                 debug: { ...cmaResult.debug, servedModel: 'cma-intelligence-report' },
-                data_freshness: `Live (${XAI_MODEL}) · Tavily ${new Date().toISOString().slice(0, 10)}`,
+                data_freshness: `Live · Property Intelligence`,
                 message: cmaFinal.answer,
                 answerMarkdown: cmaFinal.answer,
                 followUp: null,
@@ -7292,7 +7292,7 @@ Return valid JSON only:
         debug,
         data_freshness: affordabilityAnswer ? 'Live (calcEngine-deterministic)'
             : fhaAnswer ? 'Live (calcEngine-deterministic)'
-            : grokFinal ? `Live (${XAI_MODEL})`
+            : grokFinal ? 'Live · AI analysis'
             : "Legacy stack",
         message,
         answerMarkdown: finalMarkdown,
