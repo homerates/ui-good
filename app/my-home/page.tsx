@@ -1182,19 +1182,15 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   }
 
   // Fall back: estimatedValue → listing price → lastSalePrice + FHFA 4.2%/yr appreciation
+  // No date = no appreciation model = leave null (raw sale price is misleading as current value)
   let estimatedValue = (d.estimatedValue as number | null) ?? (d.price as number | null) ?? null;
-  if (!estimatedValue && lastSalePrice) {
-    if (lastSaleDate) {
-      const saleYr = parseInt(lastSaleDate.match(/\d{4}/)?.[0] ?? '0');
-      if (saleYr >= 1950) {
-        const yearsHeld = Math.max(0, new Date().getFullYear() - saleYr);
-        estimatedValue = Math.round(lastSalePrice * Math.pow(1.042, yearsHeld));
-      } else {
-        estimatedValue = lastSalePrice;
-      }
-    } else {
-      estimatedValue = lastSalePrice;
+  if (!estimatedValue && lastSalePrice && lastSaleDate) {
+    const saleYr = parseInt(lastSaleDate.match(/\d{4}/)?.[0] ?? '0');
+    if (saleYr >= 1950) {
+      const yearsHeld = Math.max(0, new Date().getFullYear() - saleYr);
+      estimatedValue = Math.round(lastSalePrice * Math.pow(1.042, yearsHeld));
     }
+    // saleYr < 1950: implausible year — leave null rather than show raw sale price
   }
 
   let estimatedBalance = (d.estimatedBalance as number | null) ?? null;
