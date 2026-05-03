@@ -592,6 +592,11 @@ export default function VaSliderCard(props: VaSliderParams) {
                     .va-ff-grid { gap:4px; }
                     .va-ff-opt { min-width:70px; }
                 }
+                @media (max-width: 640px) {
+                    .va-exp-actions { flex-direction:column; gap:8px; }
+                    .va-exp-actions button { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
+                    .va-followup-chip,.va-btn-property { width:100%; text-align:center; display:block; }
+                }
             `}</style>
         </div>
     );

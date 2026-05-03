@@ -241,6 +241,8 @@ export default function AppNav({
     return () => window.removeEventListener("keydown", handler);
   }, [drawerOpen]);
 
+  const [moreOpen, setMoreOpen] = useState(false);
+
   // Drawer inner JSX (portal target = document.body to escape backdrop-filter stacking context)
   const drawerInner = (
     <div className="an-overlay" onClick={() => setDrawerOpen(false)}>
@@ -253,63 +255,80 @@ export default function AppNav({
           <button className="an-close" onClick={() => setDrawerOpen(false)} aria-label="Close menu">✕</button>
         </div>
         <div className="an-drawer-section">
-          <div className="an-drawer-label">Navigation</div>
-          {NAV_LINKS.map(l => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`an-drawer-link ${activePage === l.key ? "an-drawer-active" : ""}`}
-              onClick={() => setDrawerOpen(false)}
-            >
-              <span className="an-drawer-icon">{l.icon}</span>
-              {l.label}
-              {l.key === "messages" && totalUnread > 0 && (
-                <span className="an-badge">{unreadCount}</span>
-              )}
-            </Link>
-          ))}
-          <div className="an-drawer-divider" />
-          <div className="an-drawer-label">Quick links</div>
-          <Link href="/deal-rooms" className="an-drawer-link" onClick={() => setDrawerOpen(false)} style={{ display:'flex', alignItems:'center' }}>
-            <span className="an-drawer-icon">🤝</span>
-            Deal Rooms
-            <span style={{ marginLeft:'auto', fontSize:9, fontWeight:800, letterSpacing:'0.06em', textTransform:'uppercase', background:'linear-gradient(135deg,#f59e0b,#fbbf24)', color:'#1a0a00', padding:'2px 6px', borderRadius:999, flexShrink:0 }}>⭐ Pro</span>
+          {/* ── 4 primary links — always visible ── */}
+          <Link href="/chat" className={`an-drawer-link ${activePage === "chat" ? "an-drawer-active" : ""}`} onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">💬</span>Chat
           </Link>
-          <Link href="/my-home" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-            <span className="an-drawer-icon">🏡</span>My Properties
+          <Link href="/my-home" className={`an-drawer-link ${activePage === "dashboard" ? "an-drawer-active" : ""}`} onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">🏡</span>My Home
           </Link>
-          <Link href="/connect/my-scenario" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-            <span className="an-drawer-icon">🎯</span>My Scenario
+          <Link href="/messages" className={`an-drawer-link ${activePage === "messages" ? "an-drawer-active" : ""}`} onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">✉️</span>
+            Messages
+            {totalUnread > 0 && <span className="an-badge" style={{ marginLeft: "auto" }}>{totalUnread > 9 ? "9+" : totalUnread}</span>}
           </Link>
-          <Link href="/loan-limits" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-            <span className="an-drawer-icon">🏠</span>Loan Limits
+          <Link href="/library" className={`an-drawer-link ${activePage === "library" ? "an-drawer-active" : ""}`} onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">🗂</span>My Vault
           </Link>
-          <Link href="/support" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-            <span className="an-drawer-icon">❓</span>Support
-          </Link>
-          <div className="an-drawer-divider" />
-          {(credits !== null || isAdmin) && (
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "8px 12px", margin: "0 0 4px",
-              background: "rgba(0,232,122,0.06)", borderRadius: 10,
-              border: "1px solid rgba(0,232,122,0.12)",
-            }}>
-              <span style={{ fontSize: "0.82rem", color: "#4a6e58", fontWeight: 600 }}>⚡ Credits</span>
-              <span style={{ fontSize: "0.88rem", fontWeight: 700, color: "#00e87a" }}>
-                {isAdmin ? "∞" : credits!.balance.toLocaleString()}
-              </span>
-            </div>
-          )}
-          {isAdmin && (
+
+          {/* ── More expander ── */}
+          <button
+            onClick={() => setMoreOpen(o => !o)}
+            className="an-drawer-link"
+            style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left", color: moreOpen ? "#f0f4ff" : "#8fa3b8" }}
+          >
+            <span className="an-drawer-icon" style={{ fontSize: "0.8rem" }}>{moreOpen ? "▾" : "▸"}</span>
+            More
+          </button>
+
+          {moreOpen && (
             <>
-              <div className="an-drawer-divider" />
-              <div className="an-drawer-label">Admin</div>
-              <Link href="/admin" className="an-drawer-link" onClick={() => setDrawerOpen(false)}
-                style={{ color: "#ff5f5f" }}>
-                <span className="an-drawer-icon">🔴</span>Admin Panel
+              <div className="an-drawer-label" style={{ paddingLeft: 28 }}>Quick Links</div>
+              <Link href="/dashboard" className="an-drawer-link" style={{ paddingLeft: 28 }} onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">⚡</span>Dashboard
+              </Link>
+              <Link href="/deal-rooms" className="an-drawer-link" style={{ paddingLeft: 28, display: "flex", alignItems: "center" }} onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🤝</span>
+                Deal Rooms
+                <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", background: "linear-gradient(135deg,#f59e0b,#fbbf24)", color: "#1a0a00", padding: "2px 6px", borderRadius: 999, flexShrink: 0 }}>⭐ Pro</span>
+              </Link>
+              <Link href="/connect/my-scenario" className="an-drawer-link" style={{ paddingLeft: 28 }} onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🎯</span>My Scenario
+              </Link>
+              <Link href="/loan-limits" className="an-drawer-link" style={{ paddingLeft: 28 }} onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🏠</span>Loan Limits
+              </Link>
+              <Link href="/profile" className="an-drawer-link" style={{ paddingLeft: 28 }} onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">👤</span>My Profile
+              </Link>
+              <Link href="/support" className="an-drawer-link" style={{ paddingLeft: 28 }} onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">❓</span>Support
               </Link>
             </>
+          )}
+
+          {/* ── Credits + admin footer ── */}
+          {(credits !== null || isAdmin) && (
+            <>
+              <div className="an-drawer-divider" />
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "8px 12px", margin: "0 0 4px",
+                background: "rgba(0,232,122,0.06)", borderRadius: 10,
+                border: "1px solid rgba(0,232,122,0.12)",
+              }}>
+                <span style={{ fontSize: "0.82rem", color: "#4a6e58", fontWeight: 600 }}>⚡ Credits</span>
+                <span style={{ fontSize: "0.88rem", fontWeight: 700, color: "#00e87a" }}>
+                  {isAdmin ? "∞" : credits!.balance.toLocaleString()}
+                </span>
+              </div>
+            </>
+          )}
+          {isAdmin && (
+            <Link href="/admin" className="an-drawer-link" onClick={() => setDrawerOpen(false)}
+              style={{ color: "#ff5f5f", fontSize: "0.8rem", paddingTop: 6, paddingBottom: 6 }}>
+              <span className="an-drawer-icon" style={{ fontSize: "0.75rem" }}>🔴</span>Admin
+            </Link>
           )}
         </div>
       </div>

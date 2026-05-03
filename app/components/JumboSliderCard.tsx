@@ -727,6 +727,11 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                     .jbs-uw-grid { grid-template-columns:1fr; }
                     .jbs-arm-compare { grid-template-columns:1fr; }
                 }
+                @media (max-width: 640px) {
+                    .jbs-exp-actions { flex-direction:column; gap:8px; }
+                    .jbs-exp-actions button { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
+                    .jbs-followup-chip,.jbs-btn-property { width:100%; text-align:center; display:block; }
+                }
             `}</style>
         </div>
     );

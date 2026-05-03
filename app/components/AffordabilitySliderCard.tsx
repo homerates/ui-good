@@ -912,6 +912,11 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     .afc-exp-stats { gap: 6px; }
                     .afc-exp-stat { min-width: 80px; }
                 }
+                @media (max-width: 640px) {
+                    .afc-exp-actions { flex-direction:column; gap:8px; }
+                    .afc-btn-vault,.afc-btn-match { width:100%; justify-content:center; text-align:center; margin-left:0; }
+                    .afc-btn-property { width:100%; text-align:center; }
+                }
             `}</style>
         </div>
     );

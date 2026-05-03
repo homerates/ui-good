@@ -588,6 +588,10 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     .dsc-returns { grid-template-columns:repeat(3,1fr); }
                     .dsc-cf-box { text-align:left; }
                 }
+                @media (max-width: 640px) {
+                    .dsc-exp-actions { flex-direction:column; gap:8px; }
+                    .dsc-btn-vault,.dsc-btn-match { width:100%; justify-content:center; text-align:center; margin-left:0; }
+                }
             `}</style>
         </div>
     );

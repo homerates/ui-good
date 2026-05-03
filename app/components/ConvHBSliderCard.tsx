@@ -780,6 +780,14 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     .chb-hero-amount { font-size:26px; }
                     .chb-hero-grid { grid-template-columns:repeat(3,1fr); }
                 }
+                @media (max-width: 640px) {
+                    .chb-exp-actions { flex-direction:column; gap:8px; }
+                    .chb-exp-actions button,.chb-exp-actions a { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
+                    .chb-share-row { justify-content:stretch; }
+                    .chb-btn-share { width:100%; justify-content:center; }
+                    .chb-followup-row,.chb-property-row { padding-left:0; padding-right:0; }
+                    .chb-followup-chip,.chb-btn-property { width:100%; text-align:center; display:block; }
+                }
             `}</style>
 
         </div>

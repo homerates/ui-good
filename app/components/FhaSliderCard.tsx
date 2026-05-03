@@ -585,6 +585,11 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     .fha-exp-stats { grid-template-columns:repeat(2,1fr); }
                     .fha-band-r { display:none; }
                 }
+                @media (max-width: 640px) {
+                    .fha-exp-actions { flex-direction:column; gap:8px; }
+                    .fha-exp-actions button { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
+                    .fha-followup-chip,.fha-btn-property { width:100%; text-align:center; display:block; }
+                }
             `}</style>
         </div>
     );

@@ -113,6 +113,20 @@ function CheckPropertyInner() {
     const [lookupErr, setLookupErr] = useState<string | null>(null);
     const [resolved,  setResolved]  = useState('');
 
+    const [editing,   setEditing]   = useState(false);
+    const [editPrice, setEditPrice] = useState(String(sc.price));
+    const [editDp,    setEditDp]    = useState(String(sc.dp));
+    const [editRate,  setEditRate]  = useState(String(sc.rate));
+
+    function applyScenarioEdits() {
+        const newP = new URLSearchParams(sp.toString());
+        if (editPrice) newP.set('price', editPrice);
+        if (editDp)    newP.set('dp',    editDp);
+        if (editRate)  newP.set('rate',  editRate);
+        router.push(`/check-property?${newP.toString()}`);
+        setEditing(false);
+    }
+
     async function handleLookup() {
         const raw = address.trim();
         if (!raw) return;
@@ -264,23 +278,78 @@ function CheckPropertyInner() {
                 </p>
             </div>
 
-            {/* ── Scenario lock bar ──────────────────────────────────────── */}
-            <div style={{ background: theme.accentFaint, border: `1px solid ${theme.accentBorder}`, borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: theme.accent, marginBottom: 2 }}>
-                        Your Price Range · {theme.label}
+            {/* ── Scenario bar — editable inline ─────────────────────────── */}
+            <div style={{ background: theme.accentFaint, border: `1px solid ${theme.accentBorder}`, borderRadius: 12, marginBottom: 20, overflow: 'hidden' }}>
+                {/* Display row */}
+                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 180 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: theme.accent, marginBottom: 2 }}>
+                            Your Scenario · {theme.label}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#c4cfe0', fontWeight: 600 }}>
+                            {fmtK(sc.price)} · {sc.dp}% down · {sc.rate.toFixed(2)}% · {fmt$(Math.round(scenPITI))}/mo
+                        </div>
                     </div>
-                    <div style={{ fontSize: 13, color: '#c4cfe0', fontWeight: 600 }}>
-                        Budget scenario: {fmtK(sc.price)} · {sc.dp}% down · {sc.rate.toFixed(2)}% · {sc.term}yr · {fmt$(Math.round(scenPITI))}/mo PITI{sc.monthlyDebt > 0 ? ` · +${fmt$(Math.round(sc.monthlyDebt))}/mo debts` : ''}
-                    </div>
+                    <button
+                        onClick={() => { setEditing(e => !e); setEditPrice(String(sc.price)); setEditDp(String(sc.dp)); setEditRate(String(sc.rate)); }}
+                        style={{ fontSize: 12, fontWeight: 700, color: editing ? theme.accent : '#6b7a99', background: editing ? theme.accentFaint : 'transparent', border: `1px solid ${editing ? theme.accentBorder : 'rgba(255,255,255,0.08)'}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                    >
+                        {editing ? '✕ Cancel' : '✎ Edit'}
+                    </button>
+                    <button
+                        onClick={() => router.back()}
+                        style={{ fontSize: 12, color: '#4b6080', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
+                    >
+                        ← Back
+                    </button>
                 </div>
-                <button
-                    onClick={() => router.back()}
-                    style={{ fontSize: 12, color: '#4b6080', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
-                >
-                    ← Back
-                </button>
+                {/* Inline editor — expands when editing */}
+                {editing && (
+                    <div style={{ borderTop: `1px solid ${theme.accentBorder}`, padding: '14px 16px', background: 'rgba(0,0,0,0.15)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        <div style={{ flex: '1 1 130px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>Budget Price</div>
+                            <input
+                                type="number"
+                                value={editPrice}
+                                onChange={e => setEditPrice(e.target.value)}
+                                style={{ width: '100%', background: '#0a0f1a', border: `1px solid ${theme.accentBorder}`, borderRadius: 7, padding: '8px 10px', fontSize: 13, color: '#f0f4ff', fontFamily: 'inherit', fontWeight: 700 }}
+                                placeholder="Price"
+                            />
+                        </div>
+                        <div style={{ flex: '1 1 110px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>
+                                Down · {fmt$(Math.round(Number(editPrice || sc.price) * Number(editDp || sc.dp) / 100))}
+                            </div>
+                            <select
+                                value={editDp}
+                                onChange={e => setEditDp(e.target.value)}
+                                style={{ width: '100%', background: '#0a0f1a', border: `1px solid ${theme.accentBorder}`, borderRadius: 7, padding: '8px 10px', fontSize: 13, color: '#f0f4ff', fontFamily: 'inherit' }}
+                            >
+                                {['3', '3.5', '5', '10', '15', '20', '25', '30'].map(d => (
+                                    <option key={d} value={d}>{d}%</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={{ flex: '1 1 100px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>Rate %</div>
+                            <input
+                                type="number"
+                                step="0.125"
+                                value={editRate}
+                                onChange={e => setEditRate(e.target.value)}
+                                style={{ width: '100%', background: '#0a0f1a', border: `1px solid ${theme.accentBorder}`, borderRadius: 7, padding: '8px 10px', fontSize: 13, color: '#f0f4ff', fontFamily: 'inherit' }}
+                                placeholder="Rate"
+                            />
+                        </div>
+                        <button
+                            onClick={applyScenarioEdits}
+                            style={{ flex: '0 0 auto', padding: '8px 20px', background: theme.accent, color: theme.ctaTextColor, border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                        >
+                            Apply →
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* ── Address input ──────────────────────────────────────────── */}

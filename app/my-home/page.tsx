@@ -1953,7 +1953,7 @@ function MyHomePageInner() {
 
                       {/* Property photo hero — layers: satellite base → street view → Redfin/user photo on top */}
                       {(analysis.photoUrl || analysis.streetViewUrl || analysis.staticMapUrl) && (
-                        <div style={{ position: 'relative', height: 200, overflow: 'hidden', background: '#0a1628' }}>
+                        <div style={{ position: 'relative', height: 260, overflow: 'hidden', background: '#0a1628' }}>
                           {/* Satellite map — base layer */}
                           {analysis.staticMapUrl && (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -2008,149 +2008,101 @@ function MyHomePageInner() {
                               />
                               <label
                                 htmlFor="photo-upload-input"
-                                style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 3, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '5px 10px', fontSize: '0.65rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.04em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                style={{ position: 'absolute', top: 8, right: 8, zIndex: 3, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '5px 10px', fontSize: '0.65rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.04em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                               >
-                                <span>📷</span> Upload Photo
+                                <span>📷</span> Upload
                               </label>
                             </>
                           )}
+                          {/* Address overlay on photo */}
+                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2, background: 'linear-gradient(to top, rgba(6,10,16,0.92) 0%, transparent 100%)', padding: '32px 18px 14px' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f1f5f9', lineHeight: 1.3 }}>{heroAddr}</div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                              {isBuyer ? (analysis.listingStatus === 'PENDING' ? '🔴 Pending · Buyer Intelligence' : '🏷 For Sale · Buyer Intelligence') : 'Home Intelligence'} · {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </div>
+                          </div>
                         </div>
                       )}
 
-                      {/* Property details bar */}
-                      {(analysis.beds || analysis.baths || analysis.sqft || analysis.yearBuilt || analysis.lotSizeSqft) && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, borderBottom: '1px solid #1e293b', background: '#0a1628' }}>
-                          {[
-                            analysis.beds      && { label: 'Beds',       val: `${analysis.beds}` },
-                            analysis.baths     && { label: 'Baths',      val: `${analysis.baths}` },
-                            analysis.sqft      && { label: 'Sq Ft',      val: analysis.sqft.toLocaleString() },
-                            analysis.yearBuilt && { label: 'Built',      val: `${analysis.yearBuilt}` },
-                            analysis.lotSizeSqft && { label: 'Lot',      val: `${Math.round(analysis.lotSizeSqft / 43560 * 100) / 100} ac` },
-                            analysis.propertyType && { label: 'Type',    val: analysis.propertyType.replace('_', ' ') },
-                          ].filter(Boolean).map((item: any, i, arr) => (
-                            <div key={i} style={{ flex: '1 1 80px', padding: '10px 14px', borderRight: i < arr.length - 1 ? '1px solid #1e293b' : 'none', textAlign: 'center' }}>
-                              <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#475569', marginBottom: 2 }}>{item.label}</div>
-                              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#e2e8f0' }}>{item.val}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div style={{ padding: '20px 24px' }}>
-                        {/* Address + mode label */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
-                          <div>
-                            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: isBuyer ? '#60a5fa' : '#00e87a', marginBottom: 3 }}>
-                              {isBuyer ? (analysis.listingStatus === 'PENDING' ? '🔴 Pending · Buyer Intelligence' : '🏷 For Sale · Buyer Intelligence') : 'Home Intelligence'}
-                            </div>
-                            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#f1f5f9', lineHeight: 1.3 }}>{heroAddr}</div>
-                          </div>
-                          <div style={{ fontSize: '0.7rem', color: '#334155' }}>
-                            {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                          </div>
-                        </div>
-
-                        {/* 4 key stats — different set for buyer vs owner */}
+                      {/* Hero headline: ONE big number + secondary metric + mini equity bar */}
+                      <div style={{ padding: '18px 18px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                         {isBuyer ? (
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
-                            {[
-                              { label: 'List Price',    value: analysis.listPrice ? `$${Math.round(analysis.listPrice).toLocaleString()}` : (analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—'), blue: true },
-                              { label: 'Redfin AVM',    value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', blue: false },
-                              { label: 'Days on Market',value: analysis.daysOnMarket != null ? `${analysis.daysOnMarket}d` : '—', blue: false },
-                              { label: '$/sqft',        value: (analysis.listPrice && analysis.sqft) ? `$${Math.round(analysis.listPrice / analysis.sqft)}` : '—', blue: false },
-                            ].map((s, i) => (
-                              <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
-                                <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
-                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: s.blue ? '#60a5fa' : '#f1f5f9', lineHeight: 1.1 }}>{s.value}</div>
+                          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#60a5fa', lineHeight: 1 }}>
+                                {analysis.listPrice ? `$${Math.round(analysis.listPrice).toLocaleString()}` : (analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—')}
                               </div>
-                            ))}
+                              <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569', marginTop: 4 }}>List Price</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              {analysis.estimatedValue && (
+                                <>
+                                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f1f5f9' }}>
+                                    {`$${Math.round(analysis.estimatedValue).toLocaleString()}`}
+                                    {analysis.daysOnMarket != null && <span style={{ fontSize: '0.78rem', color: '#f59e0b', marginLeft: 8, fontWeight: 600 }}>{analysis.daysOnMarket}d</span>}
+                                  </div>
+                                  <div style={{ fontSize: '0.65rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Redfin AVM · Days on Mkt</div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         ) : (
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginBottom: 20 }}>
-                            {[
-                              { label: analysis.avmSource === 'attom' ? 'ATTOM AVM' : analysis.avmSource === 'attom_assessed' ? 'ATTOM Assessed' : 'Est. Value', value: analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—', green: true, missing: false },
-                              { label: analysis.balanceIsEstimated ? 'Est. Equity' : 'Total Equity', value: analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? 'Underwater' : analysis.estimatedEquity ? `$${Math.round(analysis.estimatedEquity).toLocaleString()}` : '—', green: false, warn: analysis.estimatedEquity != null && analysis.estimatedEquity < 0, missing: !analysis.estimatedEquity && !(analysis.estimatedEquity != null && analysis.estimatedEquity < 0) },
-                              { label: 'Appreciation', value: analysis.appreciationPct != null ? `+${analysis.appreciationPct}%` : '—', green: true, missing: false },
-                              { label: analysis.balanceIsEstimated ? 'LTV (est.)' : 'LTV Ratio', value: analysis.ltv != null ? `${analysis.ltv}%` : '—', green: false, warn: analysis.ltv != null && analysis.ltv > 100, missing: analysis.ltv === null },
-                            ].map((s, i) => (
-                              <div key={i} style={{ paddingRight: i < 3 ? 16 : 0, paddingLeft: i > 0 ? 16 : 0, borderRight: i < 3 ? '1px solid #1e293b' : 'none' }}>
-                                <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{s.label}</div>
-                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: s.warn ? '#f59e0b' : s.green ? '#00e87a' : '#f1f5f9', lineHeight: 1.1 }}>
-                                  {s.missing && !borrowerId
-                                    ? <button onClick={openLoanEditor} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#64748b', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '4px 10px', lineHeight: 1.4 }}>Add balance →</button>
-                                    : s.value}
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                              <div>
+                                <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#00e87a', lineHeight: 1 }}>
+                                  {analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—'}
+                                </div>
+                                <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569', marginTop: 4 }}>
+                                  {analysis.avmSource === 'attom' ? 'ATTOM AVM' : analysis.avmSource === 'attom_assessed' ? 'ATTOM Assessed' : 'Est. Value'}
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Equity bar — owner mode only */}
-                        {!isBuyer && analysis.equityPct != null && analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 && (
-                          <div style={{ marginBottom: analysis.balanceIsEstimated ? 10 : 20 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#475569', marginBottom: 5 }}>
-                              <span style={{ color: '#00e87a' }}>{`$${Math.round(analysis.estimatedEquity / 1000)}K equity (${analysis.equityPct}%)`}</span>
-                              <span>{analysis.estimatedBalance ? `$${Math.round(analysis.estimatedBalance / 1000)}K ${analysis.balanceIsEstimated ? 'est. balance' : 'balance'}` : 'Balance'}</span>
+                              <div style={{ textAlign: 'right' }}>
+                                {analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 ? (
+                                  <>
+                                    <div>
+                                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f1f5f9' }}>{fmt(analysis.estimatedEquity)}</span>
+                                      {analysis.appreciationPct != null && <span style={{ fontSize: '0.78rem', color: '#00e87a', marginLeft: 6, fontWeight: 600 }}>+{analysis.appreciationPct}%</span>}
+                                    </div>
+                                    <div style={{ fontSize: '0.65rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Total Equity</div>
+                                  </>
+                                ) : analysis.estimatedEquity == null && !borrowerId ? (
+                                  <button onClick={openLoanEditor} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#64748b', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '6px 12px', lineHeight: 1.4 }}>Add balance →</button>
+                                ) : null}
+                              </div>
                             </div>
-                            <div style={{ height: 6, background: '#1e293b', borderRadius: 999, overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
-                            </div>
-                            {analysis.balanceIsEstimated && !borrowerId && (
-                              <div style={{ marginTop: 6, marginBottom: 14, fontSize: '0.62rem', color: '#475569' }}>
-                                Equity &amp; LTV estimated assuming 20% down · <button onClick={openLoanEditor} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00e87a', fontWeight: 600, fontSize: '0.62rem', padding: 0 }}>Enter actual balance →</button>
+                            {/* Mini equity bar */}
+                            {analysis.equityPct != null && analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 && (
+                              <div style={{ marginTop: 14 }}>
+                                <div style={{ height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 999, overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, fontSize: '0.65rem' }}>
+                                  <span style={{ color: '#475569' }}>{analysis.equityPct}% equity</span>
+                                  <span style={{ color: '#475569' }}>
+                                    {analysis.estimatedBalance ? `${fmt(analysis.estimatedBalance)} ${analysis.balanceIsEstimated ? 'est.' : ''} balance` : ''}
+                                    {analysis.balanceIsEstimated && !borrowerId && (
+                                      <> · <button onClick={openLoanEditor} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00e87a', fontWeight: 600, fontSize: '0.65rem', padding: 0 }}>Enter actual →</button></>
+                                    )}
+                                  </span>
+                                </div>
                               </div>
                             )}
-                          </div>
-                        )}
-                        {/* Underwater warning — owner mode only */}
-                        {!isBuyer && analysis.estimatedEquity != null && analysis.estimatedEquity < 0 && (
-                          <div style={{ marginBottom: 20, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
-                            <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700 }}>⚠️ Property is currently underwater</div>
-                            <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 3 }}>
-                              Balance exceeds estimated value by {analysis.estimatedBalance && analysis.estimatedValue ? `$${Math.round(Math.abs(analysis.estimatedBalance - analysis.estimatedValue) / 1000)}K` : '—'}. Consider running refi math.
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Rate Watch — homeowner view only (not LO/borrower) */}
-                        {!borrowerId && !isBuyer && (
-                          <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 10 }}>
-                            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 8 }}>Rate Watch</div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                              <div>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f1f5f9', marginBottom: 2 }}>Alert me when 30-year rates drop to:</div>
-                                <div style={{ fontSize: '0.72rem', color: '#475569' }}>
-                                  Current 30Y fixed: <span style={{ color: '#00e87a', fontWeight: 700 }}>{(analysis.liveRate ?? 6.65).toFixed(2)}%</span> · You control when to act, we just alert you.
+                            {/* Underwater warning */}
+                            {analysis.estimatedEquity != null && analysis.estimatedEquity < 0 && (
+                              <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
+                                <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700 }}>⚠️ Property is currently underwater</div>
+                                <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 3 }}>
+                                  Balance exceeds estimated value by {analysis.estimatedBalance && analysis.estimatedValue ? `$${Math.round(Math.abs(analysis.estimatedBalance - analysis.estimatedValue) / 1000)}K` : '—'}.
                                 </div>
                               </div>
-                              <SignedIn>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                  <input type="number" step="0.125" min="3" max="10" value={alertRate}
-                                    onChange={e => setAlertRate(e.target.value)}
-                                    placeholder={`e.g. ${((analysis.liveRate ?? 6.65) - 1).toFixed(2)}`}
-                                    style={{ width: 80, padding: '7px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#fff', fontSize: '0.88rem', fontFamily: 'inherit' }}
-                                  />
-                                  <span style={{ color: '#475569', fontSize: '0.82rem' }}>%</span>
-                                  <button onClick={saveAlert} disabled={alertSaving || alertSaved || !alertRate}
-                                    style={{ padding: '7px 16px', borderRadius: 999, background: alertSaved ? 'rgba(0,232,122,0.15)' : '#00e87a', border: 'none', color: alertSaved ? '#00e87a' : '#07100f', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                    {alertSaved ? '✓ Alert Set' : alertSaving ? 'Saving…' : 'Set Alert'}
-                                  </button>
-                                </div>
-                              </SignedIn>
-                              <SignedOut>
-                                <SignInButton mode="modal">
-                                  <button style={{ padding: '7px 16px', borderRadius: 999, background: '#00e87a', border: 'none', color: '#07100f', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                    Sign in to set rate alert
-                                  </button>
-                                </SignInButton>
-                              </SignedOut>
-                            </div>
-                          </div>
+                            )}
+                          </>
                         )}
+                      </div>
 
-                        {/* CTA buttons */}
-                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                          {/* Save to My Properties — always available for any signed-in user */}
+                        {/* CTA buttons — full-width stretch */}
+                        <div style={{ display: 'flex', gap: 8, padding: '10px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                           <SignedIn>
                             {(() => {
                               const addrKey = heroAddr.split(',')[0].toLowerCase().trim();
@@ -2159,7 +2111,7 @@ function MyHomePageInner() {
                                 p.property_address?.toLowerCase().trim().startsWith(addrKey)
                               );
                               return isAlreadySaved ? (
-                                <span style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.2)', color: 'rgba(0,232,122,0.6)', fontWeight: 700, fontSize: '0.82rem', display: 'inline-block' }}>
+                                <span style={{ flex: 1, padding: '9px 0', textAlign: 'center', border: '1px solid rgba(0,232,122,0.2)', color: 'rgba(0,232,122,0.6)', fontWeight: 700, fontSize: '0.82rem', borderRadius: 8, display: 'inline-block' }}>
                                   ✓ Saved
                                 </span>
                               ) : (
@@ -2169,16 +2121,16 @@ function MyHomePageInner() {
                                     const json = await res.json();
                                     if (json.property) setProperties(prev => [...prev, json.property]);
                                   }}
-                                  style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                  Save to My Properties
+                                  style={{ flex: 1, padding: '9px 0', border: '1px solid rgba(0,232,122,0.4)', color: '#00e87a', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 8 }}>
+                                  Save Property
                                 </button>
                               );
                             })()}
                           </SignedIn>
                           <SignedOut>
                             <SignInButton mode="modal">
-                              <button style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                Sign in to save &amp; track
+                              <button style={{ flex: 1, padding: '9px 0', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, fontSize: '0.82rem', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 8, width: '100%' }}>
+                                Sign in to save
                               </button>
                             </SignInButton>
                           </SignedOut>
@@ -2191,7 +2143,6 @@ function MyHomePageInner() {
                                 parts.push(`Current 30-year rate is ${a.liveRate.toFixed(2)}%.`);
                                 if (a.estimatedValue && ask && a.estimatedValue !== ask) parts.push(`Redfin AVM is $${Math.round(a.estimatedValue).toLocaleString()}.`);
                                 if (a.daysOnMarket != null) parts.push(`Property has been on market ${a.daysOnMarket} days.`);
-                                // Seller paid intentionally omitted — irrelevant to buyer and leads to bad AI framing;
                                 parts.push('Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.');
                                 const addrParts = (a.address ?? '').split(',').map((s: string) => s.trim());
                                 const p = new URLSearchParams({
@@ -2212,7 +2163,7 @@ function MyHomePageInner() {
                               })()}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{ padding: '10px 20px', borderRadius: 999, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                              style={{ flex: 1, padding: '9px 0', textAlign: 'center', borderRadius: 8, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                             >
                               Run My Numbers →
                             </a>
@@ -2226,24 +2177,11 @@ function MyHomePageInner() {
                               })()}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{ padding: '10px 20px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                              style={{ flex: 1, padding: '9px 0', textAlign: 'center', borderRadius: 8, background: '#00e87a', color: '#07100f', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
                             >
                               Run My Numbers →
                             </a>
                           )}
-                          <a
-                            href={isBuyer ? '#position' : '#equity'}
-                            onClick={e => {
-                              e.preventDefault();
-                              const chipId = isBuyer ? 'position' : 'equity';
-                              const chip = document.querySelector(`[data-chip="${chipId}"]`) as HTMLButtonElement | null;
-                              chip?.click();
-                              setTimeout(() => { (document.querySelector('.mh-chip-bar') as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
-                            }}
-                            style={{ padding: '10px 20px', borderRadius: 999, border: '1px solid #1e293b', color: '#94a3b8', fontWeight: 600, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
-                          >
-                            Full Analysis ↓
-                          </a>
                           {isBuyer && (() => {
                             const a = analysis!;
                             const price = a.listPrice ?? a.estimatedValue ?? 0;
@@ -2255,19 +2193,15 @@ function MyHomePageInner() {
                               purpose: 'Purchase',
                             });
                             return (
-                              <>
-                                <a
-                                  href={`/connect/post?${matchP.toString()}`}
-                                  style={{ padding: '10px 18px', borderRadius: 999, background: '#00e87a', color: '#07100f', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block', whiteSpace: 'nowrap' }}
-                                >
-                                  Get matched →
-                                </a>
-                                <PropertyShareButton address={a.address} />
-                              </>
+                              <a
+                                href={`/connect/post?${matchP.toString()}`}
+                                style={{ flex: 1, padding: '9px 0', textAlign: 'center', borderRadius: 8, background: '#00e87a', color: '#07100f', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                              >
+                                Get Matched →
+                              </a>
                             );
                           })()}
                         </div>
-                      </div>
                     </div>
                   );
                 })()}
@@ -2387,6 +2321,40 @@ function MyHomePageInner() {
                                 {activeChip === 'equity'     && <><CardEquity d={analysis} nearbySales={nearbySales} onEdit={!borrowerId ? openLoanEditor : undefined} /><CardComps d={analysis} /><CardPropertyIntel d={analysis} /></>}
                                 {activeChip === 'heloc'      && <CardHELOC      d={analysis} />}
                                 {activeChip === 'refi'       && <CardRefi       d={analysis} onEdit={openLoanEditor} plan={userPlan} isLo={!!analysis.isLoView} />}
+                                {activeChip === 'refi' && !borrowerId && !isBuyer && (
+                                  <div className="mh-card" style={{ marginTop: 0, borderTop: '1px solid rgba(255,255,255,0.05)', borderRadius: 0 }}>
+                                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 8 }}>Rate Watch</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                                      <div>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f1f5f9', marginBottom: 2 }}>Alert me when 30-year rates drop to:</div>
+                                        <div style={{ fontSize: '0.72rem', color: '#475569' }}>
+                                          Current 30Y fixed: <span style={{ color: '#00e87a', fontWeight: 700 }}>{(analysis.liveRate ?? 6.65).toFixed(2)}%</span> · You control when to act.
+                                        </div>
+                                      </div>
+                                      <SignedIn>
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                          <input type="number" step="0.125" min="3" max="10" value={alertRate}
+                                            onChange={e => setAlertRate(e.target.value)}
+                                            placeholder={`e.g. ${((analysis.liveRate ?? 6.65) - 1).toFixed(2)}`}
+                                            style={{ width: 80, padding: '7px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#fff', fontSize: '0.88rem', fontFamily: 'inherit' }}
+                                          />
+                                          <span style={{ color: '#475569', fontSize: '0.82rem' }}>%</span>
+                                          <button onClick={saveAlert} disabled={alertSaving || alertSaved || !alertRate}
+                                            style={{ padding: '7px 16px', borderRadius: 999, background: alertSaved ? 'rgba(0,232,122,0.15)' : '#00e87a', border: 'none', color: alertSaved ? '#00e87a' : '#07100f', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                            {alertSaved ? '✓ Alert Set' : alertSaving ? 'Saving…' : 'Set Alert'}
+                                          </button>
+                                        </div>
+                                      </SignedIn>
+                                      <SignedOut>
+                                        <SignInButton mode="modal">
+                                          <button style={{ padding: '7px 16px', borderRadius: 999, background: '#00e87a', border: 'none', color: '#07100f', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                            Sign in to set alert
+                                          </button>
+                                        </SignInButton>
+                                      </SignedOut>
+                                    </div>
+                                  </div>
+                                )}
                                 {activeChip === 'economy'    && <CardEconomy    d={analysis} />}
                                 {activeChip === 'milestones' && <CardMilestones d={analysis} />}
                               </>
