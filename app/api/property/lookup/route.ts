@@ -32,30 +32,39 @@ async function cachePropertyResult(address: string, data: Record<string, unknown
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SNAPSHOT_TTL_MS).toISOString();
 
+    // Build upsert object — only include value/sale fields when non-null so
+    // re-lookups that miss the estimate don't wipe a previously stored value.
+    const estimatedValue  = (data.estimatedValue  as number | null) ?? null;
+    const lastSalePrice   = (data.lastSalePrice   as number | null) ?? null;
+    const lastSaleDate    = (data.lastSaleDate    as string | null) ?? null;
+    const upsertRow: Record<string, unknown> = {
+        address_full:          addressFull,
+        address_line:          (data.address as string | null) ?? null,
+        city:                  (data.city    as string | null) ?? null,
+        state:                 (data.state   as string | null) ?? null,
+        zip:                   (data.zip     as string | null) ?? null,
+        beds:                  (data.beds    as number | null) ?? null,
+        baths:                 (data.baths   as number | null) ?? null,
+        sqft:                  (data.sqft    as number | null) ?? null,
+        latest_listing_status: (data.listingStatus as string | null) ?? null,
+        latest_rent:           (data.rentEstimate  as number | null) ?? null,
+        enriched_at:           now.toISOString(),
+        enrichment_source:     source,
+        confidence:            source === 'redfin' ? 0.90 : 0.65,
+        updated_at:            now.toISOString(),
+    };
+    // Only overwrite AVM / sale fields when we actually have a value —
+    // prevents nulling out a previously captured Redfin Estimate on re-lookup.
+    if (estimatedValue != null)                              upsertRow.latest_value       = estimatedValue;
+    if ((data.estimatedValueLow  as number | null) != null) upsertRow.latest_value_low   = data.estimatedValueLow;
+    if ((data.estimatedValueHigh as number | null) != null) upsertRow.latest_value_high  = data.estimatedValueHigh;
+    if (lastSalePrice != null)                              upsertRow.latest_last_sale_price = lastSalePrice;
+    if (lastSaleDate  != null)                              upsertRow.latest_last_sale_date  = lastSaleDate;
+
     // Upsert canonical property record
     const { data: prop } = await sb
       .from('properties')
-      .upsert({
-        address_full:            addressFull,
-        address_line:            (data.address as string | null) ?? null,
-        city:                    (data.city as string | null) ?? null,
-        state:                   (data.state as string | null) ?? null,
-        zip:                     (data.zip as string | null) ?? null,
-        beds:                    (data.beds as number | null) ?? null,
-        baths:                   (data.baths as number | null) ?? null,
-        sqft:                    (data.sqft as number | null) ?? null,
-        latest_value:            (data.estimatedValue as number | null) ?? null,
-        latest_value_low:        (data.estimatedValueLow as number | null) ?? null,
-        latest_value_high:       (data.estimatedValueHigh as number | null) ?? null,
-        latest_rent:             (data.rentEstimate as number | null) ?? null,
-        latest_last_sale_price:  (data.lastSalePrice as number | null) ?? null,
-        latest_last_sale_date:   (data.lastSaleDate as string | null) ?? null,
-        latest_listing_status:   (data.listingStatus as string | null) ?? null,
-        enriched_at:             now.toISOString(),
-        enrichment_source:       source,
-        confidence:              source === 'redfin' ? 0.90 : 0.65,
-        updated_at:              now.toISOString(),
-      }, { onConflict: 'address_full' })
+      .upsert(upsertRow, { onConflict: 'address_full' })
       .select('id')
       .maybeSingle();
 
