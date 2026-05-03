@@ -1498,11 +1498,15 @@ function MyHomePageInner() {
             setAnalysis(lookupToAnalysis(lookupData, liveRate));
             return;
           }
-          // Redfin lookup failed — fall through to ATTOM data as last resort
         }
 
         if (!data.estimatedValue && !data.lastSalePrice) {
-          setAnalysisErr('Could not find property value data. Try pasting the Redfin link directly in chat.');
+          // Show partial card if we have structural data — only hard-error if truly empty
+          if (data.beds || data.sqft || data.address) {
+            setAnalysis(data);
+            return;
+          }
+          setAnalysisErr('We couldn\'t find value data for this address. Try refining the address or check back shortly.');
           return;
         }
         setAnalysis(data);
@@ -1529,7 +1533,12 @@ function MyHomePageInner() {
       }
       const d = lookupJson.data;
       if (!d.estimatedValue && !d.lastSalePrice && !d.price) {
-        setAnalysisErr('Could not find property value data for this address. Try pasting the Redfin link directly in chat for instant results.');
+        // Show partial card if we have structural data — only hard-error if truly empty
+        if (d.beds || d.sqft || d.address) {
+          setAnalysis(lookupToAnalysis({ ...d, address: lookupAddress }, liveRate));
+          return;
+        }
+        setAnalysisErr('We couldn\'t find value data for this address. Try refining the address or check back shortly.');
         return;
       }
       const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
