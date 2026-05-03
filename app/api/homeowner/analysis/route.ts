@@ -669,9 +669,28 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(resolvedAddress)}&zoom=15&size=500x260&scale=2&maptype=satellite&markers=color:green%7C${encodeURIComponent(resolvedAddress)}&key=${mapsKey}`
     : null;
 
-  // 10. Property photo — live Redfin scrape (og:image) wins; snapshot is fallback only
-  let photoUrl: string | null = (typeof liveData?.photoUrl === 'string' && liveData.photoUrl.startsWith('http'))
-    ? liveData.photoUrl : null;
+  // 10. Property photo — priority: user upload > live Redfin > cached snapshot > Street View fallback
+  let photoUrl: string | null = null;
+
+  // Priority 1: user-uploaded photo (highest trust, never overridden)
+  if (prop?.id) {
+    try {
+      const { data: userPhotoSnap } = await db().from('property_snapshots')
+        .select('data').eq('property_id', prop.id).eq('snapshot_type', 'user_photo')
+        .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
+      const upData = userPhotoSnap?.data as Record<string, any> | null;
+      const upUrl = upData?.photoUrl ?? null;
+      if (typeof upUrl === 'string' && upUrl.startsWith('http')) photoUrl = upUrl;
+    } catch { /* non-blocking */ }
+  }
+
+  // Priority 2: live Redfin og:image
+  if (!photoUrl) {
+    photoUrl = (typeof liveData?.photoUrl === 'string' && liveData.photoUrl.startsWith('http'))
+      ? liveData.photoUrl : null;
+  }
+
+  // Priority 3: cached full snapshot photo
   if (!photoUrl && prop?.id) {
     try {
       const { data: photoSnap } = await db().from('property_snapshots')
@@ -682,6 +701,17 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
       if (typeof candidate === 'string' && candidate.startsWith('http')) photoUrl = candidate;
     } catch { /* non-blocking */ }
   }
+
+  // Priority 4: targeted Redfin fetch just for the photo when structural data was cached
+  if (!photoUrl && !liveData) {
+    try {
+      const photoOnly = await liveRedfinLookup(address);
+      if (photoOnly?.photoUrl?.startsWith('http')) photoUrl = photoOnly.photoUrl;
+    } catch { /* non-blocking */ }
+  }
+
+  // Priority 5: Street View as visual fallback (already built from Google Maps API)
+  if (!photoUrl && streetViewUrl) photoUrl = streetViewUrl;
 
   const result: PropertyData = {
     estimatedValue, estimatedValueLow, estimatedValueHigh,

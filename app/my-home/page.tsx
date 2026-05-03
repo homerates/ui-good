@@ -97,6 +97,7 @@ interface AnalysisData {
   comps: AttomComp[];
   streetViewUrl: string | null;
   staticMapUrl: string | null;
+  photoUrl: string | null;
 }
 
 type ChipId = 'equity' | 'heloc' | 'refi' | 'economy' | 'milestones';
@@ -1345,7 +1346,10 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
     yearBuilt: null, propertyType: null, lotSizeSqft: null, apn: null,
     avmSource: null, avmConfidence: null, avmDate: null,
     mortgageSource: null, mortgageLender: null, mortgageOriginalAmount: null, mortgageOriginationDate: null,
-    comps: [], streetViewUrl: null, staticMapUrl: null, attomCheckedAt: null,
+    comps: [], streetViewUrl: (d.streetViewUrl as string | null) ?? null,
+    staticMapUrl: (d.staticMapUrl as string | null) ?? null,
+    photoUrl: (d.photoUrl as string | null) ?? null,
+    attomCheckedAt: null,
   };
 }
 
@@ -1946,10 +1950,10 @@ function MyHomePageInner() {
                       {/* Accent line */}
                       <div style={{ height: 3, background: isBuyer ? 'linear-gradient(90deg,#3b82f6,#6366f1)' : 'linear-gradient(90deg,#00e87a,#00b459)' }} />
 
-                      {/* Street View hero photo — satellite map as base layer; photo on top */}
-                      {(analysis.streetViewUrl || analysis.staticMapUrl) && (
+                      {/* Property photo hero — layers: satellite base → street view → Redfin/user photo on top */}
+                      {(analysis.photoUrl || analysis.streetViewUrl || analysis.staticMapUrl) && (
                         <div style={{ position: 'relative', height: 200, overflow: 'hidden', background: '#0a1628' }}>
-                          {/* Satellite map — always rendered full-size as base */}
+                          {/* Satellite map — base layer */}
                           {analysis.staticMapUrl && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -1959,37 +1963,60 @@ function MyHomePageInner() {
                               onError={e => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
                             />
                           )}
-                          {/* Street view — on top; hides to reveal full map when unavailable */}
+                          {/* Street view — middle layer */}
                           {analysis.streetViewUrl && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={analysis.streetViewUrl}
                               alt="Street view"
                               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                              onError={e => {
-                                const img = e.currentTarget;
-                                img.style.display = 'none';
-                                const wrap = img.parentElement;
-                                if (wrap && !wrap.querySelector('.sv-placeholder')) {
-                                  const ph = document.createElement('div');
-                                  ph.className = 'sv-placeholder';
-                                  ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,0.35);pointer-events:none;';
-                                  ph.innerHTML = '<div style="font-size:2rem;opacity:0.4">🏠</div><div style="font-size:0.68rem;color:rgba(255,255,255,0.45);letter-spacing:0.05em;">No street view available</div>';
-                                  wrap.appendChild(ph);
-                                }
-                              }}
+                              onError={e => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
                             />
                           )}
-                          {/* AVM source badge */}
-                          {(analysis.avmSource === 'attom' || analysis.avmSource === 'attom_assessed') && (
-                            <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, background: 'rgba(0,20,10,0.75)', border: '1px solid rgba(0,232,122,0.35)', borderRadius: 6, padding: '3px 8px', fontSize: '0.6rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.06em' }}>
-                              {analysis.avmSource === 'attom' ? 'ATTOM AVM' : 'ATTOM ASSESSED'}
-                            </div>
+                          {/* Redfin listing photo or user upload — top layer, highest quality */}
+                          {analysis.photoUrl && analysis.photoUrl !== analysis.streetViewUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={analysis.photoUrl}
+                              alt="Property photo"
+                              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={e => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                            />
+                          )}
+                          {/* Upload photo button */}
+                          {activeProperty?.id && (
+                            <>
+                              <input
+                                id="photo-upload-input"
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                style={{ display: 'none' }}
+                                onChange={async e => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const fd = new FormData();
+                                  fd.append('file', file);
+                                  fd.append('property_id', activeProperty.id!);
+                                  const res = await fetch('/api/homeowner/photo', { method: 'POST', body: fd });
+                                  if (res.ok) {
+                                    const { photoUrl: newUrl } = await res.json();
+                                    if (newUrl) setAnalysis((prev: any) => prev ? { ...prev, photoUrl: newUrl } : prev);
+                                  }
+                                  e.target.value = '';
+                                }}
+                              />
+                              <label
+                                htmlFor="photo-upload-input"
+                                style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 3, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '5px 10px', fontSize: '0.65rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.04em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                              >
+                                <span>📷</span> Upload Photo
+                              </label>
+                            </>
                           )}
                         </div>
                       )}
 
-                      {/* Property details bar — beds/baths/sqft/yearBuilt from ATTOM */}
+                      {/* Property details bar */}
                       {(analysis.beds || analysis.baths || analysis.sqft || analysis.yearBuilt || analysis.lotSizeSqft) && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, borderBottom: '1px solid #1e293b', background: '#0a1628' }}>
                           {[
