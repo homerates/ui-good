@@ -50,8 +50,11 @@ function merge(primary: Partial<PropertyData> | null, og: Partial<PropertyData>)
     };
     fill('price'); fill('address'); fill('city'); fill('state'); fill('zip');
     fill('beds'); fill('baths'); fill('sqft');
-    // og:image always preferred — public CDN URL, no auth required
-    if (og.photoUrl) r.photoUrl = og.photoUrl;
+    // og:image wins for photoUrl — but only when it's a real property photo, not a brand/logo image.
+    // Redfin's sign-in wall returns its logo as og:image — reject those.
+    const isPropertyPhoto = (url: string | null | undefined) =>
+        typeof url === 'string' && url.startsWith('http') && !/\/logo/i.test(url) && !/redfin-logo/i.test(url);
+    if (isPropertyPhoto(og.photoUrl)) r.photoUrl = og.photoUrl;
     return r;
 }
 

@@ -636,7 +636,7 @@ async function handleUrl(rawUrl: string) {
         annualTaxes:      d.annualTaxes,
         taxRateEffective: d.taxRateEffective,
         taxSource:        d.taxSource,
-        photoUrl:         d.photoUrl,
+        photoUrl:         (typeof d.photoUrl === 'string' && d.photoUrl.startsWith('http') && !/\/logo/i.test(d.photoUrl) && !/redfin-logo/i.test(d.photoUrl)) ? d.photoUrl : null,
         ...ext,
     };
 

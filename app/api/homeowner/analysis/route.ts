@@ -606,25 +606,38 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let estimatedValueLow  = estimatedValue ? Math.round(estimatedValue * 0.92) : null;
   let estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
 
-  // AVM priority: GPT-4o/Redfin from live lookup → FHFA appreciation model
-  // Guard: if LO entered actual_value, skip live AVM entirely — LO data wins.
-  // Sanity check: liveAvm must exceed 75% of the known sale price — a property can't be worth
-  // less than it sold for (especially in CA). Values below this floor signal a wrong/stale page.
+  // AVM priority (highest → lowest):
+  //   1. live Redfin scrape (current session)
+  //   2. prop.latest_value from DB — written by /api/property/lookup when user pastes Redfin URL in chat
+  //   3. FHFA appreciation model (already computed above)
+  // Guard: LO actual_value always wins over all automated sources.
+  // Sanity check: any AVM must exceed 75% of known sale price (below that = wrong page).
   const rawLiveAvm = (!hasLoFinancials && liveData?.estimatedValue && liveData.estimatedValue > 50_000 && liveData.estimatedValue <= AVM_MAX)
     ? liveData.estimatedValue : null;
   const liveAvm = (rawLiveAvm && salePrice && rawLiveAvm < salePrice * 0.75)
     ? (() => { console.log(`[analysis] liveAvm ${rawLiveAvm} < salePrice ${salePrice} × 0.75 — discarding (wrong page)`); return null; })()
     : rawLiveAvm;
+
+  // DB estimate: latest_value written by property/lookup when the Redfin URL was pasted in chat.
+  // This is the correct Redfin AVM even when a direct Redfin scrape is blocked.
+  const rawDbEst = (!hasLoFinancials && !liveAvm && prop?.latest_value && prop.latest_value > 50_000 && prop.latest_value <= AVM_MAX)
+    ? prop.latest_value : null;
+  const dbEst = (rawDbEst && salePrice && rawDbEst < salePrice * 0.75) ? null : rawDbEst;
+
   // avmSource tracks which data tier produced the estimate for UI color-coding:
   // redfin_estimate = scraped directly from Redfin's "Redfin Estimate" section (highest confidence)
   // fhfa            = derived from FHFA appreciation model on lastSalePrice (model estimate)
   // ai_estimate     = Tavily/GPT-4o gap-fill or 75% LTV fallback (lowest confidence, show amber)
   const avmSource: 'redfin_estimate' | 'fhfa' | 'ai_estimate' =
-    liveAvm ? 'redfin_estimate' : (estimatedValue ? 'fhfa' : 'ai_estimate');
+    (liveAvm || dbEst) ? 'redfin_estimate' : (estimatedValue ? 'fhfa' : 'ai_estimate');
   if (liveAvm) {
     estimatedValue     = liveAvm;
     estimatedValueLow  = Math.round(liveAvm * 0.93);
     estimatedValueHigh = Math.round(liveAvm * 1.07);
+  } else if (dbEst) {
+    estimatedValue     = dbEst;
+    estimatedValueLow  = Math.round(dbEst * 0.93);
+    estimatedValueHigh = Math.round(dbEst * 1.07);
   }
 
   // Homeowner analysis never treats the property as FOR_SALE:
@@ -689,6 +702,10 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     : null;
 
   // 10. Property photo — priority: user upload > live Redfin > cached snapshot > Street View fallback
+  // Rejects brand/logo images (e.g. Redfin sign-in wall returns its logo as og:image)
+  const isValidPhoto = (url: string | null | undefined): url is string =>
+    typeof url === 'string' && url.startsWith('http') && !/\/logo/i.test(url) && !/redfin-logo/i.test(url);
+
   let photoUrl: string | null = null;
 
   // Priority 1: user-uploaded photo (highest trust, never overridden)
@@ -699,17 +716,14 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
         .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
       const upData = userPhotoSnap?.data as Record<string, any> | null;
       const upUrl = upData?.photoUrl ?? null;
-      if (typeof upUrl === 'string' && upUrl.startsWith('http')) photoUrl = upUrl;
+      if (isValidPhoto(upUrl)) photoUrl = upUrl;
     } catch { /* non-blocking */ }
   }
 
-  // Priority 2: live Redfin og:image
-  if (!photoUrl) {
-    photoUrl = (typeof liveData?.photoUrl === 'string' && liveData.photoUrl.startsWith('http'))
-      ? liveData.photoUrl : null;
-  }
+  // Priority 2: live Redfin og:image (filtered — rejects sign-in wall logo)
+  if (!photoUrl && isValidPhoto(liveData?.photoUrl)) photoUrl = liveData!.photoUrl!;
 
-  // Priority 3: cached full snapshot photo
+  // Priority 3: cached full snapshot photo (filtered)
   if (!photoUrl && prop?.id) {
     try {
       const { data: photoSnap } = await db().from('property_snapshots')
@@ -717,7 +731,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
         .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
       const snapData = photoSnap?.data as Record<string, any> | null;
       const candidate = snapData?.photoUrl ?? null;
-      if (typeof candidate === 'string' && candidate.startsWith('http')) photoUrl = candidate;
+      if (isValidPhoto(candidate)) photoUrl = candidate;
     } catch { /* non-blocking */ }
   }
 
@@ -725,7 +739,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   if (!photoUrl && !liveData) {
     try {
       const photoOnly = await liveRedfinLookup(address);
-      if (photoOnly?.photoUrl?.startsWith('http')) photoUrl = photoOnly.photoUrl;
+      if (isValidPhoto(photoOnly?.photoUrl)) photoUrl = photoOnly!.photoUrl!;
     } catch { /* non-blocking */ }
   }
 
