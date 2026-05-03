@@ -1531,6 +1531,13 @@ function MyHomePageInner() {
         setAnalysisErr(lookupJson.error ?? 'Could not retrieve property data');
         return;
       }
+      const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
+      const thirtyY = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
+      let liveRate = 6.65;
+      if (thirtyY?.value) {
+        const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
+        if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
+      }
       const d = lookupJson.data;
       if (!d.estimatedValue && !d.lastSalePrice && !d.price) {
         // Show partial card if we have structural data — only hard-error if truly empty
@@ -1540,13 +1547,6 @@ function MyHomePageInner() {
         }
         setAnalysisErr('We couldn\'t find value data for this address. Try refining the address or check back shortly.');
         return;
-      }
-      const tickerJson = tickerRes ? await tickerRes.json().catch(() => null) : null;
-      const thirtyY = tickerJson?.items?.find((i: any) => i.label === '30Y FIXED');
-      let liveRate = 6.65;
-      if (thirtyY?.value) {
-        const parsed = parseFloat(String(thirtyY.value).replace('%', ''));
-        if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) liveRate = parsed;
       }
       // Pin address to what the user queried — prevents a wrong Redfin URL match from showing a different property
       setAnalysis(lookupToAnalysis({ ...lookupJson.data, address: lookupAddress }, liveRate));
