@@ -1438,12 +1438,16 @@ function MyHomePageInner() {
       if (!analysisLoading) loadAnalysis();
       return;
     }
+    // previewAddress is a guest/entry-point hint — once the user has a saved property
+    // selected, the saved property always wins so switching between properties works.
+    if (activeProperty?.id) {
+      loadAnalysis(activeProperty.id);
+      return;
+    }
     if (previewAddress) {
       if (!analysisLoading) loadAnalysis();
       return;
     }
-    if (!activeProperty?.id) return;
-    loadAnalysis(activeProperty.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProperty?.id, borrowerId, previewAddress]);
 
@@ -1728,6 +1732,7 @@ function MyHomePageInner() {
     setLoanSaved(true);
     setEditingLoan(false);
     setAnalysis(null);
+    loadAnalysis();
     setTimeout(() => setLoanSaved(false), 2500);
   }
 
