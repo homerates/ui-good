@@ -246,9 +246,10 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
         ?? t.match(/\$?([\d,]+)\s*\/\s*mo(?:nth)?\s+hoa/i);
     const hoaMonthly = hoaM ? parseInt(hoaM[1].replace(/,/g, '')) : null;
 
-    // Estimated value
+    // Estimated value — Redfin Estimate section OR the "$X Est. refi payment" shown in off-market headers
     let estimatedValue: number | null = null;
-    const evM = t.match(/(?:redfin\s+estimate|estimated?\s+(?:sale\s+)?(?:value|price)|zestimate)[:\s$]+([\d,]+)/i);
+    const evM = t.match(/(?:redfin\s+estimate|estimated?\s+(?:sale\s+)?(?:value|price)|zestimate)[:\s$]+([\d,]+)/i)
+      ?? t.match(/\$?([\d,]+)\s+Est\.\s+refi\s+payment/i);
     if (evM) estimatedValue = parseInt(evM[1].replace(/,/g, ''));
 
     // Value range "$2.19M – $2.65M"

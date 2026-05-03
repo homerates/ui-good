@@ -314,9 +314,11 @@ async function liveRedfinLookup(address: string): Promise<LivePropertyFields | n
   const rx = text ? (() => {
     const t = text;
 
-    // Listing status — read from Redfin page signals (strongest first to avoid false positives)
+    // Listing status — same strong signals as parseExtended in /api/property/lookup
     let listingStatus: string | null = null;
-    if (/sold\s+(?:on\s+)?\w+\s+\d{1,2},?\s+\d{4}/i.test(t) || /\$[\d,]+\s+sold\s+price/i.test(t))
+    if (/sold\s+(?:on\s+)?\w+\s+\d{1,2},?\s+\d{4}/i.test(t)
+        || /sold\s+price/i.test(t)
+        || /\bsold\s+\w+\s+\d{4}\s+for\b/i.test(t))
       listingStatus = 'SOLD';
     else if (/off[\s-]?market/i.test(t) || /no\s+longer\s+(?:for\s+sale|listed)/i.test(t))
       listingStatus = 'OFF_MARKET';
@@ -325,19 +327,33 @@ async function liveRedfinLookup(address: string): Promise<LivePropertyFields | n
       listingStatus = 'FOR_SALE';
     else if (/\bpending\b/i.test(t))
       listingStatus = 'PENDING';
+    else if (/\bsold\b/i.test(t))
+      listingStatus = 'SOLD';
 
-    // Redfin Estimate — the CURRENT AVM, labeled "Redfin Estimate" on the page
-    const reM = t.match(/redfin\s+estimate[:\s\n]*\$?([\d,]+)/i);
+    // Redfin Estimate — current AVM
+    // On off-market pages Redfin shows: "$876,326 Est. refi payment $2,804/mo" in the header
+    // On-page section shows: "Redfin Estimate $876,326" — both must be caught
+    const reM = t.match(/redfin\s+estimate[:\s\n]*\$?([\d,]+)/i)
+      ?? t.match(/\$?([\d,]+)\s+Est\.\s+refi\s+payment/i);
     const redfinEstimate = reM ? parseInt(reM[1].replace(/,/g, '')) : null;
 
-    // Sold price + date — historical transaction, NOT the current AVM
-    const soldDateM  = t.match(/sold\s+on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-    const soldPriceM = t.match(/\$([\d,]+)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+)/i);
-    const lastSaleDate = soldDateM ? (() => {
-      const d = new Date(soldDateM[1]);
-      return isNaN(d.getTime()) ? soldDateM[1] : d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    })() : null;
-    const lastSalePrice = soldPriceM ? parseInt(soldPriceM[1].replace(/,/g, '')) : null;
+    // Sold price + date — multiple formats including "Sold May 2013 for $450,000"
+    // Mirrors parseExtended patterns in /api/property/lookup
+    const soldM =
+      t.match(/sold\s+([A-Za-z]+\s+\d{4})\s+for\s+\$?([\d,]+)/i)          // "Sold May 2013 for $450,000"
+      ?? t.match(/last\s+sold[:\s]+([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+)/i) // "Last sold: May 2013 · $450,000"
+      ?? (() => {
+        const dateM  = t.match(/sold\s+on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
+        const priceM = t.match(/\$([\d,]+)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+)/i);
+        if (dateM && priceM) {
+          const d = new Date(dateM[1]);
+          const label = isNaN(d.getTime()) ? dateM[1] : d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+          return [null, label, priceM[1]] as unknown as RegExpMatchArray;
+        }
+        return null;
+      })();
+    const lastSaleDate  = soldM?.[1] ?? null;
+    const lastSalePrice = soldM?.[2] ? parseInt(soldM[2].replace(/,/g, '')) : null;
 
     return { listingStatus, redfinEstimate, lastSaleDate, lastSalePrice };
   })() : { listingStatus: null, redfinEstimate: null, lastSaleDate: null, lastSalePrice: null };
@@ -527,13 +543,16 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     // Only use liveData sale price when LO hasn't entered actual_purchase_price
     if (!rawSalePrice && !record.actual_purchase_price && liveData.lastSalePrice) {
       rawSalePrice = liveData.lastSalePrice;
-      if (liveData.lastSaleDate) rawSaleDateStr = liveData.lastSaleDate;
+    }
+    // Sale date saved independently — it may arrive even when sale price is already in DB
+    if (!rawSaleDateStr && liveData.lastSaleDate) {
+      rawSaleDateStr = liveData.lastSaleDate;
     }
     // Persist enriched fields from Redfin to properties table.
     // Source hierarchy rule: only write a field if it is currently null in the DB.
     // A live consumer scrape must never overwrite data that was already confirmed
     // by a more-trusted source (Redfin direct, LO-entered, etc.).
-    // Exception: listingStatus and listPrice are market state — they always update.
+    // Exception: listingStatus, listPrice, and Redfin Estimate are market state — they always update.
     if (prop?.id || rawSalePrice) {
       void db().from('properties').upsert({
         address_full: addr,
@@ -545,9 +564,9 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
         ...(liveData.yearBuilt  && !prop?.year_built    && { year_built:    liveData.yearBuilt }),
         ...(liveData.propertyType && !prop?.property_type && { property_type: liveData.propertyType }),
         // Only write SOLD/OFF_MARKET from homeowner route — never write FOR_SALE/PENDING
-        // (buyer-flow status changes must not corrupt the homeowner card).
         ...(!hasLoFinancials && liveData.listingStatus && liveData.listingStatus !== 'FOR_SALE' && liveData.listingStatus !== 'PENDING' && { latest_listing_status: liveData.listingStatus }),
-        ...(liveData.listPrice     && { latest_value:          liveData.listPrice }),      // market state — always update
+        // latest_value: Redfin Estimate wins for SOLD/off-market; list price wins for active listings
+        ...((liveData.listPrice || liveData.redfinEstimate) && { latest_value: liveData.listPrice ?? liveData.redfinEstimate }),
         ...(!prop?.enrichment_source && { enrichment_source: 'redfin_via_tavily' }),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'address_full' });
