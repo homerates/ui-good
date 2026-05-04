@@ -753,6 +753,7 @@ function CardEconomy({ d }: { d: AnalysisData }) {
         <Link href={`/chat?sq=${encodeURIComponent(economySeed)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
           How do rates affect my options? →
         </Link>
+      </div>
     </div>
   );
 }
