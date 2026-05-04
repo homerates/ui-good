@@ -334,7 +334,7 @@ export default function AdminOutreachPage() {
             <div key={i} style={{ marginBottom: "0.5rem" }}>
               <span style={{ color: "#00e87a", fontWeight: 700, marginRight: 8 }}>{i + 1}.</span>
               <a
-                href={`https://homerates.ai/chat?sq=${encodeURIComponent(q.sq)}`}
+                href={`https://chat.homerates.ai/chat?sq=${encodeURIComponent(q.sq)}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, textDecoration: "underline" }}
