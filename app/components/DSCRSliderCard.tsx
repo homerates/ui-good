@@ -71,6 +71,8 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
     const [bkdOpen,     setBkdOpen]     = useState(true);
     const [rentReveal,  setRentReveal]  = useState(false);
     const [vaultDone,   setVaultDone]   = useState(false);
+    const [sliderOpen, setSliderOpen] = useState(false);
+    const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     const { user } = useUser();
     const router   = useRouter();
@@ -158,6 +160,16 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
             });
             setVaultDone(true);
         } catch { /* non-fatal */ }
+    }
+
+    async function handleDrawerRun() {
+        setDrawerPhase('running');
+        if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
+        await new Promise<void>(r => setTimeout(r, 900));
+        setDrawerPhase('done');
+        await new Promise<void>(r => setTimeout(r, 1800));
+        setSliderOpen(false);
+        setDrawerPhase('idle');
     }
 
     // ── Render ─────────────────────────────────────────────────────────────────
@@ -279,6 +291,18 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 </div>
             </div>
 
+            {/* Slider Drawer */}
+            <button className={`dsc-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
+                <div className="dsc-trigger-left">
+                    <span style={{ fontSize: 15 }}>⚙</span>
+                    <div>
+                        <div className="dsc-trigger-title">Adjust Your Numbers</div>
+                        {isDirty && <div className="dsc-trigger-sub">● Changes pending</div>}
+                    </div>
+                </div>
+                <span className="dsc-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
+            </button>
+            <div className={`dsc-drawer${sliderOpen ? ' open' : ''}`}>
             {/* ⑤ Explorer — sliders */}
             <div className="dsc-exp">
                 <div className="dsc-exp-head">Investment Explorer</div>
@@ -347,11 +371,6 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
 
                 {/* Actions */}
                 <div className="dsc-exp-actions">
-                    {isDirty && props.onRunScenario && (
-                        <button className="dsc-btn-rerun" onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
-                            Run adjusted scenario →
-                        </button>
-                    )}
                     <button className="dsc-btn-vault" onClick={handleVault}>
                         <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                             <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
@@ -366,6 +385,15 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                         Get Matched →
                     </button>
                 </div>
+
+                {/* Drawer CTA */}
+                <div className="dsc-drawer-cta">
+                    {drawerPhase === 'idle' && !isDirty && <span className="dsc-drawer-hint">Drag sliders to model a new scenario</span>}
+                    {drawerPhase === 'idle' && isDirty && <button className="dsc-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
+                    {drawerPhase === 'running' && <span className="dsc-drawer-hint">Calculating…</span>}
+                    {drawerPhase === 'done' && <span className="dsc-drawer-done">✓ Numbers Updated</span>}
+                </div>
+            </div>
             </div>
 
             {/* ⑥ Full breakdown toggle */}
@@ -581,6 +609,23 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 /* disclosures */
                 .dsc-disc { padding:0 16px 16px; }
                 .dsc-disc p { font-size:10px; color:#3a4560; line-height:1.5; }
+
+                /* slider drawer */
+                @keyframes dscTriggerPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 14px rgba(0,232,122,0.08) inset} }
+                @keyframes dscRunPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 20px rgba(0,232,122,0.22)} }
+                .dsc-slider-trigger { width:100%; display:flex; align-items:center; justify-content:space-between; padding:11px 16px; background:rgba(0,232,122,0.04); border:none; border-top:1px solid rgba(0,232,122,0.12); cursor:pointer; font-family:inherit; color:#c4cfe0; transition:background .2s,border-color .2s; animation:dscTriggerPulse 3s ease-in-out infinite; }
+                .dsc-slider-trigger:hover,.dsc-slider-trigger.open { background:rgba(0,232,122,0.07); border-color:rgba(0,232,122,0.3); animation:none; }
+                .dsc-trigger-left { display:flex; align-items:center; gap:10px; }
+                .dsc-trigger-title { font-size:13px; font-weight:700; color:#c4cfe0; text-align:left; }
+                .dsc-trigger-sub { font-size:10px; color:#00e87a; margin-top:1px; }
+                .dsc-trigger-arrow { font-size:11px; color:#6b7a99; flex-shrink:0; }
+                .dsc-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
+                .dsc-drawer.open { max-height:900px; }
+                .dsc-drawer-cta { padding:4px 16px 12px; }
+                .dsc-drawer-hint { font-size:12px; color:#6b7a99; font-style:italic; }
+                .dsc-drawer-done { font-size:12px; color:#00e87a; font-weight:700; }
+                .dsc-drawer-run { width:100%; padding:11px 0; background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.3); border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; font-family:inherit; letter-spacing:.01em; transition:all .15s; animation:dscRunPulse 1.8s ease-in-out infinite; }
+                .dsc-drawer-run:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.55); animation:none; }
 
                 @media (max-width: 480px) {
                     .dsc-hero-amount { font-size:34px; }

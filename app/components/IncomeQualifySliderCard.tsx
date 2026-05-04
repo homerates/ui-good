@@ -75,6 +75,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
     const [vaultDone,    setVaultDone]    = useState(false);
     const [appliedBadge, setAppliedBadge] = useState(false);
+    const [sliderOpen, setSliderOpen] = useState(false);
+    const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     // Committed baseline — updated locally when "Run adjusted scenario" is clicked
     const [commitPrice, setCommitPrice] = useState(props.price);
@@ -159,6 +161,16 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         setCommitDebt(monthlyDebt);
         setAppliedBadge(true);
         setTimeout(() => setAppliedBadge(false), 1800);
+    }
+
+    async function handleDrawerRun() {
+        setDrawerPhase('running');
+        handleCommit();
+        await new Promise<void>(r => setTimeout(r, 700));
+        setDrawerPhase('done');
+        await new Promise<void>(r => setTimeout(r, 1600));
+        setSliderOpen(false);
+        setDrawerPhase('idle');
     }
 
     function buildQualifySeed() {
@@ -331,6 +343,18 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 </div>
             )}
 
+            {/* Slider Drawer */}
+            <button className={`iq-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
+                <div className="iq-trigger-left">
+                    <span style={{ fontSize: 15 }}>⚙</span>
+                    <div>
+                        <div className="iq-trigger-title">Adjust Your Numbers</div>
+                        {isDirty && <div className="iq-trigger-sub">● Changes pending</div>}
+                    </div>
+                </div>
+                <span className="iq-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
+            </button>
+            <div className={`iq-drawer${sliderOpen ? ' open' : ''}`}>
             {/* Explorer — sliders */}
             <div className="iq-exp">
                 <div className="iq-exp-head">Payment Explorer</div>
@@ -410,6 +434,15 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         </div>
                     </div>
                 </div>
+
+                {/* Drawer CTA */}
+                <div className="iq-drawer-cta">
+                    {drawerPhase === 'idle' && !isDirty && <span className="iq-drawer-hint">Drag sliders to model a new scenario</span>}
+                    {drawerPhase === 'idle' && isDirty && <button className="iq-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
+                    {drawerPhase === 'running' && <span className="iq-drawer-hint">Calculating…</span>}
+                    {drawerPhase === 'done' && <span className="iq-drawer-done">✓ Numbers Updated</span>}
+                </div>
+            </div>
             </div>
 
             {/* Payment breakdown */}
@@ -439,14 +472,6 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
             {/* Action buttons */}
             <div className="iq-actions">
-                {isDirty && (
-                    <button className="iq-btn-rerun" onClick={handleCommit}>
-                        Run adjusted scenario →
-                    </button>
-                )}
-                {appliedBadge && !isDirty && (
-                    <span className="iq-applied-badge">✓ Applied</span>
-                )}
                 <button
                     className="iq-btn-property"
                     onClick={() => {
@@ -715,6 +740,23 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-fha-callout-dur { margin:6px 14px 10px; border-radius:8px; padding:8px 12px; font-size:11px; line-height:1.5; }
                 .iq-fha-callout-dur.warn { background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); color:#fca5a5; }
                 .iq-fha-callout-dur.good { background:rgba(0,232,122,0.05); border:1px solid rgba(0,232,122,0.15); color:#86efac; }
+
+                /* slider drawer */
+                @keyframes iqTriggerPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 14px rgba(61,139,255,0.08) inset} }
+                @keyframes iqRunPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 20px rgba(61,139,255,0.28)} }
+                .iq-slider-trigger { width:100%; display:flex; align-items:center; justify-content:space-between; padding:11px 16px; background:rgba(61,139,255,0.04); border:none; border-top:1px solid rgba(61,139,255,0.12); cursor:pointer; font-family:inherit; color:#c4cfe0; transition:background .2s,border-color .2s; animation:iqTriggerPulse 3s ease-in-out infinite; }
+                .iq-slider-trigger:hover,.iq-slider-trigger.open { background:rgba(61,139,255,0.08); border-color:rgba(61,139,255,0.3); animation:none; }
+                .iq-trigger-left { display:flex; align-items:center; gap:10px; }
+                .iq-trigger-title { font-size:13px; font-weight:700; color:#c4cfe0; text-align:left; }
+                .iq-trigger-sub { font-size:10px; color:#3d8bff; margin-top:1px; }
+                .iq-trigger-arrow { font-size:11px; color:#6b7a99; flex-shrink:0; }
+                .iq-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
+                .iq-drawer.open { max-height:900px; }
+                .iq-drawer-cta { padding:4px 16px 12px; }
+                .iq-drawer-hint { font-size:12px; color:#6b7a99; font-style:italic; }
+                .iq-drawer-done { font-size:12px; color:#3d8bff; font-weight:700; }
+                .iq-drawer-run { width:100%; padding:11px 0; background:rgba(61,139,255,0.1); color:#3d8bff; border:1.5px solid rgba(61,139,255,0.35); border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; font-family:inherit; letter-spacing:.01em; transition:all .15s; animation:iqRunPulse 1.8s ease-in-out infinite; }
+                .iq-drawer-run:hover { background:rgba(61,139,255,0.18); border-color:rgba(61,139,255,0.6); animation:none; }
 
                 @media (max-width: 480px) {
                     .iq-hero-amount { font-size:34px; }
