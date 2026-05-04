@@ -683,6 +683,22 @@ function CardRefi({ d, onEdit, plan, isLo }: { d: AnalysisData; onEdit: () => vo
 }
 
 function CardEconomy({ d }: { d: AnalysisData }) {
+  const fmtK = (n: number | null) => n ? `$${Math.round(n / 1000)}k` : null;
+  const seedParts: string[] = [
+    `I own ${d.address}.`,
+    ...(d.estimatedValue ? [`Home value ~${fmtK(d.estimatedValue)}`] : []),
+    ...(d.estimatedBalance ? [`balance ~${fmtK(d.estimatedBalance)}`] : []),
+    ...(d.estimatedEquity ? [`equity ~${fmtK(d.estimatedEquity)} (${d.equityPct?.toFixed(0) ?? '?'}% / ${d.ltv ? (d.ltv * 100).toFixed(0) + '% LTV' : '?'})`] : []),
+    `My rate: ${d.purchaseRate?.toFixed(2) ?? 'unknown'}%, market rate today: ${d.liveRate.toFixed(2)}%.`,
+    ...(d.refiMonthlySaving > 0 && d.refiBreakEven
+      ? [`Refi would save ~$${Math.round(d.refiMonthlySaving)}/mo, break-even ${d.refiBreakEven} months.`]
+      : d.purchaseRate && d.purchaseRate < d.liveRate ? [`My current rate is below market — refi doesn't pencil today.`] : []),
+    ...(d.helocMax ? [`HELOC line: up to ${fmtK(d.helocMax)} at ~${d.helocRate.toFixed(2)}% (${d.helocRateLabel}).`] : []),
+    `Prime: ${d.prime.toFixed(2)}%.`,
+    `How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC strategy, and overall equity position?`,
+  ];
+  const economySeed = seedParts.join(' ');
+
   return (
     <div>
       <div className="mh-stat-row" style={{ marginBottom: 20 }}>
@@ -734,28 +750,9 @@ function CardEconomy({ d }: { d: AnalysisData }) {
         </div>
       )}
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        {(() => {
-          const fmtK = (n: number | null) => n ? `$${Math.round(n / 1000)}k` : null;
-          const parts: string[] = [
-            `I own ${d.address}.`,
-            ...(d.estimatedValue ? [`Home value ~${fmtK(d.estimatedValue)}`] : []),
-            ...(d.estimatedBalance ? [`balance ~${fmtK(d.estimatedBalance)}`] : []),
-            ...(d.estimatedEquity ? [`equity ~${fmtK(d.estimatedEquity)} (${d.equityPct?.toFixed(0) ?? '?'}% / ${d.ltv ? (d.ltv * 100).toFixed(0) + '% LTV' : '?'})`] : []),
-            `My rate: ${d.purchaseRate?.toFixed(2) ?? 'unknown'}%, market rate today: ${d.liveRate.toFixed(2)}%.`,
-            ...(d.refiMonthlySaving > 0 && d.refiBreakEven
-              ? [`Refi would save ~$${Math.round(d.refiMonthlySaving)}/mo, break-even ${d.refiBreakEven} months.`]
-              : d.purchaseRate && d.purchaseRate < d.liveRate ? [`My current rate is below market — refi doesn't pencil today.`] : []),
-            ...(d.helocMax ? [`HELOC line: up to ${fmtK(d.helocMax)} at ~${d.helocRate.toFixed(2)}% (${d.helocRateLabel}).`] : []),
-            `Prime: ${d.prime.toFixed(2)}%.`,
-            `How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC strategy, and overall equity position?`,
-          ];
-          const seed = parts.join(' ');
-          return (
-            <Link href={`/chat?sq=${encodeURIComponent(seed)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
-              How do rates affect my options? →
-            </Link>
-          );
-        })()}
+        <Link href={`/chat?sq=${encodeURIComponent(economySeed)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
+          How do rates affect my options? →
+        </Link>
     </div>
   );
 }
