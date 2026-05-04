@@ -46,9 +46,9 @@ function parseCSV(text: string): { contacts: Contact[]; parseErrors: string[] } 
 }
 
 const LO_QUESTIONS = [
-  { label: "What rates are borrowers seeing right now?", sq: "What mortgage rates are borrowers seeing today for a conventional 30-year loan?" },
-  { label: "How do I help a borrower who was declined elsewhere?", sq: "My borrower was declined elsewhere. What loan options and strategies should I explore?" },
-  { label: "What happens to my pipeline if rates drop 50bps?", sq: "If mortgage rates drop by 0.50%, what happens to borrower purchasing power and my pipeline?" },
+  { label: "Purchase — $500k conventional, 10% down", sq: "Conventional loan on a $500,000 home with 10% down — show me the full payment breakdown including PMI." },
+  { label: "Jumbo — $1.5M, 20% down", sq: "Jumbo loan on a $1,500,000 home with 20% down — show me the full payment breakdown and reserve requirements." },
+  { label: "Affordability — $120k income, $42k saved", sq: "I make $120,000 a year and have $42,000 saved — how much house can I afford?" },
 ];
 
 const CONSUMER_QUESTIONS = [
