@@ -2230,13 +2230,19 @@ async function handle(req: NextRequest, intentParam?: string) {
         | "dscr"
         | "qualify"
         | "about"
-        | "homeowner_payoff";
+        | "homeowner_payoff"
+        | "homeowner_economy";
 
     let module: ModuleKey = "general";
     const q = question.toLowerCase();
 
     if (/(current.*rate|today.*rate|30.*year|30 year fixed|arm.*rate)/i.test(q)) {
         module = "rate";
+    } else if (
+        /refi.*timing|heloc.*strategy|heloc.*equity.*position|equity.*heloc.*refi/i.test(q) &&
+        /i own\b/i.test(question)
+    ) {
+        module = "homeowner_economy";
     } else if (
         /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(q)
     ) {
@@ -2375,6 +2381,19 @@ async function handle(req: NextRequest, intentParam?: string) {
             "DO NOT use 'Example Scenario' labels when real numbers are provided in context.\n" +
             "Tone: calm, precise, empowering — like a trusted financial advisor showing someone how to get their house paid off.\n" +
             "Respond in 200-350 words. End with disclaimer.",
+
+        homeowner_economy:
+            "You are Homeowner Strategy — Grok 4.1 Fast Non-Reasoning mode. Advisor for existing homeowners evaluating their options in the current rate environment.\n" +
+            "The user's question will contain their specific numbers: home value, balance, equity, LTV, their rate vs market rate, refi savings/breakeven, HELOC max, HELOC rate, and prime rate. USE THOSE NUMBERS EXACTLY — do not invent or assume.\n" +
+            "STRUCTURE — cover all three in order with ## headings:\n" +
+            "## Refi Timing\n" +
+            "State their rate vs market rate as a plain spread (e.g., 'Your 3.75% vs today's 6.30% — that's a 2.55% spread working in your favor'). If their rate < market: state clearly that refinancing increases payments — do NOT recommend it. If their rate > market: show exact monthly savings and breakeven months using their numbers. Address when/why to watch for a rate drop.\n" +
+            "## HELOC Strategy\n" +
+            "Use their HELOC max and rate. HELOC rate = prime + margin (explain this floats with Fed). Compare HELOC to fixed alternatives. Cover: when a HELOC makes sense (short-term draw, flexibility), when it doesn't (rising prime, long-term funding). Show the interest-only monthly cost on their max line. Factor in their LTV/equity cushion.\n" +
+            "## Economic Outlook — Your Position\n" +
+            "Use FRED context: 10yr yield, spread, Fed funds, prime. Give a 1-paragraph read on what direction rates are likely heading and how it affects THEIR specific situation (not generic). Be direct — is now a good time to open a HELOC before prime rises? Should they wait for refi? What's the one thing they should watch?\n" +
+            "RULES: Use only their provided numbers — never label anything 'Example Scenario'. If a number is missing, say so once and proceed with what you have. No sales. No disclaimers mid-answer. Lead with their most important insight.\n" +
+            "Respond in 250-400 words. End with single-line disclaimer.",
 
         about:
             "You are the dedicated About HomeRates.ai module — Grok 4.1 Fast Non-Reasoning mode.\n" +
@@ -2762,7 +2781,7 @@ async function handle(req: NextRequest, intentParam?: string) {
                 .join("\n")
             : "No recent sources";
 
-    const specialistPrefix = clampText(compactWhitespace(modulePrompts[module] ?? ""), module === 'about' ? 1200 : module === 'homeowner_payoff' ? 900 : 450);
+    const specialistPrefix = clampText(compactWhitespace(modulePrompts[module] ?? ""), module === 'about' ? 1200 : (module === 'homeowner_payoff' || module === 'homeowner_economy') ? 900 : 450);
     const guidelineCtxTrim = clampText(compactWhitespace(guidelineContext || ""), 300);
     const tavilyCtxTrim = clampText(compactWhitespace(tavilyContextRaw), 600);
     const conversationTrim = clampText(compactWhitespace(conversationHistory || ""), 320);
@@ -7080,7 +7099,7 @@ ABSOLUTE RULES:
 - If a calc result is provided, your ONLY job is to explain it in plain language, not recompute it.
 - When user does NOT specify a rate, use the FRED 30Y fixed average rate shown above. Do NOT use rates from "Latest signals" unless user asks for current market rates.
 - Markdown only inside the "answer" field. Never output HTML.
-- ${isResearchQuery ? 'For research/lookup questions: write a comprehensive, detailed answer — 400–700 words. Use ## section headings. Cover what it is, what it does, key facts, and relevance to housing/mortgage if applicable. If web search results are provided above, synthesize them into a clear structured summary. Do NOT say information does not exist if web results were found — use what you have.' : module === 'homeowner_payoff' ? 'Keep total length 300–500 words.' : 'Keep total length around 180–350 words unless asked for more.'}
+- ${isResearchQuery ? 'For research/lookup questions: write a comprehensive, detailed answer — 400–700 words. Use ## section headings. Cover what it is, what it does, key facts, and relevance to housing/mortgage if applicable. If web search results are provided above, synthesize them into a clear structured summary. Do NOT say information does not exist if web results were found — use what you have.' : module === 'homeowner_payoff' ? 'Keep total length 300–500 words.' : module === 'homeowner_economy' ? 'Keep total length 250–400 words. Use ## section headings: ## Refi Timing, ## HELOC Strategy, ## Economic Outlook — Your Position.' : 'Keep total length around 180–350 words unless asked for more.'}
 - HOMEOWNER TONE: Never volunteer foreclosure, bankruptcy (Ch.7/11/13), deed-in-lieu, or short sale unless the user explicitly asks about those options by name. When a homeowner has negative equity, stay constructive — focus on appreciation over time, payment consistency, lender communication, and patience. Lead with what the homeowner CAN do, not worst-case exits.
 
 Return valid JSON only:
