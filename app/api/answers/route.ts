@@ -6424,30 +6424,57 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                     };
                 } else {
                 console.log('[Affordability] Asking for info');
+                // Build FRED-anchored reference table for the "needs info" response
+                const _liveRate = fred?.mort30Avg ?? 6.5;
+                const _medianPrice = fred?.medianHomePrice ?? 405300;
+                const _piRate = (() => { const r = _liveRate / 100 / 12; const n = 360; return (r * Math.pow(1+r,n)) / (Math.pow(1+r,n)-1); })();
+                // maxPrice for a given income at 20% down, 43% DTI, 1.1% tax, 0.5% ins
+                const _maxPrice = (inc: number) => {
+                    const budget = (inc / 12) * 0.43;
+                    // P * (0.8*piRate + 0.016/12) = budget → solve for P
+                    return Math.round(budget / (0.8 * _piRate + 0.016 / 12) / 5000) * 5000;
+                };
+                const _incomes = [75000, 100000, 125000, 150000];
+                const _refRows = _incomes.map(inc => {
+                    const maxP = _maxPrice(inc);
+                    const comfP = Math.round(maxP * 0.82 / 5000) * 5000;
+                    return `| **$${(inc/1000).toFixed(0)}k** | $${Math.round((inc/12)*0.43).toLocaleString()}/mo | $${(comfP/1000).toFixed(0)}k – $${(maxP/1000).toFixed(0)}k |`;
+                }).join('\n');
                 affordabilityAnswer = {
-                    answer: `**Let's figure out what you can afford!**
+                    answer: `## 💰 What Can You Afford?
 
-To give you accurate scenarios, I need:
-- **Annual income** (salary/wages before taxes)
-- **Savings** (amount available for down payment)
+At today's **${_liveRate.toFixed(2)}% rate** (median US home: $${Math.round(_medianPrice/1000)}k), here's what different incomes can realistically buy with 20% down:
 
-**Optional:**
-- Monthly debt payments (car, student loans, credit cards)
-- Target location (for tax estimates)
+| Annual income | Monthly budget (43% DTI) | Home price range |
+|---|---|---|
+${_refRows}
 
-**Example:** "I make $95k/year and have $40k saved"
+*Assumes 20% down, ${_liveRate.toFixed(2)}% 30yr fixed, 1.1% property tax, 0.5% insurance, no other debts.*
 
-**Or be more specific:** "I make $120k, have $20k saved, $300/month car payment, looking in Austin"
+---
 
-What's your situation?`,
+**Tell me your numbers for personalized scenarios:**
+"I make $95k/year and have $40k saved" — I'll instantly show you 3 options (conservative, comfortable, stretch).`,
                     next_step: "Share your income and savings so I can show you 3 affordability scenarios (Conservative, Comfortable, Aggressive).",
                     follow_up: "What's your annual income and how much do you have saved?",
-                    confidence: "1.00 (interactive advisor - ready to calculate)",
+                    confidence: "1.00 (calculated from live FRED rate)",
                     follow_up_chips: [
                         { label: "I make $95k/year and have $40k saved", seed: "I make $95k/year and have $40k saved" },
                         { label: "I make $120k, $20k saved, $300/mo car payment", seed: "I make $120k/year, have $20k saved, and pay $300/month in car payments" },
                         { label: "I make $75k/year and have $25k saved", seed: "I make $75k/year and have $25k saved" },
-                    ]
+                        { label: "I make $150k/year and have $80k saved", seed: "I make $150k/year and have $80k saved" },
+                    ],
+                    affordabilitySlider: {
+                        annualIncome: 100000,
+                        monthlyDebts: 0,
+                        savings: 40000,
+                        downPct: 20,
+                        rate: _liveRate,
+                        term: 30,
+                        taxRate: 0.011,
+                        insRate: 0.005,
+                        loanType: 'conventional' as const,
+                    },
                 };
                 } // end isIncomeQuery+price branch
             }
@@ -7303,10 +7330,11 @@ Return valid JSON only:
         interactiveSlider: (affordabilityAnswer as any)?.interactiveSlider ?? null,
         convHBSlider: (affordabilityAnswer as any)?.convHBSlider ?? null,
         incomeQualifySlider: (affordabilityAnswer as any)?.incomeQualifySlider ?? null,
+        affordabilitySlider: (affordabilityAnswer as any)?.affordabilitySlider ?? null,
         fhaSlider: (fhaAnswer as any)?.fhaSlider ?? null,
         lenderChecklist: (affordabilityAnswer as any)?.lenderChecklist ?? null,
         followUp: null,
-        follow_up_chips: [],
+        follow_up_chips: (affordabilityAnswer as any)?.follow_up_chips ?? (fhaAnswer as any)?.follow_up_chips ?? [],
     });
 }
 
