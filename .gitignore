@@ -12,6 +12,9 @@ out/
 .env.local
 .env*.local
 
+# claude local settings (contains API keys — never commit)
+.claude/settings.local.json
+
 # logs
 npm-debug.log*
 yarn-debug.log*
