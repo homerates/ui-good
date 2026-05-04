@@ -590,7 +590,8 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 }
                 @media (max-width: 640px) {
                     .dsc-exp-actions { flex-direction:column; gap:8px; }
-                    .dsc-btn-vault,.dsc-btn-match { width:100%; justify-content:center; text-align:center; margin-left:0; }
+                    .dsc-exp-actions button { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
+                    .dsc-btn-property { width:100%; text-align:center; display:block; }
                 }
             `}</style>
         </div>

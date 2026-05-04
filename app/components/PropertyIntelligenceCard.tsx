@@ -414,7 +414,7 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
                     🔢 Run My Numbers →
                 </button>
             </div>
-            <div style={{ padding: '0 16px 6px', display: 'flex', gap: 10 }}>
+            <div className="pic-cta-row" style={{ padding: '0 16px 6px', display: 'flex', gap: 10 }}>
                 <button
                     onClick={() => data.onRunScenario?.(`Get matched with a lender for ${data.address} at ${fmt$(data.price, true)}`)}
                     style={{
@@ -469,6 +469,13 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
                     🏠 Check Property →
                 </a>
             </div>
+
+            <style>{`
+                @media (max-width: 640px) {
+                    .pic-cta-row { flex-direction: column; gap: 8px; }
+                    .pic-cta-row button { width: 100%; }
+                }
+            `}</style>
 
             {/* ── Footer ── */}
             <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.25)', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(255,255,255,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>

@@ -231,7 +231,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
             )}
 
             {/* ── Permanent action bar — always visible ── */}
-            <div style={{
+            <div className="lcc-actions" style={{
                 borderTop: '1px solid rgba(148,163,184,0.1)',
                 padding: '12px 18px',
                 display: 'flex',
@@ -242,6 +242,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
             }}>
                 {/* My Vault */}
                 <a
+                    className="lcc-btn"
                     href="/library"
                     style={{
                         display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -259,10 +260,11 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                 {pdfButton}
 
                 {/* Push Get Matched to the right */}
-                <div style={{ flex: 1 }} />
+                <div className="lcc-spacer" style={{ flex: 1 }} />
 
                 {/* Get Matched — primary CTA */}
                 <a
+                    className="lcc-btn"
                     href={`/connect/post?${matchParams.toString()}`}
                     style={{
                         display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -276,6 +278,14 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                     Get matched →
                 </a>
             </div>
+            <style>{`
+                @media (max-width: 640px) {
+                    .lcc-actions { flex-direction: column; align-items: stretch; gap: 8px; }
+                    .lcc-btn { display: flex !important; width: 100%; justify-content: center; box-sizing: border-box; }
+                    .lcc-actions button { width: 100%; justify-content: center; display: flex; box-sizing: border-box; }
+                    .lcc-spacer { display: none; }
+                }
+            `}</style>
         </div>
     );
 }

@@ -723,7 +723,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 }
                 @media (max-width: 640px) {
                     .iq-actions { flex-direction:column; gap:8px; }
-                    .iq-btn-vault,.iq-btn-match { width:100%; justify-content:center; text-align:center; margin-left:0; }
+                    .iq-actions button { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
                 }
             `}</style>
         </div>
