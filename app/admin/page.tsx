@@ -366,6 +366,7 @@ export default function AdminDashboard() {
             <Link href="/admin/directory" className="adm-nav-link">Directory</Link>
             <Link href="/admin/waitlist" className="adm-nav-link">Waitlist</Link>
             <Link href="/admin/corporate" className="adm-nav-link">Corporate</Link>
+            <Link href="/admin/outreach" className="adm-nav-link">Outreach</Link>
             <span className="adm-nav-badge">ADMIN</span>
             <AppNav drawerOnly />
           </div>
