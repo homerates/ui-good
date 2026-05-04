@@ -2389,49 +2389,6 @@ function MyHomePageInner() {
                         {!borrowerId && !isBuyer && <button className="mh-refresh-btn" onClick={openLoanEditor} style={{ color: 'rgba(34,197,94,0.6)' }}>✎ Edit loan details</button>}
                         {borrowerId && <Link href="/pro/clients" className="mh-refresh-btn" style={{ color: 'rgba(99,179,237,0.6)', textDecoration: 'none' }}>✎ Edit in Clients</Link>}
                       </div>
-                      {!isBuyer && <Link
-                        href={`${(() => {
-                          const addr = analysis?.address ?? activeProperty?.property_address ?? '';
-                          const bal  = analysis?.estimatedBalance;
-                          const live = analysis?.liveRate ?? 6.99;
-                          const rate = analysis?.purchaseRate ?? live;
-                          if (isBuyer) {
-                            const ask = analysis.listPrice ?? analysis.estimatedValue;
-                            const avm = analysis.estimatedValue;
-                            const spread = (ask && avm) ? Math.round((avm - ask) / ask * 100) : null;
-                            if (activeBuyerChip === 'comps') return buildCMAUrl(analysis);
-                            if (activeBuyerChip === 'payment' && ask) return `/chat?sq=${encodeURIComponent(`Full payment breakdown for buying ${addr} at $${Math.round(ask).toLocaleString()}: 20% down, ${live.toFixed(2)}% rate, 30yr fixed. Include monthly PITI, total interest, and 5-year equity projection.`)}`;
-                            if (activeBuyerChip === 'position' && ask) return `/chat?sq=${encodeURIComponent(`Pricing analysis for ${addr}: listed at $${Math.round(ask).toLocaleString()}${spread != null ? `, Redfin AVM ${avm ? '$' + Math.round(avm).toLocaleString() : '?'} (${spread > 0 ? '+' : ''}${spread}% vs ask)` : ''}${analysis.daysOnMarket != null ? `, ${analysis.daysOnMarket} days on market` : ''}. Is this fairly priced and what should I offer?`)}`;
-                            if (activeBuyerChip === 'cost' && ask) return `/chat?sq=${encodeURIComponent(`True cost of buying ${addr} at $${Math.round(ask).toLocaleString()}: 20% down, ${live.toFixed(2)}% rate. Break down total costs at 5 and 10 years including interest, taxes, insurance, and equity built.`)}`;
-                            if (activeBuyerChip === 'signal' && ask) return `/chat?sq=${encodeURIComponent(`Offer strategy for ${addr}: listed at $${Math.round(ask).toLocaleString()}${analysis.daysOnMarket != null ? `, ${analysis.daysOnMarket} days on market` : ''}${spread != null ? `, priced ${spread > 0 ? '+' : ''}${spread}% vs AVM` : ''}. What offer price, contingencies, and strategy do you recommend?`)}`;
-                            return `/chat?sq=${encodeURIComponent(`I'm considering buying ${addr}${ask ? ` at $${Math.round(ask).toLocaleString()}` : ''}. Is it priced fairly and what are my monthly costs?`)}`;
-                          }
-                          if (activeChip === 'refi') {
-                            const refibal = bal ?? (analysis?.estimatedValue ? Math.round(analysis.estimatedValue * 0.65) : null);
-                            const balNote = bal ? '' : ' (approximate — based on estimated home value, adjust as needed)';
-                            const rateNote = analysis?.purchaseRate ? '' : ' (using today\'s market rate as reference — update if you know your actual rate)';
-                            if (refibal) return `/chat?sq=${encodeURIComponent(`I have a $${Math.round(refibal).toLocaleString('en-US')} balance${balNote} at ${rate.toFixed(2)}%${rateNote}, market rate is ${live.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`)}`;
-                          }
-                          if (activeChip === 'heloc' && analysis?.helocMax) {
-                            return `/chat?sq=${encodeURIComponent(`HELOC analysis for ${addr}: I have ${analysis.helocMax ? '$' + Math.round(analysis.helocMax).toLocaleString() : 'equity'} available at ~${analysis.helocRate?.toFixed(2) ?? '7.75'}%. What are my best options for accessing home equity?`)}`;
-                          }
-                          if (activeChip === 'equity' && bal) {
-                            return `/chat?sq=${encodeURIComponent(`Equity options for ${addr}: value ${analysis?.estimatedValue ? '$' + Math.round(analysis.estimatedValue).toLocaleString() : '?'}, balance $${Math.round(bal).toLocaleString()}, equity ${analysis?.estimatedEquity ? '$' + Math.round(analysis.estimatedEquity).toLocaleString() : '?'} (${analysis.equityPct ?? '?'}%). What are my best options — HELOC, cash-out refi, or sell?`)}`;
-                          }
-                          if (activeChip === 'economy') {
-                            return `/chat?sq=${encodeURIComponent(`I own ${addr}. Market rate is ${live.toFixed(2)}%, my rate is ${rate.toFixed(2)}%. How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC rate, and equity strategy?`)}`;
-                          }
-                          if (activeChip === 'milestones') {
-                            return `/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${addr}: mortgage balance $${analysis?.estimatedBalance ? Math.round(analysis.estimatedBalance).toLocaleString() : 'unknown'}${analysis?.purchaseRate ? ` at ${analysis.purchaseRate}%` : ''}${analysis?.payoffYear ? `, payoff projected ${analysis.payoffYear}` : ''}${analysis?.estimatedEquity ? ` — current equity $${Math.round(analysis.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}`;
-                          }
-                          return `/chat?sq=${encodeURIComponent(`Property analysis for ${addr}`)}`;
-                        })()}&from=%2Fmy-home&fromLabel=My+Properties`}
-                        className="mh-cta-link"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Ask a mortgage question →
-                      </Link>}
                     </div>
                   )}
                 </div>
