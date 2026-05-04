@@ -209,6 +209,8 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const [openCard, setOpenCard] = useState<'fha' | 'conv3' | 'conv20' | null>('conv3');
     const [compOpen, setCompOpen] = useState(false);
     const [vaultDone, setVaultDone] = useState(false);
+    const [sliderOpen, setSliderOpen] = useState(false);
+    const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     const isDirty = income !== props.annualIncome || debts !== props.monthlyDebts ||
         Math.abs(rate - props.rate) > 0.001 || term !== props.term;
@@ -265,6 +267,16 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
             annualRatePct: rate,
             changedKeys,
         };
+    }
+
+    async function handleDrawerRun() {
+        setDrawerPhase('running');
+        if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
+        await new Promise<void>(r => setTimeout(r, 900));
+        setDrawerPhase('done');
+        await new Promise<void>(r => setTimeout(r, 1800));
+        setSliderOpen(false);
+        setDrawerPhase('idle');
     }
 
     return (
@@ -454,6 +466,18 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 )}
             </div>
 
+            {/* Slider Drawer Trigger */}
+            <button className={`afc-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
+                <div className="afc-trigger-left">
+                    <span style={{ fontSize: 15 }}>⚙</span>
+                    <div>
+                        <div className="afc-trigger-title">Adjust Your Numbers</div>
+                        {isDirty && <div className="afc-trigger-sub">● Changes pending</div>}
+                    </div>
+                </div>
+                <span className="afc-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
+            </button>
+            <div className={`afc-sdrawer${sliderOpen ? ' open' : ''}`}>
             {/* ── Affordability Explorer (white bg — KEEP) ── */}
             <div className="afc-explorer">
                 <div className="afc-exp-title">Affordability Explorer</div>
@@ -526,12 +550,6 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
 
                 {/* Actions */}
                 <div className="afc-exp-actions">
-                    {props.onRunScenario && isDirty && (
-                        <button type="button" className="afc-btn-rerun"
-                            onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
-                            Run adjusted scenario →
-                        </button>
-                    )}
                     <button type="button" className="afc-btn-vault" onClick={handleVault}>
                         <StarIcon />
                         <span>{vaultDone ? '✓ Saved' : 'My Vault'}</span>
@@ -564,6 +582,14 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                         Get matched →
                     </button>
                 </div>
+            </div>
+            {/* Drawer CTA — dark bg, outside white section */}
+            <div className="afc-sdrawer-cta">
+                {drawerPhase === 'idle' && !isDirty && <span className="afc-sdrawer-hint">Drag sliders to model a new scenario</span>}
+                {drawerPhase === 'idle' && isDirty && <button className="afc-sdrawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
+                {drawerPhase === 'running' && <span className="afc-sdrawer-hint">Calculating…</span>}
+                {drawerPhase === 'done' && <span className="afc-sdrawer-done">✓ Numbers Updated</span>}
+            </div>
             </div>
 
             {/* Check a property */}
@@ -905,6 +931,44 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 }
                 .afc-disc p { font-size: 11px; color: #3a4560; line-height: 1.6; }
                 .afc-disc strong { color: #6b7a99; font-weight: 600; }
+
+                /* ── Slider Drawer ── */
+                @keyframes afcTriggerPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 14px rgba(0,232,122,0.08) inset; }
+                }
+                @keyframes afcRunPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 20px rgba(0,232,122,0.22); }
+                }
+                .afc-slider-trigger {
+                    width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
+                    padding:13px 18px; background:transparent; border:none;
+                    border-top:1px solid rgba(0,232,122,0.12);
+                    cursor:pointer; font-family:inherit; position:relative; overflow:hidden;
+                    transition:background 0.2s, border-color 0.2s;
+                    animation:afcTriggerPulse 3s ease-in-out infinite;
+                }
+                .afc-slider-trigger:hover, .afc-slider-trigger.open {
+                    background:rgba(0,232,122,0.05); border-color:rgba(0,232,122,0.3); animation:none;
+                }
+                .afc-trigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
+                .afc-trigger-title { font-size:13px; font-weight:700; color:#00e87a; }
+                .afc-trigger-sub { font-size:10px; color:rgba(0,232,122,0.6); margin-top:1px; }
+                .afc-trigger-arrow { font-size:11px; color:rgba(0,232,122,0.55); flex-shrink:0; }
+                .afc-sdrawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
+                .afc-sdrawer.open { max-height:900px; }
+                .afc-sdrawer-cta { padding:12px 18px; background:#0d1117; }
+                .afc-sdrawer-hint { font-size:12px; color:rgba(148,163,184,0.4); display:block; text-align:center; padding:8px 0; }
+                .afc-sdrawer-done { font-size:13px; color:#00e87a; display:block; text-align:center; font-weight:600; padding:10px 0; }
+                .afc-sdrawer-run {
+                    width:100%; padding:13px 18px;
+                    background:rgba(0,232,122,0.08); border:1.5px solid rgba(0,232,122,0.38);
+                    border-radius:10px; color:#00e87a; font-size:14px; font-weight:700;
+                    cursor:pointer; font-family:inherit; transition:all 0.15s;
+                    animation:afcRunPulse 1.8s ease-in-out infinite;
+                }
+                .afc-sdrawer-run:hover { background:rgba(0,232,122,0.16); animation:none; }
 
                 @media (max-width: 480px) {
                     .afc-tiles { grid-template-columns: repeat(2,1fr); }

@@ -161,6 +161,8 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     const [termYrs,  setTermYrs]  = useState(props.term);
     const [bkdOpen,  setBkdOpen]  = useState(true);
     const [vaultDone, setVaultDone] = useState(false);
+    const [sliderOpen, setSliderOpen] = useState(false);
+    const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     // County state — pre-populate if props supplied a county
     const initCounty   = props.county ? resolveCounty(props.county) : null;
@@ -293,6 +295,16 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
         return `/connect/post?${p.toString()}`;
     }
 
+    async function handleDrawerRun() {
+        setDrawerPhase('running');
+        if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
+        await new Promise<void>(r => setTimeout(r, 900));
+        setDrawerPhase('done');
+        await new Promise<void>(r => setTimeout(r, 1800));
+        setSliderOpen(false);
+        setDrawerPhase('idle');
+    }
+
     // ── Down payment chips ───────────────────────────────────────────────────
 
     const DP_CHIPS = [3, 5, 10, 20, 25];
@@ -412,6 +424,18 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 )}
             </div>
 
+            {/* Slider Drawer Trigger */}
+            <button className={`chb-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
+                <div className="chb-trigger-left">
+                    <span style={{ fontSize: 15 }}>⚙</span>
+                    <div>
+                        <div className="chb-trigger-title">Adjust Your Numbers</div>
+                        {isDirty && <div className="chb-trigger-sub">● Changes pending</div>}
+                    </div>
+                </div>
+                <span className="chb-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
+            </button>
+            <div className={`chb-drawer${sliderOpen ? ' open' : ''}`}>
             {/* White Payment Explorer */}
             <div className="chb-explorer">
                 <div className="chb-exp-title">Payment Explorer</div>
@@ -522,11 +546,6 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
                 {/* Actions */}
                 <div className="chb-exp-actions">
-                    {isDirty && props.onRunScenario && (
-                        <button className="chb-btn-rerun" onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
-                            Run adjusted scenario →
-                        </button>
-                    )}
                     <button className="chb-btn-vault" onClick={handleVault}>
                         <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                             <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd"/>
@@ -545,6 +564,14 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                         Get Matched →
                     </button>
                 </div>
+            </div>
+            {/* Drawer CTA — dark bg, outside white section */}
+            <div className="chb-drawer-cta">
+                {drawerPhase === 'idle' && !isDirty && <span className="chb-drawer-hint">Drag sliders to model a new scenario</span>}
+                {drawerPhase === 'idle' && isDirty && <button className="chb-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
+                {drawerPhase === 'running' && <span className="chb-drawer-hint">Calculating…</span>}
+                {drawerPhase === 'done' && <span className="chb-drawer-done">✓ Numbers Updated</span>}
+            </div>
             </div>
 
             {/* Share button */}
@@ -774,6 +801,44 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-disc { margin:0 12px 16px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:12px 14px; }
                 .chb-disc p { font-size:11px; color:#3a4560; line-height:1.6; }
                 .chb-disc strong { color:#6b7a99; font-weight:600; }
+
+                /* ── Slider Drawer ── */
+                @keyframes chbTriggerPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 14px rgba(0,232,122,0.08) inset; }
+                }
+                @keyframes chbRunPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 20px rgba(0,232,122,0.22); }
+                }
+                .chb-slider-trigger {
+                    width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
+                    padding:13px 18px; background:transparent; border:none;
+                    border-top:1px solid rgba(0,232,122,0.12);
+                    cursor:pointer; font-family:inherit; position:relative; overflow:hidden;
+                    transition:background 0.2s, border-color 0.2s;
+                    animation:chbTriggerPulse 3s ease-in-out infinite;
+                }
+                .chb-slider-trigger:hover, .chb-slider-trigger.open {
+                    background:rgba(0,232,122,0.05); border-color:rgba(0,232,122,0.3); animation:none;
+                }
+                .chb-trigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
+                .chb-trigger-title { font-size:13px; font-weight:700; color:#00e87a; }
+                .chb-trigger-sub { font-size:10px; color:rgba(0,232,122,0.6); margin-top:1px; }
+                .chb-trigger-arrow { font-size:11px; color:rgba(0,232,122,0.55); flex-shrink:0; }
+                .chb-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
+                .chb-drawer.open { max-height:900px; }
+                .chb-drawer-cta { padding:12px 18px; background:#0d1117; }
+                .chb-drawer-hint { font-size:12px; color:rgba(148,163,184,0.4); display:block; text-align:center; padding:8px 0; }
+                .chb-drawer-done { font-size:13px; color:#00e87a; display:block; text-align:center; font-weight:600; padding:10px 0; }
+                .chb-drawer-run {
+                    width:100%; padding:13px 18px;
+                    background:rgba(0,232,122,0.08); border:1.5px solid rgba(0,232,122,0.38);
+                    border-radius:10px; color:#00e87a; font-size:14px; font-weight:700;
+                    cursor:pointer; font-family:inherit; transition:all 0.15s;
+                    animation:chbRunPulse 1.8s ease-in-out infinite;
+                }
+                .chb-drawer-run:hover { background:rgba(0,232,122,0.16); animation:none; }
 
                 @media (max-width: 480px) {
                     .chb-tiles { grid-template-columns:repeat(2,1fr); }

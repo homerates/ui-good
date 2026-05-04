@@ -78,6 +78,8 @@ export default function VaSliderCard(props: VaSliderParams) {
     const [ffTier,    setFfTier]    = useState<FFTier>(pctToTier(props.vaFundingFeePct));
     const [bkdOpen,   setBkdOpen]   = useState(true);
     const [vaultDone, setVaultDone] = useState(false);
+    const [sliderOpen, setSliderOpen] = useState(false);
+    const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     const { user } = useUser();
     const router   = useRouter();
@@ -156,6 +158,16 @@ export default function VaSliderCard(props: VaSliderParams) {
             customFundingFeePct: ffTier !== 'exempt' ? ffPct : undefined,
             loanType: 'va',
         };
+    }
+
+    async function handleDrawerRun() {
+        setDrawerPhase('running');
+        if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
+        await new Promise<void>(r => setTimeout(r, 900));
+        setDrawerPhase('done');
+        await new Promise<void>(r => setTimeout(r, 1800));
+        setSliderOpen(false);
+        setDrawerPhase('idle');
     }
 
     // ── Render ─────────────────────────────────────────────────────────────
@@ -247,6 +259,18 @@ export default function VaSliderCard(props: VaSliderParams) {
                 </div>
             </div>
 
+            {/* Slider Drawer Trigger */}
+            <button className={`va-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
+                <div className="va-trigger-left">
+                    <span style={{ fontSize: 15 }}>⚙</span>
+                    <div>
+                        <div className="va-trigger-title">Adjust Your Numbers</div>
+                        {isDirty && <div className="va-trigger-sub">● Changes pending</div>}
+                    </div>
+                </div>
+                <span className="va-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
+            </button>
+            <div className={`va-drawer${sliderOpen ? ' open' : ''}`}>
             {/* Explorer */}
             <div className="va-exp">
                 <div className="va-exp-head">Payment Explorer</div>
@@ -323,11 +347,6 @@ export default function VaSliderCard(props: VaSliderParams) {
 
                 {/* Actions */}
                 <div className="va-exp-actions">
-                    {isDirty && props.onRunScenario && (
-                        <button className="va-btn-rerun" onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
-                            Run adjusted scenario →
-                        </button>
-                    )}
                     <button className="va-btn-vault" onClick={handleVault}>
                         <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                             <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd"/>
@@ -346,6 +365,14 @@ export default function VaSliderCard(props: VaSliderParams) {
                         Get Matched →
                     </button>
                 </div>
+                {/* Drawer CTA */}
+                <div className="va-drawer-cta">
+                    {drawerPhase === 'idle' && !isDirty && <span className="va-drawer-hint">Drag sliders to model a new scenario</span>}
+                    {drawerPhase === 'idle' && isDirty && <button className="va-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
+                    {drawerPhase === 'running' && <span className="va-drawer-hint">Calculating…</span>}
+                    {drawerPhase === 'done' && <span className="va-drawer-done">✓ Numbers Updated</span>}
+                </div>
+            </div>
             </div>
 
             {/* Payment breakdown */}
@@ -585,6 +612,44 @@ export default function VaSliderCard(props: VaSliderParams) {
                 /* disclosures */
                 .va-disc { padding:0 16px 16px; }
                 .va-disc p { font-size:10px; color:#3a4560; line-height:1.5; }
+
+                /* ── Slider Drawer ── */
+                @keyframes vaTriggerPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 14px rgba(20,184,166,0.08) inset; }
+                }
+                @keyframes vaRunPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 20px rgba(20,184,166,0.22); }
+                }
+                .va-slider-trigger {
+                    width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
+                    padding:13px 18px; background:transparent; border:none;
+                    border-top:1px solid rgba(20,184,166,0.12);
+                    cursor:pointer; font-family:inherit; position:relative; overflow:hidden;
+                    transition:background 0.2s, border-color 0.2s;
+                    animation:vaTriggerPulse 3s ease-in-out infinite;
+                }
+                .va-slider-trigger:hover, .va-slider-trigger.open {
+                    background:rgba(20,184,166,0.05); border-color:rgba(20,184,166,0.3); animation:none;
+                }
+                .va-trigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
+                .va-trigger-title { font-size:13px; font-weight:700; color:#14b8a6; }
+                .va-trigger-sub { font-size:10px; color:rgba(20,184,166,0.6); margin-top:1px; }
+                .va-trigger-arrow { font-size:11px; color:rgba(20,184,166,0.55); flex-shrink:0; }
+                .va-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
+                .va-drawer.open { max-height:900px; }
+                .va-drawer-cta { padding:4px 16px 12px; }
+                .va-drawer-hint { font-size:12px; color:rgba(148,163,184,0.4); display:block; text-align:center; padding:8px 0; }
+                .va-drawer-done { font-size:13px; color:#00e87a; display:block; text-align:center; font-weight:600; padding:10px 0; }
+                .va-drawer-run {
+                    width:100%; padding:13px 18px;
+                    background:rgba(20,184,166,0.08); border:1.5px solid rgba(20,184,166,0.38);
+                    border-radius:10px; color:#14b8a6; font-size:14px; font-weight:700;
+                    cursor:pointer; font-family:inherit; transition:all 0.15s;
+                    animation:vaRunPulse 1.8s ease-in-out infinite;
+                }
+                .va-drawer-run:hover { background:rgba(20,184,166,0.16); animation:none; }
 
                 @media (max-width: 480px) {
                     .va-hero-amount { font-size:34px; }

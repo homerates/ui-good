@@ -68,6 +68,8 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     const [termYrs,  setTermYrs]  = useState(props.term);
     const [bkdOpen,  setBkdOpen]  = useState(true);
     const [vaultDone, setVaultDone] = useState(false);
+    const [sliderOpen, setSliderOpen] = useState(false);
+    const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     const { user } = useUser();
     const router   = useRouter();
@@ -145,6 +147,16 @@ export default function FhaSliderCard(props: FhaSliderParams) {
             ? `$${(price / 1_000_000).toFixed(2)}M`
             : `$${Math.round(price / 1000)}k`;
         return `What income do I need to qualify for a ${prStr} home with FHA ${downPct}% down at ${rate.toFixed(2)}%?`;
+    }
+
+    async function handleDrawerRun() {
+        setDrawerPhase('running');
+        if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
+        await new Promise<void>(r => setTimeout(r, 900));
+        setDrawerPhase('done');
+        await new Promise<void>(r => setTimeout(r, 1800));
+        setSliderOpen(false);
+        setDrawerPhase('idle');
     }
 
     // ── Limit band content ───────────────────────────────────────────────────
@@ -286,106 +298,123 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 )}
             </div>
 
-            {/* Explorer */}
-            <div className="fha-exp">
-                <div className="fha-exp-head">Payment Explorer</div>
-
-                <SliderField
-                    label="Home Price"
-                    value={price}
-                    min={50000} max={900000} step={5000}
-                    onChange={setPrice}
-                    format={v => fmtK(v)}
-                    minLabel="$50k" maxLabel="$900k"
-                    trackColor="#f59e0b" theme="dark"
-                />
-
-                <SliderField
-                    label="Down Payment"
-                    value={downPct}
-                    min={3.5} max={30} step={0.5}
-                    onChange={setDownPct}
-                    format={v => `${v}% · ${fmtK(price * v / 100)}`}
-                    minLabel="3.5%" maxLabel="30%"
-                    trackColor="#f59e0b" theme="dark"
-                />
-                <div className="fha-dp-chips">
-                    {DP_CHIPS.map(pct => (
-                        <button
-                            key={pct}
-                            className={`fha-dp-chip${downPct === pct ? ' active' : ''}`}
-                            onClick={() => setDownPct(pct)}
-                        >
-                            {pct}%{pct === 10 ? <span className="fha-dp-chip-note"> MIP drops</span> : null}
-                        </button>
-                    ))}
-                </div>
-                <div className="fha-dp-min-note">FHA min: 3.5% (580+ credit) · 10% (500–579 credit)</div>
-
-                <SliderField
-                    label="Interest Rate"
-                    value={rate}
-                    min={3} max={12} step={0.125}
-                    onChange={setRate}
-                    format={v => parseFloat(v.toFixed(3)) + '%'}
-                    minLabel="3%" maxLabel="12%"
-                    trackColor="#f59e0b" theme="dark"
-                />
-
-                <div className="fha-exp-term-label">Loan Term</div>
-                <div className="fha-terms">
-                    {([15, 30] as const).map(yr => (
-                        <button
-                            key={yr}
-                            className={`fha-term${termYrs === yr ? ' fha-term--on' : ''}`}
-                            onClick={() => setTermYrs(yr)}
-                        >{yr}yr</button>
-                    ))}
-                </div>
-
-                <div className="fha-exp-stats">
-                    <div className="fha-exp-stat">
-                        <div className="fha-exp-stat-label">Base Loan</div>
-                        <div className="fha-exp-stat-val">{fmt$(Math.round(baseLoan))}</div>
-                    </div>
-                    <div className="fha-exp-stat">
-                        <div className="fha-exp-stat-label">Financed (w/ UFMIP)</div>
-                        <div className="fha-exp-stat-val">{fmt$(Math.round(loanAmt))}</div>
-                    </div>
-                    <div className="fha-exp-stat">
-                        <div className="fha-exp-stat-label">MIP / mo</div>
-                        <div className="fha-exp-stat-val" style={{ color: '#f59e0b' }}>{fmt$(monthlyMIP)}</div>
-                    </div>
-                    <div className="fha-exp-stat">
-                        <div className="fha-exp-stat-label">Total / mo</div>
-                        <div className="fha-exp-stat-val">{fmt$(Math.round(total))}</div>
+            {/* Slider Drawer Trigger */}
+            <button className={`fha-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
+                <div className="fha-trigger-left">
+                    <span style={{ fontSize: 15 }}>⚙</span>
+                    <div>
+                        <div className="fha-trigger-title">Adjust Your Numbers</div>
+                        {isDirty && <div className="fha-trigger-sub">● Changes pending</div>}
                     </div>
                 </div>
+                <span className="fha-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
+            </button>
 
-                {/* Actions */}
-                <div className="fha-exp-actions">
-                    {isDirty && props.onRunScenario && (
-                        <button className="fha-btn-rerun" onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
-                            Run adjusted scenario →
-                        </button>
-                    )}
-                    <button className="fha-btn-vault" onClick={handleVault}>
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
-                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                        </svg>
-                        {vaultDone ? 'Saved ✓' : 'My Vault'}
-                    </button>
-                    <PdfDownloadButton
-                        type="fha"
-                        getParams={() => ({
-                            price, downPct, rate, term: termYrs,
-                            taxRate: props.taxRate, insRate: props.insRate,
-                            loanType: 'fha',
-                        })}
+            <div className={`fha-drawer${sliderOpen ? ' open' : ''}`}>
+                {/* Explorer */}
+                <div className="fha-exp">
+                    <div className="fha-exp-head">Payment Explorer</div>
+
+                    <SliderField
+                        label="Home Price"
+                        value={price}
+                        min={50000} max={900000} step={5000}
+                        onChange={setPrice}
+                        format={v => fmtK(v)}
+                        minLabel="$50k" maxLabel="$900k"
+                        trackColor="#f59e0b" theme="dark"
                     />
-                    <button className="fha-btn-match" onClick={() => router.push(getMatchedUrl())}>
-                        Get Matched →
-                    </button>
+
+                    <SliderField
+                        label="Down Payment"
+                        value={downPct}
+                        min={3.5} max={30} step={0.5}
+                        onChange={setDownPct}
+                        format={v => `${v}% · ${fmtK(price * v / 100)}`}
+                        minLabel="3.5%" maxLabel="30%"
+                        trackColor="#f59e0b" theme="dark"
+                    />
+                    <div className="fha-dp-chips">
+                        {DP_CHIPS.map(pct => (
+                            <button
+                                key={pct}
+                                className={`fha-dp-chip${downPct === pct ? ' active' : ''}`}
+                                onClick={() => setDownPct(pct)}
+                            >
+                                {pct}%{pct === 10 ? <span className="fha-dp-chip-note"> MIP drops</span> : null}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="fha-dp-min-note">FHA min: 3.5% (580+ credit) · 10% (500–579 credit)</div>
+
+                    <SliderField
+                        label="Interest Rate"
+                        value={rate}
+                        min={3} max={12} step={0.125}
+                        onChange={setRate}
+                        format={v => parseFloat(v.toFixed(3)) + '%'}
+                        minLabel="3%" maxLabel="12%"
+                        trackColor="#f59e0b" theme="dark"
+                    />
+
+                    <div className="fha-exp-term-label">Loan Term</div>
+                    <div className="fha-terms">
+                        {([15, 30] as const).map(yr => (
+                            <button
+                                key={yr}
+                                className={`fha-term${termYrs === yr ? ' fha-term--on' : ''}`}
+                                onClick={() => setTermYrs(yr)}
+                            >{yr}yr</button>
+                        ))}
+                    </div>
+
+                    <div className="fha-exp-stats">
+                        <div className="fha-exp-stat">
+                            <div className="fha-exp-stat-label">Base Loan</div>
+                            <div className="fha-exp-stat-val">{fmt$(Math.round(baseLoan))}</div>
+                        </div>
+                        <div className="fha-exp-stat">
+                            <div className="fha-exp-stat-label">Financed (w/ UFMIP)</div>
+                            <div className="fha-exp-stat-val">{fmt$(Math.round(loanAmt))}</div>
+                        </div>
+                        <div className="fha-exp-stat">
+                            <div className="fha-exp-stat-label">MIP / mo</div>
+                            <div className="fha-exp-stat-val" style={{ color: '#f59e0b' }}>{fmt$(monthlyMIP)}</div>
+                        </div>
+                        <div className="fha-exp-stat">
+                            <div className="fha-exp-stat-label">Total / mo</div>
+                            <div className="fha-exp-stat-val">{fmt$(Math.round(total))}</div>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="fha-exp-actions">
+                        <button className="fha-btn-vault" onClick={handleVault}>
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
+                                <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                            </svg>
+                            {vaultDone ? 'Saved ✓' : 'My Vault'}
+                        </button>
+                        <PdfDownloadButton
+                            type="fha"
+                            getParams={() => ({
+                                price, downPct, rate, term: termYrs,
+                                taxRate: props.taxRate, insRate: props.insRate,
+                                loanType: 'fha',
+                            })}
+                        />
+                        <button className="fha-btn-match" onClick={() => router.push(getMatchedUrl())}>
+                            Get Matched →
+                        </button>
+                    </div>
+
+                    {/* Drawer CTA */}
+                    <div className="fha-drawer-cta">
+                        {drawerPhase === 'idle' && !isDirty && <span className="fha-drawer-hint">Drag sliders to model a new scenario</span>}
+                        {drawerPhase === 'idle' && isDirty && <button className="fha-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
+                        {drawerPhase === 'running' && <span className="fha-drawer-hint">Calculating…</span>}
+                        {drawerPhase === 'done' && <span className="fha-drawer-done">✓ Numbers Updated</span>}
+                    </div>
                 </div>
             </div>
 
@@ -579,6 +608,44 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 /* disclosures */
                 .fha-disc { padding:0 16px 16px; }
                 .fha-disc p { font-size:10px; color:#3a4560; line-height:1.5; }
+
+                /* ── Slider Drawer ── */
+                @keyframes fhaTriggerPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 14px rgba(245,158,11,0.08) inset; }
+                }
+                @keyframes fhaRunPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 20px rgba(245,158,11,0.22); }
+                }
+                .fha-slider-trigger {
+                    width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
+                    padding:13px 18px; background:transparent; border:none;
+                    border-top:1px solid rgba(245,158,11,0.12);
+                    cursor:pointer; font-family:inherit; position:relative; overflow:hidden;
+                    transition:background 0.2s, border-color 0.2s;
+                    animation:fhaTriggerPulse 3s ease-in-out infinite;
+                }
+                .fha-slider-trigger:hover, .fha-slider-trigger.open {
+                    background:rgba(245,158,11,0.05); border-color:rgba(245,158,11,0.3); animation:none;
+                }
+                .fha-trigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
+                .fha-trigger-title { font-size:13px; font-weight:700; color:#f59e0b; }
+                .fha-trigger-sub { font-size:10px; color:rgba(245,158,11,0.6); margin-top:1px; }
+                .fha-trigger-arrow { font-size:11px; color:rgba(245,158,11,0.55); flex-shrink:0; }
+                .fha-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
+                .fha-drawer.open { max-height:900px; }
+                .fha-drawer-cta { padding:4px 16px 12px; }
+                .fha-drawer-hint { font-size:12px; color:rgba(148,163,184,0.4); display:block; text-align:center; padding:8px 0; }
+                .fha-drawer-done { font-size:13px; color:#00e87a; display:block; text-align:center; font-weight:600; padding:10px 0; }
+                .fha-drawer-run {
+                    width:100%; padding:13px 18px;
+                    background:rgba(245,158,11,0.08); border:1.5px solid rgba(245,158,11,0.38);
+                    border-radius:10px; color:#f59e0b; font-size:14px; font-weight:700;
+                    cursor:pointer; font-family:inherit; transition:all 0.15s;
+                    animation:fhaRunPulse 1.8s ease-in-out infinite;
+                }
+                .fha-drawer-run:hover { background:rgba(245,158,11,0.16); animation:none; }
 
                 @media (max-width: 480px) {
                     .fha-hero-amount { font-size:34px; }

@@ -76,6 +76,8 @@ export default function JumboSliderCard(props: JumboSliderParams) {
     const [termType,  setTermType]  = useState<TermType>('30yr');
     const [bkdOpen,   setBkdOpen]   = useState(true);
     const [vaultDone, setVaultDone] = useState(false);
+    const [sliderOpen, setSliderOpen] = useState(false);
+    const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     const { user } = useUser();
     const router   = useRouter();
@@ -164,6 +166,16 @@ export default function JumboSliderCard(props: JumboSliderParams) {
 
     function buildIncomeSeed() {
         return `What income do I need to qualify for a ${fmtM(price)} jumbo home with ${downPct}% down at ${rate.toFixed(2)}%?`;
+    }
+
+    async function handleDrawerRun() {
+        setDrawerPhase('running');
+        if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
+        await new Promise<void>(r => setTimeout(r, 900));
+        setDrawerPhase('done');
+        await new Promise<void>(r => setTimeout(r, 1800));
+        setSliderOpen(false);
+        setDrawerPhase('idle');
     }
 
     // ── Zone band content ──────────────────────────────────────────────────────
@@ -384,6 +396,18 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 )}
             </div>
 
+            {/* Slider Drawer Trigger */}
+            <button className={`jbs-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
+                <div className="jbs-trigger-left">
+                    <span style={{ fontSize: 15 }}>⚙</span>
+                    <div>
+                        <div className="jbs-trigger-title">Adjust Your Numbers</div>
+                        {isDirty && <div className="jbs-trigger-sub">● Changes pending</div>}
+                    </div>
+                </div>
+                <span className="jbs-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
+            </button>
+            <div className={`jbs-drawer${sliderOpen ? ' open' : ''}`}>
             {/* Explorer */}
             <div className="jbs-exp">
                 <div className="jbs-exp-head">Payment Explorer</div>
@@ -474,11 +498,6 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 </div>
 
                 <div className="jbs-exp-actions">
-                    {isDirty && props.onRunScenario && (
-                        <button className="jbs-btn-rerun" onClick={() => props.onRunScenario!(buildSeed(), getRunOverrides())}>
-                            Run adjusted scenario →
-                        </button>
-                    )}
                     <button className="jbs-btn-vault" onClick={handleVault}>
                         <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                             <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
@@ -497,6 +516,14 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                         Get Matched →
                     </button>
                 </div>
+                {/* Drawer CTA */}
+                <div className="jbs-drawer-cta">
+                    {drawerPhase === 'idle' && !isDirty && <span className="jbs-drawer-hint">Drag sliders to model a new scenario</span>}
+                    {drawerPhase === 'idle' && isDirty && <button className="jbs-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
+                    {drawerPhase === 'running' && <span className="jbs-drawer-hint">Calculating…</span>}
+                    {drawerPhase === 'done' && <span className="jbs-drawer-done">✓ Numbers Updated</span>}
+                </div>
+            </div>
             </div>
 
             {/* Income qualify chip */}
@@ -719,6 +746,44 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 /* disclosures */
                 .jbs-disc { padding:0 16px 16px; }
                 .jbs-disc p { font-size:10px; color:#3a4560; line-height:1.5; }
+
+                /* ── Slider Drawer ── */
+                @keyframes jbsTriggerPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 14px rgba(139,92,246,0.08) inset; }
+                }
+                @keyframes jbsRunPulse {
+                    0%, 100% { box-shadow: none; }
+                    50% { box-shadow: 0 0 20px rgba(139,92,246,0.22); }
+                }
+                .jbs-slider-trigger {
+                    width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
+                    padding:13px 18px; background:transparent; border:none;
+                    border-top:1px solid rgba(139,92,246,0.12);
+                    cursor:pointer; font-family:inherit; position:relative; overflow:hidden;
+                    transition:background 0.2s, border-color 0.2s;
+                    animation:jbsTriggerPulse 3s ease-in-out infinite;
+                }
+                .jbs-slider-trigger:hover, .jbs-slider-trigger.open {
+                    background:rgba(139,92,246,0.05); border-color:rgba(139,92,246,0.3); animation:none;
+                }
+                .jbs-trigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
+                .jbs-trigger-title { font-size:13px; font-weight:700; color:#8b5cf6; }
+                .jbs-trigger-sub { font-size:10px; color:rgba(139,92,246,0.6); margin-top:1px; }
+                .jbs-trigger-arrow { font-size:11px; color:rgba(139,92,246,0.55); flex-shrink:0; }
+                .jbs-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
+                .jbs-drawer.open { max-height:900px; }
+                .jbs-drawer-cta { padding:4px 16px 12px; }
+                .jbs-drawer-hint { font-size:12px; color:rgba(148,163,184,0.4); display:block; text-align:center; padding:8px 0; }
+                .jbs-drawer-done { font-size:13px; color:#00e87a; display:block; text-align:center; font-weight:600; padding:10px 0; }
+                .jbs-drawer-run {
+                    width:100%; padding:13px 18px;
+                    background:rgba(139,92,246,0.08); border:1.5px solid rgba(139,92,246,0.38);
+                    border-radius:10px; color:#8b5cf6; font-size:14px; font-weight:700;
+                    cursor:pointer; font-family:inherit; transition:all 0.15s;
+                    animation:jbsRunPulse 1.8s ease-in-out infinite;
+                }
+                .jbs-drawer-run:hover { background:rgba(139,92,246,0.16); animation:none; }
 
                 @media (max-width: 480px) {
                     .jbs-hero-amount { font-size:34px; }
