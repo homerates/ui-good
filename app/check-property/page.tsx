@@ -157,13 +157,8 @@ function CheckPropertyInner() {
 
     // ── Actual property numbers (recalculated on the real listing price) ──────
 
-    // For SOLD properties: prefer sold price → Redfin Estimate → JSON-LD listing price
-    // JSON-LD offers.price on SOLD pages is the original listing price, not what it sold for
-    const listPrice    = (propData?.listingStatus === 'SOLD' && propData?.lastSalePrice)
-        ? propData.lastSalePrice
-        : (propData?.listingStatus === 'SOLD' && propData?.estimatedValue)
-        ? propData.estimatedValue
-        : (propData?.price ?? sc.price);
+    // price is already normalized at API level for SOLD/OFF_MARKET properties
+    const listPrice    = propData?.price ?? sc.price;
     const actualPrice  = propData ? listPrice : sc.price;   // switches to real price after lookup
     const avm          = propData?.estimatedValue ?? null;
 

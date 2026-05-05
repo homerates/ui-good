@@ -23,6 +23,24 @@ function normalizeAddress(addr: string): string {
   return addr.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+// Normalize price for SOLD/OFF_MARKET properties at the API level.
+// JSON-LD offers.price on sold Redfin pages is the original listing price,
+// not the actual sold price. This ensures every downstream consumer — chat,
+// check-property, my-home, report — sees the correct number.
+function normalizePropertyPrice(data: Record<string, unknown>): void {
+  const status = data.listingStatus as string | null;
+  if (status !== 'SOLD' && status !== 'OFF_MARKET') return;
+
+  const lastSalePrice  = (data.lastSalePrice  as number | null) ?? null;
+  const estimatedValue = (data.estimatedValue as number | null) ?? null;
+  const correctPrice   = lastSalePrice ?? estimatedValue;
+  if (!correctPrice) return;
+
+  data.price = correctPrice;
+  const sqft = (data.sqft as number | null) ?? null;
+  data.pricePerSqft = sqft ? Math.round(correctPrice / sqft) : data.pricePerSqft;
+}
+
 // Upsert a canonical property + snapshot into Supabase and return the property id
 async function cachePropertyResult(address: string, data: Record<string, unknown>, source: string): Promise<void> {
   try {
@@ -31,6 +49,9 @@ async function cachePropertyResult(address: string, data: Record<string, unknown
     const addressFull = normalizeAddress(address);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SNAPSHOT_TTL_MS).toISOString();
+
+    // Normalize price before storing — SOLD properties must use sold price not listing price
+    normalizePropertyPrice(data);
 
     // Build upsert object — only include value/sale fields when non-null so
     // re-lookups that miss the estimate don't wipe a previously stored value.
@@ -115,7 +136,16 @@ async function getCachedSnapshot(address: string): Promise<Record<string, unknow
       .limit(1)
       .maybeSingle();
 
-    return (snap?.data as Record<string, unknown>) ?? null;
+    const snapData = (snap?.data as Record<string, unknown>) ?? null;
+
+    // Invalidate cache for SOLD/OFF_MARKET snapshots with no price data —
+    // these were cached before the sold-price extraction fix landed.
+    if (snapData && (status === 'SOLD' || status === 'OFF_MARKET')) {
+      const hasSoldPrice = snapData.lastSalePrice != null || snapData.estimatedValue != null;
+      if (!hasSoldPrice) return null;
+    }
+
+    return snapData;
   } catch {
     return null;
   }
