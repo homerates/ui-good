@@ -26,10 +26,22 @@ function parseCSV(text: string): { contacts: Contact[]; parseErrors: string[] } 
     // Skip obvious header rows
     if (i === 0 && /^(name|full.?name|first)/i.test(line)) continue;
 
-    // Support comma or tab delimiter
-    const parts = line.includes("\t") ? line.split("\t") : line.split(",");
-    const name = (parts[0] ?? "").replace(/^"|"$/g, "").trim();
-    const email = (parts[1] ?? "").replace(/^"|"$/g, "").trim().toLowerCase();
+    // Support comma, tab, or space-separated "Name Email" / "Email Name"
+    let name = "";
+    let email = "";
+    const emailMatch = line.match(/\S+@\S+\.\S+/);
+    if (emailMatch) {
+      email = emailMatch[0].replace(/^"|"$/g, "").trim().toLowerCase();
+      name = line.replace(emailMatch[0], "").replace(/^[,\t\s]+|[,\t\s]+$/g, "").replace(/^"|"$/g, "").trim();
+    } else if (line.includes("\t")) {
+      const parts = line.split("\t");
+      name = (parts[0] ?? "").replace(/^"|"$/g, "").trim();
+      email = (parts[1] ?? "").replace(/^"|"$/g, "").trim().toLowerCase();
+    } else if (line.includes(",")) {
+      const parts = line.split(",");
+      name = (parts[0] ?? "").replace(/^"|"$/g, "").trim();
+      email = (parts[1] ?? "").replace(/^"|"$/g, "").trim().toLowerCase();
+    }
 
     if (!email || !EMAIL_RE.test(email)) {
       parseErrors.push(`Row ${i + 1}: invalid email "${email}"`);
@@ -129,9 +141,9 @@ export default function AdminOutreachPage() {
     );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff", overflowY: "auto" }}>
       <AppNav />
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "2rem 1.5rem" }}>
+      <div style={{ maxWidth: 700, width: "100%", margin: "0 auto", padding: "2rem 1.5rem", boxSizing: "border-box" }}>
         {/* Breadcrumb */}
         <div style={{ marginBottom: "1.5rem" }}>
           <Link href="/admin" style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, textDecoration: "none" }}>
@@ -143,7 +155,7 @@ export default function AdminOutreachPage() {
           Outreach Import
         </h1>
         <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: "2rem" }}>
-          Upload a CSV of Name &amp; Email → contacts are added to Loops and receive a 1-2-3 email instantly.
+          Upload a CSV of Name &amp; Email → contacts are added to Loops and receive the outreach email instantly via Resend.
         </p>
 
         {/* Audience toggle */}
@@ -289,7 +301,7 @@ export default function AdminOutreachPage() {
         >
           {sending
             ? `Sending ${contacts.length} contact${contacts.length !== 1 ? "s" : ""}…`
-            : `Add to Loops + Send Email (${contacts.length})`}
+            : `Send Outreach Email (${contacts.length})`}
         </button>
 
         {/* Result */}
@@ -345,10 +357,7 @@ export default function AdminOutreachPage() {
           ))}
           <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0.75rem 0" }} />
           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", margin: 0 }}>
-            Configure this template in Loops under the event trigger:{" "}
-            <code style={{ color: "rgba(255,255,255,0.4)" }}>
-              {audience === "lo" ? "outreach_123_lo" : "outreach_123_consumer"}
-            </code>
+            Emails are sent via Resend. Contacts are also added to Loops CRM.
           </p>
         </div>
       </div>
