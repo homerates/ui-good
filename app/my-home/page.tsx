@@ -27,6 +27,7 @@ interface SavedOverrides {
   actual_rate:           number | null;
   actual_purchase_price: number | null;
   actual_purchase_date:  string | null;
+  actual_value:          number | null;
 }
 
 interface AttomComp {
@@ -395,7 +396,7 @@ function CardComps({ d }: { d: AnalysisData }) {
 function CardEquity({ d, nearbySales, onEdit }: { d: AnalysisData; nearbySales?: NearbySale[]; onEdit?: () => void }) {
   const eqPct = d.equityPct ?? 0;
   const balPct = 100 - eqPct;
-  const missingBalance = !d.estimatedEquity && !(d.estimatedEquity != null && d.estimatedEquity < 0);
+  const missingBalance = d.estimatedBalance == null;
   return (
     <div>
       {missingBalance && onEdit && (
@@ -1393,11 +1394,13 @@ function MyHomePageInner() {
   const [analysisErr, setAnalysisErr]         = useState('');
 
   // Loan detail editor (consumer only)
+  const loanEditorRef = React.useRef<HTMLDivElement>(null);
   const [editingLoan, setEditingLoan]               = useState(false);
   const [loanBalance, setLoanBalance]               = useState('');
   const [loanRate, setLoanRate]                     = useState('');
   const [loanPurchasePrice, setLoanPurchasePrice]   = useState('');
   const [loanPurchaseDate, setLoanPurchaseDate]     = useState('');
+  const [loanValue, setLoanValue]                   = useState('');
   const [loanSaving, setLoanSaving]                 = useState(false);
   const [loanSaved, setLoanSaved]                   = useState(false);
 
@@ -1719,7 +1722,9 @@ function MyHomePageInner() {
     setLoanRate(ov?.actual_rate              ? String(ov.actual_rate)            : '');
     setLoanPurchasePrice(ov?.actual_purchase_price ? String(ov.actual_purchase_price) : '');
     setLoanPurchaseDate(ov?.actual_purchase_date   ?? '');
+    setLoanValue(ov?.actual_value            ? String(ov.actual_value)           : '');
     setEditingLoan(true);
+    setTimeout(() => loanEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }
 
   async function saveLoanDetails() {
@@ -1734,6 +1739,7 @@ function MyHomePageInner() {
         actual_rate:           loanRate          ? parseFloat(loanRate.replace('%', ''))               : null,
         actual_purchase_price: loanPurchasePrice ? parseFloat(loanPurchasePrice.replace(/[,$]/g, '')) : null,
         actual_purchase_date:  loanPurchaseDate  || null,
+        actual_value:          loanValue         ? parseFloat(loanValue.replace(/[,$]/g, ''))          : null,
       }),
     });
     const saved = await res.json().catch(() => null);
@@ -2432,11 +2438,10 @@ function MyHomePageInner() {
 
                 {/* LOAN DETAIL EDITOR — consumer only */}
                 {!borrowerId && editingLoan && (
-                  <div className="mh-card" style={{ border: '1px solid rgba(34,197,94,0.2)' }}>
-                    <div className="mh-card-label">Correct Your Loan Details</div>
+                  <div ref={loanEditorRef} className="mh-card" style={{ border: '1px solid rgba(34,197,94,0.2)' }}>
+                    <div className="mh-card-label">Your Numbers</div>
                     <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-                      We estimate your balance and rate from public records. Enter your actual numbers for more accurate analysis.
-                      Leave a field blank to keep using the estimate.
+                      Enter your actual numbers — these always override our estimates. Leave a field blank to keep using the estimate.
                     </p>
                     <div className="mh-loan-grid">
                       <div className="mh-loan-field">
@@ -2455,6 +2460,15 @@ function MyHomePageInner() {
                           placeholder="e.g. 6.54"
                           value={loanRate}
                           onChange={e => setLoanRate(e.target.value)}
+                        />
+                      </div>
+                      <div className="mh-loan-field">
+                        <label className="mh-loan-label">Est. home value (override)</label>
+                        <input
+                          className="mh-input"
+                          placeholder="e.g. 1100000"
+                          value={loanValue}
+                          onChange={e => setLoanValue(e.target.value)}
                         />
                       </div>
                       <div className="mh-loan-field">

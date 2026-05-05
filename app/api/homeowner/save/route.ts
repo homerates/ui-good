@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 
-const SEL = 'id, user_id, property_address, is_primary, digest_enabled, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, email, name, updated_at, created_at';
+const SEL = 'id, user_id, property_address, is_primary, digest_enabled, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value, email, name, updated_at, created_at';
 
 function db() {
   return createClient(
@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
   if ('actual_rate'           in body) payload.actual_rate           = body.actual_rate           ? Number(body.actual_rate)           : null;
   if ('actual_purchase_price' in body) payload.actual_purchase_price = body.actual_purchase_price ? Number(body.actual_purchase_price) : null;
   if ('actual_purchase_date'  in body) payload.actual_purchase_date  = body.actual_purchase_date  ?? null;
+  if ('actual_value'          in body) payload.actual_value          = body.actual_value          ? Number(body.actual_value)          : null;
 
   // When setting as primary, unset all others for this user first
   if (body.is_primary === true) {

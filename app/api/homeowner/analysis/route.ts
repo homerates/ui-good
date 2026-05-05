@@ -607,11 +607,11 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   let estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
 
   // AVM priority (highest → lowest):
+  //   0. user-entered actual_value override — always wins, no sanity check
   //   1. live Redfin scrape (current session)
   //   2. prop.latest_value from DB — written by /api/property/lookup when user pastes Redfin URL in chat
   //   3. FHFA appreciation model (already computed above)
-  // Guard: LO actual_value always wins over all automated sources.
-  // Sanity check: any AVM must exceed 75% of known sale price (below that = wrong page).
+  // Sanity check: any automated AVM must exceed 75% of known sale price (below that = wrong page).
   const rawLiveAvm = (!hasLoFinancials && liveData?.estimatedValue && liveData.estimatedValue > 50_000 && liveData.estimatedValue <= AVM_MAX)
     ? liveData.estimatedValue : null;
   const liveAvm = (rawLiveAvm && salePrice && rawLiveAvm < salePrice * 0.75)
@@ -629,8 +629,14 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // fhfa            = derived from FHFA appreciation model on lastSalePrice (model estimate)
   // ai_estimate     = Tavily/GPT-4o gap-fill or 75% LTV fallback (lowest confidence, show amber)
   const avmSource: 'redfin_estimate' | 'fhfa' | 'ai_estimate' =
-    (liveAvm || dbEst) ? 'redfin_estimate' : (estimatedValue ? 'fhfa' : 'ai_estimate');
-  if (liveAvm) {
+    record.actual_value ? 'redfin_estimate' : (liveAvm || dbEst) ? 'redfin_estimate' : (estimatedValue ? 'fhfa' : 'ai_estimate');
+
+  // Priority 0: user-entered value override always wins
+  if (record.actual_value && Number(record.actual_value) > 50_000) {
+    estimatedValue     = Number(record.actual_value);
+    estimatedValueLow  = Math.round(estimatedValue * 0.95);
+    estimatedValueHigh = Math.round(estimatedValue * 1.05);
+  } else if (liveAvm) {
     estimatedValue     = liveAvm;
     estimatedValueLow  = Math.round(liveAvm * 0.93);
     estimatedValueHigh = Math.round(liveAvm * 1.07);
