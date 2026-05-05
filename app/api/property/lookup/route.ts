@@ -15,9 +15,8 @@ import { getSupabase }       from '../../../../lib/supabaseServer';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
-// Cache TTL: 7 days for active listings (not cached anyway), 24h for SOLD/OFF_MARKET
-const SNAPSHOT_TTL_MS      = 7 * 24 * 60 * 60 * 1000;
-const SOLD_SNAPSHOT_TTL_MS = 24 * 60 * 60 * 1000;
+// Cache TTL: 7 days for property snapshots
+const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Normalize address for canonical lookup (lowercase, trim extra spaces)
 function normalizeAddress(addr: string): string {
@@ -31,9 +30,7 @@ async function cachePropertyResult(address: string, data: Record<string, unknown
     if (!sb) return;
     const addressFull = normalizeAddress(address);
     const now = new Date();
-    const status   = (data.listingStatus as string | null) ?? null;
-    const ttl      = (status === 'SOLD' || status === 'OFF_MARKET') ? SOLD_SNAPSHOT_TTL_MS : SNAPSHOT_TTL_MS;
-    const expiresAt = new Date(now.getTime() + ttl).toISOString();
+    const expiresAt = new Date(now.getTime() + SNAPSHOT_TTL_MS).toISOString();
 
     // Build upsert object — only include value/sale fields when non-null so
     // re-lookups that miss the estimate don't wipe a previously stored value.
@@ -609,17 +606,7 @@ async function handleUrl(rawUrl: string) {
                     photoUrl:         null,
                     ...ext,
                 };
-                const mergedFallback = mergeGpt4o(baseData, gpt);
-                const fbStatus = mergedFallback.listingStatus as string | null;
-                if (fbStatus === 'SOLD' || fbStatus === 'OFF_MARKET') {
-                    const ev = (mergedFallback.estimatedValue as number | null) ?? null;
-                    const sp = (mergedFallback.lastSalePrice  as number | null) ?? null;
-                    const avm = (ev && ev > 50_000 && ev < 50_000_000) ? ev
-                              : (sp && sp > 50_000 && sp < 50_000_000) ? sp
-                              : null;
-                    if (avm) mergedFallback.price = avm;
-                }
-                return NextResponse.json({ ok: true, data: mergedFallback });
+                return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
             }
         }
         const err = base && !base.ok ? base : null;
@@ -662,22 +649,7 @@ async function handleUrl(rawUrl: string) {
         ...ext,
     };
 
-    const merged = mergeGpt4o(baseData, gpt);
-
-    // For SOLD/OFF_MARKET: JSON-LD offers.price is the stale original listing price.
-    // Override with Redfin Estimate (extracted from Tavily-rendered page text) as source of truth.
-    // Falls back to lastSalePrice if Tavily didn't return an estimate.
-    const finalStatus = merged.listingStatus as string | null;
-    if (finalStatus === 'SOLD' || finalStatus === 'OFF_MARKET') {
-        const ev = (merged.estimatedValue as number | null) ?? null;
-        const sp = (merged.lastSalePrice  as number | null) ?? null;
-        const avm = (ev && ev > 50_000 && ev < 50_000_000) ? ev
-                  : (sp && sp > 50_000 && sp < 50_000_000) ? sp
-                  : null;
-        if (avm) merged.price = avm;
-    }
-
-    return NextResponse.json({ ok: true, data: merged });
+    return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
 }
 
 // ── Tavily search → find Redfin URL for an address ─────────────────────────
