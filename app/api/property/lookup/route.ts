@@ -16,8 +16,10 @@ import { getSupabase }       from '../../../../lib/supabaseServer';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
-// Cache TTL: 7 days for property snapshots
-const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// Cache TTL: 7 days for SOLD/OFF_MARKET structural data (beds/baths/sqft never change)
+// but AVM can drift — re-fetch AVM-sensitive fields daily
+const SNAPSHOT_TTL_MS      = 7 * 24 * 60 * 60 * 1000;
+const SOLD_AVM_TTL_MS      = 1 * 24 * 60 * 60 * 1000; // 24h for SOLD/OFF_MARKET AVM freshness
 
 // Normalize address for canonical lookup (lowercase, trim extra spaces)
 function normalizeAddress(addr: string): string {
@@ -124,8 +126,9 @@ async function getCachedSnapshot(address: string): Promise<Record<string, unknow
     const status = prop.latest_listing_status as string | null;
     if (!status || status === 'FOR_SALE' || status === 'PENDING') return null;
 
-    const age = Date.now() - new Date(prop.enriched_at).getTime();
-    if (age > SNAPSHOT_TTL_MS) return null;
+    const age    = Date.now() - new Date(prop.enriched_at).getTime();
+    const ttl    = (status === 'SOLD' || status === 'OFF_MARKET') ? SOLD_AVM_TTL_MS : SNAPSHOT_TTL_MS;
+    if (age > ttl) return null;
 
     const { data: snap } = await sb
       .from('property_snapshots')
@@ -694,12 +697,8 @@ async function handleUrl(rawUrl: string) {
 
     const merged = mergeGpt4o(baseData, gpt);
 
-    // Quality check — logs to Vercel function logs, appends errors to parseWarnings
+    // Quality check — logs only to Vercel function logs, never surfaced to users
     const quality = checkPropertyQuality(merged, String(d.source));
-    if (quality.status !== 'pass') {
-        const existingWarnings = (merged.parseWarnings as string[]) ?? [];
-        merged.parseWarnings = [...existingWarnings, ...quality.errors];
-    }
     merged.qualityScore  = quality.score;
     merged.qualityStatus = quality.status;
 

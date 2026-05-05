@@ -190,12 +190,14 @@ export function parseRedfin(html: string): Partial<PropertyData> | null {
     const listingStatus = detectRedfinStatus(html, blob);
     const scriptData   = extractRedfinScriptData(html);
 
+    // Diagnostic console logs — NOT user-facing
+    if (!scriptData.estimatedValue) console.log('[parseRedfin] AVM not found in script tags — will rely on parseExtended/GPT');
+    if ((listingStatus === 'SOLD' || listingStatus === 'OFF_MARKET') && !scriptData.lastSalePrice) {
+        console.log('[parseRedfin] sold price not found in script tags for SOLD property');
+    }
+
     const warnings: string[] = [];
     if (!price) warnings.push('json-ld: no price found');
-    if (!scriptData.estimatedValue) warnings.push('script-data: Redfin AVM not found in embedded JSON');
-    if ((listingStatus === 'SOLD' || listingStatus === 'OFF_MARKET') && !scriptData.lastSalePrice) {
-        warnings.push('script-data: sold price not found in embedded JSON — SOLD property may show wrong price');
-    }
 
     return {
         source:         'redfin',
