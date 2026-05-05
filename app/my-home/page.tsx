@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -1353,7 +1353,7 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
     paidOffPct, interestPaid, yearsElapsed, payoffYear,
     nextValueTarget, nextValueTargetYear,
     piti, rentMonthly: null, rentVsOwn: null, prime,
-    savedOverrides: { actual_balance: null, actual_rate: null, actual_purchase_price: null, actual_purchase_date: null },
+    savedOverrides: { actual_balance: null, actual_rate: null, actual_purchase_price: null, actual_purchase_date: null, actual_value: null },
     balanceIsEstimated: true, rateIsEstimated: true,
     listingStatus, daysOnMarket, listPrice, beds, baths, sqft,
     yearBuilt: null, propertyType: null, lotSizeSqft: null, apn: null,
@@ -1394,7 +1394,7 @@ function MyHomePageInner() {
   const [analysisErr, setAnalysisErr]         = useState('');
 
   // Loan detail editor (consumer only)
-  const loanEditorRef = React.useRef<HTMLDivElement>(null);
+  const loanEditorRef = useRef<HTMLDivElement>(null);
   const [editingLoan, setEditingLoan]               = useState(false);
   const [loanBalance, setLoanBalance]               = useState('');
   const [loanRate, setLoanRate]                     = useState('');
