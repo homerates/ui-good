@@ -609,7 +609,17 @@ async function handleUrl(rawUrl: string) {
                     photoUrl:         null,
                     ...ext,
                 };
-                return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
+                const mergedFallback = mergeGpt4o(baseData, gpt);
+                const fbStatus = mergedFallback.listingStatus as string | null;
+                if (fbStatus === 'SOLD' || fbStatus === 'OFF_MARKET') {
+                    const ev = (mergedFallback.estimatedValue as number | null) ?? null;
+                    const sp = (mergedFallback.lastSalePrice  as number | null) ?? null;
+                    const avm = (ev && ev > 50_000 && ev < 50_000_000) ? ev
+                              : (sp && sp > 50_000 && sp < 50_000_000) ? sp
+                              : null;
+                    if (avm) mergedFallback.price = avm;
+                }
+                return NextResponse.json({ ok: true, data: mergedFallback });
             }
         }
         const err = base && !base.ok ? base : null;
