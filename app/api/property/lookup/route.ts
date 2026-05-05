@@ -490,6 +490,56 @@ function mergeGpt4o(base: Record<string, unknown>, gpt: GPT4oPropertyFields | nu
     return out;
 }
 
+// ── Redfin AVM API ─────────────────────────────────────────────────────────
+// Calls Redfin's own internal AVM endpoint — same data their website uses.
+// Response is prefixed with )]}' (XSSI guard) before valid JSON.
+
+interface RedfinAVMResult {
+    estimatedValue:    number | null;
+    estimatedValueLow: number | null;
+    estimatedValueHigh: number | null;
+}
+
+const REDFIN_HEADERS = {
+    'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept':          'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer':         'https://www.redfin.com/',
+};
+
+async function fetchRedfinAVM(redfinUrl: string): Promise<RedfinAVMResult> {
+    const empty: RedfinAVMResult = { estimatedValue: null, estimatedValueLow: null, estimatedValueHigh: null };
+    const idMatch = redfinUrl.match(/\/home\/(\d+)/);
+    if (!idMatch) return empty;
+    const propertyId = idMatch[1];
+
+    try {
+        const res = await fetch(
+            `https://www.redfin.com/stingray/api/home/details/avm?propertyId=${propertyId}&accessLevel=1`,
+            { headers: REDFIN_HEADERS, signal: AbortSignal.timeout(8_000) },
+        );
+        if (!res.ok) {
+            console.log(`[redfin/avm] HTTP ${res.status} for propertyId=${propertyId}`);
+            return empty;
+        }
+        const raw  = await res.text();
+        const json = JSON.parse(raw.replace(/^\)\]\}'/, '').trim());
+        const avm  = json?.payload?.avm;
+        if (!avm) {
+            console.log(`[redfin/avm] no avm payload for propertyId=${propertyId}`, JSON.stringify(json?.payload).slice(0, 200));
+            return empty;
+        }
+        const estimatedValue    = typeof avm.predictedValue === 'number' ? Math.round(avm.predictedValue)    : null;
+        const estimatedValueLow  = typeof avm.valueRange?.min === 'number' ? Math.round(avm.valueRange.min) : null;
+        const estimatedValueHigh = typeof avm.valueRange?.max === 'number' ? Math.round(avm.valueRange.max) : null;
+        console.log(`[redfin/avm] ✓ propertyId=${propertyId} AVM=$${estimatedValue?.toLocaleString()} range=$${estimatedValueLow?.toLocaleString()}–$${estimatedValueHigh?.toLocaleString()}`);
+        return { estimatedValue, estimatedValueLow, estimatedValueHigh };
+    } catch (err) {
+        console.log('[redfin/avm] error:', err instanceof Error ? err.message : String(err));
+        return empty;
+    }
+}
+
 // ── Tavily extract helper ───────────────────────────────────────────────────
 
 async function tavilyExtract(url: string): Promise<string | null> {
@@ -606,14 +656,17 @@ export async function POST(req: Request) {
 async function handleUrl(rawUrl: string) {
     const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 
-    // Run base property fetch and Tavily extract in parallel
-    const [baseResult, tavilyText] = await Promise.allSettled([
+    // Run base fetch, Tavily text, and Redfin AVM API in parallel
+    const isRedfin = /redfin\.com/i.test(url);
+    const [baseResult, tavilyText, avmResult] = await Promise.allSettled([
         fetchPropertyData(url),
         tavilyExtract(url),
+        isRedfin ? fetchRedfinAVM(url) : Promise.resolve(null),
     ]);
 
-    const base     = baseResult.status === 'fulfilled'  ? baseResult.value   : null;
-    const text     = tavilyText.status === 'fulfilled'  ? tavilyText.value   : null;
+    const base = baseResult.status === 'fulfilled' ? baseResult.value : null;
+    const text = tavilyText.status === 'fulfilled' ? tavilyText.value : null;
+    const avm  = avmResult.status  === 'fulfilled' ? avmResult.value  : null;
 
     if (!base || !base.ok) {
         // Direct fetch blocked — fall back to Tavily text if available
@@ -669,11 +722,14 @@ async function handleUrl(rawUrl: string) {
     // GPT-4o fills any gaps left by the regex parsers (beds/baths/sqft/yearBuilt/HOA etc.)
     const gpt = text ? await gpt4oExtract(text, url) : null;
 
-    // Redfin HTML parse already extracted AVM + sold price from embedded script data.
-    // Seed those into the extended fields so parseExtended() only fills what's still missing.
-    if (d.estimatedValue != null && ext.estimatedValue == null) ext.estimatedValue = d.estimatedValue;
-    if (d.lastSalePrice  != null && ext.lastSalePrice  == null) ext.lastSalePrice  = d.lastSalePrice;
-    if (d.lastSaleDate   != null && ext.lastSaleDate   == null) ext.lastSaleDate   = d.lastSaleDate;
+    // Redfin AVM API is the authoritative source — always wins over parseExtended/GPT/script data
+    if (avm?.estimatedValue    != null) ext.estimatedValue    = avm.estimatedValue;
+    if (avm?.estimatedValueLow  != null) ext.estimatedValueLow  = avm.estimatedValueLow;
+    if (avm?.estimatedValueHigh != null) ext.estimatedValueHigh = avm.estimatedValueHigh;
+    // Fall back to HTML script-tag extraction only when AVM API returned nothing
+    if (ext.estimatedValue == null && d.estimatedValue != null) ext.estimatedValue = d.estimatedValue;
+    if (ext.lastSalePrice  == null && d.lastSalePrice  != null) ext.lastSalePrice  = d.lastSalePrice;
+    if (ext.lastSaleDate   == null && d.lastSaleDate   != null) ext.lastSaleDate   = d.lastSaleDate;
 
     const baseData: Record<string, unknown> = {
         source:           d.source,
