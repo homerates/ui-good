@@ -238,7 +238,6 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
             const dateM = t.match(/sold\s+on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
             const priceM = t.match(/\$([\d,]+)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+)/i);
             if (dateM && priceM) {
-                // normalize "Feb 17, 2026" → "February 2026"
                 const d = new Date(dateM[1]);
                 const label = isNaN(d.getTime()) ? dateM[1] : d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 return [null, label, priceM[1]] as unknown as RegExpMatchArray;
@@ -248,6 +247,13 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
     if (soldM) {
         lastSaleDate  = soldM[1] ?? null;
         lastSalePrice = soldM[2] ? parseInt(soldM[2].replace(/,/g, '')) : null;
+    }
+
+    // Redfin header format: "SOLD\n$1,604,645\n4 bd" — no date in this pattern
+    // Only use as fallback when date-bearing patterns above didn't fire
+    if (!lastSalePrice) {
+        const headerM = t.match(/\bSOLD\b[^$\d]{0,30}\$\s*([\d,]+)/i);
+        if (headerM) lastSalePrice = parseInt(headerM[1].replace(/,/g, ''));
     }
 
     // HOA

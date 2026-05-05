@@ -157,7 +157,10 @@ function CheckPropertyInner() {
 
     // ── Actual property numbers (recalculated on the real listing price) ──────
 
-    const listPrice    = propData?.price ?? sc.price;
+    // For SOLD properties use the actual sold price, not the original listing price from JSON-LD
+    const listPrice    = (propData?.listingStatus === 'SOLD' && propData?.lastSalePrice)
+        ? propData.lastSalePrice
+        : (propData?.price ?? sc.price);
     const actualPrice  = propData ? listPrice : sc.price;   // switches to real price after lookup
     const avm          = propData?.estimatedValue ?? null;
 
