@@ -95,6 +95,67 @@ function detectRedfinStatus(html: string, blob: unknown): ListingStatus {
     return null;
 }
 
+/**
+ * Searches all embedded script tags (non-JSON-LD) for Redfin's app-state JSON.
+ * Redfin bakes AVM and sold price into their React state blobs — not in schema.org JSON-LD.
+ * Logs every candidate found so we can verify the correct field names in Vercel logs.
+ */
+function extractRedfinScriptData(html: string): {
+    estimatedValue: number | null;
+    lastSalePrice:  number | null;
+    lastSaleDate:   string | null;
+} {
+    // Collect all <script> block content (non-JSON-LD)
+    const scriptBlocks: string[] = [];
+    const scriptRe = /<script(?![^>]+type=["']application\/ld\+json["'])[^>]*>([\s\S]*?)<\/script>/gi;
+    let sm: RegExpExecArray | null;
+    while ((sm = scriptRe.exec(html)) !== null) scriptBlocks.push(sm[1]);
+    const blob = scriptBlocks.join('\n');
+
+    // AVM — try all known Redfin field names, log every candidate
+    const avmFields = ['estimatedValue', 'redfinEstimate', 'avmValue', 'avm'];
+    const avmCandidates: { field: string; value: number }[] = [];
+    for (const field of avmFields) {
+        const re = new RegExp(`"${field}"\\s*:\\s*(\\d{5,8})`, 'g');
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(blob)) !== null) {
+            const v = parseInt(m[1]);
+            if (v > 50_000 && v < 50_000_000) avmCandidates.push({ field, value: v });
+        }
+    }
+    // Sort and take median to avoid ID-number false positives
+    const avmVals = avmCandidates.map(c => c.value).sort((a, b) => a - b);
+    const estimatedValue = avmVals.length > 0 ? avmVals[Math.floor(avmVals.length / 2)] : null;
+
+    // Sold price — try all known Redfin field names, log every candidate
+    const soldFields = ['lastSoldPrice', 'soldPrice', 'salePrice', 'finalSalePrice', 'lastSalePrice'];
+    const soldCandidates: { field: string; value: number }[] = [];
+    for (const field of soldFields) {
+        const re = new RegExp(`"${field}"\\s*:\\s*(\\d{5,8})`, 'g');
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(blob)) !== null) {
+            const v = parseInt(m[1]);
+            if (v > 50_000 && v < 50_000_000) soldCandidates.push({ field, value: v });
+        }
+    }
+    const soldVals = soldCandidates.map(c => c.value).sort((a, b) => a - b);
+    const lastSalePrice = soldVals.length > 0 ? soldVals[Math.floor(soldVals.length / 2)] : null;
+
+    // Last sale date from embedded data
+    let lastSaleDate: string | null = null;
+    const dateM = blob.match(/"lastSoldDate"\s*:\s*"([^"]{4,20})"/i)
+        ?? blob.match(/"soldDate"\s*:\s*"([^"]{4,20})"/i)
+        ?? blob.match(/"saleDate"\s*:\s*"([^"]{4,20})"/i);
+    if (dateM) lastSaleDate = dateM[1];
+
+    // Diagnostic log — visible in Vercel function logs
+    console.log('[parseRedfin/script] AVM candidates:', JSON.stringify(avmCandidates), '→ used:', estimatedValue);
+    console.log('[parseRedfin/script] SoldPrice candidates:', JSON.stringify(soldCandidates), '→ used:', lastSalePrice);
+    if (lastSaleDate) console.log('[parseRedfin/script] SoldDate:', lastSaleDate);
+
+    return { estimatedValue, lastSalePrice, lastSaleDate };
+}
+
 export function parseRedfin(html: string): Partial<PropertyData> | null {
     const blobs = extractAllJsonLd(html);
     const blob  = findListingBlob(blobs);
@@ -127,22 +188,33 @@ export function parseRedfin(html: string): Partial<PropertyData> | null {
     else if (Array.isArray(imageRaw) && imageRaw.length > 0) photoUrl = toStr(imageRaw[0]);
 
     const listingStatus = detectRedfinStatus(html, blob);
+    const scriptData   = extractRedfinScriptData(html);
+
+    const warnings: string[] = [];
+    if (!price) warnings.push('json-ld: no price found');
+    if (!scriptData.estimatedValue) warnings.push('script-data: Redfin AVM not found in embedded JSON');
+    if ((listingStatus === 'SOLD' || listingStatus === 'OFF_MARKET') && !scriptData.lastSalePrice) {
+        warnings.push('script-data: sold price not found in embedded JSON — SOLD property may show wrong price');
+    }
 
     return {
-        source:       'redfin',
+        source:         'redfin',
         price,
         address,
         city,
         state,
         zip,
-        county:       null,
+        county:         null,
         beds,
         baths,
         sqft,
         annualTaxes,
         photoUrl,
         listingStatus,
-        parsedBy:     'redfin_script',
-        parseWarnings: price ? [] : ['json-ld: no price found'],
+        estimatedValue: scriptData.estimatedValue,
+        lastSalePrice:  scriptData.lastSalePrice,
+        lastSaleDate:   scriptData.lastSaleDate,
+        parsedBy:       'redfin_script',
+        parseWarnings:  warnings,
     };
 }

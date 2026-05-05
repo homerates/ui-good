@@ -39,6 +39,12 @@ export interface PropertyData {
 
     // Listing status — set by site-specific parser when determinable from structured data
     listingStatus: ListingStatus;
+
+    // AVM + sale history — extracted from site HTML (Redfin embedded script data)
+    // These are REQUIRED for SOLD/OFF_MARKET — missing = quality alert
+    estimatedValue: number | null;  // Redfin AVM (today's value)
+    lastSalePrice:  number | null;  // actual sold price (historical transaction)
+    lastSaleDate:   string | null;  // "Month YYYY" format
 }
 
 // API response shapes

@@ -11,6 +11,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { fetchPropertyData } from '@/property/fetch';
 import { lookupTaxRate }     from '@/property/taxTable';
+import { checkPropertyQuality } from '@/property/qualityCheck';
 import { getSupabase }       from '../../../../lib/supabaseServer';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
@@ -665,6 +666,12 @@ async function handleUrl(rawUrl: string) {
     // GPT-4o fills any gaps left by the regex parsers (beds/baths/sqft/yearBuilt/HOA etc.)
     const gpt = text ? await gpt4oExtract(text, url) : null;
 
+    // Redfin HTML parse already extracted AVM + sold price from embedded script data.
+    // Seed those into the extended fields so parseExtended() only fills what's still missing.
+    if (d.estimatedValue != null && ext.estimatedValue == null) ext.estimatedValue = d.estimatedValue;
+    if (d.lastSalePrice  != null && ext.lastSalePrice  == null) ext.lastSalePrice  = d.lastSalePrice;
+    if (d.lastSaleDate   != null && ext.lastSaleDate   == null) ext.lastSaleDate   = d.lastSaleDate;
+
     const baseData: Record<string, unknown> = {
         source:           d.source,
         url,
@@ -685,7 +692,18 @@ async function handleUrl(rawUrl: string) {
         ...ext,
     };
 
-    return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
+    const merged = mergeGpt4o(baseData, gpt);
+
+    // Quality check — logs to Vercel function logs, appends errors to parseWarnings
+    const quality = checkPropertyQuality(merged, String(d.source));
+    if (quality.status !== 'pass') {
+        const existingWarnings = (merged.parseWarnings as string[]) ?? [];
+        merged.parseWarnings = [...existingWarnings, ...quality.errors];
+    }
+    merged.qualityScore  = quality.score;
+    merged.qualityStatus = quality.status;
+
+    return NextResponse.json({ ok: true, data: merged });
 }
 
 // ── Tavily search → find Redfin URL for an address ─────────────────────────
