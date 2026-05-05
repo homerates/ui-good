@@ -523,18 +523,14 @@ async function fetchRedfinAVM(redfinUrl: string): Promise<RedfinAVMResult> {
             return empty;
         }
         const raw = await res.text();
-        // Log first 120 chars so we can see the exact prefix format in Vercel logs
-        console.log(`[redfin/avm] raw prefix (${raw.length} chars):`, JSON.stringify(raw.slice(0, 120)));
-        // Find first { or [ — works regardless of XSSI prefix format
-        const jsonStart = Math.min(
-            raw.indexOf('{') >= 0 ? raw.indexOf('{') : Infinity,
-            raw.indexOf('[') >= 0 ? raw.indexOf('[') : Infinity,
-        );
-        if (jsonStart === Infinity) {
-            console.log(`[redfin/avm] no JSON found in response`);
+        // Redfin XSSI guard is {}&&  (not )]}' as some docs suggest)
+        // Strip it, then parse the real JSON payload
+        const stripped = raw.startsWith('{}&&') ? raw.slice(4) : raw.replace(/^\)\]\}'[\r\n]*/, '');
+        if (!stripped.trim().startsWith('{') && !stripped.trim().startsWith('[')) {
+            console.log(`[redfin/avm] unexpected response format:`, JSON.stringify(raw.slice(0, 80)));
             return empty;
         }
-        const json = JSON.parse(raw.slice(jsonStart));
+        const json = JSON.parse(stripped.trim());
         const avm  = json?.payload?.avm;
         if (!avm) {
             console.log(`[redfin/avm] no avm payload for propertyId=${propertyId}`, JSON.stringify(json?.payload).slice(0, 200));
