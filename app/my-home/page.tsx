@@ -2188,7 +2188,42 @@ function MyHomePageInner() {
                               href={(() => {
                                 const a = analysis;
                                 const effectiveRate = a.savedOverrides?.actual_rate ?? a.purchaseRate;
-                                const sq = `Run homeowner analysis for ${a.address}: balance $${Math.round(a.estimatedBalance ?? 0).toLocaleString()}, rate ${effectiveRate ?? a.liveRate}%, home value $${Math.round(a.estimatedValue ?? 0).toLocaleString()}. Show me refi savings, break-even, and equity options.`;
+
+                                // Estimate balance when user hasn't entered loan data.
+                                // Priority: 1) saved balance  2) amortize from last sale  3) 70% LTV on AVM
+                                let estBal: number | null = a.estimatedBalance;
+                                let balIsEstimate = false;
+                                if (estBal == null) {
+                                    balIsEstimate = true;
+                                    if (a.lastSalePrice && a.lastSaleDate && a.purchaseRate) {
+                                        const dm = a.lastSaleDate.match(/([A-Za-z]+)\s+(\d{4})/);
+                                        if (dm) {
+                                            const moMap: Record<string, number> = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+                                            const moIdx = moMap[dm[1].toLowerCase().slice(0,3)];
+                                            if (moIdx !== undefined) {
+                                                const now = new Date();
+                                                const elapsed = Math.max(0, (now.getFullYear() - parseInt(dm[2])) * 12 + (now.getMonth() - moIdx));
+                                                const principal = a.lastSalePrice * 0.80;
+                                                const r = a.purchaseRate / 100 / 12;
+                                                const pmt = r > 0 ? (principal * r * Math.pow(1+r, 360)) / (Math.pow(1+r, 360) - 1) : principal / 360;
+                                                const bal = r > 0
+                                                    ? principal * Math.pow(1+r, elapsed) - pmt * ((Math.pow(1+r, elapsed) - 1) / r)
+                                                    : principal - pmt * elapsed;
+                                                estBal = Math.max(0, Math.round(bal));
+                                            }
+                                        }
+                                    }
+                                    // Fallback: 70% LTV on AVM — typical homeowner starting point
+                                    if (estBal == null && a.estimatedValue) {
+                                        estBal = Math.round(a.estimatedValue * 0.70);
+                                    }
+                                }
+
+                                const balFinal = estBal ?? 0;
+                                // Prefer historical purchase rate — avoids seeding with today's market rate (6.3%) as "current rate"
+                                const usedRate = effectiveRate ?? a.purchaseRate ?? 5.5;
+                                const balNote  = balIsEstimate ? ' (estimated — adjust if you know your balance)' : '';
+                                const sq = `Run homeowner analysis for ${a.address}: balance $${Math.round(balFinal).toLocaleString()}${balNote}, rate ${usedRate}%, home value $${Math.round(a.estimatedValue ?? 0).toLocaleString()}. Show me refi savings, break-even, and equity options.`;
                                 return `/chat?${new URLSearchParams({ sq }).toString()}&from=%2Fmy-home&fromLabel=My+Properties`;
                               })()}
                               target="_blank"
