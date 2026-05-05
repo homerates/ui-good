@@ -142,7 +142,7 @@ export default function AdminOutreachPage() {
     );
 
   return (
-    <div style={{ minHeight: "100vh", width: "100%", background: "#0a0a0a", color: "#fff" }}>
+    <div style={{ minHeight: "100vh", width: "100%", background: "#0a0a0a", color: "#fff", overflowY: "auto" }}>
       <AppNav />
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "2rem 1.5rem", boxSizing: "border-box" }}>
         {/* Breadcrumb */}
