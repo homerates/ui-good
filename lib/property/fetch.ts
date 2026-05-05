@@ -194,7 +194,6 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
                 beds: null, baths: null, sqft: null,
                 annualTaxes: null, taxRateEffective: rate, taxSource: 'table',
                 photoUrl: null, listingStatus: null,
-                estimatedValue: null, lastSalePrice: null, lastSaleDate: null,
             };
             return { ok: true, data: partial };
         }
@@ -268,9 +267,6 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         taxSource:        m.taxSource    ?? null,
         photoUrl:         m.photoUrl     ?? null,
         listingStatus:    m.listingStatus ?? null,
-        estimatedValue:   (m as Record<string, unknown>).estimatedValue as number | null ?? null,
-        lastSalePrice:    (m as Record<string, unknown>).lastSalePrice  as number | null ?? null,
-        lastSaleDate:     (m as Record<string, unknown>).lastSaleDate   as string | null ?? null,
     };
 
     return { ok: true, data };

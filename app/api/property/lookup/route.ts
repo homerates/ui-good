@@ -11,37 +11,16 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { fetchPropertyData } from '@/property/fetch';
 import { lookupTaxRate }     from '@/property/taxTable';
-import { checkPropertyQuality } from '@/property/qualityCheck';
 import { getSupabase }       from '../../../../lib/supabaseServer';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
-// Cache TTL: 7 days for SOLD/OFF_MARKET structural data (beds/baths/sqft never change)
-// but AVM can drift — re-fetch AVM-sensitive fields daily
-const SNAPSHOT_TTL_MS      = 7 * 24 * 60 * 60 * 1000;
-const SOLD_AVM_TTL_MS      = 1 * 24 * 60 * 60 * 1000; // 24h for SOLD/OFF_MARKET AVM freshness
+// Cache TTL: 7 days for property snapshots
+const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Normalize address for canonical lookup (lowercase, trim extra spaces)
 function normalizeAddress(addr: string): string {
   return addr.trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-// Normalize price for SOLD/OFF_MARKET properties at the API level.
-// JSON-LD offers.price on sold Redfin pages is the original listing price,
-// not the actual sold price. This ensures every downstream consumer — chat,
-// check-property, my-home, report — sees the correct number.
-function normalizePropertyPrice(data: Record<string, unknown>): void {
-  const status = data.listingStatus as string | null;
-  if (status !== 'SOLD' && status !== 'OFF_MARKET') return;
-
-  const lastSalePrice  = (data.lastSalePrice  as number | null) ?? null;
-  const estimatedValue = (data.estimatedValue as number | null) ?? null;
-  const correctPrice   = lastSalePrice ?? estimatedValue;
-  if (!correctPrice) return;
-
-  data.price = correctPrice;
-  const sqft = (data.sqft as number | null) ?? null;
-  data.pricePerSqft = sqft ? Math.round(correctPrice / sqft) : data.pricePerSqft;
 }
 
 // Upsert a canonical property + snapshot into Supabase and return the property id
@@ -52,9 +31,6 @@ async function cachePropertyResult(address: string, data: Record<string, unknown
     const addressFull = normalizeAddress(address);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SNAPSHOT_TTL_MS).toISOString();
-
-    // Normalize price before storing — SOLD properties must use sold price not listing price
-    normalizePropertyPrice(data);
 
     // Build upsert object — only include value/sale fields when non-null so
     // re-lookups that miss the estimate don't wipe a previously stored value.
@@ -126,9 +102,8 @@ async function getCachedSnapshot(address: string): Promise<Record<string, unknow
     const status = prop.latest_listing_status as string | null;
     if (!status || status === 'FOR_SALE' || status === 'PENDING') return null;
 
-    const age    = Date.now() - new Date(prop.enriched_at).getTime();
-    const ttl    = (status === 'SOLD' || status === 'OFF_MARKET') ? SOLD_AVM_TTL_MS : SNAPSHOT_TTL_MS;
-    if (age > ttl) return null;
+    const age = Date.now() - new Date(prop.enriched_at).getTime();
+    if (age > SNAPSHOT_TTL_MS) return null;
 
     const { data: snap } = await sb
       .from('property_snapshots')
@@ -140,16 +115,7 @@ async function getCachedSnapshot(address: string): Promise<Record<string, unknow
       .limit(1)
       .maybeSingle();
 
-    const snapData = (snap?.data as Record<string, unknown>) ?? null;
-
-    // Invalidate cache for SOLD/OFF_MARKET snapshots with no price data —
-    // these were cached before the sold-price extraction fix landed.
-    if (snapData && (status === 'SOLD' || status === 'OFF_MARKET')) {
-      const hasSoldPrice = snapData.lastSalePrice != null || snapData.estimatedValue != null;
-      if (!hasSoldPrice) return null;
-    }
-
-    return snapData;
+    return (snap?.data as Record<string, unknown>) ?? null;
   } catch {
     return null;
   }
@@ -272,6 +238,7 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
             const dateM = t.match(/sold\s+on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
             const priceM = t.match(/\$([\d,]+)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+)/i);
             if (dateM && priceM) {
+                // normalize "Feb 17, 2026" → "February 2026"
                 const d = new Date(dateM[1]);
                 const label = isNaN(d.getTime()) ? dateM[1] : d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 return [null, label, priceM[1]] as unknown as RegExpMatchArray;
@@ -281,13 +248,6 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
     if (soldM) {
         lastSaleDate  = soldM[1] ?? null;
         lastSalePrice = soldM[2] ? parseInt(soldM[2].replace(/,/g, '')) : null;
-    }
-
-    // Redfin header format: "SOLD\n$1,604,645\n4 bd" — no date in this pattern
-    // Only use as fallback when date-bearing patterns above didn't fire
-    if (!lastSalePrice) {
-        const headerM = t.match(/\bSOLD\b[^$\d]{0,30}\$\s*([\d,]+)/i);
-        if (headerM) lastSalePrice = parseInt(headerM[1].replace(/,/g, ''));
     }
 
     // HOA
@@ -490,63 +450,6 @@ function mergeGpt4o(base: Record<string, unknown>, gpt: GPT4oPropertyFields | nu
     return out;
 }
 
-// ── Redfin AVM API ─────────────────────────────────────────────────────────
-// Calls Redfin's own internal AVM endpoint — same data their website uses.
-// Response is prefixed with )]}' (XSSI guard) before valid JSON.
-
-interface RedfinAVMResult {
-    estimatedValue:    number | null;
-    estimatedValueLow: number | null;
-    estimatedValueHigh: number | null;
-}
-
-const REDFIN_HEADERS = {
-    'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept':          'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Referer':         'https://www.redfin.com/',
-};
-
-async function fetchRedfinAVM(redfinUrl: string): Promise<RedfinAVMResult> {
-    const empty: RedfinAVMResult = { estimatedValue: null, estimatedValueLow: null, estimatedValueHigh: null };
-    const idMatch = redfinUrl.match(/\/home\/(\d+)/);
-    if (!idMatch) return empty;
-    const propertyId = idMatch[1];
-
-    try {
-        const res = await fetch(
-            `https://www.redfin.com/stingray/api/home/details/avm?propertyId=${propertyId}&accessLevel=3`,
-            { headers: REDFIN_HEADERS, signal: AbortSignal.timeout(8_000) },
-        );
-        if (!res.ok) {
-            console.log(`[redfin/avm] HTTP ${res.status} for propertyId=${propertyId}`);
-            return empty;
-        }
-        const raw = await res.text();
-        // Redfin XSSI guard is {}&&  (not )]}' as some docs suggest)
-        // Strip it, then parse the real JSON payload
-        const stripped = raw.startsWith('{}&&') ? raw.slice(4) : raw.replace(/^\)\]\}'[\r\n]*/, '');
-        if (!stripped.trim().startsWith('{') && !stripped.trim().startsWith('[')) {
-            console.log(`[redfin/avm] unexpected response format:`, JSON.stringify(raw.slice(0, 80)));
-            return empty;
-        }
-        const json = JSON.parse(stripped.trim());
-        const avm  = json?.payload?.avm;
-        if (!avm) {
-            console.log(`[redfin/avm] no avm in payload. keys:`, Object.keys(json?.payload ?? {}));
-            return empty;
-        }
-        const estimatedValue    = typeof avm.predictedValue === 'number' ? Math.round(avm.predictedValue)    : null;
-        const estimatedValueLow  = typeof avm.valueRange?.min === 'number' ? Math.round(avm.valueRange.min) : null;
-        const estimatedValueHigh = typeof avm.valueRange?.max === 'number' ? Math.round(avm.valueRange.max) : null;
-        console.log(`[redfin/avm] ✓ propertyId=${propertyId} AVM=$${estimatedValue?.toLocaleString()} range=$${estimatedValueLow?.toLocaleString()}–$${estimatedValueHigh?.toLocaleString()}`);
-        return { estimatedValue, estimatedValueLow, estimatedValueHigh };
-    } catch (err) {
-        console.log('[redfin/avm] error:', err instanceof Error ? err.message : String(err));
-        return empty;
-    }
-}
-
 // ── Tavily extract helper ───────────────────────────────────────────────────
 
 async function tavilyExtract(url: string): Promise<string | null> {
@@ -663,17 +566,14 @@ export async function POST(req: Request) {
 async function handleUrl(rawUrl: string) {
     const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 
-    // Run base fetch, Tavily text, and Redfin AVM API in parallel
-    const isRedfin = /redfin\.com/i.test(url);
-    const [baseResult, tavilyText, avmResult] = await Promise.allSettled([
+    // Run base property fetch and Tavily extract in parallel
+    const [baseResult, tavilyText] = await Promise.allSettled([
         fetchPropertyData(url),
         tavilyExtract(url),
-        isRedfin ? fetchRedfinAVM(url) : Promise.resolve(null),
     ]);
 
-    const base = baseResult.status === 'fulfilled' ? baseResult.value : null;
-    const text = tavilyText.status === 'fulfilled' ? tavilyText.value : null;
-    const avm  = avmResult.status  === 'fulfilled' ? avmResult.value  : null;
+    const base     = baseResult.status === 'fulfilled'  ? baseResult.value   : null;
+    const text     = tavilyText.status === 'fulfilled'  ? tavilyText.value   : null;
 
     if (!base || !base.ok) {
         // Direct fetch blocked — fall back to Tavily text if available
@@ -729,15 +629,6 @@ async function handleUrl(rawUrl: string) {
     // GPT-4o fills any gaps left by the regex parsers (beds/baths/sqft/yearBuilt/HOA etc.)
     const gpt = text ? await gpt4oExtract(text, url) : null;
 
-    // Redfin AVM API is the authoritative source — always wins over parseExtended/GPT/script data
-    if (avm?.estimatedValue    != null) ext.estimatedValue    = avm.estimatedValue;
-    if (avm?.estimatedValueLow  != null) ext.estimatedValueLow  = avm.estimatedValueLow;
-    if (avm?.estimatedValueHigh != null) ext.estimatedValueHigh = avm.estimatedValueHigh;
-    // Fall back to HTML script-tag extraction only when AVM API returned nothing
-    if (ext.estimatedValue == null && d.estimatedValue != null) ext.estimatedValue = d.estimatedValue;
-    if (ext.lastSalePrice  == null && d.lastSalePrice  != null) ext.lastSalePrice  = d.lastSalePrice;
-    if (ext.lastSaleDate   == null && d.lastSaleDate   != null) ext.lastSaleDate   = d.lastSaleDate;
-
     const baseData: Record<string, unknown> = {
         source:           d.source,
         url,
@@ -758,14 +649,7 @@ async function handleUrl(rawUrl: string) {
         ...ext,
     };
 
-    const merged = mergeGpt4o(baseData, gpt);
-
-    // Quality check — logs only to Vercel function logs, never surfaced to users
-    const quality = checkPropertyQuality(merged, String(d.source));
-    merged.qualityScore  = quality.score;
-    merged.qualityStatus = quality.status;
-
-    return NextResponse.json({ ok: true, data: merged });
+    return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
 }
 
 // ── Tavily search → find Redfin URL for an address ─────────────────────────

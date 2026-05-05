@@ -157,7 +157,6 @@ function CheckPropertyInner() {
 
     // ── Actual property numbers (recalculated on the real listing price) ──────
 
-    // price is already normalized at API level for SOLD/OFF_MARKET properties
     const listPrice    = propData?.price ?? sc.price;
     const actualPrice  = propData ? listPrice : sc.price;   // switches to real price after lookup
     const avm          = propData?.estimatedValue ?? null;
