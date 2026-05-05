@@ -43,8 +43,9 @@ function parseCSV(text: string): { contacts: Contact[]; parseErrors: string[] } 
       email = (parts[1] ?? "").replace(/^"|"$/g, "").trim().toLowerCase();
     }
 
+    // Only flag as error if the line contains @ (i.e. user intended an email)
     if (!email || !EMAIL_RE.test(email)) {
-      parseErrors.push(`Row ${i + 1}: invalid email "${email}"`);
+      if (line.includes("@")) parseErrors.push(`Row ${i + 1}: invalid email "${email}"`);
       continue;
     }
     if (!name) {
@@ -141,9 +142,9 @@ export default function AdminOutreachPage() {
     );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff", overflowY: "auto" }}>
+    <div style={{ minHeight: "100vh", width: "100%", background: "#0a0a0a", color: "#fff" }}>
       <AppNav />
-      <div style={{ maxWidth: 700, width: "100%", margin: "0 auto", padding: "2rem 1.5rem", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "2rem 1.5rem", boxSizing: "border-box" }}>
         {/* Breadcrumb */}
         <div style={{ marginBottom: "1.5rem" }}>
           <Link href="/admin" style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, textDecoration: "none" }}>
