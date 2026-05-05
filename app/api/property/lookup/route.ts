@@ -515,7 +515,7 @@ async function fetchRedfinAVM(redfinUrl: string): Promise<RedfinAVMResult> {
 
     try {
         const res = await fetch(
-            `https://www.redfin.com/stingray/api/home/details/avm?propertyId=${propertyId}&accessLevel=1`,
+            `https://www.redfin.com/stingray/api/home/details/avm?propertyId=${propertyId}&accessLevel=3`,
             { headers: REDFIN_HEADERS, signal: AbortSignal.timeout(8_000) },
         );
         if (!res.ok) {
@@ -533,7 +533,7 @@ async function fetchRedfinAVM(redfinUrl: string): Promise<RedfinAVMResult> {
         const json = JSON.parse(stripped.trim());
         const avm  = json?.payload?.avm;
         if (!avm) {
-            console.log(`[redfin/avm] no avm payload for propertyId=${propertyId}`, JSON.stringify(json?.payload).slice(0, 200));
+            console.log(`[redfin/avm] no avm in payload. keys:`, Object.keys(json?.payload ?? {}));
             return empty;
         }
         const estimatedValue    = typeof avm.predictedValue === 'number' ? Math.round(avm.predictedValue)    : null;
