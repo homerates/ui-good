@@ -23,6 +23,19 @@ export interface SliderCardParams {
     buydownType?: '2/1' | '1/0' | '3/2/1' | 'none';
     sellerCredit?: number;
     onRunScenario?: (seed: string, paramOverrides: Record<string, any>) => void;
+    // CMA params — passed from property lookup path to enable Full Property Intelligence Report button
+    cmaAddress?: string;
+    cmaCity?: string;
+    cmaState?: string;
+    cmaZip?: string;
+    cmaPrice?: number;
+    cmaBeds?: number;
+    cmaBaths?: number;
+    cmaSqft?: number;
+    cmaTaxAnnual?: number;
+    cmaTaxRate?: number;
+    cmaLiveRate?: number;
+    cmaPhotoUrl?: string;
 }
 
 const VA_FF_OPTIONS = [
@@ -599,23 +612,6 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="isc-exp-actions">
-                    <button className="isc-btn-vault" onClick={handleVault}>
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
-                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                        </svg>
-                        {vaultDone ? 'Saved ✓' : 'My Vault'}
-                    </button>
-                    <PdfDownloadButton
-                        type={loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType}
-                        getParams={() => ({ price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, loanType, vaFundingFeePct: vaFfPct })}
-                    />
-                    <button className="isc-btn-match" onClick={() => router.push(getMatchedUrl())}>
-                        Get Matched →
-                    </button>
-                </div>
-
                 {/* Drawer CTA */}
                 <div className="isc-drawer-cta">
                     {drawerPhase === 'idle' && !isDirty && <span className="isc-drawer-hint">Drag sliders to model a new scenario</span>}
@@ -626,21 +622,22 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             </div>
             </div>
 
-            {/* Income qualify follow-up chip */}
-            {props.onRunScenario && (
-                <div className="isc-followup-row">
-                    <button className="isc-followup-chip" onClick={() => {
-                        const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
-                        const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
-                        props.onRunScenario!(
-                            `What income do I need to qualify for a ${prStr} ${lt} loan with ${downPct}% down at ${rate.toFixed(2)}%?`,
-                            { isIncomeQualify: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: lt }
-                        );
-                    }}>
-                        What income do I need to qualify? →
-                    </button>
-                </div>
-            )}
+            {/* Action buttons — below drawer, in line with share area */}
+            <div className="isc-action-row">
+                <button className="isc-btn-vault" onClick={handleVault}>
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
+                        <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                    </svg>
+                    {vaultDone ? 'Saved ✓' : 'My Vault'}
+                </button>
+                <PdfDownloadButton
+                    type={loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType}
+                    getParams={() => ({ price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, loanType, vaFundingFeePct: vaFfPct })}
+                />
+                <button className="isc-btn-match" onClick={() => router.push(getMatchedUrl())}>
+                    Get Matched →
+                </button>
+            </div>
 
             {/* Check a property */}
             <div className="isc-property-row">
@@ -652,6 +649,30 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     Check a property →
                 </button>
             </div>
+
+            {/* Full Property Intelligence Report — only when address data is available */}
+            {props.cmaAddress && props.onRunScenario && (
+                <div className="isc-property-row" style={{ paddingTop: 0 }}>
+                    <button className="isc-btn-report" onClick={() => {
+                        const priceFmt = (props.cmaPrice ?? price) >= 1_000_000
+                            ? `$${((props.cmaPrice ?? price) / 1_000_000).toFixed(1)}M`
+                            : `$${Math.round((props.cmaPrice ?? price) / 1000)}k`;
+                        props.onRunScenario!(
+                            `Property intelligence report: ${props.cmaAddress} listed at ${priceFmt}${props.cmaCity ? ` in ${props.cmaCity}` : ''}`,
+                            {
+                                cmaAddress: props.cmaAddress, cmaCity: props.cmaCity ?? '',
+                                cmaState: props.cmaState ?? '', cmaZip: props.cmaZip ?? '',
+                                cmaPrice: props.cmaPrice ?? price, cmaBeds: props.cmaBeds ?? 0,
+                                cmaBaths: props.cmaBaths ?? 0, cmaSqft: props.cmaSqft ?? 0,
+                                cmaTaxAnnual: props.cmaTaxAnnual ?? 0, cmaTaxRate: props.cmaTaxRate ?? 0.011,
+                                cmaLiveRate: props.cmaLiveRate ?? props.rate, cmaPhotoUrl: props.cmaPhotoUrl ?? '',
+                            }
+                        );
+                    }}>
+                        Full Property Intelligence Report →
+                    </button>
+                </div>
+            )}
 
             {/* Rate note */}
             <div className="isc-note">
@@ -766,22 +787,19 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-ent-row--ok   { background:rgba(20,184,166,0.04); color:#14b8a6; }
                 .isc-ent-used { color:#ff5f5f; font-weight:700; }
 
-                /* actions */
-                .isc-exp-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+                /* action row — below drawer, before check a property */
+                .isc-action-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 12px 4px; }
                 .isc-btn-vault { display:flex; align-items:center; gap:6px; background:#00e87a; color:#07100f; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; transition:opacity .15s; }
                 .isc-btn-vault:hover { opacity:.88; }
                 .isc-btn-match { background:transparent; color:#f0f4ff; border:1.5px solid rgba(255,255,255,0.2); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .isc-btn-match:hover { border-color:rgba(255,255,255,0.35); background:rgba(255,255,255,0.04); }
 
-                /* follow-up chip */
-                .isc-followup-row { padding:6px 12px 0; }
-                .isc-followup-chip { width:100%; padding:10px 16px; background:rgba(255,255,255,0.03); border:1.5px solid rgba(255,255,255,0.09); border-radius:10px; color:#8fa3b8; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; text-align:center; display:block; }
-                .isc-followup-chip:hover { border-color:rgba(0,232,122,0.3); color:#00e87a; background:rgba(0,232,122,0.05); }
-
-                /* check a property */
+                /* check a property + full report */
                 .isc-property-row { padding:4px 12px 10px; }
                 .isc-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; width:100%; text-align:center; display:block; }
                 .isc-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
+                .isc-btn-report { background:rgba(0,232,122,0.04); color:#00e87a; border:1.5px solid rgba(0,232,122,0.18); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; width:100%; text-align:center; display:block; }
+                .isc-btn-report:hover { background:rgba(0,232,122,0.10); border-color:rgba(0,232,122,0.35); }
 
                 /* note */
                 .isc-note { padding:4px 16px 12px; }
@@ -793,8 +811,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     .isc-bd-thead,.isc-bd-trow { font-size:10px; grid-template-columns:40px 52px 68px 68px 1fr; }
                 }
                 @media (max-width: 640px) {
-                    .isc-exp-actions { flex-direction:column; gap:8px; }
-                    .isc-exp-actions button { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
+                    .isc-action-row { flex-direction:column; gap:8px; }
+                    .isc-action-row button { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
                 }
             `}</style>
         </div>

@@ -378,6 +378,9 @@ type ApiResponse = {
     interactiveSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; loanType: 'conventional' | 'fha' | 'jumbo' | 'va';
+        cmaAddress?: string; cmaCity?: string; cmaState?: string; cmaZip?: string;
+        cmaPrice?: number; cmaBeds?: number; cmaBaths?: number; cmaSqft?: number;
+        cmaTaxAnnual?: number; cmaTaxRate?: number; cmaLiveRate?: number; cmaPhotoUrl?: string;
     } | null;
     convHBSlider?: {
         price: number; downPct: number; rate: number; term: number;
@@ -2129,59 +2132,22 @@ export default function Page() {
                         taxRate,
                         insRate: 0.0050,
                         loanType: sliderLoanType,
+                        cmaAddress:  d.address    ?? undefined,
+                        cmaCity:     d.city       ?? undefined,
+                        cmaState:    d.state      ?? undefined,
+                        cmaZip:      d.zip        ?? undefined,
+                        cmaPrice:    d.price,
+                        cmaBeds:     d.beds       ?? undefined,
+                        cmaBaths:    d.baths      ?? undefined,
+                        cmaSqft:     d.sqft       ?? undefined,
+                        cmaTaxAnnual: d.annualTaxes ?? undefined,
+                        cmaTaxRate:  d.taxRateEffective ?? undefined,
+                        cmaLiveRate: liveRate,
+                        cmaPhotoUrl: d.photoUrl   ?? undefined,
                     } : null;
 
-                    // Property-specific follow-up chips
-                    const priceFmt = d.price ? fmtK(d.price) : 'this home';
-                    const chips = [
-                        {
-                            label: `What income do I need to qualify?`,
-                            seed: `What income do I need to qualify for a ${priceFmt} home${cityStr}?`,
-                            paramOverrides: {
-                                purchasePrice: d.price ?? 0,
-                                downPaymentPct: defaultDown,
-                                annualRatePct: liveRate,
-                                propertyTaxRate: taxRate,
-                                ...(isJumboLoan ? { loanType: 'jumbo' } : {}),
-                            },
-                        },
-                        // FHA doesn't apply to jumbo — swap for jumbo-specific chip
-                        ...(isJumboLoan ? [{
-                            label: `30% down — reduce jumbo rate premium`,
-                            seed: `Jumbo loan on ${priceFmt} with 30% down at ${liveRate.toFixed(2)}%${cityStr}`,
-                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 30, annualRatePct: liveRate, loanType: 'jumbo' },
-                        }] : [{
-                            label: `FHA vs conventional on this home`,
-                            seed: `Compare FHA 3.5% down vs conventional 5% down on a ${priceFmt} home at ${liveRate.toFixed(2)}%${cityStr}`,
-                        }]),
-                        ...(d.price && d.price * (1 - 0.10) <= 832750 ? [{
-                            label: `10% down — what's my payment?`,
-                            seed: `Conventional loan on ${priceFmt} with 10% down at ${liveRate.toFixed(2)}%`,
-                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 10, annualRatePct: liveRate, propertyTaxRate: taxRate },
-                        }] : [{
-                            label: `25% down — what's my payment?`,
-                            seed: `${isJumboLoan ? 'Jumbo' : 'Conventional'} loan on ${priceFmt} with 25% down at ${liveRate.toFixed(2)}%`,
-                            paramOverrides: { purchasePrice: d.price, downPaymentPct: 25, annualRatePct: liveRate, propertyTaxRate: taxRate, ...(isJumboLoan ? { loanType: 'jumbo' } : {}) },
-                        }]),
-                        ...(d.price && d.address ? [{
-                            label: `Full Property Intelligence Report`,
-                            seed: `Property intelligence report: ${d.address} listed at ${priceFmt}${d.city ? ` in ${d.city}` : ''}`,
-                            paramOverrides: {
-                                cmaAddress:  d.address,
-                                cmaCity:     d.city    ?? '',
-                                cmaState:    d.state   ?? '',
-                                cmaZip:      d.zip     ?? '',
-                                cmaPrice:    d.price,
-                                cmaBeds:     d.beds    ?? 0,
-                                cmaBaths:    d.baths   ?? 0,
-                                cmaSqft:     d.sqft    ?? 0,
-                                cmaTaxAnnual: d.annualTaxes ?? 0,
-                                cmaTaxRate:  d.taxRateEffective ?? 0.011,
-                                cmaLiveRate: liveRate,
-                                cmaPhotoUrl: d.photoUrl ?? '',
-                            } as Record<string, string | number>,
-                        }] : []),
-                    ];
+                    // Chips removed — actions are now buttons inside InteractiveSliderCard
+                    const chips: typeof [] = [];
 
                     const propertyMeta: ApiResponse = {
                         path: 'property_lookup',
