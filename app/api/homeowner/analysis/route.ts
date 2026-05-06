@@ -562,7 +562,10 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // Redfin Estimate was never correctly extracted and the purchase price leaked into the AVM.
   const propAgeMs = prop?.updated_at ? Date.now() - new Date(prop.updated_at).getTime() : Infinity;
   const roughSaleMs = parseFlexDate(rawSaleDateStr)?.getTime() ?? null;
-  const avmEqualsOldSalePrice = !!(rawSalePrice && prop?.latest_value && roughSaleMs &&
+  // Only trigger the AVM-staleness Redfin re-scrape when we actually need a fresh AVM.
+  // When hasLoFinancials=true the liveAvm/dbEst guards discard the scraped value anyway,
+  // and triggering needsLive just adds 10+ seconds to the reload after a user saves numbers.
+  const avmEqualsOldSalePrice = !hasLoFinancials && !!(rawSalePrice && prop?.latest_value && roughSaleMs &&
       Date.now() - roughSaleMs > TWO_YEARS_MS &&
       Math.abs(prop.latest_value - rawSalePrice) / rawSalePrice < 0.02);
   const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft || !prop?.latest_value || propAgeMs > SNAPSHOT_TTL_MS || avmEqualsOldSalePrice;

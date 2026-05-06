@@ -20,6 +20,7 @@ interface HomeownerProperty {
   actual_rate: number | null;
   actual_purchase_price: number | null;
   actual_purchase_date: string | null;
+  actual_value: number | null;
 }
 
 interface SavedOverrides {
@@ -1743,10 +1744,12 @@ function MyHomePageInner() {
       }),
     });
     const saved = await res.json().catch(() => null);
-    if (saved?.property) {
-      setProperties(prev => prev.map(p => p.id === saved.property.id ? saved.property : p));
-    }
     setLoanSaving(false);
+    if (!res.ok || !saved?.property) {
+      alert(saved?.error ?? 'Save failed — please try again.');
+      return;
+    }
+    setProperties(prev => prev.map(p => p.id === saved.property.id ? saved.property : p));
     setLoanSaved(true);
     setEditingLoan(false);
     setAnalysis(null);
