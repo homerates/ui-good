@@ -2146,8 +2146,21 @@ export default function Page() {
                         cmaPhotoUrl: d.photoUrl   ?? undefined,
                     } : null;
 
-                    // Chips removed — actions are now buttons inside InteractiveSliderCard
-                    const chips: { label: string; seed: string; paramOverrides?: Record<string, any> }[] = [];
+                    // Keep the income-qualify chip — the 3 old-style chips were removed, this newer one stays
+                    const priceFmt = d.price ? fmtK(d.price) : 'this home';
+                    const chips: { label: string; seed: string; paramOverrides?: Record<string, any> }[] = d.price ? [
+                        {
+                            label: `What income do I need to qualify?`,
+                            seed: `What income do I need to qualify for a ${priceFmt} home${cityStr}?`,
+                            paramOverrides: {
+                                purchasePrice: d.price,
+                                downPaymentPct: defaultDown,
+                                annualRatePct: liveRate,
+                                propertyTaxRate: taxRate,
+                                ...(isJumboLoan ? { loanType: 'jumbo' } : {}),
+                            },
+                        },
+                    ] : [];
 
                     const propertyMeta: ApiResponse = {
                         path: 'property_lookup',
