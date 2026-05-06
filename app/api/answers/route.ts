@@ -5760,9 +5760,31 @@ ${dtiSection}
         const baths:    number = Number(cmaParams.cmaBaths   ?? 0);
         const sqft:     number = Number(cmaParams.cmaSqft    ?? 0);
         const taxAnnual:number = Number(cmaParams.cmaTaxAnnual ?? 0);
-        const taxRate:  number = Number(cmaParams.cmaTaxRate ?? 0.011);
+        let taxRate:    number = Number(cmaParams.cmaTaxRate ?? 0.011);
         const liveRate: number = Number(cmaParams.cmaLiveRate ?? fred?.mort30Avg ?? 6.5);
-        const photoUrl: string = String(cmaParams.cmaPhotoUrl ?? '');
+        let photoUrl:   string = String(cmaParams.cmaPhotoUrl ?? '');
+
+        // Self-heal: when photo or tax rate is missing/default, pull from property_snapshots
+        if (addr && supabase && (!photoUrl || taxRate === 0.011)) {
+            try {
+                const { data: snap } = await supabase
+                    .from('property_snapshots')
+                    .select('data')
+                    .eq('address', addr)
+                    .order('fetched_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                if (snap?.data) {
+                    const sd = snap.data as any;
+                    if (!photoUrl && typeof sd.photoUrl === 'string' && sd.photoUrl.startsWith('http') && !/\/logo/i.test(sd.photoUrl)) {
+                        photoUrl = sd.photoUrl;
+                    }
+                    if (taxRate === 0.011 && typeof sd.taxRateEffective === 'number' && sd.taxRateEffective > 0) {
+                        taxRate = sd.taxRateEffective;
+                    }
+                }
+            } catch { /* non-blocking */ }
+        }
 
         // Price from chip params — no external AVM call
         const avmLow: number | null = null;

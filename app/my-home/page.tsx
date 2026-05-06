@@ -865,6 +865,7 @@ function buildCMAUrl(d: AnalysisData): string {
   if (taxAnnual)      p.set('cmaTaxAnnual', String(taxAnnual));
   p.set('cmaTaxRate', '0.011');
   if (d.liveRate)     p.set('cmaLiveRate', String(d.liveRate));
+  if (d.photoUrl)     p.set('cmaPhotoUrl', d.photoUrl);
   return `/chat?${p.toString()}`;
 }
 
