@@ -396,6 +396,17 @@ async function liveRedfinLookup(address: string): Promise<LivePropertyFields | n
 
 // ── property_snapshots cache helpers ─────────────────────────────────────────
 const SNAPSHOT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — AVM data is stable; 7 days caused drift
+const TWO_YEARS_MS    = 2 * 365.25 * 24 * 60 * 60 * 1000;
+
+// Handles "Month YYYY" output from GPT-4o (e.g. "August 1996") which Date() rejects.
+function parseFlexDate(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  let d = new Date(s);
+  if (!isNaN(d.getTime()) && d.getFullYear() >= 1900) return d;
+  const m = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (m) { d = new Date(`${m[1]} 1, ${m[2]}`); if (!isNaN(d.getTime()) && d.getFullYear() >= 1900) return d; }
+  return null;
+}
 
 function normalizeAddr(a: string) { return a.toLowerCase().replace(/\s+/g, ' ').trim(); }
 
@@ -420,6 +431,12 @@ async function getSnapshot(address: string) {
     if (snapAvm && snapAvm > 50_000_000) return null;
     // Evict AVMs clearly below the known sale price — symptom of a wrong-page GPT-4o extraction
     if (snapAvm && snapSalePrice && snapAvm < snapSalePrice * 0.60) return null;
+    // Evict when AVM ≈ sale price for an old property — means the Redfin Estimate was never
+    // correctly extracted and the sale price leaked into latest_value.
+    const snapSaleDateMs = parseFlexDate((snap.data as any)?.lastSaleDate)?.getTime() ?? null;
+    if (snapAvm && snapSalePrice && snapSaleDateMs &&
+        Date.now() - snapSaleDateMs > TWO_YEARS_MS &&
+        Math.abs(snapAvm - snapSalePrice) / snapSalePrice < 0.02) return null;
     return snap.data as PropertyData;
   } catch { return null; }
 }
@@ -541,9 +558,14 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // Pass original address: if it was a Redfin URL, liveRedfinLookup will use it directly (no Tavily search needed).
   const hasLoFinancials = !!(record.actual_purchase_price || record.actual_value || record.actual_balance || record.actual_rate);
   // Refresh when any key field is missing OR when the DB record is stale (>30 days).
-  // Aligns with the snapshot TTL so the AVM never goes stale between snapshot expirations.
+  // Also refresh when latest_value ≈ the sale price for an old property — this means the
+  // Redfin Estimate was never correctly extracted and the purchase price leaked into the AVM.
   const propAgeMs = prop?.updated_at ? Date.now() - new Date(prop.updated_at).getTime() : Infinity;
-  const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft || !prop?.latest_value || propAgeMs > SNAPSHOT_TTL_MS;
+  const roughSaleMs = parseFlexDate(rawSaleDateStr)?.getTime() ?? null;
+  const avmEqualsOldSalePrice = !!(rawSalePrice && prop?.latest_value && roughSaleMs &&
+      Date.now() - roughSaleMs > TWO_YEARS_MS &&
+      Math.abs(prop.latest_value - rawSalePrice) / rawSalePrice < 0.02);
+  const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft || !prop?.latest_value || propAgeMs > SNAPSHOT_TTL_MS || avmEqualsOldSalePrice;
   const liveData = needsLive ? await liveRedfinLookup(address) : null;
 
   if (liveData) {
@@ -600,9 +622,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   const stateCode = prop?.state ?? stateFromAddress(resolvedAddress.toUpperCase());
   const annualRate = fhfaRate(stateCode) / 100;
   const salePrice = rawSalePrice ?? null;
-  const saleDateRaw = rawSaleDateStr ? new Date(rawSaleDateStr) : null;
-  // Reject invalid or ancient dates
-  const saleDate = saleDateRaw && !isNaN(saleDateRaw.getTime()) && saleDateRaw.getFullYear() >= 1900 ? saleDateRaw : null;
+  const saleDate  = parseFlexDate(rawSaleDateStr); // handles "Month YYYY" from GPT-4o
   // Cap at 50 years — FHFA compounding beyond that produces nonsensical residential AVMs
   const yearsElapsed = saleDate ? Math.min(50, Math.max(0, (Date.now() - saleDate.getTime()) / (365.25 * 24 * 3600 * 1000))) : null;
 
@@ -629,7 +649,14 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // This is the correct Redfin AVM even when a direct Redfin scrape is blocked.
   const rawDbEst = (!hasLoFinancials && !liveAvm && prop?.latest_value && prop.latest_value > 50_000 && prop.latest_value <= AVM_MAX)
     ? prop.latest_value : null;
-  const dbEst = (rawDbEst && salePrice && rawDbEst < salePrice * 0.75) ? null : rawDbEst;
+  // Sanity #1: below 75% of sale price → wrong page
+  // Sanity #2: equals sale price for an old property → purchase price leaked in as AVM
+  const dbEstIsOldSalePrice = !!(rawDbEst && salePrice && saleDate &&
+      Date.now() - saleDate.getTime() > TWO_YEARS_MS &&
+      Math.abs(rawDbEst - salePrice) / salePrice < 0.02);
+  const dbEst = (rawDbEst && salePrice && rawDbEst < salePrice * 0.75) ? null
+    : dbEstIsOldSalePrice ? null
+    : rawDbEst;
 
   // avmSource tracks which data tier produced the estimate for UI color-coding:
   // redfin_estimate = scraped directly from Redfin's "Redfin Estimate" section (highest confidence)
