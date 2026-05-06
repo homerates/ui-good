@@ -409,9 +409,13 @@ async function getSnapshot(address: string) {
       .select('data, fetched_at').eq('property_id', prop.id).eq('snapshot_type', 'full')
       .order('fetched_at', { ascending: false }).limit(1).maybeSingle();
     if (!snap) return null;
-    if (snap.fetched_at && Date.now() - new Date(snap.fetched_at).getTime() > SNAPSHOT_TTL_MS) return null;
     const snapAvm       = (snap.data as any)?.estimatedValue as number | null;
     const snapSalePrice = (snap.data as any)?.lastSalePrice  as number | null;
+    const snapAvmSource = (snap.data as any)?.avmSource as string | null;
+    // FHFA-model AVMs are lower confidence — expire them in 7 days so a fresher Redfin
+    // scrape can replace them. Redfin-verified estimates keep the full 30-day TTL.
+    const effectiveTtl = (snapAvmSource === 'redfin_estimate') ? SNAPSHOT_TTL_MS : 7 * 24 * 60 * 60 * 1000;
+    if (snap.fetched_at && Date.now() - new Date(snap.fetched_at).getTime() > effectiveTtl) return null;
     // Evict absurdly high AVMs
     if (snapAvm && snapAvm > 50_000_000) return null;
     // Evict AVMs clearly below the known sale price — symptom of a wrong-page GPT-4o extraction
@@ -498,7 +502,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
 
   // 2. Check properties table for stored sale data
   const addr = normalizeAddr(resolvedAddress);
-  const PROP_SEL = 'id, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn';
+  const PROP_SEL = 'id, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn, updated_at';
   let prop: any = (await db().from('properties').select(PROP_SEL).ilike('address_full', addr).maybeSingle()).data ?? null;
   // Fuzzy fallback: addresses from URL params lack commas (Google Places adds them)
   if (!prop) {
@@ -536,7 +540,10 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // override it. Live lookup still runs for structural data (beds/baths/sqft) and photo.
   // Pass original address: if it was a Redfin URL, liveRedfinLookup will use it directly (no Tavily search needed).
   const hasLoFinancials = !!(record.actual_purchase_price || record.actual_value || record.actual_balance || record.actual_rate);
-  const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft || !prop?.latest_value;
+  // Refresh when any key field is missing OR when the DB record is stale (>30 days).
+  // Aligns with the snapshot TTL so the AVM never goes stale between snapshot expirations.
+  const propAgeMs = prop?.updated_at ? Date.now() - new Date(prop.updated_at).getTime() : Infinity;
+  const needsLive = !rawSalePrice || !prop?.beds || !prop?.sqft || !prop?.latest_value || propAgeMs > SNAPSHOT_TTL_MS;
   const liveData = needsLive ? await liveRedfinLookup(address) : null;
 
   if (liveData) {
