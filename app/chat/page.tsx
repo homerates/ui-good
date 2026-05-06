@@ -2147,7 +2147,7 @@ export default function Page() {
                     } : null;
 
                     // Chips removed — actions are now buttons inside InteractiveSliderCard
-                    const chips: string[] = [];
+                    const chips: { label: string; seed: string; paramOverrides?: Record<string, any> }[] = [];
 
                     const propertyMeta: ApiResponse = {
                         path: 'property_lookup',
