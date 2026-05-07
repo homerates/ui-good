@@ -117,6 +117,7 @@ export default function LOScenariosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [responseThreadId, setResponseThreadId] = useState<string | null>(null);
 
   const [loProfile, setLoProfile] = useState<{ full_name: string; nmls: string; license_state: string; is_agent: boolean } | null>(null);
   type GateStatus = "loading" | "ok" | "not-lo" | "no-nmls" | "no-plan";
@@ -204,7 +205,7 @@ export default function LOScenariosPage() {
   function openModal(scenario: Scenario) {
     setModal({ scenario });
     setApproach("");
-    setSubmitError(""); setSubmitSuccess(false);
+    setSubmitError(""); setSubmitSuccess(false); setResponseThreadId(null);
     setLoName(loProfile?.full_name ?? "");
     setLoNmls(loProfile?.nmls ?? "");
     setRateEstimate(scenario.card_rate ? `${scenario.card_rate.toFixed(2)}%` : "");
@@ -249,6 +250,7 @@ export default function LOScenariosPage() {
       return;
     }
     setSubmitSuccess(true);
+    setResponseThreadId(data.thread_id ?? null);
     setSubmitting(false);
     setScenarios(prev => prev.map(s =>
       s.id === modal.scenario.id ? { ...s, already_responded: true, response_count: s.response_count + 1 } : s
@@ -749,10 +751,25 @@ export default function LOScenariosPage() {
                   <div className="los-modal-success-icon">✓</div>
                   <h3>Response submitted</h3>
                   <p>
-                    The borrower will see your response and compare it against their HomeRates.ai analysis.
-                    If they choose you, you'll receive their contact info by email.
+                    Your approach was sent to the borrower as a message. The conversation thread is open — you can continue the dialogue now.
                   </p>
-                  <button className="los-modal-close-btn" onClick={() => setModal(null)}>Done</button>
+                  <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                    {responseThreadId && (
+                      <button
+                        className="los-modal-close-btn"
+                        onClick={() => router.push(`/messages/${responseThreadId}`)}
+                      >
+                        Open Conversation →
+                      </button>
+                    )}
+                    <button
+                      className="los-modal-cancel"
+                      style={{ padding: "10px 24px" }}
+                      onClick={() => { setModal(null); setResponseThreadId(null); }}
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>

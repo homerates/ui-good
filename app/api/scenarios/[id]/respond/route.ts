@@ -114,6 +114,61 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Failed to submit response" }, { status: 500 });
   }
 
+  // Auto-create (or find existing) conversation thread + insert LO's approach as first message
+  let threadId: string | null = null;
+  try {
+    const { data: existingThread } = await sb
+      .from("conversation_threads")
+      .select("id, unread_borrower")
+      .eq("borrower_id", scenarioFull.borrower_id)
+      .eq("professional_id", userId)
+      .maybeSingle();
+
+    if (existingThread) {
+      threadId = existingThread.id;
+      const { data: msg } = await sb
+        .from("messages")
+        .insert({ thread_id: threadId, sender_role: "professional", content: approach.trim() })
+        .select("created_at")
+        .single();
+      await sb
+        .from("conversation_threads")
+        .update({
+          last_message_at: msg?.created_at ?? new Date().toISOString(),
+          unread_borrower: (existingThread.unread_borrower ?? 0) + 1,
+        })
+        .eq("id", threadId);
+    } else {
+      const { data: newThread } = await sb
+        .from("conversation_threads")
+        .insert({
+          borrower_id: scenarioFull.borrower_id,
+          professional_id: userId,
+          professional_type: resolvedResponderType,
+          scenario_id: id,
+          status: "open",
+        })
+        .select("id")
+        .single();
+      if (newThread) {
+        threadId = newThread.id;
+        const { data: msg } = await sb
+          .from("messages")
+          .insert({ thread_id: threadId, sender_role: "professional", content: approach.trim() })
+          .select("created_at")
+          .single();
+        if (msg) {
+          await sb
+            .from("conversation_threads")
+            .update({ last_message_at: msg.created_at, unread_borrower: 1 })
+            .eq("id", threadId);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[scenarios/respond] thread/message creation failed:", e);
+  }
+
   // Increment response count — auto-close if cap reached
   const newCount = (scenarioFull.response_count ?? 0) + 1;
   const maxReached = newCount >= (scenarioFull.max_responses ?? 5);
@@ -144,7 +199,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     console.error("[scenarios/respond] emailScenarioResponse failed:", e);
   }
 
-  return NextResponse.json({ response });
+  return NextResponse.json({ response, thread_id: threadId });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
