@@ -4,7 +4,7 @@
 // Renders questions to ask before sharing contact info with a lender.
 
 import { useState } from 'react';
-import type { DiscoverCard as DiscoverCardData, DiscoverItem } from '@/lib/discoverCard';
+import type { DiscoverCard as DiscoverCardData, DiscoverItem } from '../../lib/discoverCard';
 
 function fmt$(n: number) { return '$' + Math.round(n).toLocaleString(); }
 function fmtPct(n: number) { return n.toFixed(2) + '%'; }
@@ -166,7 +166,7 @@ export default function DiscoverCard({ data }: { data: DiscoverCardData }) {
             {/* Discovery items */}
             {open && (
                 <div style={{ borderTop: '1px solid rgba(148,163,184,0.10)' }}>
-                    {data.items.map((item, i) => (
+                    {data.items.map((item: DiscoverItem, i: number) => (
                         <ItemRow key={item.id} item={item} index={i} total={data.items.length} />
                     ))}
                 </div>
