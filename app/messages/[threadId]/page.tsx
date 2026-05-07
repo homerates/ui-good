@@ -16,7 +16,16 @@ interface Message {
   content: string;
   read_at: string | null;
   created_at: string;
-  metadata?: { type?: string; session_id?: string; loan_type?: string } | null;
+  metadata?: {
+    type?: string;
+    session_id?: string;
+    loan_type?: string;
+    question_id?: string;
+    title?: string;
+    icon?: string;
+    ai_value?: string;
+    ai_sub?: string;
+  } | null;
 }
 
 interface Thread {
