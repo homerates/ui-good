@@ -7,6 +7,8 @@
 import { useEffect, useRef, useState, use } from "react";
 import { useAuth } from "@clerk/nextjs";
 import AppNav from "../../components/AppNav";
+import DiscoverDock from "../../components/DiscoverDock";
+import type { LoanTypeKey, ScenarioSnapshot } from "../../../lib/discoverQuestions";
 
 interface Message {
   id: string;
@@ -59,6 +61,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [discoverScenario, setDiscoverScenario] = useState<{ loanType: LoanTypeKey; snapshot: ScenarioSnapshot } | null>(null);
   const [contactShare, setContactShare] = useState<ContactShare | null>(null);
   const [proCard, setProCard] = useState<ProCard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,6 +114,25 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     setMessages(data.messages ?? []);
     setContactShare(data.contact_share ?? null);
     setProCard(data.pro_card ?? null);
+
+    // Hydrate Discover dock if scenario card data is available
+    const ds = data.discover_scenario;
+    const VALID_LOAN_TYPES: LoanTypeKey[] = ['fha', 'conventional', 'va', 'jumbo'];
+    if (ds && VALID_LOAN_TYPES.includes(ds.loanType)) {
+      setDiscoverScenario({
+        loanType: ds.loanType as LoanTypeKey,
+        snapshot: {
+          price: ds.price,
+          loanAmount: ds.loanAmount,
+          downPct: ds.downPct,
+          rate: ds.rate,
+          term: ds.term,
+          ltv: ds.ltv,
+          monthlyPayment: ds.monthlyPayment,
+        },
+      });
+    }
+
     setLoading(false);
   }
 
@@ -276,6 +298,17 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Discover dock — borrower only, when scenario card data exists */}
+            {isBorrower && discoverScenario && (
+              <div style={{ padding: "0 16px 4px" }}>
+                <DiscoverDock
+                  loanType={discoverScenario.loanType}
+                  scenario={discoverScenario.snapshot}
+                  threadId={threadId}
+                />
               </div>
             )}
 
