@@ -25,15 +25,17 @@ export async function GET(req: NextRequest) {
 
     if (mode === 'retry') {
         // Find recent published articles that haven't been tweeted yet
+        // ?days=N controls lookback window (default 30, use 3650 for all-time)
+        const days = Math.min(3650, Math.max(1, parseInt(searchParams.get('days') ?? '30', 10)));
         const supabase = db();
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
         const { data: articles, error: dbErr } = await supabase
             .from('generated_articles')
             .select('slug, title, excerpt, category, fred_snapshot')
-            .gte('published_at', sevenDaysAgo)
+            .gte('published_at', cutoff)
             .eq('status', 'published')
             .order('published_at', { ascending: false })
-            .limit(20);
+            .limit(50);
 
         if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
 

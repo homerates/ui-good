@@ -100,7 +100,7 @@ export async function GET(req: Request) {
   // Finds articles from the last 7 days whose fred_snapshot lacks twitter_post_id,
   // plus newly published ones above. Caps at 5 tweets per run to stay within rate limits.
   const supabase = db();
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const sevenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const { data: unposted } = await supabase
     .from('generated_articles')
     .select('slug, title, excerpt, category, fred_snapshot')
