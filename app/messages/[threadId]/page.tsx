@@ -301,12 +301,12 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               </div>
             )}
 
-            {/* Discover dock — borrower only, when scenario card data exists */}
-            {isBorrower && discoverScenario && (
+            {/* Discover dock — borrower only, always shown */}
+            {isBorrower && (
               <div style={{ padding: "0 16px 4px" }}>
                 <DiscoverDock
-                  loanType={discoverScenario.loanType}
-                  scenario={discoverScenario.snapshot}
+                  loanType={discoverScenario?.loanType}
+                  scenario={discoverScenario?.snapshot}
                   threadId={threadId}
                 />
               </div>

@@ -1,9 +1,9 @@
 'use client';
 // app/components/DiscoverDock.tsx
-// HomeRates Discover — dual-channel truth test docked to scenario cards.
-// Left column: AI benchmark. Right column: lender input. Real-time gap tags.
+// HomeRates Discover — dual-channel truth test.
+// scenario + loanType are optional; when absent a setup form collects them first.
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   getQuestions,
   DISCLOSURE_TEXT,
@@ -20,87 +20,124 @@ const GAP_COLORS: Record<GapStatus, { bg: string; border: string; text: string; 
 };
 
 const LOAN_LABELS: Record<LoanTypeKey, string> = {
-  fha:          'FHA',
-  conventional: 'Conventional',
-  va:           'VA',
-  jumbo:        'Jumbo',
+  fha: 'FHA', conventional: 'Conventional', va: 'VA', jumbo: 'Jumbo',
+};
+
+const DEFAULT_DOWN: Record<LoanTypeKey, string> = {
+  fha: '3.5', conventional: '3', va: '0', jumbo: '20',
 };
 
 type Props = {
-  loanType: LoanTypeKey;
-  scenario: ScenarioSnapshot;
+  loanType?: LoanTypeKey;
+  scenario?: ScenarioSnapshot;
   threadId?: string;
 };
 
-export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
-  const questions = getQuestions(loanType);
+function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTypeKey): ScenarioSnapshot {
+  const term = 30;
+  const down = price * downPct / 100;
+  const baseLoan = price - down;
+  const loanAmount = lt === 'fha' ? baseLoan * 1.0175 : baseLoan;
+  const ltv = baseLoan / price;
+  const r = rate / 100 / 12;
+  const n = term * 12;
+  const pi = r > 0 ? (loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : loanAmount / n;
+  const monthlyMIP   = lt === 'fha' && ltv > 0.90 ? loanAmount * 0.0055 / 12
+    : lt === 'fha' ? loanAmount * 0.0050 / 12 : undefined;
+  const monthlyPMI   = lt === 'conventional' && ltv > 0.80 ? loanAmount * 0.005 / 12 : undefined;
+  return {
+    price, loanAmount, downPct, rate, term, ltv,
+    monthlyPayment: pi + (monthlyMIP ?? 0) + (monthlyPMI ?? 0),
+    monthlyMIP, monthlyPMI,
+  };
+}
 
+export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId }: Props) {
   const [open, setOpen] = useState(false);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [firedToPE, setFiredToPE] = useState(false);
   const [firing, setFiring] = useState(false);
-  const [savingInput, setSavingInput] = useState<string | null>(null);
 
-  // Gap results computed inline
-  const gaps = questions.map(q => q.evaluateGap(inputs[q.id] ?? '', scenario));
-  const alertCount  = gaps.filter(g => g.status === 'alert').length;
-  const checkCount  = gaps.filter(g => g.status === 'check').length;
-  const matchCount  = gaps.filter(g => g.status === 'match').length;
+  // Setup form state — used when no scenario prop provided
+  const [localLoanType, setLocalLoanType] = useState<LoanTypeKey>(propLoanType ?? 'conventional');
+  const [localScenario, setLocalScenario] = useState<ScenarioSnapshot | null>(propScenario ?? null);
+  const [setupPrice, setSetupPrice] = useState('');
+  const [setupDown, setSetupDown] = useState(DEFAULT_DOWN[propLoanType ?? 'conventional']);
+  const [setupRate, setSetupRate] = useState('');
+  const [setupError, setSetupError] = useState('');
+
+  const activeLoanType: LoanTypeKey = propLoanType ?? localLoanType;
+  const activeScenario: ScenarioSnapshot | null = propScenario ?? localScenario;
+  const needsSetup = !activeScenario;
+
+  const questions = getQuestions(activeLoanType);
+  const gaps = activeScenario
+    ? questions.map(q => q.evaluateGap(inputs[q.id] ?? '', activeScenario))
+    : questions.map(() => ({ status: 'pending' as GapStatus, note: '' }));
+
+  const alertCount   = gaps.filter(g => g.status === 'alert').length;
+  const checkCount   = gaps.filter(g => g.status === 'check').length;
+  const matchCount   = gaps.filter(g => g.status === 'match').length;
   const pendingCount = gaps.filter(g => g.status === 'pending').length;
 
-  // Create session on first open
-  const handleOpen = useCallback(async () => {
+  const handleOpen = useCallback(() => {
     if (open) { setOpen(false); return; }
-
-    // Show disclosure if not yet seen
     const disclosed = typeof window !== 'undefined' && localStorage.getItem('hr_discover_disclosed');
     if (!disclosed) { setShowDisclosure(true); return; }
-
     setOpen(true);
-    if (!sessionId) createSession();
-  }, [open, sessionId, loanType, scenario]);
+  }, [open]);
 
   function acceptDisclosure() {
     if (typeof window !== 'undefined') localStorage.setItem('hr_discover_disclosed', '1');
     setShowDisclosure(false);
     setOpen(true);
-    if (!sessionId) createSession();
   }
 
-  async function createSession() {
+  function handleLoanTypeChange(lt: LoanTypeKey) {
+    setLocalLoanType(lt);
+    setSetupDown(DEFAULT_DOWN[lt]);
+  }
+
+  function handleSetup() {
+    const price = parseFloat(setupPrice.replace(/[$,]/g, ''));
+    const down  = parseFloat(setupDown);
+    const rate  = parseFloat(setupRate);
+    if (!price || price < 50_000)  { setSetupError('Enter a valid purchase price'); return; }
+    if (isNaN(down) || down < 0)   { setSetupError('Enter a valid down payment %'); return; }
+    if (!rate || rate < 1 || rate > 20) { setSetupError('Enter a valid rate (e.g. 6.875)'); return; }
+    setSetupError('');
+    const snap = buildSnapshot(price, down, rate, localLoanType);
+    setLocalScenario(snap);
+    createSession(localLoanType, snap);
+  }
+
+  async function createSession(lt: LoanTypeKey, snap: ScenarioSnapshot) {
     try {
       const res = await fetch('/api/discover/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loanType, scenarioSnapshot: scenario }),
+        body: JSON.stringify({ loanType: lt, scenarioSnapshot: snap }),
       });
       if (res.ok) {
         const { id } = await res.json();
         setSessionId(id);
       }
-    } catch { /* silent — session creation is non-blocking */ }
+    } catch { /* non-blocking */ }
   }
 
   async function saveInput(questionId: string, value: string) {
-    if (!sessionId || !value.trim()) return;
-    setSavingInput(questionId);
+    if (!sessionId || !activeScenario || !value.trim()) return;
     const q = questions.find(q => q.id === questionId);
-    const gap = q ? q.evaluateGap(value, scenario) : { status: 'pending' as GapStatus, note: '' };
+    const gap = q ? q.evaluateGap(value, activeScenario) : { status: 'pending' as GapStatus, note: '' };
     try {
       await fetch(`/api/discover/session/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          questionId,
-          raw: value,
-          gapStatus: gap.status,
-          gapNote: gap.note,
-        }),
+        body: JSON.stringify({ questionId, raw: value, gapStatus: gap.status, gapNote: gap.note }),
       });
     } catch { /* silent */ }
-    setSavingInput(null);
   }
 
   async function fireToPE() {
@@ -117,12 +154,11 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
     setFiring(false);
   }
 
-  const headerStatus = alertCount > 0
-    ? { text: `${alertCount} alert${alertCount > 1 ? 's' : ''}`, color: '#f87171' }
-    : checkCount > 0
-    ? { text: `${checkCount} to review`, color: '#fbbf24' }
-    : pendingCount === questions.length
-    ? { text: 'Enter lender quotes', color: 'rgba(148,163,184,0.50)' }
+  const headerStatus = needsSetup
+    ? { text: 'Set up scenario', color: 'rgba(148,163,184,0.50)' }
+    : alertCount > 0 ? { text: `${alertCount} alert${alertCount > 1 ? 's' : ''}`, color: '#f87171' }
+    : checkCount > 0 ? { text: `${checkCount} to review`, color: '#fbbf24' }
+    : pendingCount === questions.length ? { text: 'Enter lender quotes', color: 'rgba(148,163,184,0.50)' }
     : { text: `${matchCount}/${questions.length} match`, color: '#00e87a' };
 
   return (
@@ -145,24 +181,19 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
               {DISCLOSURE_TEXT}
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={acceptDisclosure}
-                style={{
-                  flex: 1, padding: '10px 0', borderRadius: 8,
-                  background: 'rgba(0,232,122,0.15)', color: '#00e87a',
-                  fontWeight: 700, fontSize: 13, cursor: 'pointer',
-                  border: '1px solid rgba(0,232,122,0.25)',
-                } as React.CSSProperties}
-              >
+              <button onClick={acceptDisclosure} style={{
+                flex: 1, padding: '10px 0', borderRadius: 8,
+                background: 'rgba(0,232,122,0.15)', color: '#00e87a',
+                fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                border: '1px solid rgba(0,232,122,0.25)',
+              } as React.CSSProperties}>
                 I understand — continue
               </button>
-              <button
-                onClick={() => setShowDisclosure(false)}
-                style={{
-                  padding: '10px 16px', borderRadius: 8, border: '1px solid rgba(148,163,184,0.15)',
-                  background: 'none', color: 'rgba(148,163,184,0.60)', fontSize: 13, cursor: 'pointer',
-                }}
-              >
+              <button onClick={() => setShowDisclosure(false)} style={{
+                padding: '10px 16px', borderRadius: 8,
+                border: '1px solid rgba(148,163,184,0.15)',
+                background: 'none', color: 'rgba(148,163,184,0.60)', fontSize: 13, cursor: 'pointer',
+              }}>
                 Cancel
               </button>
             </div>
@@ -172,29 +203,21 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
 
       {/* Dock */}
       <div style={{
-        marginTop: 10,
-        background: '#090e1a',
+        marginTop: 10, background: '#090e1a',
         border: '1px solid rgba(148,163,184,0.13)',
-        borderRadius: 11,
-        overflow: 'hidden',
-        fontFamily: 'inherit',
+        borderRadius: 11, overflow: 'hidden', fontFamily: 'inherit',
       }}>
-        {/* Header toggle */}
-        <button
-          onClick={handleOpen}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center',
-            gap: 10, padding: '11px 16px',
-            background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
-          }}
-        >
+        {/* Header */}
+        <button onClick={handleOpen} style={{
+          width: '100%', display: 'flex', alignItems: 'center',
+          gap: 10, padding: '11px 16px',
+          background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+        }}>
           <span style={{ fontSize: 15, flexShrink: 0 }}>🔍</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ color: '#c8dfc8', fontWeight: 700, fontSize: 12.5 }}>
-              Discover
-            </span>
+            <span style={{ color: '#c8dfc8', fontWeight: 700, fontSize: 12.5 }}>Discover</span>
             <span style={{ color: 'rgba(148,163,184,0.45)', fontSize: 11.5, marginLeft: 6 }}>
-              {LOAN_LABELS[loanType]} · compare lender quote to AI benchmark
+              {needsSetup ? 'compare your lender quote to AI benchmark' : `${LOAN_LABELS[activeLoanType]} · AI vs lender`}
             </span>
           </div>
           <span style={{
@@ -210,7 +233,80 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
           </span>
         </button>
 
-        {open && (
+        {open && needsSetup && (
+          /* ── Setup form ── */
+          <div style={{
+            borderTop: '1px solid rgba(148,163,184,0.08)',
+            padding: '16px',
+          }}>
+            <div style={{ color: 'rgba(185,208,192,0.70)', fontSize: 11.5, marginBottom: 14, lineHeight: 1.5 }}>
+              Enter your loan details so AI can benchmark against your lender's quote.
+            </div>
+
+            {/* Loan type selector */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ color: 'rgba(148,163,184,0.50)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                Loan Type
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(['fha', 'conventional', 'va', 'jumbo'] as LoanTypeKey[]).map(lt => (
+                  <button key={lt} onClick={() => handleLoanTypeChange(lt)} style={{
+                    padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                    background: localLoanType === lt ? 'rgba(0,232,122,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: localLoanType === lt ? '1px solid rgba(0,232,122,0.35)' : '1px solid rgba(148,163,184,0.15)',
+                    color: localLoanType === lt ? '#00e87a' : 'rgba(148,163,184,0.70)',
+                  }}>
+                    {LOAN_LABELS[lt]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Price + Down + Rate */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+              {[
+                { label: 'Purchase Price', placeholder: 'e.g. 650000', value: setupPrice, onChange: setSetupPrice },
+                { label: `Down Payment %`, placeholder: DEFAULT_DOWN[localLoanType], value: setupDown, onChange: setSetupDown },
+                { label: 'Benchmark Rate %', placeholder: 'e.g. 6.875', value: setupRate, onChange: setSetupRate },
+              ].map(f => (
+                <div key={f.label}>
+                  <div style={{ color: 'rgba(148,163,184,0.50)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                    {f.label}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder={f.placeholder}
+                    value={f.value}
+                    onChange={e => f.onChange(e.target.value)}
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(148,163,184,0.18)',
+                      borderRadius: 6, padding: '7px 8px',
+                      color: '#e2e8f0', fontSize: 13, outline: 'none',
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {setupError && (
+              <div style={{ color: '#f87171', fontSize: 11.5, marginBottom: 10 }}>{setupError}</div>
+            )}
+
+            <button onClick={handleSetup} style={{
+              padding: '8px 18px', borderRadius: 7,
+              background: 'rgba(0,232,122,0.14)',
+              border: '1px solid rgba(0,232,122,0.28)',
+              color: '#00e87a', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+            }}>
+              Start Discover →
+            </button>
+          </div>
+        )}
+
+        {open && activeScenario && (
           <>
             {/* Column headers */}
             <div style={{
@@ -237,40 +333,31 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
               const gapStyle = GAP_COLORS[gap.status];
               const inputVal = inputs[q.id] ?? '';
               const isLast = i === questions.length - 1;
-
               return (
-                <div
-                  key={q.id}
-                  style={{
-                    display: 'grid', gridTemplateColumns: '1fr 1px 1fr',
-                    borderBottom: isLast ? 'none' : '1px solid rgba(148,163,184,0.07)',
-                  }}
-                >
-                  {/* AI benchmark cell */}
+                <div key={q.id} style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1px 1fr',
+                  borderBottom: isLast ? 'none' : '1px solid rgba(148,163,184,0.07)',
+                }}>
                   <div style={{ padding: '12px 14px', background: 'rgba(0,232,122,0.02)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                       <span style={{ fontSize: 13 }}>{q.icon}</span>
                       <span style={{ color: '#c8dfc8', fontWeight: 700, fontSize: 12 }}>{q.title}</span>
                     </div>
                     <div style={{ color: '#00e87a', fontWeight: 700, fontSize: 15, marginBottom: 2 }}>
-                      {q.aiValue(scenario)}
+                      {q.aiValue(activeScenario)}
                     </div>
                     <div style={{ color: 'rgba(148,163,184,0.50)', fontSize: 10.5, lineHeight: 1.4 }}>
-                      {q.aiSub(scenario)}
+                      {q.aiSub(activeScenario)}
                     </div>
                   </div>
-
-                  {/* Divider */}
                   <div style={{ background: 'rgba(148,163,184,0.08)' }} />
-
-                  {/* Lender input cell */}
                   <div style={{ padding: '12px 14px' }}>
                     <div style={{ marginBottom: 6 }}>
                       <input
                         type={q.inputType === 'pct' || q.inputType === 'number' ? 'number' : 'text'}
                         step={q.inputType === 'pct' ? '0.001' : q.inputType === 'number' ? '0.5' : undefined}
                         placeholder={typeof q.inputPlaceholder === 'function'
-                          ? (q.inputPlaceholder as (s: ScenarioSnapshot) => string)(scenario)
+                          ? (q.inputPlaceholder as (s: ScenarioSnapshot) => string)(activeScenario)
                           : q.inputPlaceholder}
                         value={inputVal}
                         onChange={e => setInputs(prev => ({ ...prev, [q.id]: e.target.value }))}
@@ -281,16 +368,11 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
                           border: `1px solid ${inputVal ? gapStyle.border : 'rgba(148,163,184,0.15)'}`,
                           borderRadius: 6, padding: '6px 8px',
                           color: '#e2e8f0', fontSize: 13, fontWeight: 600,
-                          outline: 'none',
-                          transition: 'border-color 0.2s',
+                          outline: 'none', transition: 'border-color 0.2s',
                         }}
                       />
                     </div>
-
-                    {/* Gap tag + note */}
-                    <div style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 6, flexWrap: 'wrap',
-                    }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{
                         fontSize: 10, fontWeight: 700, padding: '2px 7px',
                         borderRadius: 20, background: gapStyle.bg,
@@ -305,20 +387,17 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
                         </span>
                       )}
                     </div>
-
-                    {/* Question to ask */}
                     {!inputVal && (
                       <div style={{
                         marginTop: 8, padding: '6px 8px',
                         background: 'rgba(148,163,184,0.04)',
-                        border: '1px solid rgba(148,163,184,0.10)',
-                        borderRadius: 5,
+                        border: '1px solid rgba(148,163,184,0.10)', borderRadius: 5,
                       }}>
                         <span style={{ color: 'rgba(148,163,184,0.45)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                           Ask:&nbsp;
                         </span>
                         <span style={{ color: 'rgba(185,208,192,0.60)', fontSize: 10.5, lineHeight: 1.5, fontStyle: 'italic' }}>
-                          "{q.prompt(scenario)}"
+                          "{q.prompt(activeScenario)}"
                         </span>
                       </div>
                     )}
@@ -330,8 +409,7 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
             {/* Action bar */}
             <div style={{
               borderTop: '1px solid rgba(148,163,184,0.10)',
-              padding: '11px 14px',
-              background: 'rgba(0,0,0,0.12)',
+              padding: '11px 14px', background: 'rgba(0,0,0,0.12)',
               display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
             }}>
               {threadId ? (
@@ -340,24 +418,19 @@ export default function DiscoverDock({ loanType, scenario, threadId }: Props) {
                     ✓ Questions sent to Private Exchange
                   </span>
                 ) : (
-                  <button
-                    onClick={fireToPE}
-                    disabled={firing}
-                    style={{
-                      padding: '7px 14px', borderRadius: 7,
-                      background: 'rgba(0,232,122,0.12)',
-                      border: '1px solid rgba(0,232,122,0.25)',
-                      color: '#00e87a', fontSize: 11.5, fontWeight: 700,
-                      cursor: firing ? 'wait' : 'pointer',
-                      opacity: firing ? 0.7 : 1,
-                    }}
-                  >
+                  <button onClick={fireToPE} disabled={firing} style={{
+                    padding: '7px 14px', borderRadius: 7,
+                    background: 'rgba(0,232,122,0.12)',
+                    border: '1px solid rgba(0,232,122,0.25)',
+                    color: '#00e87a', fontSize: 11.5, fontWeight: 700,
+                    cursor: firing ? 'wait' : 'pointer', opacity: firing ? 0.7 : 1,
+                  }}>
                     {firing ? 'Sending…' : '↑ Send questions to Private Exchange'}
                   </button>
                 )
               ) : (
                 <span style={{ color: 'rgba(148,163,184,0.40)', fontSize: 11, fontStyle: 'italic' }}>
-                  Start a Private Exchange thread to send these questions to your lender
+                  Open a Private Exchange thread to send these questions to your lender
                 </span>
               )}
               <span style={{ marginLeft: 'auto', color: 'rgba(148,163,184,0.30)', fontSize: 10 }}>
