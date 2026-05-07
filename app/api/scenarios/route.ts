@@ -342,13 +342,27 @@ export async function GET(req: NextRequest) {
   if (mine === "1") {
     const { data, error } = await sb
       .from("scenario_briefs")
-      .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, status, response_count, created_at")
+      .select("id, loan_type, loan_purpose, price_range, down_payment_pct, income_range, credit_tier, timeline, state, notes, status, response_count, created_at, closes_at, response_window_hours")
       .eq("borrower_id", userId)
       .in("status", ["active", "matched"])
       .order("created_at", { ascending: false })
       .limit(1);
     if (error) return NextResponse.json({ error: "Failed to load scenario" }, { status: 500 });
-    return NextResponse.json({ scenarios: data ?? [] });
+
+    const scenarios = data ?? [];
+    const now = new Date();
+
+    // Synchronously auto-close any expired scenarios before returning
+    const expired = scenarios.filter(s => s.closes_at && new Date(s.closes_at) < now);
+    if (expired.length > 0) {
+      await sb.from("scenario_briefs")
+        .update({ status: "closed" })
+        .in("id", expired.map(s => s.id));
+      console.log("[scenarios/mine] auto-closed expired:", expired.map(s => s.id));
+    }
+
+    const live = scenarios.filter(s => !s.closes_at || new Date(s.closes_at) >= now);
+    return NextResponse.json({ scenarios: live, expired_count: expired.length });
   }
 
   // LO or agent board (anonymized — no borrower_id exposed)

@@ -33,6 +33,8 @@ interface Scenario {
   status: string;
   response_count: number;
   created_at: string;
+  closes_at?: string;
+  response_window_hours?: number;
 }
 
 const LABEL_MAP: Record<string, string> = {
@@ -65,6 +67,7 @@ export default function MyScenarioPage() {
   const [closingScenario, setClosingScenario] = useState(false);
   const [messaging, setMessaging] = useState<string | null>(null); // responseId being opened
   const [msgError, setMsgError] = useState("");
+  const [wasExpired, setWasExpired] = useState(false);
 
   useEffect(() => {
     load();
@@ -76,6 +79,7 @@ export default function MyScenarioPage() {
     if (!res.ok) { setLoading(false); setNotFound(true); return; }
     const data = await res.json();
     if (!data.scenarios || data.scenarios.length === 0) {
+      if (data.expired_count > 0) setWasExpired(true);
       setNotFound(true); setLoading(false); return;
     }
     // Get the borrower's own active scenario
@@ -149,6 +153,15 @@ export default function MyScenarioPage() {
     return `${Math.floor(h / 24)}d ago`;
   };
 
+  const closesIn = (iso: string) => {
+    const ms = new Date(iso).getTime() - Date.now();
+    if (ms <= 0) return null;
+    const h = Math.floor(ms / 3600000);
+    if (h < 1) return "< 1h left";
+    if (h < 24) return `${h}h left`;
+    return `${Math.floor(h / 24)}d left`;
+  };
+
   return (
     <>
       <div className="ms-root">
@@ -173,9 +186,18 @@ export default function MyScenarioPage() {
 
           {!loading && notFound && (
             <div className="ms-empty">
-              <div className="ms-empty-icon">📋</div>
-              <h2>No active scenario</h2>
-              <p>You haven't posted a scenario yet. Post one and let loan officers on HomeRates.ai respond.</p>
+              <div className="ms-empty-icon">{wasExpired ? "⏰" : "📋"}</div>
+              {wasExpired ? (
+                <>
+                  <h2>Your response window closed</h2>
+                  <p>Your scenario's 48-hour response window ended before any loan officers replied. Post a new one — it goes live immediately.</p>
+                </>
+              ) : (
+                <>
+                  <h2>No active scenario</h2>
+                  <p>You haven't posted a scenario yet. Post one and let loan officers on HomeRates.ai respond.</p>
+                </>
+              )}
               <Link href="/connect/post" className="ms-btn-primary">Post My Scenario →</Link>
             </div>
           )}
@@ -194,6 +216,9 @@ export default function MyScenarioPage() {
                     </span>
                     <span className="ms-state">{scenario.state}</span>
                     <span className="ms-time">Posted {timeAgo(scenario.created_at)}</span>
+                    {scenario.closes_at && closesIn(scenario.closes_at) && (
+                      <span className="ms-closes-in">{closesIn(scenario.closes_at)}</span>
+                    )}
                   </div>
                   {fromBlocked && scenario.status === "active" && (
                     <div style={{ background: "rgba(255,180,0,0.08)", border: "1px solid rgba(255,180,0,0.25)", borderRadius: 10, padding: "12px 16px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -419,6 +444,7 @@ export default function MyScenarioPage() {
         }
         .ms-state { font-size: 0.85rem; color: #f0f4ff; font-weight: 500; }
         .ms-time { font-size: 0.78rem; color: #3a4560; }
+        .ms-closes-in { font-size: 0.75rem; font-weight: 600; color: #ffa040; background: rgba(255,160,64,0.10); border: 1px solid rgba(255,160,64,0.25); border-radius: 99px; padding: 2px 10px; }
         .ms-scenario-status-row { display: flex; align-items: center; gap: 12px; }
         .ms-status-active { font-size: 0.78rem; color: #00e87a; font-weight: 600; }
         .ms-status-matched { font-size: 0.78rem; color: #3d8bff; font-weight: 600; }
