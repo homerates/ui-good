@@ -1,5 +1,5 @@
 // app/api/discover/session/[id]/fire-to-pe/route.ts
-// POST — inject Discover questions as a system message into a PE thread.
+// POST — inject Discover question/benchmark pairs as structured messages into a PE thread.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -33,41 +33,75 @@ export async function POST(
       return NextResponse.json({ error: 'session not found' }, { status: 404 });
     }
 
+    // Guard: don't fire twice into same thread
+    const { data: existing } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('thread_id', threadId)
+      .eq('metadata->>type', 'discover_question')
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ ok: true, already_fired: true });
+    }
+
     const loanType = session.loan_type as LoanTypeKey;
     const snap = session.scenario_snapshot;
     const questions = getQuestions(loanType);
 
-    // Format questions as structured text for the PE thread
-    const loanLabel = { fha: 'FHA', conventional: 'Conventional', va: 'VA', jumbo: 'Jumbo' }[loanType] ?? loanType.toUpperCase();
-    const price = snap.price ? `$${Math.round(snap.price).toLocaleString()}` : '';
-    const rate  = snap.rate  ? `${snap.rate.toFixed(3)}%` : '';
+    // Insert one question + one AI benchmark message per question, sequentially
+    for (const q of questions) {
+      const questionText = q.prompt(snap);
+      const aiValue = q.aiValue(snap);
+      const aiSub = q.aiSub(snap);
 
-    const header = `🔍 Discover · ${loanLabel} Loan${price ? ` · ${price}` : ''}${rate ? ` · AI benchmark ${rate}` : ''}\n\nPlease answer the following questions so we can compare your quote to current market benchmarks:\n`;
-
-    const body = questions.map((q, i) =>
-      `${i + 1}. ${q.icon} ${q.title}\n   ${q.prompt(snap)}`
-    ).join('\n\n');
-
-    const footer = '\n\n─\nResponses are used by HomeRates AI anonymously to verify loan accuracy and improve market intelligence. Lender answers are never shared publicly.';
-
-    const content = header + '\n' + body + footer;
-
-    // Insert system message into thread
-    const { error: msgErr } = await supabase
-      .from('messages')
-      .insert({
+      // 1. Discover question — appears as "YOU · VIA DISCOVER" in thread
+      await supabase.from('messages').insert({
         thread_id: threadId,
-        sender_role: 'system',
-        content,
-        metadata: { type: 'discover', session_id: id, loan_type: loanType },
+        sender_role: 'borrower',
+        content: questionText,
+        metadata: {
+          type: 'discover_question',
+          question_id: q.id,
+          title: q.title,
+          icon: q.icon,
+          ai_value: aiValue,
+          ai_sub: aiSub,
+        },
       });
 
-    if (msgErr) {
-      console.error('[discover/fire-to-pe]', msgErr);
-      return NextResponse.json({ error: 'db error' }, { status: 500 });
+      // 2. AI benchmark — appears as "HOMERATES AI" green block in thread
+      await supabase.from('messages').insert({
+        thread_id: threadId,
+        sender_role: 'system',
+        content: aiValue,
+        metadata: {
+          type: 'ai_benchmark',
+          question_id: q.id,
+          ai_value: aiValue,
+          ai_sub: aiSub,
+          title: q.title,
+        },
+      });
     }
 
-    // Link session to thread if not already linked
+    // Update thread: last_message_at + mark unread for professional
+    const { data: thread } = await supabase
+      .from('conversation_threads')
+      .select('unread_professional')
+      .eq('id', threadId)
+      .maybeSingle();
+
+    await supabase
+      .from('conversation_threads')
+      .update({
+        last_message_at: new Date().toISOString(),
+        unread_professional: (thread?.unread_professional ?? 0) + questions.length,
+      })
+      .eq('id', threadId);
+
+    // Link session to thread
     await supabase
       .from('discover_sessions')
       .update({ thread_id: threadId })

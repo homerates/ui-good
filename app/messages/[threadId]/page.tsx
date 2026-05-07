@@ -194,6 +194,8 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
 
   const isBorrower = thread?.is_borrower ?? true;
   const proType = thread?.professional_type === "agent" ? "Agent" : "Loan Officer";
+  const hasDiscoverMessages = messages.some(m => m.metadata?.type === "discover_question");
+  const LOAN_LABELS: Record<string, string> = { fha: "FHA", conventional: "Conventional", va: "VA", jumbo: "Jumbo" };
   // Nav title: always shows who you're talking TO
   // Borrower → "Loan Officer" or "Agent" (+ name once contact shared)
   // LO/Agent → borrower's real name (resolved server-side) or "Borrower"
@@ -301,14 +303,24 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               </div>
             )}
 
-            {/* Discover dock — borrower only, always shown */}
-            {isBorrower && (
+            {/* Discover dock — only shown when discover hasn't been fired yet */}
+            {isBorrower && !hasDiscoverMessages && (
               <div style={{ padding: "0 16px 4px" }}>
                 <DiscoverDock
                   loanType={discoverScenario?.loanType}
                   scenario={discoverScenario?.snapshot}
                   threadId={threadId}
                 />
+              </div>
+            )}
+
+            {/* Discover scenario header — shown when discovery is active in thread */}
+            {hasDiscoverMessages && discoverScenario && (
+              <div className="ch-scenario-header">
+                <span style={{ color: "rgba(0,232,122,0.4)", marginRight: 6 }}>⚡ Private Exchange</span>
+                <span style={{ color: "rgba(0,232,122,0.25)", marginRight: 6 }}>Discover thread</span>
+                <span style={{ color: "rgba(255,255,255,0.15)", marginRight: 6 }}>·</span>
+                Based on scenario: {LOAN_LABELS[discoverScenario.loanType] ?? discoverScenario.loanType} · ${Math.round(discoverScenario.snapshot.price).toLocaleString()} · {discoverScenario.snapshot.downPct}% down · {discoverScenario.snapshot.rate.toFixed(2)}% · ${Math.round(discoverScenario.snapshot.monthlyPayment).toLocaleString()}/mo
               </div>
             )}
 
@@ -320,20 +332,81 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 <div className="ch-empty">Start the conversation below.</div>
               )}
 
-              {!loading && messages.map(m => {
-                if (m.sender_role === "system") {
-                  const isDiscover = m.metadata?.type === "discover";
+              {!loading && messages.map((m, idx) => {
+                const type = m.metadata?.type;
+                const prevMsg = idx > 0 ? messages[idx - 1] : null;
+                const isAfterBenchmark = prevMsg?.metadata?.type === "ai_benchmark";
+
+                // AI benchmark block — "HOMERATES AI" green card
+                if (type === "ai_benchmark") {
                   return (
-                    <div key={m.id} className={isDiscover ? "ch-discover-msg" : "ch-system-msg"}>
-                      {isDiscover && (
-                        <div className="ch-discover-header">🔍 Discover · Lender Verification Questions</div>
+                    <div key={m.id} className="ch-benchmark-block">
+                      <div className="ch-benchmark-label">HOMERATES AI</div>
+                      <div className="ch-benchmark-value">{m.metadata?.ai_value}</div>
+                      {m.metadata?.ai_sub && (
+                        <div className="ch-benchmark-sub">{m.metadata.ai_sub}</div>
                       )}
+                      <div className="ch-benchmark-time">{fmt(m.created_at)}</div>
+                    </div>
+                  );
+                }
+
+                // Discover question — "YOU · VIA DISCOVER" teal card
+                if (type === "discover_question") {
+                  return (
+                    <div key={m.id} className="ch-discover-q">
+                      <div className="ch-discover-q-label">
+                        <span>{m.metadata?.icon ?? "🔍"}</span>
+                        <span className="ch-discover-q-via">YOU · VIA DISCOVER</span>
+                        {m.metadata?.title && (
+                          <span className="ch-discover-q-title">{m.metadata.title}</span>
+                        )}
+                      </div>
+                      <div className="ch-discover-q-text">{m.content}</div>
+                      <div className="ch-discover-q-time">{fmt(m.created_at)}</div>
+                    </div>
+                  );
+                }
+
+                // Old single-block discover system message — backward compat
+                if (type === "discover" && m.sender_role === "system") {
+                  return (
+                    <div key={m.id} className="ch-discover-msg">
+                      <div className="ch-discover-header">🔍 Discover · Lender Verification Questions</div>
                       {m.content.split("\n").map((line, i) => (
                         <span key={i}>{line}<br /></span>
                       ))}
                     </div>
                   );
                 }
+
+                // Regular system message
+                if (m.sender_role === "system") {
+                  return (
+                    <div key={m.id} className="ch-system-msg">
+                      {m.content.split("\n").map((line, i) => (
+                        <span key={i}>{line}<br /></span>
+                      ))}
+                    </div>
+                  );
+                }
+
+                // Professional message answering a discover question — "YOUR LOAN OFFICER"
+                if (m.sender_role === "professional" && isAfterBenchmark) {
+                  return (
+                    <div key={m.id} className="ch-lo-answer">
+                      <div className="ch-lo-answer-label">YOUR LOAN OFFICER</div>
+                      <div className="ch-lo-answer-text">
+                        {m.content.split("\n").map((line, i) => (
+                          <span key={i}>{line}{i < m.content.split("\n").length - 1 ? <br /> : null}</span>
+                        ))}
+                      </div>
+                      <div className="ch-lo-answer-time">{fmt(m.created_at)}</div>
+                    </div>
+                  );
+                }
+
+                // Regular chat bubble
                 const mine = (isBorrower && m.sender_role === "borrower") || (!isBorrower && m.sender_role === "professional");
                 return (
                   <div key={m.id} className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
@@ -638,7 +711,88 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           font-size: 0.8rem; color: #8fa3b8; line-height: 1.6;
           max-width: 85%;
         }
-        /* Discover message — full-width, left-aligned */
+        /* Discover scenario header line */
+        .ch-scenario-header {
+          flex-shrink: 0;
+          background: rgba(0,232,122,0.03);
+          border-bottom: 1px solid rgba(0,232,122,0.09);
+          padding: 7px 20px;
+          font-size: 0.72rem; color: rgba(255,255,255,0.25);
+          font-weight: 500; letter-spacing: 0.02em;
+        }
+
+        /* Discover question message — "YOU · VIA DISCOVER" */
+        .ch-discover-q {
+          background: rgba(0,10,30,0.5);
+          border: 1px solid rgba(0,232,122,0.10);
+          border-left: 3px solid rgba(0,232,122,0.35);
+          border-radius: 0 10px 10px 0;
+          padding: 10px 14px;
+          align-self: flex-start;
+          max-width: 90%;
+        }
+        .ch-discover-q-label {
+          display: flex; align-items: center; gap: 5px; margin-bottom: 5px;
+        }
+        .ch-discover-q-via {
+          font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em;
+          color: rgba(0,232,122,0.45); text-transform: uppercase;
+        }
+        .ch-discover-q-title {
+          font-size: 0.65rem; color: rgba(0,232,122,0.30);
+        }
+        .ch-discover-q-text {
+          font-size: 0.875rem; color: #c8dfc8; line-height: 1.55; font-style: italic;
+        }
+        .ch-discover-q-time {
+          font-size: 0.62rem; color: rgba(255,255,255,0.18); margin-top: 4px; text-align: right;
+        }
+
+        /* AI benchmark block — "HOMERATES AI" */
+        .ch-benchmark-block {
+          background: rgba(0,232,122,0.06);
+          border: 1px solid rgba(0,232,122,0.18);
+          border-radius: 10px;
+          padding: 12px 16px;
+          align-self: flex-start;
+          max-width: 90%;
+        }
+        .ch-benchmark-label {
+          font-size: 0.60rem; font-weight: 800; letter-spacing: 0.10em;
+          color: #00e87a; text-transform: uppercase; margin-bottom: 5px;
+        }
+        .ch-benchmark-value {
+          font-size: 1.05rem; font-weight: 800; color: #00e87a; margin-bottom: 3px;
+        }
+        .ch-benchmark-sub {
+          font-size: 0.76rem; color: rgba(0,232,122,0.50); line-height: 1.45;
+        }
+        .ch-benchmark-time {
+          font-size: 0.62rem; color: rgba(255,255,255,0.18); margin-top: 4px; text-align: right;
+        }
+
+        /* LO answer in discover context — "YOUR LOAN OFFICER" */
+        .ch-lo-answer {
+          align-self: flex-end;
+          background: linear-gradient(135deg, rgba(26,46,82,0.9), rgba(21,36,64,0.9));
+          border: 1px solid rgba(61,139,255,0.20);
+          border-radius: 10px;
+          padding: 12px 16px;
+          max-width: 85%;
+        }
+        .ch-lo-answer-label {
+          font-size: 0.60rem; font-weight: 800; letter-spacing: 0.10em;
+          color: #3d8bff; text-transform: uppercase; margin-bottom: 5px;
+        }
+        .ch-lo-answer-text {
+          font-size: 0.9rem; color: #ddeaff; line-height: 1.55;
+          white-space: pre-wrap; word-break: break-word;
+        }
+        .ch-lo-answer-time {
+          font-size: 0.62rem; color: rgba(255,255,255,0.18); margin-top: 4px; text-align: right;
+        }
+
+        /* Discover message — full-width, left-aligned (old format backward compat) */
         .ch-discover-msg {
           align-self: stretch;
           background: rgba(0,10,24,0.60);
