@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { buildAnswerMarkdown } from "../../../../lib/answerFormat";
+import { buildDiscoverCard, isDiscoverCardTrigger } from "../../../../lib/discoverCard";
 import { runScenarioMath } from "../../../../lib/scenarioMath";
 import { isScenarioComparisonQuestion } from "../../../../lib/calcDispatcher";
 import { buildScenarioComparisonCard } from "../../../../lib/cardBuilders";
@@ -3223,6 +3224,27 @@ YOU MUST OUTPUT ALL FIELDS:
             // swallow — memory must never break response
         }
 
+        // Build discover card from scenario inputs when available
+        const _si = result?.scenario_inputs ?? {};
+        const _cf = result?.computed_financials ?? {};
+        const _discoverCard = (() => {
+            const hasPurchaseData = !!(_si.purchase_price || _si.price || _cf.loan_amount);
+            if (!hasPurchaseData && !isDiscoverCardTrigger(message ?? '')) return null;
+            return buildDiscoverCard({
+                purchase_price: _si.purchase_price ?? _si.price ?? undefined,
+                loan_amount: _cf.loan_amount ?? _si.loan_amount ?? undefined,
+                down_payment_percent: _si.down_payment_pct ?? _si.down_payment_percent ?? undefined,
+                loan_type: _si.loan_type ?? _si.loanType ?? undefined,
+                interest_rate: _si.rate_used_pct ?? _si.interest_rate ?? _cf.rate_used_pct ?? undefined,
+                points: _si.points ?? undefined,
+                lender_credit: _si.lender_credit ?? undefined,
+                estimated_closing_costs: _si.estimated_closing_costs ?? _cf.estimated_closing_costs ?? undefined,
+                estimated_cash_to_close: _si.estimated_cash_to_close ?? _cf.estimated_cash_to_close ?? undefined,
+                seller_credit: _si.seller_credit ?? _si.seller_concession ?? undefined,
+                occupancy: _si.occupancy ?? undefined,
+            });
+        })();
+
         return respond(
             {
                 success: true,
@@ -3231,6 +3253,7 @@ YOU MUST OUTPUT ALL FIELDS:
                 memory_thread_id: memoryThreadId,
                 result,
                 marketData,
+                ...((_discoverCard) && { discoverCard: _discoverCard }),
                 meta: {
                     build_tag: buildTag,
                     requestId,
