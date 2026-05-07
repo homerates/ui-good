@@ -279,6 +279,13 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
         setDrawerPhase('idle');
     }
 
+    // Best-fit program routing for the follow-up chip
+    const chipIsJumbo = !!conv3 && conv3.baseLoan > 806_500;
+    const chipUseFHA  = !chipIsJumbo && !!fha?.qualifies && !conv3?.qualifies;
+    const chipLt      = chipIsJumbo ? 'jumbo' : chipUseFHA ? 'fha' : 'conventional';
+    const chipDp      = chipIsJumbo ? 20 : chipUseFHA ? 3.5 : 3;
+    const chipProg    = (chipUseFHA && fha) ? fha : conv3;
+
     return (
         <div className="afc">
 
@@ -591,6 +598,27 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 {drawerPhase === 'done' && <span className="afc-sdrawer-done">✓ Numbers Updated</span>}
             </div>
             </div>
+
+            {/* Follow-up chip — run best-fit purchase estimate */}
+            {chipProg && props.onRunScenario && (
+                <div className="afc-followup-row">
+                    <button
+                        type="button"
+                        className="afc-followup-chip"
+                        onClick={() => {
+                            const prStr = chipProg!.maxPrice >= 1_000_000
+                                ? `$${(chipProg!.maxPrice / 1_000_000).toFixed(1)}M`
+                                : `$${Math.round(chipProg!.maxPrice / 1000)}k`;
+                            props.onRunScenario!(
+                                `What does a ${prStr} ${chipLt} loan with ${chipDp}% down look like at ${rate.toFixed(2)}%?`,
+                                { purchasePrice: chipProg!.maxPrice, downPaymentPct: chipDp, annualRatePct: rate, loanType: chipLt }
+                            );
+                        }}
+                    >
+                        {chipIsJumbo ? 'Run Jumbo estimate →' : chipUseFHA ? 'Run FHA estimate →' : 'Run Conventional estimate →'}
+                    </button>
+                </div>
+            )}
 
             {/* Check a property */}
             {conv3 && (
@@ -916,6 +944,11 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     transition: opacity .15s;
                 }
                 .afc-btn-match:hover { opacity: .88; }
+
+                /* follow-up chip */
+                .afc-followup-row { padding:0 12px 6px; }
+                .afc-followup-chip { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .afc-followup-chip:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
 
                 /* check a property */
                 .afc-property-row { padding:0 12px 10px; }
