@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import PdfDownloadButton from './PdfDownloadButton';
+import DiscoverDock from './DiscoverDock';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -474,6 +475,20 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     FHA loan limits per HUD 2026 schedule — county-specific limits may be higher in high-cost areas. These figures are not a pre-approval or commitment to lend.
                 </p>
             </div>
+
+            <DiscoverDock
+                loanType="fha"
+                scenario={{
+                    price,
+                    loanAmount: loanAmt,
+                    downPct,
+                    rate,
+                    term: termYrs,
+                    ltv: baseLoan / price,
+                    monthlyPayment: total,
+                    monthlyMIP,
+                }}
+            />
 
             {/* ── Styles ── */}
             <style>{`

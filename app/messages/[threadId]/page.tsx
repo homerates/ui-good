@@ -14,6 +14,7 @@ interface Message {
   content: string;
   read_at: string | null;
   created_at: string;
+  metadata?: { type?: string; session_id?: string; loan_type?: string } | null;
 }
 
 interface Thread {
@@ -288,8 +289,12 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
 
               {!loading && messages.map(m => {
                 if (m.sender_role === "system") {
+                  const isDiscover = m.metadata?.type === "discover";
                   return (
-                    <div key={m.id} className="ch-system-msg">
+                    <div key={m.id} className={isDiscover ? "ch-discover-msg" : "ch-system-msg"}>
+                      {isDiscover && (
+                        <div className="ch-discover-header">🔍 Discover · Lender Verification Questions</div>
+                      )}
                       {m.content.split("\n").map((line, i) => (
                         <span key={i}>{line}<br /></span>
                       ))}
@@ -599,6 +604,21 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           padding: 10px 16px;
           font-size: 0.8rem; color: #8fa3b8; line-height: 1.6;
           max-width: 85%;
+        }
+        /* Discover message — full-width, left-aligned */
+        .ch-discover-msg {
+          align-self: stretch;
+          background: rgba(0,10,24,0.60);
+          border: 1px solid rgba(0,232,122,0.15);
+          border-radius: 10px;
+          padding: 12px 16px;
+          font-size: 0.8rem; color: #8fa3b8; line-height: 1.7;
+          white-space: pre-wrap;
+        }
+        .ch-discover-header {
+          color: #00e87a; font-weight: 700; font-size: 0.78rem;
+          letter-spacing: 0.03em; margin-bottom: 8px;
+          text-transform: uppercase;
         }
 
         /* ── Footer / compose ── */

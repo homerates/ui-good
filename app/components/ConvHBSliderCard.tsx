@@ -10,6 +10,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
+import DiscoverDock from './DiscoverDock';
 
 // ── 2026 CA County Conforming Limits (1-unit, FHFA) ─────────────────────────
 
@@ -648,6 +649,20 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     Actual terms depend on creditworthiness, property type, and lender.
                 </p>
             </div>
+
+            <DiscoverDock
+                loanType="conventional"
+                scenario={{
+                    price,
+                    loanAmount: loanAmt,
+                    downPct,
+                    rate,
+                    term: termYrs,
+                    ltv: loanAmt / price,
+                    monthlyPayment: total,
+                    monthlyPMI: pmi > 0 ? pmi : undefined,
+                }}
+            />
 
             {/* ── Styles ── */}
             <style>{`
