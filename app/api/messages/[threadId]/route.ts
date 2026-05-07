@@ -180,28 +180,37 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
     monthlyPayment: number;
   } | null = null;
 
-  if (thread.scenario_id) {
-    try {
-      const { data: scenario } = await sb
-        .from("scenario_briefs")
-        .select("loan_type, card_price, card_loan_amt, card_rate, card_dp_pct, card_monthly, card_term, has_card_data")
-        .eq("id", thread.scenario_id)
-        .maybeSingle();
+  try {
+    // Try thread's linked scenario first; fall back to borrower's most recent active scenario
+    const scenarioQuery = thread.scenario_id
+      ? sb.from("scenario_briefs")
+          .select("loan_type, card_price, card_loan_amt, card_rate, card_dp_pct, card_monthly, card_term, has_card_data")
+          .eq("id", thread.scenario_id)
+          .maybeSingle()
+      : sb.from("scenario_briefs")
+          .select("loan_type, card_price, card_loan_amt, card_rate, card_dp_pct, card_monthly, card_term, has_card_data")
+          .eq("borrower_id", thread.borrower_id)
+          .eq("has_card_data", true)
+          .in("status", ["active", "matched"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (scenario?.has_card_data && scenario.card_price && scenario.card_loan_amt && scenario.card_rate) {
-        discoverScenario = {
-          loanType: scenario.loan_type ?? "conventional",
-          price: scenario.card_price,
-          loanAmount: scenario.card_loan_amt,
-          downPct: scenario.card_dp_pct ?? 0,
-          rate: scenario.card_rate,
-          term: scenario.card_term ?? 30,
-          ltv: scenario.card_loan_amt / scenario.card_price,
-          monthlyPayment: scenario.card_monthly ?? 0,
-        };
-      }
-    } catch { /* non-fatal — dock just won't appear */ }
-  }
+    const { data: scenario } = await scenarioQuery;
+
+    if (scenario?.has_card_data && scenario.card_price && scenario.card_loan_amt && scenario.card_rate) {
+      discoverScenario = {
+        loanType: scenario.loan_type ?? "conventional",
+        price: scenario.card_price,
+        loanAmount: scenario.card_loan_amt,
+        downPct: scenario.card_dp_pct ?? 0,
+        rate: scenario.card_rate,
+        term: scenario.card_term ?? 30,
+        ltv: scenario.card_loan_amt / scenario.card_price,
+        monthlyPayment: scenario.card_monthly ?? 0,
+      };
+    }
+  } catch { /* non-fatal — dock just won't appear */ }
 
   return NextResponse.json({
     thread: {
