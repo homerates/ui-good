@@ -229,6 +229,10 @@ function extractSavings(text: string): number | undefined {
     const m = text.match(/(?:have|saved|savings|got)\s+[\$]?\s*([\d,]+)\s*k?\s*(?:saved|in savings)?/i) ||
         text.match(/[\$]?\s*([\d,]+)\s*k?\s*(?:saved|in savings|in the bank|available|liquid)/i);
     if (!m) return undefined;
+    // Reject if the match is in a debt/payment context (e.g. "have $1,500 in monthly debt")
+    const idx = m.index ?? 0;
+    const surrounding = text.slice(Math.max(0, idx - 5), idx + m[0].length + 25);
+    if (/\/mo|per month|monthly|in debt|in loan|car payment|student loan|debt payment/i.test(surrounding)) return undefined;
     let v = parseFloat(m[1].replace(/,/g, ''));
     if (v < 1000) v *= 1000;
     return v >= 1000 && v <= 10000000 ? v : undefined;
