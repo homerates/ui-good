@@ -57,8 +57,6 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<string, string>>({});
-  const [firedToPE, setFiredToPE] = useState(false);
-  const [firing, setFiring] = useState(false);
 
   // Setup form state — used when no scenario prop provided
   const [localLoanType, setLocalLoanType] = useState<LoanTypeKey>(propLoanType ?? 'conventional');
@@ -138,20 +136,6 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         body: JSON.stringify({ questionId, raw: value, gapStatus: gap.status, gapNote: gap.note }),
       });
     } catch { /* silent */ }
-  }
-
-  async function fireToPE() {
-    if (!threadId || !sessionId) return;
-    setFiring(true);
-    try {
-      await fetch(`/api/discover/session/${sessionId}/fire-to-pe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ threadId }),
-      });
-      setFiredToPE(true);
-    } catch { /* silent */ }
-    setFiring(false);
   }
 
   const headerStatus = needsSetup
@@ -409,31 +393,10 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
             {/* Action bar */}
             <div style={{
               borderTop: '1px solid rgba(148,163,184,0.10)',
-              padding: '11px 14px', background: 'rgba(0,0,0,0.12)',
-              display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+              padding: '9px 14px', background: 'rgba(0,0,0,0.12)',
+              display: 'flex', alignItems: 'center',
             }}>
-              {threadId ? (
-                firedToPE ? (
-                  <span style={{ color: '#00e87a', fontSize: 11.5, fontWeight: 600 }}>
-                    ✓ Questions sent to Private Exchange
-                  </span>
-                ) : (
-                  <button onClick={fireToPE} disabled={firing} style={{
-                    padding: '7px 14px', borderRadius: 7,
-                    background: 'rgba(0,232,122,0.12)',
-                    border: '1px solid rgba(0,232,122,0.25)',
-                    color: '#00e87a', fontSize: 11.5, fontWeight: 700,
-                    cursor: firing ? 'wait' : 'pointer', opacity: firing ? 0.7 : 1,
-                  }}>
-                    {firing ? 'Sending…' : '↑ Send questions to Private Exchange'}
-                  </button>
-                )
-              ) : (
-                <span style={{ color: 'rgba(148,163,184,0.40)', fontSize: 11, fontStyle: 'italic' }}>
-                  Open a Private Exchange thread to send these questions to your lender
-                </span>
-              )}
-              <span style={{ marginLeft: 'auto', color: 'rgba(148,163,184,0.30)', fontSize: 10 }}>
+              <span style={{ color: 'rgba(148,163,184,0.30)', fontSize: 10 }}>
                 Responses stored anonymously · AI training only
               </span>
             </div>

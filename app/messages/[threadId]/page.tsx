@@ -203,8 +203,6 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
 
   const isBorrower = thread?.is_borrower ?? true;
   const proType = thread?.professional_type === "agent" ? "Agent" : "Loan Officer";
-  const hasDiscoverMessages = messages.some(m => m.metadata?.type === "discover_question");
-  const LOAN_LABELS: Record<string, string> = { fha: "FHA", conventional: "Conventional", va: "VA", jumbo: "Jumbo" };
   // Nav title: always shows who you're talking TO
   // Borrower → "Loan Officer" or "Agent" (+ name once contact shared)
   // LO/Agent → borrower's real name (resolved server-side) or "Borrower"
@@ -312,24 +310,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               </div>
             )}
 
-            {/* Discover dock — only shown when discover hasn't been fired yet */}
-            {isBorrower && !hasDiscoverMessages && (
+            {/* Discover dock — borrower only, self-contained widget */}
+            {isBorrower && (
               <div style={{ padding: "0 16px 4px" }}>
                 <DiscoverDock
                   loanType={discoverScenario?.loanType}
                   scenario={discoverScenario?.snapshot}
                   threadId={threadId}
                 />
-              </div>
-            )}
-
-            {/* Discover scenario header — shown when discovery is active in thread */}
-            {hasDiscoverMessages && discoverScenario && (
-              <div className="ch-scenario-header">
-                <span style={{ color: "rgba(0,232,122,0.4)", marginRight: 6 }}>⚡ Private Exchange</span>
-                <span style={{ color: "rgba(0,232,122,0.25)", marginRight: 6 }}>Discover thread</span>
-                <span style={{ color: "rgba(255,255,255,0.15)", marginRight: 6 }}>·</span>
-                Based on scenario: {LOAN_LABELS[discoverScenario.loanType] ?? discoverScenario.loanType} · ${Math.round(discoverScenario.snapshot.price).toLocaleString()} · {discoverScenario.snapshot.downPct}% down · {discoverScenario.snapshot.rate.toFixed(2)}% · ${Math.round(discoverScenario.snapshot.monthlyPayment).toLocaleString()}/mo
               </div>
             )}
 
@@ -341,56 +329,12 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 <div className="ch-empty">Start the conversation below.</div>
               )}
 
-              {!loading && messages.map((m, idx) => {
+              {!loading && messages.map(m => {
                 const type = m.metadata?.type;
-                const prevMsg = idx > 0 ? messages[idx - 1] : null;
-                const isAfterBenchmark = prevMsg?.metadata?.type === "ai_benchmark";
 
-                // AI benchmark block — "HOMERATES AI" green card
-                if (type === "ai_benchmark") {
-                  return (
-                    <div key={m.id} className="ch-benchmark-block">
-                      <div className="ch-benchmark-label">HOMERATES AI</div>
-                      <div className="ch-benchmark-value">{m.metadata?.ai_value}</div>
-                      {m.metadata?.ai_sub && (
-                        <div className="ch-benchmark-sub">{m.metadata.ai_sub}</div>
-                      )}
-                      <div className="ch-benchmark-time">{fmt(m.created_at)}</div>
-                    </div>
-                  );
-                }
-
-                // Discover question — "YOU · VIA DISCOVER" teal card
-                if (type === "discover_question") {
-                  return (
-                    <div key={m.id} className="ch-discover-q">
-                      <div className="ch-discover-q-label">
-                        <span>{m.metadata?.icon ?? "🔍"}</span>
-                        <span className="ch-discover-q-via">YOU · VIA DISCOVER</span>
-                        {m.metadata?.title && (
-                          <span className="ch-discover-q-title">{m.metadata.title}</span>
-                        )}
-                      </div>
-                      <div className="ch-discover-q-text">{m.content}</div>
-                      <div className="ch-discover-q-time">{fmt(m.created_at)}</div>
-                    </div>
-                  );
-                }
-
-                // Old single-block discover system message — backward compat
-                if (type === "discover" && m.sender_role === "system") {
-                  return (
-                    <div key={m.id} className="ch-discover-msg">
-                      <div className="ch-discover-header">🔍 Discover · Lender Verification Questions</div>
-                      {m.content.split("\n").map((line, i) => (
-                        <span key={i}>{line}<br /></span>
-                      ))}
-                    </div>
-                  );
-                }
-
-                // Regular system message
                 if (m.sender_role === "system") {
+                  const isDiscover = type === "discover" || type === "discover_question" || type === "ai_benchmark";
+                  if (isDiscover) return null; // Discover messages stay in the dock, not the thread
                   return (
                     <div key={m.id} className="ch-system-msg">
                       {m.content.split("\n").map((line, i) => (
@@ -400,22 +344,9 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                   );
                 }
 
-                // Professional message answering a discover question — "YOUR LOAN OFFICER"
-                if (m.sender_role === "professional" && isAfterBenchmark) {
-                  return (
-                    <div key={m.id} className="ch-lo-answer">
-                      <div className="ch-lo-answer-label">YOUR LOAN OFFICER</div>
-                      <div className="ch-lo-answer-text">
-                        {m.content.split("\n").map((line, i) => (
-                          <span key={i}>{line}{i < m.content.split("\n").length - 1 ? <br /> : null}</span>
-                        ))}
-                      </div>
-                      <div className="ch-lo-answer-time">{fmt(m.created_at)}</div>
-                    </div>
-                  );
-                }
+                // Borrower discover_question messages don't appear in thread either
+                if (type === "discover_question") return null;
 
-                // Regular chat bubble
                 const mine = (isBorrower && m.sender_role === "borrower") || (!isBorrower && m.sender_role === "professional");
                 return (
                   <div key={m.id} className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
