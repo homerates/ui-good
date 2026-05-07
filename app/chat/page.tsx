@@ -2704,43 +2704,8 @@ export default function Page() {
         setShowLibrary(true);
     }
 
-    // NEW PROJECT:
-    // Create a project for the *current chat thread* using /api/projects,
-    // which expects { threadId, projectName }.
     function onNewProject() {
-        if (!activeId) {
-            console.warn('[NewProject] No active chat thread to attach project to.');
-            // optional: alert('Open or select a chat before creating a project.');
-            return;
-        }
-
-        const raw = window.prompt('Name your project (for grouping related chats):');
-        const projectName = raw?.trim();
-        if (!projectName) {
-            return;
-        }
-
-        // Fire-and-forget async flow so handler stays () => void
-        void (async () => {
-            try {
-                const res = await createProject(activeId, projectName);
-                if (!res.ok) {
-                    console.error('[NewProject] Error creating project:', res);
-                    return;
-                }
-
-                console.log(
-                    '[NewProject] Created project for thread:',
-                    activeId,
-                    'name:',
-                    projectName
-                );
-                // ProjectsPanel reads from /api/projects; click "Refresh" there
-                // to pull the new project + mapping into the sidebar.
-            } catch (err) {
-                console.error('[NewProject] Unexpected error:', err);
-            }
-        })();
+        setShowProject(true);
     }
 
     function onLabSeed(seed: string) {
