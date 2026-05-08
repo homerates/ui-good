@@ -127,6 +127,10 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   const [aiMessages, setAiMessages] = useState<AiMsg[]>([]);
   const aiConvoRef = useRef<HTMLDivElement>(null);
 
+  // ── Per-chip AI analysis of LO replies ───────────────────────────────────
+  const [aiNotes, setAiNotes]       = useState<Record<string, string>>({});
+  const [aiNoteLoading, setAiNoteLoading] = useState<Record<string, boolean>>({});
+
   // ─────────────────────────────────────────────────────────────────────────
   // Auto-create session when scenario is available
   // ─────────────────────────────────────────────────────────────────────────
@@ -164,7 +168,9 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   }, [!!activeScenario]);
 
   // Auto-extract lender answers from LO's chat replies — always sets something
-  // so the borrower never needs to manually enter or press anything
+  // so the borrower never needs to manually enter or press anything.
+  // If the extraction produces non-numeric text (LO didn't quote a number),
+  // also triggers AI analysis for richer, contextual feedback.
   useEffect(() => {
     const entries = Object.entries(loReplies);
     if (entries.length === 0) return;
@@ -174,15 +180,28 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     if (toProcess.length === 0) return;
 
     const extracted: Record<string, string> = {};
+    const needsAiAnalysis: Array<{ chipId: string; replyText: string }> = [];
+
     for (const [chipId, replyText] of toProcess) {
-      processedRepliesRef.current.add(chipId); // always mark processed once LO has replied
+      processedRepliesRef.current.add(chipId);
       const q   = questions.find(q => q.id === chipId);
       if (!q) continue;
       const val = extractFromReply(q.inputType, replyText);
-      if (val) extracted[chipId] = val;
+      if (val) {
+        extracted[chipId] = val;
+        // For pct/dollar chips: if the extracted value is non-numeric, use AI to analyze
+        if ((q.inputType === 'pct' || q.inputType === 'dollar') && isNaN(parseFloat(val))) {
+          needsAiAnalysis.push({ chipId, replyText });
+        }
+      }
     }
+
     if (Object.keys(extracted).length > 0) {
       setInputs(prev => ({ ...prev, ...extracted }));
+    }
+    // Kick off AI analysis for non-numeric replies (async, non-blocking)
+    for (const { chipId, replyText } of needsAiAnalysis) {
+      analyzeLoReply(chipId, replyText);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loReplies]);
@@ -280,6 +299,36 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       setAiMessages(prev => prev.map((m, i) => i === prev.length - 1 ? { q, a: answer } : m));
     } catch {
       setAiMessages(prev => prev.map((m, i) => i === prev.length - 1 ? { q, a: 'Could not reach AI. Check your connection.' } : m));
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // AI analysis of LO reply (called when extraction produces non-numeric text)
+  // ─────────────────────────────────────────────────────────────────────────
+  async function analyzeLoReply(chipId: string, loReply: string) {
+    if (!benchmarkSnap && !activeScenario) return;
+    const snap = benchmarkSnap ?? activeScenario!;
+    const q    = questions.find(q => q.id === chipId);
+    if (!q) return;
+    setAiNoteLoading(prev => ({ ...prev, [chipId]: true }));
+    try {
+      const res = await fetch('/api/discover/analyze-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loReply,
+          chipTitle:     q.title,
+          chipSubtopics: q.subtopics,
+          loanType:      activeLoanType,
+          scenario:      snap,
+        }),
+      });
+      const data = await res.json();
+      if (data.analysis) {
+        setAiNotes(prev => ({ ...prev, [chipId]: data.analysis }));
+      }
+    } catch { /* silent */ } finally {
+      setAiNoteLoading(prev => ({ ...prev, [chipId]: false }));
     }
   }
 
@@ -544,11 +593,25 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
 
                         {/* AI analysis bar */}
                         {inputVal && (
-                          <div className={`dd-analysis ${gap.status}`}>
-                            <span className="dd-analysis-icon">
-                              {gap.status === 'match' ? '✓' : gap.status === 'check' ? '⚡' : '⚠'}
-                            </span>
-                            <span>{gap.note}</span>
+                          <div className={`dd-analysis ${aiNoteLoading[q.id] ? 'loading' : gap.status}`}>
+                            {aiNoteLoading[q.id] ? (
+                              <>
+                                <span className="dd-analysis-icon">✨</span>
+                                <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
+                                  Analyzing response
+                                  <span className="dd-dots" style={{ marginLeft: 4 }}><span /><span /><span /></span>
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="dd-analysis-icon">
+                                  {gap.status === 'match' ? '✓' : gap.status === 'check' ? '⚡' : '⚠'}
+                                </span>
+                                <span style={{ whiteSpace: 'pre-wrap' }}>
+                                  {aiNotes[q.id] ?? gap.note}
+                                </span>
+                              </>
+                            )}
                           </div>
                         )}
 
@@ -822,9 +885,10 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
           padding: 8px 10px; border-radius: 7px;
           font-size: 11px; line-height: 1.55;
         }
-        .dd-analysis.match { background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.18); color: #9de8bc; }
-        .dd-analysis.check { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.18); color: #fde68a; }
-        .dd-analysis.alert { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.18); color: #fca5a5; }
+        .dd-analysis.match   { background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.18); color: #9de8bc; }
+        .dd-analysis.check   { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.18); color: #fde68a; }
+        .dd-analysis.alert   { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.18); color: #fca5a5; }
+        .dd-analysis.loading { background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.18); color: rgba(196,181,253,0.70); }
         .dd-analysis-icon  { font-size: 11px; flex-shrink: 0; margin-top: 1px; }
 
         .dd-edit-btn {
