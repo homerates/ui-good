@@ -79,6 +79,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const [sendError, setSendError] = useState("");
   const [sharing, setSharing] = useState(false);
   const [showShareConfirm, setShowShareConfirm] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"chat" | "discover">("chat");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -206,14 +207,18 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
 
   const isBorrower = thread?.is_borrower ?? true;
   const proType = thread?.professional_type === "agent" ? "Agent" : "Loan Officer";
-  // Nav title: always shows who you're talking TO
-  // Borrower → "Loan Officer" or "Agent" (+ name once contact shared)
-  // LO/Agent → borrower's real name (resolved server-side) or "Borrower"
   const navTitle = isBorrower
     ? (proCard?.name ? `${proType} · ${proCard.name}` : proType)
     : (thread?.borrower_name ? `Borrower · ${thread.borrower_name}` : "Borrower");
   const isClosed = thread?.status === "closed";
   const contactShared = thread?.status === "contact_shared" || !!contactShare;
+  const hasDock = isBorrower && !!discoverScenario;
+
+  // Derive which chip questions have already been sent (from thread messages)
+  const sentChipIds = messages
+    .filter(m => m.metadata?.type === "discover_chip")
+    .map(m => (m.metadata as { chipId?: string })?.chipId ?? "")
+    .filter(Boolean);
 
   return (
     <>
@@ -227,8 +232,23 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           titleBadge={contactShared ? <span className="ch-contact-badge">Contact shared</span> : undefined}
         />
 
-        {/* Page body — centers the portal card */}
-        <div className="ch-page-body">
+        {/* Mobile tab bar — only when dock is available */}
+        {hasDock && (
+          <div className="ch-tab-bar">
+            <button className={`ch-tab-btn${mobileTab === "chat" ? " active" : ""}`} onClick={() => setMobileTab("chat")}>
+              💬 Chat
+            </button>
+            <button className={`ch-tab-btn${mobileTab === "discover" ? " active" : ""}`} onClick={() => setMobileTab("discover")}>
+              🔍 Discover
+            </button>
+          </div>
+        )}
+
+        {/* Page body */}
+        <div className={`ch-page-body${hasDock ? " ch-split-mode" : ""}`}>
+
+          {/* ── Left: Chat column ── */}
+          <div className={`ch-chat-col${hasDock && mobileTab !== "chat" ? " ch-mobile-hidden" : ""}`}>
           <div className="ch-portal">
 
             {/* Contact share banner — professional card */}
@@ -313,23 +333,12 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               </div>
             )}
 
-            {/* Discover dock — borrower only, self-contained widget */}
-            {isBorrower && (
-              <div style={{ padding: "0 16px 4px" }}>
-                <DiscoverDock
-                  loanType={discoverScenario?.loanType}
-                  scenario={discoverScenario?.snapshot}
-                  threadId={threadId}
-                />
-              </div>
-            )}
-
-            {/* Scenario context strip — shown when thread has discover data */}
+            {/* Scenario context strip — compact, in chat column */}
             {isBorrower && discoverScenario && (
               <div className="ch-scenario-header">
-                Based on scenario ·&nbsp;
+                Discover active ·&nbsp;
                 <span style={{ color: "rgba(185,208,192,0.75)", fontWeight: 600 }}>
-                  {({ fha: "FHA", conventional: "Conventional", va: "VA", jumbo: "Jumbo" }[discoverScenario.loanType])} · ${discoverScenario.snapshot.price.toLocaleString()} · {discoverScenario.snapshot.downPct}% down · {discoverScenario.snapshot.rate}% · ${Math.round(discoverScenario.snapshot.monthlyPayment).toLocaleString()}/mo
+                  {({ fha: "FHA", conventional: "Conventional", va: "VA", jumbo: "Jumbo" }[discoverScenario.loanType])} · ${discoverScenario.snapshot.price.toLocaleString()} · {discoverScenario.snapshot.rate}% rate
                 </span>
               </div>
             )}
@@ -366,8 +375,8 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                   );
                 }
 
-                // Discover question — borrower's pre-injected question
-                if (type === "discover_question") {
+                // Discover chip question — sent one at a time from the dock
+                if (type === "discover_chip" || type === "discover_question") {
                   return (
                     <div key={m.id} className="ch-discover-q">
                       <div className="ch-discover-q-label">
@@ -450,6 +459,20 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
             </div>
 
           </div>{/* /ch-portal */}
+          </div>{/* /ch-chat-col */}
+
+          {/* ── Right: Discover dock column ── */}
+          {hasDock && (
+            <div className={`ch-dock-col${mobileTab !== "discover" ? " ch-mobile-hidden" : ""}`}>
+              <DiscoverDock
+                loanType={discoverScenario?.loanType}
+                scenario={discoverScenario?.snapshot}
+                threadId={threadId}
+                sentChipIds={sentChipIds}
+              />
+            </div>
+          )}
+
         </div>{/* /ch-page-body */}
 
         {/* Share confirm modal — outside portal so it overlays everything */}
@@ -504,13 +527,59 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           border-radius: 99px; padding: 2px 9px;
         }
 
-        /* Page body — centers the portal card horizontally */
+        /* Page body */
         .ch-page-body {
           flex: 1; min-height: 0;
           display: flex; justify-content: center;
           padding: 0 16px 16px;
           overflow: hidden;
         }
+
+        /* Split mode — side-by-side on desktop */
+        .ch-split-mode {
+          display: grid !important;
+          grid-template-columns: 1fr 400px;
+          gap: 12px;
+          max-width: 1180px;
+          width: 100%;
+          align-items: start;
+          overflow: hidden;
+        }
+
+        /* Chat column */
+        .ch-chat-col {
+          display: flex; flex-direction: column;
+          min-height: 0; overflow: hidden;
+          height: 100%;
+        }
+
+        /* Discover dock column */
+        .ch-dock-col {
+          overflow-y: auto;
+          height: 100%;
+          padding-top: 0;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(148,163,184,0.12) transparent;
+        }
+
+        /* Mobile tab bar — hidden on desktop */
+        .ch-tab-bar {
+          display: none;
+          flex-shrink: 0;
+          background: #0a1020;
+          border-bottom: 1px solid rgba(148,163,184,0.12);
+        }
+        .ch-tab-btn {
+          flex: 1; padding: 12px 0;
+          font-size: 13px; font-weight: 600;
+          color: rgba(148,163,184,0.50);
+          background: none; border: none;
+          border-bottom: 2px solid transparent;
+          cursor: pointer; letter-spacing: 0.02em;
+          transition: all 0.15s;
+          font-family: 'DM Sans', system-ui, sans-serif;
+        }
+        .ch-tab-btn.active { color: #00e87a; border-bottom-color: #00e87a; }
 
         /* Portal card */
         .ch-portal {
@@ -523,7 +592,9 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           box-shadow: 0 0 0 1px rgba(0,232,122,0.04),
                       0 32px 80px rgba(0,0,0,0.45);
           overflow: hidden;
+          height: 100%;
         }
+        .ch-split-mode .ch-portal { max-width: 100%; border-radius: 0 0 14px 14px; }
 
         /* ── Contact share banner ── */
         .ch-share-banner {
@@ -881,8 +952,23 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         .ch-share-confirm-ok:disabled { opacity: 0.4; cursor: not-allowed; }
 
         /* ── Responsive ── */
+        @media (max-width: 700px) {
+          .ch-split-mode {
+            grid-template-columns: 1fr !important;
+            gap: 0 !important;
+            overflow-y: auto !important;
+            align-items: start !important;
+          }
+          .ch-chat-col { height: auto; min-height: 0; overflow: visible; }
+          .ch-portal   { height: auto; min-height: 80vh; }
+          .ch-dock-col { height: auto; overflow-y: visible; }
+          .ch-tab-bar  { display: flex; }
+          .ch-mobile-hidden { display: none !important; }
+          .ch-page-body { overflow-y: auto; overflow-x: hidden; }
+        }
+
         @media (max-width: 520px) {
-          .ch-page-body { padding: 0 0 0; }
+          .ch-page-body { padding: 0; }
           .ch-portal { border-radius: 0; border-left: none; border-right: none; }
           .ch-bubble { max-width: 86%; }
           .ch-share-cards { flex-direction: column; }

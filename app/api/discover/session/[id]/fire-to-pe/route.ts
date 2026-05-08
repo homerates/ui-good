@@ -1,5 +1,6 @@
 // app/api/discover/session/[id]/fire-to-pe/route.ts
-// POST — inject Discover question/benchmark pairs as structured messages into a PE thread.
+// POST — inject ONE chip question as a borrower message into a thread.
+// Called when the borrower taps a chip in the Discover dock.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -16,10 +17,10 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { threadId } = await req.json();
+    const { threadId, questionId } = await req.json();
 
-    if (!threadId) {
-      return NextResponse.json({ error: 'threadId required' }, { status: 400 });
+    if (!threadId || !questionId) {
+      return NextResponse.json({ error: 'threadId and questionId required' }, { status: 400 });
     }
 
     // Fetch session
@@ -33,12 +34,13 @@ export async function POST(
       return NextResponse.json({ error: 'session not found' }, { status: 404 });
     }
 
-    // Guard: don't fire twice into same thread
+    // Guard: don't fire the same chip twice into the same thread
     const { data: existing } = await supabase
       .from('messages')
       .select('id')
       .eq('thread_id', threadId)
-      .eq('metadata->>type', 'discover_question')
+      .eq('metadata->>type', 'discover_chip')
+      .eq('metadata->>chipId', questionId)
       .limit(1)
       .maybeSingle();
 
@@ -46,23 +48,29 @@ export async function POST(
       return NextResponse.json({ ok: true, already_fired: true });
     }
 
-    const loanType = session.loan_type as LoanTypeKey;
-    const snap = session.scenario_snapshot;
+    const loanType  = session.loan_type as LoanTypeKey;
+    const snap      = session.scenario_snapshot;
     const questions = getQuestions(loanType);
+    const question  = questions.find(q => q.id === questionId);
 
-    // Send ONE consolidated message to the LO with all questions listed.
-    // AI benchmarks are private to the borrower (shown only in the dock) — not shared here.
-    const questionLines = questions.map((q, i) => `${i + 1}. ${q.icon} ${q.title} — ${q.prompt(snap)}`).join('\n');
-    const consolidated = `I have a few questions about my loan quote:\n\n${questionLines}\n\nPlease answer these so I can compare your quote.`;
+    if (!question) {
+      return NextResponse.json({ error: 'unknown questionId' }, { status: 400 });
+    }
 
+    // Insert the chip question as a borrower message
     await supabase.from('messages').insert({
-      thread_id: threadId,
+      thread_id:   threadId,
       sender_role: 'borrower',
-      content: consolidated,
-      metadata: { type: 'discover_ask', question_count: questions.length },
+      content:     question.prompt(snap),
+      metadata:    {
+        type:    'discover_chip',
+        chipId:  questionId,
+        icon:    question.icon,
+        title:   question.title,
+      },
     });
 
-    // Update thread: last_message_at + mark unread for professional
+    // Update thread: last_message_at + unread for professional
     const { data: thread } = await supabase
       .from('conversation_threads')
       .select('unread_professional')
@@ -72,12 +80,12 @@ export async function POST(
     await supabase
       .from('conversation_threads')
       .update({
-        last_message_at: new Date().toISOString(),
+        last_message_at:     new Date().toISOString(),
         unread_professional: (thread?.unread_professional ?? 0) + 1,
       })
       .eq('id', threadId);
 
-    // Link session to thread
+    // Link session to thread if not already linked
     await supabase
       .from('discover_sessions')
       .update({ thread_id: threadId })
