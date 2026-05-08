@@ -206,6 +206,9 @@ export async function POST(req: NextRequest) {
 
   const hasCardData = !!(card_price && card_rate);
 
+  // DEBUG — log what card fields arrived (remove after confirming creation path)
+  console.log('[scenarios/POST] card_data_received:', { card_price, card_dp_pct, card_rate, card_monthly, card_term, hasCardData, body_keys: Object.keys(body) });
+
   if (!loan_type || !price_range || down_payment_pct == null || !income_range || !credit_tier || !timeline || !state) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
