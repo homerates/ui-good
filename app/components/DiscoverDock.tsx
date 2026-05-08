@@ -14,9 +14,9 @@ import {
 
 const GAP_COLORS: Record<GapStatus, { bg: string; border: string; text: string; label: string }> = {
   match:   { bg: 'rgba(0,232,122,0.10)',  border: 'rgba(0,232,122,0.30)',  text: '#00e87a', label: '✓ Match'   },
-  check:   { bg: 'rgba(251,191,36,0.10)', border: 'rgba(251,191,36,0.30)', text: '#fbbf24', label: '⚠ Review'  },
-  alert:   { bg: 'rgba(248,113,113,0.10)',border: 'rgba(248,113,113,0.30)',text: '#f87171', label: '✗ Alert'   },
-  pending: { bg: 'rgba(148,163,184,0.06)',border: 'rgba(148,163,184,0.12)',text: 'rgba(148,163,184,0.50)', label: '— Enter' },
+  check:   { bg: 'rgba(251,191,36,0.10)', border: 'rgba(251,191,36,0.30)', text: '#fbbf24', label: '⚡ Review'  },
+  alert:   { bg: 'rgba(248,113,113,0.10)',border: 'rgba(248,113,113,0.30)',text: '#f87171', label: '⚠ Alert'   },
+  pending: { bg: 'rgba(148,163,184,0.06)',border: 'rgba(148,163,184,0.12)',text: 'rgba(185,208,192,0.40)', label: '⏳ Pending' },
 };
 
 const LOAN_LABELS: Record<LoanTypeKey, string> = {
@@ -294,19 +294,21 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
           <>
             {/* Column headers */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1px 1fr',
-              borderTop: '1px solid rgba(148,163,184,0.08)',
-              borderBottom: '1px solid rgba(148,163,184,0.08)',
+              display: 'grid', gridTemplateColumns: '1fr 1fr',
+              padding: '8px 16px 6px',
+              borderTop: '1px solid rgba(148,163,184,0.07)',
+              gap: 8,
             }}>
-              <div style={{ padding: '7px 14px', textAlign: 'center' }}>
-                <span style={{ color: '#00e87a', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  AI Benchmark
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00e87a', flexShrink: 0 }} />
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: '#00e87a' }}>
+                  HomeRates AI
                 </span>
               </div>
-              <div style={{ background: 'rgba(148,163,184,0.08)' }} />
-              <div style={{ padding: '7px 14px', textAlign: 'center' }}>
-                <span style={{ color: 'rgba(148,163,184,0.55)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Your Lender Said
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#60a5fa', flexShrink: 0 }} />
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: '#60a5fa' }}>
+                  Your Lender
                 </span>
               </div>
             </div>
@@ -316,74 +318,76 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
               const gap = gaps[i];
               const gapStyle = GAP_COLORS[gap.status];
               const inputVal = inputs[q.id] ?? '';
-              const isLast = i === questions.length - 1;
               return (
                 <div key={q.id} style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1px 1fr',
-                  borderBottom: isLast ? 'none' : '1px solid rgba(148,163,184,0.07)',
+                  borderTop: '1px solid rgba(148,163,184,0.06)',
+                  padding: '10px 16px',
+                  display: 'flex', flexDirection: 'column', gap: 7,
                 }}>
-                  <div style={{ padding: '12px 14px', background: 'rgba(0,232,122,0.02)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                      <span style={{ fontSize: 13 }}>{q.icon}</span>
-                      <span style={{ color: '#c8dfc8', fontWeight: 700, fontSize: 12 }}>{q.title}</span>
-                    </div>
-                    <div style={{ color: '#00e87a', fontWeight: 700, fontSize: 15, marginBottom: 2 }}>
-                      {q.aiValue(activeScenario)}
-                    </div>
-                    <div style={{ color: 'rgba(148,163,184,0.50)', fontSize: 10.5, lineHeight: 1.4 }}>
-                      {q.aiSub(activeScenario)}
-                    </div>
+                  {/* Row label */}
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'rgba(185,208,192,0.7)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13 }}>{q.icon}</span>
+                    {q.title}
                   </div>
-                  <div style={{ background: 'rgba(148,163,184,0.08)' }} />
-                  <div style={{ padding: '12px 14px' }}>
-                    <div style={{ marginBottom: 6 }}>
+
+                  {/* 2-col answer cells */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {/* AI cell */}
+                    <div style={{
+                      background: 'rgba(0,232,122,0.04)', border: '1px solid rgba(0,232,122,0.14)',
+                      borderRadius: 7, padding: '8px 10px', minHeight: 52,
+                      display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2,
+                    }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#00e87a', lineHeight: 1.2 }}>
+                        {q.aiValue(activeScenario)}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'rgba(185,208,192,0.5)', marginTop: 1 }}>
+                        {q.aiSub(activeScenario)}
+                      </div>
+                    </div>
+
+                    {/* Lender cell — input styled as cell content */}
+                    <div style={{
+                      background: inputVal ? gapStyle.bg : 'transparent',
+                      border: `1px ${inputVal ? 'solid' : 'dashed'} ${inputVal ? gapStyle.border : 'rgba(148,163,184,0.12)'}`,
+                      borderRadius: 7, padding: '8px 10px', minHeight: 52,
+                      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                    }}>
                       <input
                         type={q.inputType === 'pct' || q.inputType === 'number' ? 'number' : 'text'}
                         step={q.inputType === 'pct' ? '0.001' : q.inputType === 'number' ? '0.5' : undefined}
                         placeholder={typeof q.inputPlaceholder === 'function'
                           ? (q.inputPlaceholder as (s: ScenarioSnapshot) => string)(activeScenario)
-                          : q.inputPlaceholder}
+                          : (q.inputPlaceholder as string) ?? 'Enter quote…'}
                         value={inputVal}
                         onChange={e => setInputs(prev => ({ ...prev, [q.id]: e.target.value }))}
                         onBlur={() => saveInput(q.id, inputVal)}
                         style={{
-                          width: '100%', boxSizing: 'border-box',
-                          background: 'rgba(255,255,255,0.04)',
-                          border: `1px solid ${inputVal ? gapStyle.border : 'rgba(148,163,184,0.15)'}`,
-                          borderRadius: 6, padding: '6px 8px',
-                          color: '#e2e8f0', fontSize: 13, fontWeight: 600,
-                          outline: 'none', transition: 'border-color 0.2s',
+                          width: '100%', boxSizing: 'border-box' as const,
+                          background: 'transparent', border: 'none',
+                          color: inputVal ? gapStyle.text : 'rgba(185,208,192,0.30)',
+                          fontSize: inputVal ? 15 : 11,
+                          fontWeight: inputVal ? 700 : 400,
+                          fontStyle: inputVal ? 'normal' : 'italic',
+                          outline: 'none', padding: 0,
                         }}
                       />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '2px 7px',
-                        borderRadius: 20, background: gapStyle.bg,
-                        border: `1px solid ${gapStyle.border}`, color: gapStyle.text,
-                        flexShrink: 0, whiteSpace: 'nowrap',
-                      }}>
-                        {gapStyle.label}
+                  </div>
+
+                  {/* Gap tag */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
+                      background: gapStyle.bg, color: gapStyle.text, border: `1px solid ${gapStyle.border}`,
+                    }}>
+                      {gapStyle.label}
+                    </span>
+                    {gap.note && (
+                      <span style={{ fontSize: 10.5, color: 'rgba(185,208,192,0.60)', lineHeight: 1.4 }}>
+                        {gap.note}
                       </span>
-                      {gap.note && (
-                        <span style={{ color: 'rgba(185,208,192,0.60)', fontSize: 10.5, lineHeight: 1.4 }}>
-                          {gap.note}
-                        </span>
-                      )}
-                    </div>
-                    {!inputVal && (
-                      <div style={{
-                        marginTop: 8, padding: '6px 8px',
-                        background: 'rgba(148,163,184,0.04)',
-                        border: '1px solid rgba(148,163,184,0.10)', borderRadius: 5,
-                      }}>
-                        <span style={{ color: 'rgba(148,163,184,0.45)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                          Ask:&nbsp;
-                        </span>
-                        <span style={{ color: 'rgba(185,208,192,0.60)', fontSize: 10.5, lineHeight: 1.5, fontStyle: 'italic' }}>
-                          "{q.prompt(activeScenario)}"
-                        </span>
-                      </div>
                     )}
                   </div>
                 </div>
@@ -392,13 +396,41 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
 
             {/* Action bar */}
             <div style={{
-              borderTop: '1px solid rgba(148,163,184,0.10)',
-              padding: '9px 14px', background: 'rgba(0,0,0,0.12)',
-              display: 'flex', alignItems: 'center',
+              display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+              padding: '11px 16px',
+              borderTop: '1px solid rgba(148,163,184,0.08)',
+              background: 'rgba(0,0,0,0.18)',
             }}>
-              <span style={{ color: 'rgba(148,163,184,0.30)', fontSize: 10 }}>
-                Responses stored anonymously · AI training only
-              </span>
+              <button style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 11.5, fontWeight: 600, padding: '7px 14px', borderRadius: 7,
+                background: 'rgba(0,232,122,0.10)', border: '1px solid rgba(0,232,122,0.25)', color: '#00e87a',
+                cursor: 'pointer',
+              }}>
+                🤖 Ask AI all {questions.length} questions
+              </button>
+              <div style={{ flex: 1 }} />
+              {threadId && (
+                <a href={`/messages/${threadId}`} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  fontSize: 11.5, fontWeight: 600, padding: '7px 14px', borderRadius: 7,
+                  background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.25)', color: '#a78bfa',
+                  cursor: 'pointer', textDecoration: 'none',
+                }}>
+                  ⚡ View in Exchange
+                </a>
+              )}
+            </div>
+
+            {/* CTA footer */}
+            <div style={{
+              padding: '10px 16px',
+              borderTop: '1px solid rgba(148,163,184,0.06)',
+              background: 'rgba(0,0,0,0.20)',
+              fontSize: 11, color: 'rgba(185,208,192,0.45)',
+              fontStyle: 'italic', lineHeight: 1.55, textAlign: 'center',
+            }}>
+              The goal is not to avoid lenders. The goal is to choose who has earned the right to advise you.
             </div>
           </>
         )}

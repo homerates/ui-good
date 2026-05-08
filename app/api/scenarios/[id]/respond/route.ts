@@ -8,6 +8,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../../lib/supabaseServer";
 import { emailScenarioResponse } from "../../../../../lib/sendEmail";
+import { getQuestions, type LoanTypeKey, type ScenarioSnapshot } from "../../../../../lib/discoverQuestions";
+
+function buildDiscoverSnapshot(s: {
+  loan_type: string;
+  card_price: number | null;
+  card_dp_pct: number | null;
+  card_rate: number | null;
+  card_monthly: number | null;
+  card_term: number | null;
+}): ScenarioSnapshot | null {
+  if (!s.card_price || !s.card_rate) return null;
+  const term = s.card_term ?? 30;
+  const downPct = s.card_dp_pct ?? 0;
+  const price = s.card_price;
+  const down = price * downPct / 100;
+  const baseLoan = price - down;
+  const loanAmount = s.loan_type === 'fha' ? baseLoan * 1.0175 : baseLoan;
+  const ltv = baseLoan / price;
+  const rate = s.card_rate;
+  const r = rate / 100 / 12;
+  const n = term * 12;
+  const pi = r > 0 ? (loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : loanAmount / n;
+  const monthlyMIP = s.loan_type === 'fha' && ltv > 0.90 ? loanAmount * 0.0055 / 12
+    : s.loan_type === 'fha' ? loanAmount * 0.0050 / 12 : undefined;
+  const monthlyPMI = s.loan_type === 'conventional' && ltv > 0.80 ? loanAmount * 0.005 / 12 : undefined;
+  return {
+    price, loanAmount, downPct, rate, term, ltv,
+    monthlyPayment: s.card_monthly ?? (pi + (monthlyMIP ?? 0) + (monthlyPMI ?? 0)),
+    monthlyMIP, monthlyPMI,
+  };
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
@@ -61,7 +92,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Verify scenario exists and is active
   const { data: scenarioFull } = await sb
     .from("scenario_briefs")
-    .select("id, borrower_id, status, response_count, max_responses, closes_at, visibility, referred_pro_id")
+    .select("id, borrower_id, status, response_count, max_responses, closes_at, visibility, referred_pro_id, loan_type, has_card_data, card_price, card_dp_pct, card_rate, card_monthly, card_term")
     .eq("id", id)
     .single();
 
@@ -126,18 +157,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (existingThread) {
       threadId = existingThread.id;
-      const { data: msg } = await sb
-        .from("messages")
-        .insert({ thread_id: threadId, sender_role: "professional", content: approach.trim() })
-        .select("created_at")
-        .single();
-      await sb
-        .from("conversation_threads")
-        .update({
-          last_message_at: msg?.created_at ?? new Date().toISOString(),
-          unread_borrower: (existingThread.unread_borrower ?? 0) + 1,
-        })
-        .eq("id", threadId);
     } else {
       const { data: newThread } = await sb
         .from("conversation_threads")
@@ -150,20 +169,59 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         })
         .select("id")
         .single();
-      if (newThread) {
-        threadId = newThread.id;
-        const { data: msg } = await sb
+      if (newThread) threadId = newThread.id;
+    }
+
+    if (threadId) {
+      // Inject discover Q+A pairs first (borrower questions + AI benchmarks)
+      // — only when scenario has card data and thread has no discover messages yet
+      if (scenarioFull.has_card_data && scenarioFull.card_price && scenarioFull.card_rate) {
+        const { data: existingDiscover } = await sb
           .from("messages")
-          .insert({ thread_id: threadId, sender_role: "professional", content: approach.trim() })
-          .select("created_at")
-          .single();
-        if (msg) {
-          await sb
-            .from("conversation_threads")
-            .update({ last_message_at: msg.created_at, unread_borrower: 1 })
-            .eq("id", threadId);
+          .select("id")
+          .eq("thread_id", threadId)
+          .eq("metadata->>type", "discover_question")
+          .limit(1)
+          .maybeSingle();
+
+        if (!existingDiscover) {
+          const snap = buildDiscoverSnapshot(scenarioFull);
+          if (snap) {
+            const loanType = (scenarioFull.loan_type || "conventional") as LoanTypeKey;
+            const questions = getQuestions(loanType);
+            for (const q of questions) {
+              await sb.from("messages").insert({
+                thread_id: threadId,
+                sender_role: "borrower",
+                content: q.prompt(snap),
+                metadata: { type: "discover_question", question_id: q.id, title: q.title, icon: q.icon, ai_value: q.aiValue(snap), ai_sub: q.aiSub(snap) },
+              });
+              await sb.from("messages").insert({
+                thread_id: threadId,
+                sender_role: "system",
+                content: q.aiValue(snap),
+                metadata: { type: "ai_benchmark", question_id: q.id, ai_value: q.aiValue(snap), ai_sub: q.aiSub(snap), title: q.title },
+              });
+            }
+          }
         }
       }
+
+      // Insert LO's approach as the professional's first message
+      const { data: msg } = await sb
+        .from("messages")
+        .insert({ thread_id: threadId, sender_role: "professional", content: approach.trim() })
+        .select("created_at")
+        .single();
+
+      const prevUnread = existingThread?.unread_borrower ?? 0;
+      await sb
+        .from("conversation_threads")
+        .update({
+          last_message_at: msg?.created_at ?? new Date().toISOString(),
+          unread_borrower: prevUnread + 1,
+        })
+        .eq("id", threadId);
     }
   } catch (e) {
     console.error("[scenarios/respond] thread/message creation failed:", e);
