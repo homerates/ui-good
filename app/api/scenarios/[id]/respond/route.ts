@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../../lib/supabaseServer";
 import { emailScenarioResponse } from "../../../../../lib/sendEmail";
-import { getQuestions, type LoanTypeKey, type ScenarioSnapshot } from "../../../../../lib/discoverQuestions";
+import { type ScenarioSnapshot } from "../../../../../lib/discoverQuestions";
 
 function buildDiscoverSnapshot(s: {
   loan_type: string;
@@ -177,39 +177,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     if (threadId) {
-      // Inject discover Q+A pairs first (borrower questions + AI benchmarks)
-      // — only when scenario has card data and thread has no discover messages yet
-      if (scenarioFull.card_price && scenarioFull.card_rate) {
-        const { data: existingDiscover } = await sb
-          .from("messages")
-          .select("id")
-          .eq("thread_id", threadId)
-          .eq("metadata->>type", "discover_question")
-          .limit(1)
-          .maybeSingle();
-
-        if (!existingDiscover) {
-          const snap = buildDiscoverSnapshot(scenarioFull);
-          if (snap) {
-            const loanType = (scenarioFull.loan_type || "conventional") as LoanTypeKey;
-            const questions = getQuestions(loanType);
-            for (const q of questions) {
-              await sb.from("messages").insert({
-                thread_id: threadId,
-                sender_role: "borrower",
-                content: q.prompt(snap),
-                metadata: { type: "discover_question", question_id: q.id, title: q.title, icon: q.icon, ai_value: q.aiValue(snap), ai_sub: q.aiSub(snap) },
-              });
-              await sb.from("messages").insert({
-                thread_id: threadId,
-                sender_role: "system",
-                content: q.aiValue(snap),
-                metadata: { type: "ai_benchmark", question_id: q.id, ai_value: q.aiValue(snap), ai_sub: q.aiSub(snap), title: q.title },
-              });
-            }
-          }
-        }
-      }
+      // No auto-inject of discover messages on respond — borrower triggers via dock "Ask AI" button.
+      // This avoids flooding the LO's inbox with 12 system messages they didn't expect.
 
       // Insert LO's approach as the professional's first message
       const { data: msg } = await sb

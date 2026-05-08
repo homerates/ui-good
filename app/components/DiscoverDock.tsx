@@ -475,7 +475,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                 cursor: firing || fired ? 'default' : 'pointer',
                 opacity: !threadId ? 0.4 : 1,
               }}>
-                {fired ? '✓ Sent to Exchange' : firing ? 'Sending…' : `🤖 Ask AI all ${questions.length} questions`}
+                {fired ? '✓ Questions sent to lender' : firing ? 'Sending…' : `💬 Ask lender all ${questions.length} questions`}
               </button>
               <div style={{ flex: 1 }} />
               {threadId && (
