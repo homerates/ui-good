@@ -127,17 +127,20 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     // Hydrate Discover dock if scenario card data is available
     const ds = data.discover_scenario;
     const VALID_LOAN_TYPES: LoanTypeKey[] = ['fha', 'conventional', 'va', 'jumbo'];
-    if (ds && VALID_LOAN_TYPES.includes(ds.loanType)) {
+    if (ds && ds.price && ds.rate) {
+      const safeLoanType: LoanTypeKey = VALID_LOAN_TYPES.includes(ds.loanType as LoanTypeKey)
+        ? ds.loanType as LoanTypeKey
+        : 'conventional';
       setDiscoverScenario({
-        loanType: ds.loanType as LoanTypeKey,
+        loanType: safeLoanType,
         snapshot: {
           price: ds.price,
-          loanAmount: ds.loanAmount,
-          downPct: ds.downPct,
+          loanAmount: ds.loanAmount ?? ds.price * 0.965,
+          downPct: ds.downPct ?? 3.5,
           rate: ds.rate,
-          term: ds.term,
-          ltv: ds.ltv,
-          monthlyPayment: ds.monthlyPayment,
+          term: ds.term ?? 30,
+          ltv: ds.ltv ?? 0.965,
+          monthlyPayment: ds.monthlyPayment ?? 0,
         },
       });
     }

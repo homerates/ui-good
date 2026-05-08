@@ -184,15 +184,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
       : sb.from("scenario_briefs")
           .select("loan_type, card_price, card_rate, card_dp_pct, card_monthly, card_term, has_card_data")
           .eq("borrower_id", thread.borrower_id)
-          .eq("has_card_data", true)
-          .in("status", ["active", "matched"])
+          .not("card_price", "is", null)
+          .not("card_rate", "is", null)
+          .in("status", ["active", "matched", "closed"])
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
     const { data: scenario } = await scenarioQuery;
 
-    if (scenario?.has_card_data && scenario.card_price && scenario.card_rate) {
+    if (scenario?.card_price && scenario.card_rate) {
       const downPct = scenario.card_dp_pct ?? 0;
       const baseLoan = scenario.card_price * (1 - downPct / 100);
       const loanAmount = scenario.loan_type === "fha" ? baseLoan * 1.0175 : baseLoan;
