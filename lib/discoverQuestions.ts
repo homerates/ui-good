@@ -44,10 +44,10 @@ function parseDollar(raw: string): number | null {
 // ─── 1. Rate, APR & Program ───────────────────────────────────────────────────
 function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
   const loanSpecific: Record<LoanTypeKey, string> = {
-    fha:          'Also ask: what is the upfront MIP (1.75%) and will it be financed?',
-    conventional: 'Also ask: any discount points required to achieve this rate?',
-    va:           'Also ask: what is the VA funding fee and can it be financed?',
-    jumbo:        'Also ask: is this a fixed or ARM, and what overlay requirements apply?',
+    fha:          'What is the upfront MIP rate and will it be financed into the loan amount?',
+    conventional: 'Are any discount points required to achieve this rate?',
+    va:           'What is the VA funding fee and can it be financed into the loan?',
+    jumbo:        'Is this a fixed rate or ARM, and what overlay requirements apply on credit and reserves?',
   };
   return {
     id:    'rate',

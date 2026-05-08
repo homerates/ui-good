@@ -220,6 +220,15 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     .map(m => (m.metadata as { chipId?: string })?.chipId ?? "")
     .filter(Boolean);
 
+  // Derive which chips the LO has already replied to (professional message after chip message)
+  const loRepliedChipIds = sentChipIds.filter(chipId => {
+    const chipMsg = messages.find(
+      m => m.metadata?.type === "discover_chip" && (m.metadata as { chipId?: string })?.chipId === chipId
+    );
+    if (!chipMsg) return false;
+    return messages.some(m => m.sender_role === "professional" && m.created_at > chipMsg.created_at);
+  });
+
   return (
     <>
       <div className="ch-root">
@@ -469,6 +478,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 scenario={discoverScenario?.snapshot}
                 threadId={threadId}
                 sentChipIds={sentChipIds}
+                loRepliedChipIds={loRepliedChipIds}
               />
             </div>
           )}

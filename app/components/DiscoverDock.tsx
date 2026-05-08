@@ -30,10 +30,11 @@ const DEFAULT_DOWN: Record<LoanTypeKey, string> = {
 type AiMsg = { q: string; a: string; loading?: boolean };
 
 type Props = {
-  loanType?:    LoanTypeKey;
-  scenario?:    ScenarioSnapshot;
-  threadId?:    string;
-  sentChipIds?: string[];   // chips already sent (derived from thread messages by page)
+  loanType?:          LoanTypeKey;
+  scenario?:          ScenarioSnapshot;
+  threadId?:          string;
+  sentChipIds?:       string[];   // chips already sent (derived from thread messages by page)
+  loRepliedChipIds?:  string[];   // chips where the LO has already replied in chat
 };
 
 function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTypeKey): ScenarioSnapshot {
@@ -55,7 +56,7 @@ function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTyp
   };
 }
 
-export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [] }: Props) {
+export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [] }: Props) {
   // ── Session ──────────────────────────────────────────────────────────────
   const [sessionId, setSessionId]   = useState<string | null>(null);
   const sessionCreatedRef           = useRef(false);
@@ -367,12 +368,13 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
             {/* Question chips */}
             <div className="dd-chips">
               {questions.map((q, i) => {
-                const isSent   = allSentChips.includes(q.id);
-                const isNext   = !isSent && i === nextChipIndex;
-                const inputVal = inputs[q.id] ?? '';
-                const gap      = gaps[i];
-                const gapStyle = GAP_COLORS[gap.status];
-                const isSending = sendingChip === q.id;
+                const isSent      = allSentChips.includes(q.id);
+                const isNext      = !isSent && i === nextChipIndex;
+                const inputVal    = inputs[q.id] ?? '';
+                const gap         = gaps[i];
+                const gapStyle    = GAP_COLORS[gap.status];
+                const isSending   = sendingChip === q.id;
+                const loReplied   = loRepliedChipIds.includes(q.id);
 
                 let chipClass = 'dd-chip';
                 if (isSent)  chipClass += ' sent';
@@ -383,10 +385,11 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                 // Pill
                 let pillClass = 'dd-pill ';
                 let pillText  = '';
-                if (!isSent && isNext)  { pillClass += 'pill-next';  pillText = isSending ? 'Sending…' : 'Tap to ask'; }
-                else if (!isSent)       { pillClass += 'pill-idle';  pillText = 'Pending'; }
-                else if (!inputVal)     { pillClass += 'pill-sent';  pillText = 'Waiting…'; }
-                else                    { pillClass += `pill-${gap.status}`; pillText = gapStyle.label; }
+                if (!isSent && isNext)         { pillClass += 'pill-next';  pillText = isSending ? 'Sending…' : 'Tap to ask'; }
+                else if (!isSent)              { pillClass += 'pill-idle';  pillText = 'Pending'; }
+                else if (!inputVal && loReplied) { pillClass += 'pill-reply'; pillText = 'Enter answer'; }
+                else if (!inputVal)            { pillClass += 'pill-sent';  pillText = 'Waiting…'; }
+                else                           { pillClass += `pill-${gap.status}`; pillText = gapStyle.label; }
 
                 return (
                   <div key={q.id} className={chipClass}>
@@ -446,12 +449,19 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                           </div>
                         </div>
 
-                        {/* Waiting pulse */}
+                        {/* Waiting / action prompt */}
                         {!inputVal && (
-                          <div className="dd-waiting">
-                            <span className="dd-dots"><span /><span /><span /></span>
-                            Waiting for lender to reply in chat
-                          </div>
+                          loReplied ? (
+                            <div className="dd-waiting reply">
+                              <span style={{ fontSize: 12 }}>💬</span>
+                              LO replied in chat — enter their answer above for AI analysis
+                            </div>
+                          ) : (
+                            <div className="dd-waiting">
+                              <span className="dd-dots"><span /><span /><span /></span>
+                              Waiting for lender to reply in chat
+                            </div>
+                          )
                         )}
 
                         {/* AI analysis bar */}
@@ -669,6 +679,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .pill-idle  { background: rgba(148,163,184,0.06); border: 1px solid rgba(148,163,184,0.12); color: rgba(148,163,184,0.35); }
         .pill-next  { background: rgba(139,92,246,0.10); border: 1px solid rgba(139,92,246,0.28); color: #a78bfa; }
         .pill-sent  { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.28); color: #c4b5fd; }
+        .pill-reply { background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.30); color: #fbbf24; }
         .pill-match { background: rgba(0,232,122,0.10); border: 1px solid rgba(0,232,122,0.28); color: #00e87a; }
         .pill-check { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.28); color: #fbbf24; }
         .pill-alert { background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.28); color: #f87171; }
@@ -712,6 +723,11 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .dd-waiting {
           display: flex; align-items: center; gap: 6px;
           font-size: 11px; color: rgba(139,92,246,0.60); font-style: italic;
+        }
+        .dd-waiting.reply {
+          color: #fbbf24; font-style: normal; font-weight: 600;
+          background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.18);
+          padding: 6px 9px; border-radius: 6px;
         }
         .dd-dots { display: inline-flex; gap: 3px; align-items: center; }
         .dd-dots span {
