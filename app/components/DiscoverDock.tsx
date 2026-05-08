@@ -33,9 +33,36 @@ type Props = {
   loanType?:          LoanTypeKey;
   scenario?:          ScenarioSnapshot;
   threadId?:          string;
-  sentChipIds?:       string[];   // chips already sent (derived from thread messages by page)
-  loRepliedChipIds?:  string[];   // chips where the LO has already replied in chat
+  sentChipIds?:       string[];              // chips already sent (derived from thread messages by page)
+  loRepliedChipIds?:  string[];              // chips where the LO has already replied in chat
+  loReplies?:         Record<string, string>; // chipId → LO's reply text for auto-analysis
 };
+
+// Extract the key answer value from an LO's free-text chat reply
+function extractFromReply(inputType: string, text: string): string | null {
+  if (!text.trim()) return null;
+  if (inputType === 'pct') {
+    // Find all X.XX% values, filter to plausible rate range (1–20%)
+    const matches = Array.from(text.matchAll(/(\d+\.\d+)\s*%/g));
+    const rates = matches.map(m => parseFloat(m[1])).filter(v => v >= 1 && v <= 20);
+    // Prefer the first one (rate usually quoted before APR)
+    return rates.length > 0 ? String(rates[0]) : null;
+  }
+  if (inputType === 'dollar') {
+    // Find all dollar amounts, take the largest (likely total cash to close)
+    const matches = Array.from(text.matchAll(/\$\s*([\d,]+(?:\.\d+)?)/g));
+    const vals = matches.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(v => v > 1000);
+    return vals.length > 0 ? String(Math.max(...vals)) : null;
+  }
+  if (inputType === 'text' || inputType === 'number') {
+    // For process chip: try to extract "X days" pattern
+    const dayMatch = text.match(/(\d+)\s*(?:to\s*\d+\s*)?days?/i);
+    if (dayMatch) return dayMatch[0].trim();
+    // Fallback: return truncated text for keyword analysis
+    return text.trim().slice(0, 200);
+  }
+  return null;
+}
 
 function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTypeKey): ScenarioSnapshot {
   const term      = 30;
@@ -56,7 +83,7 @@ function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTyp
   };
 }
 
-export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [] }: Props) {
+export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {} }: Props) {
   // ── Session ──────────────────────────────────────────────────────────────
   const [sessionId, setSessionId]   = useState<string | null>(null);
   const sessionCreatedRef           = useRef(false);
@@ -80,6 +107,13 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   const [localSentChips, setLocalSentChips] = useState<string[]>([]);
   const [sendingChip, setSendingChip]       = useState<string | null>(null);
   const [inputs, setInputs]                 = useState<Record<string, string>>({});
+
+  // ── Live FRED benchmark rate ─────────────────────────────────────────────
+  const [fredRate, setFredRate] = useState<number | null>(null);
+  const fredFetchedRef = useRef(false);
+
+  // ── Auto-extract tracking ────────────────────────────────────────────────
+  const processedRepliesRef = useRef<Set<string>>(new Set());
 
   const allSentChips   = [...new Set([...sentChipIds, ...localSentChips])];
   const nextChipIndex  = allSentChips.length;
@@ -118,6 +152,42 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   useEffect(() => {
     if (aiConvoRef.current) aiConvoRef.current.scrollTop = aiConvoRef.current.scrollHeight;
   }, [aiMessages]);
+
+  // Fetch live FRED 30yr benchmark rate (once, when scenario is active)
+  useEffect(() => {
+    if (!activeScenario || fredFetchedRef.current) return;
+    fredFetchedRef.current = true;
+    fetch('/api/fred')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.ok && d.mort30Avg) setFredRate(d.mort30Avg); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!activeScenario]);
+
+  // Auto-extract lender answers from LO's chat replies
+  useEffect(() => {
+    const entries = Object.entries(loReplies);
+    if (entries.length === 0) return;
+    const toProcess = entries.filter(
+      ([chipId]) => !processedRepliesRef.current.has(chipId)
+    );
+    if (toProcess.length === 0) return;
+
+    const extracted: Record<string, string> = {};
+    for (const [chipId, replyText] of toProcess) {
+      const q = questions.find(q => q.id === chipId);
+      if (!q) continue;
+      const val = extractFromReply(q.inputType, replyText);
+      if (val) {
+        extracted[chipId] = val;
+        processedRepliesRef.current.add(chipId);
+      }
+    }
+    if (Object.keys(extracted).length > 0) {
+      setInputs(prev => ({ ...prev, ...extracted }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loReplies]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Session management
@@ -180,8 +250,9 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     if (!value.trim() || !activeScenario) return;
     const sid = sessionId;
     if (!sid) return;
-    const q   = questions.find(q => q.id === questionId);
-    const gap = q ? q.evaluateGap(value, activeScenario) : { status: 'pending' as GapStatus, note: '' };
+    const snap = benchmarkSnap ?? activeScenario;
+    const q    = questions.find(q => q.id === questionId);
+    const gap  = q ? q.evaluateGap(value, snap) : { status: 'pending' as GapStatus, note: '' };
     try {
       await fetch(`/api/discover/session/${sid}`, {
         method: 'PATCH',
@@ -236,10 +307,17 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Benchmark snapshot — uses live FRED rate when available
+  // ─────────────────────────────────────────────────────────────────────────
+  const benchmarkSnap: ScenarioSnapshot | null = activeScenario
+    ? (fredRate ? { ...activeScenario, rate: fredRate } : activeScenario)
+    : null;
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Derived badge
   // ─────────────────────────────────────────────────────────────────────────
-  const gaps = activeScenario
-    ? questions.map(q => q.evaluateGap(inputs[q.id] ?? '', activeScenario))
+  const gaps = benchmarkSnap
+    ? questions.map(q => q.evaluateGap(inputs[q.id] ?? '', benchmarkSnap))
     : questions.map(() => ({ status: 'pending' as GapStatus, note: '' }));
 
   const alertCount   = gaps.filter(g => g.status === 'alert').length;
@@ -351,10 +429,10 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
             {/* Scenario strip */}
             <div className="dd-scen-strip">
               {[
-                { val: `$${Math.round(activeScenario.price).toLocaleString()}`,          lbl: 'Purchase' },
-                { val: `${activeScenario.downPct}% down`,                                 lbl: 'Down' },
-                { val: `${activeScenario.rate.toFixed(3)}%`,                              lbl: 'Benchmark' },
-                { val: `$${Math.round(activeScenario.monthlyPayment).toLocaleString()}/mo`, lbl: 'Est. P&I' },
+                { val: `$${Math.round(activeScenario.price).toLocaleString()}`,                        lbl: 'Purchase' },
+                { val: `${activeScenario.downPct}% down`,                                               lbl: 'Down' },
+                { val: `${(benchmarkSnap?.rate ?? activeScenario.rate).toFixed(3)}%`,                  lbl: 'Benchmark' },
+                { val: `$${Math.round(activeScenario.monthlyPayment).toLocaleString()}/mo`,            lbl: 'Est. P&I' },
               ].map(item => (
                 <div key={item.lbl} className="dd-scen-item">
                   <span className="dd-scen-val">{item.val}</span>
@@ -405,21 +483,23 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                     <div className="dd-chip-subtopics">{q.subtopics}</div>
 
                     {/* Expanded cell — shown once sent */}
-                    {isSent && (
+                    {isSent && benchmarkSnap && (
                       <div className="dd-expand">
                         <div className="dd-expand-grid">
                           {/* AI cell */}
                           <div className="dd-cell dd-cell-ai">
                             <div className="dd-cell-col ai">HomeRates AI</div>
-                            <div className="dd-cell-val ai">{q.aiValue(activeScenario)}</div>
-                            <div className="dd-cell-sub">{q.aiSub(activeScenario)}</div>
+                            <div className="dd-cell-val ai">{q.aiValue(benchmarkSnap)}</div>
+                            <div className="dd-cell-sub">{q.aiSub(benchmarkSnap)}</div>
                           </div>
 
                           {/* Lender cell */}
                           <div className={`dd-cell dd-cell-lo${inputVal ? ` filled ${gap.status}` : ''}`}>
                             <div className="dd-cell-col lo">Your Lender</div>
                             {inputVal ? (
-                              <div className="dd-cell-val lo" style={{ color: gapStyle.text }}>{inputVal}</div>
+                              <div className="dd-cell-val lo" style={{ color: gapStyle.text, fontSize: inputVal.length > 30 ? 11 : 14 }}>
+                                {inputVal.length > 80 ? inputVal.slice(0, 80) + '…' : inputVal}
+                              </div>
                             ) : (
                               <input
                                 type={q.inputType === 'pct' || q.inputType === 'number' ? 'number' : 'text'}
