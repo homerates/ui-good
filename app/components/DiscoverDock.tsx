@@ -3,7 +3,8 @@
 // HomeRates Discover — dual-channel truth test.
 // scenario + loanType are optional; when absent a setup form collects them first.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   getQuestions,
   DISCLOSURE_TEXT,
@@ -53,10 +54,14 @@ function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTyp
 }
 
 export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<string, string>>({});
+  const [firing, setFiring] = useState(false);
+  const [fired, setFired] = useState(false);
+  const sessionCreatedRef = useRef(false);
 
   // Setup form state — used when no scenario prop provided
   const [localLoanType, setLocalLoanType] = useState<LoanTypeKey>(propLoanType ?? 'conventional');
@@ -79,6 +84,43 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   const checkCount   = gaps.filter(g => g.status === 'check').length;
   const matchCount   = gaps.filter(g => g.status === 'match').length;
   const pendingCount = gaps.filter(g => g.status === 'pending').length;
+
+  // Auto-create session when scenario is hydrated from DB (not just manual entry)
+  useEffect(() => {
+    if (propScenario && propLoanType && !sessionCreatedRef.current) {
+      sessionCreatedRef.current = true;
+      createSession(propLoanType, propScenario);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propScenario]);
+
+  async function handleFireToExchange() {
+    if (firing || fired || !threadId) return;
+    setFiring(true);
+    try {
+      let sid = sessionId;
+      if (!sid && activeScenario) {
+        const res = await fetch('/api/discover/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ loanType: activeLoanType, scenarioSnapshot: activeScenario }),
+        });
+        if (res.ok) { const d = await res.json(); sid = d.id; setSessionId(d.id); }
+      }
+      if (!sid) { setFiring(false); return; }
+      const r = await fetch(`/api/discover/session/${sid}/fire-to-pe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threadId }),
+      });
+      if (r.ok) {
+        setFired(true);
+        router.refresh();
+      }
+    } catch { /* non-blocking */ } finally {
+      setFiring(false);
+    }
+  }
 
   const handleOpen = useCallback(() => {
     if (open) { setOpen(false); return; }
@@ -191,13 +233,14 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         border: '1px solid rgba(148,163,184,0.13)',
         borderRadius: 11, overflow: 'hidden', fontFamily: 'inherit',
         display: 'flex', flexDirection: 'column',
-        maxHeight: open ? 420 : undefined,
+        height: open && activeScenario ? 420 : undefined,
       }}>
         {/* Header */}
         <button onClick={handleOpen} style={{
           width: '100%', display: 'flex', alignItems: 'center',
           gap: 10, padding: '11px 16px',
           background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+          flexShrink: 0,
         }}>
           <span style={{ fontSize: 15, flexShrink: 0 }}>🔍</span>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -406,14 +449,18 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
               padding: '11px 16px',
               borderTop: '1px solid rgba(148,163,184,0.08)',
               background: 'rgba(0,0,0,0.18)',
+              flexShrink: 0,
             }}>
-              <button style={{
+              <button onClick={handleFireToExchange} disabled={firing || fired || !threadId} style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
                 fontSize: 11.5, fontWeight: 600, padding: '7px 14px', borderRadius: 7,
-                background: 'rgba(0,232,122,0.10)', border: '1px solid rgba(0,232,122,0.25)', color: '#00e87a',
-                cursor: 'pointer',
+                background: fired ? 'rgba(0,232,122,0.20)' : 'rgba(0,232,122,0.10)',
+                border: '1px solid rgba(0,232,122,0.25)',
+                color: fired ? '#00e87a' : firing ? 'rgba(0,232,122,0.5)' : '#00e87a',
+                cursor: firing || fired ? 'default' : 'pointer',
+                opacity: !threadId ? 0.4 : 1,
               }}>
-                🤖 Ask AI all {questions.length} questions
+                {fired ? '✓ Sent to Exchange' : firing ? 'Sending…' : `🤖 Ask AI all ${questions.length} questions`}
               </button>
               <div style={{ flex: 1 }} />
               {threadId && (
@@ -435,6 +482,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
               background: 'rgba(0,0,0,0.20)',
               fontSize: 11, color: 'rgba(185,208,192,0.45)',
               fontStyle: 'italic', lineHeight: 1.55, textAlign: 'center',
+              flexShrink: 0,
             }}>
               The goal is not to avoid lenders. The goal is to choose who has earned the right to advise you.
             </div>
