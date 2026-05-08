@@ -227,7 +227,7 @@ function extractIncome(text: string): number | undefined {
 
 function extractSavings(text: string): number | undefined {
     const m = text.match(/(?:have|saved|savings|got)\s+[\$]?\s*([\d,]+)\s*k?\s*(?:saved|in savings)?/i) ||
-        text.match(/[\$]?\s*([\d,]+)\s*k?\s*(?:saved|in savings|in the bank|available|liquid)/i);
+        text.match(/[\$]?\s*([\d,]+)\s*k?\s*(?:savings|saved|in savings|in the bank|available|liquid)/i);
     if (!m) return undefined;
     // Reject if the match is in a debt/payment context (e.g. "have $1,500 in monthly debt")
     const idx = m.index ?? 0;
