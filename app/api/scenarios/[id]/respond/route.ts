@@ -179,7 +179,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (threadId) {
       // Inject discover Q+A pairs first (borrower questions + AI benchmarks)
       // — only when scenario has card data and thread has no discover messages yet
-      if (scenarioFull.has_card_data && scenarioFull.card_price && scenarioFull.card_rate) {
+      if (scenarioFull.card_price && scenarioFull.card_rate) {
         const { data: existingDiscover } = await sb
           .from("messages")
           .select("id")
