@@ -190,6 +190,8 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         marginTop: 10, background: '#090e1a',
         border: '1px solid rgba(148,163,184,0.13)',
         borderRadius: 11, overflow: 'hidden', fontFamily: 'inherit',
+        display: 'flex', flexDirection: 'column',
+        maxHeight: open ? 420 : undefined,
       }}>
         {/* Header */}
         <button onClick={handleOpen} style={{
@@ -222,6 +224,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
           <div style={{
             borderTop: '1px solid rgba(148,163,184,0.08)',
             padding: '16px',
+            overflowY: 'auto', flex: 1,
           }}>
             <div style={{ color: 'rgba(185,208,192,0.70)', fontSize: 11.5, marginBottom: 14, lineHeight: 1.5 }}>
               Enter your loan details so AI can benchmark against your lender's quote.
@@ -292,6 +295,8 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
 
         {open && activeScenario && (
           <>
+            {/* Scrollable section: column headers + question rows */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
             {/* Column headers */}
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr',
@@ -393,6 +398,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                 </div>
               );
             })}
+            </div>{/* /scrollable section */}
 
             {/* Action bar */}
             <div style={{

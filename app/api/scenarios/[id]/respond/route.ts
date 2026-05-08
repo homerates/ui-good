@@ -157,6 +157,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (existingThread) {
       threadId = existingThread.id;
+      // Always keep scenario_id current so the Discover dock loads the right card data
+      await sb.from("conversation_threads")
+        .update({ scenario_id: id })
+        .eq("id", existingThread.id);
     } else {
       const { data: newThread } = await sb
         .from("conversation_threads")
