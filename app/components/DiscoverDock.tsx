@@ -262,6 +262,21 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
           </span>
         </button>
 
+        {/* ── DEBUG STRIP (remove before launch) ── */}
+        <div style={{
+          padding: '4px 16px', fontSize: 10, fontFamily: 'monospace',
+          background: propScenario ? 'rgba(0,232,122,0.08)' : 'rgba(248,113,113,0.08)',
+          borderTop: `1px solid ${propScenario ? 'rgba(0,232,122,0.20)' : 'rgba(248,113,113,0.20)'}`,
+          color: propScenario ? '#00e87a' : '#f87171',
+          lineHeight: 1.6,
+        }}>
+          <strong>DBG</strong> · source={propScenario ? 'DB ✓' : 'null — showing setup form'} ·
+          propLoanType={propLoanType ?? 'none'} ·
+          price={propScenario?.price ?? '—'} ·
+          rate={propScenario?.rate ?? '—'} ·
+          sessionId={sessionId ? sessionId.slice(0,8)+'…' : 'none'}
+        </div>
+
         {open && needsSetup && (
           /* ── Setup form ── */
           <div style={{
