@@ -254,7 +254,15 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     function getMatchedUrl() {
         const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
-        return `/professionals?lt=${lt}&price=${price}&dp=${downPct}&rate=${rate}&term=${term}`;
+        const p = new URLSearchParams({
+            from: 'scenario', lt,
+            price: String(Math.round(price)),
+            dp: String(downPct),
+            rate: rate.toFixed(2),
+            monthly: String(Math.round(total)),
+            term: String(term),
+        });
+        return `/connect/post?${p.toString()}`;
     }
 
     async function handleVault() {
