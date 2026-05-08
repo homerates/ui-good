@@ -212,7 +212,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     : (thread?.borrower_name ? `Borrower · ${thread.borrower_name}` : "Borrower");
   const isClosed = thread?.status === "closed";
   const contactShared = thread?.status === "contact_shared" || !!contactShare;
-  const hasDock = isBorrower && !!discoverScenario;
+  const hasDock = isBorrower;
 
   // Derive which chip questions have already been sent (from thread messages)
   const sentChipIds = messages
