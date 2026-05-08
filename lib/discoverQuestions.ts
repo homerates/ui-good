@@ -55,17 +55,17 @@ function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
     title: 'Rate, APR & Program',
     subtopics: 'Exact rate · APR · fixed vs ARM · rate lock options & extension cost',
     aiValue: s => `${s.rate.toFixed(3)}%`,
-    aiSub:   () => 'FRED 30yr benchmark · zero points',
-    prompt:  s => `What is your exact interest rate and APR on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`,
+    aiSub:   () => 'FRED 30yr avg interest rate · live benchmark',
+    prompt:  s => `What is your interest rate on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`,
     inputType: 'pct',
     inputPlaceholder: 'e.g. 6.875',
     evaluateGap(raw, s) {
       const v = parseFloat(raw);
       if (!raw || isNaN(v)) return { status: 'pending', note: '' };
       const diff = v - s.rate;
-      if (diff <= 0.25) return { status: 'match', note: `${v.toFixed(3)}% — within 0.25% of FRED benchmark` };
-      if (diff <= 0.50) return { status: 'check', note: `${diff.toFixed(3)}% above benchmark — confirm no hidden points` };
-      return { status: 'alert', note: `${diff.toFixed(3)}% above benchmark — request a rate sheet and compare` };
+      if (diff <= 0.25) return { status: 'match',  note: `${v.toFixed(3)}% interest rate — within 0.25% of today's FRED average` };
+      if (diff <= 0.50) return { status: 'check',  note: `${diff.toFixed(3)}% above FRED average — confirm no hidden points or buydown` };
+      return           { status: 'alert',  note: `${diff.toFixed(3)}% above FRED average — ask for a rate sheet and zero-point option` };
     },
   };
 }

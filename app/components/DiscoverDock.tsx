@@ -42,10 +42,12 @@ type Props = {
 function extractFromReply(inputType: string, text: string): string | null {
   if (!text.trim()) return null;
   if (inputType === 'pct') {
-    // Find all X.XX% values, filter to plausible rate range (1–20%)
-    const matches = Array.from(text.matchAll(/(\d+\.\d+)\s*%/g));
+    // Strip APR values first — APR is disclosed for compliance but the comparison
+    // should always be on the actual interest rate used for P&I calculation
+    const stripped = text.replace(/APR\s*(?:of\s*|:?\s*)(\d+\.\d+)\s*%/gi, '');
+    // Find all remaining X.XX% values, filter to plausible rate range (1–20%)
+    const matches = Array.from(stripped.matchAll(/(\d+\.\d+)\s*%/g));
     const rates = matches.map(m => parseFloat(m[1])).filter(v => v >= 1 && v <= 20);
-    // Prefer the first one (rate usually quoted before APR)
     return rates.length > 0 ? String(rates[0]) : null;
   }
   if (inputType === 'dollar') {
@@ -307,10 +309,10 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Benchmark snapshot — uses live FRED rate when available
+  // Benchmark snapshot — FRED rate required; never uses stale scenario card_rate
   // ─────────────────────────────────────────────────────────────────────────
-  const benchmarkSnap: ScenarioSnapshot | null = activeScenario
-    ? (fredRate ? { ...activeScenario, rate: fredRate } : activeScenario)
+  const benchmarkSnap: ScenarioSnapshot | null = activeScenario && fredRate
+    ? { ...activeScenario, rate: fredRate }
     : null;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -429,10 +431,10 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
             {/* Scenario strip */}
             <div className="dd-scen-strip">
               {[
-                { val: `$${Math.round(activeScenario.price).toLocaleString()}`,                        lbl: 'Purchase' },
-                { val: `${activeScenario.downPct}% down`,                                               lbl: 'Down' },
-                { val: `${(benchmarkSnap?.rate ?? activeScenario.rate).toFixed(3)}%`,                  lbl: 'Benchmark' },
-                { val: `$${Math.round(activeScenario.monthlyPayment).toLocaleString()}/mo`,            lbl: 'Est. P&I' },
+                { val: `$${Math.round(activeScenario.price).toLocaleString()}`,             lbl: 'Purchase' },
+                { val: `${activeScenario.downPct}% down`,                                   lbl: 'Down' },
+                { val: fredRate ? `${fredRate.toFixed(3)}%` : '…',                          lbl: 'FRED Benchmark' },
+                { val: `$${Math.round(activeScenario.monthlyPayment).toLocaleString()}/mo`, lbl: 'Est. P&I' },
               ].map(item => (
                 <div key={item.lbl} className="dd-scen-item">
                   <span className="dd-scen-val">{item.val}</span>
