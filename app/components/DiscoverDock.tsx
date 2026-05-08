@@ -38,32 +38,29 @@ type Props = {
   loReplies?:         Record<string, string>; // chipId → LO's reply text for auto-analysis
 };
 
-// Extract the key answer value from an LO's free-text chat reply
-function extractFromReply(inputType: string, text: string): string | null {
-  if (!text.trim()) return null;
+// Extract the key answer value from an LO's free-text chat reply.
+// Always returns something when the LO has replied — never leaves the dock
+// waiting for the borrower to manually act.
+function extractFromReply(inputType: string, text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return '';
   if (inputType === 'pct') {
-    // Strip APR values first — APR is disclosed for compliance but the comparison
-    // should always be on the actual interest rate used for P&I calculation
-    const stripped = text.replace(/APR\s*(?:of\s*|:?\s*)(\d+\.\d+)\s*%/gi, '');
-    // Find all remaining X.XX% values, filter to plausible rate range (1–20%)
-    const matches = Array.from(stripped.matchAll(/(\d+\.\d+)\s*%/g));
-    const rates = matches.map(m => parseFloat(m[1])).filter(v => v >= 1 && v <= 20);
-    return rates.length > 0 ? String(rates[0]) : null;
+    // Strip APR values first — APR is compliance disclosure; comparison is the interest rate for P&I
+    const stripped = trimmed.replace(/APR\s*(?:of\s*|:?\s*)(\d+\.\d+)\s*%/gi, '');
+    const matches  = Array.from(stripped.matchAll(/(\d+\.\d+)\s*%/g));
+    const rates    = matches.map(m => parseFloat(m[1])).filter(v => v >= 1 && v <= 20);
+    // If a specific rate was found, return it; else return the LO's reply for analysis
+    return rates.length > 0 ? String(rates[0]) : trimmed.slice(0, 150);
   }
   if (inputType === 'dollar') {
-    // Find all dollar amounts, take the largest (likely total cash to close)
-    const matches = Array.from(text.matchAll(/\$\s*([\d,]+(?:\.\d+)?)/g));
-    const vals = matches.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(v => v > 1000);
-    return vals.length > 0 ? String(Math.max(...vals)) : null;
+    const matches = Array.from(trimmed.matchAll(/\$\s*([\d,]+(?:\.\d+)?)/g));
+    const vals    = matches.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(v => v > 1000);
+    return vals.length > 0 ? String(Math.max(...vals)) : trimmed.slice(0, 150);
   }
-  if (inputType === 'text' || inputType === 'number') {
-    // For process chip: try to extract "X days" pattern
-    const dayMatch = text.match(/(\d+)\s*(?:to\s*\d+\s*)?days?/i);
-    if (dayMatch) return dayMatch[0].trim();
-    // Fallback: return truncated text for keyword analysis
-    return text.trim().slice(0, 200);
-  }
-  return null;
+  // text / number chips
+  const dayMatch = trimmed.match(/(\d+)\s*(?:to\s*\d+\s*)?days?/i);
+  if (dayMatch) return dayMatch[0].trim();
+  return trimmed.slice(0, 200);
 }
 
 function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTypeKey): ScenarioSnapshot {
@@ -166,7 +163,8 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!activeScenario]);
 
-  // Auto-extract lender answers from LO's chat replies
+  // Auto-extract lender answers from LO's chat replies — always sets something
+  // so the borrower never needs to manually enter or press anything
   useEffect(() => {
     const entries = Object.entries(loReplies);
     if (entries.length === 0) return;
@@ -177,13 +175,11 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
 
     const extracted: Record<string, string> = {};
     for (const [chipId, replyText] of toProcess) {
-      const q = questions.find(q => q.id === chipId);
+      processedRepliesRef.current.add(chipId); // always mark processed once LO has replied
+      const q   = questions.find(q => q.id === chipId);
       if (!q) continue;
       const val = extractFromReply(q.inputType, replyText);
-      if (val) {
-        extracted[chipId] = val;
-        processedRepliesRef.current.add(chipId);
-      }
+      if (val) extracted[chipId] = val;
     }
     if (Object.keys(extracted).length > 0) {
       setInputs(prev => ({ ...prev, ...extracted }));

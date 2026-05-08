@@ -60,12 +60,13 @@ function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
     inputType: 'pct',
     inputPlaceholder: 'e.g. 6.875',
     evaluateGap(raw, s) {
+      if (!raw) return { status: 'pending', note: '' };
       const v = parseFloat(raw);
-      if (!raw || isNaN(v)) return { status: 'pending', note: '' };
+      if (isNaN(v)) return { status: 'check', note: 'No specific rate quoted yet — reply in chat asking for an exact interest rate' };
       const diff = v - s.rate;
-      if (diff <= 0.25) return { status: 'match',  note: `${v.toFixed(3)}% interest rate — within 0.25% of today's FRED average` };
-      if (diff <= 0.50) return { status: 'check',  note: `${diff.toFixed(3)}% above FRED average — confirm no hidden points or buydown` };
-      return           { status: 'alert',  note: `${diff.toFixed(3)}% above FRED average — ask for a rate sheet and zero-point option` };
+      if (diff <= 0.25) return { status: 'match', note: `${v.toFixed(3)}% interest rate — within 0.25% of today's FRED average` };
+      if (diff <= 0.50) return { status: 'check', note: `${diff.toFixed(3)}% above FRED average — confirm no hidden points or buydown` };
+      return             { status: 'alert', note: `${diff.toFixed(3)}% above FRED average — ask for a rate sheet and zero-point option` };
     },
   };
 }
@@ -89,8 +90,9 @@ function makeCostsQuestion(lt: LoanTypeKey): DiscoverQuestion {
     inputType: 'dollar',
     inputPlaceholder: s => `e.g. ${fmt$(s.price * (s.downPct / 100) + s.price * 0.03).replace('$', '')}`,
     evaluateGap(raw, s) {
+      if (!raw) return { status: 'pending', note: '' };
       const v = parseDollar(raw);
-      if (v === null) return { status: 'pending', note: '' };
+      if (v === null) return { status: 'check', note: 'No cost figure quoted yet — ask the LO for a Loan Estimate with itemized fees' };
       const bench = s.price * (s.downPct / 100) + s.price * 0.03;
       const diff  = (v - bench) / bench;
       if (diff <= 0.08) return { status: 'match',  note: `${fmt$(v)} — within 8% of AI estimate` };
