@@ -170,25 +170,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
 
   // Fetch scenario card data for Discover dock (borrower-facing only)
   let discoverScenario: {
-    loanType: string;
-    price: number;
-    loanAmount: number;
-    downPct: number;
-    rate: number;
-    term: number;
-    ltv: number;
-    monthlyPayment: number;
+    loanType: string; price: number; loanAmount: number; downPct: number;
+    rate: number; term: number; ltv: number; monthlyPayment: number;
   } | null = null;
 
   try {
     // Try thread's linked scenario first; fall back to borrower's most recent active scenario
     const scenarioQuery = thread.scenario_id
       ? sb.from("scenario_briefs")
-          .select("loan_type, card_price, card_loan_amt, card_rate, card_dp_pct, card_monthly, card_term, has_card_data")
+          .select("loan_type, card_price, card_rate, card_dp_pct, card_monthly, card_term, has_card_data")
           .eq("id", thread.scenario_id)
           .maybeSingle()
       : sb.from("scenario_briefs")
-          .select("loan_type, card_price, card_loan_amt, card_rate, card_dp_pct, card_monthly, card_term, has_card_data")
+          .select("loan_type, card_price, card_rate, card_dp_pct, card_monthly, card_term, has_card_data")
           .eq("borrower_id", thread.borrower_id)
           .eq("has_card_data", true)
           .in("status", ["active", "matched"])
@@ -198,15 +192,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
 
     const { data: scenario } = await scenarioQuery;
 
-    if (scenario?.has_card_data && scenario.card_price && scenario.card_loan_amt && scenario.card_rate) {
+    if (scenario?.has_card_data && scenario.card_price && scenario.card_rate) {
+      const downPct = scenario.card_dp_pct ?? 0;
+      const baseLoan = scenario.card_price * (1 - downPct / 100);
+      const loanAmount = scenario.loan_type === "fha" ? baseLoan * 1.0175 : baseLoan;
       discoverScenario = {
         loanType: scenario.loan_type ?? "conventional",
         price: scenario.card_price,
-        loanAmount: scenario.card_loan_amt,
-        downPct: scenario.card_dp_pct ?? 0,
+        loanAmount,
+        downPct,
         rate: scenario.card_rate,
         term: scenario.card_term ?? 30,
-        ltv: scenario.card_loan_amt / scenario.card_price,
+        ltv: baseLoan / scenario.card_price,
         monthlyPayment: scenario.card_monthly ?? 0,
       };
     }
