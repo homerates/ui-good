@@ -3,7 +3,7 @@
 // HomeRates Discover — 4-chip sequential evaluation dock.
 // Matches preview-discover-v2.html exactly.
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   getQuestions,
   DISCLOSURE_TEXT,
@@ -38,29 +38,27 @@ type Props = {
   loReplies?:         Record<string, string>; // chipId → LO's reply text for auto-analysis
 };
 
-// Extract the key answer value from an LO's free-text chat reply.
-// Always returns something when the LO has replied — never leaves the dock
-// waiting for the borrower to manually act.
+// Extract a short, clean key value from the LO's reply for display in the lender cell.
+// Returns '' when no specific value is found — the AI analysis bar handles the insight.
+// Never dumps full reply text into the cell.
 function extractFromReply(inputType: string, text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return '';
   if (inputType === 'pct') {
-    // Strip APR values first — APR is compliance disclosure; comparison is the interest rate for P&I
+    // Strip APR — comparison is always the interest rate used for P&I, not APR
     const stripped = trimmed.replace(/APR\s*(?:of\s*|:?\s*)(\d+\.\d+)\s*%/gi, '');
     const matches  = Array.from(stripped.matchAll(/(\d+\.\d+)\s*%/g));
     const rates    = matches.map(m => parseFloat(m[1])).filter(v => v >= 1 && v <= 20);
-    // If a specific rate was found, return it; else return the LO's reply for analysis
-    return rates.length > 0 ? String(rates[0]) : trimmed.slice(0, 150);
+    return rates.length > 0 ? String(rates[0]) : '';
   }
   if (inputType === 'dollar') {
     const matches = Array.from(trimmed.matchAll(/\$\s*([\d,]+(?:\.\d+)?)/g));
     const vals    = matches.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(v => v > 1000);
-    return vals.length > 0 ? String(Math.max(...vals)) : trimmed.slice(0, 150);
+    return vals.length > 0 ? String(Math.max(...vals)) : '';
   }
-  // text / number chips
-  const dayMatch = trimmed.match(/(\d+)\s*(?:to\s*\d+\s*)?days?/i);
-  if (dayMatch) return dayMatch[0].trim();
-  return trimmed.slice(0, 200);
+  // text chips — extract only a clean day count if present
+  const dayMatch = trimmed.match(/(\d+)[\s-]*(?:to[\s-]*\d+[\s-]*)?days?/i);
+  return dayMatch ? dayMatch[0].trim() : '';
 }
 
 function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTypeKey): ScenarioSnapshot {
@@ -180,29 +178,18 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     if (toProcess.length === 0) return;
 
     const extracted: Record<string, string> = {};
-    const needsAiAnalysis: Array<{ chipId: string; replyText: string }> = [];
 
     for (const [chipId, replyText] of toProcess) {
       processedRepliesRef.current.add(chipId);
       const q   = questions.find(q => q.id === chipId);
       if (!q) continue;
       const val = extractFromReply(q.inputType, replyText);
-      if (val) {
-        extracted[chipId] = val;
-        // For pct/dollar chips: if the extracted value is non-numeric, use AI to analyze
-        if ((q.inputType === 'pct' || q.inputType === 'dollar') && isNaN(parseFloat(val))) {
-          needsAiAnalysis.push({ chipId, replyText });
-        }
-      }
-    }
-
-    if (Object.keys(extracted).length > 0) {
-      setInputs(prev => ({ ...prev, ...extracted }));
-    }
-    // Kick off AI analysis for non-numeric replies (async, non-blocking)
-    for (const { chipId, replyText } of needsAiAnalysis) {
+      extracted[chipId] = val; // may be empty string — lender cell shows "Not quoted yet"
+      // AI analysis always runs for every chip the LO has replied to
       analyzeLoReply(chipId, replyText);
     }
+
+    setInputs(prev => ({ ...prev, ...extracted }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loReplies]);
 
@@ -258,25 +245,6 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     } catch { /* non-blocking */ } finally {
       setSendingChip(null);
     }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Lender answer input
-  // ─────────────────────────────────────────────────────────────────────────
-  async function saveInput(questionId: string, value: string) {
-    if (!value.trim() || !activeScenario) return;
-    const sid = sessionId;
-    if (!sid) return;
-    const snap = benchmarkSnap ?? activeScenario;
-    const q    = questions.find(q => q.id === questionId);
-    const gap  = q ? q.evaluateGap(value, snap) : { status: 'pending' as GapStatus, note: '' };
-    try {
-      await fetch(`/api/discover/session/${sid}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionId, raw: value, gapStatus: gap.status, gapNote: gap.note }),
-      });
-    } catch { /* silent */ }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -510,11 +478,11 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                 // Pill
                 let pillClass = 'dd-pill ';
                 let pillText  = '';
-                if (!isSent && isNext)         { pillClass += 'pill-next';  pillText = isSending ? 'Sending…' : 'Tap to ask'; }
-                else if (!isSent)              { pillClass += 'pill-idle';  pillText = 'Pending'; }
-                else if (!inputVal && loReplied) { pillClass += 'pill-reply'; pillText = 'Enter answer'; }
-                else if (!inputVal)            { pillClass += 'pill-sent';  pillText = 'Waiting…'; }
-                else                           { pillClass += `pill-${gap.status}`; pillText = gapStyle.label; }
+                if (!isSent && isNext) { pillClass += 'pill-next';  pillText = isSending ? 'Sending…' : 'Tap to ask'; }
+                else if (!isSent)      { pillClass += 'pill-idle';  pillText = 'Pending'; }
+                else if (!loReplied)   { pillClass += 'pill-sent';  pillText = 'Waiting…'; }
+                else if (!inputVal)    { pillClass += 'pill-check'; pillText = 'Analyzing…'; }
+                else                   { pillClass += `pill-${gap.status}`; pillText = gapStyle.label; }
 
                 return (
                   <div key={q.id} className={chipClass}>
@@ -533,72 +501,44 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                     {isSent && benchmarkSnap && (
                       <div className="dd-expand">
                         <div className="dd-expand-grid">
-                          {/* AI cell */}
+                          {/* AI benchmark cell */}
                           <div className="dd-cell dd-cell-ai">
                             <div className="dd-cell-col ai">HomeRates AI</div>
                             <div className="dd-cell-val ai">{q.aiValue(benchmarkSnap)}</div>
                             <div className="dd-cell-sub">{q.aiSub(benchmarkSnap)}</div>
                           </div>
 
-                          {/* Lender cell */}
-                          <div className={`dd-cell dd-cell-lo${inputVal ? ` filled ${gap.status}` : ''}`}>
+                          {/* Lender cell — read-only, no manual input ever */}
+                          <div className={`dd-cell dd-cell-lo${inputVal ? ` filled ${gap.status}` : loReplied ? ' replied' : ''}`}>
                             <div className="dd-cell-col lo">Your Lender</div>
                             {inputVal ? (
-                              <div className="dd-cell-val lo" style={{ color: gapStyle.text, fontSize: inputVal.length > 30 ? 11 : 14 }}>
-                                {inputVal.length > 80 ? inputVal.slice(0, 80) + '…' : inputVal}
+                              <div className="dd-cell-val lo" style={{ color: gapStyle.text }}>
+                                {inputVal}
                               </div>
+                            ) : loReplied ? (
+                              <div className="dd-lo-not-quoted">Not quoted yet</div>
                             ) : (
-                              <input
-                                type={q.inputType === 'pct' || q.inputType === 'number' ? 'number' : 'text'}
-                                step={q.inputType === 'pct' ? '0.001' : q.inputType === 'number' ? '0.5' : undefined}
-                                placeholder={typeof q.inputPlaceholder === 'function'
-                                  ? (q.inputPlaceholder as (s: ScenarioSnapshot) => string)(activeScenario)
-                                  : (q.inputPlaceholder as string)}
-                                className="dd-lo-input"
-                                onBlur={e => {
-                                  const v = e.target.value.trim();
-                                  if (v) {
-                                    setInputs(prev => ({ ...prev, [q.id]: v }));
-                                    saveInput(q.id, v);
-                                  }
-                                }}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    const v = (e.target as HTMLInputElement).value.trim();
-                                    if (v) {
-                                      setInputs(prev => ({ ...prev, [q.id]: v }));
-                                      saveInput(q.id, v);
-                                    }
-                                  }
-                                }}
-                              />
+                              <div className="dd-lo-waiting">Awaiting reply…</div>
                             )}
                           </div>
                         </div>
 
-                        {/* Waiting / action prompt */}
-                        {!inputVal && (
-                          loReplied ? (
-                            <div className="dd-waiting reply">
-                              <span style={{ fontSize: 12 }}>💬</span>
-                              LO replied in chat — enter their answer above for AI analysis
-                            </div>
-                          ) : (
-                            <div className="dd-waiting">
-                              <span className="dd-dots"><span /><span /><span /></span>
-                              Waiting for lender to reply in chat
-                            </div>
-                          )
+                        {/* Waiting pulse — only when LO hasn't replied yet */}
+                        {!loReplied && (
+                          <div className="dd-waiting">
+                            <span className="dd-dots"><span /><span /><span /></span>
+                            Waiting for lender to reply in chat
+                          </div>
                         )}
 
-                        {/* AI analysis bar */}
-                        {inputVal && (
+                        {/* AI analysis bar — shown as soon as LO has replied */}
+                        {loReplied && (
                           <div className={`dd-analysis ${aiNoteLoading[q.id] ? 'loading' : gap.status}`}>
                             {aiNoteLoading[q.id] ? (
                               <>
                                 <span className="dd-analysis-icon">✨</span>
                                 <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
-                                  Analyzing response
+                                  Analyzing lender response
                                   <span className="dd-dots" style={{ marginLeft: 4 }}><span /><span /><span /></span>
                                 </span>
                               </>
@@ -613,16 +553,6 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                               </>
                             )}
                           </div>
-                        )}
-
-                        {/* Edit link if filled */}
-                        {inputVal && (
-                          <button
-                            className="dd-edit-btn"
-                            onClick={() => setInputs(prev => { const n = { ...prev }; delete n[q.id]; return n; })}
-                          >
-                            Edit answer
-                          </button>
                         )}
                       </div>
                     )}
@@ -820,7 +750,6 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .pill-idle  { background: rgba(148,163,184,0.06); border: 1px solid rgba(148,163,184,0.12); color: rgba(148,163,184,0.35); }
         .pill-next  { background: rgba(139,92,246,0.10); border: 1px solid rgba(139,92,246,0.28); color: #a78bfa; }
         .pill-sent  { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.28); color: #c4b5fd; }
-        .pill-reply { background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.30); color: #fbbf24; }
         .pill-match { background: rgba(0,232,122,0.10); border: 1px solid rgba(0,232,122,0.28); color: #00e87a; }
         .pill-check { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.28); color: #fbbf24; }
         .pill-alert { background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.28); color: #f87171; }
@@ -838,7 +767,8 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
           min-height: 52px;
         }
         .dd-cell-ai       { background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.13); }
-        .dd-cell-lo       { background: rgba(255,255,255,0.02); border: 1px dashed rgba(148,163,184,0.13); }
+        .dd-cell-lo              { background: rgba(255,255,255,0.02); border: 1px dashed rgba(148,163,184,0.13); }
+        .dd-cell-lo.replied      { border-color: rgba(148,163,184,0.20); }
         .dd-cell-lo.filled       { background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.17); }
         .dd-cell-lo.filled.check { background: rgba(251,191,36,0.05); border-color: rgba(251,191,36,0.20); }
         .dd-cell-lo.filled.alert { background: rgba(248,113,113,0.05); border-color: rgba(248,113,113,0.22); }
@@ -852,23 +782,13 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .dd-cell-val.ai { color: #00e87a; }
         .dd-cell-sub { font-size: 10px; color: rgba(185,208,192,0.42); margin-top: 1px; line-height: 1.4; }
 
-        .dd-lo-input {
-          background: transparent; border: none; outline: none;
-          font-size: 13px; font-weight: 600; color: rgba(185,208,192,0.55);
-          font-family: inherit; width: 100%; padding: 2px 0;
-          margin-top: 2px;
-        }
-        .dd-lo-input::placeholder { color: rgba(148,163,184,0.25); font-style: italic; font-weight: 400; font-size: 11px; }
+        .dd-lo-not-quoted { font-size: 11px; font-style: italic; color: rgba(148,163,184,0.35); margin-top: 4px; }
+        .dd-lo-waiting    { font-size: 11px; font-style: italic; color: rgba(148,163,184,0.22); margin-top: 4px; }
 
         /* Waiting dots */
         .dd-waiting {
           display: flex; align-items: center; gap: 6px;
           font-size: 11px; color: rgba(139,92,246,0.60); font-style: italic;
-        }
-        .dd-waiting.reply {
-          color: #fbbf24; font-style: normal; font-weight: 600;
-          background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.18);
-          padding: 6px 9px; border-radius: 6px;
         }
         .dd-dots { display: inline-flex; gap: 3px; align-items: center; }
         .dd-dots span {
@@ -890,14 +810,6 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .dd-analysis.alert   { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.18); color: #fca5a5; }
         .dd-analysis.loading { background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.18); color: rgba(196,181,253,0.70); }
         .dd-analysis-icon  { font-size: 11px; flex-shrink: 0; margin-top: 1px; }
-
-        .dd-edit-btn {
-          align-self: flex-end;
-          background: none; border: none; padding: 0;
-          font-size: 10px; color: rgba(148,163,184,0.35);
-          cursor: pointer; text-decoration: underline; font-family: inherit;
-        }
-        .dd-edit-btn:hover { color: rgba(148,163,184,0.60); }
 
         /* Ask AI section */
         .dd-ask-ai {
