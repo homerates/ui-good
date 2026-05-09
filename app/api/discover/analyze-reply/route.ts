@@ -1,6 +1,7 @@
 // app/api/discover/analyze-reply/route.ts
-// POST — AI analysis of an LO's chat response in the context of a specific chip question.
-// Returns actionable insight: was the answer specific? what's missing? what to ask next?
+// POST — AI analysis of an LO's chat response scoped to a specific chip question.
+// Returns { analysis, followUp } — analysis is 1-2 sentences, followUp is one
+// clickable question the borrower can send directly to the LO.
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,27 +28,20 @@ function buildSystemPrompt(params: {
   const label = typeLabel[loanType] ?? loanType.toUpperCase();
 
   return [
-    'You are HomeRates AI, embedded in the Discover evaluation tool. A borrower asked their loan officer a specific question and you are analyzing the LO\'s response.',
+    'You are HomeRates AI analyzing a loan officer\'s response for a borrower.',
     '',
-    `QUESTION TOPIC: ${chipTitle}`,
-    `COVERS: ${chipSubtopics}`,
+    `The borrower asked specifically about: ${chipTitle}`,
+    `This question covers: ${chipSubtopics}`,
     '',
     'LOAN SCENARIO:',
-    `Loan Type: ${label}`,
-    `Purchase Price: ${fmt$(scenario.price)}`,
-    `Loan Amount: ${fmt$(scenario.loanAmount)}`,
-    `Down Payment: ${scenario.downPct}%`,
-    `FRED Benchmark Rate: ${scenario.rate.toFixed(3)}%`,
-    `Term: ${scenario.term} years`,
-    `LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
-    `Est. Monthly P&I: ${fmt$(scenario.monthlyPayment)}/mo`,
+    `Type: ${label} | Purchase: ${fmt$(scenario.price)} | Loan: ${fmt$(scenario.loanAmount)} | Down: ${scenario.downPct}% | FRED Benchmark: ${scenario.rate.toFixed(3)}% | LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
     '',
-    'Analyze the LO\'s reply in 2–4 sentences. Be direct and specific:',
-    '1. State whether the LO gave a concrete, specific answer or a vague/incomplete one.',
-    '2. Identify the single most important piece of information that is missing.',
-    '3. Give the borrower ONE precise follow-up question they can paste directly into the chat.',
+    'INSTRUCTIONS — stay strictly within the topic above. Do not go outside it.',
+    '1. In 1-2 sentences: assess whether the LO addressed the specific sub-topics listed. Name any sub-topic that was NOT addressed.',
+    '2. Pick the single most important unanswered sub-topic and write ONE follow-up question the borrower can send.',
     '',
-    'Speak to the borrower, not the LO. Do not repeat back what the LO said verbatim. Be honest but professional.',
+    'Return valid JSON only — no markdown, no extra text:',
+    '{"analysis":"1-2 sentence assessment","followUp":"One specific question ready to send"}',
   ].join('\n');
 }
 
@@ -55,9 +49,9 @@ export async function POST(req: NextRequest) {
   try {
     const { loReply, chipTitle, chipSubtopics, loanType, scenario } = await req.json();
 
-    if (!loReply?.trim())    return NextResponse.json({ error: 'loReply required' }, { status: 400 });
-    if (!chipTitle)          return NextResponse.json({ error: 'chipTitle required' }, { status: 400 });
-    if (!scenario?.price)    return NextResponse.json({ error: 'scenario required' }, { status: 400 });
+    if (!loReply?.trim()) return NextResponse.json({ error: 'loReply required' }, { status: 400 });
+    if (!chipTitle)       return NextResponse.json({ error: 'chipTitle required' }, { status: 400 });
+    if (!scenario?.price) return NextResponse.json({ error: 'scenario required' }, { status: 400 });
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: 'AI unavailable' }, { status: 503 });
@@ -67,8 +61,9 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        max_tokens: 250,
-        temperature: 0.4,
+        max_tokens: 200,
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
         messages: [
           {
             role: 'system',
@@ -88,9 +83,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'AI request failed' }, { status: 502 });
     }
 
-    const data     = await res.json();
-    const analysis = data.choices?.[0]?.message?.content?.trim() ?? '';
-    return NextResponse.json({ analysis });
+    const data = await res.json();
+    const raw  = data.choices?.[0]?.message?.content?.trim() ?? '{}';
+
+    let parsed: { analysis?: string; followUp?: string } = {};
+    try { parsed = JSON.parse(raw); } catch { /* malformed — return empty */ }
+
+    return NextResponse.json({
+      analysis:  parsed.analysis  ?? '',
+      followUp:  parsed.followUp  ?? '',
+    });
   } catch (err) {
     console.error('[discover/analyze-reply]', err);
     return NextResponse.json({ error: 'server error' }, { status: 500 });

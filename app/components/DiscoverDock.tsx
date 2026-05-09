@@ -126,8 +126,9 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   const aiConvoRef = useRef<HTMLDivElement>(null);
 
   // ── Per-chip AI analysis of LO replies ───────────────────────────────────
-  const [aiNotes, setAiNotes]       = useState<Record<string, string>>({});
+  const [aiNotes, setAiNotes]             = useState<Record<string, { analysis: string; followUp: string }>>({});
   const [aiNoteLoading, setAiNoteLoading] = useState<Record<string, boolean>>({});
+  const [followUpSent, setFollowUpSent]   = useState<Set<string>>(new Set());
 
   // ─────────────────────────────────────────────────────────────────────────
   // Auto-create session when scenario is available
@@ -280,7 +281,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     if (!q) return;
     setAiNoteLoading(prev => ({ ...prev, [chipId]: true }));
     try {
-      const res = await fetch('/api/discover/analyze-reply', {
+      const res  = await fetch('/api/discover/analyze-reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -293,11 +294,23 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       });
       const data = await res.json();
       if (data.analysis) {
-        setAiNotes(prev => ({ ...prev, [chipId]: data.analysis }));
+        setAiNotes(prev => ({ ...prev, [chipId]: { analysis: data.analysis, followUp: data.followUp ?? '' } }));
       }
     } catch { /* silent */ } finally {
       setAiNoteLoading(prev => ({ ...prev, [chipId]: false }));
     }
+  }
+
+  async function sendFollowUp(chipId: string, question: string) {
+    if (!threadId || !question.trim() || followUpSent.has(chipId)) return;
+    setFollowUpSent(prev => new Set([...prev, chipId]));
+    try {
+      await fetch(`/api/messages/${threadId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: question.trim() }),
+      });
+    } catch { /* silent — optimistic UI already applied */ }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -543,14 +556,26 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                                 </span>
                               </>
                             ) : (
-                              <>
-                                <span className="dd-analysis-icon">
-                                  {gap.status === 'match' ? '✓' : gap.status === 'check' ? '⚡' : '⚠'}
-                                </span>
-                                <span style={{ whiteSpace: 'pre-wrap' }}>
-                                  {aiNotes[q.id] ?? gap.note}
-                                </span>
-                              </>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                  <span className="dd-analysis-icon">
+                                    {gap.status === 'match' ? '✓' : gap.status === 'check' ? '⚡' : '⚠'}
+                                  </span>
+                                  <span>{aiNotes[q.id]?.analysis ?? gap.note}</span>
+                                </div>
+                                {aiNotes[q.id]?.followUp && (
+                                  <button
+                                    className={`dd-followup-btn${followUpSent.has(q.id) ? ' sent' : ''}`}
+                                    onClick={() => sendFollowUp(q.id, aiNotes[q.id].followUp)}
+                                    disabled={followUpSent.has(q.id)}
+                                  >
+                                    {followUpSent.has(q.id)
+                                      ? '✓ Sent to lender'
+                                      : `💬 Ask: "${aiNotes[q.id].followUp.length > 70 ? aiNotes[q.id].followUp.slice(0, 70) + '…' : aiNotes[q.id].followUp}"`
+                                    }
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         )}
@@ -810,6 +835,27 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .dd-analysis.alert   { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.18); color: #fca5a5; }
         .dd-analysis.loading { background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.18); color: rgba(196,181,253,0.70); }
         .dd-analysis-icon  { font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+
+        .dd-followup-btn {
+          display: block; width: 100%;
+          padding: 7px 10px; border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(148,163,184,0.20);
+          color: rgba(185,208,192,0.80); font-size: 11px;
+          text-align: left; cursor: pointer;
+          font-family: inherit; line-height: 1.4;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .dd-followup-btn:hover:not(:disabled) {
+          background: rgba(139,92,246,0.10);
+          border-color: rgba(139,92,246,0.30);
+          color: #c4b5fd;
+        }
+        .dd-followup-btn.sent {
+          background: rgba(0,232,122,0.07);
+          border-color: rgba(0,232,122,0.22);
+          color: #00e87a; cursor: default;
+        }
 
         /* Ask AI section */
         .dd-ask-ai {
