@@ -4366,6 +4366,7 @@ ${uwDatabase}`;
             const _bdDown     = (paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0) as number;
             const _bdBaseLoan = _bdPrice * (1 - _bdDown / 100);
             const _bdIsVA     = (paramOverrides as any).loanType === 'va' || (paramOverrides as any).isVA === true;
+            const _bdIsJumbo  = (paramOverrides as any).loanType === 'jumbo';
             const _bdFfPct    = (_bdIsVA ? ((paramOverrides as any).vaFundingFeePct ?? 0) : 0) as number;
             const _bdLoan     = Math.round(_bdBaseLoan * (1 + _bdFfPct / 100));
             (calcDispatch as any).type = 'buydown';
@@ -4375,6 +4376,7 @@ ${uwDatabase}`;
                 annualRatePct:   paramOverrides.annualRatePct,
                 buydownType:     (paramOverrides as any).buydownType,
                 isVA:            _bdIsVA,
+                isJumbo:         _bdIsJumbo,
                 sellerCredit:    (paramOverrides as any).sellerCredit ?? 0,
                 annualTax:       _bdPrice * 0.011,
                 annualInsurance: _bdPrice * 0.005,
@@ -4382,6 +4384,7 @@ ${uwDatabase}`;
             (calcDispatch as any).assumptions = [
                 `${(paramOverrides as any).buydownType} buydown at ${paramOverrides.annualRatePct}%`,
                 ...(_bdIsVA ? ['VA loan — no down payment required'] : []),
+                ...(_bdIsJumbo ? ['Jumbo loan'] : []),
                 ...((paramOverrides as any).sellerCredit > 0 ? [`seller credit $${Number((paramOverrides as any).sellerCredit).toLocaleString()}`] : []),
             ];
         } else if ((paramOverrides as any).isIncomeQualify === true && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
@@ -4755,6 +4758,7 @@ ${uwDatabase}`;
             const _bdDown     = (paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0) as number;
             const _bdBaseLoan = _bdPrice * (1 - _bdDown / 100);
             const _bdIsVA     = (paramOverrides as any).loanType === 'va' || (paramOverrides as any).isVA === true;
+            const _bdIsJumbo  = (paramOverrides as any).loanType === 'jumbo';
             const _bdFfPct    = (_bdIsVA ? ((paramOverrides as any).vaFundingFeePct ?? 0) : 0) as number;
             const _bdLoan     = Math.round(_bdBaseLoan * (1 + _bdFfPct / 100));
             (calcDispatch as any).type = 'buydown';
@@ -4764,6 +4768,7 @@ ${uwDatabase}`;
                 annualRatePct:   paramOverrides.annualRatePct,
                 buydownType:     (paramOverrides as any).buydownType,
                 isVA:            _bdIsVA,
+                isJumbo:         _bdIsJumbo,
                 sellerCredit:    (paramOverrides as any).sellerCredit ?? 0,
                 annualTax:       _bdPrice * 0.011,
                 annualInsurance: _bdPrice * 0.005,
@@ -4771,6 +4776,7 @@ ${uwDatabase}`;
             (calcDispatch as any).assumptions = [
                 `${(paramOverrides as any).buydownType} buydown at ${paramOverrides.annualRatePct}%`,
                 ...(_bdIsVA ? ['VA loan — no down payment required'] : []),
+                ...(_bdIsJumbo ? ['Jumbo loan'] : []),
                 ...((paramOverrides as any).sellerCredit > 0 ? [`seller credit $${Number((paramOverrides as any).sellerCredit).toLocaleString()}`] : []),
             ];
         } else if ((paramOverrides as any).isIncomeQualify === true && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
