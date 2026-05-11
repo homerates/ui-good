@@ -676,6 +676,13 @@ export function dispatch(
     // These queries contain dollar amounts that are equity/balance figures, NOT purchase prices.
     // Must be caught before extractPrice() runs or they dispatch as conventional purchase loans.
 
+    // "HELOC on <address/property> — property value $X, balance $Y, max line $Z"
+    // Seeded from RefiIntelligenceCard HELOC chip — dollar amounts are equity figures, NOT purchase prices.
+    // Must intercept before extractPrice() grabs $2.3M as a jumbo purchase.
+    if (/^heloc\s+on\b/i.test(q)) {
+        return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+    }
+
     // Payoff trajectory / HELOC comparison / rate impact — pure Grok analysis
     if (
         /payoff.*(?:plan|trajectory|acceleration|milestones)|wealth.?building milestones/i.test(q) ||
