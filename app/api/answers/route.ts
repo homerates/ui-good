@@ -3772,8 +3772,16 @@ ${rateWatchSection}${mipNote}${armNote}${cashOutNote}${lenderSection}`;
             return all.length ? Math.max(...all) : fallback;
         }
         function _daExtractRate(msg: string, fallback: number): number {
-            const ps = msg.match(/(\d+\.?\d*)\s*%/g);
-            if (ps) { for (const p of ps) { const v=parseFloat(p); if(v>=3&&v<=12)return v; } }
+            // Strip down-payment context so "10% down" is never treated as a rate
+            const stripped = msg.replace(/\d+\.?\d*\s*%\s*down\b/gi, '');
+            // Only match explicit rate context: "at X%", "X% rate", "X% interest", "X% fixed"
+            const explicit = stripped.match(/(?:at|rate|interest|fixed)\s+(\d+\.?\d*)\s*%|(\d+\.?\d*)\s*%\s*(?:rate|interest|fixed)/gi);
+            if (explicit) {
+                for (const p of explicit) {
+                    const v = parseFloat(p.replace(/[^0-9.]/g, ''));
+                    if (v >= 3 && v <= 12) return v;
+                }
+            }
             return fallback;
         }
 
@@ -3933,42 +3941,55 @@ Required format:
                 const m = Math.max(_monthlyGap3, 0);
                 return m * ((Math.pow(1 + 0.08/12, yr*12) - 1) / (0.08/12));
             };
+            // Pre-compute renter wealth: invest monthly gap + down payment at 8%/yr
+            const _rentWealth = (yr: number) => _investedGap(yr) + _buy3.downPayment * Math.pow(1.08, yr);
             // Breakeven: year when buy net wealth >= rent+invest net wealth
             let _breakevenYr3 = 0;
             for (let y = 1; y <= 15; y++) {
-                const buyW = _netBuy(y);
-                const rentW = _investedGap(y) + _buy3.downPayment * Math.pow(1.08, y);
-                if (buyW >= rentW) { _breakevenYr3 = y; break; }
+                if (_netBuy(y) >= _rentWealth(y)) { _breakevenYr3 = y; break; }
             }
             const _breakevenLabel3 = _breakevenYr3 > 0 ? `~${_breakevenYr3} years` : '>15 years';
+            // Pre-build wealth table rows — injected verbatim so AI cannot hallucinate
+            const _wealthRows3 = ([3,5,7,10] as const).map(yr => {
+                const fv    = mkFV(yr);
+                const eq    = mkEq(yr);
+                const txn   = _txnCost3(yr);
+                const buyNet = eq - txn;
+                const rentW  = _rentWealth(yr);
+                const edge  = buyNet >= rentW ? 'Buy ahead' : 'Rent ahead';
+                return `| **${yr}yr** | ${_fkD(fv)} | ${_fkD(eq)} | ${_fkD(rentW)} | ${_fkD(buyNet)} | ${edge} |`;
+            }).join('\n');
             const _daPr3 = `You are a senior mortgage analyst. Return valid JSON: {"narrative":"...markdown..."}
 
-Produce a comprehensive, unbiased rent vs. buy deep analysis. Do NOT recommend one over the other — present the data and framework so the reader can decide based on their own situation. Use markdown with headers and emoji on stat lines.
+Produce a comprehensive, unbiased rent vs. buy deep analysis. Do NOT recommend one over the other — present the data and framework so the reader can decide. Use markdown with headers and emoji on key stats.
 
-## EXACT NUMBERS — use these, do not recalculate:
-Home: ${_fD(_p3)} | ${_dp3}% down (${_fD(_buy3.downPayment)}) | Loan ${_fD(_buy3.loanAmount)} at ${_rt3}% 30yr fixed
-Upfront cash needed: ${_fD(_upfront3)} (down ${_fD(_buy3.downPayment)} + closing costs ~${_fD(_closingCosts3)})
-Monthly buying — true cost:
-  P&I ${_fD(_buy3.monthlyPI)} + tax ${_fD(_taxM3)} + ins ${_fD(_insM3)}${_dp3<20?` + PMI ${_fD(_pmiM3)}`:''}  + maintenance reserve ${_fD(_maintM3)} = ${_fD(_trueTotBuy3)}/mo
-Monthly renting: ${_fD(_rent3)}/mo (rent grows ~3%/yr)
-Monthly gap (own − rent): ${_fD(_monthlyGap3)}/mo ${_monthlyGap3>0?'more to own':'more to rent'}
-Price-to-rent ratio: ${_ptrRatio3}x — ${_ptrSignal3} (rule of thumb: <15 buy, 15–20 neutral, >20 rent)
-Opportunity cost of down payment (8%/yr S&P avg): +${_fkD(_oppCost5yr)} at 5yr · +${_fkD(_oppCost10yr)} at 10yr
-Transaction drag to exit: ~${_fkD(mkFV(7)*0.06+_closingCosts3)} (3% in + 6% to sell at 7yr)
-Estimated wealth breakeven (buy vs. rent+invest): ${_breakevenLabel3}
-Home value at 4%/yr appreciation: 3yr ${_fkD(mkFV(3))} · 5yr ${_fkD(mkFV(5))} · 7yr ${_fkD(mkFV(7))} · 10yr ${_fkD(mkFV(10))}
-Equity built (appreciation + principal): 5yr ~${_fkD(mkEq(5))} · 7yr ~${_fkD(mkEq(7))} · 10yr ~${_fkD(mkEq(10))}
+## CRITICAL — USE THESE EXACT NUMBERS, DO NOT RECALCULATE OR MODIFY ANY FIGURE:
+Home: ${_fD(_p3)} | ${_dp3}% down = ${_fD(_buy3.downPayment)} | Loan ${_fD(_buy3.loanAmount)} at ${_rt3}% 30yr fixed
+Upfront cash: ${_fD(_upfront3)} (down ${_fD(_buy3.downPayment)} + closing costs ${_fD(_closingCosts3)})
+True monthly cost to own: ${_fD(_trueTotBuy3)}/mo
+  → P&I ${_fD(_buy3.monthlyPI)} + tax ${_fD(_taxM3)} + ins ${_fD(_insM3)}${_dp3<20?` + PMI ${_fD(_pmiM3)}`:''}  + maintenance ${_fD(_maintM3)}
+Monthly rent: ${_fD(_rent3)}/mo (grows ~3%/yr)
+Monthly gap (own − rent): ${_fD(_monthlyGap3)}/mo more to own
+Price-to-rent ratio: ${_ptrRatio3}x — ${_ptrSignal3}
+Down payment opportunity cost at 8%/yr: +${_fkD(_oppCost5yr)} at 5yr · +${_fkD(_oppCost10yr)} at 10yr
+Transaction drag: ${_fD(_closingCosts3)} to buy + 6% to sell — total at 7yr: ${_fkD(_txnCost3(7))}
+Wealth breakeven (buy vs rent+invest): ${_breakevenLabel3}
 
-## REQUIRED OUTPUT FORMAT:
+WEALTH TABLE — copy these rows exactly into the markdown table, no changes:
+| Horizon | Home Value | Equity Built | Rent+Invest Wealth | Buy Net (after exit costs) | Edge |
+|---------|------------|--------------|-------------------|---------------------------|------|
+${_wealthRows3}
+
+## REQUIRED FORMAT — follow exactly:
 
 ## 🏠 Rent vs. Buy Analysis — ${_fD(_p3)}
-[1 sharp sentence: what makes this decision genuinely hard at these numbers]
+[1 sentence: what makes this decision genuinely difficult at these exact numbers]
 
 ### 💰 True Cost of Owning vs. Renting
-[Use the exact monthly numbers above. Show full ownership cost including maintenance — most analyses omit this. Show the monthly gap clearly.]
+[Show the monthly breakdown using the exact figures above. Emphasize that ${_fD(_maintM3)}/mo maintenance is typically excluded from naive analyses.]
 
 ### 📈 Multi-Year Wealth Picture
-[3yr / 5yr / 7yr / 10yr comparison. At each horizon: buying builds X equity vs. renting + investing the monthly gap. Include the transaction cost drag that erodes early gains. State the breakeven year clearly.]
+[Copy the wealth table above verbatim. Below it, state the breakeven year and what drives the timing.]
 
 ### 🔍 Hidden Costs of Buying (often underestimated)
 [4-5 bullet points: transaction costs, maintenance/repairs reality, illiquidity risk, property tax escalation, opportunity cost of down payment locked up]
