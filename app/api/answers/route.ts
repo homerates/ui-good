@@ -3906,44 +3906,85 @@ Required format:
             const _totBuy = _buy3.monthlyPI + _pmiM3 + _taxM3 + _insM3;
             const _futureVal = _p3 * Math.pow(1.04, 7);
             const _totalRent3 = _rent3 * 12 * 7;
-            const _daPr3 = `You are a helpful mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
+            // ── Extended computations for rich analysis ──────────────────
+            const _closingCosts3 = _p3 * 0.03;
+            const _upfront3 = _buy3.downPayment + _closingCosts3;
+            const _maintM3 = (_p3 * 0.01) / 12;
+            const _trueTotBuy3 = _totBuy + _maintM3;
+            const _monthlyGap3 = _trueTotBuy3 - _rent3;
+            const _ptrRatio3 = Math.round(_p3 / (_rent3 * 12) * 10) / 10;
+            const _ptrSignal3 = _ptrRatio3 < 15 ? 'favors buying' : _ptrRatio3 <= 20 ? 'neutral zone' : 'favors renting';
+            // Opportunity cost: down payment invested at 8%/yr
+            const _oppCost5yr  = _buy3.downPayment * (Math.pow(1.08, 5)  - 1);
+            const _oppCost10yr = _buy3.downPayment * (Math.pow(1.08, 10) - 1);
+            // Appreciation & equity at each horizon
+            const _appRate3 = 0.04;
+            const mkFV = (yr: number) => _p3 * Math.pow(1 + _appRate3, yr);
+            const mkEq = (yr: number) => {
+                let bal = _buy3.loanAmount, mRate = _rt3/100/12;
+                for (let m = 0; m < yr*12; m++) bal = bal*(1+mRate) - _buy3.monthlyPI;
+                return mkFV(yr) - Math.max(bal,0) - _buy3.downPayment;
+            };
+            // Transaction drag: 9% round-trip (3% buy + 6% sell)
+            const _txnCost3 = (yr: number) => mkFV(yr) * 0.06 + _closingCosts3;
+            // Net wealth comparison: buy vs rent+invest at each horizon
+            const _netBuy = (yr: number) => mkEq(yr) - _txnCost3(yr);
+            const _investedGap = (yr: number) => {
+                const m = Math.max(_monthlyGap3, 0);
+                return m * ((Math.pow(1 + 0.08/12, yr*12) - 1) / (0.08/12));
+            };
+            // Breakeven: year when buy net wealth >= rent+invest net wealth
+            let _breakevenYr3 = 0;
+            for (let y = 1; y <= 15; y++) {
+                const buyW = _netBuy(y);
+                const rentW = _investedGap(y) + _buy3.downPayment * Math.pow(1.08, y);
+                if (buyW >= rentW) { _breakevenYr3 = y; break; }
+            }
+            const _breakevenLabel3 = _breakevenYr3 > 0 ? `~${_breakevenYr3} years` : '>15 years';
+            const _daPr3 = `You are a senior mortgage analyst. Return valid JSON: {"narrative":"...markdown..."}
 
-Write a clear, visually rich rent vs buy analysis. Use markdown with emoji icons on every stat line. Include both financial and lifestyle factors.
+Produce a comprehensive, unbiased rent vs. buy deep analysis. Do NOT recommend one over the other — present the data and framework so the reader can decide based on their own situation. Use markdown with headers and emoji on stat lines.
 
-Use EXACTLY these numbers (do not recalculate):
-- Home price: ${_fD(_p3)}, ${_dp3}% down (${_fD(_buy3.downPayment)}), loan ${_fD(_buy3.loanAmount)} at ${_rt3}%
-- Buying total monthly: ${_fD(_totBuy)}/mo (P&I ${_fD(_buy3.monthlyPI)} + tax ${_fD(_taxM3)} + ins ${_fD(_insM3)}${_dp3<20?` + PMI ${_fD(_pmiM3)}`:''}))
-- Renting: ${_fD(_rent3)}/mo
-- Monthly diff to buy: ${_fD(_totBuy-_rent3)}/mo ${_totBuy>_rent3?'more':'less'}
-- Over 7 years: total rent paid ${_fkD(_totalRent3)} · home at 4%/yr grows to ${_fkD(_futureVal)}
+## EXACT NUMBERS — use these, do not recalculate:
+Home: ${_fD(_p3)} | ${_dp3}% down (${_fD(_buy3.downPayment)}) | Loan ${_fD(_buy3.loanAmount)} at ${_rt3}% 30yr fixed
+Upfront cash needed: ${_fD(_upfront3)} (down ${_fD(_buy3.downPayment)} + closing costs ~${_fD(_closingCosts3)})
+Monthly buying — true cost:
+  P&I ${_fD(_buy3.monthlyPI)} + tax ${_fD(_taxM3)} + ins ${_fD(_insM3)}${_dp3<20?` + PMI ${_fD(_pmiM3)}`:''}  + maintenance reserve ${_fD(_maintM3)} = ${_fD(_trueTotBuy3)}/mo
+Monthly renting: ${_fD(_rent3)}/mo (rent grows ~3%/yr)
+Monthly gap (own − rent): ${_fD(_monthlyGap3)}/mo ${_monthlyGap3>0?'more to own':'more to rent'}
+Price-to-rent ratio: ${_ptrRatio3}x — ${_ptrSignal3} (rule of thumb: <15 buy, 15–20 neutral, >20 rent)
+Opportunity cost of down payment (8%/yr S&P avg): +${_fkD(_oppCost5yr)} at 5yr · +${_fkD(_oppCost10yr)} at 10yr
+Transaction drag to exit: ~${_fkD(mkFV(7)*0.06+_closingCosts3)} (3% in + 6% to sell at 7yr)
+Estimated wealth breakeven (buy vs. rent+invest): ${_breakevenLabel3}
+Home value at 4%/yr appreciation: 3yr ${_fkD(mkFV(3))} · 5yr ${_fkD(mkFV(5))} · 7yr ${_fkD(mkFV(7))} · 10yr ${_fkD(mkFV(10))}
+Equity built (appreciation + principal): 5yr ~${_fkD(mkEq(5))} · 7yr ~${_fkD(mkEq(7))} · 10yr ~${_fkD(mkEq(10))}
 
-Required format:
-## 🏠 Rent vs. Buy — ${_fD(_p3)} at ${_rt3}%
-[1-sentence framing of the decision]
+## REQUIRED OUTPUT FORMAT:
 
-**❌ Renting**
-- 💵 Monthly rent: ${_fD(_rent3)}/mo
-- ✅ No maintenance, taxes, or upfront cash needed
-- ❌ No equity built, rent rises ~3%/yr
+## 🏠 Rent vs. Buy Analysis — ${_fD(_p3)}
+[1 sharp sentence: what makes this decision genuinely hard at these numbers]
 
-**🏡 Buying (${_dp3}% down)**
-- 💵 Down payment: ${_fD(_buy3.downPayment)}
-- 📅 Monthly PITI${_dp3<20?' + PMI':''}: ${_fD(_totBuy)}/mo
-- 🏠 Home value at 4%/yr over 7 years: ${_fkD(_futureVal)}
-- 💸 Total rent over 7 years: ${_fkD(_totalRent3)}
+### 💰 True Cost of Owning vs. Renting
+[Use the exact monthly numbers above. Show full ownership cost including maintenance — most analyses omit this. Show the monthly gap clearly.]
 
-**📊 The Decision**
-- ↕️ Monthly difference: ${_fD(Math.abs(_totBuy-_rent3))}/mo ${_totBuy>_rent3?'more to own':'more to rent'}
-- 🏡 Equity & appreciation work for you as an owner
-- 🛑 Buying costs more upfront — breakeven typically 5–8 years
+### 📈 Multi-Year Wealth Picture
+[3yr / 5yr / 7yr / 10yr comparison. At each horizon: buying builds X equity vs. renting + investing the monthly gap. Include the transaction cost drag that erodes early gains. State the breakeven year clearly.]
 
-**🎯 Recommendation**
-[2-3 sentences: when does buying make sense? Address both financial and lifestyle angles.]
+### 🔍 Hidden Costs of Buying (often underestimated)
+[4-5 bullet points: transaction costs, maintenance/repairs reality, illiquidity risk, property tax escalation, opportunity cost of down payment locked up]
 
-**❓ Questions to Consider**
-- [question 1 about timeline/stability]
-- [question 2 about financial readiness]`;
-            const _daR3 = await callGrokOnce(_daPr3, { maxTokens: 1200 });
+### 🔍 Hidden Costs of Renting (often underestimated)
+[4-5 bullet points: rent inflation over time, zero forced savings, no leverage on appreciation, no tax deductions, displacement risk when landlord sells]
+
+### 🏡 Non-Financial Factors
+[2 columns of bullets — factors that favor buying vs. factors that favor renting. Include: job stability, family plans, local rent control laws, personal control/customization, community roots, career mobility]
+
+### 📊 Price-to-Rent Signal
+[Explain the ${_ptrRatio3}x ratio reading and what it means for this specific market. Is this market priced to favor buyers or renters based on this signal?]
+
+### ❓ 4 Questions That Drive the Right Answer
+[4 diagnostic questions — each one genuinely changes the math or the lifestyle calculus. Not generic. Make them specific to the numbers above.]`;
+            const _daR3 = await callGrokOnce(_daPr3, { maxTokens: 2400 });
             const _nar3 = (typeof _daR3.grokFinal?.narrative === 'string' && _daR3.grokFinal.narrative.length > 50)
                 ? _daR3.grokFinal.narrative
                 : `**Rent vs Buy — ${_fD(_p3)} home**\n\n- Buying: ${_fD(_totBuy)}/mo total PITI · ${_fD(_buy3.downPayment)} down\n- Renting: ${_fD(_rent3)}/mo\n- Monthly diff: ${_fD(Math.abs(_totBuy-_rent3))}/mo ${_totBuy>_rent3?'more to own':'more to rent'}`;
