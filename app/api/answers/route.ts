@@ -2245,6 +2245,7 @@ async function handle(req: NextRequest, intentParam?: string) {
     ) {
         module = "homeowner_economy";
     } else if (
+        /^heloc\s+on\b/i.test(q) ||
         /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(q)
     ) {
         module = "refi";
@@ -2959,6 +2960,35 @@ async function handle(req: NextRequest, intentParam?: string) {
         const eqBalTok  = qFull.match(/\bbalance\s+(\$[\d,]+(?:\.\d+)?\s*[MmKk]?)/i)?.[1];
         const eqHomeValue = parseEqMoney(eqValTok) ?? homeValue;
         const eqBalance   = parseEqMoney(eqBalTok) ?? balance;
+
+        // "HELOC on <property> — property value $X, balance $Y, max line $Z"
+        // Seeded from RefiIntelligenceCard HELOC chip — route directly to HelocSliderCard
+        const isHelocOnSeed = /^heloc\s+on\b/i.test(qFull);
+        if (isHelocOnSeed && eqHomeValue && eqBalance) {
+            const _helocSeedMaxTok = qFull.match(/\bmax\s+line\s+(\$[\d,]+(?:\.\d+)?\s*[MmKk]?)/i)?.[1];
+            const _helocSeedMax = parseEqMoney(_helocSeedMaxTok) ?? Math.max(0, Math.round(eqHomeValue * 0.80 - eqBalance));
+            const _helocEquity = Math.round(eqHomeValue - eqBalance);
+            const _helocEquityPct = ((_helocEquity / eqHomeValue) * 100).toFixed(0);
+            const _helocAnswerText = `## Your HELOC Options\n\n**Your position:**\n- Home value: **${f$(eqHomeValue)}** · Balance: **${f$(eqBalance)}**\n- Equity: **${f$(_helocEquity)}** (${_helocEquityPct}% of home value)\n- Max HELOC line available: **${f$(_helocSeedMax)}**\n\nUse the slider below to model your draw amount, monthly payment, and compare against a cash-out refi.`;
+            const helocCard = {
+                homeValue:   eqHomeValue,
+                balance:     eqBalance,
+                drawAmount:  Math.min(100_000, _helocSeedMax),
+                helocRate:   fred?.sofr ? parseFloat((fred.sofr + 3.0).toFixed(2)) : 8.5,
+                cashOutRate: marketRate ?? undefined,
+                sofr:        fred?.sofr ?? undefined,
+                address:     (body as any)?.paramOverrides?.cmaAddress ?? undefined,
+            };
+            return noStore({
+                ok: true, memory_thread_id: memoryThreadId, route: "answers", intent, path, tag,
+                generatedAt, usedFRED, usedTavily, fred, topSources,
+                grok: { answer: _helocAnswerText, follow_up: '', follow_up_chips: [], confidence: "high" },
+                debug: { bypass: "heloc_on_seed_direct", parsed: { balance: eqBalance, homeValue: eqHomeValue, helocMax: _helocSeedMax } },
+                message: _helocAnswerText, answerMarkdown: buildAnswerMarkdown(_helocAnswerText),
+                followUp: null, follow_up_chips: [],
+                helocCard,
+            });
+        }
 
         if (isEquityOptions && eqBalance && eqHomeValue && eqHomeValue > eqBalance) {
             const equity    = Math.round(eqHomeValue - eqBalance);
