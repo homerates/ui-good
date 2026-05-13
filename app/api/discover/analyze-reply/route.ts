@@ -37,11 +37,11 @@ function buildSystemPrompt(params: {
     `Type: ${label} | Purchase: ${fmt$(scenario.price)} | Loan: ${fmt$(scenario.loanAmount)} | Down: ${scenario.downPct}% | FRED Benchmark: ${scenario.rate.toFixed(3)}% | LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
     '',
     'INSTRUCTIONS — stay strictly within the topic above. Do not go outside it.',
-    '1. In 1-2 sentences: assess whether the LO addressed the specific sub-topics listed. Name any sub-topic that was NOT addressed.',
-    '2. Pick the single most important unanswered sub-topic and write ONE follow-up question the borrower can send.',
+    '1. Read the LO\'s response carefully. In 1-2 sentences: assess whether the LO addressed EACH of the specific sub-topics listed above. Quote the LO\'s exact words as evidence where applicable. Only name a sub-topic as "not addressed" if it is genuinely absent from the reply.',
+    '2. If ANY sub-topic is missing: pick the single most important unanswered one and write ONE follow-up question the borrower can send. If ALL sub-topics are fully addressed: set followUp to an empty string.',
     '',
     'Return valid JSON only — no markdown, no extra text:',
-    '{"analysis":"1-2 sentence assessment","followUp":"One specific question ready to send"}',
+    '{"analysis":"1-2 sentence assessment","followUp":"One specific follow-up question, or empty string if all sub-topics were addressed"}',
   ].join('\n');
 }
 
@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 200,
+        model: 'gpt-4o',
+        max_tokens: 320,
         temperature: 0.3,
         response_format: { type: 'json_object' },
         messages: [
