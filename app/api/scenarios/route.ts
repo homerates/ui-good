@@ -202,7 +202,9 @@ export async function POST(req: NextRequest) {
     max_responses, response_window_hours, anonymity_level,
     card_price, card_dp_pct, card_rate, card_monthly, card_term,
     visibility: requestedVisibility, // 'public' | 'private' — borrower's explicit choice
+    posted_by_role: rawPostedByRole,
   } = body;
+  const posted_by_role = rawPostedByRole === 'agent' ? 'agent' : 'borrower';
 
   const hasCardData = !!(card_price && card_rate);
 
@@ -301,11 +303,12 @@ export async function POST(req: NextRequest) {
       visibility,
       referred_pro_id: referredProId,
       has_card_data: hasCardData,
-      card_price:   card_price   ?? null,
-      card_dp_pct:  card_dp_pct  ?? null,
-      card_rate:    card_rate    ?? null,
-      card_monthly: card_monthly ?? null,
-      card_term:    card_term    ?? null,
+      card_price:      card_price   ?? null,
+      card_dp_pct:     card_dp_pct  ?? null,
+      card_rate:       card_rate    ?? null,
+      card_monthly:    card_monthly ?? null,
+      card_term:       card_term    ?? null,
+      posted_by_role,
     })
     .select()
     .single();

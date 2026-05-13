@@ -83,6 +83,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const [mobileTab, setMobileTab] = useState<"chat" | "discover">("chat");
   const [discoverChipStates, setDiscoverChipStates] = useState<ChipSummary[]>([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [viewerRole, setViewerRole] = useState<'borrower' | 'agent'>('borrower');
   const [fredRate, setFredRate] = useState<number | null>(null);
   const fredFetchedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -139,6 +140,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     setMessages(data.messages ?? []);
     setContactShare(data.contact_share ?? null);
     setProCard(data.pro_card ?? null);
+    if (data.viewer_role === 'agent') setViewerRole('agent');
 
     // Hydrate Discover dock if scenario card data is available
     const ds = data.discover_scenario;
@@ -275,7 +277,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               💬 Chat
             </button>
             <button className={`ch-tab-btn${mobileTab === "discover" ? " active" : ""}`} onClick={() => setMobileTab("discover")}>
-              🔍 Discover
+              {viewerRole === 'agent' ? '🤝 Discover — For Client' : '🔍 Discover'}
             </button>
           </div>
         )}
@@ -608,6 +610,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 loRepliedChipIds={loRepliedChipIds}
                 loReplies={loReplies}
                 onGapSummary={setDiscoverChipStates}
+                isAgentProxy={viewerRole === 'agent'}
               />
             </div>
           )}

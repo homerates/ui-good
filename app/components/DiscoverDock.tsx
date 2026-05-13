@@ -42,6 +42,7 @@ type Props = {
   loRepliedChipIds?:  string[];              // chips where the LO has already replied in chat
   loReplies?:         Record<string, string>; // chipId → LO's reply text for auto-analysis
   onGapSummary?:      (chips: ChipSummary[]) => void; // fires whenever chip states change
+  isAgentProxy?:      boolean;               // true when an agent posts on behalf of a client
 };
 
 // Extract a short, clean key value from the LO's reply for display in the lender cell.
@@ -86,7 +87,7 @@ function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTyp
   };
 }
 
-export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {}, onGapSummary }: Props) {
+export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {}, onGapSummary, isAgentProxy = false }: Props) {
   // ── Session ──────────────────────────────────────────────────────────────
   const [sessionId, setSessionId]   = useState<string | null>(null);
   const sessionCreatedRef           = useRef(false);
@@ -447,6 +448,14 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
             {badge.text}
           </span>
         </div>
+
+        {/* Agent proxy banner — shown when agent is evaluating on behalf of a client */}
+        {isAgentProxy && (
+          <div className="dd-agent-banner">
+            <span className="dd-agent-icon">🤝</span>
+            <span>You&apos;re evaluating this loan <strong>on behalf of a client</strong> — your AI benchmark analysis is independent of any lender relationship.</span>
+          </div>
+        )}
 
         {/* Setup form — shown when no scenario */}
         {needsSetup && (
@@ -960,6 +969,17 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         }
         .dd-ask-send:disabled { opacity: 0.35; cursor: not-allowed; }
         .dd-ask-disclaimer { font-size: 10px; color: rgba(148,163,184,0.28); font-style: italic; line-height: 1.4; }
+
+        /* Agent proxy banner */
+        .dd-agent-banner {
+          display: flex; align-items: flex-start; gap: 8px;
+          padding: 9px 14px;
+          background: rgba(251,191,36,0.06);
+          border-bottom: 1px solid rgba(251,191,36,0.16);
+          font-size: 11.5px; color: rgba(253,230,138,0.85); line-height: 1.5;
+        }
+        .dd-agent-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+        .dd-agent-banner strong { color: #fde68a; font-weight: 700; }
 
         /* Footer */
         .dd-footer {

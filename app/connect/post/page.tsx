@@ -71,6 +71,7 @@ function PostScenarioContent() {
   const scInvest    = searchParams?.get("invest") === "1";
   const scIncome    = Number(searchParams?.get("income") ?? 0);
 
+  const [postedFor, setPostedFor] = useState<'self' | 'client'>('self');
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -184,6 +185,7 @@ function PostScenarioContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          posted_by_role: postedFor === 'client' ? 'agent' : 'borrower',
           loan_type: form.loan_type.toLowerCase().replace(/ /g, "_"),
           down_payment_pct: parseFloat(form.down_payment_pct),
           max_responses: parseInt(form.max_responses),
@@ -359,6 +361,40 @@ function PostScenarioContent() {
                     </div>
                   </>
                 )}
+
+                <div className="post-field">
+                  <label>Who is this scenario for?</label>
+                  <div className="post-for-options">
+                    <button
+                      className={`post-for-option${postedFor === 'self' ? ' selected' : ''}`}
+                      onClick={() => setPostedFor('self')}
+                    >
+                      <span className="post-for-icon">🏠</span>
+                      <div>
+                        <div className="post-for-title">Myself — I&apos;m the buyer</div>
+                        <div className="post-for-sub">I&apos;m evaluating this loan for my own purchase</div>
+                      </div>
+                      {postedFor === 'self' && <span className="post-for-check">✓</span>}
+                    </button>
+                    <button
+                      className={`post-for-option${postedFor === 'client' ? ' selected' : ''}`}
+                      onClick={() => setPostedFor('client')}
+                    >
+                      <span className="post-for-icon">🤝</span>
+                      <div>
+                        <div className="post-for-title">A client — I&apos;m their agent</div>
+                        <div className="post-for-sub">I&apos;m a real estate agent posting on behalf of a buyer I represent</div>
+                      </div>
+                      {postedFor === 'client' && <span className="post-for-check">✓</span>}
+                    </button>
+                  </div>
+                  {postedFor === 'client' && (
+                    <div className="post-agent-ack">
+                      🛡 You&apos;re posting as a trusted advisor. HomeRates Discover will give you independent AI benchmarks
+                      to evaluate the lender&apos;s response on your client&apos;s behalf. Your client&apos;s identity is never collected or shared.
+                    </div>
+                  )}
+                </div>
 
                 <div className="post-field">
                   <label>Who do you need?</label>
@@ -552,6 +588,7 @@ function PostScenarioContent() {
 
                 <div className="post-review-grid">
                   {[
+                    ["Posting for", postedFor === 'client' ? '🤝 On behalf of a client' : '🏠 Myself'],
                     ["Need", form.needs_professional === "both" ? "Lender + Agent" : form.needs_professional === "agent" ? "Agent only" : "Lender only"],
                     ["Loan type", form.loan_type],
                     ["Purpose", form.loan_purpose],
@@ -941,6 +978,30 @@ function PostScenarioContent() {
           transition: all 0.15s;
         }
         .post-btn-ghost:hover { border-color: rgba(255,255,255,0.25); color: #f0f4ff; }
+
+        /* ── Posted-for toggle ── */
+        .post-for-options { display: flex; flex-direction: column; gap: 10px; }
+        .post-for-option {
+          display: flex; align-items: center; gap: 14px;
+          background: #0e1420; border: 1px solid rgba(255,255,255,0.09);
+          border-radius: 12px; padding: 14px 16px;
+          text-align: left; cursor: pointer; width: 100%;
+          transition: border-color 0.15s, background 0.15s;
+          font-family: inherit;
+        }
+        .post-for-option:hover { border-color: rgba(255,255,255,0.18); }
+        .post-for-option.selected { border-color: rgba(0,232,122,0.45); background: rgba(0,232,122,0.05); }
+        .post-for-icon { font-size: 1.25rem; flex-shrink: 0; }
+        .post-for-title { font-size: 0.9rem; font-weight: 600; color: #f0f4ff; margin-bottom: 2px; }
+        .post-for-sub { font-size: 0.78rem; color: #8fa3b8; line-height: 1.4; }
+        .post-for-check { margin-left: auto; font-size: 0.9rem; color: #00e87a; font-weight: 700; flex-shrink: 0; }
+        .post-agent-ack {
+          margin-top: 10px;
+          font-size: 0.82rem; color: rgba(0,232,122,0.80);
+          background: rgba(0,232,122,0.05);
+          border: 1px solid rgba(0,232,122,0.18);
+          border-radius: 9px; padding: 10px 14px; line-height: 1.55;
+        }
 
         @media (max-width: 500px) {
           .post-card { padding: 1.5rem; }
