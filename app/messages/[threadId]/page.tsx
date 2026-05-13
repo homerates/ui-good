@@ -582,12 +582,21 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 <button
                   className="ch-debug-copy"
                   onClick={() => {
+                    const ALL_CHIP_IDS = ['rate', 'costs', 'process', 'after-close'];
+                    const derivedChipStates = ALL_CHIP_IDS.map(id => {
+                      const sent    = sentChipIds.includes(id);
+                      const replied = loRepliedChipIds.includes(id);
+                      return { id, sent, replied, status: !sent ? 'not_sent' : !replied ? 'waiting' : 'replied' };
+                    });
                     const payload = {
                       _exported_at: new Date().toISOString(),
+                      _exported_from: isBorrower ? 'borrower' : 'lo',
+                      _note: 'chipStates only populated when exported from borrower side; use _derived_chip_states for structural state',
                       thread,
                       proCard,
                       discoverScenario,
                       chipStates: discoverChipStates,
+                      _derived_chip_states: derivedChipStates,
                       sentChipIds,
                       loRepliedChipIds,
                       loReplies,
@@ -608,10 +617,16 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               </div>
               <pre className="ch-debug-pre">{JSON.stringify({
                 _exported_at: new Date().toISOString(),
+                _exported_from: isBorrower ? 'borrower' : 'lo',
+                _note: 'chipStates only populated when exported from borrower side; use _derived_chip_states for structural state',
                 thread,
                 proCard,
                 discoverScenario,
                 chipStates: discoverChipStates,
+                _derived_chip_states: (['rate', 'costs', 'process', 'after-close'] as const).map(id => ({
+                  id, sent: sentChipIds.includes(id), replied: loRepliedChipIds.includes(id),
+                  status: !sentChipIds.includes(id) ? 'not_sent' : !loRepliedChipIds.includes(id) ? 'waiting' : 'replied',
+                })),
                 sentChipIds,
                 loRepliedChipIds,
                 loReplies,
