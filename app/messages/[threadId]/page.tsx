@@ -83,6 +83,8 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const [mobileTab, setMobileTab] = useState<"chat" | "discover">("chat");
   const [discoverChipStates, setDiscoverChipStates] = useState<ChipSummary[]>([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [fredRate, setFredRate] = useState<number | null>(null);
+  const fredFetchedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -117,6 +119,16 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Fetch live FRED 30yr benchmark (once, when scenario is available — used by both sides)
+  useEffect(() => {
+    if (!discoverScenario || fredFetchedRef.current) return;
+    fredFetchedRef.current = true;
+    fetch('/api/fred')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.ok && d.mort30Avg) setFredRate(d.mort30Avg); })
+      .catch(() => {});
+  }, [discoverScenario]);
 
   async function load() {
     setLoading(true);
@@ -317,14 +329,40 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                   )}
                 </>
               ) : (
-                <div className="ch-chat-header-body">
-                  <div className="ch-chat-header-name" style={{ fontSize: 12 }}>
-                    Thread · <span style={{ color: 'rgba(148,163,184,0.50)', fontWeight: 400 }}>{threadId}</span>
+                <>
+                  <div className="ch-chat-header-avatar" style={{ background: 'linear-gradient(135deg,#1a3a2a,#2d5a3e)', color: '#00e87a' }}>
+                    {(thread?.borrower_name ?? 'B').charAt(0).toUpperCase()}
                   </div>
-                </div>
+                  <div className="ch-chat-header-body">
+                    <div className="ch-chat-header-name">{thread?.borrower_name ?? 'Borrower'}</div>
+                    {discoverScenario && (
+                      <div className="ch-chat-header-meta">
+                        {{ fha: 'FHA', conventional: 'Conventional', va: 'VA', jumbo: 'Jumbo' }[discoverScenario.loanType]}
+                        {' · '}{fmtPrice(discoverScenario.snapshot.price)}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
               <button className="ch-debug-btn" title="Export thread JSON" onClick={() => setShowDebug(true)}>{'{ }'}</button>
             </div>
+
+            {/* LO scenario strip — mirrors Discover dock scenario context */}
+            {!isBorrower && discoverScenario && (
+              <div className="ch-lo-scen-strip">
+                {[
+                  { val: fmtPrice(discoverScenario.snapshot.price),                                            lbl: 'Purchase' },
+                  { val: `${discoverScenario.snapshot.downPct}% down`,                                         lbl: 'Down' },
+                  { val: fredRate ? `${fredRate.toFixed(3)}%` : `${discoverScenario.snapshot.rate.toFixed(3)}%`, lbl: 'FRED Benchmark' },
+                  { val: `$${Math.round(discoverScenario.snapshot.monthlyPayment).toLocaleString()}/mo`,        lbl: 'Est. P&I' },
+                ].map(item => (
+                  <div key={item.lbl} className="ch-lo-scen-item">
+                    <span className="ch-lo-scen-val">{item.val}</span>
+                    <span className="ch-lo-scen-lbl">{item.lbl}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Contact share banner — professional card */}
             {contactShared && contactShare && (
@@ -1242,6 +1280,27 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           background: rgba(0,232,122,0.10);
           border: 1px solid rgba(0,232,122,0.25);
           color: #00e87a; white-space: nowrap;
+        }
+
+        /* ── LO scenario strip ── */
+        .ch-lo-scen-strip {
+          flex-shrink: 0;
+          display: flex; gap: 0; flex-wrap: wrap;
+          border-bottom: 1px solid rgba(0,232,122,0.09);
+          background: rgba(0,232,122,0.03);
+        }
+        .ch-lo-scen-item {
+          display: flex; flex-direction: column; gap: 1px;
+          padding: 8px 16px;
+          border-right: 1px solid rgba(0,232,122,0.07);
+        }
+        .ch-lo-scen-item:last-child { border-right: none; }
+        .ch-lo-scen-val {
+          font-size: 13px; font-weight: 700; color: #f0f4ff;
+        }
+        .ch-lo-scen-lbl {
+          font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
+          color: rgba(148,163,184,0.40); font-weight: 600;
         }
 
         /* ── AI Coach Summary Bar ── */
