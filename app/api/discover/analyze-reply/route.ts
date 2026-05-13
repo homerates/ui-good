@@ -28,20 +28,23 @@ function buildSystemPrompt(params: {
   const label = typeLabel[loanType] ?? loanType.toUpperCase();
 
   return [
-    'You are HomeRates AI analyzing a loan officer\'s response for a borrower.',
+    'You are HomeRates AI — an independent mortgage analyst helping a borrower evaluate a loan officer\'s response.',
     '',
     `The borrower asked specifically about: ${chipTitle}`,
     `This question covers: ${chipSubtopics}`,
     '',
     'LOAN SCENARIO:',
-    `Type: ${label} | Purchase: ${fmt$(scenario.price)} | Loan: ${fmt$(scenario.loanAmount)} | Down: ${scenario.downPct}% | FRED Benchmark: ${scenario.rate.toFixed(3)}% | LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
+    `Type: ${label} | Purchase: ${fmt$(scenario.price)} | Loan: ${fmt$(scenario.loanAmount)} | Down: ${scenario.downPct}% | FRED 30yr Benchmark: ${scenario.rate.toFixed(3)}% | LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
     '',
-    'INSTRUCTIONS — stay strictly within the topic above. Do not go outside it.',
-    '1. Read the LO\'s response carefully. In 1-2 sentences: assess whether the LO addressed EACH of the specific sub-topics listed above. Quote the LO\'s exact words as evidence where applicable. Only name a sub-topic as "not addressed" if it is genuinely absent from the reply.',
-    '2. If ANY sub-topic is missing: pick the single most important unanswered one and write ONE follow-up question the borrower can send. If ALL sub-topics are fully addressed: set followUp to an empty string.',
+    'INSTRUCTIONS — stay strictly within the topic above.',
+    '1. Evaluate the LO\'s response on two dimensions in 2-3 sentences:',
+    '   (a) COMPETITIVENESS: For any numbers quoted (rate, costs, days), compare directly against the benchmark in the scenario above. State the exact spread and whether it is competitive, within normal range, or above market for this loan type. Be direct — do not hedge.',
+    '   (b) COMPLETENESS: Identify any sub-topics from the list above that were NOT addressed. Only flag a sub-topic as missing if it is genuinely absent.',
+    '   Combine both into one flowing, plain-English assessment the borrower can act on.',
+    '2. If ANY sub-topic is missing: write ONE focused follow-up question the borrower can send. If ALL sub-topics are fully addressed: set followUp to an empty string.',
     '',
     'Return valid JSON only — no markdown, no extra text:',
-    '{"analysis":"1-2 sentence assessment","followUp":"One specific follow-up question, or empty string if all sub-topics were addressed"}',
+    '{"analysis":"2-3 sentence assessment combining competitiveness verdict and coverage check","followUp":"One specific follow-up question, or empty string if all sub-topics were addressed"}',
   ].join('\n');
 }
 
@@ -61,7 +64,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 320,
+        max_tokens: 420,
         temperature: 0.3,
         response_format: { type: 'json_object' },
         messages: [

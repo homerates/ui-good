@@ -63,7 +63,7 @@ function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'Exact rate · APR · fixed vs ARM · rate lock options & extension cost',
     aiValue: s => `${s.rate.toFixed(3)}%`,
     aiSub:   () => 'FRED 30yr avg interest rate · live benchmark',
-    prompt:  s => `What is your interest rate on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}${COMPLIANCE_NOTE}`,
+    prompt:  s => `What is your interest rate on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`,
     inputType: 'pct',
     inputPlaceholder: 'e.g. 6.875',
     evaluateGap(raw, s) {
@@ -93,7 +93,7 @@ function makeCostsQuestion(lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'Origination fee · discount points · title · prepaids · total cash needed',
     aiValue: s => fmt$(s.price * (s.downPct / 100) + s.price * 0.03),
     aiSub:   s => `${s.downPct}% down + ~3% closing costs on ${fmt$(s.price)}`,
-    prompt:  s => `What is your origination fee on this ${fmt$(s.loanAmount)} loan — flat fee or percentage? Are there discount points? What is my estimated total cash to close including all lender fees, title, prepaids, and escrow? ${loanSpecific[lt]}${COMPLIANCE_NOTE}`,
+    prompt:  s => `What is your origination fee on this ${fmt$(s.loanAmount)} loan — flat fee or percentage? Are there discount points? What is my estimated total cash to close including all lender fees, title, prepaids, and escrow? ${loanSpecific[lt]}`,
     inputType: 'dollar',
     inputPlaceholder: s => `e.g. ${fmt$(s.price * (s.downPct / 100) + s.price * 0.03).replace('$', '')}`,
     evaluateGap(raw, s) {
@@ -124,7 +124,7 @@ function makeProcessQuestion(lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'Days to close · appraisal timing · UW approval · contingency removal · rate lock window',
     aiValue: () => '30–45 days',
     aiSub:   () => 'Appraisal day 3–5 · UW approval day 14 · contingency day 17–21',
-    prompt:  s => `Walk me through your process on a ${fmt$(s.loanAmount)} purchase: How many days to close? When do you order the appraisal? What is your underwriting approval timeline, and what day do you recommend I remove my loan contingency? ${loanSpecific[lt]}${COMPLIANCE_NOTE}`,
+    prompt:  s => `Walk me through your process on a ${fmt$(s.loanAmount)} purchase: How many days to close? When do you order the appraisal? What is your underwriting approval timeline, and what day do you recommend I remove my loan contingency? ${loanSpecific[lt]}`,
     inputType: 'text',
     inputPlaceholder: 'e.g. 30 days, appraisal day 5',
     evaluateGap(raw) {
@@ -149,7 +149,7 @@ function makeAfterCloseQuestion(_lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'No-cost refi options · rate monitoring · strike point alerts · lifetime guarantee · servicing quality',
     aiValue: () => 'Ask lender',
     aiSub:   () => 'Top lenders: rate monitoring + no-cost refi commitment',
-    prompt:  () => `What is your commitment to me after this loan closes? Do you offer a no-cost refinance if rates drop? Do you actively monitor my rate and notify me when I hit a strike point? Do you offer a lifetime rate guarantee or certificate? And regardless of who services the loan, what is your personal commitment to staying involved?${COMPLIANCE_NOTE}`,
+    prompt:  () => `What is your commitment to me after this loan closes? Do you offer a no-cost refinance if rates drop? Do you actively monitor my rate and notify me when I hit a strike point? Do you offer a lifetime rate guarantee or certificate? And regardless of who services the loan, what is your personal commitment to staying involved?`,
     inputType: 'text',
     inputPlaceholder: 'e.g. Rate alerts + no-cost refi offered',
     evaluateGap(raw) {
