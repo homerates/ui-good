@@ -205,6 +205,12 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
+  const fmtPrice = (n: number) =>
+    n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : `$${Math.round(n / 1_000)}k`;
+
+  const loInitials = (name: string | null | undefined) =>
+    name ? name.trim().split(/\s+/).map(w => w[0].toUpperCase()).slice(0, 2).join('') : 'LO';
+
   const isBorrower = thread?.is_borrower ?? true;
   const proType = thread?.professional_type === "agent" ? "Agent" : "Loan Officer";
   const navTitle = isBorrower
@@ -265,6 +271,28 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           {/* ── Left: Chat column ── */}
           <div className={`ch-chat-col${hasDock && mobileTab !== "chat" ? " ch-mobile-hidden" : ""}`}>
           <div className="ch-portal">
+
+            {/* Chat header — LO avatar, name, company, NMLS, loan badge */}
+            {isBorrower && (
+              <div className="ch-chat-header">
+                <div className="ch-chat-header-avatar">
+                  {loInitials(proCard?.name ?? null)}
+                </div>
+                <div className="ch-chat-header-body">
+                  <div className="ch-chat-header-name">{proCard?.name ?? proType}</div>
+                  {(proCard?.company || proCard?.nmls) && (
+                    <div className="ch-chat-header-meta">
+                      {[proCard.company, proCard.nmls ? `NMLS ${proCard.nmls}` : null].filter(Boolean).join(' · ')}
+                    </div>
+                  )}
+                </div>
+                {discoverScenario && (
+                  <div className="ch-chat-header-badge">
+                    {{ fha: 'FHA', conventional: 'Conv.', va: 'VA', jumbo: 'Jumbo' }[discoverScenario.loanType]} · {fmtPrice(discoverScenario.snapshot.price)}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Contact share banner — professional card */}
             {contactShared && contactShare && (
@@ -410,7 +438,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                   <div key={m.id} className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
                     {!mine && (
                       <div className="ch-avatar">
-                        {(isBorrower ? proType : "B").charAt(0).toUpperCase()}
+                        {isBorrower ? loInitials(proCard?.name ?? null) : 'B'}
                       </div>
                     )}
                     <div className={`ch-bubble ${mine ? "ch-bubble-mine" : "ch-bubble-theirs"}`}>
@@ -430,6 +458,25 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
 
             {/* Footer / compose */}
             <div className="ch-footer">
+              {/* AI Coach Summary Bar — visible when Discover is active and at least one chip sent */}
+              {isBorrower && discoverScenario && sentChipIds.length > 0 && (
+                <div className="ch-coach-bar">
+                  <span className="ch-coach-icon">🛡</span>
+                  <div className="ch-coach-body">
+                    {loRepliedChipIds.length === 0
+                      ? <><strong>{sentChipIds.length}/4</strong> question{sentChipIds.length > 1 ? 's' : ''} sent — waiting for lender reply</>
+                      : loRepliedChipIds.length < sentChipIds.length
+                      ? <><strong>{loRepliedChipIds.length}</strong> answered · <strong>{sentChipIds.length - loRepliedChipIds.length}</strong> waiting — AI analyzing</>
+                      : <><strong>{loRepliedChipIds.length}</strong> answer{loRepliedChipIds.length > 1 ? 's' : ''} received — AI analysis ready in Discover</>
+                    }
+                    {sentChipIds.length < 4 && (
+                      <span className="ch-coach-more"> · {4 - sentChipIds.length} more question{4 - sentChipIds.length > 1 ? 's' : ''} ready</span>
+                    )}
+                  </div>
+                  <button className="ch-coach-btn" onClick={() => setMobileTab('discover')}>Discover →</button>
+                </div>
+              )}
+
               {!isBorrower && (
                 <div className="ch-lo-disclaimer">Rate indications only — not a Loan Estimate. Disclosure is auto-appended when you mention a rate.</div>
               )}
@@ -967,6 +1014,63 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         }
         .ch-share-confirm-ok:hover:not(:disabled) { opacity: 0.88; }
         .ch-share-confirm-ok:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Chat header (LO info, inside ch-portal) ── */
+        .ch-chat-header {
+          flex-shrink: 0;
+          display: flex; align-items: center; gap: 10px;
+          padding: 13px 16px;
+          border-bottom: 1px solid rgba(148,163,184,0.10);
+          background: rgba(0,0,0,0.18);
+        }
+        .ch-chat-header-avatar {
+          width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+          background: linear-gradient(135deg,#1e3a5f,#2d5a8e);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 12px; font-weight: 800; color: #60a5fa;
+          letter-spacing: 0.02em;
+        }
+        .ch-chat-header-body { flex: 1; min-width: 0; }
+        .ch-chat-header-name {
+          font-size: 13px; font-weight: 700; color: #f0f4ff;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .ch-chat-header-meta {
+          font-size: 11px; color: rgba(148,163,184,0.50);
+          margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .ch-chat-header-badge {
+          flex-shrink: 0;
+          font-size: 10px; font-weight: 700;
+          padding: 3px 9px; border-radius: 20px;
+          background: rgba(0,232,122,0.10);
+          border: 1px solid rgba(0,232,122,0.25);
+          color: #00e87a; white-space: nowrap;
+        }
+
+        /* ── AI Coach Summary Bar ── */
+        .ch-coach-bar {
+          display: flex; align-items: center; gap: 8px;
+          background: rgba(139,92,246,0.07);
+          border: 1px solid rgba(139,92,246,0.20);
+          border-radius: 10px; padding: 8px 12px;
+          margin-bottom: 10px;
+          font-size: 12px; color: rgba(196,181,253,0.85);
+        }
+        .ch-coach-icon { font-size: 13px; flex-shrink: 0; }
+        .ch-coach-body { flex: 1; line-height: 1.4; }
+        .ch-coach-body strong { color: #c4b5fd; font-weight: 700; }
+        .ch-coach-more { color: rgba(196,181,253,0.55); }
+        .ch-coach-btn {
+          flex-shrink: 0;
+          font-size: 11px; font-weight: 700; color: #a78bfa;
+          background: rgba(139,92,246,0.12);
+          border: 1px solid rgba(139,92,246,0.28);
+          border-radius: 7px; padding: 4px 10px;
+          cursor: pointer; font-family: inherit;
+          transition: background 0.15s;
+        }
+        .ch-coach-btn:hover { background: rgba(139,92,246,0.20); }
 
         /* ── Responsive ── */
         @media (max-width: 700px) {
