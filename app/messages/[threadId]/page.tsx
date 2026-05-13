@@ -554,7 +554,9 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               )}
 
               {!isBorrower && (
-                <div className="ch-lo-disclaimer">Rate indications only — not a Loan Estimate. Disclosure is auto-appended when you mention a rate.</div>
+                <div className="ch-lo-disclaimer">
+                  <strong style={{ color: '#4a6e58' }}>Pre-application education only</strong> — no application has been submitted, no credit has been pulled, and no Loan Estimate obligation is created by responding. You may share the same program information you would publish on your website or present at an open house. A rate disclosure is auto-appended whenever you mention a rate.
+                </div>
               )}
 
               {isBorrower && !contactShared && !isClosed && messages.length >= 2 && (
@@ -763,6 +765,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           display: flex; flex-direction: column;
           min-height: 0; overflow: hidden;
           height: 100%;
+          width: 100%; max-width: 780px;
         }
 
         /* Discover dock column */
@@ -1073,8 +1076,11 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           padding: 10px 16px 14px;
         }
         .ch-lo-disclaimer {
-          font-size: 0.7rem; color: #3a4560;
-          margin-bottom: 8px; line-height: 1.4;
+          font-size: 0.72rem; color: #4a6058;
+          margin-bottom: 8px; line-height: 1.55;
+          background: rgba(0,232,122,0.03);
+          border: 1px solid rgba(0,232,122,0.08);
+          border-radius: 8px; padding: 8px 11px;
         }
         .ch-share-cta {
           display: flex; align-items: center; justify-content: space-between;

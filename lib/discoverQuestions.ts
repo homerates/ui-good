@@ -41,6 +41,13 @@ function parseDollar(raw: string): number | null {
   return isNaN(v) ? null : v;
 }
 
+// Appended to every chip question sent to the LO.
+// Explicitly breaks the "push to application" reflex by clarifying this is
+// pre-application education — legally identical to answering a seminar question
+// or publishing rates on a website. No TRID trigger, no Loan Estimate required.
+const COMPLIANCE_NOTE =
+  `\n\n📋 HomeRates Discover — pre-application education inquiry. No application has been submitted, no credit has been pulled, and no Loan Estimate obligation is created by responding. You are being asked to share the same general program information you would publish on your website or present at an open house. Your response is not an origination agreement or rate lock.`;
+
 // ─── 1. Rate, APR & Program ───────────────────────────────────────────────────
 function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
   const loanSpecific: Record<LoanTypeKey, string> = {
@@ -56,7 +63,7 @@ function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'Exact rate · APR · fixed vs ARM · rate lock options & extension cost',
     aiValue: s => `${s.rate.toFixed(3)}%`,
     aiSub:   () => 'FRED 30yr avg interest rate · live benchmark',
-    prompt:  s => `What is your interest rate on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`,
+    prompt:  s => `What is your interest rate on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}${COMPLIANCE_NOTE}`,
     inputType: 'pct',
     inputPlaceholder: 'e.g. 6.875',
     evaluateGap(raw, s) {
@@ -86,7 +93,7 @@ function makeCostsQuestion(lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'Origination fee · discount points · title · prepaids · total cash needed',
     aiValue: s => fmt$(s.price * (s.downPct / 100) + s.price * 0.03),
     aiSub:   s => `${s.downPct}% down + ~3% closing costs on ${fmt$(s.price)}`,
-    prompt:  s => `What is your origination fee on this ${fmt$(s.loanAmount)} loan — flat fee or percentage? Are there discount points? What is my estimated total cash to close including all lender fees, title, prepaids, and escrow? ${loanSpecific[lt]}`,
+    prompt:  s => `What is your origination fee on this ${fmt$(s.loanAmount)} loan — flat fee or percentage? Are there discount points? What is my estimated total cash to close including all lender fees, title, prepaids, and escrow? ${loanSpecific[lt]}${COMPLIANCE_NOTE}`,
     inputType: 'dollar',
     inputPlaceholder: s => `e.g. ${fmt$(s.price * (s.downPct / 100) + s.price * 0.03).replace('$', '')}`,
     evaluateGap(raw, s) {
@@ -117,7 +124,7 @@ function makeProcessQuestion(lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'Days to close · appraisal timing · UW approval · contingency removal · rate lock window',
     aiValue: () => '30–45 days',
     aiSub:   () => 'Appraisal day 3–5 · UW approval day 14 · contingency day 17–21',
-    prompt:  s => `Walk me through your process on a ${fmt$(s.loanAmount)} purchase: How many days to close? When do you order the appraisal? What is your underwriting approval timeline, and what day do you recommend I remove my loan contingency? ${loanSpecific[lt]}`,
+    prompt:  s => `Walk me through your process on a ${fmt$(s.loanAmount)} purchase: How many days to close? When do you order the appraisal? What is your underwriting approval timeline, and what day do you recommend I remove my loan contingency? ${loanSpecific[lt]}${COMPLIANCE_NOTE}`,
     inputType: 'text',
     inputPlaceholder: 'e.g. 30 days, appraisal day 5',
     evaluateGap(raw) {
@@ -142,7 +149,7 @@ function makeAfterCloseQuestion(_lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'No-cost refi options · rate monitoring · strike point alerts · lifetime guarantee · servicing quality',
     aiValue: () => 'Ask lender',
     aiSub:   () => 'Top lenders: rate monitoring + no-cost refi commitment',
-    prompt:  () => `What is your commitment to me after this loan closes? Do you offer a no-cost refinance if rates drop? Do you actively monitor my rate and notify me when I hit a strike point? Do you offer a lifetime rate guarantee or certificate? And regardless of who services the loan, what is your personal commitment to staying involved?`,
+    prompt:  () => `What is your commitment to me after this loan closes? Do you offer a no-cost refinance if rates drop? Do you actively monitor my rate and notify me when I hit a strike point? Do you offer a lifetime rate guarantee or certificate? And regardless of who services the loan, what is your personal commitment to staying involved?${COMPLIANCE_NOTE}`,
     inputType: 'text',
     inputPlaceholder: 'e.g. Rate alerts + no-cost refi offered',
     evaluateGap(raw) {
@@ -169,4 +176,4 @@ export function getQuestions(loanType: LoanTypeKey): DiscoverQuestion[] {
   ];
 }
 
-export const DISCLOSURE_TEXT = `HomeRates Discover sessions are stored anonymously. Scenario numbers, AI benchmarks, lender responses, and gap analysis are used to improve HomeRates AI accuracy over time. No personally identifiable information is collected or retained as part of this analysis.`;
+export const DISCLOSURE_TEXT = `HomeRates Discover is a pre-application education tool. No application has been submitted, no credit has been pulled, and no Loan Estimate obligation is created through this process. Scenario numbers, AI benchmarks, lender responses, and gap analysis are stored anonymously and used to improve HomeRates AI accuracy. No personally identifiable information is collected or retained as part of this analysis. This tool does not constitute a commitment to lend or a rate lock.`;
