@@ -331,10 +331,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               ) : (
                 <>
                   <div className="ch-chat-header-avatar" style={{ background: 'linear-gradient(135deg,#1a3a2a,#2d5a3e)', color: '#00e87a' }}>
-                    {(thread?.borrower_name ?? 'B').charAt(0).toUpperCase()}
+                    {contactShared && thread?.borrower_name
+                      ? loInitials(thread.borrower_name)
+                      : 'B'}
                   </div>
                   <div className="ch-chat-header-body">
-                    <div className="ch-chat-header-name">{thread?.borrower_name ?? 'Borrower'}</div>
+                    <div className="ch-chat-header-name">
+                      {contactShared && thread?.borrower_name ? thread.borrower_name : 'Borrower'}
+                    </div>
                     {discoverScenario && (
                       <div className="ch-chat-header-meta">
                         {{ fha: 'FHA', conventional: 'Conventional', va: 'VA', jumbo: 'Jumbo' }[discoverScenario.loanType]}
