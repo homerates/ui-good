@@ -9,6 +9,7 @@ import { useAuth } from "@clerk/nextjs";
 import AppNav from "../../components/AppNav";
 import DiscoverDock from "../../components/DiscoverDock";
 import type { LoanTypeKey, ScenarioSnapshot } from "../../../lib/discoverQuestions";
+import type { ChipSummary } from "../../components/DiscoverDock";
 
 interface Message {
   id: string;
@@ -80,6 +81,8 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const [sharing, setSharing] = useState(false);
   const [showShareConfirm, setShowShareConfirm] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "discover">("chat");
+  const [discoverChipStates, setDiscoverChipStates] = useState<ChipSummary[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -265,6 +268,26 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           </div>
         )}
 
+        {/* Discover progress strip — 4 chip states, shown when dock is active */}
+        {hasDock && discoverScenario && discoverChipStates.length > 0 && (
+          <div className="ch-progress-strip">
+            {discoverChipStates.map(chip => (
+              <div key={chip.id} className={`ch-prog-chip ch-prog-${chip.status}`}>
+                <span className="ch-prog-icon">{chip.icon}</span>
+                <span className="ch-prog-label">{chip.title.split(' &')[0]}</span>
+                <span className="ch-prog-pill">
+                  {chip.status === 'idle'      ? '' :
+                   chip.status === 'next'      ? 'Ask →' :
+                   chip.status === 'waiting'   ? '…' :
+                   chip.status === 'analyzing' ? '✨' :
+                   chip.status === 'match'     ? '✓' :
+                   chip.status === 'check'     ? '⚡' : '⚠'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Page body */}
         <div className={`ch-page-body${hasDock ? " ch-split-mode" : ""}`}>
 
@@ -291,6 +314,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                     {{ fha: 'FHA', conventional: 'Conv.', va: 'VA', jumbo: 'Jumbo' }[discoverScenario.loanType]} · {fmtPrice(discoverScenario.snapshot.price)}
                   </div>
                 )}
+                <button className="ch-debug-btn" title="Export thread JSON" onClick={() => setShowDebug(true)}>{'{ }'}</button>
               </div>
             )}
 
@@ -533,11 +557,67 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 sentChipIds={sentChipIds}
                 loRepliedChipIds={loRepliedChipIds}
                 loReplies={loReplies}
+                onGapSummary={setDiscoverChipStates}
               />
             </div>
           )}
 
         </div>{/* /ch-page-body */}
+
+        {/* JSON Debug modal — full thread state for analysis/bug reporting */}
+        {showDebug && (
+          <div className="ch-debug-overlay" onClick={() => setShowDebug(false)}>
+            <div className="ch-debug-modal" onClick={e => e.stopPropagation()}>
+              <div className="ch-debug-header">
+                <span className="ch-debug-title">Thread Debug JSON</span>
+                <span className="ch-debug-hint">Share this with your dev to diagnose analysis quality</span>
+                <button
+                  className="ch-debug-copy"
+                  onClick={() => {
+                    const payload = {
+                      _exported_at: new Date().toISOString(),
+                      thread,
+                      proCard,
+                      discoverScenario,
+                      chipStates: discoverChipStates,
+                      sentChipIds,
+                      loRepliedChipIds,
+                      loReplies,
+                      messages: messages.map(m => ({
+                        id: m.id,
+                        sender_role: m.sender_role,
+                        content: m.content,
+                        metadata: m.metadata ?? null,
+                        created_at: m.created_at,
+                      })),
+                    };
+                    navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+                      .then(() => alert('Copied to clipboard ✓'))
+                      .catch(() => alert('Copy failed — select all text manually'));
+                  }}
+                >Copy JSON</button>
+                <button className="ch-debug-close" onClick={() => setShowDebug(false)}>✕</button>
+              </div>
+              <pre className="ch-debug-pre">{JSON.stringify({
+                _exported_at: new Date().toISOString(),
+                thread,
+                proCard,
+                discoverScenario,
+                chipStates: discoverChipStates,
+                sentChipIds,
+                loRepliedChipIds,
+                loReplies,
+                messages: messages.map(m => ({
+                  id: m.id,
+                  sender_role: m.sender_role,
+                  content: m.content,
+                  metadata: m.metadata ?? null,
+                  created_at: m.created_at,
+                })),
+              }, null, 2)}</pre>
+            </div>
+          </div>
+        )}
 
         {/* Share confirm modal — outside portal so it overlays everything */}
         {showShareConfirm && (
@@ -1014,6 +1094,99 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         }
         .ch-share-confirm-ok:hover:not(:disabled) { opacity: 0.88; }
         .ch-share-confirm-ok:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Discover progress strip ── */
+        .ch-progress-strip {
+          flex-shrink: 0;
+          display: flex; gap: 6px; flex-wrap: wrap;
+          padding: 8px 16px;
+          background: rgba(0,0,0,0.25);
+          border-bottom: 1px solid rgba(148,163,184,0.08);
+        }
+        .ch-prog-chip {
+          display: flex; align-items: center; gap: 5px;
+          padding: 4px 10px 4px 7px;
+          border-radius: 20px; font-size: 11px; font-weight: 600;
+          border: 1px solid rgba(148,163,184,0.12);
+          color: rgba(148,163,184,0.40);
+          background: rgba(148,163,184,0.04);
+          transition: all 0.15s;
+        }
+        .ch-prog-icon { font-size: 12px; }
+        .ch-prog-label { letter-spacing: 0.01em; }
+        .ch-prog-pill { margin-left: 3px; }
+
+        .ch-prog-chip.ch-prog-next    { background: rgba(139,92,246,0.10); border-color: rgba(139,92,246,0.30); color: #c4b5fd; }
+        .ch-prog-chip.ch-prog-waiting { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.22); color: rgba(196,181,253,0.65); }
+        .ch-prog-chip.ch-prog-analyzing { background: rgba(96,165,250,0.08); border-color: rgba(96,165,250,0.22); color: rgba(147,197,253,0.75); }
+        .ch-prog-chip.ch-prog-match   { background: rgba(0,232,122,0.10); border-color: rgba(0,232,122,0.28); color: #00e87a; }
+        .ch-prog-chip.ch-prog-check   { background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.28); color: #fbbf24; }
+        .ch-prog-chip.ch-prog-alert   { background: rgba(248,113,113,0.10); border-color: rgba(248,113,113,0.28); color: #f87171; }
+
+        /* ── Debug button (in chat header) ── */
+        .ch-debug-btn {
+          flex-shrink: 0; margin-left: 4px;
+          padding: 3px 8px; border-radius: 6px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(148,163,184,0.15);
+          color: rgba(148,163,184,0.35);
+          font-size: 10px; font-weight: 700;
+          cursor: pointer; font-family: monospace;
+          transition: all 0.15s;
+        }
+        .ch-debug-btn:hover { background: rgba(255,255,255,0.08); color: rgba(148,163,184,0.70); border-color: rgba(148,163,184,0.28); }
+
+        /* ── JSON Debug modal ── */
+        .ch-debug-overlay {
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.80);
+          backdrop-filter: blur(4px);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 2000; padding: 16px;
+        }
+        .ch-debug-modal {
+          background: #0a1020;
+          border: 1px solid rgba(148,163,184,0.18);
+          border-radius: 14px;
+          width: 100%; max-width: 720px;
+          max-height: 86vh;
+          display: flex; flex-direction: column;
+          overflow: hidden;
+          box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+        }
+        .ch-debug-header {
+          flex-shrink: 0;
+          display: flex; align-items: center; gap: 10px;
+          padding: 12px 16px;
+          border-bottom: 1px solid rgba(148,163,184,0.10);
+          background: rgba(0,0,0,0.25);
+        }
+        .ch-debug-title { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+        .ch-debug-hint  { font-size: 11px; color: rgba(148,163,184,0.45); flex: 1; }
+        .ch-debug-copy {
+          padding: 5px 12px; border-radius: 7px;
+          background: rgba(0,232,122,0.12);
+          border: 1px solid rgba(0,232,122,0.28);
+          color: #00e87a; font-size: 11px; font-weight: 700;
+          cursor: pointer; font-family: inherit;
+        }
+        .ch-debug-close {
+          padding: 5px 9px; border-radius: 7px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(148,163,184,0.15);
+          color: rgba(148,163,184,0.60);
+          font-size: 12px; cursor: pointer; font-family: inherit;
+        }
+        .ch-debug-pre {
+          flex: 1; overflow-y: auto; overflow-x: auto;
+          margin: 0; padding: 14px 16px;
+          font-size: 11px; line-height: 1.6;
+          color: #9de8bc;
+          font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+          white-space: pre;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(148,163,184,0.15) transparent;
+        }
 
         /* ── Chat header (LO info, inside ch-portal) ── */
         .ch-chat-header {

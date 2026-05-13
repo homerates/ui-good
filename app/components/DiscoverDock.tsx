@@ -29,6 +29,11 @@ const DEFAULT_DOWN: Record<LoanTypeKey, string> = {
 
 type AiMsg = { q: string; a: string; loading?: boolean };
 
+export type ChipSummary = {
+  id: string; title: string; icon: string;
+  status: 'idle' | 'next' | 'waiting' | 'analyzing' | 'match' | 'check' | 'alert';
+};
+
 type Props = {
   loanType?:          LoanTypeKey;
   scenario?:          ScenarioSnapshot;
@@ -36,6 +41,7 @@ type Props = {
   sentChipIds?:       string[];              // chips already sent (derived from thread messages by page)
   loRepliedChipIds?:  string[];              // chips where the LO has already replied in chat
   loReplies?:         Record<string, string>; // chipId → LO's reply text for auto-analysis
+  onGapSummary?:      (chips: ChipSummary[]) => void; // fires whenever chip states change
 };
 
 // Extract a short, clean key value from the LO's reply for display in the lender cell.
@@ -80,7 +86,7 @@ function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTyp
   };
 }
 
-export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {} }: Props) {
+export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {}, onGapSummary }: Props) {
   // ── Session ──────────────────────────────────────────────────────────────
   const [sessionId, setSessionId]   = useState<string | null>(null);
   const sessionCreatedRef           = useRef(false);
@@ -362,6 +368,32 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     : pendingCount === questions.length
     ? { text: 'Ask your lender', color: '#a78bfa', bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.28)' }
     : { text: `${matchCount}/${questions.length} done`, color: '#00e87a', bg: 'rgba(0,232,122,0.10)', border: 'rgba(0,232,122,0.28)' };
+
+  // Push chip summary to parent whenever states change
+  const onGapSummaryRef = useRef(onGapSummary);
+  useEffect(() => { onGapSummaryRef.current = onGapSummary; });
+
+  const _gapKey = questions.map((q, i) => {
+    const isSent   = allSentChips.includes(q.id);
+    const isNext   = !isSent && i === nextChipIndex;
+    const replied  = loRepliedChipIds.includes(q.id);
+    const hasInput = !!(inputs[q.id] ?? '');
+    if (!isSent && isNext) return `${q.id}:next`;
+    if (!isSent)           return `${q.id}:idle`;
+    if (!replied)          return `${q.id}:waiting`;
+    if (!hasInput)         return `${q.id}:analyzing`;
+    return `${q.id}:${gaps[i].status}`;
+  }).join(',');
+
+  useEffect(() => {
+    if (!onGapSummaryRef.current) return;
+    const chips: ChipSummary[] = _gapKey.split(',').map((seg, i) => {
+      const [id, status] = seg.split(':');
+      return { id, title: questions[i].title, icon: questions[i].icon, status: status as ChipSummary['status'] };
+    });
+    onGapSummaryRef.current(chips);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [_gapKey]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Render
