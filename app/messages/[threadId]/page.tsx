@@ -295,28 +295,36 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           <div className={`ch-chat-col${hasDock && mobileTab !== "chat" ? " ch-mobile-hidden" : ""}`}>
           <div className="ch-portal">
 
-            {/* Chat header — LO avatar, name, company, NMLS, loan badge */}
-            {isBorrower && (
-              <div className="ch-chat-header">
-                <div className="ch-chat-header-avatar">
-                  {loInitials(proCard?.name ?? null)}
-                </div>
-                <div className="ch-chat-header-body">
-                  <div className="ch-chat-header-name">{proCard?.name ?? proType}</div>
-                  {(proCard?.company || proCard?.nmls) && (
-                    <div className="ch-chat-header-meta">
-                      {[proCard.company, proCard.nmls ? `NMLS ${proCard.nmls}` : null].filter(Boolean).join(' · ')}
+            {/* Chat header — LO info (borrower view) or slim debug bar (LO view) */}
+            <div className="ch-chat-header">
+              {isBorrower ? (
+                <>
+                  <div className="ch-chat-header-avatar">
+                    {loInitials(proCard?.name ?? null)}
+                  </div>
+                  <div className="ch-chat-header-body">
+                    <div className="ch-chat-header-name">{proCard?.name ?? proType}</div>
+                    {(proCard?.company || proCard?.nmls) && (
+                      <div className="ch-chat-header-meta">
+                        {[proCard.company, proCard.nmls ? `NMLS ${proCard.nmls}` : null].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                  </div>
+                  {discoverScenario && (
+                    <div className="ch-chat-header-badge">
+                      {{ fha: 'FHA', conventional: 'Conv.', va: 'VA', jumbo: 'Jumbo' }[discoverScenario.loanType]} · {fmtPrice(discoverScenario.snapshot.price)}
                     </div>
                   )}
-                </div>
-                {discoverScenario && (
-                  <div className="ch-chat-header-badge">
-                    {{ fha: 'FHA', conventional: 'Conv.', va: 'VA', jumbo: 'Jumbo' }[discoverScenario.loanType]} · {fmtPrice(discoverScenario.snapshot.price)}
+                </>
+              ) : (
+                <div className="ch-chat-header-body">
+                  <div className="ch-chat-header-name" style={{ fontSize: 12 }}>
+                    Thread · <span style={{ color: 'rgba(148,163,184,0.50)', fontWeight: 400 }}>{threadId}</span>
                   </div>
-                )}
-                <button className="ch-debug-btn" title="Export thread JSON" onClick={() => setShowDebug(true)}>{'{ }'}</button>
-              </div>
-            )}
+                </div>
+              )}
+              <button className="ch-debug-btn" title="Export thread JSON" onClick={() => setShowDebug(true)}>{'{ }'}</button>
+            </div>
 
             {/* Contact share banner — professional card */}
             {contactShared && contactShare && (
