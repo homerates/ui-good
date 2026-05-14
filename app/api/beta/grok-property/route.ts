@@ -47,6 +47,12 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
 
 export async function POST(req: NextRequest) {
   try {
+    // Optional gate: if BETA_ACCESS_KEY is set, callers must send it as x-beta-key header
+    const betaKey = process.env.BETA_ACCESS_KEY;
+    if (betaKey && req.headers.get('x-beta-key') !== betaKey) {
+      return NextResponse.json({ error: 'Unauthorized — x-beta-key header required' }, { status: 401 });
+    }
+
     const { address } = await req.json();
     if (!address?.trim()) {
       return NextResponse.json({ error: 'address is required' }, { status: 400 });

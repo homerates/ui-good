@@ -73,6 +73,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/og(.*)",
   // Market intelligence — server-side AI keys only, no user PII; auth guard not needed
   "/api/market-intelligence(.*)",
+  // Beta test endpoints — guarded by BETA_ACCESS_KEY header check inside each route
+  "/api/beta(.*)",
   // Deal room join — must be accessible before sign-in (token validates identity)
   "/deal-rooms/join(.*)",
 ]);

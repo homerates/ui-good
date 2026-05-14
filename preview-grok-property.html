@@ -292,6 +292,13 @@
       />
       <button class="run-btn" id="runBtn" onclick="runQuery()">Analyze →</button>
     </div>
+    <div style="margin-top:12px; display:flex; align-items:center; gap:10px;">
+      <label style="font-size:0.72rem; color:#3a4560; white-space:nowrap;">Beta key (if required):</label>
+      <input id="betaKeyInput" type="password" placeholder="leave blank if not set"
+        style="flex:1; background:#0d1626; border:1px solid rgba(255,255,255,0.07); border-radius:8px;
+               color:#8fa3b8; font-size:0.8rem; padding:7px 12px; font-family:inherit; outline:none;" />
+    </div>
+
     <div class="examples">
       Try:
       <span onclick="fillAndRun('4400 Woodridge Dr, Thousand Oaks, CA 91360')">4400 Woodridge Dr, Thousand Oaks</span>
@@ -393,9 +400,13 @@ async function runQuery() {
   body.style.display = 'none';
 
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    const betaKey = document.getElementById('betaKeyInput')?.value?.trim();
+    if (betaKey) headers['x-beta-key'] = betaKey;
+
     const res  = await fetch('/api/beta/grok-property', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ address: addr }),
     });
     const data = await res.json();
