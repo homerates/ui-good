@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import AppNav from '@/components/AppNav';
-import { prefetchGrokProperty } from '@/prefetchGrokProperty';
+import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -143,7 +143,25 @@ function CheckPropertyInner() {
             });
             const json = await res.json();
             if (!json.ok || !json.data) { setLookupErr('Could not load property data — try a different address or paste a Redfin link.'); }
-            else { setPropData(json.data); setResolved(json.data.address ?? raw); prefetchGrokProperty(json.data.address ?? raw); }
+            else {
+                const d = json.data;
+                setPropData(d);
+                setResolved(d.address ?? raw);
+                prefetchGrokProperty(d.address ?? raw, {
+                    current_status:     normalizeListingStatus(d.listingStatus),
+                    current_list_price: d.price ?? null,
+                    bedrooms:           d.beds ?? null,
+                    bathrooms:          d.baths ?? null,
+                    sqft:               d.sqft ?? null,
+                    year_built:         d.yearBuilt ?? null,
+                    days_on_market:     d.daysOnMarket ?? null,
+                    last_sold_price:    d.lastSalePrice ?? null,
+                    last_sold_date:     d.lastSaleDate ?? null,
+                    lot_size_sqft:      d.lotSizeSqft ?? null,
+                    tax_rate_effective: d.taxRateEffective ?? null,
+                    hoa_monthly:        d.hoaMonthly ?? null,
+                });
+            }
         } catch { setLookupErr('Network error — please try again.'); }
         finally  { setLoading(false); }
     }

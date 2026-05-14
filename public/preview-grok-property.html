@@ -544,6 +544,13 @@ async function runQuery() {
             };
             img.src = streetViewUrl;
           }
+          // PITI + rate arrive immediately from server calc — no need to wait for Grok
+          if (ev.meta_early.estimated_piti) {
+            applyField('estimated_piti', String(ev.meta_early.estimated_piti));
+          }
+          if (ev.meta_early.rate_used) {
+            applyField('rate_used', String(ev.meta_early.rate_used));
+          }
           continue;
         }
 
@@ -621,6 +628,10 @@ function toggleRaw() {
   pre.classList.toggle('hidden');
   btn.textContent = pre.classList.contains('hidden') ? 'Show raw JSON' : 'Hide raw JSON';
 }
+
+// Auto-run if ?address= is in the URL (shareable deep link)
+const _urlAddr = new URLSearchParams(window.location.search).get('address');
+if (_urlAddr) { document.getElementById('addrInput').value = _urlAddr; runQuery(); }
 </script>
 </body>
 </html>

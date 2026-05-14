@@ -7,7 +7,7 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import MarketIntelCard from '../components/MarketIntelCard';
-import { prefetchGrokProperty } from '@/prefetchGrokProperty';
+import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 
 interface HomeownerProperty {
   id: string;
@@ -1522,7 +1522,18 @@ function MyHomePageInner() {
               lookupData.listingStatus = data.listingStatus;
             }
             setAnalysis(lookupToAnalysis(lookupData, liveRate));
-            prefetchGrokProperty(addr);
+            prefetchGrokProperty(addr, {
+              current_status:     normalizeListingStatus(lookupData.listingStatus),
+              current_list_price: lookupData.price ?? null,
+              bedrooms:           lookupData.beds ?? null,
+              bathrooms:          lookupData.baths ?? null,
+              sqft:               lookupData.sqft ?? null,
+              year_built:         lookupData.yearBuilt ?? null,
+              last_sold_price:    lookupData.lastSalePrice ?? null,
+              last_sold_date:     lookupData.lastSaleDate ?? null,
+              tax_rate_effective: lookupData.taxRateEffective ?? null,
+              hoa_monthly:        lookupData.hoaMonthly ?? null,
+            });
             return;
           }
         }
@@ -1531,14 +1542,36 @@ function MyHomePageInner() {
           // Show partial card if we have structural data — only hard-error if truly empty
           if (data.beds || data.sqft || data.address) {
             setAnalysis(data);
-            prefetchGrokProperty(activeProperty.property_address);
+            prefetchGrokProperty(activeProperty.property_address, {
+              current_status:     normalizeListingStatus(data.listingStatus),
+              current_list_price: data.estimatedValue ?? null,
+              bedrooms:           data.beds ?? null,
+              bathrooms:          data.baths ?? null,
+              sqft:               data.sqft ?? null,
+              year_built:         data.yearBuilt ?? null,
+              last_sold_price:    data.lastSalePrice ?? null,
+              last_sold_date:     data.lastSaleDate ?? null,
+              tax_rate_effective: data.taxRateEffective ?? null,
+              hoa_monthly:        data.hoaMonthly ?? null,
+            });
             return;
           }
           setAnalysisErr('We couldn\'t find value data for this address. Try refining the address or check back shortly.');
           return;
         }
         setAnalysis(data);
-        prefetchGrokProperty(activeProperty.property_address);
+        prefetchGrokProperty(activeProperty.property_address, {
+          current_status:     normalizeListingStatus(data.listingStatus),
+          current_list_price: data.estimatedValue ?? null,
+          bedrooms:           data.beds ?? null,
+          bathrooms:          data.baths ?? null,
+          sqft:               data.sqft ?? null,
+          year_built:         data.yearBuilt ?? null,
+          last_sold_price:    data.lastSalePrice ?? null,
+          last_sold_date:     data.lastSaleDate ?? null,
+          tax_rate_effective: data.taxRateEffective ?? null,
+          hoa_monthly:        data.hoaMonthly ?? null,
+        });
         return;
       }
 
@@ -1572,7 +1605,18 @@ function MyHomePageInner() {
         // Show partial card if we have structural data — only hard-error if truly empty
         if (d.beds || d.sqft || d.address) {
           setAnalysis(lookupToAnalysis({ ...d, address: lookupAddress }, liveRate));
-          prefetchGrokProperty(lookupAddress);
+          prefetchGrokProperty(lookupAddress, {
+            current_status:     normalizeListingStatus(d.listingStatus),
+            current_list_price: d.price ?? null,
+            bedrooms:           d.beds ?? null,
+            bathrooms:          d.baths ?? null,
+            sqft:               d.sqft ?? null,
+            year_built:         d.yearBuilt ?? null,
+            last_sold_price:    d.lastSalePrice ?? null,
+            last_sold_date:     d.lastSaleDate ?? null,
+            tax_rate_effective: d.taxRateEffective ?? null,
+            hoa_monthly:        d.hoaMonthly ?? null,
+          });
           return;
         }
         setAnalysisErr('We couldn\'t find value data for this address. Try refining the address or check back shortly.');
@@ -1580,7 +1624,18 @@ function MyHomePageInner() {
       }
       // Pin address to what the user queried — prevents a wrong Redfin URL match from showing a different property
       setAnalysis(lookupToAnalysis({ ...lookupJson.data, address: lookupAddress }, liveRate));
-      prefetchGrokProperty(lookupAddress);
+      prefetchGrokProperty(lookupAddress, {
+        current_status:     normalizeListingStatus(lookupJson.data.listingStatus),
+        current_list_price: lookupJson.data.price ?? null,
+        bedrooms:           lookupJson.data.beds ?? null,
+        bathrooms:          lookupJson.data.baths ?? null,
+        sqft:               lookupJson.data.sqft ?? null,
+        year_built:         lookupJson.data.yearBuilt ?? null,
+        last_sold_price:    lookupJson.data.lastSalePrice ?? null,
+        last_sold_date:     lookupJson.data.lastSaleDate ?? null,
+        tax_rate_effective: lookupJson.data.taxRateEffective ?? null,
+        hoa_monthly:        lookupJson.data.hoaMonthly ?? null,
+      });
     } catch {
       setAnalysisErr('Network error — try again');
     } finally {

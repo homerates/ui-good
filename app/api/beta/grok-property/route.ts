@@ -6,6 +6,42 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 90;
 
+// ── PITI (deterministic — same logic as CalcEngine) ───────────────────────────
+
+async function getLiveRate(origin: string): Promise<number> {
+  try {
+    const res = await fetch(`${origin}/api/ticker`, { cache: 'no-store' });
+    if (!res.ok) return 6.875;
+    const json = await res.json();
+    const item = json?.items?.find((i: any) => i.label === '30Y FIXED');
+    if (item?.value) {
+      const parsed = parseFloat(String(item.value).replace('%', ''));
+      if (Number.isFinite(parsed) && parsed > 3 && parsed < 12) return parsed;
+    }
+  } catch {}
+  return 6.875;
+}
+
+function calcPITI(
+  price: number,
+  annualRate: number,
+  annualTaxRate = 0.012,
+  annualInsRate = 0.005,
+  hoaMonthly    = 0,
+): number {
+  const principal = price * 0.80;
+  const r = annualRate / 100 / 12;
+  const n = 360;
+  const pi = r > 0
+    ? principal * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+    : principal / n;
+  const monthlyTax = (price * annualTaxRate) / 12;
+  const monthlyIns = (price * annualInsRate) / 12;
+  return Math.round((pi + monthlyTax + monthlyIns + hoaMonthly) / 50) * 50;
+}
+
+// ── Grok prompt ───────────────────────────────────────────────────────────────
+
 const SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert.
 
 Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -13,14 +49,13 @@ Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'nu
 Your job is to deliver the highest quality, most accurate, and freshest property analysis possible.
 
 CRITICAL REQUIREMENTS:
-- Always start with the current status: For Sale, Pending, Sold, Off Market, or Withdrawn.
-- Include last sale date and price if available.
-- Include original list date, days on market, and price changes if known.
-- Use the most recent public data possible.
-- Clearly state data freshness (e.g., "Listing data as of [today's date]").
-- For estimated_piti: use YOUR real-time knowledge of the current 30yr fixed mortgage rate. Calculate with 20% down, 1.2% annual property tax rate, 0.5% annual insurance. Round to nearest $50. Store the exact rate you used in rate_used.
+- If verified listing facts are provided in the user message, treat them as authoritative and reflect them accurately in all factual fields.
+- Always include current_status: For Sale, Pending, Sold, Off Market, or Withdrawn.
+- Include last sale date and price if available from public records.
+- Include original list date and days on market.
 - For life_fit_score: score 0-100 based on schools, neighborhood quality, commute access, walkability, and value vs comparable sales.
-- For comparable_sales: include 3-4 real recent sales within 0.5 miles from the past 18 months.
+- For comparable_sales: include 3-4 real recent sales within 0.5 miles from the past 18 months. Use real addresses.
+- grok_intelligence_summary: 2-3 high-quality sentences covering market context, positioning, and key buyer/seller considerations.
 
 Return ONLY valid JSON — no markdown, no explanation, no extra text:
 {
@@ -42,11 +77,47 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
   ],
   "grok_intelligence_summary": "2-3 sentence high-quality summary including market context",
   "life_fit_score": number,
-  "estimated_piti": number,
-  "rate_used": number,
   "data_freshness": "Listing data as of [date]",
   "confidence": "high | medium | low"
 }`;
+
+function buildUserMessage(address: string, redfin?: RedfinFacts | null): string {
+  if (!redfin) {
+    return `Analyze this property and return structured JSON: ${address.trim()}`;
+  }
+  const facts: string[] = [`Address: ${address.trim()}`];
+  if (redfin.current_status)    facts.push(`Status: ${redfin.current_status}`);
+  if (redfin.current_list_price) facts.push(`List Price: $${redfin.current_list_price.toLocaleString()}`);
+  if (redfin.bedrooms)           facts.push(`Bedrooms: ${redfin.bedrooms}`);
+  if (redfin.bathrooms)          facts.push(`Bathrooms: ${redfin.bathrooms}`);
+  if (redfin.sqft)               facts.push(`Sqft: ${redfin.sqft.toLocaleString()}`);
+  if (redfin.year_built)         facts.push(`Year Built: ${redfin.year_built}`);
+  if (redfin.days_on_market != null) facts.push(`Days on Market: ${redfin.days_on_market}`);
+  if (redfin.last_sold_price)    facts.push(`Last Sold Price: $${redfin.last_sold_price.toLocaleString()}`);
+  if (redfin.last_sold_date)     facts.push(`Last Sold Date: ${redfin.last_sold_date}`);
+  if (redfin.lot_size_sqft)      facts.push(`Lot Size: ${redfin.lot_size_sqft.toLocaleString()} sqft`);
+
+  return `The following verified listing facts are from Redfin MLS — treat as authoritative:\n\n${facts.join('\n')}\n\nReturn structured JSON for this property. Ensure factual fields match the verified data above exactly. Focus your intelligence on: comparable_sales, grok_intelligence_summary, life_fit_score, and key_highlights.`;
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface RedfinFacts {
+  current_status?:     string | null;
+  current_list_price?: number | null;
+  bedrooms?:           number | null;
+  bathrooms?:          number | null;
+  sqft?:               number | null;
+  year_built?:         number | null;
+  days_on_market?:     number | null;
+  last_sold_price?:    number | null;
+  last_sold_date?:     string | null;
+  lot_size_sqft?:      number | null;
+  tax_rate_effective?: number | null;
+  hoa_monthly?:        number | null;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function normalizeAddress(addr: string): string {
   return addr.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -55,11 +126,44 @@ function normalizeAddress(addr: string): string {
 function cacheTtlMs(status: string): number {
   const s = (status ?? '').toLowerCase();
   if (s === 'sold' || s === 'off market' || s === 'withdrawn') return 7 * 24 * 60 * 60 * 1000;
-  return 6 * 60 * 60 * 1000; // active listings: 6h
+  return 6 * 60 * 60 * 1000;
 }
 
 function sse(payload: object): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function mergeResult(
+  grok:   Record<string, unknown>,
+  redfin: RedfinFacts | null,
+  pitiCalc: number,
+  liveRate: number,
+): Record<string, unknown> {
+  const base: Record<string, unknown> = { ...grok };
+
+  // Always use our deterministic PITI + live rate
+  base.estimated_piti = pitiCalc;
+  base.rate_used      = liveRate;
+
+  // Redfin facts override Grok on every factual field where we have data
+  if (redfin) {
+    if (redfin.current_status != null)    base.current_status    = redfin.current_status;
+    if (redfin.current_list_price != null) base.current_list_price = redfin.current_list_price;
+    if (redfin.bedrooms != null)          base.bedrooms          = redfin.bedrooms;
+    if (redfin.bathrooms != null)         base.bathrooms         = redfin.bathrooms;
+    if (redfin.sqft != null)             base.sqft              = redfin.sqft;
+    if (redfin.year_built != null)       base.year_built        = redfin.year_built;
+    if (redfin.days_on_market != null)   base.days_on_market    = redfin.days_on_market;
+    if (redfin.last_sold_price != null)  base.last_sold_price   = redfin.last_sold_price;
+    if (redfin.last_sold_date != null)   base.last_sold_date    = redfin.last_sold_date;
+    if (redfin.lot_size_sqft != null)    base.lot_size_sqft     = redfin.lot_size_sqft;
+    // Recalculate price_per_sqft from verified numbers
+    if (redfin.current_list_price && redfin.sqft && redfin.sqft > 0) {
+      base.price_per_sqft = Math.round(redfin.current_list_price / redfin.sqft);
+    }
+  }
+
+  return base;
 }
 
 // ── GET: read from cache ───────────────────────────────────────────────────────
@@ -89,7 +193,7 @@ export async function GET(req: NextRequest) {
 
   if (!data) return new Response(JSON.stringify({ cached: false, debug_normalized: normalized }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
-  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
+  const mapsKey    = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
   const encodedAddr = encodeURIComponent(address);
 
   return new Response(JSON.stringify({
@@ -103,10 +207,12 @@ export async function GET(req: NextRequest) {
   }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
-// ── POST: stream Grok + cache result on completion ────────────────────────────
+// ── POST: stream Grok + cache merged result on completion ─────────────────────
 
 export async function POST(req: NextRequest) {
-  const { address } = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => ({}));
+  const address: string = body.address ?? '';
+  const redfin:  RedfinFacts | null = body.redfin ?? null;
 
   if (!address?.trim()) {
     return new Response(JSON.stringify({ error: 'address is required' }), {
@@ -121,11 +227,19 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
+  // Fetch live rate + calculate PITI before streaming starts
+  const origin   = req.nextUrl.origin;
+  const liveRate = await getLiveRate(origin);
+  const price    = redfin?.current_list_price ?? null;
+  const pitiCalc = price
+    ? calcPITI(price, liveRate, redfin?.tax_rate_effective ?? 0.012, 0.005, redfin?.hoa_monthly ?? 0)
+    : 0;
+
+  const mapsKey    = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
   const encodedAddr = encodeURIComponent(address.trim());
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 85_000);
+  const timeoutId  = setTimeout(() => controller.abort(), 85_000);
 
   let upstream: Response;
   try {
@@ -137,11 +251,11 @@ export async function POST(req: NextRequest) {
         model: 'grok-4',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Analyze this property and return structured JSON: ${address.trim()}` },
+          { role: 'user',   content: buildUserMessage(address, redfin) },
         ],
         temperature: 0.1,
-        max_tokens: 1200,
-        stream: true,
+        max_tokens:  1200,
+        stream:      true,
         response_format: { type: 'json_object' },
       }),
     });
@@ -165,7 +279,6 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream({
     async start(ctrl) {
-      // Send map URLs immediately — photo loads while Grok thinks
       ctrl.enqueue(sse({
         meta_early: {
           street_view_url: mapsKey
@@ -174,6 +287,9 @@ export async function POST(req: NextRequest) {
           static_map_url: mapsKey
             ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodedAddr}&zoom=15&size=820x260&scale=2&maptype=satellite&markers=color:green%7C${encodedAddr}&key=${mapsKey}`
             : null,
+          // Send live rate + piti immediately so UI can show it before Grok finishes
+          rate_used:      liveRate,
+          estimated_piti: pitiCalc,
         },
       }));
 
@@ -204,6 +320,13 @@ export async function POST(req: NextRequest) {
         if (error) console.error('[beta/grok-property] cache write error:', error.message);
       };
 
+      const finalizeResult = (raw: string): Record<string, unknown> | null => {
+        try {
+          const grok = JSON.parse(raw);
+          return mergeResult(grok, redfin, pitiCalc, liveRate);
+        } catch { return null; }
+      };
+
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -220,12 +343,11 @@ export async function POST(req: NextRequest) {
             const payload = trimmed.slice(6);
             if (payload === '[DONE]') {
               finish();
-              try {
-                const result = JSON.parse(fullContent);
-                const fetchedAt = new Date().toISOString();
-                ctrl.enqueue(sse({ done: true, result, meta: { model: 'grok-4', fetched_at: fetchedAt } }));
-                await cacheResult(result);
-              } catch {
+              const merged = finalizeResult(fullContent);
+              if (merged) {
+                ctrl.enqueue(sse({ done: true, result: merged, meta: { model: 'grok-4', fetched_at: new Date().toISOString() } }));
+                await cacheResult(merged);
+              } else {
                 ctrl.enqueue(sse({ error: 'Grok returned malformed JSON' }));
               }
               ctrl.close();
@@ -245,17 +367,12 @@ export async function POST(req: NextRequest) {
         }
 
         finish();
-        if (fullContent) {
-          try {
-            const result = JSON.parse(fullContent);
-            const fetchedAt = new Date().toISOString();
-            ctrl.enqueue(sse({ done: true, result, meta: { model: 'grok-4', fetched_at: fetchedAt } }));
-            await cacheResult(result);
-          } catch {
-            ctrl.enqueue(sse({ error: 'Incomplete JSON from Grok' }));
-          }
+        const merged = finalizeResult(fullContent);
+        if (merged) {
+          ctrl.enqueue(sse({ done: true, result: merged, meta: { model: 'grok-4', fetched_at: new Date().toISOString() } }));
+          await cacheResult(merged);
         } else {
-          ctrl.enqueue(sse({ error: 'No data received from Grok' }));
+          ctrl.enqueue(sse({ error: fullContent ? 'Incomplete JSON from Grok' : 'No data received from Grok' }));
         }
         ctrl.close();
       } catch (err: any) {
