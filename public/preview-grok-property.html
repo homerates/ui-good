@@ -106,6 +106,7 @@
           <div class="text-right">
             <div id="heroPiti" class="text-3xl md:text-4xl font-bold text-emerald-400 opacity-0">—</div>
             <div class="text-xs text-zinc-400 mt-1">Est. Monthly PITI</div>
+            <div id="pitiRate" class="text-xs text-zinc-600 mt-0.5"></div>
           </div>
         </div>
       </div>
@@ -275,6 +276,7 @@ const EXTRACTORS = [
   { id: 'comparable_sales',  re: /"comparable_sales"\s*:\s*(\[[\s\S]*?\])/ },
   { id: 'life_fit_score',    re: /"life_fit_score"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
   { id: 'estimated_piti',    re: /"estimated_piti"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id: 'rate_used',         re: /"rate_used"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
   { id: 'data_freshness',    re: /"data_freshness"\s*:\s*"([^"]+)"/ },
   { id: 'confidence',        re: /"confidence"\s*:\s*"([^"]+)"/ },
 ];
@@ -300,8 +302,12 @@ function applyField(id, raw) {
     case 'estimated_piti':
       popField(document.getElementById('heroPiti'), fmt$(+raw) + '/mo');
       setOpacity('heroPiti', '1');
-      popField(document.getElementById('mPiti_unused') || document.createElement('span'), '');
       break;
+    case 'rate_used': {
+      const el = document.getElementById('pitiRate');
+      if (el) { el.textContent = `@ ${(+raw).toFixed(2)}% · 20% down`; el.classList.add('field-pop'); }
+      break;
+    }
     case 'days_on_market':
       popField(document.getElementById('mDom'), raw + 'd');
       break;
@@ -447,6 +453,8 @@ async function runQuery() {
   });
   const mLastSoldDateEl = document.getElementById('mLastSoldDate');
   if (mLastSoldDateEl) mLastSoldDateEl.textContent = '';
+  const pitiRateEl = document.getElementById('pitiRate');
+  if (pitiRateEl) pitiRateEl.textContent = '';
   ['sBeds','sBaths','sSqft','sYear','sLot'].forEach(id => {
     const el = document.getElementById(id);
     el.textContent = '—'; el.classList.add('skeleton');
@@ -467,6 +475,19 @@ async function runQuery() {
     if (cd.cached) {
       csEl.textContent = `⚡ Cache HIT — rendered instantly (fetched ${cd.meta?.fetched_at?.slice(0,19).replace('T',' ')} UTC)`;
       csEl.classList.add('text-emerald-700');
+      // Load map images from the cache response
+      if (cd.map_urls) {
+        streetViewUrl = cd.map_urls.street_view_url;
+        satelliteUrl  = cd.map_urls.static_map_url;
+        if (streetViewUrl) {
+          const img = new Image();
+          img.onload = () => {
+            document.getElementById('heroSection').style.backgroundImage = `url('${streetViewUrl}')`;
+            document.getElementById('mapToggle').classList.remove('hidden');
+          };
+          img.src = streetViewUrl;
+        }
+      }
       document.getElementById('heroLoader').classList.add('hidden');
       renderFinal(addr, cd.result, cd.meta);
       finishUp(btn, addr, cd.result, cd.meta);

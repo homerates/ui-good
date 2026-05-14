@@ -18,7 +18,7 @@ CRITICAL REQUIREMENTS:
 - Include original list date, days on market, and price changes if known.
 - Use the most recent public data possible.
 - Clearly state data freshness (e.g., "Listing data as of [today's date]").
-- For estimated_piti: calculate using current 30yr fixed rate (~7%), 20% down, 1.2% property tax rate, 0.5% insurance. Round to nearest $50.
+- For estimated_piti: use YOUR real-time knowledge of the current 30yr fixed mortgage rate. Calculate with 20% down, 1.2% annual property tax rate, 0.5% annual insurance. Round to nearest $50. Store the exact rate you used in rate_used.
 - For life_fit_score: score 0-100 based on schools, neighborhood quality, commute access, walkability, and value vs comparable sales.
 - For comparable_sales: include 3-4 real recent sales within 0.5 miles from the past 18 months.
 
@@ -43,6 +43,7 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
   "grok_intelligence_summary": "2-3 sentence high-quality summary including market context",
   "life_fit_score": number,
   "estimated_piti": number,
+  "rate_used": number,
   "data_freshness": "Listing data as of [date]",
   "confidence": "high | medium | low"
 }`;
@@ -88,10 +89,17 @@ export async function GET(req: NextRequest) {
 
   if (!data) return new Response(JSON.stringify({ cached: false, debug_normalized: normalized }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
+  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
+  const encodedAddr = encodeURIComponent(address);
+
   return new Response(JSON.stringify({
     cached: true,
     result: data.grok_result,
     meta: { model: data.model, fetched_at: data.fetched_at, from_cache: true },
+    map_urls: mapsKey ? {
+      street_view_url: `https://maps.googleapis.com/maps/api/streetview?size=820x260&location=${encodedAddr}&return_error_code=true&key=${mapsKey}`,
+      static_map_url:  `https://maps.googleapis.com/maps/api/staticmap?center=${encodedAddr}&zoom=15&size=820x260&scale=2&maptype=satellite&markers=color:green%7C${encodedAddr}&key=${mapsKey}`,
+    } : null,
   }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
