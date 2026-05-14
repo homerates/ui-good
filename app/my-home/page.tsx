@@ -7,6 +7,7 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import MarketIntelCard from '../components/MarketIntelCard';
+import { prefetchGrokProperty } from '../lib/prefetchGrokProperty';
 
 interface HomeownerProperty {
   id: string;
@@ -1521,6 +1522,7 @@ function MyHomePageInner() {
               lookupData.listingStatus = data.listingStatus;
             }
             setAnalysis(lookupToAnalysis(lookupData, liveRate));
+            prefetchGrokProperty(addr);
             return;
           }
         }
@@ -1529,12 +1531,14 @@ function MyHomePageInner() {
           // Show partial card if we have structural data — only hard-error if truly empty
           if (data.beds || data.sqft || data.address) {
             setAnalysis(data);
+            prefetchGrokProperty(activeProperty.property_address);
             return;
           }
           setAnalysisErr('We couldn\'t find value data for this address. Try refining the address or check back shortly.');
           return;
         }
         setAnalysis(data);
+        prefetchGrokProperty(activeProperty.property_address);
         return;
       }
 
@@ -1568,6 +1572,7 @@ function MyHomePageInner() {
         // Show partial card if we have structural data — only hard-error if truly empty
         if (d.beds || d.sqft || d.address) {
           setAnalysis(lookupToAnalysis({ ...d, address: lookupAddress }, liveRate));
+          prefetchGrokProperty(lookupAddress);
           return;
         }
         setAnalysisErr('We couldn\'t find value data for this address. Try refining the address or check back shortly.');
@@ -1575,6 +1580,7 @@ function MyHomePageInner() {
       }
       // Pin address to what the user queried — prevents a wrong Redfin URL match from showing a different property
       setAnalysis(lookupToAnalysis({ ...lookupJson.data, address: lookupAddress }, liveRate));
+      prefetchGrokProperty(lookupAddress);
     } catch {
       setAnalysisErr('Network error — try again');
     } finally {

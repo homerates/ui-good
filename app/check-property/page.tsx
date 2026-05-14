@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import AppNav from '@/components/AppNav';
+import { prefetchGrokProperty } from '@/lib/prefetchGrokProperty';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ function CheckPropertyInner() {
             });
             const json = await res.json();
             if (!json.ok || !json.data) { setLookupErr('Could not load property data — try a different address or paste a Redfin link.'); }
-            else { setPropData(json.data); setResolved(json.data.address ?? raw); }
+            else { setPropData(json.data); setResolved(json.data.address ?? raw); prefetchGrokProperty(json.data.address ?? raw); }
         } catch { setLookupErr('Network error — please try again.'); }
         finally  { setLoading(false); }
     }
