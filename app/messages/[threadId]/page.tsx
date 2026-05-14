@@ -285,20 +285,22 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         {/* Discover progress strip — 4 chip states, shown when dock is active */}
         {hasDock && discoverScenario && discoverChipStates.length > 0 && (
           <div className="ch-progress-strip">
-            {discoverChipStates.map(chip => (
-              <div key={chip.id} className={`ch-prog-chip ch-prog-${chip.status}`}>
-                <span className="ch-prog-icon">{chip.icon}</span>
-                <span className="ch-prog-label">{chip.title.split(' &')[0]}</span>
-                <span className="ch-prog-pill">
-                  {chip.status === 'idle'      ? '' :
-                   chip.status === 'next'      ? 'Ask →' :
-                   chip.status === 'waiting'   ? '…' :
-                   chip.status === 'analyzing' ? '✨' :
-                   chip.status === 'match'     ? '✓' :
-                   chip.status === 'check'     ? '⚡' : '⚠'}
-                </span>
-              </div>
-            ))}
+            <div className="ch-progress-inner">
+              {discoverChipStates.map(chip => (
+                <div key={chip.id} className={`ch-prog-chip ch-prog-${chip.status}`}>
+                  <span className="ch-prog-icon">{chip.icon}</span>
+                  <span className="ch-prog-label">{chip.title.split(' &')[0]}</span>
+                  <span className="ch-prog-pill">
+                    {chip.status === 'idle'      ? '' :
+                     chip.status === 'next'      ? 'Ask →' :
+                     chip.status === 'waiting'   ? '…' :
+                     chip.status === 'analyzing' ? '✨' :
+                     chip.status === 'match'     ? '✓' :
+                     chip.status === 'check'     ? '⚡' : '⚠'}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1176,10 +1178,15 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         /* ── Discover progress strip ── */
         .ch-progress-strip {
           flex-shrink: 0;
-          display: flex; gap: 6px; flex-wrap: wrap;
-          padding: 8px 16px;
           background: rgba(0,0,0,0.25);
           border-bottom: 1px solid rgba(148,163,184,0.08);
+        }
+        .ch-progress-inner {
+          display: flex; gap: 6px; flex-wrap: wrap;
+          padding: 8px 16px;
+          max-width: 1180px;
+          margin-left: auto; margin-right: auto;
+          width: 100%; box-sizing: border-box;
         }
         .ch-prog-chip {
           display: flex; align-items: center; gap: 5px;
