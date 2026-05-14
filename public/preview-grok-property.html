@@ -148,7 +148,8 @@
           </div>
           <div class="bg-zinc-800 rounded-2xl p-5 text-center">
             <div id="mLastSold" class="text-3xl font-bold text-amber-400 skeleton h-10">—</div>
-            <div class="text-xs text-zinc-500 mt-1">Last Sold</div>
+            <div id="mLastSoldDate" class="text-xs text-zinc-600 mt-0.5 min-h-[14px]"></div>
+            <div class="text-xs text-zinc-500">Last Sold</div>
           </div>
         </div>
 
@@ -253,22 +254,24 @@ const STATUS_COLORS = {
   'withdrawn':  ['bg-zinc-600/20 text-zinc-400 border-zinc-500/30', 'WITHDRAWN'],
 };
 
+// Numbers use (?=[^0-9.]) lookahead so partial tokens (e.g. "150" from "1500000")
+// don't fire the extractor before the full number has arrived in the buffer.
 const EXTRACTORS = [
   { id: 'current_status',    re: /"current_status"\s*:\s*"([^"]+)"/ },
   { id: 'last_sold_date',    re: /"last_sold_date"\s*:\s*"([^"]+)"/ },
-  { id: 'last_sold_price',   re: /"last_sold_price"\s*:\s*(\d+(?:\.\d+)?)/ },
-  { id: 'days_on_market',    re: /"days_on_market"\s*:\s*(\d+)/ },
-  { id: 'current_list_price',re: /"current_list_price"\s*:\s*(\d+(?:\.\d+)?)/ },
-  { id: 'price_per_sqft',    re: /"price_per_sqft"\s*:\s*(\d+(?:\.\d+)?)/ },
-  { id: 'sqft',              re: /"sqft"\s*:\s*(\d+(?:\.\d+)?)/ },
-  { id: 'bedrooms',          re: /"bedrooms"\s*:\s*(\d+(?:\.\d+)?)/ },
-  { id: 'bathrooms',         re: /"bathrooms"\s*:\s*(\d+(?:\.\d+)?)/ },
-  { id: 'year_built',        re: /"year_built"\s*:\s*(\d+)/ },
-  { id: 'lot_size_sqft',     re: /"lot_size_sqft"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'last_sold_price',   re: /"last_sold_price"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id: 'days_on_market',    re: /"days_on_market"\s*:\s*(\d+)(?=[^0-9.])/ },
+  { id: 'current_list_price',re: /"current_list_price"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id: 'price_per_sqft',    re: /"price_per_sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id: 'sqft',              re: /"sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id: 'bedrooms',          re: /"bedrooms"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id: 'bathrooms',         re: /"bathrooms"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id: 'year_built',        re: /"year_built"\s*:\s*(\d+)(?=[^0-9.])/ },
+  { id: 'lot_size_sqft',     re: /"lot_size_sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
   { id: 'key_highlights',    re: /"key_highlights"\s*:\s*(\[[\s\S]*?\])/ },
   { id: 'comparable_sales',  re: /"comparable_sales"\s*:\s*(\[[\s\S]*?\])/ },
-  { id: 'life_fit_score',    re: /"life_fit_score"\s*:\s*(\d+(?:\.\d+)?)/ },
-  { id: 'estimated_piti',    re: /"estimated_piti"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'life_fit_score',    re: /"life_fit_score"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id: 'estimated_piti',    re: /"estimated_piti"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
   { id: 'data_freshness',    re: /"data_freshness"\s*:\s*"([^"]+)"/ },
   { id: 'confidence',        re: /"confidence"\s*:\s*"([^"]+)"/ },
 ];
@@ -305,9 +308,12 @@ function applyField(id, raw) {
     case 'life_fit_score':
       popField(document.getElementById('mScore'), raw);
       break;
+    case 'last_sold_price':
+      popField(document.getElementById('mLastSold'), fmt$(+raw));
+      break;
     case 'last_sold_date': {
-      const short = raw.split(',')[0] || raw;
-      popField(document.getElementById('mLastSold'), short);
+      const el = document.getElementById('mLastSoldDate');
+      if (el) { clearSkeleton(el); el.textContent = raw; el.classList.add('field-pop'); }
       break;
     }
     case 'sqft':
@@ -436,6 +442,8 @@ async function runQuery() {
     const el = document.getElementById(id);
     el.textContent = '—'; el.className = el.className.replace('field-pop','') + ' skeleton h-10';
   });
+  const mLastSoldDateEl = document.getElementById('mLastSoldDate');
+  if (mLastSoldDateEl) mLastSoldDateEl.textContent = '';
   ['sBeds','sBaths','sSqft','sYear','sLot'].forEach(id => {
     const el = document.getElementById(id);
     el.textContent = '—'; el.classList.add('skeleton');
