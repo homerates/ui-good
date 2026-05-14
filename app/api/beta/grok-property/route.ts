@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 90;
 
 const SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert.
 
@@ -54,29 +55,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'XAI_API_KEY not configured' }, { status: 503 });
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 85_000);
+
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      signal: AbortSignal.timeout(55_000),
+      signal: controller.signal,
       body: JSON.stringify({
         model: 'grok-4',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Analyze this property: ${address.trim()}` },
+          { role: 'user', content: `Analyze this property and return structured JSON: ${address.trim()}` },
         ],
         temperature: 0.1,
-        max_tokens: 1000,
+        max_tokens: 800,
         response_format: { type: 'json_object' },
       }),
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      const errText = await response.text();
-      console.error('[beta/grok-property] Grok API error:', errText);
-      return NextResponse.json({ error: 'Grok API error', status: response.status }, { status: 502 });
+      const err = await response.text();
+      console.error('[beta/grok-property] Grok API error:', err);
+      return NextResponse.json({ error: 'Grok API failed', detail: err }, { status: 502 });
     }
 
     const data = await response.json();
@@ -85,7 +91,7 @@ export async function POST(req: NextRequest) {
     try {
       result = JSON.parse(data.choices?.[0]?.message?.content || '{}');
     } catch (e) {
-      return NextResponse.json({ error: 'Failed to parse Grok JSON' }, { status: 502 });
+      return NextResponse.json({ error: 'Invalid JSON from Grok' }, { status: 502 });
     }
 
     return NextResponse.json({
@@ -99,9 +105,16 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (err: any) {
-    console.error('[beta/grok-property] Route error:', err);
+    console.error('[beta/grok-property]', err);
+
+    if (err.name === 'AbortError' || err.code === 23) {
+      return NextResponse.json({
+        error: 'Grok took too long to respond. Try again.',
+      }, { status: 504 });
+    }
+
     return NextResponse.json({
-      error: 'Internal server error',
+      error: 'Server error',
       message: err.message,
     }, { status: 500 });
   }
