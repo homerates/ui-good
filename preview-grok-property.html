@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grok Property Intelligence — Beta Test</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: #060a14; color: #f0f4ff;
+    min-height: 100vh; padding: 32px 20px;
+  }
+  .shell {
+    max-width: 820px; margin: 0 auto;
+  }
+  .header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 28px;
+  }
+  .header-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg, #1a2a1a, #2d5a3e);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .header-body h1 {
+    font-size: 1.1rem; font-weight: 800; color: #f0f4ff;
+    letter-spacing: -0.01em;
+  }
+  .header-body p {
+    font-size: 0.75rem; color: #3a5540; margin-top: 2px;
+  }
+  .beta-pill {
+    margin-left: auto;
+    background: rgba(251,191,36,0.12); color: #fbbf24;
+    border: 1px solid rgba(251,191,36,0.28);
+    border-radius: 20px; padding: 3px 12px;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .input-card {
+    background: #0b1220;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 24px;
+    margin-bottom: 20px;
+  }
+  .input-label {
+    font-size: 0.75rem; font-weight: 700; color: #4a6e58;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .input-row {
+    display: flex; gap: 10px;
+  }
+  .addr-input {
+    flex: 1;
+    background: #141e30; border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 10px; color: #f0f4ff;
+    font-size: 0.9rem; padding: 12px 16px;
+    font-family: inherit; outline: none;
+    transition: border-color 0.15s;
+  }
+  .addr-input:focus { border-color: rgba(0,232,122,0.4); }
+  .addr-input::placeholder { color: #2a3550; }
+  .run-btn {
+    padding: 12px 24px;
+    background: #00e87a; color: #080c12;
+    border: none; border-radius: 10px;
+    font-size: 0.875rem; font-weight: 800;
+    cursor: pointer; font-family: inherit;
+    transition: opacity 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .run-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+  .run-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .examples {
+    margin-top: 12px;
+    font-size: 0.72rem; color: #3a4560;
+  }
+  .examples span {
+    cursor: pointer; color: #4a6e58; text-decoration: underline;
+    margin-right: 12px;
+  }
+  .examples span:hover { color: #00e87a; }
+
+  /* Result card */
+  .result-card {
+    background: #0b1220;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; overflow: hidden;
+    display: none;
+  }
+  .result-card.visible { display: block; }
+
+  .result-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.2);
+  }
+  .result-address {
+    font-size: 0.85rem; font-weight: 700; color: #f0f4ff; flex: 1;
+  }
+  .status-pill {
+    font-size: 0.68rem; font-weight: 800; letter-spacing: 0.07em;
+    text-transform: uppercase; border-radius: 20px; padding: 3px 10px;
+    border: 1px solid;
+  }
+  .status-for-sale  { background: rgba(0,232,122,0.12); color: #00e87a;  border-color: rgba(0,232,122,0.28); }
+  .status-pending   { background: rgba(251,191,36,0.12); color: #fbbf24; border-color: rgba(251,191,36,0.28); }
+  .status-sold      { background: rgba(96,165,250,0.12); color: #60a5fa; border-color: rgba(96,165,250,0.28); }
+  .status-off       { background: rgba(148,163,184,0.08); color: #8fa3b8; border-color: rgba(148,163,184,0.18); }
+
+  .metrics-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .metric {
+    padding: 14px 16px;
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .metric:last-child { border-right: none; }
+  .metric-val {
+    font-size: 1.05rem; font-weight: 800; color: #f0f4ff;
+    margin-bottom: 3px;
+  }
+  .metric-lbl {
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: rgba(148,163,184,0.40);
+  }
+
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .info-item {
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.8rem;
+  }
+  .info-item:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.04); }
+  .info-key  { color: #4a6058; }
+  .info-val  { color: #f0f4ff; font-weight: 600; }
+
+  .highlights {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .highlights-title {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #4a6e58; margin-bottom: 10px;
+  }
+  .highlights-list {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .highlight-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 0.82rem; color: #c0d4c0;
+  }
+  .highlight-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #00e87a; flex-shrink: 0; margin-top: 6px;
+  }
+
+  .summary-block {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .summary-label {
+    font-size: 0.62rem; font-weight: 800; letter-spacing: 0.10em;
+    text-transform: uppercase; color: #00e87a; margin-bottom: 8px;
+  }
+  .summary-text {
+    font-size: 0.875rem; color: #b0c8b0; line-height: 1.65;
+  }
+
+  .score-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .score-label {
+    font-size: 0.72rem; font-weight: 700; color: #4a6058;
+    text-transform: uppercase; letter-spacing: 0.06em; flex: 1;
+  }
+  .score-bar-wrap {
+    flex: 2; background: rgba(255,255,255,0.05);
+    border-radius: 99px; height: 6px; overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, #00e87a, #34d399);
+    transition: width 0.6s ease;
+  }
+  .score-num {
+    font-size: 0.95rem; font-weight: 800; color: #00e87a;
+    min-width: 36px; text-align: right;
+  }
+
+  .footer-meta {
+    padding: 10px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .freshness { font-size: 0.68rem; color: #2a3a2a; }
+  .confidence-pill {
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; border-radius: 20px; padding: 2px 9px;
+    border: 1px solid;
+  }
+  .conf-high   { background: rgba(0,232,122,0.08); color: #00e87a;  border-color: rgba(0,232,122,0.22); }
+  .conf-medium { background: rgba(251,191,36,0.08); color: #fbbf24; border-color: rgba(251,191,36,0.22); }
+  .conf-low    { background: rgba(248,113,113,0.08); color: #f87171; border-color: rgba(248,113,113,0.22); }
+
+  /* Raw JSON toggle */
+  .raw-toggle {
+    padding: 0 20px 14px;
+  }
+  .raw-btn {
+    font-size: 0.72rem; color: #2a3550; background: none; border: none;
+    cursor: pointer; font-family: inherit; text-decoration: underline;
+  }
+  .raw-btn:hover { color: #4a6e58; }
+  .raw-pre {
+    display: none; margin-top: 8px;
+    background: #070d18; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 14px;
+    font-family: 'Menlo', monospace; font-size: 11px;
+    color: #9de8bc; line-height: 1.6; overflow-x: auto;
+    white-space: pre;
+  }
+  .raw-pre.visible { display: block; }
+
+  /* Loading */
+  .loader {
+    display: none; text-align: center; padding: 48px 20px;
+    color: #3a4560; font-size: 0.85rem;
+  }
+  .loader.visible { display: block; }
+  .loader-spinner {
+    display: inline-block; width: 28px; height: 28px;
+    border: 2px solid rgba(0,232,122,0.15);
+    border-top-color: #00e87a;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-box {
+    display: none; margin-top: 12px;
+    background: rgba(248,113,113,0.07);
+    border: 1px solid rgba(248,113,113,0.20);
+    border-radius: 10px; padding: 14px 18px;
+    font-size: 0.82rem; color: #f87171;
+  }
+  .error-box.visible { display: block; }
+
+  @media (max-width: 600px) {
+    .metrics-strip { grid-template-columns: repeat(2, 1fr); }
+    .info-grid { grid-template-columns: 1fr; }
+    .info-item:nth-child(odd) { border-right: none; }
+    .input-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="header">
+    <div class="header-icon">🏠</div>
+    <div class="header-body">
+      <h1>Grok Property Intelligence</h1>
+      <p>HomeRates.AI · Beta test — isolated from production pipeline</p>
+    </div>
+    <span class="beta-pill">Beta</span>
+  </div>
+
+  <div class="input-card">
+    <div class="input-label">Property address</div>
+    <div class="input-row">
+      <input
+        id="addrInput"
+        class="addr-input"
+        type="text"
+        placeholder="e.g. 123 Oak Street, Thousand Oaks, CA 91360"
+        onkeydown="if(event.key==='Enter') runQuery()"
+      />
+      <button class="run-btn" id="runBtn" onclick="runQuery()">Analyze →</button>
+    </div>
+    <div class="examples">
+      Try:
+      <span onclick="fillAndRun('4400 Woodridge Dr, Thousand Oaks, CA 91360')">4400 Woodridge Dr, Thousand Oaks</span>
+      <span onclick="fillAndRun('1234 Sunset Blvd, Los Angeles, CA 90028')">1234 Sunset Blvd, LA</span>
+      <span onclick="fillAndRun('742 Evergreen Terrace, Springfield, IL 62701')">742 Evergreen Terrace</span>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="result-card" id="resultCard">
+    <div class="loader" id="loader">
+      <div class="loader-spinner"></div><br>
+      Grok is analyzing the property…
+    </div>
+
+    <div id="resultBody" style="display:none">
+      <div class="result-header">
+        <div class="result-address" id="resAddress"></div>
+        <span class="status-pill" id="resStatus"></span>
+      </div>
+
+      <div class="metrics-strip">
+        <div class="metric">
+          <div class="metric-val" id="mListPrice">—</div>
+          <div class="metric-lbl">List Price</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mDom">—</div>
+          <div class="metric-lbl">Days on Market</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mPpSqft">—</div>
+          <div class="metric-lbl">Price / sqft</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mPiti">—</div>
+          <div class="metric-lbl">Est. PITI/mo</div>
+        </div>
+      </div>
+
+      <div class="info-grid" id="infoGrid"></div>
+
+      <div class="highlights">
+        <div class="highlights-title">Key Highlights</div>
+        <div class="highlights-list" id="highlightsList"></div>
+      </div>
+
+      <div class="summary-block">
+        <div class="summary-label">Grok Intelligence</div>
+        <div class="summary-text" id="summaryText"></div>
+      </div>
+
+      <div class="score-row">
+        <div class="score-label">Life Fit Score</div>
+        <div class="score-bar-wrap">
+          <div class="score-bar-fill" id="scoreBar" style="width:0%"></div>
+        </div>
+        <div class="score-num" id="scoreNum">—</div>
+      </div>
+
+      <div class="footer-meta">
+        <span class="freshness" id="freshness"></span>
+        <span class="confidence-pill" id="confPill"></span>
+      </div>
+
+      <div class="raw-toggle">
+        <button class="raw-btn" onclick="toggleRaw()">Show raw JSON</button>
+        <pre class="raw-pre" id="rawPre"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt$ = n => n ? '$' + Math.round(n).toLocaleString() : '—';
+const fmtN = n => n != null ? n.toLocaleString() : '—';
+
+function fillAndRun(addr) {
+  document.getElementById('addrInput').value = addr;
+  runQuery();
+}
+
+async function runQuery() {
+  const addr = document.getElementById('addrInput').value.trim();
+  if (!addr) return;
+
+  const btn       = document.getElementById('runBtn');
+  const card      = document.getElementById('resultCard');
+  const loader    = document.getElementById('loader');
+  const body      = document.getElementById('resultBody');
+  const errorBox  = document.getElementById('errorBox');
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing…';
+  errorBox.classList.remove('visible');
+  card.classList.add('visible');
+  loader.classList.add('visible');
+  body.style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/beta/grok-property', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: addr }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'Request failed');
+    }
+
+    render(addr, data.result, data.meta);
+  } catch (err) {
+    card.classList.remove('visible');
+    errorBox.textContent = '⚠ ' + err.message;
+    errorBox.classList.add('visible');
+  } finally {
+    loader.classList.remove('visible');
+    btn.disabled = false;
+    btn.textContent = 'Analyze →';
+  }
+}
+
+function render(addr, r, meta) {
+  document.getElementById('resAddress').textContent = addr;
+
+  // Status pill
+  const statusEl  = document.getElementById('resStatus');
+  const statusMap = {
+    'for sale': ['For Sale', 'status-for-sale'],
+    'pending':  ['Pending',  'status-pending'],
+    'sold':     ['Sold',     'status-sold'],
+  };
+  const statusRaw = (r.current_status || '').toLowerCase();
+  const [statusLabel, statusClass] = statusMap[statusRaw] || ['Off Market', 'status-off'];
+  statusEl.textContent = statusLabel;
+  statusEl.className   = 'status-pill ' + statusClass;
+
+  // Metrics
+  document.getElementById('mListPrice').textContent = fmt$(r.current_list_price);
+  document.getElementById('mDom').textContent       = r.days_on_market != null ? r.days_on_market + 'd' : '—';
+  document.getElementById('mPpSqft').textContent    = r.price_per_sqft ? '$' + r.price_per_sqft + '/sf' : '—';
+  document.getElementById('mPiti').textContent      = fmt$(r.estimated_piti) + '/mo';
+
+  // Info grid
+  const infoItems = [
+    ['Last Sold', r.last_sold_date && r.last_sold_price ? `${r.last_sold_date} · ${fmt$(r.last_sold_price)}` : '—'],
+    ['List Date', r.original_list_date || '—'],
+    ['Sq Ft', r.sqft ? r.sqft.toLocaleString() + ' sf' : '—'],
+    ['Year Built', r.year_built || '—'],
+    ['Bed / Bath', r.bedrooms && r.bathrooms ? `${r.bedrooms}bd / ${r.bathrooms}ba` : '—'],
+    ['Lot Size', r.lot_size_sqft ? r.lot_size_sqft.toLocaleString() + ' sf' : '—'],
+  ];
+  document.getElementById('infoGrid').innerHTML = infoItems.map(([k, v]) =>
+    `<div class="info-item"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`
+  ).join('');
+
+  // Highlights
+  const hl = Array.isArray(r.key_highlights) ? r.key_highlights : [];
+  document.getElementById('highlightsList').innerHTML = hl.map(h =>
+    `<div class="highlight-item"><div class="highlight-dot"></div><span>${h}</span></div>`
+  ).join('');
+
+  // Summary
+  document.getElementById('summaryText').textContent = r.grok_intelligence_summary || '—';
+
+  // Life fit score
+  const score = r.life_fit_score ?? 0;
+  document.getElementById('scoreBar').style.width = score + '%';
+  document.getElementById('scoreNum').textContent  = score;
+
+  // Footer
+  document.getElementById('freshness').textContent = r.data_freshness || '';
+  const conf    = (r.confidence || 'medium').toLowerCase();
+  const confEl  = document.getElementById('confPill');
+  confEl.textContent = conf.charAt(0).toUpperCase() + conf.slice(1) + ' confidence';
+  confEl.className   = 'confidence-pill conf-' + conf;
+
+  // Raw JSON
+  document.getElementById('rawPre').textContent = JSON.stringify({ result: r, meta }, null, 2);
+
+  document.getElementById('resultBody').style.display = 'block';
+}
+
+function toggleRaw() {
+  const pre = document.getElementById('rawPre');
+  const btn = document.querySelector('.raw-btn');
+  const visible = pre.classList.toggle('visible');
+  btn.textContent = visible ? 'Hide raw JSON' : 'Show raw JSON';
+}
+</script>
+
+</body>
+</html>
