@@ -5,7 +5,6 @@
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Vercel: allow up to 60s for Grok response
 
 import { NextRequest, NextResponse } from 'next/server';
 
