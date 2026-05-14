@@ -5,6 +5,7 @@
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Vercel: allow up to 60s for Grok response
 
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'grok-4',
+        model: 'grok-4-1-fast-non-reasoning',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user',   content: userPrompt },
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
         max_tokens: 1200,
         response_format: { type: 'json_object' },
       }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(55_000),
     });
 
     if (!res.ok) {
