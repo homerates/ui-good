@@ -1,12 +1,8 @@
 // app/api/beta/grok-property/route.ts
-// BETA — standalone Grok property intelligence endpoint.
-// Completely isolated from the existing property data pipeline.
-// Uses the same XAI_API_KEY / grok-4 pattern as the rest of the codebase.
+import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-import { NextRequest, NextResponse } from 'next/server';
 
 const SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert.
 
@@ -47,13 +43,8 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
 
 export async function POST(req: NextRequest) {
   try {
-    // Optional gate: if BETA_ACCESS_KEY is set, callers must send it as x-beta-key header
-    const betaKey = process.env.BETA_ACCESS_KEY;
-    if (betaKey && req.headers.get('x-beta-key') !== betaKey) {
-      return NextResponse.json({ error: 'Unauthorized — x-beta-key header required' }, { status: 401 });
-    }
-
     const { address } = await req.json();
+
     if (!address?.trim()) {
       return NextResponse.json({ error: 'address is required' }, { status: 400 });
     }
@@ -63,55 +54,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'XAI_API_KEY not configured' }, { status: 503 });
     }
 
-    const userPrompt = `Analyze this property and return the JSON object: ${address.trim()}`;
-
-    const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
+      signal: AbortSignal.timeout(55_000),
       body: JSON.stringify({
-        model: 'grok-4-1-fast-non-reasoning',
+        model: 'grok-4',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user',   content: userPrompt },
+          { role: 'user', content: `Analyze this property: ${address.trim()}` },
         ],
         temperature: 0.1,
-        max_tokens: 1200,
+        max_tokens: 1000,
         response_format: { type: 'json_object' },
       }),
-      signal: AbortSignal.timeout(55_000),
     });
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[beta/grok-property] xAI error:', err);
-      return NextResponse.json({ error: 'Grok request failed', detail: err }, { status: 502 });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[beta/grok-property] Grok API error:', errText);
+      return NextResponse.json({ error: 'Grok API error', status: response.status }, { status: 502 });
     }
 
-    const data  = await res.json();
-    const raw   = data.choices?.[0]?.message?.content?.trim() ?? '{}';
-    const usage = data.usage ?? null;
+    const data = await response.json();
+    let result = {};
 
-    let parsed: Record<string, unknown> = {};
-    try { parsed = JSON.parse(raw); } catch {
-      return NextResponse.json({ error: 'Grok returned malformed JSON', raw }, { status: 500 });
+    try {
+      result = JSON.parse(data.choices?.[0]?.message?.content || '{}');
+    } catch (e) {
+      return NextResponse.json({ error: 'Failed to parse Grok JSON' }, { status: 502 });
     }
 
     return NextResponse.json({
       ok: true,
       address: address.trim(),
-      result: parsed,
+      result,
       meta: {
-        model:        data.model ?? 'grok-4',
-        prompt_tokens: usage?.prompt_tokens ?? null,
-        completion_tokens: usage?.completion_tokens ?? null,
-        fetched_at:   new Date().toISOString(),
+        model: data.model,
+        fetched_at: new Date().toISOString(),
       },
     });
-  } catch (err) {
-    console.error('[beta/grok-property]', err);
-    return NextResponse.json({ error: 'server error', detail: String(err) }, { status: 500 });
+
+  } catch (err: any) {
+    console.error('[beta/grok-property] Route error:', err);
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: err.message,
+    }, { status: 500 });
   }
 }
