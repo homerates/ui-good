@@ -1,635 +1,588 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Grok Property Intelligence — Beta Test</title>
+<title>Property Intelligence • HomeRates.AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'DM Sans', system-ui, sans-serif;
-    background: #060a14; color: #f0f4ff;
-    min-height: 100vh; padding: 32px 20px;
-  }
-  .shell {
-    max-width: 820px; margin: 0 auto;
-  }
-  .header {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 28px;
-  }
-  .header-icon {
-    width: 42px; height: 42px; border-radius: 12px;
-    background: linear-gradient(135deg, #1a2a1a, #2d5a3e);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-  }
-  .header-body h1 {
-    font-size: 1.1rem; font-weight: 800; color: #f0f4ff;
-    letter-spacing: -0.01em;
-  }
-  .header-body p {
-    font-size: 0.75rem; color: #3a5540; margin-top: 2px;
-  }
-  .beta-pill {
-    margin-left: auto;
-    background: rgba(251,191,36,0.12); color: #fbbf24;
-    border: 1px solid rgba(251,191,36,0.28);
-    border-radius: 20px; padding: 3px 12px;
-    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .input-card {
-    background: #0b1220;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px; padding: 24px;
-    margin-bottom: 20px;
-  }
-  .input-label {
-    font-size: 0.75rem; font-weight: 700; color: #4a6e58;
-    letter-spacing: 0.07em; text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-  .input-row {
-    display: flex; gap: 10px;
-  }
-  .addr-input {
-    flex: 1;
-    background: #141e30; border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 10px; color: #f0f4ff;
-    font-size: 0.9rem; padding: 12px 16px;
-    font-family: inherit; outline: none;
-    transition: border-color 0.15s;
-  }
-  .addr-input:focus { border-color: rgba(0,232,122,0.4); }
-  .addr-input::placeholder { color: #2a3550; }
-  .run-btn {
-    padding: 12px 24px;
-    background: #00e87a; color: #080c12;
-    border: none; border-radius: 10px;
-    font-size: 0.875rem; font-weight: 800;
-    cursor: pointer; font-family: inherit;
-    transition: opacity 0.15s, transform 0.1s;
-    white-space: nowrap;
-  }
-  .run-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
-  .run-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  .examples {
-    margin-top: 12px;
-    font-size: 0.72rem; color: #3a4560;
-  }
-  .examples span {
-    cursor: pointer; color: #4a6e58; text-decoration: underline;
-    margin-right: 12px;
-  }
-  .examples span:hover { color: #00e87a; }
-
-  /* Result card */
-  .result-card {
-    background: #0b1220;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px; overflow: hidden;
-    display: none;
-    opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.35s ease, transform 0.35s ease;
-  }
-  .result-card.visible { display: block; }
-  .result-card.revealed { opacity: 1; transform: translateY(0); }
-
-  .result-header {
-    display: flex; align-items: center; gap: 10px;
-    padding: 16px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    background: rgba(0,0,0,0.2);
-  }
-  .result-address {
-    font-size: 0.85rem; font-weight: 700; color: #f0f4ff; flex: 1;
-  }
-  .status-pill {
-    font-size: 0.68rem; font-weight: 800; letter-spacing: 0.07em;
-    text-transform: uppercase; border-radius: 20px; padding: 3px 10px;
-    border: 1px solid;
-  }
-  .status-for-sale  { background: rgba(0,232,122,0.12); color: #00e87a;  border-color: rgba(0,232,122,0.28); }
-  .status-pending   { background: rgba(251,191,36,0.12); color: #fbbf24; border-color: rgba(251,191,36,0.28); }
-  .status-sold      { background: rgba(96,165,250,0.12); color: #60a5fa; border-color: rgba(96,165,250,0.28); }
-  .status-off       { background: rgba(148,163,184,0.08); color: #8fa3b8; border-color: rgba(148,163,184,0.18); }
-
-  .metrics-strip {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-  .metric {
-    padding: 14px 16px;
-    border-right: 1px solid rgba(255,255,255,0.05);
-  }
-  .metric:last-child { border-right: none; }
-  .metric-val {
-    font-size: 1.05rem; font-weight: 800; color: #f0f4ff;
-    margin-bottom: 3px;
-  }
-  .metric-lbl {
-    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em;
-    text-transform: uppercase; color: rgba(148,163,184,0.40);
-  }
-
-  .info-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 0;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-  .info-item {
-    padding: 10px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 0.8rem;
-  }
-  .info-item:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.04); }
-  .info-key  { color: #4a6058; }
-  .info-val  { color: #f0f4ff; font-weight: 600; }
-
-  .highlights {
-    padding: 16px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-  .highlights-title {
-    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-    text-transform: uppercase; color: #4a6e58; margin-bottom: 10px;
-  }
-  .highlights-list {
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .highlight-item {
-    display: flex; align-items: flex-start; gap: 8px;
-    font-size: 0.82rem; color: #c0d4c0;
-  }
-  .highlight-dot {
-    width: 5px; height: 5px; border-radius: 50%;
-    background: #00e87a; flex-shrink: 0; margin-top: 6px;
-  }
-
-  .summary-block {
-    padding: 16px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-  .summary-label {
-    font-size: 0.62rem; font-weight: 800; letter-spacing: 0.10em;
-    text-transform: uppercase; color: #00e87a; margin-bottom: 8px;
-  }
-  .summary-text {
-    font-size: 0.875rem; color: #b0c8b0; line-height: 1.65;
-  }
-
-  .score-row {
-    display: flex; align-items: center; gap: 16px;
-    padding: 14px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-  .score-label {
-    font-size: 0.72rem; font-weight: 700; color: #4a6058;
-    text-transform: uppercase; letter-spacing: 0.06em; flex: 1;
-  }
-  .score-bar-wrap {
-    flex: 2; background: rgba(255,255,255,0.05);
-    border-radius: 99px; height: 6px; overflow: hidden;
-  }
-  .score-bar-fill {
-    height: 100%; border-radius: 99px;
-    background: linear-gradient(90deg, #00e87a, #34d399);
-    transition: width 0.6s ease;
-  }
-  .score-num {
-    font-size: 0.95rem; font-weight: 800; color: #00e87a;
-    min-width: 36px; text-align: right;
-  }
-
-  .footer-meta {
-    padding: 10px 20px;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .freshness { font-size: 0.68rem; color: #2a3a2a; }
-  .confidence-pill {
-    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.07em;
-    text-transform: uppercase; border-radius: 20px; padding: 2px 9px;
-    border: 1px solid;
-  }
-  .conf-high   { background: rgba(0,232,122,0.08); color: #00e87a;  border-color: rgba(0,232,122,0.22); }
-  .conf-medium { background: rgba(251,191,36,0.08); color: #fbbf24; border-color: rgba(251,191,36,0.22); }
-  .conf-low    { background: rgba(248,113,113,0.08); color: #f87171; border-color: rgba(248,113,113,0.22); }
-
-  /* Raw JSON toggle */
-  .raw-toggle {
-    padding: 0 20px 14px;
-  }
-  .raw-btn {
-    font-size: 0.72rem; color: #2a3550; background: none; border: none;
-    cursor: pointer; font-family: inherit; text-decoration: underline;
-  }
-  .raw-btn:hover { color: #4a6e58; }
-  .raw-pre {
-    display: none; margin-top: 8px;
-    background: #070d18; border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 10px; padding: 14px;
-    font-family: 'Menlo', monospace; font-size: 11px;
-    color: #9de8bc; line-height: 1.6; overflow-x: auto;
-    white-space: pre;
-  }
-  .raw-pre.visible { display: block; }
-
-  /* Streaming loader */
-  .loader {
-    display: none; padding: 40px 24px;
-  }
-  .loader.visible { display: block; }
-
-  .stream-stage {
-    display: flex; align-items: center; gap: 14px;
-    margin-bottom: 20px;
-  }
-  .stream-spinner {
-    width: 28px; height: 28px; flex-shrink: 0;
-    border: 2px solid rgba(0,232,122,0.15);
-    border-top-color: #00e87a;
-    border-radius: 50%; animation: spin 0.8s linear infinite;
-  }
-  .stream-spinner.fast { animation-duration: 0.45s; }
-  .stream-label {
-    font-size: 0.88rem; font-weight: 600; color: #4a6e58;
-  }
-  .stream-label strong { color: #00e87a; font-weight: 700; }
-
-  .stream-progress {
-    background: rgba(255,255,255,0.04);
-    border-radius: 10px; height: 3px; overflow: hidden;
-    margin-bottom: 12px;
-  }
-  .stream-progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #00e87a, #34d399);
-    width: 0%;
-    transition: width 0.3s ease;
-    border-radius: 10px;
-  }
-  .stream-progress-bar.indeterminate {
-    width: 30%;
-    animation: indeterminate 1.6s ease-in-out infinite;
-  }
-  @keyframes indeterminate {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(400%); }
-  }
-
-  .stream-token-strip {
-    display: none;
-    font-size: 0.72rem; color: #2a3a50;
-    font-family: 'Menlo', monospace;
-    height: 18px; overflow: hidden;
-    white-space: nowrap;
-  }
-  .stream-token-strip.visible { display: block; }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Error */
-  .error-box {
-    display: none; margin-top: 12px;
-    background: rgba(248,113,113,0.07);
-    border: 1px solid rgba(248,113,113,0.20);
-    border-radius: 10px; padding: 14px 18px;
-    font-size: 0.82rem; color: #f87171;
-  }
-  .error-box.visible { display: block; }
-
-  @media (max-width: 600px) {
-    .metrics-strip { grid-template-columns: repeat(2, 1fr); }
-    .info-grid { grid-template-columns: 1fr; }
-    .info-item:nth-child(odd) { border-right: none; }
-    .input-row { flex-direction: column; }
-  }
+  body { font-family: 'DM Sans', system-ui, sans-serif; }
+  .hero-img { background-size: cover; background-position: center; transition: background-image 0.4s ease; }
+  .field-pop { animation: fieldPop 0.3s ease forwards; }
+  @keyframes fieldPop { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+  .typewriter-cursor::after { content:'▋'; animation: blink 0.7s step-end infinite; color:#a78bfa; }
+  @keyframes blink { 50% { opacity:0; } }
+  .spin { animation: spin 0.8s linear infinite; }
+  .spin-fast { animation: spin 0.4s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .progress-bar { transition: width 0.3s ease; }
+  .skeleton { background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 </style>
 </head>
-<body>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen p-4 md:p-8">
 
-<div class="shell">
-  <div class="header">
-    <div class="header-icon">🏠</div>
-    <div class="header-body">
-      <h1>Grok Property Intelligence</h1>
-      <p>HomeRates.AI · Beta test — isolated from production pipeline</p>
+<div class="max-w-6xl mx-auto space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-900 to-emerald-700 flex items-center justify-center text-xl">🏠</div>
+      <div>
+        <div class="font-bold text-base">Grok Property Intelligence</div>
+        <div class="text-xs text-zinc-500">HomeRates.AI · Beta · Isolated from production pipeline</div>
+      </div>
     </div>
-    <span class="beta-pill">Beta</span>
+    <span class="text-xs font-bold tracking-widest uppercase px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/25">Beta</span>
   </div>
 
-  <div class="input-card">
-    <div class="input-label">Property address</div>
-    <div class="input-row">
-      <input
-        id="addrInput"
-        class="addr-input"
-        type="text"
-        placeholder="e.g. 123 Oak Street, Thousand Oaks, CA 91360"
+  <!-- Search -->
+  <div class="bg-zinc-900 border border-zinc-700 rounded-2xl p-5">
+    <div class="text-xs font-bold tracking-widest uppercase text-emerald-600 mb-3">Property Address</div>
+    <div class="flex gap-3">
+      <input id="addrInput" type="text"
+        placeholder="e.g. 4400 Woodridge Dr, Thousand Oaks, CA 91360"
         onkeydown="if(event.key==='Enter') runQuery()"
-      />
-      <button class="run-btn" id="runBtn" onclick="runQuery()">Analyze →</button>
+        class="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-emerald-500/50 transition-colors" />
+      <button id="runBtn" onclick="runQuery()"
+        class="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
+        Analyze →
+      </button>
     </div>
-    <div style="margin-top:12px; display:flex; align-items:center; gap:10px;">
-      <label style="font-size:0.72rem; color:#3a4560; white-space:nowrap;">Beta key (if required):</label>
-      <input id="betaKeyInput" type="password" placeholder="leave blank if not set"
-        style="flex:1; background:#0d1626; border:1px solid rgba(255,255,255,0.07); border-radius:8px;
-               color:#8fa3b8; font-size:0.8rem; padding:7px 12px; font-family:inherit; outline:none;" />
+    <div class="flex flex-wrap gap-2 mt-3">
+      <span class="text-xs text-zinc-600">Try:</span>
+      <button onclick="fillAndRun('4400 Woodridge Dr, Thousand Oaks, CA 91360')" class="text-xs text-emerald-700 hover:text-emerald-500 underline">4400 Woodridge Dr, Thousand Oaks</button>
+      <button onclick="fillAndRun('1234 Sunset Blvd, Los Angeles, CA 90028')" class="text-xs text-emerald-700 hover:text-emerald-500 underline">1234 Sunset Blvd, LA</button>
+      <button onclick="fillAndRun('742 Evergreen Terrace, Springfield, IL 62701')" class="text-xs text-emerald-700 hover:text-emerald-500 underline">742 Evergreen Terrace</button>
     </div>
-
-    <div class="examples">
-      Try:
-      <span onclick="fillAndRun('4400 Woodridge Dr, Thousand Oaks, CA 91360')">4400 Woodridge Dr, Thousand Oaks</span>
-      <span onclick="fillAndRun('1234 Sunset Blvd, Los Angeles, CA 90028')">1234 Sunset Blvd, LA</span>
-      <span onclick="fillAndRun('742 Evergreen Terrace, Springfield, IL 62701')">742 Evergreen Terrace</span>
+    <div id="betaKeyRow" class="flex items-center gap-3 mt-3">
+      <label class="text-xs text-zinc-600 whitespace-nowrap">Beta key (if set):</label>
+      <input id="betaKeyInput" type="password" placeholder="leave blank if none"
+        class="flex-1 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-1.5 text-xs text-zinc-400 placeholder-zinc-700 outline-none" />
     </div>
   </div>
 
-  <div class="error-box" id="errorBox"></div>
+  <!-- Error -->
+  <div id="errorBox" class="hidden bg-red-500/8 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-400"></div>
 
-  <div class="result-card" id="resultCard">
+  <!-- Result Card -->
+  <div id="resultCard" class="hidden bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-700">
 
-    <div class="loader" id="loader">
-      <div class="stream-stage">
-        <div class="stream-spinner" id="streamSpinner"></div>
-        <div class="stream-label" id="streamLabel">Connecting to Grok…</div>
+    <!-- Hero -->
+    <div id="heroSection" class="hero-img h-72 md:h-80 relative bg-zinc-800">
+      <!-- Loading pulse overlay (shown while thinking) -->
+      <div id="heroLoader" class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-900/80 backdrop-blur-sm z-10">
+        <div id="loaderSpinner" class="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-emerald-400 spin"></div>
+        <div id="loaderLabel" class="text-sm font-medium text-zinc-400">Connecting to Grok…</div>
+        <div class="w-48 h-1 bg-zinc-800 rounded-full overflow-hidden">
+          <div id="loaderBar" class="h-full bg-emerald-500 rounded-full progress-bar" style="width:5%"></div>
+        </div>
+        <div id="tokenStrip" class="text-xs text-zinc-700 font-mono hidden max-w-xs truncate"></div>
       </div>
-      <div class="stream-progress">
-        <div class="stream-progress-bar indeterminate" id="streamBar"></div>
+
+      <!-- Map toggle -->
+      <div id="mapToggle" class="absolute top-4 right-4 z-20 hidden">
+        <div class="flex bg-black/60 backdrop-blur-sm rounded-lg overflow-hidden border border-white/10">
+          <button id="btnStreetView" onclick="setMapView('street')" class="px-3 py-1.5 text-xs font-semibold text-white bg-white/20">Street View</button>
+          <button id="btnSatellite" onclick="setMapView('satellite')" class="px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition-colors">Satellite</button>
+        </div>
       </div>
-      <div class="stream-token-strip" id="tokenStrip"></div>
+
+      <!-- Gradient overlay -->
+      <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none"></div>
+
+      <!-- Hero content -->
+      <div class="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-10">
+        <div class="flex flex-wrap justify-between items-end gap-4">
+          <div>
+            <div id="heroStatus" class="inline-flex px-4 py-1 rounded-full text-xs font-bold mb-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 opacity-0">—</div>
+            <div id="heroPrice" class="text-4xl md:text-5xl font-bold text-white opacity-0">—</div>
+            <div id="heroAddress" class="text-lg text-zinc-300 mt-1"></div>
+          </div>
+          <div class="text-right">
+            <div id="heroPiti" class="text-3xl md:text-4xl font-bold text-emerald-400 opacity-0">—</div>
+            <div class="text-xs text-zinc-400 mt-1">Est. Monthly PITI</div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div id="resultBody" style="display:none">
-      <div class="result-header">
-        <div class="result-address" id="resAddress"></div>
-        <span class="status-pill" id="resStatus"></span>
-      </div>
+    <!-- Property strip -->
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-6 py-4 bg-zinc-800/50 border-b border-zinc-700/50 text-sm">
+      <div class="flex items-center gap-2 text-zinc-300"><i class="fa-solid fa-bed text-zinc-500 text-xs"></i><span id="sBeds" class="skeleton w-8 h-4 inline-block">—</span></div>
+      <div class="flex items-center gap-2 text-zinc-300"><i class="fa-solid fa-bath text-zinc-500 text-xs"></i><span id="sBaths" class="skeleton w-8 h-4 inline-block">—</span></div>
+      <div class="flex items-center gap-2 text-zinc-300"><i class="fa-solid fa-ruler-combined text-zinc-500 text-xs"></i><span id="sSqft" class="skeleton w-16 h-4 inline-block">—</span></div>
+      <div class="flex items-center gap-2 text-zinc-300"><i class="fa-solid fa-calendar text-zinc-500 text-xs"></i>Built <span id="sYear" class="skeleton w-10 h-4 inline-block ml-1">—</span></div>
+      <div class="flex items-center gap-2 text-zinc-300"><i class="fa-solid fa-expand text-zinc-500 text-xs"></i><span id="sLot" class="skeleton w-16 h-4 inline-block">—</span> lot</div>
+    </div>
 
-      <div class="metrics-strip">
-        <div class="metric">
-          <div class="metric-val" id="mListPrice">—</div>
-          <div class="metric-lbl">List Price</div>
+    <div class="p-6 md:p-8 grid grid-cols-12 gap-6 md:gap-8">
+
+      <!-- Left column -->
+      <div class="col-span-12 lg:col-span-7 space-y-6">
+
+        <!-- Grok Intelligence -->
+        <div class="bg-zinc-800/70 border border-violet-500/30 rounded-2xl p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="fa-solid fa-brain text-2xl text-violet-400"></i>
+            <h2 class="text-lg font-bold">Grok Intelligence</h2>
+            <div id="summaryLoading" class="w-4 h-4 rounded-full border-2 border-zinc-700 border-t-violet-400 spin ml-auto"></div>
+          </div>
+          <p id="grokSummary" class="text-zinc-300 leading-relaxed text-[15px] typewriter-cursor min-h-[60px]"></p>
         </div>
-        <div class="metric">
-          <div class="metric-val" id="mDom">—</div>
-          <div class="metric-lbl">Days on Market</div>
+
+        <!-- Key Metrics -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-zinc-800 rounded-2xl p-5 text-center">
+            <div id="mScore" class="text-4xl font-bold text-emerald-400 skeleton h-10">—</div>
+            <div class="text-xs text-zinc-500 mt-1">Life-Fit Score</div>
+          </div>
+          <div class="bg-zinc-800 rounded-2xl p-5 text-center">
+            <div id="mDom" class="text-4xl font-bold skeleton h-10">—</div>
+            <div class="text-xs text-zinc-500 mt-1">Days on Market</div>
+          </div>
+          <div class="bg-zinc-800 rounded-2xl p-5 text-center">
+            <div id="mPpsf" class="text-4xl font-bold skeleton h-10">—</div>
+            <div class="text-xs text-zinc-500 mt-1">Price / SqFt</div>
+          </div>
+          <div class="bg-zinc-800 rounded-2xl p-5 text-center">
+            <div id="mLastSold" class="text-3xl font-bold text-amber-400 skeleton h-10">—</div>
+            <div class="text-xs text-zinc-500 mt-1">Last Sold</div>
+          </div>
         </div>
-        <div class="metric">
-          <div class="metric-val" id="mPpSqft">—</div>
-          <div class="metric-lbl">Price / sqft</div>
+
+        <!-- Key Highlights -->
+        <div class="bg-zinc-800 rounded-2xl p-6">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-4">Key Highlights</h3>
+          <div id="highlights" class="space-y-3">
+            <div class="skeleton h-4 w-full rounded"></div>
+            <div class="skeleton h-4 w-5/6 rounded"></div>
+            <div class="skeleton h-4 w-4/6 rounded"></div>
+          </div>
         </div>
-        <div class="metric">
-          <div class="metric-val" id="mPiti">—</div>
-          <div class="metric-lbl">Est. PITI/mo</div>
+      </div>
+
+      <!-- Right / Sidebar -->
+      <div class="col-span-12 lg:col-span-5 space-y-5">
+
+        <!-- Comps -->
+        <div class="bg-zinc-800 rounded-2xl p-6">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-4">Recent Comps</h3>
+          <div id="compsContainer" class="space-y-4">
+            <div class="skeleton h-14 rounded-xl"></div>
+            <div class="skeleton h-14 rounded-xl"></div>
+            <div class="skeleton h-14 rounded-xl"></div>
+          </div>
         </div>
-      </div>
 
-      <div class="info-grid" id="infoGrid"></div>
-
-      <div class="highlights">
-        <div class="highlights-title">Key Highlights</div>
-        <div class="highlights-list" id="highlightsList"></div>
-      </div>
-
-      <div class="summary-block">
-        <div class="summary-label">Grok Intelligence</div>
-        <div class="summary-text" id="summaryText"></div>
-      </div>
-
-      <div class="score-row">
-        <div class="score-label">Life Fit Score</div>
-        <div class="score-bar-wrap">
-          <div class="score-bar-fill" id="scoreBar" style="width:0%"></div>
+        <!-- Confidence + Freshness -->
+        <div class="bg-zinc-800 rounded-2xl p-5 text-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500">Confidence</span>
+            <span id="confBadge" class="px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 skeleton">—</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500">Data Freshness</span>
+            <span id="freshness" class="text-emerald-400 text-xs skeleton">—</span>
+          </div>
+          <div class="pt-2 border-t border-zinc-700/50 text-xs text-zinc-600">
+            Powered by Grok-4 · Real-time data · Public records + AI synthesis
+          </div>
         </div>
-        <div class="score-num" id="scoreNum">—</div>
-      </div>
 
-      <div class="footer-meta">
-        <span class="freshness" id="freshness"></span>
-        <span class="confidence-pill" id="confPill"></span>
-      </div>
-
-      <div class="raw-toggle">
-        <button class="raw-btn" onclick="toggleRaw()">Show raw JSON</button>
-        <pre class="raw-pre" id="rawPre"></pre>
+        <!-- Raw JSON toggle -->
+        <div class="bg-zinc-800/50 rounded-2xl p-4">
+          <button onclick="toggleRaw()" class="text-xs text-zinc-600 hover:text-zinc-400 underline transition-colors">Show raw JSON</button>
+          <pre id="rawPre" class="hidden mt-3 bg-zinc-950 rounded-xl p-4 text-xs text-emerald-400 font-mono overflow-x-auto whitespace-pre max-h-64 overflow-y-auto"></pre>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-const fmt$ = n => n ? '$' + Math.round(n).toLocaleString() : '—';
+// ── State ──────────────────────────────────────────────────────────────────────
+let streetViewUrl = null;
+let satelliteUrl  = null;
+let currentView   = 'street';
+let summaryDone   = false;
+let fullContent   = '';
+const rendered    = new Set();
 
-function fillAndRun(addr) {
-  document.getElementById('addrInput').value = addr;
-  runQuery();
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const fmt$ = n => n != null ? '$' + Math.round(n).toLocaleString() : '—';
+
+function clearSkeleton(el) {
+  el.classList.remove('skeleton', 'h-4', 'h-10', 'h-14', 'w-full', 'w-5/6', 'w-4/6');
 }
+
+function popField(el, value) {
+  clearSkeleton(el);
+  el.textContent = value;
+  el.style.opacity = '0';
+  el.classList.add('field-pop');
+  el.style.opacity = '1';
+}
+
+function setOpacity(id, val) {
+  const el = document.getElementById(id);
+  if (el) { el.style.opacity = val; el.style.transition = 'opacity 0.4s ease'; }
+}
+
+// ── Map toggle ────────────────────────────────────────────────────────────────
+function setMapView(view) {
+  currentView = view;
+  const hero = document.getElementById('heroSection');
+  const url  = view === 'street' ? streetViewUrl : satelliteUrl;
+  if (url) hero.style.backgroundImage = `url('${url}')`;
+  document.getElementById('btnStreetView').className = view === 'street'
+    ? 'px-3 py-1.5 text-xs font-semibold text-white bg-white/20'
+    : 'px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition-colors';
+  document.getElementById('btnSatellite').className = view === 'satellite'
+    ? 'px-3 py-1.5 text-xs font-semibold text-white bg-white/20'
+    : 'px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white transition-colors';
+}
+
+// ── Progressive JSON field extraction ────────────────────────────────────────
+const STATUS_COLORS = {
+  'for sale':   ['bg-emerald-500/20 text-emerald-400 border-emerald-500/30', 'FOR SALE'],
+  'pending':    ['bg-amber-500/20 text-amber-400 border-amber-500/30', 'PENDING'],
+  'sold':       ['bg-blue-500/20 text-blue-400 border-blue-500/30', 'SOLD'],
+  'off market': ['bg-zinc-600/20 text-zinc-400 border-zinc-500/30', 'OFF MARKET'],
+  'withdrawn':  ['bg-zinc-600/20 text-zinc-400 border-zinc-500/30', 'WITHDRAWN'],
+};
+
+const EXTRACTORS = [
+  { id: 'current_status',    re: /"current_status"\s*:\s*"([^"]+)"/ },
+  { id: 'last_sold_date',    re: /"last_sold_date"\s*:\s*"([^"]+)"/ },
+  { id: 'last_sold_price',   re: /"last_sold_price"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'days_on_market',    re: /"days_on_market"\s*:\s*(\d+)/ },
+  { id: 'current_list_price',re: /"current_list_price"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'price_per_sqft',    re: /"price_per_sqft"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'sqft',              re: /"sqft"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'bedrooms',          re: /"bedrooms"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'bathrooms',         re: /"bathrooms"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'year_built',        re: /"year_built"\s*:\s*(\d+)/ },
+  { id: 'lot_size_sqft',     re: /"lot_size_sqft"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'key_highlights',    re: /"key_highlights"\s*:\s*(\[[\s\S]*?\])/ },
+  { id: 'comparable_sales',  re: /"comparable_sales"\s*:\s*(\[[\s\S]*?\])/ },
+  { id: 'life_fit_score',    re: /"life_fit_score"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'estimated_piti',    re: /"estimated_piti"\s*:\s*(\d+(?:\.\d+)?)/ },
+  { id: 'data_freshness',    re: /"data_freshness"\s*:\s*"([^"]+)"/ },
+  { id: 'confidence',        re: /"confidence"\s*:\s*"([^"]+)"/ },
+];
+
+function applyField(id, raw) {
+  if (rendered.has(id)) return;
+  rendered.add(id);
+
+  switch (id) {
+    case 'current_status': {
+      const key = raw.toLowerCase();
+      const [cls, label] = STATUS_COLORS[key] ?? ['bg-zinc-600/20 text-zinc-400 border-zinc-500/30', raw.toUpperCase()];
+      const el = document.getElementById('heroStatus');
+      el.className = `inline-flex px-4 py-1 rounded-full text-xs font-bold mb-2 border ${cls}`;
+      el.textContent = label;
+      setOpacity('heroStatus', '1');
+      break;
+    }
+    case 'current_list_price':
+      popField(document.getElementById('heroPrice'), fmt$(+raw));
+      setOpacity('heroPrice', '1');
+      break;
+    case 'estimated_piti':
+      popField(document.getElementById('heroPiti'), fmt$(+raw) + '/mo');
+      setOpacity('heroPiti', '1');
+      popField(document.getElementById('mPiti_unused') || document.createElement('span'), '');
+      break;
+    case 'days_on_market':
+      popField(document.getElementById('mDom'), raw + 'd');
+      break;
+    case 'price_per_sqft':
+      popField(document.getElementById('mPpsf'), '$' + raw);
+      break;
+    case 'life_fit_score':
+      popField(document.getElementById('mScore'), raw);
+      break;
+    case 'last_sold_date': {
+      const short = raw.split(',')[0] || raw;
+      popField(document.getElementById('mLastSold'), short);
+      break;
+    }
+    case 'sqft':
+      popField(document.getElementById('sSqft'), Number(raw).toLocaleString() + ' sqft');
+      break;
+    case 'bedrooms':
+      popField(document.getElementById('sBeds'), raw + ' bd');
+      break;
+    case 'bathrooms':
+      popField(document.getElementById('sBaths'), raw + ' ba');
+      break;
+    case 'year_built':
+      popField(document.getElementById('sYear'), raw);
+      break;
+    case 'lot_size_sqft':
+      popField(document.getElementById('sLot'), Number(raw).toLocaleString() + ' sqft');
+      break;
+    case 'key_highlights': {
+      try {
+        const arr = JSON.parse(raw);
+        const el = document.getElementById('highlights');
+        el.innerHTML = arr.map(h => `
+          <div class="flex gap-3 items-start field-pop">
+            <span class="text-emerald-400 mt-0.5 text-xs">●</span>
+            <span class="text-sm text-zinc-300">${h}</span>
+          </div>`).join('');
+      } catch {}
+      break;
+    }
+    case 'comparable_sales': {
+      try {
+        const arr = JSON.parse(raw);
+        const el = document.getElementById('compsContainer');
+        if (!arr.length) { el.innerHTML = '<p class="text-xs text-zinc-600">No comps available</p>'; break; }
+        el.innerHTML = arr.map(c => `
+          <div class="bg-zinc-700/40 rounded-xl p-4 field-pop">
+            <div class="text-sm font-medium text-zinc-200 truncate mb-2">${c.address || '—'}</div>
+            <div class="flex flex-wrap gap-3 text-xs text-zinc-400">
+              <span class="text-emerald-400 font-bold">${fmt$(c.sold_price)}</span>
+              <span>${c.sold_date || ''}</span>
+              ${c.sqft ? `<span>${Number(c.sqft).toLocaleString()} sf</span>` : ''}
+              ${c.price_per_sqft ? `<span>$${c.price_per_sqft}/sf</span>` : ''}
+            </div>
+          </div>`).join('');
+      } catch {}
+      break;
+    }
+    case 'data_freshness':
+      popField(document.getElementById('freshness'), raw);
+      break;
+    case 'confidence': {
+      const el = document.getElementById('confBadge');
+      clearSkeleton(el);
+      const conf = raw.toLowerCase();
+      const confColors = { high: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', medium: 'bg-amber-500/10 text-amber-400 border-amber-500/20', low: 'bg-red-500/10 text-red-400 border-red-500/20' };
+      el.className = `px-3 py-0.5 rounded-full text-xs font-bold border ${confColors[conf] || confColors.medium}`;
+      el.textContent = raw.charAt(0).toUpperCase() + raw.slice(1);
+      break;
+    }
+  }
+}
+
+function tryExtractFields(buf) {
+  for (const { id, re } of EXTRACTORS) {
+    if (rendered.has(id)) continue;
+    const m = buf.match(re);
+    if (m) applyField(id, m[1]);
+  }
+}
+
+// Typewriter: extract grok_intelligence_summary as it streams
+const SUMMARY_KEY = '"grok_intelligence_summary": "';
+function updateSummaryStream(buf) {
+  if (summaryDone) return;
+  const startIdx = buf.indexOf(SUMMARY_KEY);
+  if (startIdx === -1) return;
+  const after = buf.slice(startIdx + SUMMARY_KEY.length);
+  let text = '';
+  for (let i = 0; i < after.length; i++) {
+    if (after[i] === '"' && after[i - 1] !== '\\') { summaryDone = true; break; }
+    text += after[i];
+  }
+  text = text.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+  const el = document.getElementById('grokSummary');
+  el.textContent = text;
+  if (!summaryDone) el.classList.add('typewriter-cursor');
+}
+
+// ── Core query ────────────────────────────────────────────────────────────────
+function fillAndRun(addr) { document.getElementById('addrInput').value = addr; runQuery(); }
 
 async function runQuery() {
   const addr = document.getElementById('addrInput').value.trim();
   if (!addr) return;
 
-  const btn        = document.getElementById('runBtn');
-  const card       = document.getElementById('resultCard');
-  const loader     = document.getElementById('loader');
-  const body       = document.getElementById('resultBody');
-  const errorBox   = document.getElementById('errorBox');
-  const spinner    = document.getElementById('streamSpinner');
-  const label      = document.getElementById('streamLabel');
-  const bar        = document.getElementById('streamBar');
-  const tokenStrip = document.getElementById('tokenStrip');
-
+  const btn = document.getElementById('runBtn');
   btn.disabled = true;
   btn.textContent = 'Analyzing…';
-  errorBox.classList.remove('visible');
-  body.style.display = 'none';
-  card.classList.remove('revealed');
-  card.classList.add('visible');
-  loader.classList.add('visible');
 
-  // Reset stream UI
-  spinner.className = 'stream-spinner';
-  label.innerHTML = 'Connecting to Grok…';
-  bar.className = 'stream-progress-bar indeterminate';
-  bar.style.width = '';
-  tokenStrip.classList.remove('visible');
-  tokenStrip.textContent = '';
+  // Reset state
+  fullContent = '';
+  summaryDone = false;
+  rendered.clear();
+  streetViewUrl = null;
+  satelliteUrl  = null;
+  currentView   = 'street';
 
-  // Small delay so card is visible before requestAnimationFrame
-  requestAnimationFrame(() => card.classList.add('revealed'));
+  document.getElementById('errorBox').classList.add('hidden');
+  document.getElementById('resultCard').classList.remove('hidden');
+  document.getElementById('heroSection').style.backgroundImage = '';
+  document.getElementById('heroLoader').classList.remove('hidden');
+  document.getElementById('loaderBar').style.width = '5%';
+  document.getElementById('loaderLabel').textContent = 'Connecting to Grok…';
+  document.getElementById('loaderSpinner').className = 'w-8 h-8 rounded-full border-2 border-zinc-700 border-t-emerald-400 spin';
+  document.getElementById('tokenStrip').classList.add('hidden');
+  document.getElementById('mapToggle').classList.add('hidden');
+  document.getElementById('summaryLoading').classList.remove('hidden');
+  document.getElementById('grokSummary').textContent = '';
+  document.getElementById('grokSummary').classList.remove('typewriter-cursor');
+  document.getElementById('heroAddress').textContent = addr;
+  document.getElementById('heroStatus').style.opacity = '0';
+  document.getElementById('heroPrice').style.opacity = '0';
+  document.getElementById('heroPiti').style.opacity = '0';
+  // Reset skeletons
+  ['mDom','mPpsf','mScore','mLastSold'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '—'; el.className = el.className.replace('field-pop','') + ' skeleton h-10';
+  });
+  ['sBeds','sBaths','sSqft','sYear','sLot'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '—'; el.classList.add('skeleton');
+  });
+  document.getElementById('highlights').innerHTML = '<div class="skeleton h-4 w-full rounded"></div><div class="skeleton h-4 w-5/6 rounded mt-2"></div><div class="skeleton h-4 w-4/6 rounded mt-2"></div>';
+  document.getElementById('compsContainer').innerHTML = '<div class="skeleton h-14 rounded-xl"></div><div class="skeleton h-14 rounded-xl mt-3"></div><div class="skeleton h-14 rounded-xl mt-3"></div>';
+  document.getElementById('confBadge').textContent = '—'; document.getElementById('confBadge').classList.add('skeleton');
+  document.getElementById('freshness').textContent = '—'; document.getElementById('freshness').classList.add('skeleton');
+  document.getElementById('rawPre').classList.add('hidden');
 
+  // Check cache first
+  try {
+    const cached = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(addr)}`);
+    if (cached.ok) {
+      const cd = await cached.json();
+      if (cd.cached) {
+        document.getElementById('heroLoader').classList.add('hidden');
+        renderFinal(addr, cd.result, cd.meta);
+        finishUp(btn, addr, cd.result, cd.meta);
+        return;
+      }
+    }
+  } catch {}
+
+  // Stream from Grok
   const headers = { 'Content-Type': 'application/json' };
   const betaKey = document.getElementById('betaKeyInput')?.value?.trim();
   if (betaKey) headers['x-beta-key'] = betaKey;
 
+  let tokenCount = 0;
+
   try {
     const res = await fetch('/api/beta/grok-property', {
-      method: 'POST',
-      headers,
+      method: 'POST', headers,
       body: JSON.stringify({ address: addr }),
     });
 
-    // Non-streaming error (4xx/5xx from our route guards)
     if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || `HTTP ${res.status}`);
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
     }
 
-    const contentType = res.headers.get('content-type') || '';
-    if (!contentType.includes('text/event-stream')) {
-      // Fallback: plain JSON response
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Request failed');
-      finishLoading(loader, spinner, label, bar, tokenStrip);
-      render(addr, data.result, data.meta);
-      return;
-    }
-
-    // — SSE streaming path —
     const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let sseBuffer = '';
-    let tokenCount = 0;
-    let fullTokens = '';
-
-    const updateTokenStrip = (tok) => {
-      fullTokens += tok;
-      tokenStrip.textContent = fullTokens.slice(-80);
-    };
+    const dec    = new TextDecoder();
+    let sseBuf   = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      sseBuffer += decoder.decode(value, { stream: true });
-      const lines = sseBuffer.split('\n');
-      sseBuffer = lines.pop() ?? '';
+      sseBuf += dec.decode(value, { stream: true });
+      const lines = sseBuf.split('\n');
+      sseBuf = lines.pop() ?? '';
 
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
-        let event;
-        try { event = JSON.parse(line.slice(6)); } catch { continue; }
+        let ev;
+        try { ev = JSON.parse(line.slice(6)); } catch { continue; }
 
-        if (event.thinking) {
-          // Heartbeat — grok-4 is in reasoning phase
-          label.innerHTML = '<strong>Grok is reasoning…</strong> this may take a moment';
+        if (ev.meta_early) {
+          streetViewUrl = ev.meta_early.street_view_url;
+          satelliteUrl  = ev.meta_early.static_map_url;
+          if (streetViewUrl) {
+            const img = new Image();
+            img.onload = () => {
+              document.getElementById('heroSection').style.backgroundImage = `url('${streetViewUrl}')`;
+              document.getElementById('mapToggle').classList.remove('hidden');
+            };
+            img.src = streetViewUrl;
+          }
           continue;
         }
 
-        if (event.token) {
+        if (ev.thinking) {
+          document.getElementById('loaderLabel').innerHTML = '<strong class="text-emerald-400">Grok is reasoning…</strong> this may take a moment';
+          document.getElementById('loaderBar').style.width = '20%';
+          continue;
+        }
+
+        if (ev.token) {
           tokenCount++;
           if (tokenCount === 1) {
-            // Tokens started — switch to streaming state
-            spinner.className = 'stream-spinner fast';
-            label.innerHTML = '<strong>Receiving data</strong> — building property report…';
-            bar.className = 'stream-progress-bar';
-            bar.style.width = '10%';
-            tokenStrip.classList.add('visible');
+            document.getElementById('loaderSpinner').className = 'w-8 h-8 rounded-full border-2 border-zinc-700 border-t-violet-400 spin-fast';
+            document.getElementById('loaderLabel').innerHTML = '<strong class="text-violet-400">Receiving data…</strong>';
+            document.getElementById('tokenStrip').classList.remove('hidden');
           }
-          updateTokenStrip(event.token);
-          // Animate progress bar 10% → 90% as tokens arrive
-          const pct = Math.min(90, 10 + tokenCount * 0.4);
-          bar.style.width = pct + '%';
+          fullContent += ev.token;
+          const pct = Math.min(85, 20 + tokenCount * 0.35);
+          document.getElementById('loaderBar').style.width = pct + '%';
+          document.getElementById('tokenStrip').textContent = fullContent.slice(-60);
+          tryExtractFields(fullContent);
+          updateSummaryStream(fullContent);
           continue;
         }
 
-        if (event.done) {
-          bar.style.width = '100%';
-          finishLoading(loader, spinner, label, bar, tokenStrip);
-          render(addr, event.result, event.meta);
+        if (ev.done) {
+          document.getElementById('loaderBar').style.width = '100%';
+          setTimeout(() => document.getElementById('heroLoader').classList.add('hidden'), 300);
+          renderFinal(addr, ev.result, ev.meta);
+          finishUp(btn, addr, ev.result, ev.meta);
           return;
         }
 
-        if (event.error) {
-          throw new Error(event.error);
-        }
+        if (ev.error) throw new Error(ev.error);
       }
     }
-
     throw new Error('Stream ended without a result');
 
   } catch (err) {
-    loader.classList.remove('visible');
-    card.classList.remove('visible', 'revealed');
-    errorBox.textContent = '⚠ ' + err.message;
-    errorBox.classList.add('visible');
-  } finally {
+    document.getElementById('heroLoader').classList.add('hidden');
+    document.getElementById('resultCard').classList.add('hidden');
+    const eb = document.getElementById('errorBox');
+    eb.textContent = '⚠ ' + err.message;
+    eb.classList.remove('hidden');
     btn.disabled = false;
     btn.textContent = 'Analyze →';
   }
 }
 
-function finishLoading(loader, spinner, label, bar, tokenStrip) {
-  loader.classList.remove('visible');
-  spinner.style.animation = 'none';
-  tokenStrip.classList.remove('visible');
+function renderFinal(addr, r, meta) {
+  // Apply all fields from final result (fills any that didn't stream in)
+  for (const { id, re } of EXTRACTORS) {
+    if (rendered.has(id)) continue;
+    const str = JSON.stringify(r);
+    const m = str.match(re);
+    if (m) applyField(id, m[1]);
+  }
+  // Final summary (in case typewriter didn't complete)
+  if (r.grok_intelligence_summary) {
+    document.getElementById('grokSummary').textContent = r.grok_intelligence_summary;
+    document.getElementById('grokSummary').classList.remove('typewriter-cursor');
+  }
+  document.getElementById('summaryLoading').classList.add('hidden');
+  document.getElementById('rawPre').textContent = JSON.stringify({ result: r, meta }, null, 2);
 }
 
-function render(addr, r, meta) {
-  document.getElementById('resAddress').textContent = addr;
-
-  const statusEl  = document.getElementById('resStatus');
-  const statusMap = {
-    'for sale': ['For Sale', 'status-for-sale'],
-    'pending':  ['Pending',  'status-pending'],
-    'sold':     ['Sold',     'status-sold'],
-  };
-  const statusRaw = (r.current_status || '').toLowerCase();
-  const [statusLabel, statusClass] = statusMap[statusRaw] || ['Off Market', 'status-off'];
-  statusEl.textContent = statusLabel;
-  statusEl.className   = 'status-pill ' + statusClass;
-
-  document.getElementById('mListPrice').textContent = fmt$(r.current_list_price);
-  document.getElementById('mDom').textContent       = r.days_on_market != null ? r.days_on_market + 'd' : '—';
-  document.getElementById('mPpSqft').textContent    = r.price_per_sqft ? '$' + r.price_per_sqft + '/sf' : '—';
-  document.getElementById('mPiti').textContent      = fmt$(r.estimated_piti) + '/mo';
-
-  const infoItems = [
-    ['Last Sold', r.last_sold_date && r.last_sold_price ? `${r.last_sold_date} · ${fmt$(r.last_sold_price)}` : '—'],
-    ['List Date', r.original_list_date || '—'],
-    ['Sq Ft', r.sqft ? r.sqft.toLocaleString() + ' sf' : '—'],
-    ['Year Built', r.year_built || '—'],
-    ['Bed / Bath', r.bedrooms && r.bathrooms ? `${r.bedrooms}bd / ${r.bathrooms}ba` : '—'],
-    ['Lot Size', r.lot_size_sqft ? r.lot_size_sqft.toLocaleString() + ' sf' : '—'],
-  ];
-  document.getElementById('infoGrid').innerHTML = infoItems.map(([k, v]) =>
-    `<div class="info-item"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`
-  ).join('');
-
-  const hl = Array.isArray(r.key_highlights) ? r.key_highlights : [];
-  document.getElementById('highlightsList').innerHTML = hl.map(h =>
-    `<div class="highlight-item"><div class="highlight-dot"></div><span>${h}</span></div>`
-  ).join('');
-
-  document.getElementById('summaryText').textContent = r.grok_intelligence_summary || '—';
-
-  const score = r.life_fit_score ?? 0;
-  document.getElementById('scoreBar').style.width = score + '%';
-  document.getElementById('scoreNum').textContent  = score;
-
-  document.getElementById('freshness').textContent = r.data_freshness || '';
-  const conf   = (r.confidence || 'medium').toLowerCase();
-  const confEl = document.getElementById('confPill');
-  confEl.textContent = conf.charAt(0).toUpperCase() + conf.slice(1) + ' confidence';
-  confEl.className   = 'confidence-pill conf-' + conf;
-
-  document.getElementById('rawPre').textContent = JSON.stringify({ result: r, meta }, null, 2);
-  document.getElementById('resultBody').style.display = 'block';
+function finishUp(btn, addr, r, meta) {
+  btn.disabled = false;
+  btn.textContent = 'Analyze →';
 }
 
 function toggleRaw() {
   const pre = document.getElementById('rawPre');
-  const btn = document.querySelector('.raw-btn');
-  const visible = pre.classList.toggle('visible');
-  btn.textContent = visible ? 'Hide raw JSON' : 'Show raw JSON';
+  const btn = event.target;
+  pre.classList.toggle('hidden');
+  btn.textContent = pre.classList.contains('hidden') ? 'Show raw JSON' : 'Hide raw JSON';
 }
 </script>
-
 </body>
 </html>
