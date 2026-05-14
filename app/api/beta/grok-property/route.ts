@@ -175,12 +175,12 @@ export async function POST(req: NextRequest) {
 
       const finish = () => { clearTimeout(timeoutId); clearInterval(heartbeat); };
 
-      const cacheResult = (result: Record<string, unknown>) => {
+      const cacheResult = async (result: Record<string, unknown>): Promise<void> => {
         const sb = getSupabase();
         if (!sb) return;
         const now = new Date();
-        const ttl = cacheTtlMs(result.current_status as string ?? '');
-        void sb.from('grok_property_cache').upsert({
+        const ttl = cacheTtlMs((result.current_status as string) ?? '');
+        const { error } = await sb.from('grok_property_cache').upsert({
           address_normalized: normalizeAddress(address),
           address_raw:        address.trim(),
           grok_result:        result,
@@ -188,6 +188,7 @@ export async function POST(req: NextRequest) {
           fetched_at:         now.toISOString(),
           expires_at:         new Date(now.getTime() + ttl).toISOString(),
         }, { onConflict: 'address_normalized' });
+        if (error) console.error('[beta/grok-property] cache write error:', error.message);
       };
 
       try {
@@ -208,8 +209,9 @@ export async function POST(req: NextRequest) {
               finish();
               try {
                 const result = JSON.parse(fullContent);
-                cacheResult(result);
-                ctrl.enqueue(sse({ done: true, result, meta: { model: 'grok-4', fetched_at: new Date().toISOString() } }));
+                const fetchedAt = new Date().toISOString();
+                ctrl.enqueue(sse({ done: true, result, meta: { model: 'grok-4', fetched_at: fetchedAt } }));
+                await cacheResult(result);
               } catch {
                 ctrl.enqueue(sse({ error: 'Grok returned malformed JSON' }));
               }
@@ -233,8 +235,9 @@ export async function POST(req: NextRequest) {
         if (fullContent) {
           try {
             const result = JSON.parse(fullContent);
-            cacheResult(result);
-            ctrl.enqueue(sse({ done: true, result, meta: { model: 'grok-4', fetched_at: new Date().toISOString() } }));
+            const fetchedAt = new Date().toISOString();
+            ctrl.enqueue(sse({ done: true, result, meta: { model: 'grok-4', fetched_at: fetchedAt } }));
+            await cacheResult(result);
           } catch {
             ctrl.enqueue(sse({ error: 'Incomplete JSON from Grok' }));
           }
