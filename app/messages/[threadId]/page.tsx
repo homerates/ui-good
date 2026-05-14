@@ -756,6 +756,8 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           gap: 12px;
           max-width: 1180px;
           width: 100%;
+          margin-left: auto;
+          margin-right: auto;
           align-items: start;
           overflow: hidden;
         }
@@ -766,6 +768,8 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           min-height: 0; overflow: hidden;
           height: 100%;
           width: 100%; max-width: 780px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         /* Discover dock column */
