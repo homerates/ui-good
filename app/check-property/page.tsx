@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import AppNav from '@/components/AppNav';
-import { prefetchGrokProperty } from '@/lib/prefetchGrokProperty';
+import { prefetchGrokProperty } from '@/prefetchGrokProperty';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 

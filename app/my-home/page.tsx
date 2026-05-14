@@ -7,7 +7,7 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import MarketIntelCard from '../components/MarketIntelCard';
-import { prefetchGrokProperty } from '../lib/prefetchGrokProperty';
+import { prefetchGrokProperty } from '@/prefetchGrokProperty';
 
 interface HomeownerProperty {
   id: string;
