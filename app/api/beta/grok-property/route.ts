@@ -112,6 +112,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('[beta/grok-property]', err);
-    return NextResponse.json({ error: 'server error' }, { status: 500 });
+    return NextResponse.json({ error: 'server error', detail: String(err) }, { status: 500 });
   }
 }
