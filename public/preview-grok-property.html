@@ -92,8 +92,12 @@
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 16px; overflow: hidden;
     display: none;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
   }
   .result-card.visible { display: block; }
+  .result-card.revealed { opacity: 1; transform: translateY(0); }
 
   .result-header {
     display: flex; align-items: center; gap: 10px;
@@ -235,19 +239,58 @@
   }
   .raw-pre.visible { display: block; }
 
-  /* Loading */
+  /* Streaming loader */
   .loader {
-    display: none; text-align: center; padding: 48px 20px;
-    color: #3a4560; font-size: 0.85rem;
+    display: none; padding: 40px 24px;
   }
   .loader.visible { display: block; }
-  .loader-spinner {
-    display: inline-block; width: 28px; height: 28px;
+
+  .stream-stage {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 20px;
+  }
+  .stream-spinner {
+    width: 28px; height: 28px; flex-shrink: 0;
     border: 2px solid rgba(0,232,122,0.15);
     border-top-color: #00e87a;
     border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  .stream-spinner.fast { animation-duration: 0.45s; }
+  .stream-label {
+    font-size: 0.88rem; font-weight: 600; color: #4a6e58;
+  }
+  .stream-label strong { color: #00e87a; font-weight: 700; }
+
+  .stream-progress {
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px; height: 3px; overflow: hidden;
     margin-bottom: 12px;
   }
+  .stream-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00e87a, #34d399);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 10px;
+  }
+  .stream-progress-bar.indeterminate {
+    width: 30%;
+    animation: indeterminate 1.6s ease-in-out infinite;
+  }
+  @keyframes indeterminate {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+  }
+
+  .stream-token-strip {
+    display: none;
+    font-size: 0.72rem; color: #2a3a50;
+    font-family: 'Menlo', monospace;
+    height: 18px; overflow: hidden;
+    white-space: nowrap;
+  }
+  .stream-token-strip.visible { display: block; }
+
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* Error */
@@ -310,9 +353,16 @@
   <div class="error-box" id="errorBox"></div>
 
   <div class="result-card" id="resultCard">
+
     <div class="loader" id="loader">
-      <div class="loader-spinner"></div><br>
-      Grok is analyzing the property…
+      <div class="stream-stage">
+        <div class="stream-spinner" id="streamSpinner"></div>
+        <div class="stream-label" id="streamLabel">Connecting to Grok…</div>
+      </div>
+      <div class="stream-progress">
+        <div class="stream-progress-bar indeterminate" id="streamBar"></div>
+      </div>
+      <div class="stream-token-strip" id="tokenStrip"></div>
     </div>
 
     <div id="resultBody" style="display:none">
@@ -375,7 +425,6 @@
 
 <script>
 const fmt$ = n => n ? '$' + Math.round(n).toLocaleString() : '—';
-const fmtN = n => n != null ? n.toLocaleString() : '—';
 
 function fillAndRun(addr) {
   document.getElementById('addrInput').value = addr;
@@ -386,51 +435,145 @@ async function runQuery() {
   const addr = document.getElementById('addrInput').value.trim();
   if (!addr) return;
 
-  const btn       = document.getElementById('runBtn');
-  const card      = document.getElementById('resultCard');
-  const loader    = document.getElementById('loader');
-  const body      = document.getElementById('resultBody');
-  const errorBox  = document.getElementById('errorBox');
+  const btn        = document.getElementById('runBtn');
+  const card       = document.getElementById('resultCard');
+  const loader     = document.getElementById('loader');
+  const body       = document.getElementById('resultBody');
+  const errorBox   = document.getElementById('errorBox');
+  const spinner    = document.getElementById('streamSpinner');
+  const label      = document.getElementById('streamLabel');
+  const bar        = document.getElementById('streamBar');
+  const tokenStrip = document.getElementById('tokenStrip');
 
   btn.disabled = true;
   btn.textContent = 'Analyzing…';
   errorBox.classList.remove('visible');
+  body.style.display = 'none';
+  card.classList.remove('revealed');
   card.classList.add('visible');
   loader.classList.add('visible');
-  body.style.display = 'none';
+
+  // Reset stream UI
+  spinner.className = 'stream-spinner';
+  label.innerHTML = 'Connecting to Grok…';
+  bar.className = 'stream-progress-bar indeterminate';
+  bar.style.width = '';
+  tokenStrip.classList.remove('visible');
+  tokenStrip.textContent = '';
+
+  // Small delay so card is visible before requestAnimationFrame
+  requestAnimationFrame(() => card.classList.add('revealed'));
+
+  const headers = { 'Content-Type': 'application/json' };
+  const betaKey = document.getElementById('betaKeyInput')?.value?.trim();
+  if (betaKey) headers['x-beta-key'] = betaKey;
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    const betaKey = document.getElementById('betaKeyInput')?.value?.trim();
-    if (betaKey) headers['x-beta-key'] = betaKey;
-
-    const res  = await fetch('/api/beta/grok-property', {
+    const res = await fetch('/api/beta/grok-property', {
       method: 'POST',
       headers,
       body: JSON.stringify({ address: addr }),
     });
-    const data = await res.json();
 
-    if (!res.ok || !data.ok) {
-      throw new Error(data.error || 'Request failed');
+    // Non-streaming error (4xx/5xx from our route guards)
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP ${res.status}`);
     }
 
-    render(addr, data.result, data.meta);
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('text/event-stream')) {
+      // Fallback: plain JSON response
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Request failed');
+      finishLoading(loader, spinner, label, bar, tokenStrip);
+      render(addr, data.result, data.meta);
+      return;
+    }
+
+    // — SSE streaming path —
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let sseBuffer = '';
+    let tokenCount = 0;
+    let fullTokens = '';
+
+    const updateTokenStrip = (tok) => {
+      fullTokens += tok;
+      tokenStrip.textContent = fullTokens.slice(-80);
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      sseBuffer += decoder.decode(value, { stream: true });
+      const lines = sseBuffer.split('\n');
+      sseBuffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let event;
+        try { event = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (event.thinking) {
+          // Heartbeat — grok-4 is in reasoning phase
+          label.innerHTML = '<strong>Grok is reasoning…</strong> this may take a moment';
+          continue;
+        }
+
+        if (event.token) {
+          tokenCount++;
+          if (tokenCount === 1) {
+            // Tokens started — switch to streaming state
+            spinner.className = 'stream-spinner fast';
+            label.innerHTML = '<strong>Receiving data</strong> — building property report…';
+            bar.className = 'stream-progress-bar';
+            bar.style.width = '10%';
+            tokenStrip.classList.add('visible');
+          }
+          updateTokenStrip(event.token);
+          // Animate progress bar 10% → 90% as tokens arrive
+          const pct = Math.min(90, 10 + tokenCount * 0.4);
+          bar.style.width = pct + '%';
+          continue;
+        }
+
+        if (event.done) {
+          bar.style.width = '100%';
+          finishLoading(loader, spinner, label, bar, tokenStrip);
+          render(addr, event.result, event.meta);
+          return;
+        }
+
+        if (event.error) {
+          throw new Error(event.error);
+        }
+      }
+    }
+
+    throw new Error('Stream ended without a result');
+
   } catch (err) {
-    card.classList.remove('visible');
+    loader.classList.remove('visible');
+    card.classList.remove('visible', 'revealed');
     errorBox.textContent = '⚠ ' + err.message;
     errorBox.classList.add('visible');
   } finally {
-    loader.classList.remove('visible');
     btn.disabled = false;
     btn.textContent = 'Analyze →';
   }
 }
 
+function finishLoading(loader, spinner, label, bar, tokenStrip) {
+  loader.classList.remove('visible');
+  spinner.style.animation = 'none';
+  tokenStrip.classList.remove('visible');
+}
+
 function render(addr, r, meta) {
   document.getElementById('resAddress').textContent = addr;
 
-  // Status pill
   const statusEl  = document.getElementById('resStatus');
   const statusMap = {
     'for sale': ['For Sale', 'status-for-sale'],
@@ -442,13 +585,11 @@ function render(addr, r, meta) {
   statusEl.textContent = statusLabel;
   statusEl.className   = 'status-pill ' + statusClass;
 
-  // Metrics
   document.getElementById('mListPrice').textContent = fmt$(r.current_list_price);
   document.getElementById('mDom').textContent       = r.days_on_market != null ? r.days_on_market + 'd' : '—';
   document.getElementById('mPpSqft').textContent    = r.price_per_sqft ? '$' + r.price_per_sqft + '/sf' : '—';
   document.getElementById('mPiti').textContent      = fmt$(r.estimated_piti) + '/mo';
 
-  // Info grid
   const infoItems = [
     ['Last Sold', r.last_sold_date && r.last_sold_price ? `${r.last_sold_date} · ${fmt$(r.last_sold_price)}` : '—'],
     ['List Date', r.original_list_date || '—'],
@@ -461,30 +602,24 @@ function render(addr, r, meta) {
     `<div class="info-item"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`
   ).join('');
 
-  // Highlights
   const hl = Array.isArray(r.key_highlights) ? r.key_highlights : [];
   document.getElementById('highlightsList').innerHTML = hl.map(h =>
     `<div class="highlight-item"><div class="highlight-dot"></div><span>${h}</span></div>`
   ).join('');
 
-  // Summary
   document.getElementById('summaryText').textContent = r.grok_intelligence_summary || '—';
 
-  // Life fit score
   const score = r.life_fit_score ?? 0;
   document.getElementById('scoreBar').style.width = score + '%';
   document.getElementById('scoreNum').textContent  = score;
 
-  // Footer
   document.getElementById('freshness').textContent = r.data_freshness || '';
-  const conf    = (r.confidence || 'medium').toLowerCase();
-  const confEl  = document.getElementById('confPill');
+  const conf   = (r.confidence || 'medium').toLowerCase();
+  const confEl = document.getElementById('confPill');
   confEl.textContent = conf.charAt(0).toUpperCase() + conf.slice(1) + ' confidence';
   confEl.className   = 'confidence-pill conf-' + conf;
 
-  // Raw JSON
   document.getElementById('rawPre').textContent = JSON.stringify({ result: r, meta }, null, 2);
-
   document.getElementById('resultBody').style.display = 'block';
 }
 

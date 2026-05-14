@@ -1,5 +1,5 @@
 // app/api/beta/grok-property/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,28 +42,34 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
   "confidence": "high | medium | low"
 }`;
 
+function sse(payload: object): Uint8Array {
+  return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
 export async function POST(req: NextRequest) {
+  const { address } = await req.json().catch(() => ({}));
+
+  if (!address?.trim()) {
+    return new Response(JSON.stringify({ error: 'address is required' }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'XAI_API_KEY not configured' }), {
+      status: 503, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 85_000);
+
+  let upstream: Response;
   try {
-    const { address } = await req.json();
-
-    if (!address?.trim()) {
-      return NextResponse.json({ error: 'address is required' }, { status: 400 });
-    }
-
-    const apiKey = process.env.XAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'XAI_API_KEY not configured' }, { status: 503 });
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 85_000);
-
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+    upstream = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       signal: controller.signal,
       body: JSON.stringify({
         model: 'grok-4',
@@ -73,49 +79,117 @@ export async function POST(req: NextRequest) {
         ],
         temperature: 0.1,
         max_tokens: 800,
+        stream: true,
         response_format: { type: 'json_object' },
       }),
     });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('[beta/grok-property] Grok API error:', err);
-      return NextResponse.json({ error: 'Grok API failed', detail: err }, { status: 502 });
-    }
-
-    const data = await response.json();
-    let result = {};
-
-    try {
-      result = JSON.parse(data.choices?.[0]?.message?.content || '{}');
-    } catch (e) {
-      return NextResponse.json({ error: 'Invalid JSON from Grok' }, { status: 502 });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      address: address.trim(),
-      result,
-      meta: {
-        model: data.model,
-        fetched_at: new Date().toISOString(),
-      },
-    });
-
   } catch (err: any) {
-    console.error('[beta/grok-property]', err);
-
-    if (err.name === 'AbortError' || err.code === 23) {
-      return NextResponse.json({
-        error: 'Grok took too long to respond. Try again.',
-      }, { status: 504 });
-    }
-
-    return NextResponse.json({
-      error: 'Server error',
-      message: err.message,
-    }, { status: 500 });
+    clearTimeout(timeoutId);
+    return new Response(JSON.stringify({ error: 'Failed to reach Grok', detail: err.message }), {
+      status: 502, headers: { 'Content-Type': 'application/json' },
+    });
   }
+
+  if (!upstream.ok) {
+    clearTimeout(timeoutId);
+    const errText = await upstream.text().catch(() => '');
+    console.error('[beta/grok-property] upstream error:', errText);
+    return new Response(JSON.stringify({ error: 'Grok API error', detail: errText }), {
+      status: 502, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const decoder = new TextDecoder();
+
+  const stream = new ReadableStream({
+    async start(ctrl) {
+      const reader = upstream.body!.getReader();
+      let buffer = '';
+      let fullContent = '';
+      let tokensStarted = false;
+
+      // Heartbeat every 2s so client knows we're alive during grok-4 thinking phase
+      const heartbeat = setInterval(() => {
+        if (!tokensStarted) {
+          ctrl.enqueue(sse({ thinking: true }));
+        }
+      }, 2000);
+
+      const finish = () => {
+        clearTimeout(timeoutId);
+        clearInterval(heartbeat);
+      };
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data: ')) continue;
+
+            const payload = trimmed.slice(6);
+            if (payload === '[DONE]') {
+              finish();
+              try {
+                const result = JSON.parse(fullContent);
+                ctrl.enqueue(sse({ done: true, result, meta: { model: 'grok-4', fetched_at: new Date().toISOString() } }));
+              } catch {
+                ctrl.enqueue(sse({ error: 'Grok returned malformed JSON' }));
+              }
+              ctrl.close();
+              return;
+            }
+
+            try {
+              const chunk = JSON.parse(payload);
+              const token: string = chunk.choices?.[0]?.delta?.content ?? '';
+              if (token) {
+                if (!tokensStarted) {
+                  tokensStarted = true;
+                  clearInterval(heartbeat);
+                }
+                fullContent += token;
+                ctrl.enqueue(sse({ token }));
+              }
+            } catch {
+              // skip malformed SSE chunks
+            }
+          }
+        }
+        // Stream ended without [DONE] — try to parse what we have
+        finish();
+        if (fullContent) {
+          try {
+            const result = JSON.parse(fullContent);
+            ctrl.enqueue(sse({ done: true, result, meta: { model: 'grok-4', fetched_at: new Date().toISOString() } }));
+          } catch {
+            ctrl.enqueue(sse({ error: 'Incomplete JSON from Grok' }));
+          }
+        } else {
+          ctrl.enqueue(sse({ error: 'No data received from Grok' }));
+        }
+        ctrl.close();
+      } catch (err: any) {
+        finish();
+        const isTimeout = err.name === 'AbortError' || err.code === 23;
+        ctrl.enqueue(sse({ error: isTimeout ? 'Grok took too long — try again.' : (err.message ?? 'Stream error') }));
+        ctrl.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  });
 }
