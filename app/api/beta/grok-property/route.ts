@@ -74,14 +74,19 @@ export async function GET(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return new Response(JSON.stringify({ cached: false }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
-  const { data } = await sb
+  const normalized = normalizeAddress(address);
+  console.log('[grok-property GET] query normalized:', JSON.stringify(normalized));
+
+  const { data, error } = await sb
     .from('grok_property_cache')
     .select('grok_result, model, fetched_at')
-    .eq('address_normalized', normalizeAddress(address))
+    .eq('address_normalized', normalized)
     .gt('expires_at', new Date().toISOString())
     .single();
 
-  if (!data) return new Response(JSON.stringify({ cached: false }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  console.log('[grok-property GET] result:', data ? 'HIT' : 'MISS', error ? `error=${error.message}` : '');
+
+  if (!data) return new Response(JSON.stringify({ cached: false, debug_normalized: normalized }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
   return new Response(JSON.stringify({
     cached: true,

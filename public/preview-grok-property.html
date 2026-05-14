@@ -63,6 +63,9 @@
     </div>
   </div>
 
+  <!-- Cache status (diagnostic) -->
+  <div id="cacheStatus" class="hidden text-xs text-zinc-600 px-1"></div>
+
   <!-- Error -->
   <div id="errorBox" class="hidden bg-red-500/8 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-400"></div>
 
@@ -455,18 +458,24 @@ async function runQuery() {
   document.getElementById('rawPre').classList.add('hidden');
 
   // Check cache first
+  const csEl = document.getElementById('cacheStatus');
   try {
+    csEl.textContent = `Cache check → normalized: "${addr.trim().toLowerCase().replace(/\s+/g,' ')}"`;
+    csEl.classList.remove('hidden');
     const cached = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(addr)}`);
-    if (cached.ok) {
-      const cd = await cached.json();
-      if (cd.cached) {
-        document.getElementById('heroLoader').classList.add('hidden');
-        renderFinal(addr, cd.result, cd.meta);
-        finishUp(btn, addr, cd.result, cd.meta);
-        return;
-      }
+    const cd = await cached.json();
+    if (cd.cached) {
+      csEl.textContent = `⚡ Cache HIT — rendered instantly (fetched ${cd.meta?.fetched_at?.slice(0,19).replace('T',' ')} UTC)`;
+      csEl.classList.add('text-emerald-700');
+      document.getElementById('heroLoader').classList.add('hidden');
+      renderFinal(addr, cd.result, cd.meta);
+      finishUp(btn, addr, cd.result, cd.meta);
+      return;
     }
-  } catch {}
+    csEl.textContent = `Cache MISS${cd.debug_normalized ? ` — queried: "${cd.debug_normalized}"` : ''} — streaming from Grok`;
+  } catch (e: any) {
+    csEl.textContent = `Cache check failed: ${e?.message ?? e}`;
+  }
 
   // Stream from Grok
   const headers = { 'Content-Type': 'application/json' };
