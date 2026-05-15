@@ -297,9 +297,9 @@ function PropertyIntelInner() {
 
   if (!address) {
     return (
-      <div style={{ minHeight: '100vh', background: '#050812', color: '#f1f5f9', fontFamily: 'var(--font-dm-sans,system-ui)' }}>
+      <div style={{ minHeight: '100vh', background: '#050812', color: '#f1f5f9', fontFamily: 'var(--font-dm-sans,system-ui)', overflowY: 'auto' }}>
         <AppNav />
-        <div style={{ maxWidth: 560, margin: '100px auto', padding: '0 20px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 560, margin: '0 auto', padding: '140px 20px 60px', textAlign: 'center' }}>
           <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>🏠</div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 8 }}>Property Intelligence</h2>
           <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.6 }}>
@@ -325,11 +325,23 @@ function PropertyIntelInner() {
         .fi  { animation: fieldIn  0.38s ease forwards; }
         .tw::after { content:'▋'; animation: blink 0.7s step-end infinite; color:#4ade80; margin-left:1px; }
         .spin{ animation: spin 0.9s linear infinite; }
+        .pi-body-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+        @media (max-width:680px) {
+          .pi-body-grid { grid-template-columns:1fr !important; }
+          .pi-body-grid > div:first-child { border-right:none !important; border-bottom:1px solid rgba(255,255,255,0.06); }
+          .pi-hero-bottom { flex-direction:column !important; align-items:flex-start !important; }
+          .pi-hero-piti   { text-align:left !important; }
+          .pi-strip       { gap:14px !important; padding:12px 18px !important; }
+          .pi-cta-bar     { flex-direction:column !important; }
+          .pi-cta-bar > *,
+          .pi-cta-bar a   { flex:none !important; width:100% !important; max-width:none !important; }
+          .pi-cta-bar button { width:100% !important; justify-content:center !important; }
+        }
       `}</style>
 
-      <div style={{ minHeight: '100vh', background: '#050812', color: '#f1f5f9', fontFamily: 'var(--font-dm-sans,system-ui)' }}>
+      <div style={{ minHeight: '100vh', background: '#050812', color: '#f1f5f9', fontFamily: 'var(--font-dm-sans,system-ui)', overflowY: 'auto' }}>
         <AppNav />
-        <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 16px 80px' }}>
+        <div style={{ maxWidth: 920, margin: '0 auto', padding: '88px 16px 80px' }}>
 
           {/* ── Loading state ─────────────────────────────────────────────── */}
           {loading && (
@@ -400,7 +412,7 @@ function PropertyIntelInner() {
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(5,8,18,0.97) 0%, rgba(5,8,18,0.35) 55%, transparent 100%)', pointerEvents: 'none', zIndex: 2 }} />
                 {/* Hero content */}
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '24px 28px', zIndex: 5 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+                  <div className="pi-hero-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
                     <div>
                       {/* Status badge */}
                       {d.current_status
@@ -415,7 +427,7 @@ function PropertyIntelInner() {
                       <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.55)', marginTop: 6, maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{address}</div>
                     </div>
                     {/* PITI */}
-                    <div style={{ textAlign: 'right' }}>
+                    <div className="pi-hero-piti" style={{ textAlign: 'right' }}>
                       {d.estimated_piti != null
                         ? <div className="fi" style={{ fontSize: '1.9rem', fontWeight: 800, color: '#4ade80', lineHeight: 1 }}>{fmt$(d.estimated_piti)}/mo</div>
                         : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><Sk w={130} h={38} /></div>
@@ -432,7 +444,7 @@ function PropertyIntelInner() {
               </div>
 
               {/* ── Property strip ────────────────────────────────────────── */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 22, padding: '13px 28px', background: 'rgba(255,255,255,0.025)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="pi-strip" style={{ display: 'flex', flexWrap: 'wrap', gap: 22, padding: '13px 28px', background: 'rgba(255,255,255,0.025)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 {[
                   { val: d.bedrooms   != null ? `${d.bedrooms} bd`                                      : null, icon: 'fa-bed',            sk: 34 },
                   { val: d.bathrooms  != null ? `${d.bathrooms} ba`                                     : null, icon: 'fa-bath',           sk: 34 },
@@ -448,10 +460,10 @@ function PropertyIntelInner() {
               </div>
 
               {/* ── Two-column body ───────────────────────────────────────── */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+              <div className="pi-body-grid">
 
                 {/* Left — Intelligence + Highlights */}
-                <div style={{ padding: 24, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div style={{ padding: 24, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
 
                   {/* Grok Intelligence */}
                   <div style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 14, padding: 20 }}>
@@ -494,7 +506,7 @@ function PropertyIntelInner() {
                 </div>
 
                 {/* Right — Metrics + Comps + Confidence */}
-                <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
 
                   {/* 2×2 metrics */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -562,7 +574,7 @@ function PropertyIntelInner() {
               </div>
 
               {/* ── CTA bar ───────────────────────────────────────────────── */}
-              <div style={{ padding: '18px 28px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', background: 'rgba(255,255,255,0.012)' }}>
+              <div className="pi-cta-bar" style={{ padding: '18px 28px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', background: 'rgba(255,255,255,0.012)' }}>
 
                 {/* Share — always public */}
                 <button onClick={handleShare} style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'transparent', color: copied ? '#4ade80' : '#94a3b8', border: `1px solid ${copied ? 'rgba(74,222,128,0.35)' : 'rgba(148,163,184,0.22)'}`, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s' }}>
