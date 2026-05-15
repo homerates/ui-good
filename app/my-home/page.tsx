@@ -317,14 +317,14 @@ function CardPropertyIntel({ d }: { d: AnalysisData }) {
             {d.mortgageOriginationDate && <div className="mh-stat"><div className="mh-stat-label">Originated</div><div className="mh-stat-value" style={{ fontSize: '0.82rem' }}>{new Date(d.mortgageOriginationDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div></div>}
           </div>
           {d.mortgageSource === 'attom' && (
-            <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#334155' }}>Source: ATTOM public records</div>
+            <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#334155' }}>Source: Public records</div>
           )}
         </div>
       )}
       {(d.avmDate || d.attomCheckedAt) && (
         <div style={{ marginTop: hasMortgage ? 10 : 14, fontSize: '0.6rem', color: '#334155' }}>
           Data as of {new Date(d.avmDate ?? d.attomCheckedAt!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          {d.avmSource && <span style={{ marginLeft: 6, color: '#1e293b' }}>· {d.avmSource === 'attom' ? 'ATTOM AVM' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
+          {d.avmSource && <span style={{ marginLeft: 6, color: '#1e293b' }}>· {d.avmSource === 'attom' ? 'AVM estimate' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
         </div>
       )}
     </div>
@@ -339,11 +339,11 @@ function CardComps({ d }: { d: AnalysisData }) {
     <div className="mh-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div className="mh-card-label" style={{ marginBottom: 0 }}>Comparable Sales</div>
-        <div style={{ fontSize: '0.62rem', color: '#334155' }}>0.5 mi · last 2 yrs · ATTOM</div>
+        <div style={{ fontSize: '0.62rem', color: '#334155' }}>0.5 mi · last 2 yrs</div>
       </div>
       {subjectPsf && (
         <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 8, fontSize: '0.72rem', color: '#94a3b8' }}>
-          Your home: <span style={{ color: '#00e87a', fontWeight: 700 }}>${subjectPsf}/sqft</span> ({d.avmSource === 'attom' ? 'ATTOM AVM' : 'est. value'} ÷ sqft)
+          Your home: <span style={{ color: '#00e87a', fontWeight: 700 }}>${subjectPsf}/sqft</span> (est. value ÷ sqft)
         </div>
       )}
       <div style={{ overflowX: 'auto' }}>
@@ -374,10 +374,10 @@ function CardComps({ d }: { d: AnalysisData }) {
           href={(() => {
             const avgPsf = comps.filter(c => c.pricePerSqft).reduce((s, c) => s + (c.pricePerSqft ?? 0), 0) / comps.filter(c => c.pricePerSqft).length;
             const avgPrice = comps.filter(c => c.salePrice).reduce((s, c) => s + c.salePrice, 0) / comps.filter(c => c.salePrice).length;
-            const parts = [`CMA for ${d.address}: ATTOM shows ${comps.length} nearby comps within 0.5 mi sold in the last 2 years.`];
+            const parts = [`CMA for ${d.address}: ${comps.length} nearby comps within 0.5 mi sold in the last 2 years.`];
             if (avgPsf) parts.push(`Average comp $/sqft: $${Math.round(avgPsf)}.`);
             if (avgPrice) parts.push(`Average comp sale price: $${Math.round(avgPrice / 1000)}K.`);
-            if (d.estimatedValue) parts.push(`ATTOM AVM for subject: $${Math.round(d.estimatedValue / 1000)}K.`);
+            if (d.estimatedValue) parts.push(`Estimated value for subject: $${Math.round(d.estimatedValue / 1000)}K.`);
             parts.push('Run a full CMA analysis with AI. Are comps supporting the AVM value? What price range is defensible?');
             return `/chat?sq=${encodeURIComponent(parts.join(' '))}&from=%2Fmy-home&fromLabel=My+Properties`;
           })()}
@@ -1486,14 +1486,14 @@ function MyHomePageInner() {
         return;
       }
 
-      // Authenticated homeowner — use homeowner/analysis for ATTOM-powered intelligence
-      if (!previewAddress && activeProperty) {
+      // Authenticated homeowner — saved property always wins over any previewAddress URL param
+      if (activeProperty) {
         const qp = activeProperty.id ? `?property_id=${encodeURIComponent(activeProperty.id)}&_t=${Date.now()}` : `?_t=${Date.now()}`;
         const res = await fetch(`/api/homeowner/analysis${qp}`, { cache: 'no-store' });
         const data = await res.json();
         if (!res.ok) { setAnalysisErr(data.error ?? 'Could not load analysis'); return; }
 
-        // FOR SALE / PENDING: ATTOM has no reliable listing data — always use Redfin
+        // FOR SALE / PENDING: listing data — always use Redfin
         if (data.listingStatus === 'FOR_SALE' || data.listingStatus === 'PENDING') {
           const addr = activeProperty.property_address;
           const [lookupRes, tickerRes] = await Promise.all([
@@ -1941,6 +1941,8 @@ function MyHomePageInner() {
                       <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : previewAddress ? 'Home Analysis' : 'My Properties'}</h1>
                       <p style={{ marginTop: 4 }}>{borrowerId
                         ? `Viewing property intelligence for ${analysis?.address ?? '…'}`
+                        : activeProperty
+                          ? `${user?.firstName ? `Hi ${user.firstName}.` : ''} Your property intelligence is below.`
                         : previewAddress
                           ? `Property intelligence for ${analysis?.address || previewAddress}`
                         : hasAddress
