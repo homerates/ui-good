@@ -687,18 +687,33 @@ async function findRedfinUrl(address: string): Promise<string | null> {
     // Also try short form: "Street, City, ST" without zip
     const short = clean.replace(/,\s*\d{5}(-\d{4})?/, '').trim();
 
+    // Extract the street number from the input address so we can verify
+    // that any Redfin URL slug actually belongs to this property.
+    // Redfin slugs embed the street number: /CA/City/351-S-Greenway-Ave-91320/home/...
+    // Without this check, a nearby property (e.g. "2 Dolin Ln") can be returned
+    // when city names differ between Google and Redfin.
+    const expectedStreetNum = clean.trim().match(/^(\d+)/)?.[1] ?? null;
+
+    const slugMatchesAddress = (url: string): boolean => {
+        if (!expectedStreetNum) return true; // can't verify, allow
+        // Extract the street number from the Redfin URL slug
+        const m = url.match(/redfin\.com\/[A-Z]{2}\/[^/]+\/(\d+)[-/]/i);
+        if (!m) return true; // no slug pattern, allow (will fail at extraction stage if wrong)
+        return m[1] === expectedStreetNum;
+    };
+
     const extractRedfinUrl = (results: any[]): string | null => {
-        // First pass: ideal /home/XXXXXXX listing URL
+        // First pass: ideal /home/XXXXXXX listing URL — verify street number
         for (const r of results) {
             const url: string = r.url ?? '';
-            if (/redfin\.com\/.*\/home\/\d+/i.test(url)) return url;
+            if (/redfin\.com\/.*\/home\/\d+/i.test(url) && slugMatchesAddress(url)) return url;
         }
         // Second pass: any Redfin listing-like path, excluding known non-listing pages
         for (const r of results) {
             const url: string = r.url ?? '';
             if (!/redfin\.com/i.test(url)) continue;
             if (/\/(city|school|news|research|mortgage|blog|about|help|sitemap)\//i.test(url)) continue;
-            if (/redfin\.com\/[A-Z]{2}\/[^/]+\/[^/]+-\d+\//.test(url)) return url; // state/city/street-number pattern
+            if (/redfin\.com\/[A-Z]{2}\/[^/]+\/[^/]+-\d+\//.test(url) && slugMatchesAddress(url)) return url;
         }
         return null;
     };
