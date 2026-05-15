@@ -2334,10 +2334,10 @@ function MyHomePageInner() {
                             );
                           })()}
                         </div>
-                        {/* Intelligence Report link — always visible */}
-                        {heroAddr && (
+                        {/* Intelligence Report link — use stored property_address to guarantee cache key match */}
+                        {(activeProperty?.property_address || heroAddr) && (
                           <div style={{ padding: '0 18px 14px' }}>
-                            <Link href={`/property-intel?address=${encodeURIComponent(heroAddr)}`} target="_blank" rel="noopener noreferrer"
+                            <Link href={`/property-intel?address=${encodeURIComponent(activeProperty?.property_address || heroAddr)}`} target="_blank" rel="noopener noreferrer"
                               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', borderRadius: 8, border: '1px solid rgba(74,222,128,0.2)', color: '#4ade80', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', background: 'rgba(74,222,128,0.05)' }}>
                               View Full Intelligence Report →
                             </Link>

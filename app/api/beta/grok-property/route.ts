@@ -187,19 +187,35 @@ export async function GET(req: NextRequest) {
   const normalized       = normalizeAddress(address);
   const normalizedStrict = normalizeAddressStrict(address);
   const candidates       = [...new Set([normalized, normalizedStrict])];
-  console.log('[grok-property GET] candidates:', JSON.stringify(candidates));
 
-  const { data, error } = await sb
+  // Try exact normalized match first (no TTL filter — report page shows any cached data)
+  let { data, error } = await sb
     .from('grok_property_cache')
     .select('grok_result, model, fetched_at')
     .in('address_normalized', candidates)
-    .gt('expires_at', new Date().toISOString())
+    .order('fetched_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
+  // Fuzzy fallback — match on first meaningful address token (street number + street name)
+  if (!data) {
+    const tokens = normalizedStrict.split(' ').filter(Boolean);
+    const fuzzyPrefix = tokens.slice(0, 3).join(' '); // e.g. "1131 mataro ct"
+    if (fuzzyPrefix.length >= 6) {
+      const { data: fuzzyData } = await sb
+        .from('grok_property_cache')
+        .select('grok_result, model, fetched_at')
+        .ilike('address_normalized', `%${fuzzyPrefix}%`)
+        .order('fetched_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (fuzzyData) data = fuzzyData;
+    }
+  }
+
   console.log('[grok-property GET] result:', data ? 'HIT' : 'MISS', error ? `error=${error.message}` : '');
 
-  if (!data) return new Response(JSON.stringify({ cached: false, debug_normalized: candidates }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  if (!data) return new Response(JSON.stringify({ cached: false }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
   const mapsKey    = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
   const encodedAddr = encodeURIComponent(address);
