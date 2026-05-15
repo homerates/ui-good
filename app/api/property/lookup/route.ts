@@ -735,9 +735,33 @@ async function findRedfinUrl(address: string): Promise<string | null> {
             });
             if (res2.ok) {
                 const data2 = await res2.json();
-                return extractRedfinUrl(data2.results ?? []);
+                const url2 = extractRedfinUrl(data2.results ?? []);
+                if (url2) return url2;
             }
         }
+
+        // Third retry: street + state + ZIP only — bypasses city/neighborhood alias
+        // mismatches (e.g. Google "Thousand Oaks" vs Redfin "Newbury Park" for 91320,
+        // or "Canyon Country" vs "Santa Clarita", etc.)
+        const streetZipM = clean.match(/^([^,]+),\s*[^,]+,\s*([A-Z]{2})\s+(\d{5})/i);
+        if (streetZipM) {
+            const streetZip = `${streetZipM[1].trim()} ${streetZipM[2].toUpperCase()} ${streetZipM[3]}`;
+            const res3 = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(6_000),
+                body: JSON.stringify({
+                    api_key: key,
+                    query: `${streetZip} site:redfin.com`,
+                    max_results: 5, search_depth: 'basic', include_answer: false,
+                }),
+            });
+            if (res3.ok) {
+                const data3 = await res3.json();
+                return extractRedfinUrl(data3.results ?? []);
+            }
+        }
+
         return null;
     } catch {
         return null;
