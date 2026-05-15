@@ -92,7 +92,7 @@ function PropertyIntelInner() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  const d = finalResult ?? {}; // display source
+  const d: Partial<PropResult> = finalResult ?? {};
 
   const photoUrl = mapUrls
     ? (mapView === 'street' ? mapUrls.street_view_url : mapUrls.static_map_url)
