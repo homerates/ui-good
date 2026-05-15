@@ -297,7 +297,7 @@ function PropertyIntelInner() {
 
   if (!address) {
     return (
-      <div className="pi-root">
+      <div className="page-standalone pi-root">
         <AppNav />
         <div style={{ maxWidth: 560, margin: '0 auto', padding: '80px 20px 60px', textAlign: 'center' }}>
           <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>🏠</div>
@@ -317,9 +317,7 @@ function PropertyIntelInner() {
   return (
     <>
       <style>{`
-        html:has(.pi-root){height:auto!important;overflow:visible!important}
-        body:has(.pi-root){display:block!important;height:auto!important;overflow:visible!important;background:#050812!important}
-        .pi-root{min-height:100vh;background:#050812;color:#f1f5f9;font-family:var(--font-dm-sans,system-ui)}
+        .pi-root{background:#050812;color:#f1f5f9;font-family:var(--font-dm-sans,system-ui)}
         @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         @keyframes fieldIn  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         @keyframes blink    { 50%{opacity:0} }
@@ -342,7 +340,7 @@ function PropertyIntelInner() {
         }
       `}</style>
 
-      <div className="pi-root">
+      <div className="page-standalone pi-root">
         <AppNav />
         <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 16px 80px' }}>
 

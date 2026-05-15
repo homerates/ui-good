@@ -180,6 +180,17 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                     </div>
                 )}
 
+                {/* ── Intelligence Report CTA ── */}
+                {data.address && (
+                    <div style={{ padding: '10px 18px' }}>
+                        <a href={`/property-intel?address=${encodeURIComponent([data.address, data.city, data.state, data.zip].filter(Boolean).join(', '))}`}
+                            target="_blank" rel="noopener noreferrer"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#00e87a', background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.18)', textDecoration: 'none' }}>
+                            View Intelligence Report →
+                        </a>
+                    </div>
+                )}
+
                 {/* ── Footer ── */}
                 <div style={{ padding: '7px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 10, color: '#3a4560', display: 'flex', justifyContent: 'space-between' }}>
                     <span>HomeRates.ai · Rentcast AVM · Educational only</span>
@@ -297,6 +308,16 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
 
                 {data.parseWarnings.length > 0 && (
                     <div className="property-warnings">{data.parseWarnings.join(' · ')}</div>
+                )}
+
+                {data.address && (
+                    <div style={{ marginTop: 10 }}>
+                        <a href={`/property-intel?address=${encodeURIComponent([data.address, data.city, data.state, data.zip].filter(Boolean).join(', '))}`}
+                            target="_blank" rel="noopener noreferrer"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#00e87a', background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.18)', textDecoration: 'none' }}>
+                            View Intelligence Report →
+                        </a>
+                    </div>
                 )}
             </div>
         </div>

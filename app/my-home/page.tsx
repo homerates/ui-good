@@ -327,6 +327,14 @@ function CardPropertyIntel({ d }: { d: AnalysisData }) {
           {d.avmSource && <span style={{ marginLeft: 6, color: '#1e293b' }}>· {d.avmSource === 'attom' ? 'AVM estimate' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
         </div>
       )}
+      {d.address && (
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <Link href={`/property-intel?address=${encodeURIComponent(d.address)}`} target="_blank" rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, color: '#4ade80', background: 'rgba(74,222,128,0.07)', border: '1px solid rgba(74,222,128,0.18)', textDecoration: 'none', transition: 'all 0.15s' }}>
+            View Intelligence Report →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

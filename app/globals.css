@@ -1498,6 +1498,14 @@ body:has(.page-shell) {
   width: 100%;
 }
 
+/* ── Standalone pages (my-home pattern) ────────────────────────────────────
+   body.app is display:flex + overflow:hidden for the chat layout.
+   Any page that isn't the chat app uses .page-standalone on its root div.
+   The :has() selector resets body so normal document scroll works. */
+html:has(.page-standalone) { height: auto !important; overflow: visible !important; }
+body:has(.page-standalone) { display: block !important; height: auto !important; overflow: visible !important; }
+.page-standalone { min-height: 100vh; }
+
 .main {
   display: flex;
   flex-direction: column;
