@@ -167,6 +167,20 @@ function PropertyIntelInner() {
   const statusKey = (d.current_status ?? '').toLowerCase();
   const statusCfg = STATUS_CFG[statusKey] ?? { bg: 'rgba(148,163,184,0.1)', color: '#94a3b8', label: (d.current_status ?? '').toUpperCase() };
   const confCfg   = CONF_CFG[(d.confidence ?? '').toLowerCase()] ?? CONF_CFG.medium;
+  const isBuyer   = statusKey === 'for sale' || statusKey === 'pending';
+  const chatUrl   = (() => {
+    const price = d.current_list_price;
+    const rate  = d.rate_used ?? 6.875;
+    let sq: string;
+    if (isBuyer && price) {
+      sq = `I'm looking at buying ${address} listed at $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%. Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.`;
+    } else if (price) {
+      sq = `I own ${address}. Estimated value $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%. Run homeowner analysis — show refi savings, break-even, and equity options.`;
+    } else {
+      sq = `Run mortgage analysis for ${address}. Current 30-year rate is ${rate.toFixed(2)}%.`;
+    }
+    return `/chat?${new URLSearchParams({ sq, from: '/property-intel', fromLabel: 'Property Intelligence' }).toString()}`;
+  })();
 
   if (!address) {
     return (
@@ -468,7 +482,7 @@ function PropertyIntelInner() {
 
                 {/* Run My Numbers — primary CTA */}
                 <SignedIn>
-                  <Link href={`/my-home?address=${encodeURIComponent(address)}`} style={{ flex: 1, maxWidth: 280, textDecoration: 'none' }}>
+                  <Link href={chatUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, maxWidth: 280, textDecoration: 'none' }}>
                     <button style={{ width: '100%', padding: '12px 24px', fontSize: '0.88rem', fontWeight: 700, background: '#4ade80', color: '#050812', border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' }}>
                       <i className="fa-solid fa-calculator" style={{ fontSize: '0.8rem' }} />
                       Run My Numbers →
