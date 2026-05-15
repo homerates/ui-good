@@ -123,6 +123,11 @@ function normalizeAddress(addr: string): string {
   return addr.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+// Strips all punctuation — used for cache fallback and new writes
+function normalizeAddressStrict(addr: string): string {
+  return addr.trim().toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function cacheTtlMs(status: string): number {
   const s = (status ?? '').toLowerCase();
   if (s === 'sold' || s === 'off market' || s === 'withdrawn') return 7 * 24 * 60 * 60 * 1000;
@@ -179,19 +184,22 @@ export async function GET(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return new Response(JSON.stringify({ cached: false }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
-  const normalized = normalizeAddress(address);
-  console.log('[grok-property GET] query normalized:', JSON.stringify(normalized));
+  const normalized       = normalizeAddress(address);
+  const normalizedStrict = normalizeAddressStrict(address);
+  const candidates       = [...new Set([normalized, normalizedStrict])];
+  console.log('[grok-property GET] candidates:', JSON.stringify(candidates));
 
   const { data, error } = await sb
     .from('grok_property_cache')
     .select('grok_result, model, fetched_at')
-    .eq('address_normalized', normalized)
+    .in('address_normalized', candidates)
     .gt('expires_at', new Date().toISOString())
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   console.log('[grok-property GET] result:', data ? 'HIT' : 'MISS', error ? `error=${error.message}` : '');
 
-  if (!data) return new Response(JSON.stringify({ cached: false, debug_normalized: normalized }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  if (!data) return new Response(JSON.stringify({ cached: false, debug_normalized: candidates }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
   const mapsKey    = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
   const encodedAddr = encodeURIComponent(address);
@@ -287,9 +295,9 @@ export async function POST(req: NextRequest) {
           static_map_url: mapsKey
             ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodedAddr}&zoom=15&size=820x260&scale=2&maptype=satellite&markers=color:green%7C${encodedAddr}&key=${mapsKey}`
             : null,
-          // Send live rate + piti immediately so UI can show it before Grok finishes
+          // Send live rate + piti immediately — only if price was known
           rate_used:      liveRate,
-          estimated_piti: pitiCalc,
+          ...(pitiCalc > 0 ? { estimated_piti: pitiCalc } : {}),
         },
       }));
 
@@ -310,7 +318,7 @@ export async function POST(req: NextRequest) {
         const now = new Date();
         const ttl = cacheTtlMs((result.current_status as string) ?? '');
         const { error } = await sb.from('grok_property_cache').upsert({
-          address_normalized: normalizeAddress(address),
+          address_normalized: normalizeAddressStrict(address),
           address_raw:        address.trim(),
           grok_result:        result,
           model:              'grok-4',

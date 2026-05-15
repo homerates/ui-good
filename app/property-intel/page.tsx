@@ -184,9 +184,10 @@ function PropertyIntelInner() {
         return;
       }
 
-      // 2 — stream
-      setStage('Connecting to Grok-4…'); setLoadPct(12);
-      setLoading(false); // show card shell with skeletons while streaming
+      // Cache miss — report hasn't been generated yet
+      setError('No cached report found for this address. Open the property from My Properties to generate one.');
+      setLoading(false);
+      return;
 
       const res = await fetch('/api/beta/grok-property', {
         method: 'POST',
