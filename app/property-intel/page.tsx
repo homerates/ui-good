@@ -173,11 +173,11 @@ function PropertyIntelInner() {
     const rate  = d.rate_used ?? 6.875;
     let sq: string;
     if (isBuyer && price) {
-      sq = `I'm looking at buying ${address} listed at $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%. Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.`;
+      sq = `I'm looking at buying ${address} listed at $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%.`;
     } else if (price) {
-      sq = `I own ${address}. Estimated value $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%. Run homeowner analysis — show refi savings, break-even, and equity options.`;
+      sq = `I own ${address}. Estimated value $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%.`;
     } else {
-      sq = `Run mortgage analysis for ${address}. Current 30-year rate is ${rate.toFixed(2)}%.`;
+      sq = `Mortgage analysis for ${address}. Current 30-year rate is ${rate.toFixed(2)}%.`;
     }
     return `/chat?${new URLSearchParams({ sq, from: '/property-intel', fromLabel: 'Property Intelligence' }).toString()}`;
   })();
