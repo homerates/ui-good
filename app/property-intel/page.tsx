@@ -297,17 +297,17 @@ function PropertyIntelInner() {
 
   if (!address) {
     return (
-      <div style={{ minHeight: '100vh', background: '#050812', color: '#f1f5f9', fontFamily: 'var(--font-dm-sans,system-ui)', overflowY: 'auto' }}>
+      <div className="pi-root">
         <AppNav />
-        <div style={{ maxWidth: 560, margin: '0 auto', padding: '140px 20px 60px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 560, margin: '0 auto', padding: '80px 20px 60px', textAlign: 'center' }}>
           <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>🏠</div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 8 }}>Property Intelligence</h2>
           <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.6 }}>
-            Look up a property from{' '}
-            <Link href="/check-property" style={{ color: '#4ade80' }}>Property Lookup</Link>
-            {' '}or{' '}
+            Search for a property using{' '}
+            <Link href="/" style={{ color: '#4ade80' }}>Property Lookup</Link>
+            {' '}from the home page, or open it from{' '}
             <Link href="/my-home" style={{ color: '#4ade80' }}>My Properties</Link>
-            {' '}to generate your report.
+            .
           </p>
         </div>
       </div>
@@ -317,6 +317,9 @@ function PropertyIntelInner() {
   return (
     <>
       <style>{`
+        html:has(.pi-root){height:auto!important;overflow:visible!important}
+        body:has(.pi-root){display:block!important;height:auto!important;overflow:visible!important;background:#050812!important}
+        .pi-root{min-height:100vh;background:#050812;color:#f1f5f9;font-family:var(--font-dm-sans,system-ui)}
         @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         @keyframes fieldIn  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         @keyframes blink    { 50%{opacity:0} }
@@ -339,9 +342,9 @@ function PropertyIntelInner() {
         }
       `}</style>
 
-      <div style={{ minHeight: '100vh', background: '#050812', color: '#f1f5f9', fontFamily: 'var(--font-dm-sans,system-ui)', overflowY: 'auto' }}>
+      <div className="pi-root">
         <AppNav />
-        <div style={{ maxWidth: 920, margin: '0 auto', padding: '88px 16px 80px' }}>
+        <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 16px 80px' }}>
 
           {/* ── Loading state ─────────────────────────────────────────────── */}
           {loading && (
